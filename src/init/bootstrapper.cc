@@ -5254,7 +5254,7 @@ void Genesis::InitializeIteratorFunctions() {
 
   {  // -- S e t I t e r a t o r
     // Setup %SetIteratorPrototype%.
-    Handle<JSObject> prototype =
+    DirectHandle<JSObject> prototype =
         factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(isolate, prototype, iterator_prototype);
 

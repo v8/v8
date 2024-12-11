@@ -4342,7 +4342,8 @@ TEST(ObjectRetainedInHandle) {
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
   // Allocate an array and keep a handle to it.
-  i::Handle<i::FixedArray> handle = i_isolate->factory()->NewFixedArray(1024);
+  i::DirectHandle<i::FixedArray> handle =
+      i_isolate->factory()->NewFixedArray(1024);
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));

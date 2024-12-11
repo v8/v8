@@ -40,7 +40,7 @@ WasmEnabledFeatures WasmEnabledFeatures::FromIsolate(Isolate* isolate) {
 
 // static
 WasmEnabledFeatures WasmEnabledFeatures::FromContext(
-    Isolate* isolate, Handle<NativeContext> context) {
+    Isolate* isolate, DirectHandle<NativeContext> context) {
   WasmEnabledFeatures features = WasmEnabledFeatures::FromFlags();
   if (!v8_flags.wasm_jitless) {
     if (isolate->IsWasmStringRefEnabled(context)) {

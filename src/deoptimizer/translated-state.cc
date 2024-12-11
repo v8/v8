@@ -2729,7 +2729,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
 void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   MaterializedObjectStore* materialized_store =
       isolate_->materialized_object_store();
-  Handle<FixedArray> previously_materialized_objects =
+  DirectHandle<FixedArray> previously_materialized_objects =
       materialized_store->Get(stack_frame_pointer_);
 
   Handle<Object> marker = isolate_->factory()->arguments_marker();
@@ -2793,7 +2793,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
   MaterializedObjectStore* materialized_store =
       isolate_->materialized_object_store();
-  Handle<FixedArray> previously_materialized_objects =
+  DirectHandle<FixedArray> previously_materialized_objects =
       materialized_store->Get(stack_frame_pointer_);
 
   // If we have no previously materialized objects, there is nothing to do.

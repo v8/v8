@@ -292,11 +292,6 @@ class Utils {
 };
 
 template <class T>
-inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
-  return reinterpret_cast<T*>(obj.location());
-}
-
-template <class T>
 inline v8::Local<T> ToApiHandle(
     v8::internal::DirectHandle<v8::internal::Object> obj) {
   return Utils::Convert<v8::internal::Object, T>(obj);

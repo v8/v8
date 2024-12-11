@@ -3374,11 +3374,11 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 template <typename IsolateT>
 void Parser::HandleSourceURLComments(IsolateT* isolate,
                                      DirectHandle<Script> script) {
-  Handle<String> source_url = scanner_.SourceUrl(isolate);
+  DirectHandle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
   }
-  Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
+  DirectHandle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
   // The API can provide a source map URL and the API should take precedence.
   // Let's make sure we do not override the API with the magic comment.
   if (!source_mapping_url.is_null() &&

@@ -372,8 +372,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
     v8::Local<v8::Object> o2 = v8::Object::New(isolate);
     g2.Reset(isolate, o2);
     g2.SetWeak();
-    DirectHandle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
-    DirectHandle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
+    DirectHandle<Object> i_o1 = v8::Utils::OpenDirectHandle(*o1);
+    DirectHandle<Object> i_o2 = v8::Utils::OpenDirectHandle(*o2);
     int32_t hash1 = Object::GetOrCreateHash(*i_o1, i_isolate()).value();
     int32_t hash2 = Object::GetOrCreateHash(*i_o2, i_isolate()).value();
     JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);

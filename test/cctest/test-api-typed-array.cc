@@ -29,7 +29,7 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
                                        int element_count,
                                        i::ExternalArrayType array_type,
                                        int64_t low, int64_t high) {
-  i::DirectHandle<i::JSTypedArray> jsobj = v8::Utils::OpenHandle(*obj);
+  i::DirectHandle<i::JSTypedArray> jsobj = v8::Utils::OpenDirectHandle(*obj);
   v8::Isolate* v8_isolate = context->GetIsolate();
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   obj->Set(context, v8_str("field"), v8::Int32::New(v8_isolate, 1503))

@@ -1897,7 +1897,7 @@ Handle<Script> WasmEngine::GetOrCreateScript(
     auto& scripts = isolates_[isolate]->scripts;
     auto it = scripts.find(native_module.get());
     if (it != scripts.end()) {
-      Handle<Script> weak_global_handle = it->second.handle();
+      DirectHandle<Script> weak_global_handle = it->second.handle();
       if (weak_global_handle.is_null()) {
         scripts.erase(it);
       } else {

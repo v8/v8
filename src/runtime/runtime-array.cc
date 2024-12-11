@@ -51,9 +51,9 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   DirectHandle<JSReceiver> new_target = args.at<JSReceiver>(argc + 1);
   Handle<HeapObject> type_info = args.at<HeapObject>(argc + 2);
   // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
-  Handle<AllocationSite> site = IsAllocationSite(*type_info)
-                                    ? Cast<AllocationSite>(type_info)
-                                    : Handle<AllocationSite>::null();
+  DirectHandle<AllocationSite> site = IsAllocationSite(*type_info)
+                                          ? Cast<AllocationSite>(type_info)
+                                          : Handle<AllocationSite>::null();
 
   Factory* factory = isolate->factory();
 

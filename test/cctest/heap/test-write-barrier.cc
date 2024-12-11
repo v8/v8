@@ -24,7 +24,7 @@ HEAP_TEST(WriteBarrier_Marking) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope outer(isolate);
-  Handle<FixedArray> objects = factory->NewFixedArray(3);
+  DirectHandle<FixedArray> objects = factory->NewFixedArray(3);
   v8::Global<Value> global_objects(CcTest::isolate(), Utils::ToLocal(objects));
   {
     // Make sure that these objects are not immediately reachable from

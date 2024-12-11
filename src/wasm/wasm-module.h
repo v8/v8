@@ -1031,8 +1031,8 @@ struct WasmFunctionName {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const WasmFunctionName& name);
 
-V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
-                                            Handle<NativeContext> context);
+V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(
+    Isolate* isolate, DirectHandle<NativeContext> context);
 V8_EXPORT_PRIVATE DirectHandle<String> ErrorStringForCodegen(
     Isolate* isolate, DirectHandle<Context> context);
 

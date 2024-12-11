@@ -284,7 +284,8 @@ namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
-void ContextSerializer::SerializeApiWrapperFields(Handle<JSObject> js_object) {
+void ContextSerializer::SerializeApiWrapperFields(
+    DirectHandle<JSObject> js_object) {
   DCHECK(IsJSApiWrapperObject(*js_object));
   auto* cpp_heap_pointer =
       JSApiWrapper(*js_object)

@@ -125,11 +125,6 @@ class V8_EXPORT_PRIVATE SourceIdAssigner {
   std::vector<int> source_ids_;
 };
 
-void JsonPrintFunctionSource(std::ostream& os, int source_id,
-                             std::unique_ptr<char[]> function_name,
-                             Handle<Script> script, Isolate* isolate,
-                             Handle<SharedFunctionInfo> shared, bool with_key);
-
 void JsonPrintAllBytecodeSources(std::ostream& os,
                                  OptimizedCompilationInfo* info);
 
@@ -151,9 +146,10 @@ void JsonPrintAllSourceWithPositionsWasm(
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
-                             Handle<Script> script, Isolate* isolate,
-                             Handle<SharedFunctionInfo> shared,
+                             DirectHandle<Script> script, Isolate* isolate,
+                             DirectHandle<SharedFunctionInfo> shared,
                              bool with_key = false);
+
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,

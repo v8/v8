@@ -209,7 +209,7 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
     properties = PropertyDictionary::Add(
         isolate, Cast<PropertyDictionary>(properties),
         Cast<String>(handle(property_names->get(i), isolate)),
-        Utils::OpenHandle(*property_value), PropertyDetails::Empty());
+        Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty());
   }
   object->set_raw_properties_or_hash(*properties);
   return object;

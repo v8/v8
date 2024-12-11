@@ -43,7 +43,7 @@ class JSV8BreakIterator
 
   static void AdoptText(Isolate* isolate,
                         DirectHandle<JSV8BreakIterator> break_iterator,
-                        Handle<String> text);
+                        DirectHandle<String> text);
 
   static Handle<Object> Current(Isolate* isolate,
                                 DirectHandle<JSV8BreakIterator> break_iterator);

@@ -946,7 +946,7 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
                              condition, throw_on_side_effect);
   }
 
-  Handle<Object> maybe_exception;
+  DirectHandle<Object> maybe_exception;
   bool exception_thrown = true;
   if (maybe_result.ToHandle(&result)) {
     exception_thrown = false;
@@ -2294,7 +2294,7 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   return true;
 }
 
-void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
+void Debug::CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
   DirectHandle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
@@ -2330,7 +2330,7 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
 }
 
 void Debug::InstallCoverageInfo(DirectHandle<SharedFunctionInfo> shared,
-                                Handle<CoverageInfo> coverage_info) {
+                                DirectHandle<CoverageInfo> coverage_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(!coverage_info.is_null());
 
@@ -2602,7 +2602,7 @@ void Debug::OnException(DirectHandle<Object> exception,
   }
 }
 
-void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
+void Debug::OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
                          StepAction lastStepAction,
                          v8::debug::BreakReasons break_reasons) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);

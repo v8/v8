@@ -238,7 +238,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
 RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   HandleScope scope(isolate);
 
-  Handle<JSFunction> function;
+  DirectHandle<JSFunction> function;
 
   // Find the JavaScript function on the top of the stack.
   JavaScriptStackFrameIterator it(isolate);
@@ -685,7 +685,7 @@ BytecodeOffset OffsetOfNextJumpLoop(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope handle_scope(isolate);
 
-  Handle<JSFunction> function;
+  DirectHandle<JSFunction> function;
 
   // The optional parameter determines the frame being targeted.
   int stack_depth = 0;
@@ -836,7 +836,7 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
 
   // Find the JavaScript function on the top of the stack.
   JavaScriptStackFrameIterator it(isolate);
-  Handle<JSFunction> function = handle(it.frame()->function(), isolate);
+  DirectHandle<JSFunction> function(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
   if (!v8_flags.sparkplug || !v8_flags.use_osr) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -1133,7 +1133,7 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> target_function_name = args.at<String>(0);
+  DirectHandle<String> target_function_name = args.at<String>(0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(v8_isolate);
   Local<v8::ObjectTemplate> instance_template = t->InstanceTemplate();
@@ -2117,7 +2117,7 @@ RUNTIME_FUNCTION(Runtime_StringUtf8Value) {
   if (args.length() != 1 || !IsString(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::String::Utf8Value value(v8_isolate, v8::Utils::ToLocal(string));

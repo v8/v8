@@ -818,7 +818,7 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
 
 // static
 void SharedFunctionInfo::EnsureSourcePositionsAvailable(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
   if (shared_info->CanCollectSourcePosition(isolate)) {
     std::optional<Isolate::ExceptionScope> exception_scope;
     if (isolate->has_exception()) {

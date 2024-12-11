@@ -21,7 +21,7 @@ TEST_F(RuntimeTest, ReturnsPrototype) {
   TryCatch try_catch(isolate());
 
   Local<v8::Object> object = v8::Object::New(isolate());
-  Handle<JSArray> i_result =
+  DirectHandle<JSArray> i_result =
       Runtime::GetInternalProperties(i_isolate(), Utils::OpenHandle(*object))
           .ToHandleChecked();
   Local<Array> result = Utils::ToLocal(i_result);
@@ -49,7 +49,7 @@ TEST_F(RuntimeTest, DoesNotReturnPrototypeWhenInacessible) {
 
   Local<v8::Object> object =
       object_template->NewInstance(context()).ToLocalChecked();
-  Handle<JSArray> i_result =
+  DirectHandle<JSArray> i_result =
       Runtime::GetInternalProperties(i_isolate(), Utils::OpenHandle(*object))
           .ToHandleChecked();
   Local<Array> result = Utils::ToLocal(i_result);

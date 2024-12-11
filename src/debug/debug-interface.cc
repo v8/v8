@@ -100,7 +100,7 @@ Local<String> GetBigIntStringValue(Isolate* isolate, Local<BigInt> bigint) {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::DirectHandle<i::BigInt> i_bigint = Utils::OpenDirectHandle(*bigint);
 
-  i::Handle<i::String> string_value =
+  i::DirectHandle<i::String> string_value =
       GetBigIntStringPresentationHandle(i_isolate, i_bigint);
   return Utils::ToLocal(string_value);
 }
@@ -113,7 +113,7 @@ Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
   i::Handle<i::String> string_value =
       GetBigIntStringPresentationHandle(i_isolate, i_bigint);
 
-  i::Handle<i::String> description =
+  i::DirectHandle<i::String> description =
       i_isolate->factory()
           ->NewConsString(
               string_value,
@@ -252,7 +252,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     return flag == i::IsStaticFlag::kStatic;
   };
 
-  i::DirectHandle<i::JSReceiver> receiver = Utils::OpenHandle(*object);
+  i::DirectHandle<i::JSReceiver> receiver = Utils::OpenDirectHandle(*object);
 
   i::PropertyFilter key_filter =
       static_cast<i::PropertyFilter>(i::PropertyFilter::PRIVATE_NAMES_ONLY);
@@ -311,8 +311,9 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
   DCHECK(values_out->empty());
   values_out->reserve(private_entries_count);
 
-  auto add_private_entry = [&](i::VariableMode mode, i::Handle<i::String> name,
-                               i::Handle<i::Object> value) {
+  auto add_private_entry = [&](i::VariableMode mode,
+                               i::DirectHandle<i::String> name,
+                               i::DirectHandle<i::Object> value) {
     DCHECK_IMPLIES(mode == i::VariableMode::kPrivateMethod,
                    IsJSFunction(*value));
     DCHECK_IMPLIES(mode != i::VariableMode::kPrivateMethod,
@@ -560,7 +561,7 @@ MaybeLocal<String> Script::SourceMappingURL() const {
 MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::Handle<i::String> value =
+  i::DirectHandle<i::String> value =
       i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
 }
@@ -746,7 +747,7 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
     return false;
   }
   if (!isolate->debug()->SetBreakPointForScript(
-          script, Utils::OpenHandle(*condition), &offset, id)) {
+          script, Utils::OpenDirectHandle(*condition), &offset, id)) {
     return false;
   }
   *location = GetSourceLocation(offset);
@@ -754,7 +755,7 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
 }
 
 bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
-  i::DirectHandle<i::Script> script = Utils::OpenHandle(this);
+  i::DirectHandle<i::Script> script = Utils::OpenDirectHandle(this);
   i::Isolate* isolate = script->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::Type::kWasm) {
@@ -1180,7 +1181,7 @@ bool GeneratorObject::IsSuspended() {
 
 v8::Local<GeneratorObject> GeneratorObject::Cast(v8::Local<v8::Value> value) {
   CHECK(value->IsGeneratorObject());
-  return ToApiHandle<GeneratorObject>(Utils::OpenHandle(*value));
+  return ToApiHandle<GeneratorObject>(Utils::OpenDirectHandle(*value));
 }
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
@@ -1358,7 +1359,7 @@ MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenDirectHandle(this));
-  i::DirectHandle<i::Object> internal_key = Utils::OpenHandle(*key);
+  i::DirectHandle<i::Object> internal_key = Utils::OpenDirectHandle(*key);
   DCHECK(IsJSReceiver(*internal_key));
 
   i::DirectHandle<i::Object> value(self->Lookup(internal_key), i_isolate);
@@ -1371,8 +1372,8 @@ Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key,
                                           v8::Local<v8::Value> value) {
   auto self = i::Cast<i::EphemeronHashTable>(Utils::OpenHandle(this));
-  i::DirectHandle<i::Object> internal_key = Utils::OpenHandle(*key);
-  i::DirectHandle<i::Object> internal_value = Utils::OpenHandle(*value);
+  i::DirectHandle<i::Object> internal_key = Utils::OpenDirectHandle(*key);
+  i::DirectHandle<i::Object> internal_value = Utils::OpenDirectHandle(*value);
   DCHECK(IsJSReceiver(*internal_key));
 
   i::DirectHandle<i::EphemeronHashTable> result(
@@ -1412,7 +1413,7 @@ bool AccessorPair::IsAccessorPair(Local<Value> that) {
 }
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
-  i::DirectHandle<i::JSPromise> promise = Utils::OpenHandle(*p);
+  i::DirectHandle<i::JSPromise> promise = Utils::OpenDirectHandle(*p);
   i::Isolate* isolate = promise->GetIsolate();
 
   i::DirectHandle<i::Symbol> key =
@@ -1443,8 +1444,8 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
   }
   CallDepthScope<false> call_depth_scope(isolate, context);
 
-  return i::DebugPropertyIterator::Create(isolate, Utils::OpenHandle(*object),
-                                          skip_indices);
+  return i::DebugPropertyIterator::Create(
+      isolate, Utils::OpenDirectHandle(*object), skip_indices);
 }
 
 }  // namespace debug

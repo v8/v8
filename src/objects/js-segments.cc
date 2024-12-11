@@ -28,7 +28,7 @@ namespace internal {
 // ecma402 #sec-createsegmentsobject
 MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
                                            DirectHandle<JSSegmenter> segmenter,
-                                           Handle<String> string) {
+                                           DirectHandle<String> string) {
   std::shared_ptr<icu::BreakIterator> break_iterator{
       segmenter->icu_break_iterator()->raw()->clone()};
   DCHECK_NOT_NULL(break_iterator);

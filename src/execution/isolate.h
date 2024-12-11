@@ -812,21 +812,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
   }
 
-  void InstallConditionalFeatures(Handle<NativeContext> context);
+  void InstallConditionalFeatures(DirectHandle<NativeContext> context);
 
 #if V8_ENABLE_WEBASSEMBLY
   void WasmInitJSPIFeature();
 #endif
 
-  bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
+  bool IsSharedArrayBufferConstructorEnabled(
+      DirectHandle<NativeContext> context);
 
-  bool IsWasmStringRefEnabled(Handle<NativeContext> context);
-  bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
+  bool IsWasmStringRefEnabled(DirectHandle<NativeContext> context);
+  bool IsWasmImportedStringsEnabled(DirectHandle<NativeContext> context);
   // Has the JSPI flag been requested?
   // Used only during initialization of contexts.
-  bool IsWasmJSPIRequested(Handle<NativeContext> context);
+  bool IsWasmJSPIRequested(DirectHandle<NativeContext> context);
   // Has JSPI been enabled successfully?
-  bool IsWasmJSPIEnabled(Handle<NativeContext> context);
+  bool IsWasmJSPIEnabled(DirectHandle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Context>, pending_handler_context)
@@ -1842,7 +1843,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
                               void* data);
   void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
-                              Handle<JSArrayBuffer> array_buffer,
+                              DirectHandle<JSArrayBuffer> array_buffer,
                               size_t offset_in_bytes, int64_t value,
                               double timeout_in_ms,
                               AtomicsWaitWakeHandle* stop_handle);
@@ -2295,8 +2296,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // We also store a strong reference to the outer ScopeInfo to keep all
   // blocklists along a scope chain alive.
   void LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
-                               Handle<ScopeInfo> outer_scope_info,
-                               Handle<StringSet> locals_blocklist);
+                               DirectHandle<ScopeInfo> outer_scope_info,
+                               DirectHandle<StringSet> locals_blocklist);
   // Returns either `TheHole` or `StringSet`.
   Tagged<Object> LocalsBlockListCacheGet(DirectHandle<ScopeInfo> scope_info);
 

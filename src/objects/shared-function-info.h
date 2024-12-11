@@ -709,7 +709,7 @@ class SharedFunctionInfo
 
   inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info);
 
   template <typename IsolateT>
   bool AreSourcePositionsAvailable(IsolateT* isolate) const;

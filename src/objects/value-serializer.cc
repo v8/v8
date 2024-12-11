@@ -950,7 +950,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(DirectHandle<JSSet> js_set) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
-    Handle<JSArrayBuffer> array_buffer) {
+    DirectHandle<JSArrayBuffer> array_buffer) {
   if (array_buffer->is_shared()) {
     if (!delegate_) {
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
@@ -1124,7 +1124,8 @@ Maybe<bool> ValueSerializer::WriteJSSharedArray(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
+Maybe<bool> ValueSerializer::WriteWasmModule(
+    DirectHandle<WasmModuleObject> object) {
   if (delegate_ == nullptr) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
@@ -1230,7 +1231,7 @@ Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
   return Just(properties_written);
 }
 
-Maybe<bool> ValueSerializer::IsHostObject(Handle<JSObject> js_object) {
+Maybe<bool> ValueSerializer::IsHostObject(DirectHandle<JSObject> js_object) {
   if (!has_custom_host_objects_) {
     return Just<bool>(
         JSObject::GetEmbedderFieldCount(js_object->map(isolate_)));
@@ -1262,7 +1263,7 @@ Maybe<bool> ValueSerializer::ThrowDataCloneError(
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  DirectHandle<Object> arg0) {
-  Handle<String> message =
+  DirectHandle<String> message =
       MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
@@ -2216,7 +2217,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   READ_NEXT_ERROR_TAG();
 
   // Read error type constructor.
-  Handle<JSFunction> constructor;
+  DirectHandle<JSFunction> constructor;
   switch (static_cast<ErrorTag>(tag)) {
     case ErrorTag::kEvalErrorPrototype:
       constructor = isolate_->eval_error_function();
@@ -2273,8 +2274,9 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
 
   // Create error object before adding the cause property.
   Handle<JSObject> error;
-  Handle<Object> no_caller;
-  Handle<Object> undefined_options = isolate_->factory()->undefined_value();
+  DirectHandle<Object> no_caller;
+  DirectHandle<Object> undefined_options =
+      isolate_->factory()->undefined_value();
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
                              undefined_options, SKIP_NONE, no_caller,
                              ErrorUtils::StackTraceCollection::kDisabled)

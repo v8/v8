@@ -102,12 +102,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     int slot_index = context->scope_info()->ContextSlotIndex(
         ReadOnlyRoots(isolate_).this_string_handle());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
-    Handle<Object> value = handle(context->get(slot_index), isolate_);
+    DirectHandle<Object> value(context->get(slot_index), isolate_);
     if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
-  Handle<Object> value = frame_inspector_->GetReceiver();
+  DirectHandle<Object> value = frame_inspector_->GetReceiver();
   if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
     return Utils::ToLocal(value);
   }

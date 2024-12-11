@@ -119,7 +119,7 @@ class RunTailCallsTest : public TestWithContextAndZone {
         CreateDescriptorForStackArguments(zone(), n);
     CallDescriptor* callee_descriptor =
         CreateDescriptorForStackArguments(zone(), m);
-    Handle<Code> setup =
+    DirectHandle<Code> setup =
         BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
     FunctionTester ft(isolate, setup, 0);
     DirectHandle<Object> result = ft.Call().ToHandleChecked();

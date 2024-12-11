@@ -50,7 +50,7 @@ FunctionTester::FunctionTester(Isolate* isolate, Graph* graph, int param_count)
   CompileGraph(graph);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
+FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
                                int param_count)
     : isolate(isolate),
       function((v8_flags.allow_natives_syntax = true,

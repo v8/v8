@@ -81,7 +81,7 @@ TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
-  const Handle<Code> code =
+  const DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(!code.is_null());

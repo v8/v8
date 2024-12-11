@@ -140,7 +140,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 }
 
 Handle<WasmTableObject> WasmTableObject::New(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     wasm::ValueType type, wasm::CanonicalValueType canonical_type,
     uint32_t initial, bool has_maximum, uint64_t maximum,
     DirectHandle<Object> initial_value, wasm::AddressType address_type) {
@@ -883,7 +883,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 void WasmMemoryObject::UseInInstance(
     Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     int memory_index_in_instance) {
   SetInstanceMemory(*trusted_instance_data, memory->array_buffer(),
                     memory_index_in_instance);
@@ -1051,7 +1051,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
 // static
 MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
-    Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
     MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
     int32_t offset, bool is_mutable) {
@@ -1434,7 +1434,7 @@ Handle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   DirectHandle<JSObject> exports_object =
       isolate->factory()->NewJSObjectWithNullProto();
 
-  Handle<WasmInstanceObject> instance_object;
+  DirectHandle<WasmInstanceObject> instance_object;
 
   if (!shared) {
     // Allocate the WasmInstanceObject (JS wrapper).

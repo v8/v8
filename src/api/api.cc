@@ -7658,7 +7658,8 @@ Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, External, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSObject> external = i_isolate->factory()->NewExternal(value);
+  i::DirectHandle<i::JSObject> external =
+      i_isolate->factory()->NewExternal(value);
   return Utils::ExternalToLocal(external);
 }
 
@@ -10813,10 +10814,11 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   v8::Context::Scope context_scope(context);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   if (i_isolate->is_execution_terminating()) return;
-  i_isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
+  i_isolate->InstallConditionalFeatures(Utils::OpenDirectHandle(*context));
   if (i_isolate->has_exception()) return;
 #if V8_ENABLE_WEBASSEMBLY
-  i::WasmJs::InstallConditionalFeatures(i_isolate, Utils::OpenHandle(*context));
+  i::WasmJs::InstallConditionalFeatures(i_isolate,
+                                        Utils::OpenDirectHandle(*context));
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

@@ -527,7 +527,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
 
     // The TypeError thrown is created with creation Realm's TypeError
     // constructor instead of the executing Realm's.
-    Handle<JSFunction> type_error_function(
+    DirectHandle<JSFunction> type_error_function(
         creation_context->type_error_function(), isolate);
     DirectHandle<String> string =
         Object::NoSideEffectsToString(isolate, exception);

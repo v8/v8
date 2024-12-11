@@ -1337,7 +1337,7 @@ Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
     return Handle<JSFunction>(target_slot().location());
   }
   DCHECK(IsFunctionTemplateInfo(maybe_function));
-  Handle<FunctionTemplateInfo> function_template_info(
+  DirectHandle<FunctionTemplateInfo> function_template_info(
       Cast<FunctionTemplateInfo>(maybe_function), isolate());
 
   // Instantiate function for the correct context.
@@ -2778,7 +2778,7 @@ bool FrameSummary::AreSourcePositionsAvailable() const {
 }
 
 void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
-  Handle<SharedFunctionInfo> shared(function()->shared(), isolate());
+  DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
 }
 
@@ -2812,7 +2812,7 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
 
 Handle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
-  Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
+  DirectHandle<SharedFunctionInfo> shared(function_->shared(), isolate());
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
   DirectHandle<String> function_name = JSFunction::GetDebugName(function_);
   if (function_name->length() == 0 &&
@@ -4044,7 +4044,7 @@ void PrintFunctionSource(StringStream* accumulator,
 
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
                             int index) const {
-  Handle<SharedFunctionInfo> shared = handle(function()->shared(), isolate());
+  DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
 
   DisallowGarbageCollection no_gc;

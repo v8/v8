@@ -106,7 +106,7 @@ struct JsonProperty {
 class JsonParseInternalizer {
  public:
   static MaybeHandle<Object> Internalize(Isolate* isolate,
-                                         Handle<Object> result,
+                                         DirectHandle<Object> result,
                                          Handle<Object> reviver,
                                          Handle<String> source,
                                          MaybeHandle<Object> val_node);
@@ -122,7 +122,7 @@ class JsonParseInternalizer {
   MaybeHandle<Object> InternalizeJsonProperty(DirectHandle<JSReceiver> holder,
                                               DirectHandle<String> key,
                                               Handle<Object> val_node,
-                                              Handle<Object> snapshot);
+                                              DirectHandle<Object> snapshot);
 
   template <WithOrWithoutSource with_source>
   bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,

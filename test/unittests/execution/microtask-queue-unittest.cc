@@ -266,9 +266,9 @@ TEST_P(MicrotaskQueueTest, PromiseHandlerContext) {
   context3->native_context()->set_microtask_queue(isolate(), microtask_queue());
   context4->native_context()->set_microtask_queue(isolate(), microtask_queue());
 
-  Handle<JSFunction> handler;
-  Handle<JSProxy> proxy;
-  Handle<JSProxy> revoked_proxy;
+  DirectHandle<JSFunction> handler;
+  DirectHandle<JSProxy> proxy;
+  DirectHandle<JSProxy> revoked_proxy;
   Handle<JSBoundFunction> bound;
 
   // Create a JSFunction on |context2|
@@ -375,7 +375,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_Run) {
   DirectHandle<JSFunction> function =
       RunJS<JSFunction>("(function() { ran[2] = true; })");
   DirectHandle<CallableTask> callable =
-      factory()->NewCallableTask(function, Utils::OpenHandle(*context()));
+      factory()->NewCallableTask(function, Utils::OpenDirectHandle(*context()));
   microtask_queue()->EnqueueMicrotask(*callable);
 
   // The handler should not run at this point.
@@ -502,12 +502,13 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_HandlerContext) {
   //   // so that handler runs even |resolved| is on the detached context A.
   //   resolved.then(handler);
 
-  Handle<JSReceiver> results = isolate()->factory()->NewJSObjectWithNullProto();
+  DirectHandle<JSReceiver> results =
+      isolate()->factory()->NewJSObjectWithNullProto();
 
   // These belong to a stale Context.
   Handle<JSPromise> stale_resolved_promise;
   Handle<JSPromise> stale_rejected_promise;
-  Handle<JSReceiver> stale_handler;
+  DirectHandle<JSReceiver> stale_handler;
 
   Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
   {
@@ -591,12 +592,12 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_Chain) {
 
 TEST_P(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
   Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
-  Utils::OpenHandle(*sub_context)
+  Utils::OpenDirectHandle(*sub_context)
       ->native_context()
       ->set_microtask_queue(isolate(), microtask_queue());
 
   DirectHandle<JSArray> result;
-  Handle<JSFunction> stale_handler;
+  DirectHandle<JSFunction> stale_handler;
   DirectHandle<JSPromise> stale_promise;
   {
     v8::Context::Scope scope(sub_context);

@@ -433,8 +433,8 @@ void AddReducer(TFPipelineData* data, GraphReducer* graph_reducer,
 }
 
 TurbofanPipelineStatistics* CreatePipelineStatistics(
-    Handle<Script> script, OptimizedCompilationInfo* info, Isolate* isolate,
-    ZoneStats* zone_stats) {
+    DirectHandle<Script> script, OptimizedCompilationInfo* info,
+    Isolate* isolate, ZoneStats* zone_stats) {
   TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;

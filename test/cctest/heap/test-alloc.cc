@@ -142,7 +142,7 @@ TEST(StressJS) {
       factory->NewSharedFunctionInfoForBuiltin(
           factory->function_string(), Builtin::kEmptyFunction, 0, kDontAdapt);
   info->set_language_mode(LanguageMode::kStrict);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();
   CHECK(!function->shared()->construct_as_builtin());
 

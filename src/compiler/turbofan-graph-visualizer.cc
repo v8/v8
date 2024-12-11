@@ -89,8 +89,9 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
-                             Handle<Script> script, Isolate* isolate,
-                             Handle<SharedFunctionInfo> shared, bool with_key) {
+                             DirectHandle<Script> script, Isolate* isolate,
+                             DirectHandle<SharedFunctionInfo> shared,
+                             bool with_key) {
   if (with_key) os << "\"" << source_id << "\" : ";
 
   os << "{ ";
@@ -209,11 +210,11 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate) {
   os << "\"sources\" : {";
-  Handle<Script> script =
+  DirectHandle<Script> script =
       (info->shared_info().is_null() ||
        info->shared_info()->script() == Tagged<Object>())
-          ? Handle<Script>()
-          : handle(Cast<Script>(info->shared_info()->script()), isolate);
+          ? DirectHandle<Script>()
+          : direct_handle(Cast<Script>(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})

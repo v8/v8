@@ -129,7 +129,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   // Basic block profiling data for builtins is stored in the JS heap rather
   // than in separately-allocated C++ objects. Allocate that data now if
   // appropriate.
-  Handle<OnHeapBasicBlockProfilerData> on_heap_profiler_data;
+  DirectHandle<OnHeapBasicBlockProfilerData> on_heap_profiler_data;
   if (V8_UNLIKELY(profiler_data_ && isolate_->IsGeneratingEmbeddedBuiltins())) {
     on_heap_profiler_data = profiler_data_->CopyToJSHeap(isolate_);
 
@@ -2779,7 +2779,7 @@ Handle<JSObject> Factory::NewError(DirectHandle<JSFunction> constructor,
   // Construct a new error object. If an exception is thrown, use the exception
   // as the result.
 
-  Handle<Object> no_caller;
+  DirectHandle<Object> no_caller;
   if (options.is_null()) options = undefined_value();
   return ErrorUtils::Construct(isolate(), constructor, constructor, message,
                                options, SKIP_NONE, no_caller,

@@ -630,7 +630,7 @@ static void CheckCodeObjectForDeopt(const CRFTData& from,
                                     const CRFTData& expected,
                                     DirectHandle<Code> code_field_type,
                                     DirectHandle<Code> code_field_repr,
-                                    Handle<Code> code_field_const,
+                                    DirectHandle<Code> code_field_const,
                                     bool expected_deopt) {
   if (!FieldType::Equals(*from.type, *expected.type)) {
     CHECK_EQ(expected_deopt, code_field_type->marked_for_deoptimization());

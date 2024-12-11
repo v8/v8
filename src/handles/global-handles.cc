@@ -939,7 +939,7 @@ void GlobalHandles::IterateAllYoungRoots(RootVisitor* v) {
 DISABLE_CFI_PERF
 void GlobalHandles::ApplyPersistentHandleVisitor(
     v8::PersistentHandleVisitor* visitor, GlobalHandles::Node* node) {
-  v8::Value* value = ToApi<v8::Value>(node->handle());
+  Address* value = node->handle().location();
   visitor->VisitPersistentHandle(
       reinterpret_cast<v8::Persistent<v8::Value>*>(&value),
       node->wrapper_class_id());

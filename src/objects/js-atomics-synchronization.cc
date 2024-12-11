@@ -365,10 +365,10 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
         requester, Utils::ToLocal(Cast<JSObject>(synchronization_primitive)));
   }
 
-  explicit AsyncWaiterQueueNode(Isolate* requester,
-                                DirectHandle<T> synchronization_primitive,
-                                Handle<JSPromise> internal_waiting_promise,
-                                MaybeHandle<JSPromise> unlocked_promise)
+  explicit AsyncWaiterQueueNode(
+      Isolate* requester, DirectHandle<T> synchronization_primitive,
+      DirectHandle<JSPromise> internal_waiting_promise,
+      MaybeHandle<JSPromise> unlocked_promise)
       : WaiterQueueNode(requester),
         notify_task_id_(CancelableTaskManager::kInvalidTaskId) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(requester);

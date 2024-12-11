@@ -113,7 +113,7 @@ RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
 RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<BigInt> x = args.at<BigInt>(0);
+  DirectHandle<BigInt> x = args.at<BigInt>(0);
   int opcode = args.smi_value_at(1);
   Operation op = static_cast<Operation>(opcode);
 

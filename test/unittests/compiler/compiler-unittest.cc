@@ -68,7 +68,7 @@ static double Inc(Isolate* isolate, int x) {
   base::EmbeddedVector<char, 512> buffer;
   SNPrintF(buffer, source, x);
 
-  Handle<JSFunction> fun = Compile(buffer.begin());
+  DirectHandle<JSFunction> fun = Compile(buffer.begin());
   if (fun.is_null()) return -1;
 
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -84,7 +84,7 @@ TEST_F(CompilerTest, Inc) {
 }
 
 static double Add(Isolate* isolate, int x, int y) {
-  Handle<JSFunction> fun = Compile("result = x + y;");
+  DirectHandle<JSFunction> fun = Compile("result = x + y;");
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
@@ -102,7 +102,8 @@ TEST_F(CompilerTest, Add) {
 }
 
 static double Abs(Isolate* isolate, int x) {
-  Handle<JSFunction> fun = Compile("if (x < 0) result = -x; else result = x;");
+  DirectHandle<JSFunction> fun =
+      Compile("if (x < 0) result = -x; else result = x;");
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
@@ -119,7 +120,7 @@ TEST_F(CompilerTest, Abs) {
 }
 
 static double Sum(Isolate* isolate, int n) {
-  Handle<JSFunction> fun =
+  DirectHandle<JSFunction> fun =
       Compile("s = 0; while (n > 0) { s += n; n -= 1; }; result = s;");
   if (fun.is_null()) return -1;
 
@@ -146,7 +147,7 @@ TEST_F(CompilerPrintTest, Print) {
   v8::Local<v8::Context> context = v8::Context::New(isolate(), &config);
   v8::Context::Scope context_scope(context);
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
-  Handle<JSFunction> fun = Compile(source);
+  DirectHandle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   DirectHandle<JSObject> global(i_isolate()->context()->global_object(),
                                 i_isolate());
@@ -178,7 +179,7 @@ TEST_F(CompilerTest, Stuff) {
       "function Cons2(x, y) { this.sum = x + y; }\n"
       "if (new Cons2(3,4).sum == 7) r+=256;";  // 256
 
-  Handle<JSFunction> fun = Compile(source);
+  DirectHandle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
   DirectHandle<JSObject> global(i_isolate()->context()->global_object(),
                                 i_isolate());
@@ -192,7 +193,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   v8::HandleScope scope(isolate());
 
   const char* source = "throw 42;";
-  Handle<JSFunction> fun = Compile(source);
+  DirectHandle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
   DirectHandle<JSObject> global(isolate->context()->global_object(), isolate);
@@ -221,7 +222,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
 
   const char* source = "function foo(a) { gc(), print(a); }";
 
-  Handle<JSFunction> fun0 = Compile(source);
+  DirectHandle<JSFunction> fun0 = Compile(source);
   EXPECT_TRUE(!fun0.is_null());
   Isolate* isolate = fun0->GetIsolate();
 

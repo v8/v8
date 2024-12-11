@@ -923,7 +923,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstanceAndMarkMapAsMigrationTarget) {
   DCHECK(js_object->map()->is_deprecated());
 
 #ifdef DEBUG
-  Handle<Map> old_map = handle(js_object->map(), isolate);
+  DirectHandle<Map> old_map(js_object->map(), isolate);
 #endif  // DEBUG
 
   if (!JSObject::TryMigrateInstance(isolate, js_object)) {

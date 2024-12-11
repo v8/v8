@@ -4300,7 +4300,8 @@ int Script::GetEvalPosition(Isolate* isolate, DirectHandle<Script> script) {
     if (!script->has_eval_from_shared()) {
       position = 0;
     } else {
-      Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
+      DirectHandle<SharedFunctionInfo> shared(script->eval_from_shared(),
+                                              isolate);
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
       position =
           shared->abstract_code(isolate)->SourcePosition(isolate, -position);

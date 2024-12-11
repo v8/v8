@@ -298,7 +298,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       LogEventListener::CodeTag code_type,
                                       DirectHandle<Script> script,
                                       Handle<SharedFunctionInfo> shared,
-                                      Handle<FeedbackVector> vector,
+                                      DirectHandle<FeedbackVector> vector,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK_NE(*abstract_code,
@@ -395,7 +395,7 @@ CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
 }
 
 CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
@@ -408,7 +408,7 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 }
 
 CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
   base::ScopedTimer t(v8_flags.log_function_events ? &time_taken_to_finalize_
@@ -616,7 +616,7 @@ void TurbofanCompilationJob::RecordFunctionCompilation(
 
   DirectHandle<Script> script(
       Cast<Script>(compilation_info()->shared_info()->script()), isolate);
-  Handle<FeedbackVector> feedback_vector(
+  DirectHandle<FeedbackVector> feedback_vector(
       compilation_info()->closure()->feedback_vector(), isolate);
   Compiler::LogFunctionCompilation(
       isolate, code_type, script, compilation_info()->shared_info(),
@@ -1233,8 +1233,8 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
   PtrComprCageBase cage_base(isolate);
   Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
   DirectHandle<Script> script(Cast<Script>(shared->script(cage_base)), isolate);
-  Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
-                                         isolate);
+  DirectHandle<FeedbackVector> feedback_vector(
+      function->feedback_vector(cage_base), isolate);
 
   // Optimistic estimate.
   double time_taken_ms = 0;
@@ -2757,8 +2757,8 @@ MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
 // Implementation of Compiler
 
 // static
-bool Compiler::CollectSourcePositions(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared_info) {
+bool Compiler::CollectSourcePositions(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
   DCHECK(shared_info->is_compiled());
   DCHECK(shared_info->HasBytecodeArray());
   DCHECK(!shared_info->GetBytecodeArray(isolate)->HasSourcePositionTable());
@@ -3345,7 +3345,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 // Check whether embedder allows code generation in this context.
 // (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback)
 bool ModifyCodeGenerationFromStrings(Isolate* isolate,
-                                     Handle<NativeContext> context,
+                                     DirectHandle<NativeContext> context,
                                      Handle<i::Object>* source,
                                      bool is_code_like) {
   DCHECK(isolate->modify_code_gen_callback());
@@ -3383,7 +3383,7 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate,
 
 // static
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
-    Isolate* isolate, Handle<NativeContext> context,
+    Isolate* isolate, DirectHandle<NativeContext> context,
     Handle<i::Object> original_source, bool is_code_like) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
@@ -3448,7 +3448,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
-    Handle<NativeContext> context, Handle<Object> source,
+    DirectHandle<NativeContext> context, Handle<Object> source,
     int parameters_end_pos, bool is_code_like) {
   Isolate* const isolate = context->GetIsolate();
   MaybeHandle<String> validated_source =

@@ -100,7 +100,8 @@ void ExternalizeStringExtension::Externalize(
     return;
   }
   bool result = false;
-  Handle<String> string = Utils::OpenHandle(*info[0].As<v8::String>());
+  DirectHandle<String> string =
+      Utils::OpenDirectHandle(*info[0].As<v8::String>());
   const bool externalize_as_one_byte = string->IsOneByteRepresentation();
   if (!string->SupportsExternalization(
           externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING

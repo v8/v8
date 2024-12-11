@@ -367,7 +367,7 @@ TEST_F(GlobalHandlesTest,
       [this, &weakmap, isolate](TracedReferenceWrapper* fp) {
         v8::HandleScope scope(v8_isolate());
         DirectHandle<JSReceiver> key =
-            Utils::OpenHandle(*fp->handle.Get(v8_isolate()));
+            Utils::OpenDirectHandle(*fp->handle.Get(v8_isolate()));
         DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
         int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);

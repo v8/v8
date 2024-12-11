@@ -216,7 +216,8 @@ WasmModule::WasmModule(ModuleOrigin origin)
     : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
       origin(origin) {}
 
-bool IsWasmCodegenAllowed(Isolate* isolate, Handle<NativeContext> context) {
+bool IsWasmCodegenAllowed(Isolate* isolate,
+                          DirectHandle<NativeContext> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
@@ -389,11 +390,11 @@ Handle<JSArray> GetImports(Isolate* isolate,
   DirectHandle<String> kind_string = factory->InternalizeUtf8String("kind");
   DirectHandle<String> type_string = factory->InternalizeUtf8String("type");
 
-  Handle<String> function_string = factory->function_string();
-  Handle<String> table_string = factory->InternalizeUtf8String("table");
-  Handle<String> memory_string = factory->InternalizeUtf8String("memory");
-  Handle<String> global_string = factory->global_string();
-  Handle<String> tag_string = factory->InternalizeUtf8String("tag");
+  DirectHandle<String> function_string = factory->function_string();
+  DirectHandle<String> table_string = factory->InternalizeUtf8String("table");
+  DirectHandle<String> memory_string = factory->InternalizeUtf8String("memory");
+  DirectHandle<String> global_string = factory->global_string();
+  DirectHandle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
   NativeModule* native_module = module_object->native_module();
@@ -421,8 +422,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
     DirectHandle<JSObject> entry = factory->NewJSObject(object_function);
 
-    Handle<String> import_kind;
-    Handle<JSObject> type_value;
+    DirectHandle<String> import_kind;
+    DirectHandle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
         if (IsCompileTimeImport(well_known_imports.get(import.index))) {
@@ -532,7 +533,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
     const WasmExport& exp = module->export_table[index];
 
     DirectHandle<String> export_kind;
-    Handle<JSObject> type_value;
+    DirectHandle<JSObject> type_value;
     switch (exp.kind) {
       case kExternalFunction:
         if (enabled_features.has_type_reflection()) {

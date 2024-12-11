@@ -25,7 +25,7 @@ TEST_F(DirectHandlesTest, CreateDirectHandleFromLocal) {
 
 TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
   HandleScope scope(isolate());
-  i::Handle<i::String> handle =
+  i::DirectHandle<i::String> handle =
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   i::DirectHandle<i::String> direct = handle;
 

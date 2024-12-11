@@ -219,7 +219,7 @@ MaybeHandle<ScopeInfo> FindEvalScope(Isolate* isolate,
 
 void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Catch the case when the debugger stops in an internal function.
-  Handle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
+  DirectHandle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
   DirectHandle<ScopeInfo> scope_info(shared_info->scope_info(), isolate_);
   if (IsUndefined(shared_info->script(), isolate_)) {
     current_scope_ = closure_scope_ = nullptr;
@@ -1231,7 +1231,7 @@ class LocalBlocklistsCollector {
   void AdvanceToNextNonHiddenScope();
   void CollectCurrentLocalsIntoBlocklists();
   Handle<ScopeInfo> FindScopeInfoForScope(Scope* scope) const;
-  void StoreFunctionBlocklists(Handle<ScopeInfo> outer_scope_info);
+  void StoreFunctionBlocklists(DirectHandle<ScopeInfo> outer_scope_info);
 
   Isolate* isolate_;
   Handle<Script> script_;
@@ -1299,9 +1299,9 @@ Handle<ScopeInfo> LocalBlocklistsCollector::FindScopeInfoForScope(
 }
 
 void LocalBlocklistsCollector::StoreFunctionBlocklists(
-    Handle<ScopeInfo> outer_scope_info) {
+    DirectHandle<ScopeInfo> outer_scope_info) {
   for (const auto& pair : function_blocklists_) {
-    Handle<ScopeInfo> scope_info = FindScopeInfoForScope(pair.first);
+    DirectHandle<ScopeInfo> scope_info = FindScopeInfoForScope(pair.first);
     // If we don't find a ScopeInfo it's not tragic. It means we'll do
     // a full-reparse in case we pause in that function in the future.
     // The only ScopeInfo that MUST be found is for the closure_scope_.

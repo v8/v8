@@ -658,7 +658,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
     re_data->set_code(is_one_byte, *trampoline);
   }
-  Handle<FixedArray> capture_name_map =
+  DirectHandle<FixedArray> capture_name_map =
       RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
   re_data->set_capture_name_map(capture_name_map);
   int register_max = re_data->max_register_count();

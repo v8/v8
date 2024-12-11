@@ -314,9 +314,9 @@ TEST_F(IntlTest, StringLocaleCompareFastPath) {
             .ToHandleChecked();
 
     for (size_t i = 0; i < ascii_strings.size(); i++) {
-      Handle<String> lhs = ascii_strings[i];
+      DirectHandle<String> lhs = ascii_strings[i];
       for (size_t j = i + 1; j < ascii_strings.size(); j++) {
-        Handle<String> rhs = ascii_strings[j];
+        DirectHandle<String> rhs = ascii_strings[j];
         CHECK_EQ(
             Intl::CompareStrings(i_isolate(), *collator->icu_collator()->raw(),
                                  lhs, rhs, Intl::CompareStringsOptions::kNone),

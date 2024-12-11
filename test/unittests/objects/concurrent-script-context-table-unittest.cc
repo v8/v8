@@ -84,7 +84,7 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
       }
       auto script_context_table = Handle<ScriptContextTable>(
           native_context_->synchronized_script_context_table(), &local_heap);
-      Handle<Context> context(script_context_table->get(i), &local_heap);
+      DirectHandle<Context> context(script_context_table->get(i), &local_heap);
       EXPECT_TRUE(!context.is_null());
     }
   }

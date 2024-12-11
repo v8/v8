@@ -2645,7 +2645,7 @@ class ValueSerializerTestWithSharedArrayBufferClone
           i_isolate, pages, pages, i::WasmMemoryFlag::kWasmMemory32,
           i::SharedFlag::kShared);
       memcpy(backing_store->buffer_start(), data, byte_length);
-      i::Handle<i::JSArrayBuffer> buffer =
+      i::DirectHandle<i::JSArrayBuffer> buffer =
           i_isolate->factory()->NewJSSharedArrayBuffer(
               std::move(backing_store));
       return Utils::ToLocalShared(buffer);
@@ -2766,7 +2766,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     Context::Scope scope(serialization_context());
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::DirectHandle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
+    i::DirectHandle<i::JSArrayBuffer> obj =
+        Utils::OpenDirectHandle(*input_buffer());
     input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
         i_isolate, obj, kMaxPages, i::wasm::AddressType::kI32));
   }
@@ -2801,7 +2802,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::DirectHandle<i::JSArrayBuffer> buffer =
-        Utils::OpenHandle(*input_buffer());
+        Utils::OpenDirectHandle(*input_buffer());
     i::DirectHandle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
         i_isolate, buffer, kMaxPages, i::wasm::AddressType::kI32);
     i::DirectHandle<i::FixedArray> fixed_array =

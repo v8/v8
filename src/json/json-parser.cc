@@ -131,7 +131,7 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 }  // namespace
 
 MaybeHandle<Object> JsonParseInternalizer::Internalize(
-    Isolate* isolate, Handle<Object> result, Handle<Object> reviver,
+    Isolate* isolate, DirectHandle<Object> result, Handle<Object> reviver,
     Handle<String> source, MaybeHandle<Object> val_node) {
   DCHECK(IsCallable(*reviver));
   JsonParseInternalizer internalizer(isolate, Cast<JSReceiver>(reviver),
@@ -147,7 +147,7 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(
 template <JsonParseInternalizer::WithOrWithoutSource with_source>
 MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     DirectHandle<JSReceiver> holder, DirectHandle<String> name,
-    Handle<Object> val_node, Handle<Object> snapshot) {
+    Handle<Object> val_node, DirectHandle<Object> snapshot) {
   DCHECK_EQ(with_source == kWithSource,
             !val_node.is_null() && !snapshot.is_null());
   DCHECK(IsCallable(*reviver_));
@@ -2076,7 +2076,7 @@ bool JsonParser<Char>::ParseJsonNumberAsDoubleOrSmi(double* result_double,
 namespace {
 
 template <typename Char>
-bool Matches(base::Vector<const Char> chars, Handle<String> string) {
+bool Matches(base::Vector<const Char> chars, DirectHandle<String> string) {
   DCHECK(!string.is_null());
   return string->IsEqualTo(chars);
 }

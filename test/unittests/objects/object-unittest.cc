@@ -217,7 +217,7 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
   CheckBoolean(i_isolate(), true, "true");
   CheckBoolean(i_isolate(), false, "false");
   CheckBoolean(i_isolate(), false, "false");
-  Handle<Object> smi_42 = handle(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> smi_42(Smi::FromInt(42), i_isolate());
   CheckObject(i_isolate(),
               BigInt::FromNumber(i_isolate(), smi_42).ToHandleChecked(), "42");
   CheckObject(i_isolate(), factory->undefined_value(), "undefined");

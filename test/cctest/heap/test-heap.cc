@@ -254,7 +254,7 @@ TEST(HandleNull) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
   LocalContext context;
-  Handle<Object> n(Tagged<Object>(kNullAddress), isolate);
+  DirectHandle<Object> n(Tagged<Object>(kNullAddress), isolate);
   CHECK(!n.is_null());
 }
 
@@ -4076,7 +4076,7 @@ TEST(Regress169928) {
       SemiSpaceNewSpace::From(CcTest::heap()->new_space()),
       JSArray::kHeaderSize + AllocationMemento::kSize + kTaggedSize);
 
-  Handle<JSArray> array =
+  DirectHandle<JSArray> array =
       factory->NewJSArrayWithElements(array_data, PACKED_SMI_ELEMENTS);
 
   CHECK_EQ(Smi::FromInt(2), array->length());
@@ -5413,7 +5413,7 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
   v8::Local<v8::Value> result =
       CompileRun("(function () { return {x : 10}; })();");
   DirectHandle<JSReceiver> proto =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
   GlobalHandleVector<Map> maps(isolate->heap());
   maps.Push(*map);

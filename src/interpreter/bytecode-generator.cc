@@ -1568,7 +1568,7 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
 
     Handle<SharedFunctionInfo> shared_info =
         FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
-            isolate, Utils::OpenHandle(*info), expr->name());
+            isolate, Utils::OpenDirectHandle(*info), expr->name());
     DCHECK(!shared_info.is_null());
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
   }

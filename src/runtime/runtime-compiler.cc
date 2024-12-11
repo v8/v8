@@ -315,7 +315,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK_EQ(args.length(), 4);
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
-  Handle<JSReceiver> stdlib;
+  DirectHandle<JSReceiver> stdlib;
   if (IsJSReceiver(args[1])) {
     stdlib = args.at<JSReceiver>(1);
   }
@@ -766,7 +766,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
                                         LanguageMode language_mode,
                                         int eval_scope_info_index,
                                         int eval_position) {
-  Handle<NativeContext> native_context = isolate->native_context();
+  DirectHandle<NativeContext> native_context = isolate->native_context();
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.

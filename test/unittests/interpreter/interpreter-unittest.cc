@@ -4814,7 +4814,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
-  Handle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
   DirectHandle<BytecodeArray> bytecode_array(sfi->GetBytecodeArray(i_isolate()),
                                              i_isolate());
   CHECK(!bytecode_array->HasSourcePositionTable());
@@ -4840,7 +4840,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
-  Handle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
   DirectHandle<BytecodeArray> bytecode_array(sfi->GetBytecodeArray(i_isolate()),
                                              i_isolate());
   CHECK(!bytecode_array->HasSourcePositionTable());

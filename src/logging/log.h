@@ -223,7 +223,7 @@ class V8FileLogger : public LogEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void ICEvent(const char* type, bool keyed, Handle<Map> map,
+  void ICEvent(const char* type, bool keyed, DirectHandle<Map> map,
                DirectHandle<Object> key, char old_state, char new_state,
                const char* modifier, const char* slow_stub_reason);
 

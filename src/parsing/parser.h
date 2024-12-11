@@ -183,7 +183,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       MaybeHandle<ScopeInfo> maybe_outer_scope_info, Isolate*,
       parsing::ReportStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
-      ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
+      ParseInfo*, DirectHandle<SharedFunctionInfo> shared_info, Isolate*,
       parsing::ReportStatisticsMode stats_mode);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {

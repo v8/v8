@@ -37,16 +37,15 @@ V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info,
 
 // Like ParseProgram but for an individual function which already has a
 // allocated shared function info.
-V8_EXPORT_PRIVATE bool ParseFunction(ParseInfo* info,
-                                     Handle<SharedFunctionInfo> shared_info,
-                                     Isolate* isolate,
-                                     ReportStatisticsMode mode);
+V8_EXPORT_PRIVATE bool ParseFunction(
+    ParseInfo* info, DirectHandle<SharedFunctionInfo> shared_info,
+    Isolate* isolate, ReportStatisticsMode mode);
 
 // If you don't know whether info->is_toplevel() is true or not, use this method
 // to dispatch to either of the above functions. Prefer to use the above methods
 // whenever possible.
 V8_EXPORT_PRIVATE bool ParseAny(ParseInfo* info,
-                                Handle<SharedFunctionInfo> shared_info,
+                                DirectHandle<SharedFunctionInfo> shared_info,
                                 Isolate* isolate, ReportStatisticsMode mode);
 
 }  // namespace parsing

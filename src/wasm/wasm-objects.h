@@ -227,7 +227,7 @@ class WasmTableObject
   // TODO(jkummerow): Consider getting rid of {type}, use {canonical_type}
   // instead.
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
-      Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_data,
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, wasm::CanonicalValueType canonical_type,
       uint32_t initial, bool has_maximum, uint64_t maximum,
       DirectHandle<Object> initial_value, wasm::AddressType address_type);
@@ -318,7 +318,7 @@ class WasmMemoryObject
   V8_EXPORT_PRIVATE static void UseInInstance(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+      DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
       int memory_index_in_instance);
   inline bool has_maximum_pages();
 
@@ -360,7 +360,7 @@ class WasmGlobalObject
   DECL_PRINTER(WasmGlobalObject)
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
-      Isolate* isolate, Handle<WasmTrustedInstanceData> instance_object,
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
       MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
       MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);

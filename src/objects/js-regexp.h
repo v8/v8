@@ -255,7 +255,7 @@ class IrRegExpData : public RegExpData {
   inline void set_bytecode(bool is_one_byte, Tagged<TrustedByteArray> bytecode);
   inline Tagged<TrustedByteArray> bytecode(bool is_one_byte) const;
   DECL_ACCESSORS(capture_name_map, Tagged<Object>)
-  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
+  inline void set_capture_name_map(DirectHandle<FixedArray> capture_name_map);
   DECL_INT_ACCESSORS(max_register_count)
   // Number of captures (without the match itself).
   DECL_INT_ACCESSORS(capture_count)

@@ -742,9 +742,9 @@ class TestEnvironment : public HandleAndZoneScope {
       bool old_enable_slow_asserts = v8_flags.enable_slow_asserts;
       v8_flags.enable_slow_asserts = false;
 #endif
-      Handle<Code> setup = BuildSetupFunction(main_isolate(), test_descriptor_,
-                                              TeardownCallDescriptor(),
-                                              setup_layout_, TeardownLayout());
+      DirectHandle<Code> setup = BuildSetupFunction(
+          main_isolate(), test_descriptor_, TeardownCallDescriptor(),
+          setup_layout_, TeardownLayout());
 #ifdef ENABLE_SLOW_DCHECKS
       v8_flags.enable_slow_asserts = old_enable_slow_asserts;
 #endif

@@ -21,10 +21,10 @@ class FunctionTester : public InitializedHandleScope {
  public:
   explicit FunctionTester(const char* source, uint32_t flags = 0);
 
-  FunctionTester(Handle<Code> code, int param_count);
+  FunctionTester(DirectHandle<Code> code, int param_count);
 
   // Assumes VoidDescriptor call interface.
-  explicit FunctionTester(Handle<Code> code);
+  explicit FunctionTester(DirectHandle<Code> code);
 
   Isolate* isolate;
   Handle<JSFunction> function;

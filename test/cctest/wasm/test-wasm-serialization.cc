@@ -536,7 +536,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
           v8::Context::New(v8_isolate);
       serialization_context->Enter();
 
-      Handle<WasmModuleObject> module_object =
+      DirectHandle<WasmModuleObject> module_object =
           GetWasmEngine()
               ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
                             &thrower, base::OwnedCopyOf(buffer))

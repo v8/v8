@@ -14256,7 +14256,7 @@ TEST(WasmSetJitCodeEventHandler) {
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_CALL_FUNCTION(f.function_index(),
                                                           WASM_LOCAL_GET(1)))});
 
-  Handle<JSFunction> func = r.builder().WrapCode(0);
+  DirectHandle<JSFunction> func = r.builder().WrapCode(0);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
             .FromJust());
@@ -24416,7 +24416,8 @@ TEST(SyntheticModuleSetExports) {
 
   i::DirectHandle<i::Cell> foo_cell =
       i::Cast<i::Cell>(i::DirectHandle<i::Object>(
-          exports->Lookup(v8::Utils::OpenHandle(*foo_string)), i_isolate));
+          exports->Lookup(v8::Utils::OpenDirectHandle(*foo_string)),
+          i_isolate));
 
   // During Instantiation there should be a Cell for the export initialized to
   // undefined.
@@ -24427,7 +24428,8 @@ TEST(SyntheticModuleSetExports) {
   CHECK(set_export_result.FromJust());
 
   // After setting the export the Cell should still have the same idenitity.
-  CHECK_EQ(exports->Lookup(v8::Utils::OpenHandle(*foo_string)), *foo_cell);
+  CHECK_EQ(exports->Lookup(v8::Utils::OpenDirectHandle(*foo_string)),
+           *foo_cell);
 
   // Test that the export value was actually set.
   CHECK(i::Cast<i::String>(i::Handle<i::Object>(foo_cell->value(), i_isolate))
@@ -24531,7 +24533,7 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
 
   i::DirectHandle<i::Cell> test_export_cell =
       i::Cast<i::Cell>(i::DirectHandle<i::Object>(
-          exports->Lookup(v8::Utils::OpenHandle(*test_export_string)),
+          exports->Lookup(v8::Utils::OpenDirectHandle(*test_export_string)),
           i_isolate));
   CHECK(IsUndefined(test_export_cell->value()));
 
@@ -26495,7 +26497,7 @@ TEST(ImportMeta) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  i::Handle<i::JSObject> meta =
+  i::DirectHandle<i::JSObject> meta =
       i::SourceTextModule::GetImportMeta(
           i_isolate,
           i::Cast<i::SourceTextModule>(v8::Utils::OpenHandle(*module)))
@@ -27113,11 +27115,11 @@ TEST(WasmI32AtomicWaitCallback) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  Handle<JSFunction> func = r.builder().WrapCode(0);
+  DirectHandle<JSFunction> func = r.builder().WrapCode(0);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
             .FromJust());
-  Handle<JSArrayBuffer> memory(
+  DirectHandle<JSArrayBuffer> memory(
       r.builder().trusted_instance_data()->memory_object(0)->array_buffer(),
       i_isolate);
   CHECK(env->Global()
@@ -27149,11 +27151,11 @@ TEST(WasmI64AtomicWaitCallback) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  Handle<JSFunction> func = r.builder().WrapCode(0);
+  DirectHandle<JSFunction> func = r.builder().WrapCode(0);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
             .FromJust());
-  Handle<JSArrayBuffer> memory(
+  DirectHandle<JSArrayBuffer> memory(
       r.builder().trusted_instance_data()->memory_object(0)->array_buffer(),
       i_isolate);
   CHECK(env->Global()
@@ -30223,7 +30225,8 @@ TEST(TestSetSabConstructorEnabledCallback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  i::Handle<i::NativeContext> i_context = v8::Utils::OpenHandle(*context);
+  i::DirectHandle<i::NativeContext> i_context =
+      v8::Utils::OpenDirectHandle(*context);
 
   // No callback
   i::v8_flags.enable_sharedarraybuffer_per_context = false;

@@ -1984,7 +1984,7 @@ void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::ICEvent(const char* type, bool keyed, Handle<Map> map,
+void V8FileLogger::ICEvent(const char* type, bool keyed, DirectHandle<Map> map,
                            DirectHandle<Object> key, char old_state,
                            char new_state, const char* modifier,
                            const char* slow_stub_reason) {

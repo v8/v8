@@ -637,7 +637,8 @@ int CallSiteInfo::ComputeSourcePosition(DirectHandle<CallSiteInfo> info,
     return 0;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
+  DirectHandle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(),
+                                          isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   Tagged<HeapObject> code = info->code_object(isolate);
   DCHECK(IsCode(code) || IsBytecodeArray(code));

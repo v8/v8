@@ -109,7 +109,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
   // and ignore scheduled exceptions callbacks can throw.
 
   // We pass the exception object into the message handler callback though.
-  Handle<Object> exception = isolate->factory()->undefined_value();
+  DirectHandle<Object> exception = isolate->factory()->undefined_value();
   if (isolate->has_exception()) {
     exception = handle(isolate->exception(), isolate);
   }
@@ -739,7 +739,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     isolate->clear_pending_message();
   }
   DirectHandle<String> msg = MessageFormatter::Format(isolate, index, args);
-  Handle<Object> options = isolate->factory()->undefined_value();
+  DirectHandle<Object> options = isolate->factory()->undefined_value();
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
@@ -763,7 +763,7 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
     isolate->clear_pending_message();
   }
   DirectHandle<String> msg = MessageFormatter::Format(isolate, index, args);
-  Handle<Object> options = isolate->factory()->undefined_value();
+  DirectHandle<Object> options = isolate->factory()->undefined_value();
 
   DirectHandle<JSObject> maybe_error_object;
   Handle<Object> error_stack;
@@ -799,8 +799,8 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
     }
   }
 
-  Handle<Object> no_caller;
-  Handle<JSFunction> constructor = isolate->type_error_function();
+  DirectHandle<Object> no_caller;
+  DirectHandle<JSFunction> constructor = isolate->type_error_function();
   Handle<JSObject> new_error =
       ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
                             FrameSkipMode::SKIP_NONE, no_caller, collection)

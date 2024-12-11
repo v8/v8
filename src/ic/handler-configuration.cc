@@ -283,7 +283,7 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   DCHECK(!transition_map->is_access_check_needed());
 
   // Get validity cell value if it is necessary for the handler.
-  Handle<UnionOf<Smi, Cell>> validity_cell;
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell;
   if (is_dictionary_map || !transition_map->IsPrototypeValidityCellValid()) {
     validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition_map, isolate);

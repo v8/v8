@@ -729,7 +729,8 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::shared_ptr<i::wasm::CompilationResultResolver> resolver(
       new AsyncCompilationResolver(isolate, context, promise_resolver));
 
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  i::DirectHandle<i::NativeContext> native_context =
+      i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -807,7 +808,8 @@ void WebAssemblyCompileStreaming(
   auto resolver = std::make_shared<AsyncCompilationResolver>(isolate, context,
                                                              promise_resolver);
 
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  i::DirectHandle<i::NativeContext> native_context =
+      i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -940,7 +942,8 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.TypeError("WebAssembly.Module must be invoked with 'new'");
     return;
   }
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  i::DirectHandle<i::NativeContext> native_context =
+      i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -977,7 +980,7 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // subclass: {module_obj} has {WebAssembly.Module}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, module_obj,
-                         Utils::OpenHandle(*info.This()))) {
+                         Utils::OpenDirectHandle(*info.This()))) {
     return;
   }
 
@@ -1086,7 +1089,7 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // subclass: {instance_obj} has {WebAssembly.Instance}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, instance_obj,
-                         Utils::OpenHandle(*info.This()))) {
+                         Utils::OpenDirectHandle(*info.This()))) {
     return js_api_scope.AssertException();
   }
 
@@ -1118,7 +1121,8 @@ void WebAssemblyInstantiateStreaming(
   std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
       new InstantiateModuleResultResolver(isolate, context, result_resolver));
 
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  i::DirectHandle<i::NativeContext> native_context =
+      i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -1252,7 +1256,8 @@ void WebAssemblyInstantiateImpl(
 
   // The first parameter is a buffer source, we have to check if we are allowed
   // to compile it.
-  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
+  i::DirectHandle<i::NativeContext> native_context =
+      i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::DirectHandle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -1545,7 +1550,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // subclass: {table_obj} has {WebAssembly.Table}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, table_obj,
-                         Utils::OpenHandle(*info.This()))) {
+                         Utils::OpenDirectHandle(*info.This()))) {
     return js_api_scope.AssertException();
   }
 
@@ -1667,7 +1672,7 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // subclass: {memory_obj} has {WebAssembly.Memory}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, memory_obj,
-                         Utils::OpenHandle(*info.This()))) {
+                         Utils::OpenDirectHandle(*info.This()))) {
     return js_api_scope.AssertException();
   }
 
@@ -1847,7 +1852,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // subclass: {global_obj} has {WebAssembly.Global}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, global_obj,
-                         Utils::OpenHandle(*info.This()))) {
+                         Utils::OpenDirectHandle(*info.This()))) {
     return js_api_scope.AssertException();
   }
 
@@ -1930,7 +1935,7 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       UNREACHABLE();
   }
 
-  i::Handle<i::JSObject> global_js_object(global_obj);
+  i::DirectHandle<i::JSObject> global_js_object(global_obj);
   info.GetReturnValue().Set(Utils::ToLocal(global_js_object));
 }
 
@@ -2012,7 +2017,7 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::wasm::CanonicalTypeIndex type_index =
       i::wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(&sig);
 
-  i::Handle<i::JSObject> tag_object =
+  i::DirectHandle<i::JSObject> tag_object =
       i::WasmTagObject::New(i_isolate, &sig, type_index, tag,
                             i::Handle<i::WasmTrustedInstanceData>());
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
@@ -2364,7 +2369,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::Handle<i::JSFunction> result =
+  i::DirectHandle<i::JSFunction> result =
       i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -2434,7 +2439,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Function.type()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
 
-  i::Handle<i::JSObject> type;
+  i::DirectHandle<i::JSObject> type;
 
   i::Handle<i::Object> fun = Utils::OpenHandle(*info.This());
   if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
@@ -2511,7 +2516,8 @@ void WebAssemblyInstanceGetExportsImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Instance.exports()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmInstanceObject);
-  i::Handle<i::JSObject> exports_object(receiver->exports_object(), i_isolate);
+  i::DirectHandle<i::JSObject> exports_object(receiver->exports_object(),
+                                              i_isolate);
 
   info.GetReturnValue().Set(Utils::ToLocal(exports_object));
 }
@@ -2726,8 +2732,8 @@ void WebAssemblyMemoryGetBufferImpl(
 
   i::DirectHandle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
   DCHECK(IsJSArrayBuffer(*buffer_obj));
-  i::Handle<i::JSArrayBuffer> buffer(i::Cast<i::JSArrayBuffer>(*buffer_obj),
-                                     i_isolate);
+  i::DirectHandle<i::JSArrayBuffer> buffer(
+      i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
   if (buffer->is_shared()) {
     // TODO(gdeepti): More needed here for when cached buffer, and current
     // buffer are out of sync, handle that here when bounds checks, and Grow
@@ -3108,8 +3114,8 @@ Handle<JSFunction> CreateFunc(
     Isolate* isolate, Handle<String> name, FunctionCallback func,
     bool has_prototype,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    Handle<FunctionTemplateInfo> parent = {}) {
-  Handle<FunctionTemplateInfo> temp =
+    DirectHandle<FunctionTemplateInfo> parent = {}) {
+  DirectHandle<FunctionTemplateInfo> temp =
       NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
 
   if (!parent.is_null()) {
@@ -3160,10 +3166,10 @@ Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
       .ToHandleChecked();
 }
 
-void InstallGetter(Isolate* isolate, Handle<JSObject> object, const char* str,
-                   FunctionCallback func) {
+void InstallGetter(Isolate* isolate, DirectHandle<JSObject> object,
+                   const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       CreateFunc(isolate, GetterName(isolate, name), func, false,
                  SideEffectType::kHasNoSideEffect);
 
@@ -3177,14 +3183,14 @@ Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
       .ToHandleChecked();
 }
 
-void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
+void InstallGetterSetter(Isolate* isolate, DirectHandle<JSObject> object,
                          const char* str, FunctionCallback getter,
                          FunctionCallback setter) {
   Handle<String> name = v8_str(isolate, str);
-  Handle<JSFunction> getter_func =
+  DirectHandle<JSFunction> getter_func =
       CreateFunc(isolate, GetterName(isolate, name), getter, false,
                  SideEffectType::kHasNoSideEffect);
-  Handle<JSFunction> setter_func =
+  DirectHandle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter, false);
   setter_func->shared()->set_length(1);
 
@@ -3279,7 +3285,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> instance_constructor = InstallConstructorFunc(
         isolate, webassembly, "Instance", wasm::WebAssemblyInstance);
-    Handle<JSObject> instance_proto = SetupConstructor(
+    DirectHandle<JSObject> instance_proto = SetupConstructor(
         isolate, instance_constructor, WASM_INSTANCE_OBJECT_TYPE,
         WasmInstanceObject::kHeaderSize, "WebAssembly.Instance");
     native_context->set_wasm_instance_constructor(*instance_constructor);
@@ -3291,7 +3297,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> table_constructor = InstallConstructorFunc(
         isolate, webassembly, "Table", wasm::WebAssemblyTable);
-    Handle<JSObject> table_proto =
+    DirectHandle<JSObject> table_proto =
         SetupConstructor(isolate, table_constructor, WASM_TABLE_OBJECT_TYPE,
                          WasmTableObject::kHeaderSize, "WebAssembly.Table");
     native_context->set_wasm_table_constructor(*table_constructor);
@@ -3307,7 +3313,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> memory_constructor = InstallConstructorFunc(
         isolate, webassembly, "Memory", wasm::WebAssemblyMemory);
-    Handle<JSObject> memory_proto =
+    DirectHandle<JSObject> memory_proto =
         SetupConstructor(isolate, memory_constructor, WASM_MEMORY_OBJECT_TYPE,
                          WasmMemoryObject::kHeaderSize, "WebAssembly.Memory");
     native_context->set_wasm_memory_constructor(*memory_constructor);
@@ -3320,7 +3326,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> global_constructor = InstallConstructorFunc(
         isolate, webassembly, "Global", wasm::WebAssemblyGlobal);
-    Handle<JSObject> global_proto =
+    DirectHandle<JSObject> global_proto =
         SetupConstructor(isolate, global_constructor, WASM_GLOBAL_OBJECT_TYPE,
                          WasmGlobalObject::kHeaderSize, "WebAssembly.Global");
     native_context->set_wasm_global_constructor(*global_constructor);
@@ -3409,10 +3415,10 @@ void WasmJs::InstallModule(Isolate* isolate,
 
   Handle<JSFunction> module_constructor;
   if (v8_flags.js_source_phase_imports) {
-    Handle<FunctionTemplateInfo>
+    DirectHandle<FunctionTemplateInfo>
         intrinsic_abstract_module_source_interface_template =
             NewFunctionTemplate(isolate, nullptr, false);
-    Handle<JSObject> abstract_module_source_prototype = Handle<JSObject>(
+    DirectHandle<JSObject> abstract_module_source_prototype = Handle<JSObject>(
         native_context->abstract_module_source_prototype(), isolate);
     ApiNatives::AddDataProperty(
         isolate, intrinsic_abstract_module_source_interface_template,
@@ -3537,7 +3543,7 @@ void WasmJs::Install(Isolate* isolate) {
 
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
-                                        Handle<NativeContext> context) {
+                                        DirectHandle<NativeContext> context) {
   DirectHandle<JSObject> webassembly{context->wasm_webassembly_object(),
                                      isolate};
   if (!webassembly->map()->is_extensible()) return;

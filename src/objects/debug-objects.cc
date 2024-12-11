@@ -409,7 +409,7 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
     return info->bytecode_offset_or_source_position();
   }
   Isolate* isolate = info->GetIsolate();
-  Handle<SharedFunctionInfo> shared(
+  DirectHandle<SharedFunctionInfo> shared(
       Cast<SharedFunctionInfo>(info->shared_or_script()), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   int source_position = shared->abstract_code(isolate)->SourcePosition(

@@ -131,7 +131,7 @@ class ValueSerializer {
   void WriteJSRegExp(DirectHandle<JSRegExp> regexp);
   Maybe<bool> WriteJSMap(DirectHandle<JSMap> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(DirectHandle<JSSet> map) V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
+  Maybe<bool> WriteJSArrayBuffer(DirectHandle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(Tagged<JSArrayBufferView> array_buffer);
   Maybe<bool> WriteJSError(DirectHandle<JSObject> error) V8_WARN_UNUSED_RESULT;
@@ -140,7 +140,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSSharedStruct(DirectHandle<JSSharedStruct> shared_struct)
       V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
-  Maybe<bool> WriteWasmModule(Handle<WasmModuleObject> object)
+  Maybe<bool> WriteWasmModule(DirectHandle<WasmModuleObject> object)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteWasmMemory(DirectHandle<WasmMemoryObject> object)
       V8_WARN_UNUSED_RESULT;
@@ -158,7 +158,7 @@ class ValueSerializer {
                                               DirectHandle<FixedArray> keys)
       V8_WARN_UNUSED_RESULT;
 
-  Maybe<bool> IsHostObject(Handle<JSObject> object);
+  Maybe<bool> IsHostObject(DirectHandle<JSObject> object);
 
   /*
    * Asks the delegate to handle an error that occurred during data cloning, by

@@ -153,10 +153,10 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
 RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSFunction> target = args.at<JSFunction>(0);
-  Handle<Object> new_target = args.at(1);
+  DirectHandle<JSFunction> target = args.at<JSFunction>(0);
+  DirectHandle<Object> new_target = args.at(1);
   DirectHandle<Object> message = args.at(2);
-  Handle<Object> options = args.at(3);
+  DirectHandle<Object> options = args.at(3);
 
   DCHECK_EQ(*target, *isolate->aggregate_error_function());
 
@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
     message_args[num_message_args] = args.at(num_message_args + 1);
   }
 
-  Handle<Object> options =
+  DirectHandle<Object> options =
       args.length() >= 5 ? args.at(4) : isolate->factory()->undefined_value();
 
   DirectHandle<Object> message_string =
@@ -202,8 +202,8 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
 RUNTIME_FUNCTION(Runtime_ConstructSuppressedError) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSFunction> target = args.at<JSFunction>(0);
-  Handle<Object> new_target = args.at(1);
+  DirectHandle<JSFunction> target = args.at<JSFunction>(0);
+  DirectHandle<Object> new_target = args.at(1);
   DirectHandle<Object> message = args.at(2);
 
   DCHECK_EQ(*target, *isolate->suppressed_error_function());

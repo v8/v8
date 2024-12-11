@@ -254,7 +254,8 @@ class V8_EXPORT_PRIVATE Debug {
   Debug& operator=(const Debug&) = delete;
 
   // Debug event triggers.
-  void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction,
+  void OnDebugBreak(DirectHandle<FixedArray> break_points_hit,
+                    StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
@@ -350,12 +351,12 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Returns whether the operation succeeded.
   bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
-  void CreateBreakInfo(Handle<SharedFunctionInfo> shared);
+  void CreateBreakInfo(DirectHandle<SharedFunctionInfo> shared);
   Handle<DebugInfo> GetOrCreateDebugInfo(
       DirectHandle<SharedFunctionInfo> shared);
 
   void InstallCoverageInfo(DirectHandle<SharedFunctionInfo> shared,
-                           Handle<CoverageInfo> coverage_info);
+                           DirectHandle<CoverageInfo> coverage_info);
   void RemoveAllCoverageInfos();
 
   // This function is used in FunctionNameUsing* tests.

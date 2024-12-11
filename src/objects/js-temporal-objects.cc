@@ -258,7 +258,7 @@ DateRecord BalanceISODate(Isolate* isolate, const DateRecord& date);
 // Math and Misc
 
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddInstant(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds,
+    Isolate* isolate, DirectHandle<BigInt> epoch_nanoseconds,
     const TimeDurationRecord& addend);
 
 // #sec-temporal-balanceduration
@@ -323,12 +323,12 @@ V8_WARN_UNUSED_RESULT Maybe<DateTimeRecord> AddDateTime(
 
 // #sec-temporal-addzoneddatetime
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
-    Isolate* isolate, Handle<BigInt> eopch_nanoseconds,
+    Isolate* isolate, DirectHandle<BigInt> eopch_nanoseconds,
     DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar,
     const DurationRecord& addend, const char* method_name);
 
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
-    Isolate* isolate, Handle<BigInt> eopch_nanoseconds,
+    Isolate* isolate, DirectHandle<BigInt> eopch_nanoseconds,
     DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar,
     const DurationRecord& addend, DirectHandle<Object> options,
     const char* method_name);
@@ -639,7 +639,7 @@ MaybeHandle<JSTemporalCalendar> CreateTemporalCalendar(
 }
 
 MaybeHandle<JSTemporalCalendar> CreateTemporalCalendar(
-    Isolate* isolate, Handle<String> identifier) {
+    Isolate* isolate, DirectHandle<String> identifier) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalCalendar(isolate, CONSTRUCTOR(calendar),
                                 CONSTRUCTOR(calendar), identifier);
@@ -1251,14 +1251,14 @@ Handle<JSTemporalTimeZone> SystemTimeZone(Isolate* isolate) {
 }
 
 DateTimeRecord GetISOPartsFromEpoch(Isolate* isolate,
-                                    Handle<BigInt> epoch_nanoseconds) {
+                                    DirectHandle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   DateTimeRecord result;
   // 1. Assert: ! IsValidEpochNanoseconds(ℤ(epochNanoseconds)) is true.
   DCHECK(IsValidEpochNanoseconds(isolate, epoch_nanoseconds));
   // 2. Let remainderNs be epochNanoseconds modulo 10^6.
-  Handle<BigInt> million = BigInt::FromUint64(isolate, 1000000);
-  Handle<BigInt> remainder_ns =
+  DirectHandle<BigInt> million = BigInt::FromUint64(isolate, 1000000);
+  DirectHandle<BigInt> remainder_ns =
       BigInt::Remainder(isolate, epoch_nanoseconds, million).ToHandleChecked();
   // Need to do some remainder magic to negative remainder.
   if (remainder_ns->IsNegative()) {
@@ -1801,7 +1801,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
   // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
   // dateTime.[[ISONanosecond]]).
-  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(
+  DirectHandle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(
       isolate,
       {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
        {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
@@ -1809,7 +1809,8 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
         date_time->iso_nanosecond()}});
 
   // 8. Let dayBeforeNs be epochNanoseconds - ℤ(nsPerDay).
-  Handle<BigInt> one_day_in_ns = BigInt::FromUint64(isolate, 86400000000000ULL);
+  DirectHandle<BigInt> one_day_in_ns =
+      BigInt::FromUint64(isolate, 86400000000000ULL);
   DirectHandle<BigInt> day_before_ns =
       BigInt::Subtract(isolate, epoch_nanoseconds, one_day_in_ns)
           .ToHandleChecked();
@@ -2278,13 +2279,14 @@ MaybeHandle<JSTemporalInstant> ToTemporalInstant(Isolate* isolate,
         .ToHandleChecked();
   }
   // 2. Let string be ? ToString(item).
-  Handle<String> string;
+  DirectHandle<String> string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, string, Object::ToString(isolate, item));
 
   // 3. Let epochNanoseconds be ? ParseTemporalInstant(string).
   Handle<BigInt> epoch_nanoseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_nanoseconds,
-                             ParseTemporalInstant(isolate, string));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      ParseTemporalInstant(isolate, indirect_handle(string, isolate)));
 
   // 4. Return ? CreateTemporalInstant(ℤ(epochNanoseconds)).
   return temporal::CreateTemporalInstant(isolate, epoch_nanoseconds);
@@ -3668,7 +3670,7 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   // 5. Let utc be ? GetEpochFromISOParts(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]]).
-  Handle<BigInt> utc =
+  DirectHandle<BigInt> utc =
       GetEpochFromISOParts(isolate, {result.date, result.time});
 
   // 6. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
@@ -5186,12 +5188,12 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   // 6. Set hours, minutes, seconds, milliseconds, and microseconds to 0.
   DirectHandle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
   DirectHandle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
-  Handle<BigInt> zero = BigInt::FromInt64(isolate, 0);
+  DirectHandle<BigInt> zero = BigInt::FromInt64(isolate, 0);
   DirectHandle<BigInt> hours = zero;
-  Handle<BigInt> minutes = zero;
-  Handle<BigInt> seconds = zero;
-  Handle<BigInt> milliseconds = zero;
-  Handle<BigInt> microseconds = zero;
+  DirectHandle<BigInt> minutes = zero;
+  DirectHandle<BigInt> seconds = zero;
+  DirectHandle<BigInt> milliseconds = zero;
+  DirectHandle<BigInt> microseconds = zero;
 
   // 7. If nanoseconds < 0, let sign be −1; else, let sign be 1.
   // 8. Set nanoseconds to abs(nanoseconds).
@@ -5356,7 +5358,7 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
 
 // #sec-temporal-addzoneddatetime
 MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
-                                     Handle<BigInt> epoch_nanoseconds,
+                                     DirectHandle<BigInt> epoch_nanoseconds,
                                      DirectHandle<JSReceiver> time_zone,
                                      DirectHandle<JSReceiver> calendar,
                                      const DurationRecord& duration,
@@ -5371,7 +5373,7 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
 
 // #sec-temporal-addzoneddatetime
 MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
-                                     Handle<BigInt> epoch_nanoseconds,
+                                     DirectHandle<BigInt> epoch_nanoseconds,
                                      DirectHandle<JSReceiver> time_zone,
                                      DirectHandle<JSReceiver> calendar,
                                      const DurationRecord& duration,
@@ -5514,7 +5516,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   }
   auto relative_to = Cast<JSTemporalZonedDateTime>(relative_to_obj);
   // 5. Let startNs be ℝ(relativeTo.[[Nanoseconds]]).
-  Handle<BigInt> start_ns = handle(relative_to->nanoseconds(), isolate);
+  DirectHandle<BigInt> start_ns(relative_to->nanoseconds(), isolate);
   // 6. Let startInstant be ! CreateTemporalInstant(ℤ(sartNs)).
   DirectHandle<JSTemporalInstant> start_instant =
       temporal::CreateTemporalInstant(
@@ -5524,10 +5526,8 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   // 7. Let startDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
   // startInstant, relativeTo.[[Calendar]]).
-  DirectHandle<JSReceiver> time_zone =
-      Handle<JSReceiver>(relative_to->time_zone(), isolate);
-  DirectHandle<JSReceiver> calendar =
-      Handle<JSReceiver>(relative_to->calendar(), isolate);
+  DirectHandle<JSReceiver> time_zone(relative_to->time_zone(), isolate);
+  DirectHandle<JSReceiver> calendar(relative_to->calendar(), isolate);
   Handle<JSTemporalPlainDateTime> start_date_time;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, start_date_time,
@@ -5783,7 +5783,7 @@ Maybe<DurationRecord> DifferenceISODateTime(Isolate* isolate,
 
 // #sec-temporal-addinstant
 MaybeHandle<BigInt> AddInstant(Isolate* isolate,
-                               Handle<BigInt> epoch_nanoseconds,
+                               DirectHandle<BigInt> epoch_nanoseconds,
                                const TimeDurationRecord& addend) {
   TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
@@ -5803,7 +5803,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
           .ToHandleChecked();
 
   // + ℤ(microseconds) × 1000ℤ
-  Handle<BigInt> temp =
+  DirectHandle<BigInt> temp =
       BigInt::Multiply(
           isolate,
           BigInt::FromNumber(isolate, factory->NewNumber(addend.microseconds))
@@ -6307,7 +6307,7 @@ Handle<BigInt> TotalDurationNanoseconds(Isolate* isolate,
 
   TimeDurationRecord duration(value);
 
-  Handle<BigInt> nanoseconds =
+  DirectHandle<BigInt> nanoseconds =
       BigInt::FromNumber(isolate,
                          isolate->factory()->NewNumber(value.nanoseconds))
           .ToHandleChecked();
@@ -6325,9 +6325,9 @@ Handle<BigInt> TotalDurationNanoseconds(Isolate* isolate,
                       .ToHandleChecked();
   }
 
-  Handle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
-  Handle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
-  Handle<BigInt> twentyfour = BigInt::FromInt64(isolate, 24);
+  DirectHandle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
+  DirectHandle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
+  DirectHandle<BigInt> twentyfour = BigInt::FromInt64(isolate, 24);
   // 4. Set hours to ℝ(hours) + ℝ(days) × 24.
 
   Handle<BigInt> x =
@@ -6553,13 +6553,13 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
 Unit DefaultTemporalLargestUnit(const DurationRecord& dur);
 
 // #sec-temporal-roundtemporalinstant
-Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
+Handle<BigInt> RoundTemporalInstant(Isolate* isolate, DirectHandle<BigInt> ns,
                                     double increment, Unit unit,
                                     RoundingMode rounding_mode);
 
 // #sec-temporal-differenceinstant
-TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                     Handle<BigInt> ns2,
+TimeDurationRecord DifferenceInstant(Isolate* isolate, DirectHandle<BigInt> ns1,
+                                     DirectHandle<BigInt> ns2,
                                      double rounding_increment,
                                      Unit smallest_unit, Unit largest_unit,
                                      RoundingMode rounding_mode,
@@ -6567,7 +6567,7 @@ TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
 
 // #sec-temporal-differencezoneddatetime
 Maybe<DurationRecord> DifferenceZonedDateTime(
-    Isolate* isolate, Handle<BigInt> ns1, Handle<BigInt> ns2,
+    Isolate* isolate, DirectHandle<BigInt> ns1, DirectHandle<BigInt> ns2,
     DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar,
     Unit largest_unit, DirectHandle<JSReceiver> options,
     const char* method_name);
@@ -6648,10 +6648,10 @@ Maybe<DurationRecord> AdjustRoundedDurationDays(Isolate* isolate,
                        {0, 0, 0, {direction, 0, 0, 0, 0, 0, 0}}, method_name),
       Nothing<DurationRecord>());
   // 8. Let dayLengthNs be ℝ(dayEnd - dayStart).
-  Handle<BigInt> day_length_ns =
+  DirectHandle<BigInt> day_length_ns =
       BigInt::Subtract(isolate, day_end, day_start).ToHandleChecked();
   // 9. If (timeRemainderNs - dayLengthNs) × direction < 0, then
-  Handle<BigInt> time_remainder_ns_minus_day_length_ns =
+  DirectHandle<BigInt> time_remainder_ns_minus_day_length_ns =
       BigInt::Subtract(isolate, time_remainder_ns, day_length_ns)
           .ToHandleChecked();
 
@@ -6805,7 +6805,7 @@ Maybe<DateDurationRecord> UnbalanceDurationRelative(
           .ToHandleChecked();
   // 7. If relativeTo is not undefined, then
   Handle<JSTemporalPlainDate> relative_to;
-  Handle<JSReceiver> calendar;
+  DirectHandle<JSReceiver> calendar;
   if (!IsUndefined(*relative_to_obj)) {
     // a. Set relativeTo to ? ToTemporalDate(relativeTo).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -6851,7 +6851,8 @@ Maybe<DateDurationRecord> UnbalanceDurationRelative(
                           factory->undefined_value(), date_add),
           Nothing<DateDurationRecord>());
       // ii. Let untilOptions be ! OrdinaryObjectCreate(null).
-      Handle<JSObject> until_options = factory->NewJSObjectWithNullProto();
+      DirectHandle<JSObject> until_options =
+          factory->NewJSObjectWithNullProto();
       // iii. Perform ! CreateDataPropertyOrThrow(untilOptions, "largestUnit",
       // "month").
       CHECK(JSReceiver::CreateDataProperty(
@@ -7126,7 +7127,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         Object::GetMethod(isolate, calendar, factory->dateUntil_string()),
         Nothing<DateDurationRecord>());
     // l. Let untilOptions be OrdinaryObjectCreate(null).
-    Handle<JSObject> until_options = factory->NewJSObjectWithNullProto();
+    DirectHandle<JSObject> until_options = factory->NewJSObjectWithNullProto();
     // m. Perform ! CreateDataPropertyOrThrow(untilOptions, "largestUnit",
     // "month").
     CHECK(JSReceiver::CreateDataProperty(
@@ -8318,7 +8319,7 @@ Unit DefaultTemporalLargestUnit(const DurationRecord& dur) {
 
 // #sec-temporal-differencezoneddatetime
 Maybe<DurationRecord> DifferenceZonedDateTime(
-    Isolate* isolate, Handle<BigInt> ns1, Handle<BigInt> ns2,
+    Isolate* isolate, DirectHandle<BigInt> ns1, DirectHandle<BigInt> ns2,
     DirectHandle<JSReceiver> time_zone, DirectHandle<JSReceiver> calendar,
     Unit largest_unit, DirectHandle<JSReceiver> options,
     const char* method_name) {
@@ -8732,7 +8733,7 @@ MaybeHandle<String> JSTemporalDuration::ToJSON(
 // #sec-temporal.duration.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalDuration::ToLocaleString(
     Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-    DirectHandle<Object> locales, Handle<Object> options) {
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
   // 1. Let duration be the this value.
   // 2. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -10909,10 +10910,10 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
 namespace {
 
 #ifdef V8_INTL_SUPPORT
-Handle<Object> GetIANATimeZoneTransition(Isolate* isolate,
-                                         Handle<BigInt> nanoseconds,
-                                         int32_t time_zone_index,
-                                         Intl::Transition transition) {
+DirectHandle<Object> GetIANATimeZoneTransition(Isolate* isolate,
+                                               DirectHandle<BigInt> nanoseconds,
+                                               int32_t time_zone_index,
+                                               Intl::Transition transition) {
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return isolate->factory()->null_value();
   }
@@ -10920,23 +10921,23 @@ Handle<Object> GetIANATimeZoneTransition(Isolate* isolate,
                                                       nanoseconds, transition);
 }
 // #sec-temporal-getianatimezonenexttransition
-Handle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
-                                             Handle<BigInt> nanoseconds,
-                                             int32_t time_zone_index) {
+DirectHandle<Object> GetIANATimeZoneNextTransition(
+    Isolate* isolate, DirectHandle<BigInt> nanoseconds,
+    int32_t time_zone_index) {
   return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
                                    Intl::Transition::kNext);
 }
 // #sec-temporal-getianatimezoneprevioustransition
-Handle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
-                                                 Handle<BigInt> nanoseconds,
-                                                 int32_t time_zone_index) {
+DirectHandle<Object> GetIANATimeZonePreviousTransition(
+    Isolate* isolate, DirectHandle<BigInt> nanoseconds,
+    int32_t time_zone_index) {
   return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
                                    Intl::Transition::kPrevious);
 }
 
-Handle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
-                                                Handle<BigInt> nanoseconds,
-                                                int32_t time_zone_index) {
+Handle<Object> GetIANATimeZoneOffsetNanoseconds(
+    Isolate* isolate, DirectHandle<BigInt> nanoseconds,
+    int32_t time_zone_index) {
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return handle(Smi::zero(), isolate);
   }
@@ -10947,17 +10948,19 @@ Handle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
 }
 #else   // V8_INTL_SUPPORT
 // #sec-temporal-getianatimezonenexttransition
-Handle<Object> GetIANATimeZoneNextTransition(Isolate* isolate, Handle<BigInt>,
-                                             int32_t) {
+DirectHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
+                                                   DirectHandle<BigInt>,
+                                                   int32_t) {
   return isolate->factory()->null_value();
 }
 // #sec-temporal-getianatimezoneprevioustransition
-Handle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
-                                                 Handle<BigInt>, int32_t) {
+DirectHandle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
+                                                       DirectHandle<BigInt>,
+                                                       int32_t) {
   return isolate->factory()->null_value();
 }
 Handle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
-                                                Handle<BigInt>,
+                                                DirectHandle<BigInt>,
                                                 int32_t time_zone_index) {
   DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
   return handle(Smi::zero(), isolate);
@@ -10993,7 +10996,8 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalTimeZone::GetPlainDateTimeFor(
 
 // template for shared code of Temporal.TimeZone.prototype.getNextTransition and
 // Temporal.TimeZone.prototype.getPreviousTransition
-template <Handle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
+template <DirectHandle<Object> (*iana_func)(Isolate*, DirectHandle<BigInt>,
+                                            int32_t)>
 MaybeHandle<Object> GetTransition(Isolate* isolate,
                                   DirectHandle<JSTemporalTimeZone> time_zone,
                                   Handle<Object> starting_point_obj,
@@ -11014,8 +11018,8 @@ MaybeHandle<Object> GetTransition(Isolate* isolate,
   // 5. Let transition be ?
   // GetIANATimeZoneNextTransition(startingPoint.[[Nanoseconds]],
   // timeZone.[[Identifier]]).
-  Handle<Object> transition_obj =
-      iana_func(isolate, handle(starting_point->nanoseconds(), isolate),
+  DirectHandle<Object> transition_obj =
+      iana_func(isolate, direct_handle(starting_point->nanoseconds(), isolate),
                 time_zone->time_zone_index());
   // 6. If transition is null, return null.
   if (IsNull(*transition_obj)) {
@@ -11079,7 +11083,7 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
   }
 
   // For TimeZone other than UTC, call ICU indirectly from Intl
-  Handle<BigInt> nanoseconds_in_local_time =
+  DirectHandle<BigInt> nanoseconds_in_local_time =
       GetEpochFromISOParts(isolate, date_time);
 
   DirectHandleVector<BigInt> possible_offset =
@@ -11146,7 +11150,7 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
     // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
     // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
     // dateTime.[[ISONanosecond]]).
-    Handle<BigInt> epoch_nanoseconds =
+    DirectHandle<BigInt> epoch_nanoseconds =
         GetEpochFromISOParts(isolate, date_time_record);
     // b. Let possibleEpochNanoseconds be « epochNanoseconds -
     // ℤ(timeZone.[[OffsetNanoseconds]]) ».
@@ -12057,7 +12061,7 @@ MaybeHandle<String> JSTemporalPlainDate::ToString(
 
 // #sup-temporal.plaindate.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainDate::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDate> temporal_date,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
 #ifdef V8_INTL_SUPPORT
   return JSDateTimeFormat::TemporalToLocaleString(
@@ -12584,7 +12588,7 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainDateTime::ToPlainMonthDay(
 
 // #sec-temporal.plaindatetime.prototype.tozoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDateTime::ToZonedDateTime(
-    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
     Handle<Object> temporal_time_zone_like, DirectHandle<Object> options_obj) {
   const char* method_name = "Temporal.PlainDateTime.prototype.toZonedDateTime";
   // 1. Let dateTime be the this value.
@@ -13767,7 +13771,7 @@ MaybeHandle<String> JSTemporalPlainMonthDay::ToString(
 
 // #sec-temporal.plainmonthday.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> month_day,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
 #ifdef V8_INTL_SUPPORT
   return JSDateTimeFormat::TemporalToLocaleString(
@@ -14109,7 +14113,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
                                        {balance_result.days, 0, 0, 0, 0, 0, 0}})
           .ToHandleChecked();
   // 14. Let optionsCopy be OrdinaryObjectCreate(null).
-  Handle<JSReceiver> options_copy =
+  DirectHandle<JSReceiver> options_copy =
       isolate->factory()->NewJSObjectWithNullProto();
 
   // 15. Let entries be ? EnumerableOwnPropertyNames(options, key+value).
@@ -14390,7 +14394,7 @@ MaybeHandle<String> JSTemporalPlainYearMonth::ToString(
 
 // #sec-temporal.plainyearmonth.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> year_month,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
 #ifdef V8_INTL_SUPPORT
   return JSDateTimeFormat::TemporalToLocaleString(
@@ -15070,7 +15074,7 @@ MaybeHandle<String> JSTemporalPlainTime::ToJSON(
 
 // #sup-temporal.plaintime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalPlainTime::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Isolate* isolate, DirectHandle<JSTemporalPlainTime> temporal_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
 #ifdef V8_INTL_SUPPORT
   return JSDateTimeFormat::TemporalToLocaleString(
@@ -15174,13 +15178,13 @@ double ApplyUnsignedRoundingMode(double x, double r1, double r2,
 
 // #sec-temporal-applyunsignedroundingmode
 Handle<BigInt> ApplyUnsignedRoundingMode(
-    Isolate* isolate, Handle<BigInt> num, Handle<BigInt> increment,
+    Isolate* isolate, DirectHandle<BigInt> num, DirectHandle<BigInt> increment,
     Handle<BigInt> r1, Handle<BigInt> r2,
     UnsignedRoundingMode unsigned_rounding_mode) {
   // 1. If x is equal to r1, return r1.
-  Handle<BigInt> rr1 =
+  DirectHandle<BigInt> rr1 =
       BigInt::Multiply(isolate, increment, r1).ToHandleChecked();
-  Handle<BigInt> rr2 =
+  DirectHandle<BigInt> rr2 =
       BigInt::Multiply(isolate, increment, r2).ToHandleChecked();
   if (BigInt::EqualToBigInt(*num, *rr1)) return r1;
   // 2. Assert: r1 < x < r2.
@@ -15266,7 +15270,7 @@ double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
 
 // #sec-temporal-roundnumbertoincrementasifpositive
 Handle<BigInt> RoundNumberToIncrementAsIfPositive(Isolate* isolate,
-                                                  Handle<BigInt> x,
+                                                  DirectHandle<BigInt> x,
                                                   double increment,
                                                   RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
@@ -15277,7 +15281,7 @@ Handle<BigInt> RoundNumberToIncrementAsIfPositive(Isolate* isolate,
   UnsignedRoundingMode unsigned_rounding_mode =
       GetUnsignedRoundingMode(rounding_mode, false);
 
-  Handle<BigInt> increment_bigint =
+  DirectHandle<BigInt> increment_bigint =
       BigInt::FromNumber(isolate, isolate->factory()->NewNumber(increment))
           .ToHandleChecked();
   // 3. Let r1 be the largest integer such that r1 ≤ quotient.
@@ -15295,7 +15299,7 @@ Handle<BigInt> RoundNumberToIncrementAsIfPositive(Isolate* isolate,
   Handle<BigInt> r2 = BigInt::Increment(isolate, r1).ToHandleChecked();
   // 5. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2,
   // unsignedRoundingMode).
-  Handle<BigInt> rounded = ApplyUnsignedRoundingMode(
+  DirectHandle<BigInt> rounded = ApplyUnsignedRoundingMode(
       isolate, x, increment_bigint, r1, r2, unsigned_rounding_mode);
   // 6. Return rounded × increment.
   Handle<BigInt> result =
@@ -15742,7 +15746,7 @@ MaybeHandle<Object> JSTemporalZonedDateTime::HoursInDay(
                                    Disambiguation::kCompatible, method_name));
   // 15. Let diffNs be tomorrowInstant.[[Nanoseconds]] −
   // todayInstant.[[Nanoseconds]].
-  Handle<BigInt> diff_ns =
+  DirectHandle<BigInt> diff_ns =
       BigInt::Subtract(isolate,
                        handle(tomorrow_instant->nanoseconds(), isolate),
                        handle(today_instant->nanoseconds(), isolate))
@@ -16743,7 +16747,7 @@ MaybeHandle<String> JSTemporalZonedDateTime::ToJSON(
 
 // #sec-temporal.zoneddatetime.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalZonedDateTime::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
   const char* method_name = "Temporal.ZonedDateTime.prototype.toLocaleString";
 #ifdef V8_INTL_SUPPORT
@@ -16934,7 +16938,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
       BuiltinTimeZoneGetInstantFor(isolate, time_zone, dt_start,
                                    Disambiguation::kCompatible, method_name));
   // 16. Let startNs be instantStart.[[Nanoseconds]].
-  Handle<BigInt> start_ns(instant_start->nanoseconds(), isolate);
+  DirectHandle<BigInt> start_ns(instant_start->nanoseconds(), isolate);
   // 17. Let endNs be ? AddZonedDateTime(startNs, timeZone, calendar, 0, 0, 0,
   // 1, 0, 0, 0, 0, 0, 0).
   Handle<BigInt> end_ns;
@@ -17031,7 +17035,7 @@ AddDurationToOrSubtractDurationFromZonedDateTime(
   // sign x duration.[[Minutes]], sign x duration.[[Seconds]], sign x
   // duration.[[Milliseconds]], sign x duration.[[Microseconds]], sign x
   // duration.[[Nanoseconds]], options).
-  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  DirectHandle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
   duration.years *= sign;
   duration.months *= sign;
   duration.weeks *= sign;
@@ -17717,7 +17721,7 @@ Maybe<double> ToTemporalRoundingIncrement(
 }
 
 // #sec-temporal-roundtemporalinstant
-Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
+Handle<BigInt> RoundTemporalInstant(Isolate* isolate, DirectHandle<BigInt> ns,
                                     double increment, Unit unit,
                                     RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
@@ -18032,7 +18036,7 @@ MaybeHandle<String> JSTemporalInstant::ToJSON(
 
 // #sec-temporal.instant.prototype.tolocalestring
 MaybeDirectHandle<String> JSTemporalInstant::ToLocaleString(
-    Isolate* isolate, Handle<JSTemporalInstant> instant,
+    Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
   const char* method_name = "Temporal.Instant.prototype.toLocaleString";
 #ifdef V8_INTL_SUPPORT
@@ -18315,8 +18319,8 @@ Maybe<DifferenceSettings> GetDifferenceSettings(
 }
 
 // #sec-temporal-differenceinstant
-TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
-                                     Handle<BigInt> ns2,
+TimeDurationRecord DifferenceInstant(Isolate* isolate, DirectHandle<BigInt> ns1,
+                                     DirectHandle<BigInt> ns2,
                                      double rounding_increment,
                                      Unit smallest_unit, Unit largest_unit,
                                      RoundingMode rounding_mode,
@@ -18328,7 +18332,8 @@ TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
 
   // 4. Let roundResult be ! RoundDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, ns2 - ns1,
   // roundingIncrement, smallestUnit, roundingMode).[[DurationRecord]].
-  Handle<BigInt> diff = BigInt::Subtract(isolate, ns2, ns1).ToHandleChecked();
+  DirectHandle<BigInt> diff =
+      BigInt::Subtract(isolate, ns2, ns1).ToHandleChecked();
   // Note: Since diff could be very big and over the precision of double can
   // hold, break diff into diff_hours and diff_nanoseconds before pass into
   // RoundDuration.

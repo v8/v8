@@ -164,7 +164,7 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
 
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator_holder,
-    Handle<String> text) {
+    DirectHandle<String> text) {
   icu::BreakIterator* break_iterator =
       break_iterator_holder->break_iterator()->raw();
   DCHECK_NOT_NULL(break_iterator);

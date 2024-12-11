@@ -126,7 +126,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
                  State new_state) {
   if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
 
-  Handle<Map> map = lookup_start_object_map();  // Might be empty.
+  DirectHandle<Map> map = lookup_start_object_map();  // Might be empty.
 
   const char* modifier = "";
   if (state() == NO_FEEDBACK) {
@@ -392,7 +392,8 @@ void IC::ConfigureVectorState(
 }
 
 MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
-                                 bool update_feedback, Handle<JSAny> receiver) {
+                                 bool update_feedback,
+                                 DirectHandle<JSAny> receiver) {
   bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic && update_feedback;
 
   if (receiver.is_null()) {
@@ -1191,7 +1192,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
-  for (Handle<Map> map : target_receiver_maps) {
+  for (DirectHandle<Map> map : target_receiver_maps) {
     if (map.is_null()) continue;
     if (map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       set_slow_stub_reason("JSPrimitiveWrapper");
@@ -2278,7 +2279,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   }
 
   for (const MapAndHandler& map_and_handler : target_maps_and_handlers) {
-    Handle<Map> map = map_and_handler.first;
+    DirectHandle<Map> map = map_and_handler.first;
     if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason("JSPrimitiveWrapper");
@@ -2487,7 +2488,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     DCHECK(!receiver_map->is_deprecated());
     MaybeObjectHandle old_handler = receiver_maps_and_handlers->at(i).second;
     Handle<Object> handler;
-    Handle<Map> transition;
+    DirectHandle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
         receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
@@ -2829,7 +2830,7 @@ RUNTIME_FUNCTION(Runtime_LoadWithReceiverNoFeedbackIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSAny> object = args.at<JSAny>(1);
   Handle<Name> key = args.at<Name>(2);
 
@@ -2889,7 +2890,7 @@ RUNTIME_FUNCTION(Runtime_LoadWithReceiverIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<JSAny> receiver = args.at<JSAny>(0);
+  DirectHandle<JSAny> receiver = args.at<JSAny>(0);
   Handle<JSAny> object = args.at<JSAny>(1);
   Handle<Name> key = args.at<Name>(2);
   int slot = args.tagged_index_value_at(3);
@@ -3990,7 +3991,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
     PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                         *holder, Just(kDontThrow));
 
-    Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
+    DirectHandle<Object> result = arguments.CallNamedGetter(interceptor, name);
     // An exception was thrown in the interceptor. Propagate.
     RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
@@ -4155,7 +4156,8 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
                                         *receiver, Just(kDontThrow));
 
     if (!IsUndefined(interceptor->query(), isolate)) {
-      Handle<Object> result = arguments.CallIndexedQuery(interceptor, index);
+      DirectHandle<Object> result =
+          arguments.CallIndexedQuery(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {
@@ -4168,7 +4170,8 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
         return ReadOnlyRoots(isolate).true_value();
       }
     } else if (!IsUndefined(interceptor->getter(), isolate)) {
-      Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
+      DirectHandle<Object> result =
+          arguments.CallIndexedGetter(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.
       RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
       if (!result.is_null()) {

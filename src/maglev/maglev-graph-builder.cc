@@ -8575,7 +8575,7 @@ ReduceResult MaglevGraphBuilder::TryReduceStringPrototypeLocaleCompareIntl(
   LocalFactory* factory = local_isolate()->factory();
   compiler::ObjectRef undefined_ref = broker()->undefined_value();
 
-  Handle<Object> locales_handle;
+  DirectHandle<Object> locales_handle;
   ValueNode* locales_node = nullptr;
   if (args.count() > 1) {
     compiler::OptionalHeapObjectRef maybe_locales = TryGetConstant(args[1]);

@@ -77,7 +77,7 @@ class WasmJs {
 
   // Extend the API based on late-enabled features, mostly from origin trial.
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
-      Isolate* isolate, Handle<NativeContext> context);
+      Isolate* isolate, DirectHandle<NativeContext> context);
 
  private:
   V8_EXPORT_PRIVATE static void InstallModule(

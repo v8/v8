@@ -125,7 +125,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
                                      isolate);
   const bool copy_data = buffer->is_shared();
 
-  Handle<ByteArray> array_copy;
+  DirectHandle<ByteArray> array_copy;
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {

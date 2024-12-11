@@ -234,7 +234,7 @@ class JSTemporalDuration
   // #sec-temporal.duration.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-      DirectHandle<Object> locales, Handle<Object> options);
+      DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // #sec-temporal.duration.prototype.tostring
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
@@ -324,7 +324,7 @@ class JSTemporalInstant
 
   // #sec-temporal.instant.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // #sec-temporal.instant.prototype.tostring
@@ -448,7 +448,7 @@ class JSTemporalPlainDate
 
   // #sec-temporal.plaindate.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+      Isolate* isolate, DirectHandle<JSTemporalPlainDate> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalPlainDate)
@@ -511,7 +511,8 @@ class JSTemporalPlainDateTime
 
   // #sec-temporal.plaintime.prototype.tozoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
-  ToZonedDateTime(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+  ToZonedDateTime(Isolate* isolate,
+                  DirectHandle<JSTemporalPlainDateTime> date_time,
                   Handle<Object> temporal_time_zone_like,
                   DirectHandle<Object> options_obj);
 
@@ -644,7 +645,7 @@ class JSTemporalPlainMonthDay
 
   // #sec-temporal.plainmonthday.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalPlainMonthDay> plain_date,
+      Isolate* isolate, DirectHandle<JSTemporalPlainMonthDay> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalPlainMonthDay)
@@ -741,7 +742,7 @@ class JSTemporalPlainTime
 
   // #sec-temporal.plaintime.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   DECL_PRINTER(JSTemporalPlainTime)
@@ -825,7 +826,7 @@ class JSTemporalPlainYearMonth
 
   // #sec-temporal.plainyearmonth.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalPlainYearMonth> plain_date,
+      Isolate* isolate, DirectHandle<JSTemporalPlainYearMonth> plain_date,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // Abstract Operations
@@ -1055,7 +1056,7 @@ class JSTemporalZonedDateTime
 
   // #sec-temporal.zoneddatetime.prototype.tolocalestring
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ToLocaleString(
-      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+      Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
       DirectHandle<Object> locales, DirectHandle<Object> options);
 
   // #sec-temporal.zoneddatetime.prototype.tostring

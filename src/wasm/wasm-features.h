@@ -79,7 +79,7 @@ class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
   static WasmEnabledFeatures FromFlags();
   static V8_EXPORT_PRIVATE WasmEnabledFeatures FromIsolate(Isolate*);
   static V8_EXPORT_PRIVATE WasmEnabledFeatures
-  FromContext(Isolate*, Handle<NativeContext>);
+  FromContext(Isolate*, DirectHandle<NativeContext>);
 };
 
 // Set of detected features. This includes features that have a flag plus

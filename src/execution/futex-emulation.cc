@@ -542,7 +542,8 @@ Global<T> GetWeakGlobal(Isolate* isolate, Local<T> object) {
 
 FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
                                      void* wait_location,
-                                     Handle<JSObject> promise, Isolate* isolate)
+                                     DirectHandle<JSObject> promise,
+                                     Isolate* isolate)
     : wait_location_(wait_location),
       waiting_(true),
       async_state_(std::make_unique<AsyncState>(
@@ -563,7 +564,7 @@ Tagged<Object> FutexEmulation::WaitAsync(
   Factory* factory = isolate->factory();
   DirectHandle<JSObject> result =
       factory->NewJSObject(isolate->object_function());
-  Handle<JSObject> promise_capability = factory->NewJSPromise();
+  DirectHandle<JSObject> promise_capability = factory->NewJSPromise();
 
   enum class ResultKind { kNotEqual, kTimedOut, kAsync };
   ResultKind result_kind;

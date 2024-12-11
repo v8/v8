@@ -1515,7 +1515,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
 
-  Handle<SharedFunctionInfo> shared(frame->function()->shared(), this);
+  DirectHandle<SharedFunctionInfo> shared(frame->function()->shared(), this);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
   int position = frame->position();
 
@@ -1743,7 +1743,7 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
 
   // Get the data object from access check info.
   HandleScope scope(this);
-  Handle<Object> data;
+  DirectHandle<Object> data;
   {
     DisallowGarbageCollection no_gc;
     Tagged<AccessCheckInfo> access_check_info =
@@ -1792,7 +1792,7 @@ bool Isolate::MayAccess(DirectHandle<NativeContext> accessing_context,
   }
 
   HandleScope scope(this);
-  Handle<Object> data;
+  DirectHandle<Object> data;
   v8::AccessCheckCallback callback = nullptr;
   {
     DisallowGarbageCollection no_gc;
@@ -1841,11 +1841,11 @@ Tagged<Object> Isolate::StackOverflow() {
   DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
 
-  Handle<JSFunction> fun = range_error_function();
+  DirectHandle<JSFunction> fun = range_error_function();
   DirectHandle<Object> msg = factory()->NewStringFromAsciiChecked(
       MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
-  Handle<Object> options = factory()->undefined_value();
-  Handle<Object> no_caller;
+  DirectHandle<Object> options = factory()->undefined_value();
+  DirectHandle<Object> no_caller;
   Handle<JSObject> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       this, exception,
@@ -2885,7 +2885,7 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
                                                     Handle<Object> exception) {
   if (!IsJSReceiver(*exception)) return false;
 
-  Handle<StackTraceInfo> stack_trace =
+  DirectHandle<StackTraceInfo> stack_trace =
       GetDetailedStackTrace(Cast<JSReceiver>(exception));
   if (stack_trace.is_null() || stack_trace->length() == 0) {
     return false;
@@ -2899,7 +2899,7 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
-  Handle<StackTraceInfo> stack_trace;
+  DirectHandle<StackTraceInfo> stack_trace;
   if (capture_stack_trace_for_uncaught_exceptions_) {
     if (IsJSObject(*exception)) {
       // First, check whether a stack trace is already present on this object.
@@ -3539,7 +3539,7 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-void Isolate::InstallConditionalFeatures(Handle<NativeContext> context) {
+void Isolate::InstallConditionalFeatures(DirectHandle<NativeContext> context) {
   DirectHandle<JSGlobalObject> global = handle(context->global_object(), this);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
@@ -3555,7 +3555,7 @@ void Isolate::InstallConditionalFeatures(Handle<NativeContext> context) {
 }
 
 bool Isolate::IsSharedArrayBufferConstructorEnabled(
-    Handle<NativeContext> context) {
+    DirectHandle<NativeContext> context) {
   if (!v8_flags.enable_sharedarraybuffer_per_context) return true;
 
   if (sharedarraybuffer_constructor_enabled_callback()) {
@@ -3565,7 +3565,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(
   return false;
 }
 
-bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
+bool Isolate::IsWasmStringRefEnabled(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   // If Wasm imported strings are explicitly enabled via a callback, also enable
   // stringref.
@@ -3582,7 +3582,7 @@ bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmJSPIRequested(Handle<NativeContext> context) {
+bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
   if (jspi_callback) {
@@ -3597,7 +3597,7 @@ bool Isolate::IsWasmJSPIRequested(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
+bool Isolate::IsWasmJSPIEnabled(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   return IsWasmJSPIRequested(context) &&
          context->is_wasm_jspi_installed() != Smi::zero();
@@ -3606,7 +3606,8 @@ bool Isolate::IsWasmJSPIEnabled(Handle<NativeContext> context) {
 #endif
 }
 
-bool Isolate::IsWasmImportedStringsEnabled(Handle<NativeContext> context) {
+bool Isolate::IsWasmImportedStringsEnabled(
+    DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmImportedStringsEnabledCallback callback =
       wasm_imported_strings_enabled_callback();
@@ -4867,15 +4868,15 @@ void Isolate::ReportExceptionFunctionCallback(
 
   // Ignore exceptions that we can't extend.
   if (!IsJSReceiver(this->exception())) return;
-  Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
+  DirectHandle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
   DirectHandle<Object> maybe_message(pending_message(), this);
 
-  Handle<String> property_name =
+  DirectHandle<String> property_name =
       IsUndefined(function->class_name(), this)
           ? factory()->empty_string()
           : Handle<String>(Cast<String>(function->class_name()), this);
-  Handle<String> interface_name =
+  DirectHandle<String> interface_name =
       IsUndefined(function->interface_name(), this)
           ? factory()->empty_string()
           : Handle<String>(Cast<String>(function->interface_name()), this);
@@ -4906,13 +4907,14 @@ void Isolate::ReportExceptionPropertyCallback(
   DCHECK_NOT_NULL(exception_propagation_callback_);
 
   if (!IsJSReceiver(this->exception())) return;
-  Handle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
+  DirectHandle<JSReceiver> exception(Cast<JSReceiver>(this->exception()), this);
 
   DirectHandle<Object> maybe_message(pending_message(), this);
 
   Handle<String> property_name;
   std::ignore = Name::ToFunctionName(this, name).ToHandle(&property_name);
-  Handle<String> interface_name = JSReceiver::GetConstructorName(this, holder);
+  DirectHandle<String> interface_name =
+      JSReceiver::GetConstructorName(this, holder);
 
   {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
@@ -6366,7 +6368,7 @@ namespace {
 
 MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
                                           v8::Local<v8::Context> api_context,
-                                          Handle<Object> exception) {
+                                          DirectHandle<Object> exception) {
   v8::Local<v8::Promise::Resolver> resolver;
   API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, resolver,
                                        v8::Promise::Resolver::New(api_context),
@@ -6389,7 +6391,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(!is_execution_terminating());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   if (host_import_module_dynamically_callback_ == nullptr) {
-    Handle<Object> exception =
+    DirectHandle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     return NewRejectedPromise(this, api_context, exception);
   }
@@ -6400,7 +6402,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
-    Handle<Object> exception(this->exception(), this);
+    DirectHandle<Object> exception(this->exception(), this);
     clear_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
@@ -6413,12 +6415,12 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
     }
-    Handle<Object> exception(this->exception(), this);
+    DirectHandle<Object> exception(this->exception(), this);
     clear_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
-  Handle<FixedArray> host_defined_options;
-  Handle<Object> resource_name;
+  DirectHandle<FixedArray> host_defined_options;
+  DirectHandle<Object> resource_name;
   if (maybe_referrer.is_null()) {
     host_defined_options = factory()->empty_fixed_array();
     resource_name = factory()->null_value();
@@ -6722,7 +6724,7 @@ void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
 }
 
 void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
-                                     Handle<JSArrayBuffer> array_buffer,
+                                     DirectHandle<JSArrayBuffer> array_buffer,
                                      size_t offset_in_bytes, int64_t value,
                                      double timeout_in_ms,
                                      AtomicsWaitWakeHandle* stop_handle) {
@@ -7432,9 +7434,10 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   return reinterpret_cast<Address>(&map[name].second);
 }
 
-void Isolate::LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
-                                      Handle<ScopeInfo> outer_scope_info,
-                                      Handle<StringSet> locals_blocklist) {
+void Isolate::LocalsBlockListCacheSet(
+    DirectHandle<ScopeInfo> scope_info,
+    DirectHandle<ScopeInfo> outer_scope_info,
+    DirectHandle<StringSet> locals_blocklist) {
   Handle<EphemeronHashTable> cache;
   if (IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     cache = handle(Cast<EphemeronHashTable>(heap()->locals_block_list_cache()),
@@ -7446,7 +7449,7 @@ void Isolate::LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
   }
   DCHECK(IsEphemeronHashTable(*cache));
 
-  Handle<Object> value;
+  DirectHandle<Object> value;
   if (!outer_scope_info.is_null()) {
     value = factory()->NewTuple2(outer_scope_info, locals_blocklist,
                                  AllocationType::kYoung);

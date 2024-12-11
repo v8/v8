@@ -77,8 +77,9 @@ Handle<Map> GetOrCreateDebugProxyMap(
     return handle(Cast<Map>(maps->get(id)), isolate);
   }
   auto tmp = (*create_template_fn)(reinterpret_cast<v8::Isolate*>(isolate));
-  auto fun = ApiNatives::InstantiateFunction(isolate, Utils::OpenHandle(*tmp))
-                 .ToHandleChecked();
+  auto fun =
+      ApiNatives::InstantiateFunction(isolate, Utils::OpenDirectHandle(*tmp))
+          .ToHandleChecked();
   auto map = JSFunction::GetDerivedMap(isolate, fun, fun).ToHandleChecked();
   Map::SetPrototype(isolate, map, isolate->factory()->null_value());
   if (make_non_extensible) {
@@ -330,7 +331,7 @@ struct GlobalsProxy : NamedDebugProxy<GlobalsProxy, kGlobalsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             DirectHandle<WasmInstanceObject> instance,
                             uint32_t index) {
-    Handle<WasmModuleObject> module(instance->module_object(), isolate);
+    DirectHandle<WasmModuleObject> module(instance->module_object(), isolate);
     return WasmValueObject::New(
         isolate,
         instance->trusted_data(isolate)->GetGlobalValue(
@@ -414,7 +415,7 @@ struct LocalsProxy : NamedDebugProxy<LocalsProxy, kLocalsProxy, FixedArray> {
     int count = debug_info->GetNumLocals(frame->pc(), isolate);
     auto function = debug_info->GetFunctionAtAddress(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count + 2);
-    Handle<WasmModuleObject> module_object(
+    DirectHandle<WasmModuleObject> module_object(
         frame->wasm_instance()->module_object(), isolate);
     for (int i = 0; i < count; ++i) {
       auto value = WasmValueObject::New(
@@ -462,7 +463,7 @@ struct StackProxy : IndexedDebugProxy<StackProxy, kStackProxy, FixedArray> {
         frame->trusted_instance_data()->native_module()->GetDebugInfo();
     int count = debug_info->GetStackDepth(frame->pc(), isolate);
     auto values = isolate->factory()->NewFixedArray(count);
-    Handle<WasmModuleObject> module_object(
+    DirectHandle<WasmModuleObject> module_object(
         frame->wasm_instance()->module_object(), isolate);
     for (int i = 0; i < count; ++i) {
       auto value = WasmValueObject::New(
@@ -687,7 +688,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
     switch (type_) {
       case debug::ScopeIterator::ScopeTypeModule: {
         Handle<WasmInstanceObject> instance{frame_->wasm_instance(), isolate};
-        Handle<JSObject> object =
+        DirectHandle<JSObject> object =
             isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
         DirectHandle<JSObject> module_object(instance->module_object(),
@@ -866,7 +867,7 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
 // providing user-defined type names if available, otherwise falls back
 // to numbers for indexed types.
 Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
-                              Handle<WasmModuleObject> module_object) {
+                              DirectHandle<WasmModuleObject> module_object) {
   if (!module_object.is_null()) {
     return GetRefTypeName(isolate, type, module_object->native_module());
   }
@@ -943,7 +944,7 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, FixedArray> {
                             uint32_t index) {
     DirectHandle<WasmStruct> obj(Cast<WasmStruct>(data->get(kObjectIndex)),
                                  isolate);
-    Handle<WasmModuleObject> module(
+    DirectHandle<WasmModuleObject> module(
         Cast<WasmModuleObject>(data->get(kModuleIndex)), isolate);
     return WasmValueObject::New(isolate, obj->GetFieldValue(index), module);
   }
@@ -1002,7 +1003,7 @@ struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, FixedArray> {
                             uint32_t index) {
     DirectHandle<WasmArray> array(Cast<WasmArray>(data->get(kObjectIndex)),
                                   isolate);
-    Handle<WasmModuleObject> module(
+    DirectHandle<WasmModuleObject> module(
         Cast<WasmModuleObject>(data->get(kModuleIndex)), isolate);
     return WasmValueObject::New(isolate, array->GetElement(index), module);
   }
@@ -1011,7 +1012,7 @@ struct ArrayProxy : IndexedDebugProxy<ArrayProxy, kArrayProxy, FixedArray> {
 // static
 Handle<WasmValueObject> WasmValueObject::New(
     Isolate* isolate, const wasm::WasmValue& value,
-    Handle<WasmModuleObject> module_object) {
+    DirectHandle<WasmModuleObject> module_object) {
   DirectHandle<String> t;
   DirectHandle<Object> v;
   switch (value.type().kind()) {
@@ -1224,7 +1225,7 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
-    Handle<WasmModuleObject> module;
+    DirectHandle<WasmModuleObject> module;
     if (table->has_trusted_data()) {
       module = Handle<WasmModuleObject>(
           table->trusted_data(isolate)->module_object(), isolate);

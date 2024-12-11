@@ -112,7 +112,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   DirectHandle<NativeContext> caller_context = isolate->native_context();
 
   // 5. Let evalRealm be O.[[ShadowRealm]].
-  Handle<NativeContext> eval_context(shadow_realm->native_context(), isolate);
+  DirectHandle<NativeContext> eval_context(shadow_realm->native_context(),
+                                           isolate);
   // 6. Return ? PerformShadowRealmEval(sourceText, callerRealm, evalRealm).
 
   // PerformShadowRealmEval

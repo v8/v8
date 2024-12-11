@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).
   static bool CollectSourcePositions(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> shared);
+                                     DirectHandle<SharedFunctionInfo> shared);
 
   // Finalize and install code from previously run background compile task.
   static bool FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
@@ -179,14 +179,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
-      Handle<NativeContext> context, Handle<i::Object> source,
+      DirectHandle<NativeContext> context, Handle<i::Object> source,
       int parameters_end_pos, bool is_code_like);
 
   // Decompose GetFunctionFromString into two functions, to allow callers to
   // deal seperately with a case of object not handled by the embedder.
   V8_WARN_UNUSED_RESULT static std::pair<MaybeHandle<String>, bool>
   ValidateDynamicCompilationSource(Isolate* isolate,
-                                   Handle<NativeContext> context,
+                                   DirectHandle<NativeContext> context,
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
@@ -271,7 +271,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                      LogEventListener::CodeTag code_type,
                                      DirectHandle<Script> script,
                                      Handle<SharedFunctionInfo> shared,
-                                     Handle<FeedbackVector> vector,
+                                     DirectHandle<FeedbackVector> vector,
                                      Handle<AbstractCode> abstract_code,
                                      CodeKind kind, double time_taken_ms);
 
@@ -346,13 +346,13 @@ class UnoptimizedCompilationJob : public CompilationJob {
 
   // Finalizes the compile job. Must be called on the main thread.
   V8_WARN_UNUSED_RESULT Status
-  FinalizeJob(Handle<SharedFunctionInfo> shared_info, Isolate* isolate);
+  FinalizeJob(DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate);
 
   // Finalizes the compile job. Can be called on a background thread, and might
   // return RETRY_ON_MAIN_THREAD if the finalization can't be run on the
   // background thread, and should instead be retried on the foreground thread.
-  V8_WARN_UNUSED_RESULT Status
-  FinalizeJob(Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate);
+  V8_WARN_UNUSED_RESULT Status FinalizeJob(
+      DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate);
 
   void RecordCompilationStats(Isolate* isolate) const;
   void RecordFunctionCompilation(LogEventListener::CodeTag code_type,

@@ -283,7 +283,8 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
     DCHECK(!scope_site.is_null());
     return scope_site;
   }
-  void ExitScope(Handle<AllocationSite> scope_site, Handle<JSObject> object) {
+  void ExitScope(Handle<AllocationSite> scope_site,
+                 DirectHandle<JSObject> object) {
     if (object.is_null()) return;
     scope_site->set_boilerplate(*object, kReleaseStore);
     if (v8_flags.trace_creation_allocation_sites) {

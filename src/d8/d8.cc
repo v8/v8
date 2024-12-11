@@ -820,7 +820,7 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
     Local<Context> context) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
-  i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
+  i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Managed<ModuleEmbedderData>::From(
           i_isolate, kModuleEmbedderDataEstimate,
           std::make_shared<ModuleEmbedderData>(context->GetIsolate()));
@@ -2268,8 +2268,8 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Handle<i::Object> i_global = Utils::OpenHandle(*global);
   if (IsJSGlobalObject(*i_global)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-    i::Handle<i::JSObject> i_global_proxy =
-        handle(i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
+    i::DirectHandle<i::JSObject> i_global_proxy(
+        i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
     global = Utils::ToLocal(i_global_proxy);
   }
   info.GetReturnValue().Set(global);
@@ -3217,7 +3217,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     auto worker = std::make_shared<Worker>(isolate, *script);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
-    i::Handle<i::Object> managed =
+    i::DirectHandle<i::Object> managed =
         i::Managed<Worker>::From(i_isolate, kWorkerSizeEstimate, worker);
     info.This()->SetInternalField(0, Utils::ToLocal(managed));
     base::Thread::Priority priority =
@@ -4191,7 +4191,7 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
-  i::Handle<i::JSObject> dispatch_counters =
+  i::DirectHandle<i::JSObject> dispatch_counters =
       reinterpret_cast<i::Isolate*>(isolate)
           ->interpreter()
           ->GetDispatchCountersObject();
