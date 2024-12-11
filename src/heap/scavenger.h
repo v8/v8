@@ -29,8 +29,6 @@ enum class CopyAndForwardResult {
   FAILURE
 };
 
-using ObjectAndSize = std::pair<Tagged<HeapObject>, int>;
-using ObjectAndMap = std::pair<Tagged<HeapObject>, Tagged<Map>>;
 using SurvivingNewLargeObjectsMap =
     std::unordered_map<Tagged<HeapObject>, Tagged<Map>, Object::Hasher>;
 using SurvivingNewLargeObjectMapEntry =
@@ -40,62 +38,30 @@ class ScavengerCollector;
 
 class Scavenger {
  public:
-  struct PromotionListEntry {
+  static constexpr int kCopiedListSegmentSize = 256;
+  static constexpr int kPinnedListSegmentSize = 64;
+  static constexpr int kPromotedListSegmentSize = 256;
+
+  using CopiedList =
+      ::heap::base::Worklist<Tagged<HeapObject>, kCopiedListSegmentSize>;
+
+  using ObjectAndMap = std::pair<Tagged<HeapObject>, Tagged<Map>>;
+  using PinnedList =
+      ::heap::base::Worklist<ObjectAndMap, kPinnedListSegmentSize>;
+
+  struct PromotedListEntry {
     Tagged<HeapObject> heap_object;
     Tagged<Map> map;
     int size;
   };
+  using PromotedList =
+      ::heap::base::Worklist<PromotedListEntry, kPromotedListSegmentSize>;
 
-  class PromotionList {
-   public:
-    static constexpr size_t kRegularObjectPromotionListSegmentSize = 256;
-    static constexpr size_t kLargeObjectPromotionListSegmentSize = 4;
-
-    using RegularObjectPromotionList =
-        ::heap::base::Worklist<ObjectAndSize,
-                               kRegularObjectPromotionListSegmentSize>;
-    using LargeObjectPromotionList =
-        ::heap::base::Worklist<PromotionListEntry,
-                               kLargeObjectPromotionListSegmentSize>;
-
-    class Local {
-     public:
-      explicit Local(PromotionList* promotion_list);
-
-      inline void PushRegularObject(Tagged<HeapObject> object, int size);
-      inline void PushLargeObject(Tagged<HeapObject> object, Tagged<Map> map,
-                                  int size);
-      inline size_t LocalPushSegmentSize() const;
-      inline bool Pop(struct PromotionListEntry* entry);
-      inline bool IsGlobalPoolEmpty() const;
-      inline bool ShouldEagerlyProcessPromotionList() const;
-      inline void Publish();
-
-     private:
-      RegularObjectPromotionList::Local regular_object_promotion_list_local_;
-      LargeObjectPromotionList::Local large_object_promotion_list_local_;
-    };
-
-    inline bool IsEmpty() const;
-    inline size_t Size() const;
-
-   private:
-    RegularObjectPromotionList regular_object_promotion_list_;
-    LargeObjectPromotionList large_object_promotion_list_;
-  };
-
-  static const int kCopiedListSegmentSize = 256;
-  static const int kPinnedListSegmentSize = 64;
-
-  using CopiedList =
-      ::heap::base::Worklist<ObjectAndSize, kCopiedListSegmentSize>;
   using EmptyChunksList = ::heap::base::Worklist<MutablePageMetadata*, 64>;
-  using PinnedList =
-      ::heap::base::Worklist<ObjectAndMap, kPinnedListSegmentSize>;
 
   Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
             EmptyChunksList* empty_chunks, CopiedList* copied_list,
-            PinnedList* pinned_list, PromotionList* promotion_list,
+            PinnedList* pinned_list, PromotedList* promoted_list,
             EphemeronRememberedSet::TableList* ephemeron_table_list);
 
   // Entry point for scavenging an old generation page. For scavenging single
@@ -212,12 +178,14 @@ class Scavenger {
                                         Tagged<Map> map, int size);
   void RememberPromotedEphemeron(Tagged<EphemeronHashTable> table, int index);
 
+  V8_INLINE bool ShouldEagerlyProcessPromotedList() const;
+
   ScavengerCollector* const collector_;
   Heap* const heap_;
   EmptyChunksList::Local local_empty_chunks_;
   CopiedList::Local local_copied_list_;
   PinnedList::Local local_pinned_list_;
-  PromotionList::Local local_promotion_list_;
+  PromotedList::Local local_promoted_list_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   EphemeronRememberedSet::TableMap local_ephemeron_remembered_set_;
@@ -274,7 +242,7 @@ class ScavengerCollector {
                 old_to_new_chunks,
             const Scavenger::CopiedList& copied_list,
             const Scavenger::PinnedList& pinned_list,
-            const Scavenger::PromotionList& promotion_list);
+            const Scavenger::PromotedList& promoted_list);
 
     void Run(JobDelegate* delegate) override;
     size_t GetMaxConcurrency(size_t worker_count) const override;
@@ -296,7 +264,7 @@ class ScavengerCollector {
 
     const Scavenger::CopiedList& copied_list_;
     const Scavenger::PinnedList& pinned_list_;
-    const Scavenger::PromotionList& promotion_list_;
+    const Scavenger::PromotedList& promoted_list_;
 
     const uint64_t trace_id_;
   };

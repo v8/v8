@@ -25,60 +25,12 @@
 namespace v8 {
 namespace internal {
 
-void Scavenger::PromotionList::Local::PushRegularObject(
-    Tagged<HeapObject> object, int size) {
-  regular_object_promotion_list_local_.Push({object, size});
-}
-
-void Scavenger::PromotionList::Local::PushLargeObject(Tagged<HeapObject> object,
-                                                      Tagged<Map> map,
-                                                      int size) {
-  large_object_promotion_list_local_.Push({object, map, size});
-}
-
-size_t Scavenger::PromotionList::Local::LocalPushSegmentSize() const {
-  return regular_object_promotion_list_local_.PushSegmentSize() +
-         large_object_promotion_list_local_.PushSegmentSize();
-}
-
-bool Scavenger::PromotionList::Local::Pop(struct PromotionListEntry* entry) {
-  ObjectAndSize regular_object;
-  if (regular_object_promotion_list_local_.Pop(&regular_object)) {
-    entry->heap_object = regular_object.first;
-    entry->size = regular_object.second;
-    entry->map = entry->heap_object->map();
-    return true;
-  }
-  return large_object_promotion_list_local_.Pop(entry);
-}
-
-void Scavenger::PromotionList::Local::Publish() {
-  regular_object_promotion_list_local_.Publish();
-  large_object_promotion_list_local_.Publish();
-}
-
-bool Scavenger::PromotionList::Local::IsGlobalPoolEmpty() const {
-  return regular_object_promotion_list_local_.IsGlobalEmpty() &&
-         large_object_promotion_list_local_.IsGlobalEmpty();
-}
-
-bool Scavenger::PromotionList::Local::ShouldEagerlyProcessPromotionList()
-    const {
-  // Threshold when to prioritize processing of the promotion list. Right
+bool Scavenger::ShouldEagerlyProcessPromotedList() const {
+  // Threshold when to prioritize processing of the promoted list. Right
   // now we only look into the regular object list.
-  const int kProcessPromotionListThreshold =
-      kRegularObjectPromotionListSegmentSize / 2;
-  return LocalPushSegmentSize() >= kProcessPromotionListThreshold;
-}
-
-bool Scavenger::PromotionList::IsEmpty() const {
-  return regular_object_promotion_list_.IsEmpty() &&
-         large_object_promotion_list_.IsEmpty();
-}
-
-size_t Scavenger::PromotionList::Size() const {
-  return regular_object_promotion_list_.Size() +
-         large_object_promotion_list_.Size();
+  const int kProcessPromotedListThreshold = kPromotedListSegmentSize / 2;
+  return local_promoted_list_.PushSegmentSize() >=
+         kProcessPromotedListThreshold;
 }
 
 void Scavenger::SynchronizePageAccess(Tagged<MaybeObject> object) const {
@@ -156,7 +108,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     }
     UpdateHeapObjectReferenceSlot(slot, target);
     if (object_fields == ObjectFields::kMaybePointers) {
-      local_copied_list_.Push(ObjectAndSize(target, object_size));
+      local_copied_list_.Push(target);
     }
     copied_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
@@ -204,7 +156,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
     // During incremental marking we want to push every object in order to
     // record slots for map words. Necessary for map space compaction.
     if (object_fields == ObjectFields::kMaybePointers || is_compacting_) {
-      local_promotion_list_.PushRegularObject(target, object_size);
+      local_promoted_list_.Push({target, map, object_size});
     }
     promoted_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_OLD_GENERATION;
@@ -229,7 +181,7 @@ bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
       local_surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
       if (object_fields == ObjectFields::kMaybePointers) {
-        local_promotion_list_.PushLargeObject(object, map, object_size);
+        local_promoted_list_.Push({object, map, object_size});
       }
     }
     return true;

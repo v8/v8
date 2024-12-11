@@ -239,7 +239,7 @@ ScavengerCollector::JobTask::JobTask(
         old_to_new_chunks,
     const Scavenger::CopiedList& copied_list,
     const Scavenger::PinnedList& pinned_list,
-    const Scavenger::PromotionList& promotion_list)
+    const Scavenger::PromotedList& promoted_list)
     : collector_(collector),
       scavengers_(scavengers),
       old_to_new_chunks_(std::move(old_to_new_chunks)),
@@ -247,7 +247,7 @@ ScavengerCollector::JobTask::JobTask(
       generator_(old_to_new_chunks_.size()),
       copied_list_(copied_list),
       pinned_list_(pinned_list),
-      promotion_list_(promotion_list),
+      promoted_list_(promoted_list),
       trace_id_(reinterpret_cast<uint64_t>(this) ^
                 collector_->heap_->tracer()->CurrentEpoch(
                     GCTracer::Scope::SCAVENGER)) {}
@@ -279,11 +279,11 @@ void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
 size_t ScavengerCollector::JobTask::GetMaxConcurrency(
     size_t worker_count) const {
   // We need to account for local segments held by worker_count in addition to
-  // GlobalPoolSize() of copied_list_, pinned_list_ and promotion_list_.
+  // GlobalPoolSize() of copied_list_, pinned_list_ and promoted_list_.
   size_t wanted_num_workers =
       std::max<size_t>(remaining_memory_chunks_.load(std::memory_order_relaxed),
                        worker_count + copied_list_.Size() +
-                           pinned_list_.Size() + promotion_list_.Size());
+                           pinned_list_.Size() + promoted_list_.Size());
   if (!collector_->heap_->ShouldUseBackgroundThreads() ||
       collector_->heap_->ShouldOptimizeForBattery()) {
     return std::min<size_t>(wanted_num_workers, 1);
@@ -646,7 +646,7 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::EmptyChunksList empty_chunks;
   Scavenger::CopiedList copied_list;
   Scavenger::PinnedList pinned_list;
-  Scavenger::PromotionList promotion_list;
+  Scavenger::PromotedList promoted_list;
   EphemeronRememberedSet::TableList ephemeron_table_list;
 
   PinnedObjects pinned_objects;
@@ -658,7 +658,7 @@ void ScavengerCollector::CollectGarbage() {
     for (int i = 0; i < num_scavenge_tasks; ++i) {
       scavengers.emplace_back(
           new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
-                        &pinned_list, &promotion_list, &ephemeron_table_list));
+                        &pinned_list, &promoted_list, &ephemeron_table_list));
     }
     Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
 
@@ -740,7 +740,7 @@ void ScavengerCollector::CollectGarbage() {
 
       auto job = std::make_unique<JobTask>(
           this, &scavengers, std::move(old_to_new_chunks), copied_list,
-          pinned_list, promotion_list);
+          pinned_list, promoted_list);
       TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
                               TRACE_EVENT_FLAG_FLOW_OUT);
       V8::GetCurrentPlatform()
@@ -748,7 +748,7 @@ void ScavengerCollector::CollectGarbage() {
           ->Join();
       DCHECK(copied_list.IsEmpty());
       DCHECK(pinned_list.IsEmpty());
-      DCHECK(promotion_list.IsEmpty());
+      DCHECK(promoted_list.IsEmpty());
     }
 
     if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
@@ -759,7 +759,7 @@ void ScavengerCollector::CollectGarbage() {
       }
       DCHECK(copied_list.IsEmpty());
       DCHECK(pinned_list.IsEmpty());
-      DCHECK(promotion_list.IsEmpty());
+      DCHECK(promoted_list.IsEmpty());
     }
 
     {
@@ -979,22 +979,16 @@ int ScavengerCollector::NumberOfScavengeTasks() {
   return tasks;
 }
 
-Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
-    : regular_object_promotion_list_local_(
-          promotion_list->regular_object_promotion_list_),
-      large_object_promotion_list_local_(
-          promotion_list->large_object_promotion_list_) {}
-
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
-                     PinnedList* pinned_list, PromotionList* promotion_list,
+                     PinnedList* pinned_list, PromotedList* promoted_list,
                      EphemeronRememberedSet::TableList* ephemeron_table_list)
     : collector_(collector),
       heap_(heap),
       local_empty_chunks_(*empty_chunks),
       local_copied_list_(*copied_list),
       local_pinned_list_(*pinned_list),
-      local_promotion_list_(promotion_list),
+      local_promoted_list_(*promoted_list),
       local_ephemeron_table_list_(*ephemeron_table_list),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
@@ -1134,10 +1128,10 @@ void Scavenger::Process(JobDelegate* delegate) {
   size_t objects = 0;
   do {
     done = true;
-    ObjectAndSize object_and_size;
-    while (!local_promotion_list_.ShouldEagerlyProcessPromotionList() &&
-           local_copied_list_.Pop(&object_and_size)) {
-      scavenge_visitor.Visit(object_and_size.first);
+    Tagged<HeapObject> object;
+    while (!ShouldEagerlyProcessPromotedList() &&
+           local_copied_list_.Pop(&object)) {
+      scavenge_visitor.Visit(object);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
         if (!local_copied_list_.IsLocalEmpty()) {
@@ -1146,13 +1140,13 @@ void Scavenger::Process(JobDelegate* delegate) {
       }
     }
 
-    struct PromotionListEntry entry;
-    while (local_promotion_list_.Pop(&entry)) {
+    struct PromotedListEntry entry;
+    while (local_promoted_list_.Pop(&entry)) {
       Tagged<HeapObject> target = entry.heap_object;
       IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
       if (delegate && ((++objects % kInterruptThreshold) == 0)) {
-        if (!local_promotion_list_.IsGlobalPoolEmpty()) {
+        if (!local_promoted_list_.IsGlobalEmpty()) {
           delegate->NotifyConcurrencyIncrease();
         }
       }
@@ -1241,7 +1235,7 @@ void Scavenger::Finalize() {
 void Scavenger::Publish() {
   local_copied_list_.Publish();
   local_pinned_list_.Publish();
-  local_promotion_list_.Publish();
+  local_promoted_list_.Publish();
 }
 
 void Scavenger::AddEphemeronHashTable(Tagged<EphemeronHashTable> table) {
