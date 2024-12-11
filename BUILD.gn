@@ -607,7 +607,9 @@ if (v8_enable_sandbox == "") {
                       v8_enable_external_code_space && target_os != "fuchsia"
 }
 if (v8_enable_leaptiering == "") {
-  v8_enable_leaptiering = v8_enable_sandbox || v8_current_cpu == "x64"
+  v8_enable_leaptiering =
+      v8_enable_sandbox || v8_current_cpu == "x64" || v8_current_cpu == "x86" ||
+      v8_current_cpu == "arm" || v8_current_cpu == "arm64"
 }
 
 if (v8_enable_static_roots == "") {
