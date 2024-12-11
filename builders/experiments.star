@@ -59,14 +59,6 @@ in_category(
         notify_owners = ["cbruni@chromium.org"],
         notifies = ["blamelist"],
     ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - external code space - debug",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.DEFAULT,
-        notify_owners = ["ishell@chromium.org"],
-        notifies = ["blamelist"],
-    ),
     experiment_builder(
         name = "V8 Linux64 - Fuzzilli - builder",
         triggered_by = ["v8-trigger"],
