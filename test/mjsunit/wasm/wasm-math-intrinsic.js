@@ -191,7 +191,8 @@ function assertBinop(name, math_func, wasm_func) {
 
 (function TestF64() {
   let f64_intrinsics = [
-    'acos',  'asin', 'atan', 'cos', 'sin', 'tan', 'exp', 'log', 'atan2', 'pow',
+    'acos', 'asin', 'atan', 'cos', 'sin', 'tan', 'exp', 'log', 'atan2', 'pow',
+    'sqrt',
   ];
 
   for (let name of f64_intrinsics) {

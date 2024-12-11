@@ -81,6 +81,8 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "Math.log";
     case WellKnownImport::kMathF64Pow:
       return "Math.pow";
+    case WellKnownImport::kMathF64Sqrt:
+      return "Math.sqrt";
 
       // String-related functions:
     case WellKnownImport::kDoubleToString:

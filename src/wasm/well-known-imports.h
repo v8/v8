@@ -88,6 +88,7 @@ enum class WellKnownImport : uint8_t {
   kMathF64Exp,
   kMathF64Log,
   kMathF64Pow,
+  kMathF64Sqrt,  // Used by dart2wasm. f64.sqrt is equivalent.
 
   // String-related functions:
   kDoubleToString,

@@ -967,6 +967,7 @@ class WasmGraphBuildingInterface {
       case WKI::kMathF64Exp:
       case WKI::kMathF64Log:
       case WKI::kMathF64Pow:
+      case WKI::kMathF64Sqrt:
         return false;
     }
     if (v8_flags.trace_wasm_inlining) {

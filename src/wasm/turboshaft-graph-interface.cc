@@ -2617,6 +2617,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kMathF64Pow:
         result = __ Float64Power(args[0].op, args[1].op);
         break;
+      case WKI::kMathF64Sqrt:
+        result = __ Float64Sqrt(args[0].op);
+        break;
 
         // Fast API calls.
       case WKI::kFastAPICall: {

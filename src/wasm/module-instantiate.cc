@@ -461,6 +461,7 @@ WellKnownImport CheckForWellKnownImport(
         COMPARE_MATH_BUILTIN_F64(Exp)
         COMPARE_MATH_BUILTIN_F64(Log)
         COMPARE_MATH_BUILTIN_F64(Pow)
+        COMPARE_MATH_BUILTIN_F64(Sqrt)
 
 #undef COMPARE_MATH_BUILTIN_F64
 
