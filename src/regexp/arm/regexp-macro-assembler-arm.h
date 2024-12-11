@@ -154,6 +154,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
+  void AssertAboveStackLimitMinusSlack();
 
   void CallCheckStackGuardState(
       Operand extra_space_for_variables = Operand::Zero());
