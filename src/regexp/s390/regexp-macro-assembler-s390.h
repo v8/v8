@@ -147,6 +147,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
+  void AssertAboveStackLimitMinusSlack();
   void CallCFunctionUsingStub(ExternalReference function, int num_arguments);
 
   void CallCheckStackGuardState(

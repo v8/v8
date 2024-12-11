@@ -1182,13 +1182,18 @@ void RegExpMacroAssemblerS390::PushBacktrack(Label* label) {
 
 void RegExpMacroAssemblerS390::PushCurrentPosition() {
   Push(current_input_offset());
+  CheckStackLimit();
 }
 
 void RegExpMacroAssemblerS390::PushRegister(int register_index,
                                             StackCheckFlag check_stack_limit) {
   __ LoadU64(r2, register_location(register_index), r0);
   Push(r2);
-  if (check_stack_limit) CheckStackLimit();
+  if (check_stack_limit) {
+    CheckStackLimit();
+  } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
+    AssertAboveStackLimitMinusSlack();
+  }
 }
 
 void RegExpMacroAssemblerS390::ReadCurrentPositionFromRegister(int reg) {
@@ -1462,6 +1467,20 @@ void RegExpMacroAssemblerS390::CheckStackLimit() {
   __ mov(r2, Operand(stack_limit));
   __ CmpU64(backtrack_stackpointer(), MemOperand(r2));
   SafeCall(&stack_overflow_label_, le);
+}
+
+void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
+  DCHECK(v8_flags.slow_debug_code);
+  Label no_stack_overflow;
+  ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
+  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
+  __ mov(r2, Operand(l));
+  __ LoadU64(r2, MemOperand(r2));
+  __ SubS64(r2, r2, Operand(RegExpStack::kStackLimitSlackSize));
+  __ CmpU64(backtrack_stackpointer(), Operand(r2));
+  __ bgt(&no_stack_overflow);
+  __ DebugBreak();
+  __ bind(&no_stack_overflow);
 }
 
 void RegExpMacroAssemblerS390::CallCFunctionUsingStub(
