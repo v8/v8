@@ -1091,8 +1091,6 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (module_bytes.empty()) return ReadOnlyRoots(isolate).undefined_value();
-
   wasm::ErrorThrower thrower{isolate, "WasmGenerateRandomModule"};
   MaybeHandle<WasmModuleObject> maybe_module_object =
       wasm::GetWasmEngine()->SyncCompile(isolate,
