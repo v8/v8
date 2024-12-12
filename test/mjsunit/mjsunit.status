@@ -498,7 +498,8 @@
 ##############################################################################
 ['not has_wasm_interpreter or variant != jitless', {
   # Tests to run only with the Wasm interpreter.
-  'wasm/wasm-interpreter-memory-grow' : [SKIP],
+  'wasm/wasm-interpreter-fuzzer' : [SKIP],
+  'wasm/wasm-interpreter-memory*' : [SKIP],
 }],  # not has_wasm_interpreter or variant != jitless
 
 ##############################################################################
@@ -531,6 +532,7 @@
   'regress/wasm/regress-14695': [SKIP],
   'regress/wasm/regress-329130358': [SKIP],
   'regress/wasm/regress-336358915*': [SKIP],
+  'regress/wasm/regress-362539773': [SKIP],
   'wasm/call-ref': [SKIP],
   'wasm/exceptions-type-reflection': [SKIP],
   'wasm/externref-table': [SKIP],
@@ -546,6 +548,8 @@
   'regress/wasm/regress-1502837': [SKIP],
   'regress/wasm/regress-1507743': [SKIP],
   'regress/wasm/regress-336214779': [SKIP],
+  'regress/wasm/regress-372261626': [SKIP],
+  'regress/wasm/regress-377620832': [SKIP],
   'wasm/exnref*': [SKIP],
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
@@ -561,15 +565,7 @@
   # --experimental-wasm-extended-const
   'wasm/extended-constants': [SKIP],
 
-  # --experimental-wasm-memory64
-  'regress/wasm/regress-329706236': [SKIP],
-  'regress/wasm/regress-332939161': [SKIP],
-  'wasm/memory64': [SKIP],
-  'wasm/multi-memory64': [SKIP],
-  'wasm/simd-lane-memory64': [SKIP],
-  'wasm/table64*': [SKIP],
-
-  # --experimental-wasm-multi-memory
+  # Multiple memories
   'regress/wasm/regress-1518257': [SKIP],
   'regress/wasm/regress-1523740': [SKIP],
   'regress/wasm/regress-343035068': [SKIP],
@@ -577,6 +573,7 @@
   'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/generate-random-module*': [SKIP],
   'wasm/js-api': [SKIP],
+  'wasm/memory-huge-constant-index': [SKIP],
   'wasm/multi-memory*': [SKIP],
 
   # --experimental-wasm-stack-switching
@@ -613,6 +610,7 @@
   'regress/wasm/regress-864509': [SKIP],
   'regress/wasm/regress-9017': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
+  'regress/wasm/regress-366350772': [SKIP],
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
   'wasm/liftoff-trap-handler': [SKIP],
@@ -643,6 +641,7 @@
 
   # --wasm-lazy-validation
   'regress/wasm/regress-334687959': [SKIP],
+  'regress/wasm/regress-366350766': [SKIP],
 
   # --experimental-wasm-imported-strings
   'wasm/imported-strings*': [SKIP],
@@ -662,6 +661,21 @@
 
   # --experimental-wasm-jspi
   'regress/wasm/regress-336852356': [SKIP],
+  'regress/wasm/regress-342522151': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP],
+  'regress/wasm/regress-361717714': [SKIP],
+  'regress/wasm/regress-361123483': [SKIP],
+  'regress/wasm/regress-364667545': [SKIP],
+
+  # --experimental-wasm-fp16
+  'wasm/simd-fp16': [SKIP],
+
+  # --wasm-deopt
+  'regress/wasm/regress-363826217': [SKIP],
+  'regress/wasm/regress-364360260': [SKIP],
+
+  # --enable-testing-opcode-in-wasm
+  'regress/wasm/regress-377971725': [SKIP],
 
   # Module serialization tests expect compilation
   'regress/wasm/regress-11024': [SKIP],
@@ -692,11 +706,6 @@
   # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
   'wasm/ffi': [SKIP],
 
-  # TODO(paolosev): Implement StackCheck in Wasm loops.
-  'wasm/grow-shared-memory': [SKIP],
-  'wasm/interrupt-worker-with-perf': [SKIP],
-  'wasm/worker-running-empty-loop-interruptible': [SKIP],
-
   # Tests using %WasmTierUpFunction()
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-13230': [SKIP],
@@ -709,14 +718,25 @@
   'regress/wasm/regress-353582136': [SKIP],
   'regress/wasm/regress-353913485': [SKIP],
   'regress/wasm/regress-354324155*': [SKIP],
+  'regress/wasm/regress-360044696': [SKIP],
+  'regress/wasm/regress-360052650': [SKIP],
+  'regress/wasm/regress-361369297': [SKIP],
+  'regress/wasm/regress-361611472': [SKIP],
+  'regress/wasm/regress-368241691': [SKIP],
+  'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
+  'wasm/inlining-multi-instance': [SKIP],
+  'wasm/inlining-mutable-instance-fields': [SKIP],
   'wasm/recognize-imports': [SKIP],
   'wasm/simd-relaxed-lane-select': [SKIP],
   'wasm/speculative-inlining': [SKIP],
   'wasm/stringrefs-regressions': [SKIP],
+
+  # Tests using %WasmGenerateRandomModule() (require compilation)
+  'regress/wasm/regress-369652650': [SKIP],
 
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
@@ -727,6 +747,9 @@
 
   # NaN representation
   'wasm/nan-constant': [SKIP],
+
+  # Interpreter needs more stack space
+  'wasm/turboshaft/reduction-shuffle': [SKIP],
 
  }],  # has_wasm_interpreter and variant == jitless
 

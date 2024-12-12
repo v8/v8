@@ -302,6 +302,10 @@ class DebugInfoImpl {
   }
 
   void SetBreakpoint(int func_index, int offset, Isolate* isolate) {
+    // TODO(paolosev@microsoft.com) - Add support for breakpoints in Wasm
+    // interpreter.
+    if (v8_flags.wasm_jitless) return;
+
     // Put the code ref scope outside of the mutex, so we don't unnecessarily
     // hold the mutex while freeing code.
     WasmCodeRefScope wasm_code_ref_scope;

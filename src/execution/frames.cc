@@ -79,7 +79,7 @@ class StackHandlerIterator {
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
 #if V8_ENABLE_WEBASSEMBLY
-#if !V8_ENABLE_DRUMBRAKE || !USE_SIMULATOR
+#if !V8_ENABLE_DRUMBRAKE && !USE_SIMULATOR
     // Make sure the handler has already been unwound to this frame. With stack
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
@@ -3704,8 +3704,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
     size_t param_count = *reinterpret_cast<size_t*>(
         fp() + BuiltinWasmInterpreterWrapperConstants::kParamCountOffset);
     const wasm::ValueType* reps = *reinterpret_cast<const wasm::ValueType**>(
-        fp() +
-        BuiltinWasmInterpreterWrapperConstants::kValueTypesArrayStartOffset);
+        fp() + BuiltinWasmInterpreterWrapperConstants::kSigRepsOffset);
     wasm::FunctionSig sig(return_count, param_count, reps);
 
     intptr_t slot_ptr = *reinterpret_cast<intptr_t*>(
@@ -3775,37 +3774,13 @@ void WasmToJsFrame::Iterate(RootVisitor* v) const {
   if (v8_flags.wasm_jitless) {
     // Called from GenericWasmToJSInterpreterWrapper.
     CHECK(v8_flags.jitless);
-    // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a
-    // value indicating how many values should be scanned from the top.
-    intptr_t scan_count = *reinterpret_cast<intptr_t*>(
-        fp() + WasmToJSInterpreterFrameConstants::kGCScanSlotCountOffset);
+    // The [fp + BuiltinFrameConstants::kGCScanSlotLimit] on the stack is a
+    // pointer to the end of the stack frame area that contains tagged objects.
+    Address limit_sp = *reinterpret_cast<intptr_t*>(
+        fp() + WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset);
 
-    Address original_sp = *reinterpret_cast<Address*>(
-        fp() + WasmToJSInterpreterFrameConstants::kGCSPOffset);
-
-    // The original sp is not assigned yet if GC is triggered in the middle of
-    // param conversion loop. In this case, we just need to scan arguments from
-    // the current sp.
-    if (original_sp == 0) original_sp = sp();
-
-    if (sp() != original_sp) {
-      // The actual frame sp can be different from the sp we had at the moment
-      // of the call to Call_ReceiverIsAny for two reasons:
-      // 1. Call_ReceiverIsAny might call AdaptorWithBuiltinExitFrame, which
-      // adds BuiltinExitFrameConstants::kNumExtraArgs additional
-      // tagged arguments to the stack.
-      // 2. If there is arity mismatch and the imported Wasm function declares
-      // fewer arguments then the arguments expected by the JS function,
-      // Call_ReceiverIsAny passes additional Undefined args.
-      FullObjectSlot additional_spill_slot_base(&Memory<Address>(sp()));
-      FullObjectSlot additional_spill_slot_limit(original_sp);
-      v->VisitRootPointers(Root::kStackRoots, nullptr,
-                           additional_spill_slot_base,
-                           additional_spill_slot_limit);
-    }
-    FullObjectSlot spill_slot_base(&Memory<Address>(original_sp));
-    FullObjectSlot spill_slot_limit(
-        &Memory<Address>(original_sp + scan_count * kSystemPointerSize));
+    FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+    FullObjectSlot spill_slot_limit(limit_sp);
     v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                          spill_slot_limit);
     return;

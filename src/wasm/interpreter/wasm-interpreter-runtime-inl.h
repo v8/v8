@@ -148,6 +148,47 @@ inline WasmRef WasmInterpreterRuntime::GetWasmArrayRefElement(
   return WasmArray::GetElement(isolate_, handle(array, isolate_), index);
 }
 
+inline bool WasmInterpreterRuntime::WasmStackCheck(
+    const uint8_t* current_bytecode, const uint8_t*& code) {
+  StackLimitCheck stack_check(isolate_);
+
+  current_frame_.current_bytecode_ = current_bytecode;
+  current_thread_->SetCurrentFrame(current_frame_);
+
+  if (stack_check.InterruptRequested()) {
+    if (stack_check.HasOverflowed()) {
+      ClearThreadInWasmScope clear_wasm_flag(isolate_);
+      SealHandleScope shs(isolate_);
+      current_frame_.current_function_ = nullptr;
+      SetTrap(TrapReason::kTrapUnreachable, code);
+      isolate_->StackOverflow();
+      return false;
+    }
+    if (isolate_->stack_guard()->HasTerminationRequest()) {
+      ClearThreadInWasmScope clear_wasm_flag(isolate_);
+      SealHandleScope shs(isolate_);
+      current_frame_.current_function_ = nullptr;
+      SetTrap(TrapReason::kTrapUnreachable, code);
+      isolate_->TerminateExecution();
+      return false;
+    }
+    isolate_->stack_guard()->HandleInterrupts();
+  }
+
+  if (V8_UNLIKELY(v8_flags.drumbrake_fuzzer_timeout &&
+                  base::TimeTicks::Now() - fuzzer_start_time_ >
+                      base::TimeDelta::FromMilliseconds(
+                          v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
+    ClearThreadInWasmScope clear_wasm_flag(isolate_);
+    SealHandleScope shs(isolate_);
+    current_frame_.current_function_ = nullptr;
+    SetTrap(TrapReason::kTrapUnreachable, code);
+    return false;
+  }
+
+  return true;
+}
+
 inline Handle<WasmTrustedInstanceData>
 WasmInterpreterRuntime::wasm_trusted_instance_data() const {
   return handle(instance_object_->trusted_data(isolate_), isolate_);

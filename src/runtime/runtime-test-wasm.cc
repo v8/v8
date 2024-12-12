@@ -784,7 +784,7 @@ static Tagged<Object> CreateDummyWasmLookAlikeForFuzzing(Isolate* isolate) {
 // Creates a new wasm struct with one i64 (value 0x7AADF00DBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmStruct) {
   HandleScope scope(isolate);
-  if (v8_flags.jitless) {
+  if (v8_flags.jitless && !v8_flags.wasm_jitless) {
     return CreateDummyWasmLookAlikeForFuzzing(isolate);
   }
   /* Recreate with:
@@ -808,7 +808,7 @@ RUNTIME_FUNCTION(Runtime_WasmStruct) {
 // Creates a new wasm array of type i64 with one element (0x7AADF00DBAADF00D).
 RUNTIME_FUNCTION(Runtime_WasmArray) {
   HandleScope scope(isolate);
-  if (v8_flags.jitless) {
+  if (v8_flags.jitless && !v8_flags.wasm_jitless) {
     return CreateDummyWasmLookAlikeForFuzzing(isolate);
   }
   /* Recreate with:

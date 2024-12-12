@@ -346,6 +346,9 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
     case Builtin::kJSToJSWrapper:
     case Builtin::kJSToJSWrapperInvalidSig:
     case Builtin::kWasmPromising:
+#if V8_ENABLE_DRUMBRAKE
+    case Builtin::kGenericJSToWasmInterpreterWrapper:
+#endif
     case Builtin::kWasmStressSwitch:
 #endif
       return true;

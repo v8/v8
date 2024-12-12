@@ -18,10 +18,12 @@ WasmEnabledFeatures WasmEnabledFeatures::FromFlags() {
   WasmEnabledFeatures features = WasmEnabledFeatures::None();
 
 #if V8_ENABLE_DRUMBRAKE
-  // The only Wasm experimental features supported by DrumBrake is the legacy
-  // exception handling.
+  // DrumBrake supports only a subset or older versions of some Wasm features.
   if (v8_flags.wasm_jitless) {
     features.Add(WasmEnabledFeature::legacy_eh);
+    if (v8_flags.experimental_wasm_memory64) {
+      features.Add(WasmEnabledFeature::memory64);
+    }
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 

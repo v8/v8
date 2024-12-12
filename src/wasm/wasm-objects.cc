@@ -51,6 +51,51 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// Utilities for handling "uses" lists. We reserve one slot for the
+// used length, then store pairs of (instance, table_index).
+static constexpr int kReservedSlotOffset = 1;
+void SetUsedLength(Tagged<ProtectedWeakFixedArray> uses, int length) {
+  // {set} includes a DCHECK for sufficient capacity.
+  uses->set(0, Smi::FromInt(length));
+}
+int GetUsedLength(Tagged<ProtectedWeakFixedArray> uses) {
+  if (uses->length() == 0) return 0;
+  return Cast<Smi>(uses->get(0)).value();
+}
+void SetEntry(Tagged<ProtectedWeakFixedArray> uses, int slot_index,
+              Tagged<WasmTrustedInstanceData> user, int table_index) {
+  DCHECK(slot_index & 1);
+  uses->set(slot_index, MakeWeak(user));
+  uses->set(slot_index + 1, Smi::FromInt(table_index));
+}
+// These are two separate functions because GCMole produces bogus warnings
+// when we return a std::pair<A, B> and call it as `auto [a, b] = ...`.
+Tagged<WasmTrustedInstanceData> GetInstance(
+    Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
+  DCHECK(slot_index & 1);
+  return Cast<WasmTrustedInstanceData>(
+      uses->get(slot_index).GetHeapObjectAssumeWeak());
+}
+int GetTableIndex(Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
+  DCHECK(slot_index & 1);
+  return Cast<Smi>(uses->get(slot_index + 1)).value();
+}
+void CopyEntry(Tagged<ProtectedWeakFixedArray> dst, int dst_index,
+               Tagged<ProtectedWeakFixedArray> src, int src_index) {
+  DCHECK(dst_index & 1);
+  DCHECK(src_index & 1);
+  // There shouldn't be a reason to copy cleared entries.
+  DCHECK(
+      IsWasmTrustedInstanceData(src->get(src_index).GetHeapObjectAssumeWeak()));
+  DCHECK(IsSmi(src->get(src_index + 1)));
+  dst->set(dst_index, src->get(src_index));
+  dst->set(dst_index + 1, src->get(src_index + 1));
+}
+
+}  // namespace
+
 // Import a few often used types from the wasm namespace.
 using WasmFunction = wasm::WasmFunction;
 using WasmModule = wasm::WasmModule;
@@ -240,13 +285,19 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
     DCHECK_EQ(new_size, table->trusted_dispatch_table(isolate)->length());
 
 #if V8_ENABLE_DRUMBRAKE
-    if (v8_flags.wasm_jitless &&
-        trusted_instance_data->has_interpreter_object()) {
-      // TODO(paolosev): Update this. Get the trusted_instance_datas from
-      // dispatch_table->protected_uses().
-      wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
-          isolate, handle(trusted_instance_data->instance_object(), isolate),
-          table_index);
+    if (v8_flags.wasm_jitless) {
+      Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+      int used_length = GetUsedLength(uses);
+      for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+        if (uses->get(i).IsCleared()) continue;
+        Tagged<WasmTrustedInstanceData> instance = GetInstance(uses, i);
+        if (instance->has_interpreter_object()) {
+          int table_index = GetTableIndex(uses, i);
+          wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
+              isolate, handle(instance->instance_object(), isolate),
+              table_index);
+        }
+      }
     }
 #endif  // V8_ENABLE_DRUMBRAKE
   }
@@ -528,11 +579,18 @@ void WasmTableObject::UpdateDispatchTable(
   }
 
 #if V8_ENABLE_DRUMBRAKE
-  if (v8_flags.wasm_jitless &&
-      instance_object->trusted_data(isolate)->has_interpreter_object()) {
-    Handle<WasmInstanceObject> instance_handle(*instance_object, isolate);
-    wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
-        isolate, instance_handle, table_index);
+  if (v8_flags.wasm_jitless) {
+    Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+    int used_length = GetUsedLength(uses);
+    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+      if (uses->get(i).IsCleared()) continue;
+      Tagged<WasmTrustedInstanceData> instance = GetInstance(uses, i);
+      if (instance->has_interpreter_object()) {
+        int table_index = GetTableIndex(uses, i);
+        wasm::WasmInterpreterRuntime::UpdateIndirectCallTable(
+            isolate, handle(instance->instance_object(), isolate), table_index);
+      }
+    }
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 }
@@ -662,13 +720,22 @@ void WasmTableObject::ClearDispatchTable(int index) {
   Tagged<WasmDispatchTable> dispatch_table = trusted_dispatch_table(isolate);
   dispatch_table->Clear(index, WasmDispatchTable::kExistingEntry);
 #if V8_ENABLE_DRUMBRAKE
-    if (v8_flags.wasm_jitless &&
-        non_shared_instance_data->has_interpreter_object()) {
-      Handle<WasmInstanceObject> instance_handle(*target_instance_object,
-                                                 isolate);
-      wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
-          isolate, instance_handle, table_index, index);
+  if (v8_flags.wasm_jitless) {
+    Tagged<ProtectedWeakFixedArray> uses = dispatch_table->protected_uses();
+    int used_length = GetUsedLength(uses);
+    for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+      if (uses->get(i).IsCleared()) continue;
+      Tagged<WasmTrustedInstanceData> non_shared_instance_data =
+          GetInstance(uses, i);
+      if (non_shared_instance_data->has_interpreter_object()) {
+        int table_index = GetTableIndex(uses, i);
+        Handle<WasmInstanceObject> instance_handle =
+            handle(non_shared_instance_data->instance_object(), isolate);
+        wasm::WasmInterpreterRuntime::ClearIndirectCallCacheEntry(
+            isolate, instance_handle, table_index, index);
+      }
     }
+  }
 #endif  // V8_ENABLE_DRUMBRAKE
 }
 
@@ -1172,8 +1239,11 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
 
   uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
   instance_data_->dispatch_table_for_imports()->SetForWrapper(
-      index_, *import_data, wrapper_entry, sig_id, signature_hash, nullptr,
-      WasmDispatchTable::kNewEntry);
+      index_, *import_data, wrapper_entry, sig_id, signature_hash,
+#if V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::kInvalidFunctionIndex,
+#endif  // V8_ENABLE_DRUMBRAKE
+      nullptr, WasmDispatchTable::kNewEntry);
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1205,7 +1275,11 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
       index_, *import_data,
       v8_flags.wasm_jitless ? Address{}
                             : wasm_to_js_wrapper->instruction_start(),
-      sig_id, signature_hash, wasm_to_js_wrapper, WasmDispatchTable::kNewEntry);
+      sig_id, signature_hash,
+#if V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::kInvalidFunctionIndex,
+#endif  // V8_ENABLE_DRUMBRAKE
+      wasm_to_js_wrapper, WasmDispatchTable::kNewEntry);
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_, -1);
@@ -1229,7 +1303,11 @@ void ImportedFunctionEntry::SetWasmToWasm(
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   dispatch_table->SetForNonWrapper(index_, target_instance_data, call_target,
-                                   sig_id, WasmDispatchTable::kExistingEntry);
+                                   sig_id,
+#if V8_ENABLE_DRUMBRAKE
+                                   WasmDispatchTable::kInvalidFunctionIndex,
+#endif  // V8_ENABLE_DRUMBRAKE
+                                   WasmDispatchTable::kExistingEntry);
 
 #if V8_ENABLE_DRUMBRAKE
   instance_data_->imported_function_indices()->set(index_,
@@ -2104,51 +2182,6 @@ bool WasmDispatchTable::IsAWrapper(int index) const {
   return offheap_data()->IsAWrapper(index);
 }
 
-namespace {
-
-// Utilities for handling "uses" lists. We reserve one slot for the
-// used length, then store pairs of (instance, table_index).
-static constexpr int kReservedSlotOffset = 1;
-void SetUsedLength(Tagged<ProtectedWeakFixedArray> uses, int length) {
-  // {set} includes a DCHECK for sufficient capacity.
-  uses->set(0, Smi::FromInt(length));
-}
-int GetUsedLength(Tagged<ProtectedWeakFixedArray> uses) {
-  if (uses->length() == 0) return 0;
-  return Cast<Smi>(uses->get(0)).value();
-}
-void SetEntry(Tagged<ProtectedWeakFixedArray> uses, int slot_index,
-              Tagged<WasmTrustedInstanceData> user, int table_index) {
-  DCHECK(slot_index & 1);
-  uses->set(slot_index, MakeWeak(user));
-  uses->set(slot_index + 1, Smi::FromInt(table_index));
-}
-// These are two separate functions because GCMole produces bogus warnings
-// when we return a std::pair<A, B> and call it as `auto [a, b] = ...`.
-Tagged<WasmTrustedInstanceData> GetInstance(
-    Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
-  DCHECK(slot_index & 1);
-  return Cast<WasmTrustedInstanceData>(
-      uses->get(slot_index).GetHeapObjectAssumeWeak());
-}
-int GetTableIndex(Tagged<ProtectedWeakFixedArray> uses, int slot_index) {
-  DCHECK(slot_index & 1);
-  return Cast<Smi>(uses->get(slot_index + 1)).value();
-}
-void CopyEntry(Tagged<ProtectedWeakFixedArray> dst, int dst_index,
-               Tagged<ProtectedWeakFixedArray> src, int src_index) {
-  DCHECK(dst_index & 1);
-  DCHECK(src_index & 1);
-  // There shouldn't be a reason to copy cleared entries.
-  DCHECK(
-      IsWasmTrustedInstanceData(src->get(src_index).GetHeapObjectAssumeWeak()));
-  DCHECK(IsSmi(src->get(src_index + 1)));
-  dst->set(dst_index, src->get(src_index));
-  dst->set(dst_index + 1, src->get(src_index + 1));
-}
-
-}  // namespace
-
 // static
 void WasmDispatchTable::AddUse(Isolate* isolate,
                                DirectHandle<WasmDispatchTable> dispatch_table,
@@ -2586,10 +2619,12 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
+    const wasm::FunctionSig* function_sig =
+        reinterpret_cast<const wasm::FunctionSig*>(sig);
     uint32_t aligned_size =
-        wasm::WasmBytecode::JSToWasmWrapperPackedArraySize(sig);
-    bool hasRefArgs = wasm::WasmBytecode::RefArgsCount(sig) > 0;
-    bool hasRefRets = wasm::WasmBytecode::RefRetsCount(sig) > 0;
+        wasm::WasmBytecode::JSToWasmWrapperPackedArraySize(function_sig);
+    bool hasRefArgs = wasm::WasmBytecode::RefArgsCount(function_sig) > 0;
+    bool hasRefRets = wasm::WasmBytecode::RefRetsCount(function_sig) > 0;
     function_data->set_packed_args_size(
         wasm::WasmInterpreterRuntime::PackedArgsSizeField::encode(
             aligned_size) |
@@ -2746,9 +2781,13 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     internal_function->set_call_target(wrapper_code_pointer);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
-    function_data->func_ref()->internal(isolate)->set_call_target(
-        wasm::GetBuiltinCodePointer<
-            Builtin::kGenericWasmToJSInterpreterWrapper>(isolate));
+    Address builtin_entry =
+        Builtins::EntryOf(Builtin::kGenericWasmToJSInterpreterWrapper, isolate);
+    uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
+    WasmCodePointer wrapper_code_pointer =
+        function_data->offheap_data()->set_generic_wrapper(builtin_entry,
+                                                           signature_hash);
+    internal_function->set_call_target(wrapper_code_pointer);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
     int expected_arity = parameter_count;

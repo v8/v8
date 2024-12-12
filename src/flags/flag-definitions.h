@@ -1864,6 +1864,15 @@ DEFINE_BOOL(wasm_jitless_if_available_for_testing, false,
             "Enables the Wasm interpreter, for testing, but only if "
             "the 'v8_enable_drumbrake' flag is set.")
 DEFINE_IMPLICATION(wasm_jitless_if_available_for_testing, wasm_jitless)
+
+DEFINE_BOOL(drumbrake_compact_bytecode, false,
+            "Compress the Wasm interpreter bytecode")
+DEFINE_BOOL(trace_drumbrake_compact_bytecode, false,
+            "Traces the Wasm interpreter compact bytecode")
+DEFINE_BOOL(drumbrake_fuzzer_timeout, false,
+            "enable timeout for wasm fuzzer (for testing)")
+DEFINE_SIZE_T(drumbrake_fuzzer_timeout_limit_ms, 10000,
+              "timeout for wasm fuzzer (in ms)")
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
 DEFINE_BOOL(trace_drumbrake_bytecode_generator, false,
             "trace drumbrake generation of interpreter bytecode")

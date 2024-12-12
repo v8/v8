@@ -864,7 +864,12 @@ class ModuleDecoderImpl : public Decoder {
           break;
       }
     }
-    if (module_->memories.size() > 1) detected_features_->add_multi_memory();
+    if (module_->memories.size() > 1) {
+      detected_features_->add_multi_memory();
+      if (v8_flags.wasm_jitless) {
+        error("Multiple memories not supported in Wasm jitless mode");
+      }
+    }
     UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
         module_->num_imported_functions);
@@ -995,7 +1000,12 @@ class ModuleDecoderImpl : public Decoder {
           memory->has_maximum_pages, max_pages, &memory->maximum_pages,
           memory->is_memory64() ? k64BitLimits : k32BitLimits);
     }
-    if (module_->memories.size() > 1) detected_features_->add_multi_memory();
+    if (module_->memories.size() > 1) {
+      detected_features_->add_multi_memory();
+      if (v8_flags.wasm_jitless) {
+        error("Multiple memories not supported in Wasm jitless mode");
+      }
+    }
     UpdateComputedMemoryInformation();
   }
 

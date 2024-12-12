@@ -1547,8 +1547,10 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
-  // Initialize the import wrapper cache if that hasn't happened yet.
-  GetWasmImportWrapperCache()->LazyInitialize(isolate);
+  if (!v8_flags.wasm_jitless) {
+    // Initialize the import wrapper cache if that hasn't happened yet.
+    GetWasmImportWrapperCache()->LazyInitialize(isolate);
+  }
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmCodeManager()->NewNativeModule(

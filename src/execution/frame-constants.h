@@ -287,7 +287,7 @@ class WasmToJSInterpreterFrameConstants : public TypedFrameConstants {
  public:
   // This slot contains the number of slots at the top of the frame that need to
   // be scanned by the GC.
-  static constexpr int kGCScanSlotCountOffset =
+  static constexpr int kGCScanSlotLimitOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
 
   // The stack pointer at the moment of the JS function call.
@@ -403,19 +403,21 @@ class BuiltinWasmInterpreterWrapperConstants : public TypedFrameConstants {
   // The number of return values according to the siganture.
   static constexpr int kReturnCountOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(3);
   // `reps_` of wasm::FunctionSig.
+  static constexpr int kSigRepsOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
+  // The current valuetype in the function signature being converted.
   static constexpr int kValueTypesArrayStartOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(4);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(5);
   // Array of arguments/return values.
   static constexpr int kArgRetsAddressOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(5);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
   // Whether the array is for arguments or return values.
   static constexpr int kArgRetsIsArgsOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(7);
   // The index of the argument or return value being converted.
-  static constexpr int kCurrentIndexOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(7);
+  static constexpr int kCurrentIndexOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(8);
   // Precomputed signature data.
   static constexpr int kSignatureDataOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(8);
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(9);
 };
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY

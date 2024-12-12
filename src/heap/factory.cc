@@ -2068,7 +2068,7 @@ Handle<WasmStruct> Factory::NewWasmStructUninitialized(
     const wasm::StructType* type, Handle<Map> map) {
   Tagged<HeapObject> raw =
       AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
-  raw->set_map_after_allocation(*map);
+  raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   return handle(result, isolate());
