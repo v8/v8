@@ -2195,6 +2195,8 @@
   'wasm/stack-switching-export': [SKIP],
   'wasm/stack-switching-generic-wrapper': [SKIP],
   'wasm/stack-switching-no-stress': [SKIP],
+  'wasm/stack-switching-init-safe': [SKIP],
+  'wasm/stack-switching-notraps': [SKIP],
   'regress/wasm/regress-v8-14471': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-336358915': [SKIP],
