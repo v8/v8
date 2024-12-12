@@ -268,7 +268,7 @@ MaybeHandle<Object> WasmTableObject::JSToWasmElement(
   const WasmModule* module = !table->has_trusted_data()
                                  ? nullptr
                                  : table->trusted_data(isolate)->module();
-  return wasm::JSToWasmObject(isolate, module, entry, table->type(),
+  return wasm::JSToWasmObject(isolate, module, entry, table->type(module),
                               error_message);
 }
 
@@ -322,7 +322,7 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
 
-  switch (table->type().heap_representation_non_shared()) {
+  switch (table->unsafe_type().heap_representation_non_shared()) {
     case wasm::HeapType::kExtern:
     case wasm::HeapType::kString:
     case wasm::HeapType::kStringViewWtf8:
@@ -348,8 +348,8 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
       UNREACHABLE();
     default:
       DCHECK(table->has_trusted_data());
-      if (table->trusted_data(isolate)->module()->has_signature(
-              table->type().ref_index())) {
+      const wasm::WasmModule* module = table->trusted_data(isolate)->module();
+      if (module->has_signature(table->type(module).ref_index())) {
         SetFunctionTableEntry(isolate, table, entry_index, entry);
         return;
       }
@@ -373,7 +373,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   if (IsWasmNull(*entry, isolate)) return entry;
   if (IsWasmFuncRef(*entry)) return entry;
 
-  switch (table->type().heap_representation_non_shared()) {
+  switch (table->unsafe_type().heap_representation_non_shared()) {
     case wasm::HeapType::kStringViewWtf8:
     case wasm::HeapType::kStringViewWtf16:
     case wasm::HeapType::kStringViewIter:
@@ -399,11 +399,11 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     default:
       DCHECK(table->has_trusted_data());
       const WasmModule* module = table->trusted_data(isolate)->module();
-      if (module->has_array(table->type().ref_index()) ||
-          module->has_struct(table->type().ref_index())) {
+      wasm::ModuleTypeIndex element_type = table->type(module).ref_index();
+      if (module->has_array(element_type) || module->has_struct(element_type)) {
         return entry;
       }
-      DCHECK(module->has_signature(table->type().ref_index()));
+      DCHECK(module->has_signature(element_type));
       break;
   }
 
@@ -691,13 +691,17 @@ void WasmTableObject::GetFunctionTableEntry(
     bool* is_valid, bool* is_null,
     MaybeHandle<WasmTrustedInstanceData>* instance_data, int* function_index,
     MaybeDirectHandle<WasmJSFunction>* maybe_js_function) {
-  // A function table defined outside a module may only have type exactly
-  // {funcref}.
-  DCHECK(table->has_trusted_data()
-             ? wasm::IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                                 table->trusted_data(isolate)->module())
-             : (table->type() == wasm::kWasmFuncRef));
+#if DEBUG
+  if (table->has_trusted_data()) {
+    const wasm::WasmModule* module = table->trusted_data(isolate)->module();
+    DCHECK(wasm::IsSubtypeOf(table->type(module), wasm::kWasmFuncRef, module));
+  } else {
+    // A function table defined outside a module may only have type exactly
+    // {funcref}.
+    DCHECK(table->unsafe_type() == wasm::kWasmFuncRef);
+  }
   DCHECK_LT(entry_index, table->current_length());
+#endif
   // We initialize {is_valid} with {true}. We may change it later.
   *is_valid = true;
   DirectHandle<Object> element(table->entries()->get(entry_index), isolate);

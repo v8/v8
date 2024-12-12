@@ -2031,9 +2031,13 @@ bool InstanceBuilder::ProcessImportedTable(
       table_object->has_trusted_data()
           ? table_object->trusted_data(isolate_)->module()
           : trusted_instance_data->module();
+  // The security-relevant aspect of this DCHECK is covered by the SBXCHECK_EQ
+  // below.
+  DCHECK_IMPLIES(!table_object->has_trusted_data(),
+                 !table_object->unsafe_type().has_index());
 
-  if (!EquivalentTypes(table.type, table_object->type(), module_,
-                       table_type_module)) {
+  if (!EquivalentTypes(table.type, table_object->type(table_type_module),
+                       module_, table_type_module)) {
     thrower_->LinkError("%s: imported table does not match the expected type",
                         ImportName(import_index).c_str());
     return false;
@@ -2072,12 +2076,16 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       global_object->has_trusted_data()
           ? global_object->trusted_data(isolate_)->module()
           : trusted_instance_data->module();
+  wasm::ValueType actual_type = global_object->type();
+  SBXCHECK(!actual_type.has_index() ||
+           (global_object->has_trusted_data() &&
+            global_type_module->has_type(actual_type.ref_index())));
 
   bool valid_type =
       global.mutability
-          ? EquivalentTypes(global_object->type(), global.type,
-                            global_type_module, trusted_instance_data->module())
-          : IsSubtypeOf(global_object->type(), global.type, global_type_module,
+          ? EquivalentTypes(actual_type, global.type, global_type_module,
+                            trusted_instance_data->module())
+          : IsSubtypeOf(actual_type, global.type, global_type_module,
                         trusted_instance_data->module());
 
   if (!valid_type) {
