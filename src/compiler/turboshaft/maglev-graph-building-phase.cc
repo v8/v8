@@ -2238,9 +2238,20 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::CheckedNumberToInt32* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ DeoptimizeIf(__ ObjectIsNumberFitsInt32(Map(node->input())), frame_state,
-                    DeoptimizeReason::kNotInt32,
-                    node->eager_deopt_info()->feedback_to_update());
+    V<Object> input = Map(node->input());
+    ScopedVar<Word32, AssemblerT> value(this);
+    IF (__ IsSmi(input)) {
+      value = __ UntagSmi(V<Smi>::Cast(input));
+    } ELSE {
+      __ DeoptimizeIfNot(__ IsHeapNumberMap(__ LoadMapField(input)),
+                         frame_state, DeoptimizeReason::kNotInt32,
+                         node->eager_deopt_info()->feedback_to_update());
+      value = __ ChangeFloat64ToInt32OrDeopt(
+          __ LoadHeapNumberValue(V<HeapNumber>::Cast(input)), frame_state,
+          CheckForMinusZeroMode::kCheckForMinusZero,
+          node->eager_deopt_info()->feedback_to_update());
+    }
+    SetMap(node, value);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckFloat64IsNan* node,
