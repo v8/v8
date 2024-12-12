@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '185199402093309a1efdb19be1de33f247badaff',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7728935fbc481bf0a6b7f5bcea7797f4b98c3014',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '75f731e7de960aa9b37da90585ca6a522905bb86',
   'buildtools/linux64': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '8bd3142058af42d4605da7f2bc8d6dfc2c97e123',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'd122c0d435a6d305cdd50526127c84a98b77d87b',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '79219e26e0e36b415a5804b6b017ad6c6cd99ad8',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '19bfdd55df3d106d7611455375445ad47753b0aa',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '758bbcaa6aac74bab506d56a2db64cc865c04cae',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '78e463d935378e41c2d088e3a1dd659998a8c3ac',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -496,7 +496,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '0b76dfe4fffd3f49efacde5f3268b02f9c060ef0',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b5ecd2133b937456caef1f5258da2e845c037db0',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
