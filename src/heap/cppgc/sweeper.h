@@ -34,7 +34,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   };
 
   static constexpr bool CanDiscardMemory() {
-#if !defined(V8_OS_WIN)
+#if defined(V8_OS_WIN)
     // Discarding memory on Windows does not decommit the memory and does not
     // contribute to reduce the memory footprint. On the other hand, these
     // calls become expensive the more memory is allocated in the system and
