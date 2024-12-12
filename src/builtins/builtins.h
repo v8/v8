@@ -449,9 +449,7 @@ V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
   // InstructionStream object is not a builtin.
   return builtin_id != Builtin::kNoBuiltinId &&
          (builtin_id == Builtin::kBaselineOutOfLinePrologue ||
-          builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt ||
-          builtin_id == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
-          builtin_id == Builtin::kBaselineOrInterpreterEnterAtNextBytecode);
+          builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt);
 }
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(

@@ -262,8 +262,6 @@ namespace internal {
   ASM(BaselineOutOfLinePrologueDeopt, Void)                                    \
   ASM(BaselineOnStackReplacement, OnStackReplacement)                          \
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
-  ASM(BaselineOrInterpreterEnterAtBytecode, Void)                              \
-  ASM(BaselineOrInterpreterEnterAtNextBytecode, Void)                          \
   ASM(InterpreterOnStackReplacement_ToBaseline, Void)                          \
                                                                                \
   /* Maglev Compiler */                                                        \

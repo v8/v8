@@ -467,9 +467,7 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
        builtin == Builtin::kInterpreterEnterAtBytecode ||
-       builtin == Builtin::kInterpreterEnterAtNextBytecode ||
-       builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
-       builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode)) {
+       builtin == Builtin::kInterpreterEnterAtNextBytecode)) {
     return true;
   } else if (isolate->interpreted_frames_native_stack()) {
     intptr_t marker = Memory<intptr_t>(

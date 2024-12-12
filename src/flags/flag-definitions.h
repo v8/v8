@@ -2450,11 +2450,6 @@ DEFINE_BOOL(always_turbofan, false, "always try to optimize functions")
 DEFINE_IMPLICATION(always_turbofan, turbofan)
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_turbofan, false, "prepare for turning on always opt")
-// On Arm64, every entry point in a function needs a BTI landing pad
-// instruction. Deopting to baseline means every bytecode is a potential entry
-// point, which increases codesize significantly.
-DEFINE_BOOL(deopt_to_baseline, false,
-            "deoptimize to baseline code when available")
 
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 #ifdef DEBUG

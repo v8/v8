@@ -1714,26 +1714,6 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);
-      } else if (it.frame()->type() == StackFrame::INTERPRETED) {
-        // Check if the PC is a baseline entry trampoline. If it is, replace it
-        // with the corresponding interpreter entry trampoline.
-        // This is the case if a baseline function was inlined into a function
-        // we deoptimized in the debugger and are stepping into it.
-        JavaScriptFrame* frame = it.frame();
-        Address pc = frame->pc();
-        Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
-        if (builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
-            builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode) {
-          Address* pc_addr = frame->pc_address();
-          Builtin advance =
-              builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode
-                  ? Builtin::kInterpreterEnterAtBytecode
-                  : Builtin::kInterpreterEnterAtNextBytecode;
-          Address advance_pc =
-              isolate->builtins()->code(advance)->instruction_start();
-          PointerAuthentication::ReplacePC(pc_addr, advance_pc,
-                                           kSystemPointerSize);
-        }
       }
     }
   }

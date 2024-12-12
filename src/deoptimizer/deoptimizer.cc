@@ -527,10 +527,6 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     deopt_pc_offset_after_adapt_shadow_stack)                                \
   V(Builtin::kContinueToJavaScriptBuiltin,                                   \
     deopt_pc_offset_after_adapt_shadow_stack)                                \
-  V(Builtin::kBaselineOrInterpreterEnterAtBytecode,                          \
-    deopt_pc_offset_after_adapt_shadow_stack)                                \
-  V(Builtin::kBaselineOrInterpreterEnterAtNextBytecode,                      \
-    deopt_pc_offset_after_adapt_shadow_stack)                                \
   V(Builtin::kRestartFrameTrampoline,                                        \
     deopt_pc_offset_after_adapt_shadow_stack)                                \
   V(Builtin::kJSConstructStubGeneric, construct_stub_create_deopt_pc_offset) \
@@ -1768,17 +1764,11 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
 namespace {
 
 // Get the dispatch builtin for unoptimized frames.
-Builtin DispatchBuiltinFor(bool deopt_to_baseline, bool advance_bc,
-                           bool is_restart_frame) {
+Builtin DispatchBuiltinFor(bool advance_bc, bool is_restart_frame) {
   if (is_restart_frame) return Builtin::kRestartFrameTrampoline;
 
-  if (deopt_to_baseline) {
-    return advance_bc ? Builtin::kBaselineOrInterpreterEnterAtNextBytecode
-                      : Builtin::kBaselineOrInterpreterEnterAtBytecode;
-  } else {
-    return advance_bc ? Builtin::kInterpreterEnterAtNextBytecode
-                      : Builtin::kInterpreterEnterAtBytecode;
-  }
+  return advance_bc ? Builtin::kInterpreterEnterAtNextBytecode
+                    : Builtin::kInterpreterEnterAtBytecode;
 }
 
 }  // namespace
@@ -1840,14 +1830,12 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool advance_bc =
       (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
       !goto_catch_handler;
-  const bool deopt_to_baseline = v8_flags.deopt_to_baseline;
   const bool restart_frame = goto_catch_handler && is_restart_frame();
-  Tagged<Code> dispatch_builtin = builtins->code(
-      DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame));
+  Tagged<Code> dispatch_builtin =
+      builtins->code(DispatchBuiltinFor(advance_bc, restart_frame));
 
   if (verbose_tracing_enabled()) {
-    PrintF(trace_scope()->file(), "  translating %s frame ",
-           deopt_to_baseline ? "baseline" : "interpreted");
+    PrintF(trace_scope()->file(), "  translating interpreted frame ");
     std::unique_ptr<char[]> name =
         translated_frame->raw_shared_info()->DebugNameCStr();
     PrintF(trace_scope()->file(), "%s", name.get());

@@ -482,9 +482,8 @@ void BaselineCompiler::VisitSingleBytecode() {
 #endif
   int offset = iterator().current_offset();
   if (IsJumpTarget(offset)) __ Bind(&labels_[offset]);
-  // Mark position as valid jump target unconditionnaly when the deoptimizer can
-  // jump to baseline code. This is required when CFI is enabled.
-  if (v8_flags.deopt_to_baseline || IsIndirectJumpTarget(offset)) {
+  // This is required when CFI is enabled.
+  if (IsIndirectJumpTarget(offset)) {
     __ JumpTarget();
   }
 
