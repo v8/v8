@@ -5163,6 +5163,10 @@ void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
   or_(Operand(dst, 0), tmp_gp);
 }
 
+void LiftoffAssembler::emit_store_nonzero(Register dst) {
+  mov(Operand(dst, 0), Immediate(1));
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

@@ -4037,6 +4037,26 @@ class LiftoffCompiler {
 
     __ bind(&done);
 
+    if (V8_UNLIKELY(nondeterminism_)) {
+      // Handle every return value of `-1` as nondeterministic. This will also
+      // catch totally deterministic grows above the declared maximum, but there
+      // is no easy way to distinguish those from nondeterministic failures
+      // here.
+      FreezeCacheState frozen_for_conditional_jump{asm_};
+      Label continuation;
+      __ emit_i32_cond_jumpi(kNotEqual, &continuation, result.gp(), -1,
+                             frozen_for_conditional_jump);
+      // Just reuse the result register for the "nondeterminism_addr"; we will
+      // reset it to -1 afterwards.
+      __ LoadConstant(
+          result,
+          WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
+      __ emit_store_nonzero(result.gp());
+      __ LoadConstant(result, WasmValue{int32_t{-1}});
+
+      __ bind(&continuation);
+    }
+
     if (imm.memory->is_memory64()) {
       LiftoffRegister result64 = result;
       if (kNeedI64RegPair) result64 = __ GetUnusedRegister(kGpRegPair, pinned);

@@ -4341,6 +4341,10 @@ void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
   emit_store_nonzero_if_nan(dst, tmp_fp, lane_kind);
 }
 
+void LiftoffAssembler::emit_store_nonzero(Register dst) {
+  Str(dst, MemOperand(dst));
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   // The stack pointer is required to be quadword aligned.
