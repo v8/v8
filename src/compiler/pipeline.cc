@@ -157,10 +157,6 @@
 #include "src/compiler/turboshaft/wasm-revec-phase.h"
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-// Set this for all targets that support instruction selection directly on
-// Turboshaft graphs.
-#define TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION 1
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -836,15 +832,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
     return FAILED;
   }
 
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_instruction_selection;
-#else
-  bool use_turboshaft_instruction_selection = false;
-#endif
-
   const bool success = GenerateCodeFromTurboshaftGraph(
-      use_turboshaft_instruction_selection, linkage_, turboshaft_pipeline,
+      v8_flags.turboshaft_instruction_selection, linkage_, turboshaft_pipeline,
       &pipeline_, data_.osr_helper_ptr());
   return success ? SUCCEEDED : FAILED;
 }
@@ -857,7 +846,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeFinalizePipelineJob);
   Handle<Code> code;
   DirectHandle<NativeContext> context;
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
   if (v8_flags.turboshaft_instruction_selection) {
     turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
     MaybeHandle<Code> maybe_code = turboshaft_pipeline.FinalizeCode();
@@ -879,7 +867,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
       return RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
     }
   } else {
-#endif
     MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
     if (!maybe_code.ToHandle(&code)) {
       if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
@@ -898,9 +885,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     if (!pipeline_.CommitDependencies(code)) {
       return RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
     }
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
   }
-#endif
   compilation_info()->SetCode(code);
   GlobalHandleVector<Map> maps = CollectRetainedMaps(isolate, code);
   RegisterWeakObjectsInOptimizedCode(isolate, context, code, std::move(maps));
@@ -2467,31 +2452,15 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
 
   turboshaft_pipeline.BeginPhaseKind("V8.InstructionSelection");
 
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_staged;
-#else
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_experimental;
-#endif
-
   const bool success = GenerateCodeFromTurboshaftGraph(
-      use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
-      &pipeline_);
+      v8_flags.turboshaft_wasm_instruction_selection_staged, &linkage,
+      turboshaft_pipeline, &pipeline_);
   return success ? SUCCEEDED : FAILED;
 }
 
 CompilationJob::Status WasmTurboshaftWrapperCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_staged;
-#else
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_experimental;
-#endif
-
-  if (use_turboshaft_instruction_selection) {
+  if (v8_flags.turboshaft_wasm_instruction_selection_staged) {
     return FinalizeWrapperCompilation(
         &turboshaft_data_, &info_, call_descriptor_, isolate,
         "WasmTurboshaftWrapperCompilationJob::FinalizeJobImpl");
@@ -3466,20 +3435,12 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
 
     data.BeginPhaseKind("V8.InstructionSelection");
 
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-    bool use_turboshaft_instruction_selection =
-        v8_flags.turboshaft_wasm_instruction_selection_staged;
-#else
-    bool use_turboshaft_instruction_selection =
-        v8_flags.turboshaft_wasm_instruction_selection_experimental;
-#endif
-
     const bool success = GenerateCodeFromTurboshaftGraph(
-        use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
-        &pipeline, data.osr_helper_ptr());
+        v8_flags.turboshaft_wasm_instruction_selection_staged, &linkage,
+        turboshaft_pipeline, &pipeline, data.osr_helper_ptr());
     CHECK(success);
 
-    if (use_turboshaft_instruction_selection) {
+    if (v8_flags.turboshaft_wasm_instruction_selection_staged) {
       auto result =
           WrapperCompilationResult(turboshaft_data.code_generator(),
                                    call_descriptor, wrapper_info.code_kind);
@@ -3904,21 +3865,13 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   data.BeginPhaseKind("V8.InstructionSelection");
 
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_staged;
-#else
-  bool use_turboshaft_instruction_selection =
-      v8_flags.turboshaft_wasm_instruction_selection_experimental;
-#endif
-
   const bool success = GenerateCodeFromTurboshaftGraph(
-      use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
-      &pipeline, data.osr_helper_ptr());
+      v8_flags.turboshaft_wasm_instruction_selection_staged, &linkage,
+      turboshaft_pipeline, &pipeline, data.osr_helper_ptr());
   if (!success) return false;
 
   CodeGenerator* code_generator;
-  if (use_turboshaft_instruction_selection) {
+  if (v8_flags.turboshaft_wasm_instruction_selection_staged) {
     code_generator = turboshaft_data.code_generator();
   } else {
     code_generator = pipeline.code_generator();
@@ -4035,19 +3988,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
       return {};
     }
 
-#ifdef TARGET_SUPPORTS_TURBOSHAFT_INSTRUCTION_SELECTION
-    bool use_turboshaft_instruction_selection =
-        v8_flags.turboshaft_instruction_selection;
-#else
-    bool use_turboshaft_instruction_selection = false;
-#endif
-
     const bool success = GenerateCodeFromTurboshaftGraph(
-        use_turboshaft_instruction_selection, &linkage, turboshaft_pipeline,
-        &pipeline, data.osr_helper_ptr());
+        v8_flags.turboshaft_instruction_selection, &linkage,
+        turboshaft_pipeline, &pipeline, data.osr_helper_ptr());
     if (!success) return {};
 
-    if (use_turboshaft_instruction_selection) {
+    if (v8_flags.turboshaft_instruction_selection) {
       Handle<Code> code;
       if (turboshaft_pipeline.FinalizeCode().ToHandle(&code) &&
           turboshaft_pipeline.CommitDependencies(code)) {
