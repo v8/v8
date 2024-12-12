@@ -53,5 +53,29 @@ BUILTIN(ErrorPrototypeToString) {
                            ErrorUtils::ToString(isolate, args.receiver()));
 }
 
+// https://tc39.es/proposal-is-error/
+BUILTIN(ErrorIsError) {
+  HandleScope scope(isolate);
+  Handle<Object> obj = args.atOrUndefined(isolate, 1);
+
+  isolate->CountUsage(v8::Isolate::kErrorIsError);
+
+  // 1. If argument is not an Object, return false.
+  // 2. If argument has an [[ErrorData]] internal slot, return true.
+  // 3. Return false.
+
+  if (IsHeapObject(*obj)) {
+    Tagged<Map> obj_map = Cast<HeapObject>(*obj)->map();
+    // DOMExceptions should return true. See
+    // https://github.com/whatwg/webidl/pull/1421
+    return *isolate->factory()->ToBoolean(
+        InstanceTypeChecker::IsJSError(obj_map) ||
+        (IsJSApiWrapperObject(obj_map) &&
+         isolate->IsJSApiWrapperNativeError(Cast<JSReceiver>(obj))));
+  } else {
+    return ReadOnlyRoots(isolate).false_value();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

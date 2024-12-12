@@ -544,6 +544,7 @@ class V8_EXPORT Isolate {
     kStringReplaceAll = 159,
     kStringWellFormed = 160,
     kWeakReferences = 161,
+    kErrorIsError = 162,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -692,6 +693,14 @@ class V8_EXPORT Isolate {
    */
   void SetHostCreateShadowRealmContextCallback(
       HostCreateShadowRealmContextCallback callback);
+
+  /**
+   * Set the callback that checks whether a Error.isError should return true for
+   * a JSApiWrapper object, i.e. whether it represents a native JS error. For
+   * example, in an HTML embedder, DOMExceptions are considered native errors.
+   */
+  void SetIsJSApiWrapperNativeErrorCallback(
+      IsJSApiWrapperNativeErrorCallback callback);
 
   /**
    * This specifies the callback called when the stack property of Error

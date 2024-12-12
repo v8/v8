@@ -499,59 +499,61 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 
 using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
-#define ISOLATE_INIT_LIST(V)                                                  \
-  /* Assembler state. */                                                      \
-  V(FatalErrorCallback, exception_behavior, nullptr)                          \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
-  V(LogEventCallback, event_logger, nullptr)                                  \
-  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,       \
-    nullptr)                                                                  \
-  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
-  V(SharedArrayBufferConstructorEnabledCallback,                              \
-    sharedarraybuffer_constructor_enabled_callback, nullptr)                  \
-  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
-  V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,     \
-    DefaultWasmAsyncResolvePromiseCallback)                                   \
-  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
-  V(WasmImportedStringsEnabledCallback,                                       \
-    wasm_imported_strings_enabled_callback, nullptr)                          \
-  V(JavaScriptCompileHintsMagicEnabledCallback,                               \
-    compile_hints_magic_enabled_callback, nullptr)                            \
-  V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)             \
-  /* State for Relocatable. */                                                \
-  V(Relocatable*, relocatable_top, nullptr)                                   \
-  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
-  V(Tagged<Object>, string_stream_current_security_token, Tagged<Object>())   \
-  V(const intptr_t*, api_external_references, nullptr)                        \
-  V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
-  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
-  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
-  V(CodeTracer*, code_tracer, nullptr)                                        \
-  V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
-  V(ExceptionPropagationCallback, exception_propagation_callback, nullptr)    \
-  V(const v8::StartupData*, snapshot_blob, nullptr)                           \
-  V(int, code_and_metadata_size, 0)                                           \
-  V(int, bytecode_and_metadata_size, 0)                                       \
-  V(int, external_script_source_size, 0)                                      \
-  /* Number of CPU profilers running on the isolate. */                       \
-  V(size_t, num_cpu_profilers, 0)                                             \
-  /* true if a trace is being formatted through Error.prepareStackTrace. */   \
-  V(bool, formatting_stack_trace, false)                                      \
-  V(bool, disable_bytecode_flushing, false)                                   \
-  V(int, last_console_context_id, 0)                                          \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
-  V(int, embedder_wrapper_type_index, -1)                                     \
-  V(int, embedder_wrapper_object_index, -1)                                   \
-  V(compiler::NodeObserver*, node_observer, nullptr)                          \
-  V(bool, javascript_execution_assert, true)                                  \
-  V(bool, javascript_execution_throws, true)                                  \
-  V(bool, javascript_execution_dump, true)                                    \
-  V(uint32_t, javascript_execution_counter, 0)                                \
-  V(bool, deoptimization_assert, true)                                        \
-  V(bool, compilation_assert, true)                                           \
-  V(bool, no_exception_assert, true)                                          \
+#define ISOLATE_INIT_LIST(V)                                                \
+  /* Assembler state. */                                                    \
+  V(FatalErrorCallback, exception_behavior, nullptr)                        \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                \
+  V(LogEventCallback, event_logger, nullptr)                                \
+  V(ModifyCodeGenerationFromStringsCallback2, modify_code_gen_callback,     \
+    nullptr)                                                                \
+  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
+  V(ExtensionCallback, wasm_module_callback, &NoExtension)                  \
+  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                \
+  V(SharedArrayBufferConstructorEnabledCallback,                            \
+    sharedarraybuffer_constructor_enabled_callback, nullptr)                \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                \
+  V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,   \
+    DefaultWasmAsyncResolvePromiseCallback)                                 \
+  V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)      \
+  V(WasmImportedStringsEnabledCallback,                                     \
+    wasm_imported_strings_enabled_callback, nullptr)                        \
+  V(JavaScriptCompileHintsMagicEnabledCallback,                             \
+    compile_hints_magic_enabled_callback, nullptr)                          \
+  V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)           \
+  V(IsJSApiWrapperNativeErrorCallback,                                      \
+    is_js_api_wrapper_native_error_callback, nullptr)                       \
+  /* State for Relocatable. */                                              \
+  V(Relocatable*, relocatable_top, nullptr)                                 \
+  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)           \
+  V(Tagged<Object>, string_stream_current_security_token, Tagged<Object>()) \
+  V(const intptr_t*, api_external_references, nullptr)                      \
+  V(AddressToIndexHashMap*, external_reference_map, nullptr)                \
+  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                     \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                      \
+  V(CodeTracer*, code_tracer, nullptr)                                      \
+  V(PromiseRejectCallback, promise_reject_callback, nullptr)                \
+  V(ExceptionPropagationCallback, exception_propagation_callback, nullptr)  \
+  V(const v8::StartupData*, snapshot_blob, nullptr)                         \
+  V(int, code_and_metadata_size, 0)                                         \
+  V(int, bytecode_and_metadata_size, 0)                                     \
+  V(int, external_script_source_size, 0)                                    \
+  /* Number of CPU profilers running on the isolate. */                     \
+  V(size_t, num_cpu_profilers, 0)                                           \
+  /* true if a trace is being formatted through Error.prepareStackTrace. */ \
+  V(bool, formatting_stack_trace, false)                                    \
+  V(bool, disable_bytecode_flushing, false)                                 \
+  V(int, last_console_context_id, 0)                                        \
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                         \
+  V(int, embedder_wrapper_type_index, -1)                                   \
+  V(int, embedder_wrapper_object_index, -1)                                 \
+  V(compiler::NodeObserver*, node_observer, nullptr)                        \
+  V(bool, javascript_execution_assert, true)                                \
+  V(bool, javascript_execution_throws, true)                                \
+  V(bool, javascript_execution_dump, true)                                  \
+  V(uint32_t, javascript_execution_counter, 0)                              \
+  V(bool, deoptimization_assert, true)                                      \
+  V(bool, compilation_assert, true)                                         \
+  V(bool, no_exception_assert, true)                                        \
   V(uint32_t, wasm_switch_to_the_central_stack_counter, 0)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
@@ -1979,6 +1981,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetHostCreateShadowRealmContextCallback(
       HostCreateShadowRealmContextCallback callback);
   MaybeHandle<NativeContext> RunHostCreateShadowRealmContextCallback();
+
+  bool IsJSApiWrapperNativeError(Handle<JSReceiver> obj);
 
   void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
     embedded_file_writer_ = writer;

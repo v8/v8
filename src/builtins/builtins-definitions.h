@@ -685,6 +685,7 @@ namespace internal {
   CPP(ErrorConstructor, kDontAdaptArgumentsSentinel)                           \
   CPP(ErrorCaptureStackTrace, kDontAdaptArgumentsSentinel)                     \
   CPP(ErrorPrototypeToString, JSParameterCount(0))                             \
+  CPP(ErrorIsError, JSParameterCount(1))                                       \
                                                                                \
   /* Function */                                                               \
   CPP(FunctionConstructor, kDontAdaptArgumentsSentinel)                        \

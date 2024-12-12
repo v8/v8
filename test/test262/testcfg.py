@@ -66,6 +66,7 @@ FEATURE_FLAGS = {
     'promise-try': '--js-promise-try',
     'Atomics.pause': '--js-atomics-pause',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
+    'Error.isError': '--js-error-iserror',
 }
 
 SKIPPED_FEATURES = set([])

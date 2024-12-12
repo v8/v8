@@ -6630,6 +6630,12 @@ MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
   return Utils::OpenHandle(*stack);
 }
 
+bool Isolate::IsJSApiWrapperNativeError(Handle<JSReceiver> obj) {
+  return is_js_api_wrapper_native_error_callback_ != nullptr &&
+         is_js_api_wrapper_native_error_callback_(
+             reinterpret_cast<v8::Isolate*>(this), Utils::ToLocal(obj));
+}
+
 int Isolate::LookupOrAddExternallyCompiledFilename(const char* filename) {
   if (embedded_file_writer_ != nullptr) {
     return embedded_file_writer_->LookupOrAddExternallyCompiledFilename(

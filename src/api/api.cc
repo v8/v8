@@ -10811,6 +10811,10 @@ CALLBACK_SETTER(JavaScriptCompileHintsMagicEnabledCallback,
                 JavaScriptCompileHintsMagicEnabledCallback,
                 compile_hints_magic_enabled_callback)
 
+CALLBACK_SETTER(IsJSApiWrapperNativeErrorCallback,
+                IsJSApiWrapperNativeErrorCallback,
+                is_js_api_wrapper_native_error_callback)
+
 void Isolate::InstallConditionalFeatures(Local<Context> context) {
   v8::HandleScope handle_scope(this);
   v8::Context::Scope context_scope(context);

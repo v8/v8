@@ -5640,6 +5640,14 @@ void Genesis::InitializeGlobal_js_promise_try() {
                                Builtin::kPromiseTry, 1, kDontAdapt);
 }
 
+void Genesis::InitializeGlobal_js_error_iserror() {
+  if (!v8_flags.js_error_iserror) return;
+  DirectHandle<JSFunction> error_fun(native_context()->error_function(),
+                                     isolate());
+  InstallFunctionWithBuiltinId(isolate(), error_fun, "isError",
+                               Builtin::kErrorIsError, 1, kAdapt);
+}
+
 void Genesis::InitializeGlobal_harmony_set_methods() {
   if (!v8_flags.harmony_set_methods) return;
 

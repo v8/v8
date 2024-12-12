@@ -446,6 +446,14 @@ using HostCreateShadowRealmContextCallback =
     MaybeLocal<Context> (*)(Local<Context> initiator_context);
 
 /**
+ * IsJSApiWrapperNativeErrorCallback is called on an JSApiWrapper object to
+ * determine if Error.isError should return true or false. For instance, in an
+ * HTML embedder, DOMExceptions return true when passed to Error.isError.
+ */
+using IsJSApiWrapperNativeErrorCallback = bool (*)(Isolate* isolate,
+                                                   Local<Object> obj);
+
+/**
  * PrepareStackTraceCallback is called when the stack property of an error is
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.
