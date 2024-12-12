@@ -405,7 +405,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
   } else if (rmode_ == JS_DISPATCH_HANDLE) {
 #ifdef V8_ENABLE_LEAPTIERING
     Tagged<Code> target_code =
-        GetProcessWideJSDispatchTable()->GetCode(js_dispatch_handle());
+        IsolateGroup::current()->js_dispatch_table()->GetCode(
+            js_dispatch_handle());
     os << " (" << CodeKindToString(target_code->kind());
     if (Builtins::IsBuiltin(target_code)) {
       os << " " << Builtins::name(target_code->builtin_id());
@@ -477,8 +478,8 @@ void RelocInfo::Verify(Isolate* isolate) {
           isolate->heap()->js_dispatch_table_space();
       JSDispatchTable::Space* ro_space =
           isolate->read_only_heap()->js_dispatch_table_space();
-      GetProcessWideJSDispatchTable()->VerifyEntry(js_dispatch_handle(), space,
-                                                   ro_space);
+      IsolateGroup::current()->js_dispatch_table()->VerifyEntry(
+          js_dispatch_handle(), space, ro_space);
       break;
 #else
       UNREACHABLE();

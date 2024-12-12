@@ -111,7 +111,7 @@ void JSFunction::UpdateCodeImpl(Tagged<Code> value, WriteBarrierMode mode,
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    GetProcessWideJSDispatchTable()->SetTieringRequest(
+    IsolateGroup::current()->js_dispatch_table()->SetTieringRequest(
         dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution,
         GetIsolate());
   }
@@ -141,7 +141,8 @@ inline void JSFunction::UpdateCodeKeepTieringRequests(Tagged<Code> code,
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle());
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(
+      dispatch_handle());
 #else
   return ReadCodePointerField(kCodeOffset, isolate);
 #endif
@@ -150,7 +151,8 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
                               AcquireLoadTag tag) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle(tag));
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(
+      dispatch_handle(tag));
 #else
   return ReadCodePointerField(kCodeOffset, isolate);
 #endif
@@ -160,7 +162,7 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
 #if V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return GetProcessWideJSDispatchTable()->GetCode(handle);
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Load(isolate);
@@ -174,7 +176,7 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 #if V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return GetProcessWideJSDispatchTable()->GetCode(handle);
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Acquire_Load(isolate);
@@ -206,14 +208,16 @@ void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
 void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
                                      WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  GetProcessWideJSDispatchTable()->SetCodeNoWriteBarrier(handle, new_code);
+  IsolateGroup::current()->js_dispatch_table()->SetCodeNoWriteBarrier(handle,
+                                                                      new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 void JSFunction::UpdateDispatchEntryKeepTieringRequest(Tagged<Code> new_code,
                                                        WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  GetProcessWideJSDispatchTable()->SetCodeKeepTieringRequestNoWriteBarrier(
-      handle, new_code);
+  IsolateGroup::current()
+      ->js_dispatch_table()
+      ->SetCodeKeepTieringRequestNoWriteBarrier(handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
@@ -263,7 +267,8 @@ bool JSFunction::IsTieringRequestedOrInProgress(Isolate* isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
   if (!has_feedback_vector()) return false;
   return tiering_in_progress() ||
-         GetProcessWideJSDispatchTable()->IsTieringRequested(dispatch_handle());
+         IsolateGroup::current()->js_dispatch_table()->IsTieringRequested(
+             dispatch_handle());
 #else
   return tiering_state() != TieringState::kNone;
 #endif
@@ -271,7 +276,7 @@ bool JSFunction::IsTieringRequestedOrInProgress(Isolate* isolate) const {
 
 bool JSFunction::IsLoggingRequested(Isolate* isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  return GetProcessWideJSDispatchTable()->IsTieringRequested(
+  return IsolateGroup::current()->js_dispatch_table()->IsTieringRequested(
       dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
 #else
   return feedback_vector()->log_next_execution();
@@ -280,7 +285,7 @@ bool JSFunction::IsLoggingRequested(Isolate* isolate) const {
 
 bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
 #define CASE(name, ...)                                                        \
@@ -301,7 +306,7 @@ bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
 std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
     Isolate* isolate, ConcurrencyMode mode) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
   auto builtin = ([&]() -> std::optional<TieringBuiltin> {
@@ -358,8 +363,8 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
 
 void JSFunction::ResetTieringRequests(Isolate* isolate) {
 #ifdef V8_ENABLE_LEAPTIERING
-  GetProcessWideJSDispatchTable()->ResetTieringRequest(dispatch_handle(),
-                                                       isolate);
+  IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
+      dispatch_handle(), isolate);
 #else
   if (has_feedback_vector() && !tiering_in_progress()) {
     feedback_vector()->reset_tiering_state();

@@ -216,10 +216,6 @@ void V8::Initialize() {
   }
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable::Initialize();
-#endif  // V8_ENABLE_LEAPTIERING
-
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) {
     TrackEvent::Register();

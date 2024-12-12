@@ -504,12 +504,11 @@ inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = js_dispatch_handle();
   if (handle != kNullJSDispatchHandle) {
-    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
     if (SafeEquals(jdt->GetCode(handle))) {
       // TODO(olivf): Use a dedicated builtin which re-sets the Budget according
       // to which tier we currently are in.
-      GetProcessWideJSDispatchTable()->instance()->SetCodeNoWriteBarrier(
-          handle, *BUILTIN_CODE(isolate, CompileLazy));
+      jdt->SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
     }
     // Ensure we don't try to patch the entry multiple times.
     set_js_dispatch_handle(kNullJSDispatchHandle);

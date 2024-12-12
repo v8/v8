@@ -264,7 +264,7 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
 #ifdef V8_ENABLE_LEAPTIERING
     out << "    ;; js dispatch handle:0x" << std::hex
         << relocinfo->js_dispatch_handle();
-    Tagged<Code> code = GetProcessWideJSDispatchTable()->GetCode(
+    Tagged<Code> code = IsolateGroup::current()->js_dispatch_table()->GetCode(
         relocinfo->js_dispatch_handle());
     CodeKind kind = code->kind();
     if (code->is_builtin()) {

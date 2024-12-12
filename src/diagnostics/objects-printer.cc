@@ -1544,14 +1544,15 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
   os << "\n - interrupt_budget: " << interrupt_budget();
 #ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
-  if (GetProcessWideJSDispatchTable()->IsTieringRequested(dispatch_handle())) {
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  if (jdt->IsTieringRequested(dispatch_handle())) {
     os << "\n - tiering request ";
     if (Tagged<FeedbackVector> fbv;
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {
       os << "in_progress ";
     }
-    GetProcessWideJSDispatchTable()->PrintCurrentTieringRequest(
-        dispatch_handle(), GetIsolateFromWritableObject(*this), os);
+    jdt->PrintCurrentTieringRequest(dispatch_handle(),
+                                    GetIsolateFromWritableObject(*this), os);
   }
 
 #endif  // V8_ENABLE_LEAPTIERING
@@ -2246,7 +2247,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     if (tiering_in_progress()) {
       os << "in_progress ";
     }
-    GetProcessWideJSDispatchTable()->PrintCurrentTieringRequest(
+    IsolateGroup::current()->js_dispatch_table()->PrintCurrentTieringRequest(
         dispatch_handle(), GetIsolate(), os);
   }
 
@@ -4234,7 +4235,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
-  i::GetProcessWideJSDispatchTable()->PrintEntry(i::JSDispatchHandle(handle));
+  i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(
+      i::JSDispatchHandle(handle));
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

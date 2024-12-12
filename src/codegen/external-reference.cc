@@ -353,7 +353,8 @@ ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
 
 ExternalReference ExternalReference::js_dispatch_table_address() {
   // TODO(saelo): maybe rename to js_dispatch_table_base_address?
-  return ExternalReference(GetProcessWideJSDispatchTable()->base_address());
+  return ExternalReference(
+      IsolateGroup::current()->js_dispatch_table()->base_address());
 }
 
 #endif  // V8_ENABLE_LEAPTIERING

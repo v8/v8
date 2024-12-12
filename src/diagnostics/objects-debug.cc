@@ -810,7 +810,7 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Tagged<Code> code = jdt->GetCode(handle);
   CodeKind kind = code->kind();
   CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
@@ -1273,7 +1273,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
   uint16_t parameter_count = jdt->GetParameterCount(handle);

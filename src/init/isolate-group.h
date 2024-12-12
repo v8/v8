@@ -18,6 +18,10 @@
 #include "src/sandbox/code-pointer-table.h"
 #include "src/utils/allocation.h"
 
+#ifdef V8_ENABLE_LEAPTIERING
+#include "src/sandbox/js-dispatch-table.h"
+#endif  // V8_ENABLE_LEAPTIERING
+
 namespace v8 {
 
 namespace base {
@@ -171,6 +175,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   }
 #endif  // V8_ENABLE_SANDBOX
 
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
+#endif  // V8_ENABLE_LEAPTIERING
+
  private:
   friend class base::LeakyObject<IsolateGroup>;
   friend class PoolTest;
@@ -236,6 +244,10 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
           {nullptr};
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable js_dispatch_table_;
+#endif  // V8_ENABLE_LEAPTIERING
 };
 
 }  // namespace internal

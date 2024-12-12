@@ -2574,7 +2574,8 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
   static_assert(!JSDispatchTable::kSupportsCompaction);
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
   CHECK_EQ(argument_count,
-           GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle));
+           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+               dispatch_handle));
   Call(code);
 }
 #endif

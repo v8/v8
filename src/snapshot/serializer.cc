@@ -1295,7 +1295,7 @@ void Serializer::ObjectSerializer::VisitProtectedPointer(
 void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   // If the slot is empty, we will skip it here and then just serialize the
   // null handle as raw data.
   if (handle == kNullJSDispatchHandle) return;

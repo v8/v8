@@ -4781,7 +4781,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // if we would UpdateCode we would risk tiering down already existing
     // closures with optimized code installed.
     JSDispatchHandle handle = feedback_cell->dispatch_handle();
-    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
     Tagged<Code> old_code = jdt->GetCode(handle);
 
     // A write barrier is needed when settings code, because the update can race

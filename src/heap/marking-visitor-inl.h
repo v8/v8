@@ -307,15 +307,15 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitJSDispatchTableEntry(
     Tagged<HeapObject> host, JSDispatchHandle handle) {
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* table = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 #ifdef DEBUG
   JSDispatchTable::Space* space = heap_->js_dispatch_table_space();
   JSDispatchTable::Space* ro_space =
       heap_->isolate()->read_only_heap()->js_dispatch_table_space();
-  table->VerifyEntry(handle, space, ro_space);
+  jdt->VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
 
-  table->Mark(handle);
+  jdt->Mark(handle);
 
   // The code objects referenced from a dispatch table entry are treated as weak
   // references for the purpose of bytecode/baseline flushing, so they are not
@@ -347,7 +347,8 @@ size_t MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
       js_function->Relaxed_ReadField<JSDispatchHandle::underlying_type>(
           JSFunction::kDispatchHandleOffset));
   if (handle != kNullJSDispatchHandle) {
-    Tagged<HeapObject> obj = GetProcessWideJSDispatchTable()->GetCode(handle);
+    Tagged<HeapObject> obj =
+        IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
     // TODO(saelo): maybe factor out common code with VisitIndirectPointer
     // into a helper routine?
     SynchronizePageAccess(obj);

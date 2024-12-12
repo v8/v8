@@ -1138,7 +1138,7 @@ void HeapObject::AllocateAndInstallJSDispatchHandle(size_t offset,
                                                     Tagged<Code> code,
                                                     WriteBarrierMode mode) {
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(field_address(offset));
   JSDispatchHandle handle =

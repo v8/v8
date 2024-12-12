@@ -152,6 +152,10 @@ void IsolateGroup::InitializeOncePerProcess() {
 #ifdef V8_ENABLE_SANDBOX
   group->code_pointer_table()->Initialize();
 #endif
+
+#ifdef V8_ENABLE_LEAPTIERING
+  group->js_dispatch_table()->Initialize();
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 namespace {
@@ -232,6 +236,10 @@ void IsolateGroup::ReleaseDefault() {
   DCHECK(group->reservation_.IsReserved());
   group->reservation_.Free();
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_LEAPTIERING
+  group->js_dispatch_table_.TearDown();
+#endif  // V8_ENABLE_LEAPTIERING
 }
 
 }  // namespace internal

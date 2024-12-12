@@ -116,16 +116,6 @@ void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
 #undef CASE
 }
 
-// static
-void JSDispatchTable::Initialize() {
-  static base::LeakyObject<JSDispatchTable> instance;
-  DCHECK_NULL(instance_);
-  instance_ = instance.get();
-  instance_->Base::Initialize();
-}
-
-JSDispatchTable* JSDispatchTable::instance_ = nullptr;
-
 }  // namespace internal
 }  // namespace v8
 

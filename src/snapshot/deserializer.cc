@@ -1475,7 +1475,7 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     uint8_t data, SlotAccessor slot_accessor) {
 #ifdef V8_ENABLE_LEAPTIERING
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   DirectHandle<HeapObject> host = slot_accessor.object();
 
   uint32_t entry_id = source_.GetUint30();

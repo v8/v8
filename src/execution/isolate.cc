@@ -4531,7 +4531,7 @@ void Isolate::Deinit() {
       heap()->code_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
-  GetProcessWideJSDispatchTable()->TearDownSpace(
+  IsolateGroup::current()->js_dispatch_table()->TearDownSpace(
       heap()->js_dispatch_table_space());
 #endif  // V8_ENABLE_LEAPTIERING
 
@@ -5591,7 +5591,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
-  GetProcessWideJSDispatchTable()->InitializeSpace(
+  IsolateGroup::current()->js_dispatch_table()->InitializeSpace(
       heap()->js_dispatch_table_space());
 #endif  // V8_ENABLE_LEAPTIERING
 
@@ -7511,7 +7511,7 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
   // is not initialized multiple times. This must be blocking as no isolate
   // should be allowed to proceed until the table is initialized.
   base::MutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
-  auto jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 
   bool needs_initialization =
       !V8_STATIC_DISPATCH_HANDLES_BOOL ||

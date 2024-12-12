@@ -240,7 +240,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
   }
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   switch (target_kind) {
     case CodeKind::MAGLEV:
       switch (mode) {

@@ -26,7 +26,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   if (!function->has_feedback_vector()) return;
 #ifdef V8_ENABLE_LEAPTIERING
   DCHECK(function->IsLoggingRequested(isolate));
-  GetProcessWideJSDispatchTable()->ResetTieringRequest(
+  IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
       function->dispatch_handle(), isolate);
 #else
   if (!function->feedback_vector()->log_next_execution()) return;

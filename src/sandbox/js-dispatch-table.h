@@ -286,12 +286,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-  static JSDispatchTable* instance() {
-    DCHECK_NOT_NULL(instance_);
-    return instance_;
-  }
-  static void Initialize();
-
 #ifdef DEBUG
   bool IsMarked(JSDispatchHandle handle);
 #endif  // DEBUG
@@ -314,8 +308,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                                                  Tagged<Code> new_code,
                                                  Address entrypoint);
 
-  static JSDispatchTable* instance_;
-
   static uint32_t HandleToIndex(JSDispatchHandle handle) {
     uint32_t index = handle.value() >> kJSDispatchHandleShift;
     DCHECK_EQ(handle.value(), index << kJSDispatchHandleShift);
@@ -331,13 +323,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 };
 
 static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);
-
-// TODO(olivf): Remove this accessor and also unify implementation with
-// GetProcessWideCodePointerTable().
-V8_EXPORT_PRIVATE inline JSDispatchTable* GetProcessWideJSDispatchTable() {
-  return JSDispatchTable::instance();
-}
-
 }  // namespace internal
 }  // namespace v8
 

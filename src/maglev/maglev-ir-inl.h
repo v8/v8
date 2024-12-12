@@ -310,7 +310,8 @@ CallKnownJSFunction::CallKnownJSFunction(
       shared_function_info_(shared_function_info),
       expected_parameter_count_(
 #ifdef V8_ENABLE_LEAPTIERING
-          GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle)
+          IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+              dispatch_handle)
 #else
           shared_function_info.internal_formal_parameter_count_with_receiver()
 #endif
