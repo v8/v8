@@ -1052,6 +1052,12 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
               << " due to conflicting flags" << std::endl;
     flag1->Reset();
   }
+  if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph) &&
+      v8_flags.fuzzing_and_concurrent_recompilation) {
+    std::cerr
+        << "Use --nofuzzing-and-concurrent-recompilation to force "
+           "enable --trace-turbo, and friends. This is not thread-safe.\n";
+  }
 }
 
 #undef CONTRADICTION
