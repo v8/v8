@@ -404,22 +404,20 @@ size_t NativeModuleCache::PrefixHash(base::Vector<const uint8_t> wire_bytes) {
   // header, to mirror the way streaming compilation does it.
   Decoder decoder(wire_bytes.begin(), wire_bytes.end());
   decoder.consume_bytes(8, "module header");
-  size_t hash = GetWireBytesHash(wire_bytes.SubVector(0, 8));
   SectionCode section_id = SectionCode::kUnknownSectionCode;
+  base::Hasher hasher;
   while (decoder.ok() && decoder.more()) {
     section_id = static_cast<SectionCode>(decoder.consume_u8());
     uint32_t section_size = decoder.consume_u32v("section size");
     if (section_id == SectionCode::kCodeSectionCode) {
-      hash = base::hash_combine(hash, section_size);
+      hasher.Add(section_size);
       break;
     }
     const uint8_t* payload_start = decoder.pc();
     decoder.consume_bytes(section_size, "section payload");
-    size_t section_hash =
-        GetWireBytesHash(base::VectorOf(payload_start, section_size));
-    hash = base::hash_combine(hash, section_hash);
+    hasher.AddRange(base::VectorOf(payload_start, section_size));
   }
-  return hash;
+  return hasher.hash();
 }
 
 struct WasmEngine::CurrentGCInfo {

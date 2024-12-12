@@ -2634,10 +2634,10 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   ValidateFunctionsStreamingJobData validate_functions_job_data_;
   std::unique_ptr<JobHandle> validate_functions_job_handle_;
 
-  // Running hash of the wire bytes up to code section size, but excluding the
-  // code section itself. Used by the {NativeModuleCache} to detect potential
-  // duplicate modules.
-  size_t prefix_hash_ = 0;
+  // {prefix_hasher_} computes a running hash of the wire bytes up to code
+  // section size, but excludes the code section itself. Used by the
+  // {NativeModuleCache} to detect potential duplicate modules.
+  base::Hasher prefix_hasher_;
 };
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
@@ -3214,7 +3214,8 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(
   TRACE_STREAMING("Process module header...\n");
   decoder_.DecodeModuleHeader(bytes);
   if (!decoder_.ok()) return false;
-  prefix_hash_ = GetWireBytesHash(bytes);
+  // Note: We do not include the magic bytes in the hash; they are constant
+  // anyways.
   return true;
 }
 
@@ -3231,7 +3232,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
   }
   if (before_code_section_) {
     // Combine section hashes until code section.
-    prefix_hash_ = base::hash_combine(prefix_hash_, GetWireBytesHash(bytes));
+    prefix_hasher_.AddRange(bytes);
   }
   if (section_code == SectionCode::kUnknownSectionCode) {
     size_t bytes_consumed = ModuleDecoder::IdentifyUnknownSection(
@@ -3258,8 +3259,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   before_code_section_ = false;
   TRACE_STREAMING("Start the code section with %d functions...\n",
                   num_functions);
-  prefix_hash_ = base::hash_combine(prefix_hash_,
-                                    static_cast<uint32_t>(code_section_length));
+  prefix_hasher_.Add(static_cast<uint32_t>(code_section_length));
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(num_functions),
                                     functions_mismatch_error_offset)) {
     return false;
@@ -3269,7 +3269,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
                              static_cast<uint32_t>(code_section_length)});
 
   if (!GetWasmEngine()->GetStreamingCompilationOwnership(
-          prefix_hash_, job_->compile_imports_)) {
+          prefix_hasher_.hash(), job_->compile_imports_)) {
     // Known prefix, wait until the end of the stream and check the cache.
     prefix_cache_hit_ = true;
     return true;
@@ -3413,7 +3413,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (after_error) {
     if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
       // Clean up the temporary cache entry.
-      GetWasmEngine()->StreamingCompilationFailed(prefix_hash_,
+      GetWasmEngine()->StreamingCompilationFailed(prefix_hasher_.hash(),
                                                   job_->compile_imports_);
     }
     // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
@@ -3440,7 +3440,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
 #endif
 
   DCHECK_EQ(NativeModuleCache::PrefixHash(job_->wire_bytes_.module_bytes()),
-            prefix_hash_);
+            prefix_hasher_.hash());
   if (prefix_cache_hit_) {
     // Restart as an asynchronous, non-streaming compilation. Most likely
     // {PrepareAndStartCompile} will get the native module from the cache.
@@ -3510,7 +3510,7 @@ void AsyncStreamingProcessor::OnAbort() {
   }
   if (job_->native_module_ && job_->native_module_->wire_bytes().empty()) {
     // Clean up the temporary cache entry.
-    GetWasmEngine()->StreamingCompilationFailed(prefix_hash_,
+    GetWasmEngine()->StreamingCompilationFailed(prefix_hasher_.hash(),
                                                 job_->compile_imports_);
   }
   // {Abort} invalidates the {AsyncCompileJob}, which in turn deletes {this}.
