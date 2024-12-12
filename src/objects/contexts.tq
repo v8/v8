@@ -308,9 +308,9 @@ macro StoreScriptContextAndUpdateSlotProperty(
   if (oldValue == TheHole) {
     // Setting the initial value.
     dcheck(sideDataFixedArray.objects[sideDataIndex] == Undefined);
+    c.elements[index] = newValue;
     sideDataFixedArray.objects[sideDataIndex] =
         SmiTag(kContextSidePropertyConst);
-    c.elements[index] = newValue;
     return;
   }
 
@@ -361,34 +361,34 @@ macro StoreScriptContextAndUpdateSlotProperty(
     if (IsScriptContextMutableHeapNumberFlag()) {
       // It can transition to Smi, MutableInt32, MutableHeapNumber or Other.
       if (Is<Smi>(newValue)) {
+        c.elements[index] = newValue;
         sideDataFixedArray.objects[sideDataIndex] =
             SmiTag(kContextSidePropertySmi);
-        c.elements[index] = newValue;
       } else if (Is<HeapNumber>(newValue)) {
         const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
         try {
           if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
           const int32Value =
               TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
+          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
           sideDataFixedArray.objects[sideDataIndex] =
               SmiTag(kContextSidePropertyInt32);
-          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
         } label NotInt32 {
+          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
           sideDataFixedArray.objects[sideDataIndex] =
               SmiTag(kContextSidePropertyHeapNumber);
-          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
         }
       } else {
+        c.elements[index] = newValue;
         sideDataFixedArray.objects[sideDataIndex] =
             SmiTag(kContextSidePropertyOther);
-        c.elements[index] = newValue;
       }
     } else {
       // MutableHeapNumber is not supported, just transition the property to
       // kOther.
+      c.elements[index] = newValue;
       sideDataFixedArray.objects[sideDataIndex] =
           SmiTag(kContextSidePropertyOther);
-      c.elements[index] = newValue;
     }
   } else if (property == kContextSidePropertySmi) {
     if (Is<Smi>(newValue)) {
@@ -404,18 +404,18 @@ macro StoreScriptContextAndUpdateSlotProperty(
           if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
           const int32Value =
               TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
+          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
           sideDataFixedArray.objects[sideDataIndex] =
               SmiTag(kContextSidePropertyInt32);
-          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
         } label NotInt32 {
+          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
           sideDataFixedArray.objects[sideDataIndex] =
               SmiTag(kContextSidePropertyHeapNumber);
-          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
         }
       } else {
+        c.elements[index] = newValue;
         sideDataFixedArray.objects[sideDataIndex] =
             SmiTag(kContextSidePropertyOther);
-        c.elements[index] = newValue;
       }
     }
   } else if (property == kContextSidePropertyInt32) {
@@ -434,18 +434,18 @@ macro StoreScriptContextAndUpdateSlotProperty(
         if (maybeCell != Undefined) deferred {
             runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
           }
+        oldNumber.value = newNumber.value;
         sideDataFixedArray.objects[sideDataIndex] =
             SmiTag(kContextSidePropertyHeapNumber);
-        oldNumber.value = newNumber.value;
       }
     } else {
       if (maybeCell != Undefined) deferred {
           runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
         }
       // It can only transition to Other.
+      c.elements[index] = newValue;
       sideDataFixedArray.objects[sideDataIndex] =
           SmiTag(kContextSidePropertyOther);
-      c.elements[index] = newValue;
     }
   } else if (property == kContextSidePropertyHeapNumber) {
     // TODO(victorgomes): Add a helper function to avoid duplication.
@@ -460,10 +460,10 @@ macro StoreScriptContextAndUpdateSlotProperty(
       if (maybeCell != Undefined) deferred {
           runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
         }
+      c.elements[index] = newValue;
       // It can only transition to Other.
       sideDataFixedArray.objects[sideDataIndex] =
           SmiTag(kContextSidePropertyOther);
-      c.elements[index] = newValue;
     }
   } else {
     dcheck(property == kContextSidePropertyOther);

@@ -588,8 +588,8 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
   if (IsTheHole(*old_value)) {
     // Setting the initial value. Here we cannot assert the corresponding side
     // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
-    side_data->set(side_data_index, ContextSidePropertyCell::Const());
     script_context->set(index, *new_value);
+    side_data->set(side_data_index, ContextSidePropertyCell::Const());
     return;
   }
 
@@ -632,30 +632,31 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
         // It can transition to Smi, MutableInt32, MutableHeapNumber or Other.
         if (IsHeapNumber(*new_value)) {
           double double_value = Cast<HeapNumber>(*new_value)->value();
-          DirectHandle<HeapNumber> new_number;
           auto maybe_int32_value = DoubleFitsInInt32(double_value);
           if (v8_flags.script_context_mutable_heap_int32 && maybe_int32_value) {
-            new_number = isolate->factory()->NewHeapInt32(*maybe_int32_value);
+            auto new_number =
+                isolate->factory()->NewHeapInt32(*maybe_int32_value);
+            script_context->set(index, *new_number);
             side_data->set(side_data_index,
                            ContextSidePropertyCell::MutableInt32());
           } else {
-            new_number = isolate->factory()->NewHeapNumber(double_value);
+            auto new_number = isolate->factory()->NewHeapNumber(double_value);
+            script_context->set(index, *new_number);
             side_data->set(side_data_index,
                            ContextSidePropertyCell::MutableHeapNumber());
           }
-          script_context->set(index, *new_number);
         } else {
+          script_context->set(index, *new_value);
           side_data->set(side_data_index,
                          IsSmi(*new_value)
                              ? ContextSidePropertyCell::SmiMarker()
                              : ContextSidePropertyCell::Other());
-          script_context->set(index, *new_value);
         }
       } else {
         // MutableHeapNumber is not supported, just transition the property to
         // kOther.
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
         script_context->set(index, *new_value);
+        side_data->set(side_data_index, ContextSidePropertyCell::Other());
       }
 
       break;
@@ -670,22 +671,23 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
         }
         // It can transition to MutableInt32, MutableHeapNumber or Other.
         if (IsHeapNumber(*new_value)) {
-          DirectHandle<HeapNumber> new_number;
           double double_value = Cast<HeapNumber>(*new_value)->value();
           auto maybe_int32_value = DoubleFitsInInt32(double_value);
           if (v8_flags.script_context_mutable_heap_int32 && maybe_int32_value) {
-            new_number = isolate->factory()->NewHeapInt32(*maybe_int32_value);
+            auto new_number =
+                isolate->factory()->NewHeapInt32(*maybe_int32_value);
+            script_context->set(index, *new_number);
             side_data->set(side_data_index,
                            ContextSidePropertyCell::MutableInt32());
           } else {
-            new_number = isolate->factory()->NewHeapNumber(double_value);
+            auto new_number = isolate->factory()->NewHeapNumber(double_value);
+            script_context->set(index, *new_number);
             side_data->set(side_data_index,
                            ContextSidePropertyCell::MutableHeapNumber());
           }
-          script_context->set(index, *new_number);
         } else {
-          side_data->set(side_data_index, ContextSidePropertyCell::Other());
           script_context->set(index, *new_value);
+          side_data->set(side_data_index, ContextSidePropertyCell::Other());
         }
       }
       break;
@@ -720,8 +722,8 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
               DependentCode::kScriptContextSlotPropertyChangedGroup);
         }
         // It can only transition to Other.
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
         script_context->set(index, *new_value);
+        side_data->set(side_data_index, ContextSidePropertyCell::Other());
       }
       break;
     }
@@ -740,8 +742,8 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
               DependentCode::kScriptContextSlotPropertyChangedGroup);
         }
         // It can only transition to Other.
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
         script_context->set(index, *new_value);
+        side_data->set(side_data_index, ContextSidePropertyCell::Other());
       }
       break;
     case ContextSidePropertyCell::kOther:
