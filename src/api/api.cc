@@ -793,7 +793,7 @@ constexpr InstanceTypeChecker::TaggedAddressRange kStringMapRange =
   V(StringMapLowerBound, kStringMapRange.first)             \
   V(StringMapUpperBound, kStringMapRange.second)
 
-static_assert(std::is_same<Internals::Tagged_t, Tagged_t>::value);
+static_assert(std::is_same_v<Internals::Tagged_t, Tagged_t>);
 // Ensure they have the correct value.
 #define CHECK_STATIC_ROOT(name, value) \
   static_assert(Internals::StaticReadOnlyRoot::k##name == value);
@@ -12312,7 +12312,7 @@ bool ValidatePropertyCallbackInfo(const PropertyCallbackInfo<T>& info) {
   CHECK(i::IsSmi(key) || i::IsName(key));
   CHECK(info.Data()->IsValue());
   USE(info.ShouldThrowOnError());
-  if (!std::is_same<T, void>::value) {
+  if (!std::is_same_v<T, void>) {
     CHECK(info.GetReturnValue().Get()->IsValue());
   }
   return true;

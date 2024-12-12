@@ -2804,7 +2804,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
           auto it = scope_infos_to_reuse.find(id);
           if (it != scope_infos_to_reuse.end()) {
             if (V8_LIKELY(*it->second == scope_info)) break;
-            if constexpr (std::is_same<IsolateT, Isolate>::value) {
+            if constexpr (std::is_same_v<IsolateT, Isolate>) {
               isolate->PushStackTraceAndDie(
                   reinterpret_cast<void*>(it->second->ptr()),
                   reinterpret_cast<void*>(scope_info->ptr()));

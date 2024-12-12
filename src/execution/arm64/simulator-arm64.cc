@@ -1095,7 +1095,7 @@ int Simulator::CodeFromName(const char* name) {
 template <typename T>
 T Simulator::AddWithCarry(bool set_flags, T left, T right, int carry_in) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
   static_assert((sizeof(T) == kWRegSize) || (sizeof(T) == kXRegSize),
                 "Only W- or X-sized operands are tested");
 
@@ -1126,7 +1126,7 @@ T Simulator::AddWithCarry(bool set_flags, T left, T right, int carry_in) {
 template <typename T>
 void Simulator::AddSubWithCarry(Instruction* instr) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   T op2 = reg<T>(instr->Rm());
   T new_val;
@@ -1169,7 +1169,7 @@ sim_uint128_t Simulator::Eor128(sim_uint128_t x, sim_uint128_t y) const {
 
 template <typename T>
 T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
 
   if (amount == 0) {
     return value;
@@ -1200,7 +1200,7 @@ T Simulator::ExtendValue(T value, Extend extend_type, unsigned left_shift) {
   const unsigned kSignExtendBShift = (sizeof(T) - 1) * 8;
   const unsigned kSignExtendHShift = (sizeof(T) - 2) * 8;
   const unsigned kSignExtendWShift = (sizeof(T) - 4) * 8;
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
 
   switch (extend_type) {
     case UXTB:
@@ -1871,7 +1871,7 @@ void Simulator::VisitCompareBranch(Instruction* instr) {
 template <typename T>
 void Simulator::AddSubHelper(Instruction* instr, T op2) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   bool set_flags = instr->FlagsUpdate();
   T new_val = 0;
@@ -2017,7 +2017,7 @@ void Simulator::VisitConditionalCompareImmediate(Instruction* instr) {
 template <typename T>
 void Simulator::ConditionalCompareHelper(Instruction* instr, T op2) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   T op1 = reg<T>(instr->Rn());
 
@@ -3071,7 +3071,7 @@ void Simulator::DataProcessing2Source(Instruction* instr) {
     }
     case UDIV_w:
     case UDIV_x: {
-      using unsignedT = typename std::make_unsigned<T>::type;
+      using unsignedT = std::make_unsigned_t<T>;
       unsignedT rn = static_cast<unsignedT>(reg<T>(instr->Rn()));
       unsignedT rm = static_cast<unsignedT>(reg<T>(instr->Rm()));
       if (rm == 0) {
@@ -3179,7 +3179,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 template <typename T>
 void Simulator::BitfieldHelper(Instruction* instr) {
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
   T reg_size = sizeof(T) * 8;
   T R = instr->ImmR();
   T S = instr->ImmS();

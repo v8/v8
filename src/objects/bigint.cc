@@ -132,7 +132,7 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
 
   static bool IsMutableBigInt(Tagged<MutableBigInt> o) { return IsBigInt(o); }
 
-  static_assert(std::is_same<bigint::digit_t, BigIntBase::digit_t>::value,
+  static_assert(std::is_same_v<bigint::digit_t, BigIntBase::digit_t>,
                 "We must be able to call BigInt library functions");
 
   NEVER_READ_ONLY_SPACE

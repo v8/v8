@@ -406,7 +406,7 @@ namespace {
 // allow void.
 template <typename T>
 constexpr bool AllScalar() {
-  return std::is_scalar<T>::value || std::is_void<T>::value;
+  return std::is_scalar_v<T> || std::is_void_v<T>;
 }
 
 template <typename T1, typename T2, typename... Rest>

@@ -3738,7 +3738,7 @@ class TypedElementsAccessor
       double search_value = Object::NumberValue(*value);
       if (!std::isfinite(search_value)) {
         if (!IsFloat16TypedArrayElementsKind(Kind) &&
-            std::is_integral<ElementType>::value) {
+            std::is_integral_v<ElementType>) {
           // Integral types cannot represent +Inf or NaN.
           return Just<int64_t>(-1);
         } else if (std::isnan(search_value)) {

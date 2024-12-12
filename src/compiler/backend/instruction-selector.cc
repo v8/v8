@@ -3135,7 +3135,7 @@ void InstructionSelectorT<Adapter>::VisitComment(node_t node) {
             ->Get(node)
             .template Cast<turboshaft::CommentOp>();
     using ptrsize_int_t =
-        std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
+        std::conditional_t<kSystemPointerSize == 8, int64_t, int32_t>;
     InstructionOperand operand = sequence()->AddImmediate(
         Constant{reinterpret_cast<ptrsize_int_t>(comment.message)});
     Emit(kArchComment, 0, nullptr, 1, &operand);

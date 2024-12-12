@@ -1996,14 +1996,14 @@ class LiftoffCompiler {
 
   template <typename EmitFn, typename... Args>
   void CallEmitFn(EmitFn fn, Args... args)
-    requires(!std::is_member_function_pointer<EmitFn>::value)
+    requires(!std::is_member_function_pointer_v<EmitFn>)
   {
     fn(args...);
   }
 
   template <typename EmitFn, typename... Args>
   void CallEmitFn(EmitFn fn, Args... args)
-    requires std::is_member_function_pointer<EmitFn>::value
+    requires std::is_member_function_pointer_v<EmitFn>
   {
     (asm_.*fn)(ConvertAssemblerArg(args)...);
   }
@@ -2020,8 +2020,8 @@ class LiftoffCompiler {
   // Convert {LiftoffRegister} to {AssemblerRegisterConverter}, other types stay
   // unchanged.
   template <typename T>
-  typename std::conditional<std::is_same<LiftoffRegister, T>::value,
-                            AssemblerRegisterConverter, T>::type
+  std::conditional_t<std::is_same_v<LiftoffRegister, T>,
+                     AssemblerRegisterConverter, T>
   ConvertAssemblerArg(T t) {
     return {t};
   }

@@ -1121,8 +1121,8 @@ template <ElementsKind kind>
 JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
     DirectHandle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
   static_assert(IsSmiElementsKind(kind) || IsDoubleElementsKind(kind));
-  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
-                                           FixedDoubleArray, FixedArray>::type;
+  using ArrayT = std::conditional_t<IsDoubleElementsKind(kind),
+                                    FixedDoubleArray, FixedArray>;
 
   StackLimitCheck interrupt_check(isolate_);
   constexpr uint32_t kInterruptLength = 4000;
@@ -2343,8 +2343,8 @@ FastJsonStringifierResult
 FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
     Tagged<JSArray> array, uint32_t length, uint32_t start_index,
     uint32_t* bailout_idx) {
-  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
-                                           FixedDoubleArray, FixedArray>::type;
+  using ArrayT = std::conditional_t<IsDoubleElementsKind(kind),
+                                    FixedDoubleArray, FixedArray>;
 
   StackLimitCheck interrupt_check(isolate_);
   uint32_t limit = std::min(length, kArrayInterruptLength);
@@ -2385,8 +2385,8 @@ template <typename Char>
 template <ElementsKind kind>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArray(
     Tagged<JSArray> array, uint32_t limit, uint32_t start_index) {
-  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
-                                           FixedDoubleArray, FixedArray>::type;
+  using ArrayT = std::conditional_t<IsDoubleElementsKind(kind),
+                                    FixedDoubleArray, FixedArray>;
 
   for (uint32_t i = start_index; i < limit; i++) {
     FastJsonStringifierResult result = SerializeFixedArrayElement<kind>(

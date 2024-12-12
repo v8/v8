@@ -119,8 +119,8 @@ namespace {
 
 template <typename Dictionary>
 Handle<Name> KeyToName(Isolate* isolate, Handle<Object> key) {
-  static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
-                 std::is_same<Dictionary, NameDictionary>::value));
+  static_assert((std::is_same_v<Dictionary, SwissNameDictionary> ||
+                 std::is_same_v<Dictionary, NameDictionary>));
   DCHECK(IsName(*key));
   return Cast<Name>(key);
 }

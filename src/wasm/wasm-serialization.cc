@@ -297,7 +297,7 @@ class ExternalReferenceList {
   uint32_t tags_ordered_by_address_[kNumExternalReferences];
 };
 
-static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
+static_assert(std::is_trivially_destructible_v<ExternalReferenceList>,
               "static destructors not allowed");
 
 }  // namespace

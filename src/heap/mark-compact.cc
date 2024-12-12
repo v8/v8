@@ -4208,16 +4208,16 @@ template <HeapObjectReferenceType reference_type, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                               Tagged<HeapObject> heap_obj) {
   static_assert(
-      std::is_same<TSlot, FullObjectSlot>::value ||
-          std::is_same<TSlot, ObjectSlot>::value ||
-          std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-          std::is_same<TSlot, MaybeObjectSlot>::value ||
-          std::is_same<TSlot, OffHeapObjectSlot>::value ||
-          std::is_same<TSlot, InstructionStreamSlot>::value ||
-          std::is_same<TSlot, ProtectedPointerSlot>::value ||
-          std::is_same<TSlot, ProtectedMaybeObjectSlot>::value ||
-          std::is_same<TSlot, WriteProtectedSlot<ObjectSlot>>::value ||
-          std::is_same<TSlot, WriteProtectedSlot<ProtectedPointerSlot>>::value,
+      std::is_same_v<TSlot, FullObjectSlot> ||
+          std::is_same_v<TSlot, ObjectSlot> ||
+          std::is_same_v<TSlot, FullMaybeObjectSlot> ||
+          std::is_same_v<TSlot, MaybeObjectSlot> ||
+          std::is_same_v<TSlot, OffHeapObjectSlot> ||
+          std::is_same_v<TSlot, InstructionStreamSlot> ||
+          std::is_same_v<TSlot, ProtectedPointerSlot> ||
+          std::is_same_v<TSlot, ProtectedMaybeObjectSlot> ||
+          std::is_same_v<TSlot, WriteProtectedSlot<ObjectSlot>> ||
+          std::is_same_v<TSlot, WriteProtectedSlot<ProtectedPointerSlot>>,
       "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot, "
       "InstructionStreamSlot, Protected[Pointer|MaybeObject]Slot, "
       "or WriteProtectedSlot are expected here");
@@ -5216,8 +5216,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   inline void CheckAndUpdateOldToNewSlot(TSlot slot,
                                          const PtrComprCageBase cage_base) {
     static_assert(
-        std::is_same<TSlot, FullMaybeObjectSlot>::value ||
-            std::is_same<TSlot, MaybeObjectSlot>::value,
+        std::is_same_v<TSlot, FullMaybeObjectSlot> ||
+            std::is_same_v<TSlot, MaybeObjectSlot>,
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
     Tagged<HeapObject> heap_object;
     if (!(*slot).GetHeapObject(&heap_object)) return;

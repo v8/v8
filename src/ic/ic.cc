@@ -1173,7 +1173,7 @@ bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
                           KeyedAccessLoadMode new_mode) {
   // Only allow transitions to allow OOB or allow converting a hole to
   // undefined.
-  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  using T = std::underlying_type_t<KeyedAccessLoadMode>;
   return ((static_cast<T>(old_mode) ^
            static_cast<T>(GeneralizeKeyedAccessLoadMode(old_mode, new_mode))) &
           0b11) != 0;

@@ -138,7 +138,7 @@ class DataRange {
 
   template <typename T, size_t max_bytes = sizeof(T)>
   T getPseudoRandom() {
-    static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
+    static_assert(!std::is_same_v<T, bool>, "bool needs special handling");
     static_assert(max_bytes <= sizeof(T));
     // Special handling for signed integers: Calling getPseudoRandom<int32_t, 1>
     // () should be equal to getPseudoRandom<int8_t>(). (The NextBytes() below
@@ -167,7 +167,7 @@ class DataRange {
   template <typename T>
   T get() {
     // Bool needs special handling (see template specialization below).
-    static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
+    static_assert(!std::is_same_v<T, bool>, "bool needs special handling");
 
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. We'll just use what we have, so we get a bit of

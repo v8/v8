@@ -57,7 +57,7 @@ bool ExperimentalRegExp::IsCompiled(DirectHandle<IrRegExpData> re_data,
 template <class T>
 Handle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
                                            base::Vector<T> data) {
-  static_assert(std::is_trivial<T>::value);
+  static_assert(std::is_trivial_v<T>);
 
   int byte_length = sizeof(T) * data.length();
   Handle<TrustedByteArray> byte_array =

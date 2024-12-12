@@ -173,11 +173,11 @@ template <typename T>
 inline uintptr_t fast_search_noavx(T* array, uintptr_t array_len,
                                    uintptr_t index, T search_element) {
   static constexpr bool is_uint32 =
-      sizeof(T) == sizeof(uint32_t) && std::is_integral<T>::value;
+      sizeof(T) == sizeof(uint32_t) && std::is_integral_v<T>;
   static constexpr bool is_uint64 =
-      sizeof(T) == sizeof(uint64_t) && std::is_integral<T>::value;
+      sizeof(T) == sizeof(uint64_t) && std::is_integral_v<T>;
   static constexpr bool is_double =
-      sizeof(T) == sizeof(double) && std::is_floating_point<T>::value;
+      sizeof(T) == sizeof(double) && std::is_floating_point_v<T>;
 
   static_assert(is_uint32 || is_uint64 || is_double);
 
@@ -275,11 +275,11 @@ TARGET_AVX2 inline uintptr_t fast_search_avx(T* array, uintptr_t array_len,
                                              uintptr_t index,
                                              T search_element) {
   static constexpr bool is_uint32 =
-      sizeof(T) == sizeof(uint32_t) && std::is_integral<T>::value;
+      sizeof(T) == sizeof(uint32_t) && std::is_integral_v<T>;
   static constexpr bool is_uint64 =
-      sizeof(T) == sizeof(uint64_t) && std::is_integral<T>::value;
+      sizeof(T) == sizeof(uint64_t) && std::is_integral_v<T>;
   static constexpr bool is_double =
-      sizeof(T) == sizeof(double) && std::is_floating_point<T>::value;
+      sizeof(T) == sizeof(double) && std::is_floating_point_v<T>;
 
   static_assert(is_uint32 || is_uint64 || is_double);
 

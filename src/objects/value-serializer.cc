@@ -104,7 +104,7 @@ using JSArrayBufferViewIsBackedByRab =
 
 template <typename T>
 static size_t BytesNeededForVarint(T value) {
-  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>,
                 "Only unsigned integer types can be written as varints.");
   size_t result = 0;
   do {
@@ -330,7 +330,7 @@ void ValueSerializer::WriteVarint(T value) {
   // The number is written, 7 bits at a time, from the least significant to the
   // most significant 7 bits. Each byte, except the last, has the MSB set.
   // See also https://developers.google.com/protocol-buffers/docs/encoding
-  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>,
                 "Only unsigned integer types can be written as varints.");
   uint8_t stack_buffer[sizeof(T) * 8 / 7 + 1];
   uint8_t* next_byte = &stack_buffer[0];
@@ -349,9 +349,9 @@ void ValueSerializer::WriteZigZag(T value) {
   // encoded as 0, -1 as 1, 1 as 2, -2 as 3, and so on).
   // See also https://developers.google.com/protocol-buffers/docs/encoding
   // Note that this implementation relies on the right shift being arithmetic.
-  static_assert(std::is_integral<T>::value && std::is_signed<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_signed_v<T>,
                 "Only signed integer types can be written as zigzag.");
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   WriteVarint((static_cast<UnsignedT>(value) << 1) ^
               (value >> (8 * sizeof(T) - 1)));
 }
@@ -1351,7 +1351,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
   // most significant 7 bits. Each byte, except the last, has the MSB set.
   // If the varint is larger than T, any more significant bits are discarded.
   // See also https://developers.google.com/protocol-buffers/docs/encoding
-  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>,
                 "Only unsigned integer types can be read as varints.");
   if (sizeof(T) > 4) return ReadVarintLoop<T>();
   auto max_read_position = position_ + sizeof(T) + 1;
@@ -1401,7 +1401,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
 
 template <typename T>
 Maybe<T> ValueDeserializer::ReadVarintLoop() {
-  static_assert(std::is_integral<T>::value && std::is_unsigned<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>,
                 "Only unsigned integer types can be read as varints.");
   T value = 0;
   unsigned shift = 0;
@@ -1431,9 +1431,9 @@ Maybe<T> ValueDeserializer::ReadZigZag() {
   // Writes a signed integer as a varint using ZigZag encoding (i.e. 0 is
   // encoded as 0, -1 as 1, 1 as 2, -2 as 3, and so on).
   // See also https://developers.google.com/protocol-buffers/docs/encoding
-  static_assert(std::is_integral<T>::value && std::is_signed<T>::value,
+  static_assert(std::is_integral_v<T> && std::is_signed_v<T>,
                 "Only signed integer types can be read as zigzag.");
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   UnsignedT unsigned_value;
   if (!ReadVarint<UnsignedT>().To(&unsigned_value)) return Nothing<T>();
   return Just(static_cast<T>((unsigned_value >> 1) ^

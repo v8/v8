@@ -807,7 +807,7 @@ class MaglevCodeGeneratingNodeProcessor {
     PatchJumps(node);
 
     // Emit Phi moves before visiting the control node.
-    if (std::is_base_of<UnconditionalControlNode, NodeT>::value) {
+    if (std::is_base_of_v<UnconditionalControlNode, NodeT>) {
       EmitBlockEndGapMoves(node->template Cast<UnconditionalControlNode>(),
                            state);
     }
@@ -850,7 +850,7 @@ class MaglevCodeGeneratingNodeProcessor {
     masm()->set_allow_deferred_call(false);
 #endif
 
-    if (std::is_base_of<ValueNode, NodeT>::value) {
+    if (std::is_base_of_v<ValueNode, NodeT>) {
       ValueNode* value_node = node->template Cast<ValueNode>();
       if (value_node->has_valid_live_range() && value_node->is_spilled()) {
         compiler::AllocatedOperand source =

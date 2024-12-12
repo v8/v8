@@ -480,9 +480,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 template <class Descriptor>
 void CallOrConstructBuiltinsAssembler::CallReceiver(
     Builtin id, std::optional<TNode<Object>> receiver) {
-  static_assert(std::is_same<Descriptor,
-                             CallTrampoline_Baseline_CompactDescriptor>::value,
-                "Incompatible Descriptor");
+  static_assert(
+      std::is_same_v<Descriptor, CallTrampoline_Baseline_CompactDescriptor>,
+      "Incompatible Descriptor");
   auto bitfield = UncheckedParameter<Word32T>(Descriptor::kBitField);
   TNode<Int32T> argc =
       Signed(DecodeWord32<

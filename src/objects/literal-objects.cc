@@ -170,8 +170,8 @@ void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
   requires(
       std::is_convertible_v<HandleType<Dictionary>, DirectHandle<Dictionary>>)
 {
-  static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
-                 std::is_same<Dictionary, NameDictionary>::value));
+  static_assert((std::is_same_v<Dictionary, SwissNameDictionary> ||
+                 std::is_same_v<Dictionary, NameDictionary>));
   // No-op for (ordered) name dictionaries.
 }
 
@@ -204,10 +204,10 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
   InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   const bool is_elements_dictionary =
-      std::is_same<Dictionary, NumberDictionary>::value;
+      std::is_same_v<Dictionary, NumberDictionary>;
   static_assert(is_elements_dictionary !=
-                (std::is_same<Dictionary, NameDictionary>::value ||
-                 std::is_same<Dictionary, SwissNameDictionary>::value));
+                (std::is_same_v<Dictionary, NameDictionary> ||
+                 std::is_same_v<Dictionary, SwissNameDictionary>));
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.

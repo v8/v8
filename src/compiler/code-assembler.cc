@@ -39,13 +39,13 @@ constexpr MachineType MachineTypeOf<MaybeObject>::value;
 
 namespace compiler {
 
-static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
+static_assert(std::is_convertible_v<TNode<Number>, TNode<Object>>,
               "test subtyping");
 static_assert(
-    std::is_convertible<TNode<Number>, TNode<UnionOf<Smi, HeapObject>>>::value,
+    std::is_convertible_v<TNode<Number>, TNode<UnionOf<Smi, HeapObject>>>,
     "test subtyping");
 static_assert(
-    !std::is_convertible<TNode<UnionOf<Smi, HeapObject>>, TNode<Number>>::value,
+    !std::is_convertible_v<TNode<UnionOf<Smi, HeapObject>>, TNode<Number>>,
     "test subtyping");
 
 CodeAssemblerState::CodeAssemblerState(

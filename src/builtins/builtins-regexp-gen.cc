@@ -129,9 +129,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   Label finish_initialization(this);
   GotoIfNot(has_indices, &finish_initialization, GotoHint::kLabel);
   {
-    static_assert(
-        std::is_base_of<JSRegExpResult, JSRegExpResultWithIndices>::value,
-        "JSRegExpResultWithIndices is a subclass of JSRegExpResult");
+    static_assert(std::is_base_of_v<JSRegExpResult, JSRegExpResultWithIndices>,
+                  "JSRegExpResultWithIndices is a subclass of JSRegExpResult");
     StoreObjectFieldNoWriteBarrier(
         result, JSRegExpResultWithIndices::kIndicesOffset, undefined_value);
     Goto(&finish_initialization);
@@ -1056,9 +1055,8 @@ void RegExpBuiltinsAssembler::BranchIfRegExpResult(const TNode<Context> context,
          &maybe_result_with_indices, BranchHint::kTrue);
   BIND(&maybe_result_with_indices);
   {
-    static_assert(
-        std::is_base_of<JSRegExpResult, JSRegExpResultWithIndices>::value,
-        "JSRegExpResultWithIndices is a subclass of JSRegExpResult");
+    static_assert(std::is_base_of_v<JSRegExpResult, JSRegExpResultWithIndices>,
+                  "JSRegExpResultWithIndices is a subclass of JSRegExpResult");
     const TNode<Object> initial_regexp_result_with_indices_map =
         LoadContextElement(native_context,
                            Context::REGEXP_RESULT_WITH_INDICES_MAP_INDEX);

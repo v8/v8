@@ -679,7 +679,7 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
         v8::ScriptCompiler::StreamedSource::TWO_BYTE);
     std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> streaming_task(
         v8::ScriptCompiler::StartStreaming(isolate, &streamed_source,
-                                           std::is_same<T, Module>::value
+                                           std::is_same_v<T, Module>
                                                ? v8::ScriptType::kModule
                                                : v8::ScriptType::kClassic));
     StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());

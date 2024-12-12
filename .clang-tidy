@@ -9,6 +9,7 @@
                     modernize-redundant-void-arg,
                     modernize-replace-random-shuffle,
                     modernize-shrink-to-fit,
+                    modernize-type-traits,
                     # modernize-use-auto,
                     modernize-use-constraints,
                     modernize-use-bool-literals,

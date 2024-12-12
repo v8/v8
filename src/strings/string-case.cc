@@ -15,7 +15,7 @@ namespace internal {
 // FastAsciiConvert tries to do character processing on a word_t basis if
 // source and destination strings are properly aligned. Natural alignment of
 // string data depends on kTaggedSize so we define word_t via Tagged_t.
-using word_t = std::make_unsigned<Tagged_t>::type;
+using word_t = std::make_unsigned_t<Tagged_t>;
 
 const word_t kWordTAllBitsSet = std::numeric_limits<word_t>::max();
 const word_t kOneInEveryByte = kWordTAllBitsSet / 0xFF;

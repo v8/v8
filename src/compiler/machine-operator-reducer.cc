@@ -1625,7 +1625,7 @@ namespace {
 // overflow".
 template <typename T>
 bool CanRevertLeftShiftWithRightShift(T value, T shift) {
-  using unsigned_T = typename std::make_unsigned<T>::type;
+  using unsigned_T = std::make_unsigned_t<T>;
   if (shift < 0 || shift >= std::numeric_limits<T>::digits + 1) {
     // This shift would be UB in C++
     return false;

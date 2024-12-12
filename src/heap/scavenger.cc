@@ -156,8 +156,8 @@ class IterateAndScavengePromotedObjectsVisitor final
   V8_INLINE void HandleSlot(Tagged<HeapObject> host, THeapObjectSlot slot,
                             Tagged<HeapObject> target) {
     static_assert(
-        std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-            std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+        std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+            std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
         "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
     scavenger_->SynchronizePageAccess(target);
 

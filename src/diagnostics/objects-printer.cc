@@ -513,7 +513,7 @@ double GetScalarElement(Tagged<T> array, int index) {
 
 template <class T>
 void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
-  const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
+  const bool print_the_hole = std::is_same_v<T, FixedDoubleArray>;
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
   int previous_index = 0;

@@ -189,7 +189,7 @@ Operand MacroAssembler::RootAsOperand(RootIndex index) {
 
 void MacroAssembler::LoadTaggedRoot(Register destination, RootIndex index) {
   static_assert(!CanBeImmediate(RootIndex::kUndefinedValue) ||
-                std::is_same<Tagged_t, uint32_t>::value);
+                std::is_same_v<Tagged_t, uint32_t>);
   if (CanBeImmediate(index)) {
     mov_tagged(destination,
                Immediate(static_cast<uint32_t>(ReadOnlyRootPtr(index))));

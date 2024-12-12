@@ -222,7 +222,7 @@ bool AspectIncludes(const As& as, const Bs& bs, const CompareFunction& Compare,
   typename As::const_iterator a = as.begin();
   typename Bs::const_iterator b = bs.begin();
   while (a != as.end()) {
-    if constexpr (!std::is_same<IsEmptyFunction, std::nullptr_t>::value) {
+    if constexpr (!std::is_same_v<IsEmptyFunction, std::nullptr_t>) {
       if (IsEmpty(a->second)) {
         ++a;
         continue;
