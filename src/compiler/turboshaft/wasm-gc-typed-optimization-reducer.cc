@@ -307,6 +307,28 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
                       wasm::ValueType::Ref(type_index), allocate_struct);
 }
 
+wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,
+                                                       int input_index) {
+  OpIndex phi_id = graph_.Index(phi);
+  OpIndex input = ResolveAliases(phi.input(input_index));
+  // If the input of the phi is in the same block as the phi and appears
+  // before the phi, don't use the predecessor value.
+
+  if (current_block_->begin().id() <= input.id() && input.id() < phi_id.id()) {
+    // Phi instructions have to be at the beginning of the block, so this can
+    // only happen for inputs that are also phis. Furthermore, this is only
+    // possible in loop headers of loops with a single block (endless loops) and
+    // only for the backedge-input.
+    DCHECK(graph_.Get(input).Is<PhiOp>());
+    DCHECK(current_block_->IsLoop());
+    DCHECK(current_block_->HasBackedge(graph_));
+    DCHECK_EQ(current_block_->LastPredecessor(), current_block_);
+    DCHECK_EQ(input_index, 1);
+    return types_table_.Get(input);
+  }
+  return types_table_.GetPredecessorValue(input, input_index);
+}
+
 void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   // The result type of a phi is the union of all its input types.
   // If any of the inputs is the default value ValueType(), there isn't any type
@@ -320,12 +342,10 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
                         phi);
     return;
   }
-  wasm::ValueType union_type =
-      types_table_.GetPredecessorValue(ResolveAliases(phi.input(0)), 0);
+  wasm::ValueType union_type = GetTypeForPhiInput(phi, 0);
   if (union_type == wasm::ValueType()) return;
   for (int i = 1; i < phi.input_count; ++i) {
-    wasm::ValueType input_type =
-        types_table_.GetPredecessorValue(ResolveAliases(phi.input(i)), i);
+    wasm::ValueType input_type = GetTypeForPhiInput(phi, i);
     if (input_type == wasm::ValueType()) return;
     // <bottom> types have to be skipped as an unreachable predecessor doesn't
     // change our type knowledge.
@@ -343,8 +363,7 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
   if (v8_flags.trace_wasm_typer) {
     for (int i = 0; i < phi.input_count; ++i) {
       OpIndex input = phi.input(i);
-      OpIndex underlying = ResolveAliases(input);
-      wasm::ValueType type = types_table_.GetPredecessorValue(underlying, i);
+      wasm::ValueType type = GetTypeForPhiInput(phi, i);
       TRACE("- phi input %d: #%u(%s) -> %s\n", i, input.id(),
             OpcodeName(graph_.Get(input).opcode), type.name().c_str());
     }
