@@ -42,61 +42,69 @@ namespace internal {
 // purpose of the class is to use safe operations that checks the
 // buffer bounds on all operations in debug mode.
 // This simple base class does not allow formatted output.
-class SimpleStringBuilder {
+class SimpleStringBuilder final {
  public:
   // Create a string builder with a buffer of the given size. The
   // buffer is allocated through NewArray<char> and must be
   // deallocated by the caller of Finalize().
   explicit SimpleStringBuilder(int size) {
     buffer_ = base::Vector<char>::New(size);
-    position_ = 0;
+    cursor_ = buffer_.begin();
   }
 
   SimpleStringBuilder(char* buffer, int size)
-      : buffer_(buffer, size), position_(0) {}
+      : buffer_(buffer, size), cursor_(buffer) {}
 
   ~SimpleStringBuilder() {
-    if (!is_finalized()) Finalize();
+    if (V8_UNLIKELY(!is_finalized())) Finalize();
   }
 
   // Get the current position in the builder.
   int position() const {
     DCHECK(!is_finalized());
-    return position_;
+    size_t position = cursor_ - buffer_.begin();
+    DCHECK_GE(kMaxInt, position);
+    return static_cast<int>(position);
   }
 
   // Add a single character to the builder. It is not allowed to add
   // 0-characters; use the Finalize() method to terminate the string
   // instead.
-  void AddCharacter(char c) {
+  V8_INLINE void AddCharacter(char c) {
     DCHECK_NE(c, '\0');
-    DCHECK(!is_finalized() && position_ < buffer_.length());
-    buffer_[position_++] = c;
+    DCHECK(!is_finalized());
+    DCHECK_LT(position(), buffer_.length());
+    *cursor_++ = c;
   }
 
-  // Add an entire string to the builder. Uses strlen() internally to
-  // compute the length of the input string.
-  void AddString(const char* s) {
-    size_t len = strlen(s);
-    DCHECK_GE(kMaxInt, len);
-    AddSubstring(s, static_cast<int>(len));
+  // Add an entire string to the builder. 'len' must be equal to strlen().
+  V8_INLINE void AddString(const char* s, int len) {
+    DCHECK_EQ(static_cast<size_t>(len), strlen(s));
+    AddSubstring(s, len);
+  }
+
+  // Add a string literal to the builder.
+  template <int N>
+  V8_INLINE void AddStringLiteral(const char (&s)[N]) {
+    AddSubstring(s, N - 1);
   }
 
   // Add the first 'n' characters of the given 0-terminated string 's' to the
   // builder. The input string must have enough characters.
-  void AddSubstring(const char* s, int n) {
-    DCHECK(!is_finalized() && position_ + n <= buffer_.length());
+  V8_INLINE void AddSubstring(const char* s, int n) {
+    DCHECK(!is_finalized());
+    DCHECK_LE(position() + n, buffer_.length());
     DCHECK_LE(n, strlen(s));
-    std::memcpy(&buffer_[position_], s, n * kCharSize);
-    position_ += n;
+    MemCopy(cursor_, s, n * kCharSize);
+    cursor_ += n;
   }
 
   // Add character padding to the builder. If count is non-positive,
   // nothing is added to the builder.
-  void AddPadding(char c, int count) {
-    for (int i = 0; i < count; i++) {
-      AddCharacter(c);
-    }
+  V8_INLINE void AddPadding(char c, int count) {
+    DCHECK(!is_finalized());
+    DCHECK_LE(position() + count, buffer_.length());
+    cursor_ = std::fill_n(cursor_, count, c);
   }
 
   // Add the decimal representation of the value.
@@ -110,38 +118,40 @@ class SimpleStringBuilder {
     for (uint32_t factor = 10; digits < 10; digits++, factor *= 10) {
       if (factor > number) break;
     }
-    position_ += digits;
+    cursor_ += digits;
     for (int i = 1; i <= digits; i++) {
-      buffer_[position_ - i] = '0' + static_cast<char>(number % 10);
+      *(cursor_ - i) = '0' + static_cast<char>(number % 10);
       number /= 10;
     }
   }
 
   // Finalize the string by 0-terminating it and returning the buffer.
   char* Finalize() {
-    DCHECK(!is_finalized() && position_ <= buffer_.length());
+    DCHECK(!is_finalized());
+    DCHECK_LE(position(), buffer_.length());
     // If there is no space for null termination, overwrite last character.
-    if (position_ == buffer_.length()) {
-      position_--;
+    if (cursor_ == buffer_.end()) {
+      cursor_--;
       // Print ellipsis.
-      for (int i = 3; i > 0 && position_ > i; --i) buffer_[position_ - i] = '.';
+      for (int i = 3; i > 0 && cursor_ - i > buffer_.begin(); --i) {
+        *(cursor_ - i) = '.';
+      }
     }
-    buffer_[position_] = '\0';
+    *cursor_ = '\0';
     // Make sure nobody managed to add a 0-character to the
     // buffer while building the string.
-    DCHECK(strlen(buffer_.begin()) == static_cast<size_t>(position_));
-    position_ = -1;
+    DCHECK_EQ(strlen(buffer_.begin()), position());
+    cursor_ = nullptr;
     DCHECK(is_finalized());
     return buffer_.begin();
   }
 
- protected:
-  base::Vector<char> buffer_;
-  int position_;
-
-  bool is_finalized() const { return position_ < 0; }
-
  private:
+  base::Vector<char> buffer_;
+  char* cursor_;
+
+  bool is_finalized() const { return cursor_ == nullptr; }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
 };
 
@@ -966,27 +976,27 @@ const char* DoubleToCString(double v, base::Vector<char> buffer) {
 
       if (length <= decimal_point && decimal_point <= 21) {
         // ECMA-262 section 9.8.1 step 6.
-        builder.AddString(decimal_rep);
+        builder.AddString(decimal_rep, length);
         builder.AddPadding('0', decimal_point - length);
 
       } else if (0 < decimal_point && decimal_point <= 21) {
         // ECMA-262 section 9.8.1 step 7.
         builder.AddSubstring(decimal_rep, decimal_point);
         builder.AddCharacter('.');
-        builder.AddString(decimal_rep + decimal_point);
+        builder.AddString(decimal_rep + decimal_point, length - decimal_point);
 
       } else if (decimal_point <= 0 && decimal_point > -6) {
         // ECMA-262 section 9.8.1 step 8.
-        builder.AddString("0.");
+        builder.AddStringLiteral("0.");
         builder.AddPadding('0', -decimal_point);
-        builder.AddString(decimal_rep);
+        builder.AddString(decimal_rep, length);
 
       } else {
         // ECMA-262 section 9.8.1 step 9 and 10 combined.
         builder.AddCharacter(decimal_rep[0]);
         if (length != 1) {
           builder.AddCharacter('.');
-          builder.AddString(decimal_rep + 1);
+          builder.AddString(decimal_rep + 1, length - 1);
         }
         builder.AddCharacter('e');
         builder.AddCharacter((decimal_point >= 0) ? '+' : '-');
@@ -1068,7 +1078,7 @@ char* DoubleToFixedCString(double value, int f) {
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
   SimpleStringBuilder rep_builder(rep_length + 1);
   rep_builder.AddPadding('0', zero_prefix_length);
-  rep_builder.AddString(decimal_rep);
+  rep_builder.AddString(decimal_rep, decimal_rep_length);
   rep_builder.AddPadding('0', zero_postfix_length);
   char* rep = rep_builder.Finalize();
 
@@ -1086,8 +1096,8 @@ char* DoubleToFixedCString(double value, int f) {
   return builder.Finalize();
 }
 
-static char* CreateExponentialRepresentation(char* decimal_rep, int exponent,
-                                             bool negative,
+static char* CreateExponentialRepresentation(char* decimal_rep, int rep_length,
+                                             int exponent, bool negative,
                                              int significant_digits) {
   bool negative_exponent = false;
   if (exponent < 0) {
@@ -1105,10 +1115,10 @@ static char* CreateExponentialRepresentation(char* decimal_rep, int exponent,
   builder.AddCharacter(decimal_rep[0]);
   if (significant_digits != 1) {
     builder.AddCharacter('.');
-    builder.AddString(decimal_rep + 1);
-    size_t rep_length = strlen(decimal_rep);
+    DCHECK_EQ(rep_length, strlen(decimal_rep));
     DCHECK_GE(significant_digits, rep_length);
-    builder.AddPadding('0', significant_digits - static_cast<int>(rep_length));
+    builder.AddString(decimal_rep + 1, rep_length - 1);
+    builder.AddPadding('0', significant_digits - rep_length);
   }
 
   builder.AddCharacter('e');
@@ -1154,8 +1164,8 @@ char* DoubleToExponentialCString(double value, int f) {
   DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;
-  char* result =
-      CreateExponentialRepresentation(decimal_rep, exponent, negative, f + 1);
+  char* result = CreateExponentialRepresentation(
+      decimal_rep, decimal_rep_length, exponent, negative, f + 1);
 
   return result;
 }
@@ -1189,8 +1199,8 @@ char* DoubleToPrecisionCString(double value, int p) {
   char* result = nullptr;
 
   if (exponent < -6 || exponent >= p) {
-    result =
-        CreateExponentialRepresentation(decimal_rep, exponent, negative, p);
+    result = CreateExponentialRepresentation(decimal_rep, decimal_rep_length,
+                                             exponent, negative, p);
   } else {
     // Use fixed notation.
     //
@@ -1202,9 +1212,9 @@ char* DoubleToPrecisionCString(double value, int p) {
     SimpleStringBuilder builder(result_size + 1);
     if (negative) builder.AddCharacter('-');
     if (decimal_point <= 0) {
-      builder.AddString("0.");
+      builder.AddStringLiteral("0.");
       builder.AddPadding('0', -decimal_point);
-      builder.AddString(decimal_rep);
+      builder.AddString(decimal_rep, decimal_rep_length);
       builder.AddPadding('0', p - decimal_rep_length);
     } else {
       const int m = std::min(decimal_rep_length, decimal_point);
@@ -1214,10 +1224,10 @@ char* DoubleToPrecisionCString(double value, int p) {
         builder.AddCharacter('.');
         const int extra = negative ? 2 : 1;
         if (decimal_rep_length > decimal_point) {
-          const size_t len = strlen(decimal_rep + decimal_point);
-          DCHECK_GE(kMaxInt, len);
-          const int n =
-              std::min(static_cast<int>(len), p - (builder.position() - extra));
+          DCHECK_EQ(decimal_rep_length - decimal_point,
+                    strlen(decimal_rep + decimal_point));
+          const int len = decimal_rep_length - decimal_point;
+          const int n = std::min(len, p - (builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }
         builder.AddPadding('0', extra + (p - builder.position()));
