@@ -41,7 +41,6 @@ ALL_VARIANT_FLAGS = {
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
     "turboshaft": [[
         "--turboshaft",
-        "--turboshaft-future",
         "--turboshaft-wasm",
         "--no-wasm-generic-wrapper",
         "--no-liftoff",
@@ -111,15 +110,25 @@ kIncompatibleFlagsForNoTurbofan = [
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "jitless":
         kIncompatibleFlagsForNoTurbofan + [
-            "--track-field-types", "--sparkplug", "--concurrent-sparkplug",
-            "--always-sparkplug", "--regexp-tier-up",
-            "--no-regexp-interpret-all", "--interpreted-frames-native-stack",
+            "--track-field-types",
+            "--sparkplug",
+            "--concurrent-sparkplug",
+            "--always-sparkplug",
+            "--regexp-tier-up",
+            "--no-regexp-interpret-all",
+            "--interpreted-frames-native-stack",
             "--script-context-mutable-heap-number",
         ],
     "nooptimization": [
-        "--turbofan", "--always-turbofan", "--turboshaft",
-        "--turboshaft-future", "--maglev", "--no-liftoff", "--wasm-tier-up",
-        "--wasm-dynamic-tiering", "--validate-asm", "--track-field-types",
+        "--turbofan",
+        "--always-turbofan",
+        "--turboshaft",
+        "--maglev",
+        "--no-liftoff",
+        "--wasm-tier-up",
+        "--wasm-dynamic-tiering",
+        "--validate-asm",
+        "--track-field-types",
         "--stress-concurrent-inlining",
         "--script-context-mutable-heap-number",
     ],

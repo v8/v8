@@ -1484,10 +1484,6 @@ DEFINE_BOOL(turboshaft_string_concat_escape_analysis, false,
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_wasm_instruction_selection_experimental,
-    "run instruction selection on Turboshaft IR directly for wasm, on "
-    "architectures where the feature is experimental")
 DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, true,
             "run instruction selection on Turboshaft IR directly for wasm, on "
             "architectures where we are staging the feature")
@@ -1498,15 +1494,6 @@ DEFINE_NEG_IMPLICATION(turboshaft_from_maglev, maglev_inline_api_calls)
 
 DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
-DEFINE_EXPERIMENTAL_FEATURE(
-    turboshaft_future,
-    "enable Turboshaft features that we want to ship in the not-too-far future")
-DEFINE_IMPLICATION(turboshaft_future, turboshaft)
-#if V8_TARGET_ARCH_X64 or V8_TARGET_ARCH_ARM64 or V8_TARGET_ARCH_ARM or \
-    V8_TARGET_ARCH_IA32
-DEFINE_WEAK_IMPLICATION(turboshaft_future,
-                        turboshaft_wasm_instruction_selection_experimental)
-#endif
 
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
