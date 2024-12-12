@@ -918,7 +918,8 @@
     },
 
     'ios_simulator': {
-      'gn_args': 'target_cpu="x64" target_os="ios" use_blink=true',
+      'gn_args': 'target_cpu="x64" target_os="ios" '
+                 'target_environment="simulator" use_blink=true',
     },
 
     'lld': {
