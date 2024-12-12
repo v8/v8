@@ -86,6 +86,12 @@ inline bool TryCast(Handle<From> value, Handle<To>* out) {
   return true;
 }
 template <typename To, typename From>
+inline bool TryCast(Handle<From> value, DirectHandle<To>* out) {
+  if (!Is<To>(value)) return false;
+  *out = UncheckedCast<To>(value);
+  return true;
+}
+template <typename To, typename From>
 inline bool TryCast(DirectHandle<From> value, DirectHandle<To>* out) {
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
@@ -93,6 +99,12 @@ inline bool TryCast(DirectHandle<From> value, DirectHandle<To>* out) {
 }
 template <typename To, typename From>
 inline bool TryCast(MaybeHandle<From> value, MaybeHandle<To>* out) {
+  if (!Is<To>(value)) return false;
+  *out = UncheckedCast<To>(value);
+  return true;
+}
+template <typename To, typename From>
+inline bool TryCast(MaybeHandle<From> value, MaybeDirectHandle<To>* out) {
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
   return true;
