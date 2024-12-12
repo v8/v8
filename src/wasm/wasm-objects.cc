@@ -544,55 +544,60 @@ void WasmTableObject::UpdateDispatchTable(
   Tagged<WasmJSFunctionData> function_data =
       function->shared()->wasm_js_function_data();
   wasm::CanonicalTypeIndex sig_id = function_data->sig_index();
-  const wasm::CanonicalSig* sig =
-      wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
-          sig_id);
 
-  Handle<JSReceiver> callable(function_data->GetCallable(), isolate);
-  wasm::Suspend suspend = function_data->GetSuspend();
   wasm::WasmCodeRefScope code_ref_scope;
 
   DirectHandle<WasmDispatchTable> dispatch_table(
       table->trusted_dispatch_table(isolate), isolate);
   SBXCHECK(FunctionSigMatchesTable(sig_id, dispatch_table->table_type()));
 
-  wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_id,
-                                    wasm::WellKnownImport::kUninstantiated);
-  wasm::ImportCallKind kind = resolved.kind();
-  callable = resolved.callable();  // Update to ultimate target.
-  DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  int expected_arity = static_cast<int>(sig->parameter_count());
-  if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
-    expected_arity = Cast<JSFunction>(callable)
-                         ->shared()
-                         ->internal_formal_parameter_count_without_receiver();
-  }
-
+  DirectHandle<WasmImportData> import_data(
+      Cast<WasmImportData>(function_data->internal()->implicit_arg()), isolate);
+  WasmCodePointer code_pointer = function_data->internal()->call_target();
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, sig_id, expected_arity, suspend);
-  Address call_target;
+  wasm::WasmCode* wasm_code = cache->FindWrapper(code_pointer);
+  Address call_target = wasm::GetProcessWideWasmCodePointerTable()
+                            ->GetEntrypointWithoutSignatureCheck(code_pointer);
   uint64_t signature_hash;
   if (wasm_code) {
-    call_target = wasm_code->instruction_start();
+    DCHECK_EQ(wasm_code->instruction_start(), call_target);
     signature_hash = wasm_code->signature_hash();
-  } else if (UseGenericWasmToJSWrapper(kind, sig, resolved.suspend())) {
-    call_target = Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
-    signature_hash = wasm::SignatureHasher::Hash(sig);
   } else {
-    constexpr bool kNoSourcePositions = false;
-    wasm_code = cache->CompileWasmImportCallWrapper(isolate, kind, sig, sig_id,
-                                                    kNoSourcePositions,
-                                                    expected_arity, suspend);
-    call_target = wasm_code->instruction_start();
-    signature_hash = wasm_code->signature_hash();
+    // The function's code_pointer is not a compiled wrapper.
+    // Opportunistically check if a matching wrapper has already been
+    // compiled, but otherwise don't eagerly compile it now.
+    Handle<JSReceiver> callable(function_data->GetCallable(), isolate);
+    const wasm::CanonicalSig* sig =
+        wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
+            sig_id);
+    wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_id,
+                                      wasm::WellKnownImport::kUninstantiated);
+    wasm::ImportCallKind kind = resolved.kind();
+    callable = resolved.callable();  // Update to ultimate target.
+    DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
+    int expected_arity = static_cast<int>(sig->parameter_count());
+    if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
+      expected_arity = Cast<JSFunction>(callable)
+                           ->shared()
+                           ->internal_formal_parameter_count_without_receiver();
+    }
+    wasm::Suspend suspend = function_data->GetSuspend();
+    wasm_code = cache->MaybeGet(kind, sig_id, expected_arity, suspend);
+    if (wasm_code) {
+      call_target = wasm_code->instruction_start();
+      signature_hash = wasm_code->signature_hash();
+    } else {
+      // We still don't have a compiled wrapper. Allocate a new import_data
+      // so we can store the proper call_origin for later wrapper tier-up.
+      DCHECK_EQ(call_target,
+                Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+      import_data = isolate->factory()->NewWasmImportData(
+          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
+      import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
+      signature_hash = wasm::SignatureHasher::Hash(sig);
+    }
   }
 
-  // Update the dispatch table.
-  DirectHandle<WasmImportData> import_data =
-      isolate->factory()->NewWasmImportData(
-          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
-  import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
   DCHECK(wasm_code ||
          call_target ==
              Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));

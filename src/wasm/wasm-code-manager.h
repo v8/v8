@@ -87,9 +87,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 constexpr WasmCodePointer kInvalidWasmCodePointer =
     WasmCodePointer{WasmCodePointerTable::kInvalidHandle};
 
-// Resolve the entry address of a WasmCodePointer
-V8_EXPORT_PRIVATE Address WasmCodePointerAddress(WasmCodePointer pointer);
-
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
