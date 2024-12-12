@@ -133,18 +133,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
-      bool use_turboshaft = v8_flags.turboshaft_wasm;
-      if (declared_index < 32 && ((v8_flags.wasm_turboshaft_mask_for_testing &
-                                   (1 << declared_index)) != 0)) {
-        use_turboshaft = true;
-      }
-      if (use_turboshaft) {
         result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
             env, data, detected);
-      } else {
-        result = compiler::ExecuteTurbofanWasmCompilation(env, data, counters,
-                                                          detected);
-      }
       // In exceptional cases it can happen that compilation requests for
       // debugging end up being executed by Turbofan, e.g. if Liftoff bails out
       // because of unsupported features or the --wasm-tier-mask-for-testing is
@@ -209,12 +199,8 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
                : compiler::NewJSToWasmCompilationJob(isolate, sig)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
-        v8_flags.turboshaft_wasm_wrappers
-            ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
-                  job_.get())
-                  ->compilation_info()
-            : static_cast<TurbofanCompilationJob*>(job_.get())
-                  ->compilation_info();
+        static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
+            ->compilation_info();
     if (info->trace_turbo_graph()) {
       // Make sure that code tracer is initialized on the main thread if tracing
       // is enabled.
@@ -245,12 +231,8 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   OptimizedCompilationInfo* info =
-      v8_flags.turboshaft_wasm_wrappers
-          ? static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(
-                job_.get())
-                ->compilation_info()
-          : static_cast<TurbofanCompilationJob*>(job_.get())
-                ->compilation_info();
+      static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
+          ->compilation_info();
   Handle<Code> code = info->code();
   if (isolate_->IsLoggingCodeCreation()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(

@@ -122,7 +122,7 @@ class TFPipelineData {
         allocator_(wasm_engine->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
-        may_have_unverifiable_graph_(v8_flags.turboshaft_wasm),
+        may_have_unverifiable_graph_(true),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_(zone_stats_, kGraphZoneName, kCompressGraphZone),

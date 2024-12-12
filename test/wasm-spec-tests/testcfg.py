@@ -46,7 +46,7 @@ proposal_flags = [
         'name': 'exception-handling',
         # This flag enables the *new* exception handling proposal. The legacy
         # proposal is enabled by default.
-        'flags': ['--experimental-wasm-exnref', '--turboshaft-wasm']
+        'flags': ['--experimental-wasm-exnref']
     },
     {
         'name':

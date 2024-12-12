@@ -102,16 +102,6 @@ class Pipeline : public AllStatic {
                                    int finalize_order);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Run the pipeline for the WebAssembly compilation info.
-  // Note: We pass a pointer to {detected} as it might get mutated while
-  // inlining.
-  static void GenerateCodeForWasmFunction(
-      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
-      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-      CallDescriptor* call_descriptor,
-      ZoneVector<WasmInliningPosition>* inlining_positions,
-      wasm::WasmDetectedFeatures* detected);
-
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,

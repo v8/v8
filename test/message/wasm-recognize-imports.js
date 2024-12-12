@@ -9,9 +9,6 @@
 // Also explicitly enable inlining and disable debug code to avoid differences
 // between --future and --no-future or debug and release builds.
 // Flags: --wasm-inlining --no-debug-code
-// Also explicitly set Turboshaft, since its trace output is different from
-// TurboFan.
-// Flags: --turboshaft-wasm
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

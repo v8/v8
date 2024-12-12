@@ -31,7 +31,7 @@
 //    should never be negative.
 
 // Speculative inlining via deopts required:
-// Flags: --wasm-inlining --wasm-deopt --turboshaft-wasm
+// Flags: --wasm-inlining --wasm-deopt
 // Dynamic tier-up required:
 // Flags: --liftoff --wasm-dynamic-tiering
 // The native module cache prevents hitting the bug:

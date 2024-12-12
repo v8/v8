@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-deopt --allow-natives-syntax --turboshaft-wasm --liftoff
+// Flags: --wasm-deopt --allow-natives-syntax --liftoff
 // Flags: --wasm-inlining --wasm-inlining-ignore-call-counts
 // Flags: --turboshaft-wasm-instruction-selection-staged --no-jit-fuzzing
 

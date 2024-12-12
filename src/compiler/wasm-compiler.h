@@ -67,10 +67,6 @@ enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 
 namespace compiler {
 
-wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv*, WasmCompilationData& compilation_data, Counters*,
-    wasm::WasmDetectedFeatures* detected);
-
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::ImportCallKind, const wasm::CanonicalSig*, bool source_positions,
@@ -85,8 +81,7 @@ bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
     const wasm::CanonicalSig*, Handle<JSReceiver> callable);
 
-// Returns an TurbofanCompilationJob or TurboshaftCompilationJob object
-// (depending on the --turboshaft-wasm-wrappers flag) for a JS to Wasm wrapper.
+// Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::CanonicalSig* sig);
 

@@ -1454,9 +1454,7 @@ DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
 #endif
-// TODO(382509286): Remove this flag.
-DEFINE_BOOL_READONLY(turboshaft_wasm, true,
-                     "enable TurboFan's Turboshaft phases for wasm")
+
 DEFINE_BOOL(turboshaft_wasm_load_elimination, true,
             "enable Turboshaft's WasmLoadElimination")
 
@@ -1469,9 +1467,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
 // Can't use Turboshaft Wasm-in-JS inlining without the Turboshaft JavaScript
 // pipeline. Note however, that this feature is independent of the Turboshaft
 // Wasm pipeline (since the inlinee gets compiled with the JS pipeline).
-// For performance comparisons, please still enable `--turboshaft-wasm`, such
-// that both inlined and non-inlined Wasm functions go through the same
-// Turboshaft frontend (although it's technically not a requirement).
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 
@@ -1583,8 +1578,6 @@ DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_BOOL(wasm_native_module_cache, true, "enable the native module cache")
-DEFINE_BOOL(turboshaft_wasm_wrappers, true,
-            "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
 // The actual value used at runtime is clamped to kV8MaxWasmMemory{32,64}Pages.
 DEFINE_UINT(wasm_max_mem_pages, kMaxUInt32,
             "maximum number of 64KiB memory pages per wasm memory")
@@ -1655,19 +1648,15 @@ DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
             "print all memory updates performed in wasm code")
-// Fuzzers use {wasm_tier_mask_for_testing}, {wasm_debug_mask_for_testing}, and
-// {wasm_turboshaft_mask_for_testing} together with {liftoff} and
-// {no_wasm_tier_up} to force some functions to be compiled with TurboFan or for
-// debug.
+// Fuzzers use {wasm_tier_mask_for_testing} and {wasm_debug_mask_for_testing}
+// together with {liftoff} and {no_wasm_tier_up} to force some functions to be
+// compiled with TurboFan or for debug.
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
            "bitmask of declared(!) function indices to compile with TurboFan "
            "instead of Liftoff")
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
            "bitmask of declared(!) function indices to compile for debugging, "
            "only applies if the tier is Liftoff")
-DEFINE_INT(wasm_turboshaft_mask_for_testing, 0,
-           "bitmask of declared(!) function indices to compile with Turboshaft "
-           "instead of TurboFan")
 // TODO(clemensb): Introduce experimental_wasm_pgo to read from a custom section
 // instead of from a local file.
 DEFINE_BOOL(
@@ -1759,8 +1748,7 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
 DEFINE_BOOL(wasm_inlining_call_indirect, false,
-            "enable speculative inlining of Wasm indirect calls, requires "
-            "--turboshaft-wasm")
+            "enable speculative inlining of Wasm indirect calls")
 DEFINE_WEAK_IMPLICATION(future, wasm_inlining_call_indirect)
 // This doesn't make sense without and requires  the basic inlining machinery,
 // e.g., for allocating feedback vectors, so we automatically enable it.

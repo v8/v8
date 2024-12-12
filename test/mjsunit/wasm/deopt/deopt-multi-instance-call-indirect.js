@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboshaft-wasm --wasm-deopt --liftoff
+// Flags: --allow-natives-syntax --wasm-deopt --liftoff
 // Flags: --wasm-inlining-call-indirect --wasm-inlining-ignore-call-counts
 
 // See also inlining-multi-instance.js, from which this is adapted.

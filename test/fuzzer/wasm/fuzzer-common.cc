@@ -422,18 +422,13 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // 0: TurboFan
   // 1: Liftoff
   // 2: Liftoff for debugging
-  // 3: Turboshaft
   uint8_t tier_mask = 0;
   uint8_t debug_mask = 0;
-  uint8_t turboshaft_mask = 0;
-  for (int i = 0; i < 4; ++i, configuration_byte /= 4) {
-    int compiler_config = configuration_byte % 4;
+  for (int i = 0; i < 4; ++i, configuration_byte /= 3) {
+    int compiler_config = configuration_byte % 3;
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
-    turboshaft_mask |= (compiler_config == 3) << i;
   }
-  // Enable tierup for all turboshaft functions.
-  tier_mask |= turboshaft_mask;
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return;
@@ -466,8 +461,6 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                                  tier_mask);
   FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
                                   debug_mask);
-  FlagScope<int> turboshaft_mask_scope(
-      &v8_flags.wasm_turboshaft_mask_for_testing, turboshaft_mask);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(

@@ -824,33 +824,25 @@ TEST(RunWasm_I16x16DotI8x32I7x32S) {
 }
 
 TEST(RunWasmTurbofan_F32x8RelaxedMin) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   RunF32x8BinOpRevecTest(kExprF32x4RelaxedMin, Minimum,
                          compiler::IrOpcode::kF32x8RelaxedMin);
 }
 
 TEST(RunWasmTurbofan_F32x8RelaxedMax) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   RunF32x8BinOpRevecTest(kExprF32x4RelaxedMax, Maximum,
                          compiler::IrOpcode::kF32x8RelaxedMax);
 }
 
 TEST(RunWasmTurbofan_F64x4RelaxedMin) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   RunF64x4BinOpRevecTest(kExprF64x2RelaxedMin, Minimum,
                          compiler::IrOpcode::kF64x4RelaxedMin);
 }
 
 TEST(RunWasmTurbofan_F64x4RelaxedMax) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   RunF64x4BinOpRevecTest(kExprF64x2RelaxedMax, Maximum,
                          compiler::IrOpcode::kF64x4RelaxedMax);
 }
@@ -891,18 +883,14 @@ void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op,
 }
 
 TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8U) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   I32x8RelaxedTruncF32x8RevecTest<uint32_t>(
       kExprI32x4RelaxedTruncF32x4U,
       compiler::IrOpcode::kI32x8RelaxedTruncF32x8U);
 }
 
 TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8S) {
-  if (!v8_flags.turboshaft_wasm ||
-      !v8_flags.turboshaft_wasm_instruction_selection_staged)
-    return;
+  if (!v8_flags.turboshaft_wasm_instruction_selection_staged) return;
   I32x8RelaxedTruncF32x8RevecTest<int32_t>(
       kExprI32x4RelaxedTruncF32x4S,
       compiler::IrOpcode::kI32x8RelaxedTruncF32x8S);

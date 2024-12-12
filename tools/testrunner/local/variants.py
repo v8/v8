@@ -41,7 +41,6 @@ ALL_VARIANT_FLAGS = {
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
     "turboshaft": [[
         "--turboshaft",
-        "--turboshaft-wasm",
         "--no-wasm-generic-wrapper",
         "--no-liftoff",
     ]],

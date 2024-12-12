@@ -22,8 +22,7 @@ namespace internal {
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 #define SKIP_TEST_IF_NO_TURBOSHAFT                                  \
   do {                                                              \
-    if (!v8_flags.turboshaft_wasm ||                                \
-        !v8_flags.turboshaft_wasm_instruction_selection_staged) {   \
+    if (!v8_flags.turboshaft_wasm_instruction_selection_staged) {   \
       /* This pattern is only implemented for turboshaft_wasm and*/ \
       /* turboshaft_wasm_instruction_selection*/                    \
       return;                                                       \
@@ -145,25 +144,10 @@ class ObserveSIMD256Scope {
 
 // Build input wasm expressions and check if the revectorization success
 // (create the expected simd256 node).
+// TODO(42202660): Reimplement checks for Turboshaft (Turbofan checks were
+// removed in https://crrev.com/c/6074953).
 #define BUILD_AND_CHECK_REVEC_NODE(wasm_runner, expected_simd256_op, ...) \
-  bool find_expected_node = false;                                        \
-  SIMD256NodeObserver* observer =                                         \
-      wasm_runner.zone()->New<SIMD256NodeObserver>(                       \
-          [&](const compiler::Node* node) {                               \
-            if (node->opcode() == expected_simd256_op) {                  \
-              if (expected_simd256_op == compiler::IrOpcode::kStore &&    \
-                  StoreRepresentationOf(node->op()).representation() !=   \
-                      MachineRepresentation::kSimd256) {                  \
-                return;                                                   \
-              }                                                           \
-              find_expected_node = true;                                  \
-            }                                                             \
-          });                                                             \
-  ObserveSIMD256Scope scope(CcTest::InitIsolateOnce(), observer);         \
-  r.Build({__VA_ARGS__});                                                 \
-  if (!v8_flags.turboshaft_wasm) {                                        \
-    CHECK(find_expected_node);                                            \
-  }
+  r.Build({__VA_ARGS__});
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

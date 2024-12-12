@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --wasm-debug-mask-for-testing=255
-// Flags: --liftoff --turboshaft-wasm
+// Flags: --liftoff
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
