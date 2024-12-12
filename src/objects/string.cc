@@ -33,7 +33,8 @@
 namespace v8 {
 namespace internal {
 
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
 HandleType<String> String::SlowShare(Isolate* isolate,
                                      HandleType<String> source) {
   DCHECK(v8_flags.shared_string_table);
@@ -653,7 +654,8 @@ int32_t String::ToArrayIndex(Address addr) {
 }
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
 HandleType<Number> String::ToNumber(Isolate* isolate,
                                     HandleType<String> subject) {
   return isolate->factory()->NewNumber(

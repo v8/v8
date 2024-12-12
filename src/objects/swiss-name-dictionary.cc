@@ -12,7 +12,9 @@ namespace v8 {
 namespace internal {
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                 DirectHandle<SwissNameDictionary>>)
 HandleType<SwissNameDictionary> SwissNameDictionary::DeleteEntry(
     Isolate* isolate, HandleType<SwissNameDictionary> table,
     InternalIndex entry) {
@@ -40,7 +42,9 @@ HandleType<SwissNameDictionary> SwissNameDictionary::DeleteEntry(
 }
 
 // static
-template <typename IsolateT, template <typename> typename HandleType, typename>
+template <typename IsolateT, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                 DirectHandle<SwissNameDictionary>>)
 HandleType<SwissNameDictionary> SwissNameDictionary::Rehash(
     IsolateT* isolate, HandleType<SwissNameDictionary> table,
     int new_capacity) {
@@ -182,7 +186,9 @@ DirectHandle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
 }
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                 DirectHandle<SwissNameDictionary>>)
 HandleType<SwissNameDictionary> SwissNameDictionary::Shrink(
     Isolate* isolate, HandleType<SwissNameDictionary> table) {
   // TODO(v8:11388) We're using the same logic to decide whether or not to

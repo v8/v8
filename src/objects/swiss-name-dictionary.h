@@ -72,26 +72,23 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
  public:
   using Group = swiss_table::Group;
 
-  template <
-      typename IsolateT, template <typename> typename HandleType,
-      typename = std::enable_if_t<std::is_convertible_v<
-          HandleType<SwissNameDictionary>, DirectHandle<SwissNameDictionary>>>>
+  template <typename IsolateT, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                   DirectHandle<SwissNameDictionary>>)
   inline static HandleType<SwissNameDictionary> Add(
       IsolateT* isolate, HandleType<SwissNameDictionary> table,
       DirectHandle<Name> key, DirectHandle<Object> value,
       PropertyDetails details, InternalIndex* entry_out = nullptr);
 
-  template <
-      template <typename> typename HandleType,
-      typename = std::enable_if_t<std::is_convertible_v<
-          HandleType<SwissNameDictionary>, DirectHandle<SwissNameDictionary>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                   DirectHandle<SwissNameDictionary>>)
   static HandleType<SwissNameDictionary> Shrink(
       Isolate* isolate, HandleType<SwissNameDictionary> table);
 
-  template <
-      template <typename> typename HandleType,
-      typename = std::enable_if_t<std::is_convertible_v<
-          HandleType<SwissNameDictionary>, DirectHandle<SwissNameDictionary>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                   DirectHandle<SwissNameDictionary>>)
   static HandleType<SwissNameDictionary> DeleteEntry(
       Isolate* isolate, HandleType<SwissNameDictionary> table,
       InternalIndex entry);
@@ -146,10 +143,9 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   void Initialize(IsolateT* isolate, Tagged<ByteArray> meta_table,
                   int capacity);
 
-  template <
-      typename IsolateT, template <typename> typename HandleType,
-      typename = std::enable_if_t<std::is_convertible_v<
-          HandleType<SwissNameDictionary>, DirectHandle<SwissNameDictionary>>>>
+  template <typename IsolateT, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                   DirectHandle<SwissNameDictionary>>)
   static HandleType<SwissNameDictionary> Rehash(
       IsolateT* isolate, HandleType<SwissNameDictionary> table,
       int new_capacity);
@@ -285,10 +281,9 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   using ctrl_t = swiss_table::ctrl_t;
   using Ctrl = swiss_table::Ctrl;
 
-  template <
-      typename IsolateT, template <typename> typename HandleType,
-      typename = std::enable_if_t<std::is_convertible_v<
-          HandleType<SwissNameDictionary>, DirectHandle<SwissNameDictionary>>>>
+  template <typename IsolateT, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                   DirectHandle<SwissNameDictionary>>)
   inline static HandleType<SwissNameDictionary> EnsureGrowable(
       IsolateT* isolate, HandleType<SwissNameDictionary> table);
 

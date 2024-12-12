@@ -33,14 +33,17 @@ class MaybeHandle final {
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
+  template <typename S>
+  V8_INLINE MaybeHandle(Handle<S> handle)
+    requires(is_subtype_v<S, T>)
+      : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when MaybeHandle<Object> is
   // expected.
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  template <typename S>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
+    requires(is_subtype_v<S, T>)
       : location_(maybe_handle.location_) {}
 
   V8_INLINE MaybeHandle(Tagged<T> object, Isolate* isolate);
@@ -240,16 +243,21 @@ class MaybeDirectHandle {
   V8_INLINE MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
       : handle_(object, local_heap) {}
 
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  template <typename S>
   V8_INLINE MaybeDirectHandle(DirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
       : handle_(handle.handle_) {}
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE MaybeDirectHandle(IndirectHandle<S> handle) : handle_(handle) {}
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  template <typename S>
+  V8_INLINE MaybeDirectHandle(IndirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
+      : handle_(handle) {}
+  template <typename S>
   V8_INLINE MaybeDirectHandle(MaybeDirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
       : handle_(handle.handle_) {}
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  template <typename S>
   V8_INLINE MaybeDirectHandle(MaybeIndirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
       : handle_(handle) {}
 
   V8_INLINE void Assert() const { handle_.Assert(); }

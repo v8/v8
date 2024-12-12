@@ -365,8 +365,10 @@ struct types_have_common_values<Union<Ts...>, Union<Us...>> {
 template <class T>
 class TNode {
  public:
-  template <class U, typename = std::enable_if_t<is_subtype<U, T>::value>>
-  TNode(const TNode<U>& other) V8_NOEXCEPT : node_(other.node_) {
+  template <class U>
+  TNode(const TNode<U>& other) V8_NOEXCEPT
+    requires is_subtype<U, T>::value
+      : node_(other.node_) {
     LazyTemplateChecks();
   }
 
@@ -413,9 +415,9 @@ class SloppyTNode : public TNode<T> {
  public:
   SloppyTNode(compiler::Node* node)  // NOLINT(runtime/explicit)
       : TNode<T>(node) {}
-  template <class U, typename std::enable_if<is_subtype<U, T>::value,
-                                             int>::type = 0>
+  template <class U>
   SloppyTNode(const TNode<U>& other) V8_NOEXCEPT  // NOLINT(runtime/explicit)
+    requires is_subtype<U, T>::value
       : TNode<T>(other) {}
 };
 

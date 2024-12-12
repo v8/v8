@@ -242,45 +242,42 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Tagged<Map> map) const;
 
-  template <class T, typename std::enable_if_t<std::is_arithmetic_v<T> ||
-                                                   std::is_enum_v<T> ||
-                                                   std::is_pointer_v<T>,
-                                               int> = 0>
-  inline T ReadField(size_t offset) const {
+  template <class T>
+  inline T ReadField(size_t offset) const
+    requires(std::is_arithmetic_v<T> || std::is_enum_v<T> ||
+             std::is_pointer_v<T>)
+  {
     return ReadMaybeUnalignedValue<T>(field_address(offset));
   }
 
-  template <class T, typename std::enable_if_t<std::is_arithmetic_v<T> ||
-                                                   std::is_enum_v<T> ||
-                                                   std::is_pointer_v<T>,
-                                               int> = 0>
-  inline void WriteField(size_t offset, T value) const {
+  template <class T>
+  inline void WriteField(size_t offset, T value) const
+    requires(std::is_arithmetic_v<T> || std::is_enum_v<T> ||
+             std::is_pointer_v<T>)
+  {
     return WriteMaybeUnalignedValue<T>(field_address(offset), value);
   }
 
   // Atomically reads a field using relaxed memory ordering. Can only be used
   // with integral types whose size is <= kTaggedSize (to guarantee alignment).
-  template <class T, typename std::enable_if_t<
-                         (std::is_arithmetic_v<T> ||
-                          std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                         int> = 0>
-  inline T Relaxed_ReadField(size_t offset) const;
+  template <class T>
+  inline T Relaxed_ReadField(size_t offset) const
+    requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+             !std::is_floating_point_v<T>);
 
   // Atomically writes a field using relaxed memory ordering. Can only be used
   // with integral types whose size is <= kTaggedSize (to guarantee alignment).
-  template <class T, typename std::enable_if_t<
-                         (std::is_arithmetic_v<T> ||
-                          std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                         int> = 0>
-  inline void Relaxed_WriteField(size_t offset, T value);
+  template <class T>
+  inline void Relaxed_WriteField(size_t offset, T value)
+    requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+             !std::is_floating_point_v<T>);
 
   // Atomically reads a field using acquire memory ordering. Can only be used
   // with integral types whose size is <= kTaggedSize (to guarantee alignment).
-  template <class T, typename std::enable_if_t<
-                         (std::is_arithmetic_v<T> ||
-                          std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                         int> = 0>
-  inline T Acquire_ReadField(size_t offset) const;
+  template <class T>
+  inline T Acquire_ReadField(size_t offset) const
+    requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+             !std::is_floating_point_v<T>);
 
   // Atomically compares and swaps a field using seq cst memory ordering.
   // Contains the required logic to properly handle number comparison.

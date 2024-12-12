@@ -2503,14 +2503,16 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // Read floating point return values.
   template <typename T>
-  typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  T ReadReturn()
+    requires std::is_floating_point<T>::value
+  {
     return static_cast<T>(dreg(0));
   }
   // Read non-float return values.
   template <typename T>
-  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  T ReadReturn()
+    requires(!std::is_floating_point<T>::value)
+  {
     return ConvertReturn<T>(xreg(0));
   }
 

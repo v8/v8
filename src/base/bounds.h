@@ -45,9 +45,10 @@ inline constexpr bool IsInHalfOpenRange(T value, U lower_limit,
 
 // Checks if [index, index+length) is in range [0, max). Note that this check
 // works even if {index+length} would wrap around.
-template <typename T,
-          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-inline constexpr bool IsInBounds(T index, T length, T max) {
+template <typename T>
+inline constexpr bool IsInBounds(T index, T length, T max)
+  requires std::is_unsigned<T>::value
+{
   return length <= max && index <= (max - length);
 }
 

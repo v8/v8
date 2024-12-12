@@ -89,9 +89,10 @@ T JSMin(T x, T y) {
 }
 
 // Returns the absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
-typename std::make_unsigned<T>::type Abs(T a) {
+template <typename T>
+typename std::make_unsigned<T>::type Abs(T a)
+  requires std::is_signed<T>::value
+{
   // This is a branch-free implementation of the absolute value function and is
   // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
   // behavior with the arithmetic negation operation on signed values as well.

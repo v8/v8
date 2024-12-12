@@ -337,7 +337,9 @@ PropertyDetails SwissNameDictionary::DetailsAt(InternalIndex entry) {
 }
 
 // static
-template <typename IsolateT, template <typename> typename HandleType, typename>
+template <typename IsolateT, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                 DirectHandle<SwissNameDictionary>>)
 HandleType<SwissNameDictionary> SwissNameDictionary::EnsureGrowable(
     IsolateT* isolate, HandleType<SwissNameDictionary> table) {
   int capacity = table->Capacity();
@@ -506,7 +508,9 @@ bool SwissNameDictionary::ToKey(ReadOnlyRoots roots, InternalIndex entry,
 }
 
 // static
-template <typename IsolateT, template <typename> typename HandleType, typename>
+template <typename IsolateT, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<SwissNameDictionary>,
+                                 DirectHandle<SwissNameDictionary>>)
 HandleType<SwissNameDictionary> SwissNameDictionary::Add(
     IsolateT* isolate, HandleType<SwissNameDictionary> original_table,
     DirectHandle<Name> key, DirectHandle<Object> value, PropertyDetails details,

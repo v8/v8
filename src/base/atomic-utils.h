@@ -271,21 +271,23 @@ class AsAtomicPointerImpl : public AsAtomicImpl<TAtomicStorageType> {
 
 using AsAtomicPointer = AsAtomicPointerImpl<base::AtomicWord>;
 
-template <typename T,
-          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+template <typename T>
 inline void CheckedIncrement(
     std::atomic<T>* number, T amount,
-    std::memory_order order = std::memory_order_seq_cst) {
+    std::memory_order order = std::memory_order_seq_cst)
+  requires std::is_unsigned<T>::value
+{
   const T old = number->fetch_add(amount, order);
   DCHECK_GE(old + amount, old);
   USE(old);
 }
 
-template <typename T,
-          typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
+template <typename T>
 inline void CheckedDecrement(
     std::atomic<T>* number, T amount,
-    std::memory_order order = std::memory_order_seq_cst) {
+    std::memory_order order = std::memory_order_seq_cst)
+  requires std::is_unsigned<T>::value
+{
   const T old = number->fetch_sub(amount, order);
   DCHECK_GE(old, amount);
   USE(old);

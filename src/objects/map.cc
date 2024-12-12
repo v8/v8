@@ -834,7 +834,8 @@ Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
 }
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<Map>, DirectHandle<Map>>)
 HandleType<Map> Map::Update(Isolate* isolate, HandleType<Map> map) {
   if (!map->is_deprecated()) return map;
   if (v8_flags.fast_map_update) {

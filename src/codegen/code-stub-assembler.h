@@ -1168,10 +1168,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadFromObject(MachineType::AnyTagged(), object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
-  TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset) {
+  template <class T>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset)
+    requires std::is_convertible<TNode<T>, TNode<UntaggedT>>::value
+  {
     return UncheckedCast<T>(
         LoadFromObject(MachineTypeOf<T>::value, object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
@@ -1215,10 +1215,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
   };
 
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
-                         int>::type = 0>
-  TNode<T> LoadReference(Reference reference) {
+  template <class T>
+  TNode<T> LoadReference(Reference reference)
+    requires std::is_convertible<TNode<T>, TNode<Object>>::value
+  {
     if (IsMapOffsetConstant(reference.offset)) {
       TNode<Map> map = LoadMap(CAST(reference.object));
       DCHECK((std::is_base_of<T, Map>::value));
@@ -1231,23 +1231,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
-  template <class T,
-            typename std::enable_if<
-                std::is_convertible<TNode<T>, TNode<UntaggedT>>::value ||
-                    std::is_same<T, MaybeObject>::value,
-                int>::type = 0>
-  TNode<T> LoadReference(Reference reference) {
+  template <class T>
+  TNode<T> LoadReference(Reference reference)
+    requires(std::is_convertible<TNode<T>, TNode<UntaggedT>>::value ||
+             std::is_same<T, MaybeObject>::value)
+  {
     DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     return UncheckedCast<T>(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value ||
-                             std::is_same<T, MaybeObject>::value,
-                         int>::type = 0>
-  void StoreReference(Reference reference, TNode<T> value) {
+  template <class T>
+  void StoreReference(Reference reference, TNode<T> value)
+    requires(std::is_convertible<TNode<T>, TNode<Object>>::value ||
+             std::is_same<T, MaybeObject>::value)
+  {
     if (IsMapOffsetConstant(reference.offset)) {
       DCHECK((std::is_base_of<T, Map>::value));
       return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
@@ -1264,10 +1263,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     CSA_DCHECK(this, TaggedIsNotSmi(reference.object));
     StoreToObject(rep, reference.object, offset, value, write_barrier);
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
-  void StoreReference(Reference reference, TNode<T> value) {
+  template <class T>
+  void StoreReference(Reference reference, TNode<T> value)
+    requires std::is_convertible<TNode<T>, TNode<UntaggedT>>::value
+  {
     DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));

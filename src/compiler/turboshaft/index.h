@@ -591,6 +591,14 @@ constexpr bool IsValidTypeFor(RegisterRepresentation repr) {
 // Prefer using V<> instead of a plain OpIndex where possible.
 template <typename T>
 class V : public OpIndex {
+  // V<T> is implicitly constructible from V<U> iff
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U>
+  constexpr static bool implicitly_constructible_from =
+      v_traits<T>::template implicitly_constructible_from<U>::value;
+
  public:
   using type = T;
   static constexpr auto rep = v_traits<type>::rep;
@@ -600,9 +608,8 @@ class V : public OpIndex {
   // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
   // the case if T == U or T is a subclass of U. Different types may specify
   // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   V(V<U> index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 
   static V Invalid() { return V<T>(OpIndex::Invalid()); }
@@ -622,29 +629,32 @@ class V : public OpIndex {
  protected:
 #endif
   // V<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  template <typename U>
+    requires(std::is_same_v<U, OpIndex>)
   V(U index) : OpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
 template <typename T>
 class OptionalV : public OptionalOpIndex {
+  // OptionalV<T> is implicitly constructible from OptionalV<U> iff
+  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
+  // the case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U>
+  constexpr static bool implicitly_constructible_from =
+      v_traits<T>::template implicitly_constructible_from<U>::value;
+
  public:
   using type = T;
   static constexpr auto rep = v_traits<type>::rep;
   constexpr OptionalV() : OptionalOpIndex() {}
 
-  // OptionalV<T> is implicitly constructible from OptionalV<U> iff
-  // `v_traits<T>::implicitly_constructible_from<U>::value`. This is typically
-  // the case if T == U or T is a subclass of U. Different types may specify
-  // different conversion rules in the corresponding `v_traits` when necessary.
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   OptionalV(OptionalV<U> index)  // NOLINT(runtime/explicit)
       : OptionalOpIndex(index) {}
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<T>::template implicitly_constructible_from<U>::value>>
+  template <typename U>
+    requires implicitly_constructible_from<U>
   OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 
   static OptionalV Nullopt() { return OptionalV(OptionalOpIndex::Nullopt()); }
@@ -670,9 +680,8 @@ class OptionalV : public OptionalOpIndex {
  protected:
 #endif
   // OptionalV<T> is implicitly constructible from plain OptionalOpIndex.
-  template <typename U,
-            typename = std::enable_if_t<std::is_same_v<U, OptionalOpIndex> ||
-                                        std::is_same_v<U, OpIndex>>>
+  template <typename U>
+    requires(std::is_same_v<U, OptionalOpIndex> || std::is_same_v<U, OpIndex>)
   OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
 };
 
@@ -707,9 +716,9 @@ class ConstOrV {
 
   // ConstOrV<T> is implicitly constructible from V<U> iff V<T> is
   // constructible from V<U>.
-  template <typename U,
-            typename = std::enable_if_t<std::is_constructible_v<V<T>, V<U>>>>
+  template <typename U>
   ConstOrV(V<U> index)  // NOLINT(runtime/explicit)
+    requires(std::is_constructible_v<V<T>, V<U>>)
       : constant_value_(std::nullopt), value_(index) {}
 
   bool is_constant() const { return constant_value_.has_value(); }
@@ -727,8 +736,9 @@ class ConstOrV {
  protected:
 #endif
   // ConstOrV<T> is implicitly constructible from plain OpIndex.
-  template <typename U, typename = std::enable_if_t<std::is_same_v<U, OpIndex>>>
+  template <typename U>
   ConstOrV(U index)  // NOLINT(runtime/explicit)
+    requires(std::is_same_v<U, OpIndex>)
       : constant_value_(), value_(index) {}
 
  private:

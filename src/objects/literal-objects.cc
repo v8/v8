@@ -164,11 +164,12 @@ Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 
 // TODO(42203211): The first parameter should be just DirectHandle<Dictionary>
 // but now it does not compile with implicit Handle to DirectHandle conversions.
-template <template <typename> typename HandleType, typename Dictionary,
-          typename = std::enable_if_t<std::is_convertible_v<
-              HandleType<Dictionary>, DirectHandle<Dictionary>>>>
+template <template <typename> typename HandleType, typename Dictionary>
 void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
-                                  DirectHandle<Name> name) {
+                                  DirectHandle<Name> name)
+  requires(
+      std::is_convertible_v<HandleType<Dictionary>, DirectHandle<Dictionary>>)
+{
   static_assert((std::is_same<Dictionary, SwissNameDictionary>::value ||
                  std::is_same<Dictionary, NameDictionary>::value));
   // No-op for (ordered) name dictionaries.

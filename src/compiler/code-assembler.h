@@ -576,9 +576,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Tagged<Smi> value);
   TNode<Smi> SmiConstant(int value);
-  template <typename E,
-            typename = typename std::enable_if<std::is_enum<E>::value>::type>
-  TNode<Smi> SmiConstant(E value) {
+  template <typename E>
+  TNode<Smi> SmiConstant(E value)
+    requires std::is_enum<E>::value
+  {
     static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
   }

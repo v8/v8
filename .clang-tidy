@@ -10,6 +10,7 @@
                     modernize-replace-random-shuffle,
                     modernize-shrink-to-fit,
                     # modernize-use-auto,
+                    modernize-use-constraints,
                     modernize-use-bool-literals,
                     modernize-use-equals-default,
                     # modernize-use-equals-delete,

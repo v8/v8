@@ -150,7 +150,8 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
 #endif
 }
 
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>)
 PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name, size_t index)
     : name_(name), index_(index) {
   DCHECK_IMPLIES(index_ == LookupIterator::kInvalidIndex, !name_.is_null());
@@ -174,7 +175,8 @@ PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name, size_t index)
 #endif
 }
 
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>)
 PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name) {
   if (name->AsIntegerIndex(&index_)) {
     name_ = name;
@@ -184,7 +186,8 @@ PropertyKey::PropertyKey(Isolate* isolate, HandleType<Name> name) {
   }
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 PropertyKey::PropertyKey(Isolate* isolate, HandleType<T> valid_key) {
   HandleType<Object> valid_obj = Cast<Object>(valid_key);
   DCHECK(IsName(*valid_obj) || IsNumber(*valid_obj));
@@ -201,7 +204,8 @@ PropertyKey::PropertyKey(Isolate* isolate, HandleType<T> valid_key) {
   }
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 PropertyKey::PropertyKey(Isolate* isolate, HandleType<T> key, bool* success) {
   if (Object::ToIntegerIndex(*key, &index_)) {
     *success = true;

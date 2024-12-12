@@ -2094,7 +2094,9 @@ Maybe<bool> JSReceiver::IsExtensible(Isolate* isolate,
 }
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
 typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
     Isolate* isolate, HandleType<JSReceiver> receiver, ToPrimitiveHint hint) {
   HandleType<Object> exotic_to_prim;

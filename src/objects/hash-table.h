@@ -218,9 +218,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
-  template <typename IsolateT, template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Derived>, DirectHandle<Derived>>>>
+  template <typename IsolateT, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   V8_WARN_UNUSED_RESULT static HandleType<Derived> EnsureCapacity(
       IsolateT* isolate, HandleType<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
@@ -255,9 +254,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
                                        int at_least_room_for);
 
   // Shrink the hash table.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Derived>, DirectHandle<Derived>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
   V8_WARN_UNUSED_RESULT static HandleType<Derived> Shrink(
       Isolate* isolate, HandleType<Derived> table, int additionalCapacity = 0);
 

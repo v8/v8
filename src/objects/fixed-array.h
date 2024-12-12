@@ -239,9 +239,9 @@ V8_OBJECT class FixedArray
   // Invariant: 0 < new_length <= length()
   V8_EXPORT_PRIVATE void RightTrim(Isolate* isolate, int new_capacity);
   // Right-trims the array, and canonicalizes length 0 to empty_fixed_array.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<FixedArray>, DirectHandle<FixedArray>>>>
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
   static HandleType<FixedArray> RightTrimOrEmpty(Isolate* isolate,
                                                  HandleType<FixedArray> array,
                                                  int new_length);

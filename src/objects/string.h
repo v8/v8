@@ -260,9 +260,8 @@ V8_OBJECT class String : public Name {
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // ES6 section 7.1.3.1 ToNumber Applied to the String Type
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<String>, DirectHandle<String>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
   static HandleType<Number> ToNumber(Isolate* isolate,
                                      HandleType<String> subject);
 
@@ -283,15 +282,13 @@ V8_OBJECT class String : public Name {
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
 
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<String>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
   static V8_INLINE HandleType<String> Flatten(
       Isolate* isolate, HandleType<T> string,
       AllocationType allocation = AllocationType::kYoung);
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<String>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
   static V8_INLINE HandleType<String> Flatten(
       LocalIsolate* isolate, HandleType<T> string,
       AllocationType allocation = AllocationType::kYoung);
@@ -316,9 +313,8 @@ V8_OBJECT class String : public Name {
   // Shares the string. Checks inline if the string is already shared or can be
   // shared by transitioning its map in-place. If neither is possible, flattens
   // and copies into a new shared sequential string.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<String>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
   static inline HandleType<String> Share(Isolate* isolate,
                                          HandleType<T> string);
 
@@ -692,9 +688,8 @@ V8_OBJECT class String : public Name {
 
   // Note: This is an inline method template and exporting it for windows
   // component builds works only without the EXPORT_TEMPLATE_DECLARE macro.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<String>, DirectHandle<String>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
   V8_EXPORT_PRIVATE inline static HandleType<String> SlowFlatten(
       Isolate* isolate, HandleType<ConsString> cons, AllocationType allocation);
 
@@ -707,12 +702,10 @@ V8_OBJECT class String : public Name {
   SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
                      const SharedStringAccessGuardIfNeeded&);
 
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<String>, DirectHandle<String>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static HandleType<String> SlowShare(Isolate* isolate,
-                                      HandleType<String> source);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) static HandleType<
+      String> SlowShare(Isolate* isolate, HandleType<String> source);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.

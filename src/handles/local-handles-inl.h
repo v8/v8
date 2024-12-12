@@ -59,7 +59,8 @@ LocalHandleScope::~LocalHandleScope() {
   }
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 HandleType<T> LocalHandleScope::CloseAndEscape(HandleType<T> handle_value) {
   HandleScopeData* current;
   Tagged<T> value = *handle_value;

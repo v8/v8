@@ -7455,12 +7455,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsContext,
-                   compiler::turboshaft::detail::index_type_for_t<
-                       typename Descriptor::results_t>>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
   CallBuiltinThroughJumptable(
       FullDecoder* decoder, const typename Descriptor::arguments_t& args,
-      CheckForException check_for_exception = CheckForException::kNo) {
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires(!Descriptor::kNeedsContext)
+  {
     DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
 
     V<WordPtr> callee =
@@ -7481,13 +7481,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsContext,
-                   compiler::turboshaft::detail::index_type_for_t<
-                       typename Descriptor::results_t>>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
   CallBuiltinThroughJumptable(
       FullDecoder* decoder, V<Context> context,
       const typename Descriptor::arguments_t& args,
-      CheckForException check_for_exception = CheckForException::kNo) {
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires Descriptor::kNeedsContext
+  {
     DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
 
     V<WordPtr> callee =

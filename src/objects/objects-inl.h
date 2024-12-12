@@ -293,11 +293,11 @@ template <>
 struct CastTraits<DeoptimizationFrameTranslation>
     : public CastTraits<TrustedByteArray> {};
 
-template <class T, typename std::enable_if_t<
-                       (std::is_arithmetic_v<T> ||
-                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                       int>>
-T HeapObject::Relaxed_ReadField(size_t offset) const {
+template <class T>
+T HeapObject::Relaxed_ReadField(size_t offset) const
+  requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+           !std::is_floating_point_v<T>)
+{
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic loads must be aligned.
   DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
@@ -306,11 +306,11 @@ T HeapObject::Relaxed_ReadField(size_t offset) const {
       reinterpret_cast<AtomicT*>(field_address(offset))));
 }
 
-template <class T, typename std::enable_if_t<
-                       (std::is_arithmetic_v<T> ||
-                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                       int>>
-void HeapObject::Relaxed_WriteField(size_t offset, T value) {
+template <class T>
+void HeapObject::Relaxed_WriteField(size_t offset, T value)
+  requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+           !std::is_floating_point_v<T>)
+{
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic stores must be aligned.
   DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
@@ -320,11 +320,11 @@ void HeapObject::Relaxed_WriteField(size_t offset, T value) {
       static_cast<AtomicT>(value));
 }
 
-template <class T, typename std::enable_if_t<
-                       (std::is_arithmetic_v<T> ||
-                        std::is_enum_v<T>)&&!std::is_floating_point_v<T>,
-                       int>>
-T HeapObject::Acquire_ReadField(size_t offset) const {
+template <class T>
+T HeapObject::Acquire_ReadField(size_t offset) const
+  requires((std::is_arithmetic_v<T> || std::is_enum_v<T>) &&
+           !std::is_floating_point_v<T>)
+{
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic loads must be aligned.
   DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
@@ -776,7 +776,8 @@ bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<JSReceiver>::MaybeType Object::ToObject(
     Isolate* isolate, HandleType<T> object, const char* method_name) {
   if (IsJSReceiver(*object)) return Cast<JSReceiver>(object);
@@ -784,15 +785,18 @@ typename HandleType<JSReceiver>::MaybeType Object::ToObject(
 }
 
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
 typename HandleType<Name>::MaybeType Object::ToName(Isolate* isolate,
-                                                    HandleType<Object> input) {
+                                                    HandleType<Object> input)
+  requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+{
   if (IsName(*input)) return Cast<Name>(input);
   return ConvertToName(isolate, input);
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::ToPropertyKey(
     Isolate* isolate, HandleType<T> value) {
   if (IsSmi(*value) || IsName(Cast<HeapObject>(*value))) return value;
@@ -800,7 +804,8 @@ typename HandleType<Object>::MaybeType Object::ToPropertyKey(
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::ToPrimitive(
     Isolate* isolate, HandleType<T> input, ToPrimitiveHint hint) {
   if (IsPrimitive(*input)) return input;
@@ -808,7 +813,8 @@ typename HandleType<Object>::MaybeType Object::ToPrimitive(
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToNumber(Isolate* isolate,
                                                         HandleType<T> input) {
   if (IsNumber(*input)) return Cast<Number>(input);  // Shortcut.
@@ -816,7 +822,8 @@ typename HandleType<Number>::MaybeType Object::ToNumber(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::ToNumeric(Isolate* isolate,
                                                          HandleType<T> input) {
   if (IsNumber(*input) || IsBigInt(*input)) return input;  // Shortcut.
@@ -824,7 +831,8 @@ typename HandleType<Object>::MaybeType Object::ToNumeric(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToInteger(Isolate* isolate,
                                                          HandleType<T> input) {
   if (IsSmi(*input)) return Cast<Smi>(input);
@@ -832,7 +840,8 @@ typename HandleType<Number>::MaybeType Object::ToInteger(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToInt32(Isolate* isolate,
                                                        HandleType<T> input) {
   if (IsSmi(*input)) return Cast<Smi>(input);
@@ -840,7 +849,8 @@ typename HandleType<Number>::MaybeType Object::ToInt32(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
                                                         HandleType<T> input) {
   if (IsSmi(*input)) {
@@ -850,7 +860,8 @@ typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<String>::MaybeType Object::ToString(Isolate* isolate,
                                                         HandleType<T> input) {
   if (IsString(*input)) return Cast<String>(input);
@@ -868,7 +879,8 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::ToIndex(
     Isolate* isolate, HandleType<T> input, MessageTemplate error_index) {
   if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return input;
@@ -1848,7 +1860,8 @@ bool IsShared(Tagged<Object> obj) {
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::Share(
     Isolate* isolate, HandleType<T> value,
     ShouldThrow throw_if_cannot_be_shared) {

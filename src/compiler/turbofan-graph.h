@@ -66,10 +66,10 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
   // Factory template for nodes with static input counts.
   // Note: Template magic below is used to ensure this method is only considered
   // for argument types convertible to Node* during overload resolution.
-  template <typename... Nodes,
-            typename = typename std::enable_if_t<
-                std::conjunction_v<std::is_convertible<Nodes, Node*>...>>>
-  Node* NewNode(const Operator* op, Nodes... nodes) {
+  template <typename... Nodes>
+  Node* NewNode(const Operator* op, Nodes... nodes)
+    requires(std::conjunction_v<std::is_convertible<Nodes, Node*>...>)
+  {
     std::array<Node*, sizeof...(nodes)> nodes_arr{
         {static_cast<Node*>(nodes)...}};
     return NewNode(op, nodes_arr.size(), nodes_arr.data());

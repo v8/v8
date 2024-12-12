@@ -266,8 +266,10 @@ V8_INLINE size_t hash_value(std::tuple<T...> const& v) {
   return hash_value_impl(v, std::make_index_sequence<sizeof...(T)>());
 }
 
-template <typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
-V8_INLINE size_t hash_value(T v) {
+template <typename T>
+V8_INLINE size_t hash_value(T v)
+  requires std::is_enum<T>::value
+{
   return hash_value(static_cast<std::underlying_type_t<T>>(v));
 }
 

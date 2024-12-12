@@ -89,9 +89,10 @@ class Result {
   // Implicitly convert a Result<T> to Result<U> if T implicitly converts to U.
   // Only provide that for r-value references (i.e. temporary objects) though,
   // to be used if passing or returning a result by value.
-  template <typename U,
-            typename = std::enable_if_t<std::is_assignable_v<U, T&&>>>
-  operator Result<U>() const&& {
+  template <typename U>
+  operator Result<U>() const&&
+    requires(std::is_assignable_v<U, T &&>)
+  {
     return ok() ? Result<U>{std::move(value_)} : Result<U>{error_};
   }
 

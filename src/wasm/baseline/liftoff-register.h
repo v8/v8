@@ -372,12 +372,13 @@ class LiftoffRegList {
 
   // Allow to construct LiftoffRegList from a number of
   // {Register|DoubleRegister|LiftoffRegister}.
-  template <
-      typename... Regs,
-      typename = std::enable_if_t<std::conjunction_v<std::disjunction<
-          std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
-          std::is_same<LiftoffRegister, Regs>>...>>>
-  constexpr explicit LiftoffRegList(Regs... regs) {
+  template <typename... Regs>
+  constexpr explicit LiftoffRegList(Regs... regs)
+    requires(
+        std::conjunction_v<std::disjunction<
+            std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
+            std::is_same<LiftoffRegister, Regs>>...>)
+  {
     (..., set(regs));
   }
 

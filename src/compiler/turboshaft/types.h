@@ -120,27 +120,35 @@ struct Payload_OutlineSet {
 }  // namespace detail
 
 template <typename T>
-std::enable_if_t<std::is_floating_point<T>::value, T> next_smaller(T v) {
+T next_smaller(T v)
+  requires std::is_floating_point<T>::value
+{
   DCHECK(!std::isnan(v));
   DCHECK_LT(-std::numeric_limits<T>::infinity(), v);
   return std::nextafter(v, -std::numeric_limits<T>::infinity());
 }
 
 template <typename T>
-std::enable_if_t<std::is_floating_point<T>::value, T> next_larger(T v) {
+T next_larger(T v)
+  requires std::is_floating_point<T>::value
+{
   DCHECK(!std::isnan(v));
   DCHECK_LT(v, std::numeric_limits<T>::infinity());
   return std::nextafter(v, std::numeric_limits<T>::infinity());
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral<T>::value, T> next_smaller(T v) {
+T next_smaller(T v)
+  requires std::is_integral<T>::value
+{
   DCHECK_LT(std::numeric_limits<T>::min(), v);
   return v - 1;
 }
 
 template <typename T>
-std::enable_if_t<std::is_integral<T>::value, T> next_larger(T v) {
+T next_larger(T v)
+  requires std::is_integral<T>::value
+{
   DCHECK_LT(v, std::numeric_limits<T>::max());
   return v + 1;
 }

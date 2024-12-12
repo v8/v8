@@ -272,11 +272,10 @@ V8_OBJECT class BigInt : public BigIntBase {
       Isolate* isolate, DirectHandle<Object> number);
 
   // ECMAScript's ToBigInt (throws for Number input)
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static typename HandleType<BigInt>::MaybeType
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) static
+      typename HandleType<BigInt>::MaybeType
       FromObject(Isolate* isolate, HandleType<Object> obj);
 
   class BodyDescriptor;

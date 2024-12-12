@@ -34,7 +34,8 @@ namespace internal {
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-template <typename T, typename>
+template <typename T>
+  requires(std::is_convertible_v<Handle<T>, Handle<String>>)
 Handle<String> Factory::InternalizeString(Handle<T> string) {
   // T should be a subtype of String, which is enforced by the second template
   // argument.
@@ -43,7 +44,8 @@ Handle<String> Factory::InternalizeString(Handle<T> string) {
       isolate()->string_table()->LookupString(isolate(), string), isolate());
 }
 
-template <typename T, typename>
+template <typename T>
+  requires(std::is_convertible_v<Handle<T>, Handle<Name>>)
 Handle<Name> Factory::InternalizeName(Handle<T> name) {
   // T should be a subtype of Name, which is enforced by the second template
   // argument.
@@ -53,7 +55,8 @@ Handle<Name> Factory::InternalizeName(Handle<T> name) {
       isolate());
 }
 
-template <typename T, typename>
+template <typename T>
+  requires(std::is_convertible_v<DirectHandle<T>, DirectHandle<String>>)
 DirectHandle<String> Factory::InternalizeString(DirectHandle<T> string) {
   // T should be a subtype of String, which is enforced by the second template
   // argument.
@@ -61,7 +64,8 @@ DirectHandle<String> Factory::InternalizeString(DirectHandle<T> string) {
   return isolate()->string_table()->LookupString(isolate(), string);
 }
 
-template <typename T, typename>
+template <typename T>
+  requires(std::is_convertible_v<DirectHandle<T>, DirectHandle<Name>>)
 DirectHandle<Name> Factory::InternalizeName(DirectHandle<T> name) {
   // T should be a subtype of Name, which is enforced by the second template
   // argument.
@@ -83,7 +87,8 @@ Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
       .ToHandleChecked();
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, HandleType<String>>)
 HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,
                                          uint32_t end) {
   if (begin == 0 && end == str->length()) return str;

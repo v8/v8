@@ -93,11 +93,12 @@ inline void CallOnce(OnceType* once, std::function<void()> init_func) {
   }
 }
 
-template <typename... Args, typename = std::enable_if_t<
-                                std::conjunction_v<std::is_scalar<Args>...>>>
+template <typename... Args>
 inline void CallOnce(OnceType* once,
                      typename FunctionWithArgs<Args...>::type init_func,
-                     Args... args) {
+                     Args... args)
+  requires(std::conjunction_v<std::is_scalar<Args>...>)
+{
   if (once->load(std::memory_order_acquire) != ONCE_STATE_DONE) {
     CallOnceImpl(once, [=]() { init_func(args...); });
   }

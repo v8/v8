@@ -74,10 +74,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return persistent_handles_->NewHandle(object);
   }
 
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
-  IndirectHandle<T> NewPersistentHandle(HandleType<T> object) {
+  template <typename T, template <typename> typename HandleType>
+  IndirectHandle<T> NewPersistentHandle(HandleType<T> object)
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
+  {
     return NewPersistentHandle(*object);
   }
 
@@ -87,11 +87,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return NewPersistentHandle(Tagged<T>(object));
   }
 
-  template <typename T, template <typename> typename MaybeHandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                MaybeHandleType<T>, MaybeDirectHandle<T>>>>
+  template <typename T, template <typename> typename MaybeHandleType>
   MaybeIndirectHandle<T> NewPersistentMaybeHandle(
-      MaybeHandleType<T> maybe_handle) {
+      MaybeHandleType<T> maybe_handle)
+    requires(std::is_convertible_v<MaybeHandleType<T>, MaybeDirectHandle<T>>)
+  {
     DirectHandle<T> handle;
     if (maybe_handle.ToHandle(&handle)) {
       return NewPersistentHandle(handle);

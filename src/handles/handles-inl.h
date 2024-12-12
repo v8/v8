@@ -250,7 +250,8 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
 #endif
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 HandleType<T> HandleScope::CloseAndEscape(HandleType<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
   Tagged<T> value = *handle_value;

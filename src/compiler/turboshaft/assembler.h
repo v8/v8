@@ -336,10 +336,11 @@ class ConditionWithHint final {
       BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
       : condition_(condition), hint_(hint) {}
 
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
+  template <typename T>
   ConditionWithHint(
       T condition,
       BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
+    requires(std::is_same_v<T, OpIndex>)
       : ConditionWithHint(V<Word32>{condition}, hint) {}
 
   V<Word32> condition() const { return condition_; }
@@ -854,23 +855,23 @@ class Var : protected Variable {
   V<T> Get() const { return assembler_.GetVariable(*this); }
 
   void operator=(value_type new_value) { Set(new_value); }
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator V<U>() const {
+  template <typename U>
+  operator V<U>() const
+    requires v_traits<U>::template
+  implicitly_constructible_from<T>::value {
     return Get();
   }
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator OptionalV<U>() const {
+  template <typename U>
+  operator OptionalV<U>() const
+    requires v_traits<U>::template
+  implicitly_constructible_from<T>::value {
     return Get();
   }
-  template <typename U,
-            typename = std::enable_if_t<
-                const_or_v_exists_v<U> &&
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator ConstOrV<U>() const {
+  template <typename U>
+  operator ConstOrV<U>() const
+    requires(const_or_v_exists_v<U> &&
+             v_traits<U>::template implicitly_constructible_from<T>::value)
+  {
     return Get();
   }
   operator OpIndex() const { return Get(); }
@@ -2337,20 +2338,23 @@ class TurboshaftAssemblerOpInterface
   }
   // TODO(nicohartmann): Maybe we should replace all uses of `HeapConstant` with
   // `HeapConstant[No|Maybe]?Hole` version.
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstant(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstant(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject,
                                      ConstantOp::Storage{value});
   }
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstantMaybeHole(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstantMaybeHole(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
     return __ HeapConstant(value);
   }
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstantNoHole(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstantNoHole(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
     CHECK(!IsAnyHole(*value));
     return __ HeapConstant(value);
   }
@@ -2905,10 +2909,10 @@ class TurboshaftAssemblerOpInterface
     return LoadFieldImpl<Rep>(raw_base, access);
   }
 
-  template <typename Obj, typename Class, typename T,
-            typename = std::enable_if_t<v_traits<
-                Class>::template implicitly_constructible_from<Obj>::value>>
-  V<T> LoadField(V<Obj> object, const FieldAccessTS<Class, T>& field) {
+  template <typename Obj, typename Class, typename T>
+  V<T> LoadField(V<Obj> object, const FieldAccessTS<Class, T>& field)
+    requires v_traits<Class>::template
+  implicitly_constructible_from<Obj>::value {
     return LoadFieldImpl<T>(object, field);
   }
 
@@ -2976,9 +2980,10 @@ class TurboshaftAssemblerOpInterface
         heap_number, AccessBuilderTS::ForHeapInt32Value());
   }
 
-  template <typename Type = Object,
-            typename = std::enable_if_t<is_subtype_v<Type, Object>>>
-  V<Type> LoadTaggedField(V<Object> object, int field_offset) {
+  template <typename Type = Object>
+  V<Type> LoadTaggedField(V<Object> object, int field_offset)
+    requires(is_subtype_v<Type, Object>)
+  {
     return Load(object, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(), field_offset);
   }
@@ -3327,11 +3332,12 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context, const typename Descriptor::arguments_t& args,
-              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, const typename Descriptor::arguments_t& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+    requires(Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3354,10 +3360,11 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<Context> context,
-              const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, V<Context> context,
+      const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3378,11 +3385,12 @@ class TurboshaftAssemblerOpInterface
         Descriptor::kEffects));
   }
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              const typename Descriptor::arguments_t& args,
-              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      const typename Descriptor::arguments_t& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+    requires(Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3402,9 +3410,10 @@ class TurboshaftAssemblerOpInterface
         Descriptor::kEffects));
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3427,10 +3436,10 @@ class TurboshaftAssemblerOpInterface
 #if V8_ENABLE_WEBASSEMBLY
 
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  WasmCallBuiltinThroughJumptable(
-      const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t>
+  WasmCallBuiltinThroughJumptable(const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsContext)
+  {
     static_assert(!Descriptor::kNeedsFrameState);
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3454,10 +3463,11 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  WasmCallBuiltinThroughJumptable(
-      V<Context> context, const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t>
+  WasmCallBuiltinThroughJumptable(V<Context> context,
+                                  const typename Descriptor::arguments_t& args)
+    requires Descriptor::kNeedsContext
+  {
     static_assert(!Descriptor::kNeedsFrameState);
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3785,10 +3795,12 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-              const typename Descriptor::arguments_t& args) {
+  typename Descriptor::result_t CallRuntime(
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
+      const typename Descriptor::arguments_t& args)
+    requires Descriptor::kNeedsFrameState
+  {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -3801,9 +3813,11 @@ class TurboshaftAssemblerOpInterface
         frame_state, context, args);
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, V<Context> context,
-              const typename Descriptor::arguments_t& args) {
+  typename Descriptor::result_t CallRuntime(
+      Isolate* isolate, V<Context> context,
+      const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsFrameState)
+  {
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }

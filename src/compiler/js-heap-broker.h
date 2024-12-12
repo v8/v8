@@ -585,9 +585,11 @@ class V8_NODISCARD JSHeapBrokerScopeForTesting {
   JSHeapBroker* const broker_;
 };
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
+template <class T>
 OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
-                                                         ObjectData* data) {
+                                                         ObjectData* data)
+  requires(is_subtype_v<T, Object>)
+{
   if (data == nullptr) return {};
   return {typename ref_traits<T>::ref_type(data)};
 }
@@ -600,9 +602,11 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
 // or
 //
 //  FooRef ref = MakeRef(broker, o);
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
+template <class T>
 OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
-    JSHeapBroker* broker, Tagged<T> object, GetOrCreateDataFlags flags = {}) {
+    JSHeapBroker* broker, Tagged<T> object, GetOrCreateDataFlags flags = {})
+  requires(is_subtype_v<T, Object>)
+{
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
@@ -610,9 +614,11 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
   return TryMakeRef<T>(broker, data);
 }
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
+template <class T>
 OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
-    JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {}) {
+    JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {})
+  requires(is_subtype_v<T, Object>)
+{
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
     DCHECK_EQ(flags & kCrashOnError, 0);
@@ -621,27 +627,33 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
   return TryMakeRef<T>(broker, data);
 }
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
-typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
-                                         Tagged<T> object) {
+template <class T>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, Tagged<T> object)
+  requires(is_subtype_v<T, Object>)
+{
   return TryMakeRef(broker, object, kCrashOnError).value();
 }
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
-typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
-                                         Handle<T> object) {
+template <class T>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, Handle<T> object)
+  requires(is_subtype_v<T, Object>)
+{
   return TryMakeRef(broker, object, kCrashOnError).value();
 }
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
+template <class T>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
-                                                          Tagged<T> object) {
+                                                          Tagged<T> object)
+  requires(is_subtype_v<T, Object>)
+{
   return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 
-template <class T, typename = std::enable_if_t<is_subtype_v<T, Object>>>
+template <class T>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
-                                                          Handle<T> object) {
+                                                          Handle<T> object)
+  requires(is_subtype_v<T, Object>)
+{
   return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 

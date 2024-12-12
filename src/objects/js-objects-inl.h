@@ -616,7 +616,8 @@ void JSObject::InitializeBody(Tagged<Map> map, int start_offset,
   }
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 inline typename HandleType<Object>::MaybeType
 JSObject::DefineOwnPropertyIgnoreAttributes(LookupIterator* it,
                                             HandleType<T> value,

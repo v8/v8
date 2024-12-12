@@ -1593,14 +1593,16 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
     return InputsRepFactory::PairOf(rep);
   }
 
-  template <class WordType = Word,
-            typename = std::enable_if_t<IsWord<WordType>()>>
-  V<WordType> left() const {
+  template <class WordType = Word>
+  V<WordType> left() const
+    requires(IsWord<WordType>())
+  {
     return input<WordType>(0);
   }
-  template <class WordType = Word,
-            typename = std::enable_if_t<IsWord<WordType>()>>
-  V<WordType> right() const {
+  template <class WordType = Word>
+  V<WordType> right() const
+    requires(IsWord<WordType>())
+  {
     return input<WordType>(1);
   }
 
@@ -9226,20 +9228,22 @@ constexpr size_t input_count() { return 0; }
 
 // All parameters that are not OpIndex and should thus not count towards the
 // "input_count" of the operations.
-template <typename T, typename = std::enable_if_t<std::is_enum_v<T> ||
-                                                  std::is_integral_v<T> ||
-                                                  std::is_floating_point_v<T>>>
-constexpr size_t input_count(T) {
+template <typename T>
+constexpr size_t input_count(T)
+  requires(std::is_enum_v<T> || std::is_integral_v<T> ||
+           std::is_floating_point_v<T>)
+{
   return 0;
 }
 // TODO(42203211): The first parameter should be just DirectHandle<T> and
 // MaybeDirectHandle<T> but now it does not compile with implicit Handle to
 // DirectHandle conversions.
-template <template <typename> typename HandleType, typename T,
-          typename = std::enable_if_t<std::disjunction_v<
-              std::is_convertible<HandleType<T>, DirectHandle<T>>,
-              std::is_convertible<HandleType<T>, MaybeDirectHandle<T>>>>>
-constexpr size_t input_count(const HandleType<T>) {
+template <template <typename> typename HandleType, typename T>
+constexpr size_t input_count(const HandleType<T>)
+  requires(std::disjunction_v<
+           std::is_convertible<HandleType<T>, DirectHandle<T>>,
+           std::is_convertible<HandleType<T>, MaybeDirectHandle<T>>>)
+{
   return 0;
 }
 template <typename T>

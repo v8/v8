@@ -637,7 +637,8 @@ const Char* String::GetDirectStringChars(
 // component builds works only without the EXPORT_TEMPLATE_DECLARE macro.
 //
 // static
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
 V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
     Isolate* isolate, HandleType<ConsString> cons, AllocationType allocation) {
   DCHECK(!cons->IsFlat());
@@ -731,7 +732,8 @@ V8_EXPORT_PRIVATE HandleType<String> String::SlowFlatten(
 // Note that RegExpExecInternal currently relies on this to in-place flatten
 // the input `string`.
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
 HandleType<String> String::Flatten(Isolate* isolate, HandleType<T> string,
                                    AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
@@ -768,7 +770,8 @@ HandleType<String> String::Flatten(Isolate* isolate, HandleType<T> string,
 }
 
 // static
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
 HandleType<String> String::Flatten(LocalIsolate* isolate, HandleType<T> string,
                                    AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
@@ -866,7 +869,8 @@ String::FlatContent String::GetFlatContent(
   return SlowGetFlatContent(no_gc, access_guard);
 }
 
-template <typename T, template <typename> typename HandleType, typename>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
 HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
   DCHECK(v8_flags.shared_string_table);
   MaybeDirectHandle<Map> new_map;

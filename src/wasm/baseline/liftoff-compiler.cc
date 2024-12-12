@@ -1995,14 +1995,16 @@ class LiftoffCompiler {
   }
 
   template <typename EmitFn, typename... Args>
-  typename std::enable_if<!std::is_member_function_pointer<EmitFn>::value>::type
-  CallEmitFn(EmitFn fn, Args... args) {
+  void CallEmitFn(EmitFn fn, Args... args)
+    requires(!std::is_member_function_pointer<EmitFn>::value)
+  {
     fn(args...);
   }
 
   template <typename EmitFn, typename... Args>
-  typename std::enable_if<std::is_member_function_pointer<EmitFn>::value>::type
-  CallEmitFn(EmitFn fn, Args... args) {
+  void CallEmitFn(EmitFn fn, Args... args)
+    requires std::is_member_function_pointer<EmitFn>::value
+  {
     (asm_.*fn)(ConvertAssemblerArg(args)...);
   }
 

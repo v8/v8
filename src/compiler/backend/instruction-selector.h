@@ -1115,11 +1115,11 @@ class InstructionSelectorT final : public Adapter {
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
-  template <const int simd_size = kSimd128Size,
-            typename = std::enable_if_t<simd_size == kSimd128Size ||
-                                        simd_size == kSimd256Size>>
+  template <const int simd_size = kSimd128Size>
   void CanonicalizeShuffle(typename Adapter::SimdShuffleView& view,
-                           uint8_t* shuffle, bool* is_swizzle) {
+                           uint8_t* shuffle, bool* is_swizzle)
+    requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
+  {
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
       DCHECK(view.isSimd128());

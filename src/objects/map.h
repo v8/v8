@@ -749,11 +749,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
   // gathering type feedback. Use TryUpdate in those cases instead.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<Map>, DirectHandle<Map>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static HandleType<Map> Update(Isolate* isolate, HandleType<Map> map);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Map>, DirectHandle<Map>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) static HandleType<Map> Update(
+      Isolate* isolate, HandleType<Map> map);
 
   static inline Handle<Map> CopyInitialMap(Isolate* isolate,
                                            DirectHandle<Map> map);

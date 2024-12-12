@@ -94,9 +94,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
                                        InternalIndex entry);
 
   // ES6 section 7.1.1 ToPrimitive
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<JSReceiver>, DirectHandle<JSReceiver>>>>
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Object>::MaybeType
   ToPrimitive(Isolate* isolate, HandleType<JSReceiver> receiver,
               ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
@@ -466,9 +466,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // to the default behavior that calls the setter.
   enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
 
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, HandleType<T> value, PropertyAttributes attributes,

@@ -25,19 +25,16 @@ class PropertyKey {
  public:
   inline PropertyKey(Isolate* isolate, double index);
   // {name} might be a string representation of an element index.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>)
   inline PropertyKey(Isolate* isolate, HandleType<Name> name);
   // {valid_key} is a Name or Number.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   inline PropertyKey(Isolate* isolate, HandleType<T> valid_key);
   // {key} could be anything.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   PropertyKey(Isolate* isolate, HandleType<T> key, bool* success);
 
   inline bool is_element() const;
@@ -49,9 +46,8 @@ class PropertyKey {
   friend LookupIterator;
 
   // Shortcut for constructing PropertyKey from an active LookupIterator.
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Name>, DirectHandle<Name>>)
   inline PropertyKey(Isolate* isolate, HandleType<Name> name, size_t index);
 
   DirectHandle<Name> name_;

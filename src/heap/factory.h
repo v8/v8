@@ -236,20 +236,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Handle's constructor. When the migration to DirectHandle is complete,
   // these functions can accept simply a DirectHandle<String> or
   // DirectHandle<Name>.
-  template <typename T, typename = std::enable_if_t<
-                            std::is_convertible_v<Handle<T>, Handle<String>>>>
+  template <typename T>
+    requires(std::is_convertible_v<Handle<T>, Handle<String>>)
   inline Handle<String> InternalizeString(Handle<T> string);
 
-  template <typename T, typename = std::enable_if_t<
-                            std::is_convertible_v<Handle<T>, Handle<Name>>>>
+  template <typename T>
+    requires(std::is_convertible_v<Handle<T>, Handle<Name>>)
   inline Handle<Name> InternalizeName(Handle<T> name);
 
-  template <typename T, typename = std::enable_if_t<std::is_convertible_v<
-                            DirectHandle<T>, DirectHandle<String>>>>
+  template <typename T>
+    requires(std::is_convertible_v<DirectHandle<T>, DirectHandle<String>>)
   inline DirectHandle<String> InternalizeString(DirectHandle<T> string);
 
-  template <typename T, typename = std::enable_if_t<std::is_convertible_v<
-                            DirectHandle<T>, DirectHandle<Name>>>>
+  template <typename T>
+    requires(std::is_convertible_v<DirectHandle<T>, DirectHandle<Name>>)
   inline DirectHandle<Name> InternalizeName(DirectHandle<T> name);
 
   // String creation functions.  Most of the string creation functions take
@@ -374,9 +374,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                     uint32_t length);
 
   // Create a new string object which holds a substring of a string.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, HandleType<String>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, HandleType<String>>)
   inline HandleType<String> NewSubString(HandleType<T> str, uint32_t begin,
                                          uint32_t end);
 
@@ -907,11 +906,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewSuppressedErrorAtDisposal(
       Isolate* isolate, Handle<Object> error, Handle<Object> suppressed_error);
 
-  template <typename... Args,
-            typename = std::enable_if_t<std::conjunction_v<
-                std::is_convertible<Args, DirectHandle<Object>>...>>>
+  template <typename... Args>
   Handle<JSObject> NewError(DirectHandle<JSFunction> constructor,
-                            MessageTemplate template_index, Args... args) {
+                            MessageTemplate template_index, Args... args)
+    requires(
+        std::conjunction_v<std::is_convertible<Args, DirectHandle<Object>>...>)
+  {
     return NewError(constructor, template_index,
                     base::VectorOf<DirectHandle<Object>>({args...}));
   }
@@ -921,12 +921,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Object> original, MessageTemplate template_index,
       base::Vector<const DirectHandle<Object>> args);
 
-  template <typename... Args,
-            typename = std::enable_if_t<std::conjunction_v<
-                std::is_convertible<Args, DirectHandle<Object>>...>>>
+  template <typename... Args>
   Handle<JSObject> ShadowRealmNewTypeErrorCopy(Handle<Object> original,
                                                MessageTemplate template_index,
-                                               Args... args) {
+                                               Args... args)
+    requires(
+        std::conjunction_v<std::is_convertible<Args, DirectHandle<Object>>...>)
+  {
     return ShadowRealmNewTypeErrorCopy(
         original, template_index,
         base::VectorOf<DirectHandle<Object>>({args...}));
@@ -936,9 +937,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> New##NAME(MessageTemplate template_index,                 \
                              base::Vector<const DirectHandle<Object>> args); \
                                                                              \
-  template <typename... Args,                                                \
-            typename = std::enable_if_t<std::conjunction_v<                  \
-                std::is_convertible<Args, DirectHandle<Object>>...>>>        \
+  template <typename... Args>                                                \
+    requires(std::is_convertible_v<Args, DirectHandle<Object>> && ...)       \
   Handle<JSObject> New##NAME(MessageTemplate template_index, Args... args) { \
     return New##NAME(template_index,                                         \
                      base::VectorOf<DirectHandle<Object>>({args...}));       \

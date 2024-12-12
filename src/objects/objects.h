@@ -209,9 +209,8 @@ class Object : public AllStatic {
   // Passing a non-null method_name allows us to give a more informative
   // error message for those cases where ToObject is being called on
   // the receiver of a built-in method.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<JSReceiver>::MaybeType
   ToObject(Isolate* isolate, HandleType<T> object,
            const char* method_name = nullptr);
@@ -224,58 +223,50 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<Object> object);
 
   // ES6 section 7.1.14 ToPropertyKey
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Name>::MaybeType
-  ToName(Isolate* isolate, HandleType<Object> input);
+  ToName(Isolate* isolate, HandleType<Object> input)
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>);
 
   // ES6 section 7.1.1 ToPrimitive
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   ToPrimitive(Isolate* isolate, HandleType<T> input,
               ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
   ToNumber(Isolate* isolate, HandleType<T> input);
 
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   ToNumeric(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.4 ToInteger
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
   ToInteger(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.5 ToInt32
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
   ToInt32(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.6 ToUint32
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Number>::MaybeType
   ToUint32(Isolate* isolate, HandleType<T> input);
 
   // ES6 section 7.1.12 ToString
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<String>::MaybeType
   ToString(Isolate* isolate, HandleType<T> input);
 
@@ -286,9 +277,8 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<Object> input);
 
   // ES6 section 7.1.14 ToPropertyKey
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   ToPropertyKey(Isolate* isolate, HandleType<T> value);
 
@@ -297,9 +287,8 @@ class Object : public AllStatic {
       Isolate* isolate, DirectHandle<Object> input);
 
   // ES6 section 7.1.17 ToIndex
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   ToIndex(Isolate* isolate, HandleType<T> input, MessageTemplate error_index);
 
@@ -545,16 +534,14 @@ class Object : public AllStatic {
 
   // Returns an equivalent value that's safe to share across Isolates if
   // possible. Acts as the identity function when value->IsShared().
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<Object>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   static inline typename HandleType<Object>::MaybeType Share(
       Isolate* isolate, HandleType<T> value,
       ShouldThrow throw_if_cannot_be_shared);
 
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<HeapObject>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   static typename HandleType<Object>::MaybeType ShareSlow(
       Isolate* isolate, HandleType<HeapObject> value,
       ShouldThrow throw_if_cannot_be_shared);
@@ -589,55 +576,46 @@ class Object : public AllStatic {
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw, StoreOrigin store_origin, bool* found);
 
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Name>::MaybeType
   ConvertToName(Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Object>::MaybeType
   ConvertToPropertyKey(Isolate* isolate, HandleType<Object> value);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  V8_WARN_UNUSED_RESULT static typename HandleType<String>::MaybeType
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) V8_WARN_UNUSED_RESULT static
+      typename HandleType<String>::MaybeType
       ConvertToString(Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
   ConvertToNumber(Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Numeric>::MaybeType
   ConvertToNumeric(Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) V8_WARN_UNUSED_RESULT static
+      typename HandleType<Number>::MaybeType
       ConvertToInteger(Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToInt32(
       Isolate* isolate, HandleType<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
   V8_WARN_UNUSED_RESULT static HandleType<Number>::MaybeType ConvertToUint32(
       Isolate* isolate, HandleType<Object> input);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Number>
   ConvertToLength(Isolate* isolate, DirectHandle<Object> input);
-  template <template <typename> typename HandleType,
-            typename = std::enable_if_t<std::is_convertible_v<
-                HandleType<Object>, DirectHandle<Object>>>>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  V8_WARN_UNUSED_RESULT static typename HandleType<Number>::MaybeType
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) V8_WARN_UNUSED_RESULT static
+      typename HandleType<Number>::MaybeType
       ConvertToIndex(Isolate* isolate, HandleType<Object> input,
                      MessageTemplate error_index);
 };

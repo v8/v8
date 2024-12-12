@@ -964,7 +964,8 @@ MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
   return MutableBigInt::NewFromDouble(isolate, value);
 }
 
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
 typename HandleType<BigInt>::MaybeType BigInt::FromObject(
     Isolate* isolate, HandleType<Object> obj) {
   if (IsJSReceiver(*obj)) {

@@ -39,7 +39,9 @@ void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
   Super::RightTrim(isolate, new_capacity);
 }
 
-template <template <typename> typename HandleType, typename>
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
 HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
     Isolate* isolate, HandleType<FixedArray> array, int new_length) {
   if (new_length == 0) {

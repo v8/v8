@@ -162,8 +162,10 @@ class Handle final : public HandleBase {
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
+  template <typename S>
+  V8_INLINE Handle(Handle<S> handle)
+    requires(is_subtype_v<S, T>)
+      : HandleBase(handle) {}
 
   // Access a member of the T object referenced by this handle.
   //
@@ -296,9 +298,8 @@ class V8_NODISCARD HandleScope {
   // closes the scope (which is done by the scope's destructor anyway)
   // and returns its parameter. This will be cleaned up after direct
   // handles ship.
-  template <typename T, template <typename> typename HandleType,
-            typename = std::enable_if_t<
-                std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
   Isolate* isolate() { return isolate_; }
@@ -664,11 +665,15 @@ class V8_TRIVIAL_ABI DirectHandle :
   V8_INLINE DirectHandle(Tagged<T> object, LocalHeap* local_heap)
       : handle_(object, local_heap) {}
 
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE DirectHandle(DirectHandle<S> handle) : handle_(handle.handle_) {}
+  template <typename S>
+  V8_INLINE DirectHandle(DirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
+      : handle_(handle.handle_) {}
 
-  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
-  V8_INLINE DirectHandle(IndirectHandle<S> handle) : handle_(handle) {}
+  template <typename S>
+  V8_INLINE DirectHandle(IndirectHandle<S> handle)
+    requires(is_subtype_v<S, T>)
+      : handle_(handle) {}
 
   V8_INLINE IndirectHandle<T> operator->() const { return handle_; }
   V8_INLINE Tagged<T> operator*() const { return *handle_; }
@@ -964,9 +969,8 @@ class DirectHandleVector {
   vector_type backing_;
 };
 
-template <typename T, template <typename> typename HandleType,
-          typename = std::enable_if<
-              std::is_convertible_v<HandleType<T>, DirectHandle<T>>>>
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 V8_INLINE DirectHandle<T> direct_handle(HandleType<T> handle) {
   return handle;
 }
