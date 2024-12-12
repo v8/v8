@@ -9,6 +9,7 @@
 
 #include "include/v8-memory-span.h"
 #include "src/base/bit-field.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/fixed-array.h"
@@ -141,7 +142,8 @@ enum class ObjectFields {
   kMaybePointers,
 };
 
-using MapHandles = std::vector<Handle<Map>>;
+using MapHandles =
+    base::SmallVector<Handle<Map>, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
 using MapHandlesSpan = v8::MemorySpan<Handle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"

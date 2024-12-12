@@ -2560,7 +2560,8 @@ DEFINE_GENERIC_IMPLICATION(
                 v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
-DEFINE_INT(max_valid_polymorphic_map_count, 4,
+#define DEFAULT_MAX_POLYMORPHIC_MAP_COUNT 4
+DEFINE_INT(max_valid_polymorphic_map_count, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT,
            "maximum number of valid maps to track in POLYMORPHIC state")
 DEFINE_BOOL(
     clone_object_sidestep_transitions, true,

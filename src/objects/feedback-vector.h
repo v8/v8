@@ -11,6 +11,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/small-vector.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-cell.h"
@@ -82,6 +83,8 @@ static constexpr int kFeedbackSlotKindCount =
     static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
+using MapsAndHandlers =
+    base::SmallVector<MapAndHandler, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
@@ -874,7 +877,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // the extra feedback. This is used by ICs when updating the handlers.
   using TryUpdateHandler = std::function<MaybeHandle<Map>(Handle<Map>)>;
   int ExtractMapsAndHandlers(
-      std::vector<MapAndHandler>* maps_and_handlers,
+      MapsAndHandlers* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
   MaybeObjectHandle FindHandlerForMap(DirectHandle<Map> map) const;
   // Used to obtain maps. This is used by compilers to get all the feedback
@@ -904,9 +907,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
                             DirectHandle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
-  void ConfigurePolymorphic(
-      DirectHandle<Name> name,
-      std::vector<MapAndHandler> const& maps_and_handlers);
+  void ConfigurePolymorphic(DirectHandle<Name> name,
+                            MapsAndHandlers const& maps_and_handlers);
 
   void ConfigureMegaDOM(const MaybeObjectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();

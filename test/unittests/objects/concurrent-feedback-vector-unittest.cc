@@ -231,7 +231,7 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
     }
 
     // Go polymorphic.
-    std::vector<MapAndHandler> map_and_handlers;
+    MapsAndHandlers map_and_handlers;
     map_and_handlers.push_back(
         MapAndHandler(Handle<Map>(o1->map(), i_isolate()), dummy_handler));
     map_and_handlers.push_back(

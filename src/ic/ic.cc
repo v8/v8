@@ -371,7 +371,7 @@ void IC::ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
 void IC::ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
-  std::vector<MapAndHandler> maps_and_handlers;
+  MapsAndHandlers maps_and_handlers;
   maps_and_handlers.reserve(maps.size());
   DCHECK_EQ(maps.size(), handlers->size());
   for (size_t i = 0; i < maps.size(); i++) {
@@ -380,9 +380,8 @@ void IC::ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
   ConfigureVectorState(name, maps_and_handlers);
 }
 
-void IC::ConfigureVectorState(
-    DirectHandle<Name> name,
-    std::vector<MapAndHandler> const& maps_and_handlers) {
+void IC::ConfigureVectorState(DirectHandle<Name> name,
+                              MapsAndHandlers const& maps_and_handlers) {
   DCHECK(!IsGlobalIC());
   // Non-keyed ICs don't track the name explicitly.
   if (!is_keyed()) name = Handle<Name>::null();
@@ -545,9 +544,8 @@ bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
   return true;
 }
 
-bool AddOneReceiverMapIfMissing(
-    std::vector<MapAndHandler>* receiver_maps_and_handlers,
-    Handle<Map> new_receiver_map) {
+bool AddOneReceiverMapIfMissing(MapsAndHandlers* receiver_maps_and_handlers,
+                                Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
   if (new_receiver_map->is_deprecated()) return false;
   for (MapAndHandler map_and_handler : *receiver_maps_and_handlers) {
@@ -639,7 +637,7 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
   }
   Handle<Map> map = lookup_start_object_map();
 
-  std::vector<MapAndHandler> maps_and_handlers;
+  MapsAndHandlers maps_and_handlers;
   maps_and_handlers.reserve(v8_flags.max_valid_polymorphic_map_count);
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
@@ -725,7 +723,7 @@ void IC::UpdateMonomorphicIC(const MaybeObjectHandle& handler,
 }
 
 void IC::CopyICToMegamorphicCache(DirectHandle<Name> name) {
-  std::vector<MapAndHandler> maps_and_handlers;
+  MapsAndHandlers maps_and_handlers;
   nexus()->ExtractMapsAndHandlers(&maps_and_handlers);
   for (const MapAndHandler& map_and_handler : maps_and_handlers) {
     UpdateMegamorphicCache(map_and_handler.first, name, map_and_handler.second);
@@ -1445,11 +1443,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     MapHandles* receiver_maps, MaybeObjectHandles* handlers,
     KeyedAccessLoadMode new_load_mode) {
   // Filter out deprecated maps to ensure their instances get migrated.
-  receiver_maps->erase(
-      std::remove_if(
-          receiver_maps->begin(), receiver_maps->end(),
-          [](const DirectHandle<Map>& map) { return map->is_deprecated(); }),
-      receiver_maps->end());
+  receiver_maps->erase(std::remove_if(
+      receiver_maps->begin(), receiver_maps->end(),
+      [](const DirectHandle<Map>& map) { return map->is_deprecated(); }));
 
   for (DirectHandle<Map> receiver_map : *receiver_maps) {
     // Mark all stable receiver maps that have elements kind transition map
@@ -2263,7 +2259,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
-  std::vector<MapAndHandler> target_maps_and_handlers;
+  MapsAndHandlers target_maps_and_handlers;
   nexus()->ExtractMapsAndHandlers(
       &target_maps_and_handlers,
       [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
@@ -2475,7 +2471,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 }
 
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
-    std::vector<MapAndHandler>* receiver_maps_and_handlers,
+    MapsAndHandlers* receiver_maps_and_handlers,
     KeyedAccessStoreMode store_mode) {
   std::vector<Handle<Map>> receiver_maps;
   receiver_maps.reserve(receiver_maps_and_handlers->size());

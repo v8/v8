@@ -90,9 +90,8 @@ class IC {
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
-  void ConfigureVectorState(
-      DirectHandle<Name> name,
-      std::vector<MapAndHandler> const& maps_and_handlers);
+  void ConfigureVectorState(DirectHandle<Name> name,
+                            MapsAndHandlers const& maps_and_handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, DirectHandle<Object> name);
@@ -337,7 +336,7 @@ class KeyedStoreIC : public StoreIC {
       MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
 
   void StoreElementPolymorphicHandlers(
-      std::vector<MapAndHandler>* receiver_maps_and_handlers,
+      MapsAndHandlers* receiver_maps_and_handlers,
       KeyedAccessStoreMode store_mode);
 
   friend class IC;
