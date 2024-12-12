@@ -639,10 +639,7 @@ IndirectHandle<T> indirect_handle(DirectHandle<T> handle,
 template <typename T>
 class V8_TRIVIAL_ABI DirectHandle :
 #ifdef ENABLE_SLOW_DCHECKS
-    // TODO(42203211): Setting this to true enables the check for
-    // stack-allocated "fake" direct handles disabled in non-CSS builds.
-    // Consider enabling it, if it is not too expensive even as a SLOW_DCHECK.
-    public api_internal::StackAllocated<false>
+    public api_internal::StackAllocated<true>
 #else
     public api_internal::StackAllocated<false>
 #endif

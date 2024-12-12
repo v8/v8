@@ -101,9 +101,6 @@ TEST_F(DirectHandlesTest, MaybeObjectDirectHandleIsIdenticalTo) {
 // Such usage violations are only detected in debug builds with slow DCHECKs.
 
 #ifdef ENABLE_SLOW_DCHECKS
-// TODO(42203211): The check for stack-allocation is still not enabled in
-// non-CSS builds.
-#ifdef V8_ENABLE_DIRECT_HANDLE
 
 namespace {
 template <typename Callback>
@@ -268,7 +265,6 @@ TEST_F(DirectHandlesSharedTest, DirectHandleInParkedClientBackgroundThread) {
 }
 
 #endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
-#endif  // V8_ENABLE_DIRECT_HANDLE
 #endif  // ENABLE_SLOW_DCHECKS
 
 }  // namespace v8
