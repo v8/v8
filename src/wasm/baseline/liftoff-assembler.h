@@ -1556,12 +1556,14 @@ class LiftoffAssembler : public MacroAssembler {
   inline void MaybeOSR();
 
   // Set the i32 at address dst to a non-zero value if src is a NaN.
-  inline void emit_set_if_nan(Register dst, DoubleRegister src, ValueKind kind);
+  inline void emit_store_nonzero_if_nan(Register dst, DoubleRegister src,
+                                        ValueKind kind);
 
   // Set the i32 at address dst to a non-zero value if src contains a NaN.
-  inline void emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                   Register tmp_gp, LiftoffRegister tmp_s128,
-                                   ValueKind lane_kind);
+  inline void emit_s128_store_nonzero_if_nan(Register dst, LiftoffRegister src,
+                                             Register tmp_gp,
+                                             LiftoffRegister tmp_s128,
+                                             ValueKind lane_kind);
 
   inline bool supports_f16_mem_access();
 

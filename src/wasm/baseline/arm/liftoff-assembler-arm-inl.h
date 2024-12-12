@@ -4896,8 +4896,9 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst,
+                                                 DoubleRegister src,
+                                                 ValueKind kind) {
   if (kind == kF32) {
     FloatRegister src_f = liftoff::GetFloatRegister(src);
     VFPCompareAndSetFlags(src_f, src_f);
@@ -4910,10 +4911,11 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   str(dst, MemOperand(dst), ne);  // x != x iff isnan(x)
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   QwNeonRegister src_q = liftoff::GetSimd128Register(src);
   QwNeonRegister tmp_q = liftoff::GetSimd128Register(tmp_s128);
   if (lane_kind == kF32) {
@@ -4925,7 +4927,7 @@ void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
     DCHECK_EQ(lane_kind, kF64);
     vadd(tmp_q.low(), src_q.low(), src_q.high());
   }
-  emit_set_if_nan(dst, tmp_q.low(), lane_kind);
+  emit_store_nonzero_if_nan(dst, tmp_q.low(), lane_kind);
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

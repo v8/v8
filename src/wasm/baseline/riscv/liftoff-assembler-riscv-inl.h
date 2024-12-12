@@ -2225,10 +2225,11 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   vfmerge_vf(dst.fp().toV(), src2.fp(), src1.fp().toV());
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   ASM_CODE_COMMENT(this);
   if (lane_kind == kF32) {
     VU.set(kScratchReg, E32, m1);
@@ -2407,8 +2408,8 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
+                                                 ValueKind kind) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, 1);

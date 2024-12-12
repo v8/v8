@@ -3579,8 +3579,8 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
+                                                 ValueKind kind) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Label not_nan;
@@ -3596,10 +3596,11 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
   bind(&not_nan);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   UNIMPLEMENTED();
 }
 

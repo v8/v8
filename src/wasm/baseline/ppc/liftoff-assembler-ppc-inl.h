@@ -2891,8 +2891,9 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst,
+                                                 DoubleRegister src,
+                                                 ValueKind kind) {
   Label return_nan, done;
   fcmpu(src, src);
   bunordered(&return_nan);
@@ -2902,10 +2903,11 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   bind(&done);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   Label done;
   if (lane_kind == kF32) {
     xvcmpeqsp(tmp_s128.fp().toSimd(), src.fp().toSimd(), src.fp().toSimd(),

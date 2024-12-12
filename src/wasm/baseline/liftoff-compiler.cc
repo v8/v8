@@ -9154,7 +9154,7 @@ class LiftoffCompiler {
     __ LoadConstant(
         nondeterminism_addr,
         WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
-    __ emit_set_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
+    __ emit_store_nonzero_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
   }
 
   void CheckS128Nan(LiftoffRegister dst, LiftoffRegList pinned,
@@ -9167,8 +9167,8 @@ class LiftoffCompiler {
     __ LoadConstant(
         nondeterminism_addr,
         WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
-    __ emit_s128_set_if_nan(nondeterminism_addr.gp(), dst, tmp_gp.gp(),
-                            tmp_s128, lane_kind);
+    __ emit_s128_store_nonzero_if_nan(nondeterminism_addr.gp(), dst,
+                                      tmp_gp.gp(), tmp_s128, lane_kind);
   }
 
   void ArrayFillImpl(FullDecoder* decoder, LiftoffRegList pinned,

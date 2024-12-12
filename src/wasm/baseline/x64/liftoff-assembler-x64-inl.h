@@ -4907,8 +4907,9 @@ void LiftoffAssembler::MaybeOSR() {
     RelocInfo::WASM_STUB_CALL);
 }
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst,
+                                                 DoubleRegister src,
+                                                 ValueKind kind) {
   if (kind == kF32) {
     Ucomiss(src, src);
   } else {
@@ -4921,10 +4922,11 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   bind(&ret);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   if (lane_kind == kF32) {
     movaps(tmp_s128.fp(), src.fp());
     cmpunordps(tmp_s128.fp(), tmp_s128.fp());
