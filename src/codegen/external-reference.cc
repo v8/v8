@@ -840,7 +840,11 @@ ExternalReference ExternalReference::script_context_mutable_heap_number_flag() {
 }
 
 ExternalReference ExternalReference::script_context_mutable_heap_int32_flag() {
+#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
   return ExternalReference(&v8_flags.script_context_mutable_heap_int32);
+#else
+  return ExternalReference();
+#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(

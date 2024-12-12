@@ -2227,6 +2227,12 @@
 }],
 
 ##############################################################################
+['not pointer_compression', {
+  # Mutable Heap Int32 is not enabled in builds with 32-bit smis.
+  'mutable-int32-slot': [SKIP],
+}],
+
+##############################################################################
 # TODO(mliedtke): Support deopts on all platforms.
 ['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != loong64 and arch != mips64el', {
   # --wasm-deopt implementation experimental and not ported to most

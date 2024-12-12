@@ -2871,8 +2871,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<BoolT> IsScriptContextMutableHeapInt32Flag() {
+#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
     return LoadRuntimeFlag(
         ExternalReference::script_context_mutable_heap_int32_flag());
+#else
+    return BoolConstant(false);
+#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
