@@ -396,7 +396,9 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   TraceManualRecompile(*function, target_kind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->RequestOptimization(isolate, target_kind, concurrency_mode);
+  if (function->GetActiveTier(isolate) != target_kind) {
+    function->RequestOptimization(isolate, target_kind, concurrency_mode);
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

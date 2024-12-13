@@ -167,11 +167,16 @@ void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
   }
   DCHECK(is_compiled_scope.is_compiled());
 
-  if (function->tiering_in_progress() && mode == ConcurrencyMode::kConcurrent) {
+  if (mode == ConcurrencyMode::kConcurrent) {
     // No need to start another compile job.
-    static_assert(kTieringStateInProgressBlocksTierup);
-    function->SetInterruptBudget(isolate);
-    return;
+    // Also, various fuzzing flags like --always-turbofan might already compile
+    // this function in the above Compiler::Compile function.
+    if (function->tiering_in_progress() ||
+        function->GetActiveTier(isolate) >= target_kind) {
+      static_assert(kTieringStateInProgressBlocksTierup);
+      function->SetInterruptBudget(isolate);
+      return;
+    }
   }
 
   // Concurrent optimization runs on another thread, thus no additional gap.
