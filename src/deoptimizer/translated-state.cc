@@ -2081,8 +2081,8 @@ void TranslatedState::InitializeCapturedObjectAt(
         child_slot->kind() == TranslatedValue::kDuplicatedObject) {
       child_slot = ResolveCapturedObject(child_slot);
       if (child_slot->materialization_state() != TranslatedValue::kFinished) {
-        DCHECK_EQ(TranslatedValue::kAllocated,
-                  child_slot->materialization_state());
+        CHECK_EQ(TranslatedValue::kAllocated,
+                 child_slot->materialization_state());
         worklist->push(child_slot->object_index());
         child_slot->mark_finished();
       }

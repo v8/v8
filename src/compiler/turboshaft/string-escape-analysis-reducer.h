@@ -144,6 +144,10 @@ class StringEscapeAnalysisReducer : public Next {
       }
     }
 
+    static ElidedStringPart Invalid() {
+      return ElidedStringPart(Kind::kNotElided, V<String>::Invalid());
+    }
+
    private:
     ElidedStringPart(Kind kind, V<String> index) : data(index), kind(kind) {}
   };
@@ -217,12 +221,15 @@ class StringEscapeAnalysisReducer : public Next {
           return {id, true};
         }
       }
+      uint32_t new_id = next_id();
       object_ids_.push_back(index);
-      return {next_id_++, false};
+      return {new_id, false};
     }
 
     uint32_t RecordOldId(uint32_t old_id) {
-      uint32_t new_id = next_id_++;
+      uint32_t new_id = next_id();
+      // Block this id from being used by GetDuplicatedIdForElidedString.
+      object_ids_.push_back(ElidedStringPart::Invalid());
       if (old_id >= old_to_new_ids_.size()) {
         old_to_new_ids_.resize(old_id + 1, kUndefinedId);
       }
@@ -236,23 +243,25 @@ class StringEscapeAnalysisReducer : public Next {
     }
 
     Deduplicator* clone(Zone* zone) const {
-      return zone->New<Deduplicator>(object_ids_, next_id_, old_to_new_ids_);
+      return zone->New<Deduplicator>(object_ids_, old_to_new_ids_);
     }
 
    private:
     Deduplicator(const ZoneVector<ElidedStringPart>& object_ids,
-                 uint32_t next_id, const ZoneVector<uint32_t>& old_to_new_ids)
-        : object_ids_(object_ids),
-          next_id_(next_id),
-          old_to_new_ids_(old_to_new_ids) {}
+                 const ZoneVector<uint32_t>& old_to_new_ids)
+        : object_ids_(object_ids), old_to_new_ids_(old_to_new_ids) {}
 
     // TODO(dmercadier): consider using a linked list for {object_ids_} so that
     // we don't ever need to clone it.
     ZoneVector<ElidedStringPart> object_ids_;
-    uint32_t next_id_ = 0;
 
     static constexpr uint32_t kUndefinedId = -1;
     ZoneVector<uint32_t> old_to_new_ids_;
+
+    uint32_t next_id() {
+      CHECK_LT(object_ids_.size(), std::numeric_limits<uint32_t>::max());
+      return static_cast<uint32_t>(object_ids_.size());
+    }
 
     friend class i::Zone;  // For access to private constructor.
   };
