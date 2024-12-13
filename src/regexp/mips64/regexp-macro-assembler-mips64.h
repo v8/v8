@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
-
+  void AssertAboveStackLimitMinusSlack();
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch,
