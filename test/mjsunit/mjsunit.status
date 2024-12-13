@@ -1693,6 +1693,11 @@
   'regress/regress-740784': [SKIP],
   'regress/regress-crbug-482998': [SKIP],
 }],  # 'simulator_run and (arch in [ppc64, s390x])'
+##############################################################################
+['simulator_run and arch == ppc64', {
+  # Slow tests
+  'wasm/wasm-interpreter': [PASS, SLOW]
+}],  # 'simulator_run and arch == ppc64'
 
 ##############################################################################
 ['arch == ppc64', {
