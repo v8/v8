@@ -4500,6 +4500,13 @@ class GraphBuildingNodeProcessor {
   Zone* temp_zone() { return temp_zone_; }
   Zone* graph_zone() { return Asm().output_graph().graph_zone(); }
 
+  bool IsMapped(const maglev::NodeBase* node) const {
+    if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
+      return true;
+    }
+    return node_mapping_.count(node);
+  }
+
  private:
   OptionalV<FrameState> BuildFrameState(
       maglev::EagerDeoptInfo* eager_deopt_info) {
@@ -5734,6 +5741,11 @@ class NodeProcessorBase : public GraphBuildingNodeProcessor {
     OpIndex end_index_before = graph_.EndIndex();
     maglev::ProcessResult result =
         GraphBuildingNodeProcessor::Process(node, state);
+    DCHECK_IMPLIES(result == maglev::ProcessResult::kContinue &&
+                       !GraphBuildingNodeProcessor::Asm()
+                            .generating_unreachable_operations() &&
+                       maglev::IsValueNode(node->opcode()),
+                   IsMapped(node));
 
     // Recording the SourcePositions of the OpIndex that were just created.
     SourcePosition source = labeller_->GetNodeProvenance(node).position;
