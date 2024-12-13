@@ -2670,9 +2670,11 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     }
   } else if (MustUseReg(j.rmode())) {
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
-        RelocInfo::IsWasmCodePointerTableEntry(j.rmode())) {
+        RelocInfo::IsWasmCodePointerTableEntry(j.rmode()) ||
+        RelocInfo::IsJSDispatchHandle(j.rmode())) {
+      // These reloc datas are 32-bit values.
+      DCHECK(is_int32(j.immediate()) || is_uint32(j.immediate()));
       RecordRelocInfo(j.rmode());
-      DCHECK(is_int32(j.immediate()));
 #if V8_TARGET_ARCH_RISCV64
       li_constant32(rd, int32_t(j.immediate()));
 #elif V8_TARGET_ARCH_RISCV32
@@ -7377,6 +7379,23 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   slli(index, index, kJSDispatchTableEntrySizeLog2);
   AddWord(scratch, scratch, index);
   Ld(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+}
+
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(
+    Register destination, JSDispatchHandle dispatch_handle, Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+  ASM_CODE_COMMENT(this);
+  li(scratch, ExternalReference::js_dispatch_table_address());
+  // WARNING: This offset calculation is only safe if we have already stored a
+  // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
+  // keeping the dispatch entry alive) _and_ because the entrypoints are not
+  // compatible (thus meaning that the offset calculation is not invalidated by
+  // a compaction).
+  // TODO(leszeks): Make this less of a footgun.
+  static_assert(!JSDispatchTable::kSupportsCompaction);
+  int offset = JSDispatchTable::OffsetOfEntry(dispatch_handle) +
+               JSDispatchEntry::kEntrypointOffset;
+  Ld(destination, MemOperand(scratch, offset));
 }
 
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
