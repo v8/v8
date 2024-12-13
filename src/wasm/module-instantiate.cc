@@ -2030,10 +2030,14 @@ bool InstanceBuilder::ProcessImportedTable(
   const WasmModule* table_type_module =
       table_object->has_trusted_data()
           ? table_object->trusted_data(isolate_)->module()
-          : trusted_instance_data->module();
+          : nullptr;
+  // The security-relevant aspect of this DCHECK is covered by the SBXCHECK_EQ
+  // below.
+  DCHECK_IMPLIES(table_object->unsafe_type().has_index(),
+                 table_type_module != nullptr);
 
-  if (!EquivalentTypes(table.type, table_object->type(), module_,
-                       table_type_module)) {
+  if (!EquivalentTypes(table.type, table_object->type(table_type_module),
+                       module_, table_type_module)) {
     thrower_->LinkError("%s: imported table does not match the expected type",
                         ImportName(import_index).c_str());
     return false;
@@ -2068,16 +2072,26 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
 
-  const WasmModule* global_type_module =
-      global_object->has_trusted_data()
-          ? global_object->trusted_data(isolate_)->module()
-          : trusted_instance_data->module();
+  wasm::ValueType actual_type = global_object->type();
+  const WasmModule* global_type_module = nullptr;
+  if (global_object->has_trusted_data()) {
+    global_type_module = global_object->trusted_data(isolate_)->module();
+    SBXCHECK(!actual_type.has_index() ||
+             global_type_module->has_type(actual_type.ref_index()));
+  } else {
+    // We don't have a module, so we wouldn't know what to do with a
+    // module-relative type index.
+    // Note: since we just read a type from the untrusted heap, this can't
+    // be a real security boundary; we just use SBXCHECK to make it obvious
+    // to fuzzers that crashing here due to corruption is safe.
+    SBXCHECK(!actual_type.has_index());
+  }
 
   bool valid_type =
       global.mutability
-          ? EquivalentTypes(global_object->type(), global.type,
-                            global_type_module, trusted_instance_data->module())
-          : IsSubtypeOf(global_object->type(), global.type, global_type_module,
+          ? EquivalentTypes(actual_type, global.type, global_type_module,
+                            trusted_instance_data->module())
+          : IsSubtypeOf(actual_type, global.type, global_type_module,
                         trusted_instance_data->module());
 
   if (!valid_type) {

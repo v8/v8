@@ -130,7 +130,7 @@ void WasmGlobalObject::set_type(wasm::ValueType value) {
 int WasmGlobalObject::type_size() const { return type().value_kind_size(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_NE(type(), wasm::kWasmAnyRef);
+  DCHECK(!type().is_reference());
   DCHECK_LE(offset() + type_size(), untagged_buffer()->byte_length());
   return reinterpret_cast<Address>(untagged_buffer()->backing_store()) +
          offset();
@@ -581,7 +581,13 @@ TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_dispatch_table,
                           WasmDispatchTable, kTrustedDispatchTableOffset,
                           kWasmDispatchTableIndirectPointerTag)
 
-wasm::ValueType WasmTableObject::type() {
+wasm::ValueType WasmTableObject::type(const wasm::WasmModule* module) {
+  wasm::ValueType type = unsafe_type();
+  SBXCHECK(!type.has_index() || module->has_type(type.ref_index()));
+  return type;
+}
+
+wasm::ValueType WasmTableObject::unsafe_type() {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
   // value as index into a global array. As such, if the index is corrupted
   // (which must be assumed, as it comes from within the sandbox), this can
