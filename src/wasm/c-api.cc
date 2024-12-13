@@ -2125,7 +2125,7 @@ auto Table::type() const -> own<TableType> {
   uint32_t max = static_cast<uint32_t>(std::min<uint64_t>(
       i::kMaxUInt32, table->maximum_length_u64().value_or(i::kMaxUInt32)));
   ValKind kind;
-  switch (table->unsafe_type().heap_representation()) {
+  switch (table->type().heap_representation()) {
     case i::wasm::HeapType::kFunc:
       kind = FUNCREF;
       break;
@@ -2167,11 +2167,8 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
-  // We can use `table->unsafe_type()` and `module == nullptr` here as long
-  // as the C-API doesn't support indexed types.
-  DCHECK(!table->unsafe_type().has_index());
   i::DirectHandle<i::Object> obj_as_wasm =
-      i::wasm::JSToWasmObject(isolate, nullptr, obj, table->unsafe_type(),
+      i::wasm::JSToWasmObject(isolate, nullptr, obj, table->type(),
                               &error_message)
           .ToHandleChecked();
   i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index),
@@ -2194,11 +2191,8 @@ auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::HandleScope scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
-  // We can use `table->unsafe_type()` and `module == nullptr` here as long
-  // as the C-API doesn't support indexed types.
-  DCHECK(!table->unsafe_type().has_index());
   i::DirectHandle<i::Object> obj_as_wasm =
-      i::wasm::JSToWasmObject(isolate, nullptr, obj, table->unsafe_type(),
+      i::wasm::JSToWasmObject(isolate, nullptr, obj, table->type(),
                               &error_message)
           .ToHandleChecked();
   int result = i::WasmTableObject::Grow(

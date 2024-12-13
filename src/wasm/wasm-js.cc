@@ -1570,8 +1570,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::WasmTableObject::Set(i_isolate, table_obj, index, element);
     }
   } else if (initial > 0) {
-    DCHECK_EQ(type, table_obj->unsafe_type());
-    switch (type.heap_representation()) {
+    switch (table_obj->type().heap_representation()) {
       case i::wasm::HeapType::kString:
         thrower.TypeError(
             "Missing initial value when creating stringref table");
@@ -2550,12 +2549,12 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Argument 1 is invalid: %s", error_message);
       return;
     }
-  } else if (receiver->unsafe_type().is_non_nullable()) {
+  } else if (receiver->type().is_non_nullable()) {
     thrower.TypeError(
         "Argument 1 must be specified for non-nullable element type");
     return;
   } else {
-    init_value = DefaultReferenceValue(i_isolate, receiver->unsafe_type());
+    init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
   static_assert(i::wasm::kV8MaxWasmTableSize <= i::kMaxUInt32);
@@ -2612,7 +2611,7 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (address > i::kMaxUInt32 ||
       !receiver->is_in_bounds(static_cast<uint32_t>(address))) {
     thrower.RangeError("invalid address %" PRIu64 " in %s table of size %d",
-                       address, receiver->unsafe_type().name().c_str(),
+                       address, receiver->type().name().c_str(),
                        receiver->current_length());
     return;
   }
@@ -2621,7 +2620,7 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i_isolate, receiver, static_cast<uint32_t>(address));
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  if (!WasmObjectToJSReturnValue(return_value, result, receiver->unsafe_type(),
+  if (!WasmObjectToJSReturnValue(return_value, result, receiver->type(),
                                  i_isolate, &thrower)) {
     return js_api_scope.AssertException();
   }
@@ -2642,7 +2641,7 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (address > i::kMaxUInt32 ||
       !table_object->is_in_bounds(static_cast<uint32_t>(address))) {
     thrower.RangeError("invalid address %" PRIu64 " in %s table of size %d",
-                       address, table_object->unsafe_type().name().c_str(),
+                       address, table_object->type().name().c_str(),
                        table_object->current_length());
     return;
   }
@@ -2657,11 +2656,11 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       thrower.TypeError("Argument 1 is invalid for table: %s", error_message);
       return;
     }
-  } else if (table_object->unsafe_type().is_defaultable()) {
-    element = DefaultReferenceValue(i_isolate, table_object->unsafe_type());
+  } else if (table_object->type().is_defaultable()) {
+    element = DefaultReferenceValue(i_isolate, table_object->type());
   } else {
     thrower.TypeError("Table of non-defaultable type %s needs explicit element",
-                      table_object->unsafe_type().name().c_str());
+                      table_object->type().name().c_str());
     return;
   }
 
@@ -2675,7 +2674,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(table, WasmTableObject);
   std::optional<uint64_t> max_size = table->maximum_length_u64();
-  auto type = i::wasm::GetTypeForTable(i_isolate, table->unsafe_type(),
+  auto type = i::wasm::GetTypeForTable(i_isolate, table->type(),
                                        table->current_length(), max_size,
                                        table->address_type());
   info.GetReturnValue().Set(Utils::ToLocal(type));

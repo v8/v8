@@ -213,11 +213,7 @@ class WasmTableObject
  public:
   class BodyDescriptor;
 
-  inline wasm::ValueType type(const wasm::WasmModule* module);
-  // Use this when you don't care whether the type stored on the in-sandbox
-  // object might have been corrupted to contain an invalid type index.
-  // That implies that you can't even canonicalize the type!
-  inline wasm::ValueType unsafe_type();
+  inline wasm::ValueType type();
 
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
   DECL_TRUSTED_POINTER_ACCESSORS(trusted_dispatch_table, WasmDispatchTable)
