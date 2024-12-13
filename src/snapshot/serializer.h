@@ -405,6 +405,9 @@ class Serializer : public SerializerDeserializer {
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;
 
+  // Used to provide deterministic IDs to the serialized dispatch handles.
+  std::unordered_map<JSDispatchHandle, uint32_t> dispatch_handle_map_;
+
   // Objects which have started being serialized, but haven't yet been allocated
   // with the allocator, are considered "pending". References to them don't have
   // an allocation to backref to, so instead they are registered as pending

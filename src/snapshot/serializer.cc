@@ -1310,8 +1310,19 @@ void Serializer::ObjectSerializer::VisitJSDispatchTableEntry(
 #endif  // COMPRESS_POINTERS
   bytes_processed_so_far_ += RoundUp(kJSDispatchHandleSize, kTaggedSize);
 
+  uint32_t id;
+  {
+    auto it = serializer_->dispatch_handle_map_.find(handle);
+    if (it == serializer_->dispatch_handle_map_.end()) {
+      id = static_cast<uint32_t>(serializer_->dispatch_handle_map_.size());
+      serializer_->dispatch_handle_map_[handle] = id;
+    } else {
+      id = it->second;
+    }
+  }
+
   sink_->Put(kAllocateJSDispatchEntry, "AllocateJSDispatchEntry");
-  sink_->PutUint30(handle.value() >> kJSDispatchHandleShift, "EntryID");
+  sink_->PutUint30(id, "EntryID");
   sink_->PutUint30(jdt->GetParameterCount(handle), "ParameterCount");
 
   // Currently we cannot see pending objects here, but we may need to support
