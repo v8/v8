@@ -83,6 +83,7 @@
 !/third_party/re2
 /third_party/re2/src
 !/third_party/test262-harness
+!/third_party/siphash
 !/third_party/utf8-decoder
 !/third_party/v8
 !/third_party/valgrind

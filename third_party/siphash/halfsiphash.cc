@@ -17,9 +17,7 @@
  * Altered to match V8's use case.
  */
 
-#include "src/third_party/siphash/halfsiphash.h"
-
-#include "src/base/logging.h"
+#include "third_party/siphash/halfsiphash.h"
 
 #define ROTL(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
 

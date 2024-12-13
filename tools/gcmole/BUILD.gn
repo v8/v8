@@ -39,6 +39,7 @@ if (v8_gcmole) {
       "../../third_party/icu/source/common/",
       "../../third_party/icu/source/i18n/",
       "../../third_party/inspector_protocol/",
+      "../../third_party/siphash/",
       "../../third_party/utf8-decoder/",
       "../../third_party/v8/codegen/",
       "../../third_party/valgrind/",

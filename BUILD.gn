@@ -4338,7 +4338,6 @@ v8_header_set("v8_internal_headers") {
     "src/tasks/operations-barrier.h",
     "src/tasks/task-utils.h",
     "src/temporal/temporal-parser.h",
-    "src/third_party/siphash/halfsiphash.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/trace-event.h",
@@ -4376,6 +4375,7 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone-type-traits.h",
     "src/zone/zone-utils.h",
     "src/zone/zone.h",
+    "third_party/siphash/halfsiphash.h",
     "third_party/utf8-decoder/utf8-decoder.h",
   ]
 
@@ -5842,7 +5842,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/tasks/operations-barrier.cc",
     "src/tasks/task-utils.cc",
     "src/temporal/temporal-parser.cc",
-    "src/third_party/siphash/halfsiphash.cc",
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",
@@ -5861,6 +5860,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/type-stats.cc",
     "src/zone/zone-segment.cc",
     "src/zone/zone.cc",
+    "third_party/siphash/halfsiphash.cc",
   ]
 
   if (v8_enable_snapshot_compression) {

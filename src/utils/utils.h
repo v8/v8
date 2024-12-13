@@ -22,7 +22,7 @@
 #include "src/common/globals.h"
 
 #if defined(V8_USE_SIPHASH)
-#include "src/third_party/siphash/halfsiphash.h"
+#include "third_party/siphash/halfsiphash.h"
 #endif
 
 #if defined(V8_OS_AIX)
