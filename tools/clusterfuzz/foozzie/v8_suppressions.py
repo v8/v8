@@ -45,6 +45,7 @@ AVOID_CROSS_ARCH_COMPARISON_RE = (
 
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
+# All expressions must end with a $ without linebreak.
 IGNORE_LINES = [
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
@@ -62,8 +63,13 @@ DROP_FLAGS_ON_CONTENT = [
 ###############################################################################
 # Implementation - you should not need to change anything below this point.
 
+# We'll match the linebreak explicitly to remove it as well.
+assert all(exp.endswith('$') for exp in IGNORE_LINES)
+assert not any(exp.endswith('\n$') for exp in IGNORE_LINES)
+IGNORE_LINES = [exp[:-1] + '\n' for exp in IGNORE_LINES]
+
 # Compile regular expressions.
-IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
+IGNORE_LINES = [re.compile(exp.encode('utf-8'), re.M) for exp in IGNORE_LINES]
 
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
@@ -107,7 +113,7 @@ def short_line_output(line):
   return line[0:MAX_LINE_LENGTH] + '...'
 
 
-def diff_output(output1, output2, ignore1, ignore2):
+def diff_output(lines1, lines2):
   """Returns a tuple (difference, source).
 
   The difference is None if there's no difference, otherwise a string
@@ -116,14 +122,6 @@ def diff_output(output1, output2, ignore1, ignore2):
   The source is the last source output within the test case, or None if no
   such output existed.
   """
-  def useful_line(ignore):
-    def fun(line):
-      return all(not e.match(line) for e in ignore)
-    return fun
-
-  lines1 = list(filter(useful_line(ignore1), output1))
-  lines2 = list(filter(useful_line(ignore2), output2))
-
   # This keeps track where we are in the original source file of the fuzz
   # test case. We always start with the smoke-test part.
   source = SMOKE_TEST_SOURCE
@@ -170,6 +168,13 @@ def decode(output):
     return output.decode('latin-1')
 
 
+def ignore_lines(text):
+  result = text
+  for line_re in IGNORE_LINES:
+    result = line_re.sub(b'', result)
+  return result
+
+
 class V8Suppression(object):
   def __init__(self, skip):
     if skip:
@@ -180,17 +185,27 @@ class V8Suppression(object):
       self.drop_flags_on_content = DROP_FLAGS_ON_CONTENT
 
   def diff(self, output1, output2):
-    # Diff capped lines in the presence of crashes.
-    return self.diff_lines(
-        *map(str.splitlines, map(decode, get_output_capped(output1, output2))))
+    """Diff capped lines in the presence of crashes."""
+
+    # We remove ignored lines in the raw bytes before output capping, as such
+    # a line might be present in the non-crash run. The crashy run however
+    # determines the byte length and might cap the to-be-ignored line right
+    # in the middle otherwise (https://crbug.com/381384408).
+    output1.stdout_bytes = ignore_lines(output1.stdout_bytes)
+    output2.stdout_bytes = ignore_lines(output2.stdout_bytes)
+
+    # We need to cap raw bytes before decoding, since bytes in the capped part
+    # could lead to decoding errors and an encoding change of the bytes in the
+    # non-capped part (https://crbug.com/40914456).
+    output1_capped, output2_capped = get_output_capped(output1, output2)
+
+    lines1 = decode(output1_capped).splitlines()
+    lines2 = decode(output2_capped).splitlines()
+
+    return self.diff_lines(lines1, lines2)
 
   def diff_lines(self, output1_lines, output2_lines):
-    return diff_output(
-        output1_lines,
-        output2_lines,
-        IGNORE_LINES,
-        IGNORE_LINES,
-    )
+    return diff_output(output1_lines, output2_lines)
 
   def reduced_output(self, output, source):
     """Return output reduced by the source's origin, either only smoke-test
