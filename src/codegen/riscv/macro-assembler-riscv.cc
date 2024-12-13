@@ -7361,7 +7361,8 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, MemOperand src) {
-    Lw(dst, src);
+  static_assert(sizeof(WasmCodePointer) == 4);
+  Lw(dst, src);
 }
 #endif
 
