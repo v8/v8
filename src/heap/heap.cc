@@ -429,12 +429,20 @@ bool Heap::IsOldGenerationExpansionAllowed(
 }
 
 bool Heap::CanPromoteYoungAndExpandOldGeneration(size_t size) const {
+  if (v8_flags.sticky_mark_bits) {
+    DCHECK_NULL(new_space());
+    size_t new_space_capacity =
+        sticky_space()->Capacity() - sticky_space()->young_objects_size();
+    size_t new_lo_space_capacity = new_lo_space_ ? new_lo_space_->Size() : 0;
+    return CanExpandOldGeneration(size + new_space_capacity +
+                                  new_lo_space_capacity);
+  }
   if (!new_space()) {
     DCHECK_NULL(new_lo_space());
     return CanExpandOldGeneration(size);
   }
   size_t new_space_capacity =
-      NewSpaceCapacity() + new_lo_space()->Size() +
+      new_space()->Capacity() + new_lo_space()->Size() +
       (v8_flags.minor_ms ? 0
                          : semi_space_new_space()->QuarantinedPageCount() *
                                PageMetadata::kPageSize);
