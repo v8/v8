@@ -138,7 +138,7 @@ struct JSDispatchEntry {
   // TODO(olivf): Investigate if we could shrink the entry size on 32bit
   // platforms to 12 bytes.
   std::atomic<uint16_t> parameter_count_;
-  uint16_t padding_;
+  // 16 bits of padding
   std::atomic<uint32_t> next_free_entry_;
 #endif  // V8_TARGET_ARCH_32_BIT
 };
