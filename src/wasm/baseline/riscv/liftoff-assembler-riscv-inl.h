@@ -2408,6 +2408,10 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
+void LiftoffAssembler::emit_store_nonzero(Register dst) {
+  StoreU32(dst, MemOperand(dst));
+}
+
 void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
                                                  ValueKind kind) {
   UseScratchRegisterScope temps(this);
