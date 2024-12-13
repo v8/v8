@@ -3800,6 +3800,7 @@ bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
+  // Addition is not commutative in the presence of NaNs.
   liftoff::EmitSimdNonCommutativeBinOp<&Assembler::vaddps, &Assembler::addps>(
       this, dst, lhs, rhs);
 }
