@@ -29,16 +29,7 @@ const nonzero = new Vector(0.6); // Map2
 // Map1 is now deprecated but Map2 is not a migration target.
 
 %OptimizeMaglevOnNextCall(magnitude);
-magnitude(zero);
+magnitude(nonzero);
 
-// The first call immediately deopts
-assertFalse(isMaglevved(magnitude));
-
-// But we learn and don't deopt any more.
-%OptimizeMaglevOnNextCall(magnitude);
-magnitude(zero);
-assertTrue(isMaglevved(magnitude));
-
-// Also passing other old objects won't deopt.
-magnitude(anotherOldObject);
+// The first call doesn't deopt if called with a new object.
 assertTrue(isMaglevved(magnitude));

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --maglev --no-always-turbofan
+// Flags: --turbofan --turboshaft-from-maglev
 
 class Vector {
   constructor(x) {
@@ -28,17 +29,8 @@ const nonzero = new Vector(0.6); // Map2
 
 // Map1 is now deprecated but Map2 is not a migration target.
 
-%OptimizeMaglevOnNextCall(magnitude);
-magnitude(zero);
+%OptimizeFunctionOnNextCall(magnitude);
+magnitude(nonzero);
 
-// The first call immediately deopts
-assertFalse(isMaglevved(magnitude));
-
-// But we learn and don't deopt any more.
-%OptimizeMaglevOnNextCall(magnitude);
-magnitude(zero);
-assertTrue(isMaglevved(magnitude));
-
-// Also passing other old objects won't deopt.
-magnitude(anotherOldObject);
-assertTrue(isMaglevved(magnitude));
+// The first call doesn't deopt if called with a new object.
+assertOptimized(magnitude);
