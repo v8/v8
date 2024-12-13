@@ -195,7 +195,7 @@ Address RelocInfo::target_internal_reference_address() {
 
 JSDispatchHandle RelocInfo::js_dispatch_handle() {
   DCHECK(rmode_ == JS_DISPATCH_HANDLE);
-  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+  return JSDispatchHandle(Assembler::uint32_constant_at(pc_, constant_pool_));
 }
 
 Handle<Code> Assembler::relative_code_target_object_handle_at(

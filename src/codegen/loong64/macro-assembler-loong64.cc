@@ -389,6 +389,24 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   Ld_d(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
 }
 
+void MacroAssembler::LoadEntrypointFromJSDispatchTable(
+    Register destination, JSDispatchHandle dispatch_handle, Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+  ASM_CODE_COMMENT(this);
+
+  li(scratch, ExternalReference::js_dispatch_table_address());
+  // WARNING: This offset calculation is only safe if we have already stored a
+  // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
+  // keeping the dispatch entry alive) _and_ because the entrypoints are not
+  // compatible (thus meaning that the offset calculation is not invalidated by
+  // a compaction).
+  // TODO(leszeks): Make this less of a footgun.
+  static_assert(!JSDispatchTable::kSupportsCompaction);
+  int offset = JSDispatchTable::OffsetOfEntry(dispatch_handle) +
+               JSDispatchEntry::kEntrypointOffset;
+  Ld_d(destination, MemOperand(scratch, offset));
+}
+
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, dispatch_handle, scratch));
@@ -1545,10 +1563,10 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     lu12i_w(rd, immediate >> 12 & 0xfffff);
     ori(rd, rd, immediate & kImm12Mask);
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
-        RelocInfo::IsWasmCodePointerTableEntry(j.rmode())) {
-      // wasm_canonical_sig_id and wasm_code_pointer_table_entry are 32-bit
-      // values.
-      DCHECK(is_int32(immediate));
+        RelocInfo::IsWasmCodePointerTableEntry(j.rmode()) ||
+        RelocInfo::IsJSDispatchHandle(j.rmode())) {
+      // These reloc datas are 32-bit values.
+      DCHECK(is_int32(immediate) || is_uint32(immediate));
       return;
     }
     lu32i_d(rd, immediate >> 32 & 0xfffff);
@@ -4834,6 +4852,27 @@ void MacroAssembler::CallJSFunction(Register function_object,
   CallCodeObject(code, kJSEntrypointTag);
 #endif
 }
+
+#if V8_ENABLE_LEAPTIERING
+void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
+                                         uint16_t argument_count) {
+  Register code = kJavaScriptCallCodeStartRegister;
+  Register scratch = s1;
+  li(kJavaScriptCallDispatchHandleRegister,
+     Operand(dispatch_handle.value(), RelocInfo::JS_DISPATCH_HANDLE));
+  // WARNING: This entrypoint load is only safe because we are storing a
+  // RelocInfo for the dispatch handle in the li above (thus keeping the
+  // dispatch entry alive) _and_ because the entrypoints are not compactable
+  // (thus meaning that the calculation in the entrypoint load is not
+  // invalidated by a compaction).
+  // TODO(leszeks): Make this less of a footgun.
+  static_assert(!JSDispatchTable::kSupportsCompaction);
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  CHECK_EQ(argument_count,
+           GetProcessWideJSDispatchTable()->GetParameterCount(dispatch_handle));
+  Call(code);
+}
+#endif
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
