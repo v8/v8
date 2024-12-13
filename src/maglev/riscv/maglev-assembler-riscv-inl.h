@@ -856,6 +856,13 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #endif
 }
 
+inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
+  Load32U(dst, src);
+}
+inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
+  Sw(src, dst);
+}
+
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   LoadFloat(dst, src);
   // Convert Float32 to double(Float64)
@@ -1860,6 +1867,16 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
   LoadDouble(result,
              FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::LoadHeapInt32Value(Register result,
+                                                Register heap_number) {
+  Load32U(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
+}
+
+inline void MaglevAssembler::StoreHeapInt32Value(Register value,
+                                                 Register heap_number) {
+  Sw(value, (FieldMemOperand(heap_number, offsetof(HeapNumber, value_))));
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
