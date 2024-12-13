@@ -6649,6 +6649,8 @@ v8_component("v8_libbase") {
 
   deps = [ ":v8_config_headers" ]
 
+  public_deps = [ ":v8_abseil" ]
+
   if (current_os == "zos") {
     public_configs += [ ":zoslib_config" ]
     deps += [ ":zoslib" ]

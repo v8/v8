@@ -10,7 +10,7 @@
 #include "include/v8config.h"
 
 #if V8_OS_DARWIN
-#include <shared_mutex>
+#include "absl/synchronization/mutex.h"
 #endif
 
 #if V8_OS_POSIX
@@ -296,7 +296,7 @@ class V8_BASE_EXPORT SharedMutex final {
   // pthread_rwlock_t is broken on MacOS when signals are being sent to the
   // process (see https://crbug.com/v8/11399).
   // We thus use std::shared_mutex on MacOS, which does not have this problem.
-  using NativeHandle = std::shared_mutex;
+  using NativeHandle = absl::Mutex;
 #elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
