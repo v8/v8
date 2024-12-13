@@ -511,6 +511,13 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
     GotoIfNot(TaggedEqual(LoadElements(CAST(to)), EmptyFixedArrayConstant()),
               &slow_path);
 
+    // Ensure the properties field is not used to store a hash.
+    TNode<Object> properties = LoadJSReceiverPropertiesOrHash(to);
+    GotoIf(TaggedIsSmi(properties), &slow_path);
+    CSA_DCHECK(this,
+               Word32Or(TaggedEqual(properties, EmptyFixedArrayConstant()),
+                        IsPropertyArray(CAST(properties))));
+
     Label continue_fast_path(this), runtime_map_lookup(this, Label::kDeferred);
 
     // Check if our particular source->target combination is fast clonable.
