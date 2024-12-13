@@ -153,6 +153,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateInOldGeneration)                 \
   V(WasmAllocateZeroedFixedArray)                \
   V(WasmSuspend)                                 \
+  V(WasmToJsWrapperInvalidSig)                   \
   V(WasmTrap)
 
 #define WASM_BUILTIN_LIST(V, VTRAP)            \
