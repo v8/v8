@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_INL_H_
 
 #include "src/codegen/machine-type.h"
+#include "src/compiler/linkage.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
@@ -4022,7 +4023,8 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   CallWasmCodePointer(target);
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   DCHECK(target.is_valid());
   CallWasmCodePointer(target, CallJumpMode::kTailCall);
 }

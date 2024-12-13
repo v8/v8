@@ -50,7 +50,7 @@ specific_include_rules = {
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],
-  "liftoff-assembler-(x64|arm64)-inl\.h": [
+  "liftoff-assembler-(x64|arm64|loong64|mips64)-inl\.h": [
     # The LiftoffAssembler needs to know CallDescriptors.
     "+src/compiler/linkage.h",
   ],

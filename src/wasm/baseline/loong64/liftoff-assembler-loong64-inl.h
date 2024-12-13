@@ -8,6 +8,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/compiler/linkage.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
@@ -3554,12 +3555,14 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   // For loong64, we have more cache registers than wasm parameters. That means
   // that target will always be in a register.
   DCHECK(target.is_valid());
-  CallWasmCodePointer(target);
+  CallWasmCodePointer(target, call_descriptor->signature_hash());
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   DCHECK(target.is_valid());
-  CallWasmCodePointer(target, CallJumpMode::kTailCall);
+  CallWasmCodePointer(target, call_descriptor->signature_hash(),
+                      CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
