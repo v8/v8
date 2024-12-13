@@ -19,7 +19,7 @@
 #include <vector>
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-#include "src/third_party/vtune/v8-vtune.h"
+#include "third_party/vtune/v8-vtune.h"
 #endif
 
 #include "include/libplatform/libplatform.h"

@@ -58,7 +58,7 @@
 #ifndef V8_VTUNE_H_
 #define V8_VTUNE_H_
 
-#include "../../../include/v8-callbacks.h"
+#include "../../include/v8-callbacks.h"
 
 namespace vTune {
 
@@ -68,4 +68,3 @@ v8::JitCodeEventHandler GetVtuneCodeEventHandler();
 
 
 #endif  // V8_VTUNE_H_
-

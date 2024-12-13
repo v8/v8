@@ -4416,9 +4416,9 @@ alias(
 v8_library(
     name = "v8_vtune",
     srcs = [
-        "src/third_party/vtune/v8-vtune.h",
-        "src/third_party/vtune/vtune-jit.cc",
-        "src/third_party/vtune/vtune-jit.h",
+        "third_party/vtune/v8-vtune.h",
+        "third_party/vtune/vtune-jit.cc",
+        "third_party/vtune/vtune-jit.h",
     ],
     copts = ["-I"],
     deps = [

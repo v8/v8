@@ -509,12 +509,13 @@ include_rules = [
   # Everybody can use some things.
   '+include',
   '+unicode',
-  '+third_party/fdlibm',
-  '+third_party/ittapi/include',
   '+third_party/fast_float/src/include',
+  '+third_party/fdlibm',
   '+third_party/fp16/src/include',
-  '+third_party/v8/codegen',
   '+third_party/fuzztest',
+  '+third_party/ittapi/include',
+  '+third_party/v8/codegen',
+  '+third_party/vtune',
   '+hwy/highway.h',
   # Abseil features are allow-listed. Please use your best judgement when adding
   # to this set -- if in doubt, email v8-dev@. For general guidance, refer to

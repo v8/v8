@@ -86,6 +86,7 @@
 !/third_party/utf8-decoder
 !/third_party/v8
 !/third_party/valgrind
+!/third_party/vtune
 !/third_party/wasm-api
 /tools/builtins-pgo/profiles/*
 !/tools/builtins-pgo/profiles/.*

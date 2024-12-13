@@ -45,7 +45,7 @@
 #include "src/wasm/wasm-serialization.h"
 #include "third_party/wasm-api/wasm.h"
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-#include "src/third_party/vtune/v8-vtune.h"
+#include "third_party/vtune/v8-vtune.h"
 #endif
 
 #ifdef WASM_API_DEBUG

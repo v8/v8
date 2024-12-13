@@ -8,7 +8,7 @@
 #include "include/v8-extension.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/third_party/vtune/vtuneapi.h"
+#include "third_party/vtune/vtuneapi.h"
 
 #define UNKNOWN_PARAMS 1 << 0
 #define NO_DOMAIN_NAME 1 << 1
