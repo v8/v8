@@ -4326,7 +4326,6 @@ v8_header_set("v8_internal_headers") {
     "src/tasks/task-utils.h",
     "src/temporal/temporal-parser.h",
     "src/third_party/siphash/halfsiphash.h",
-    "src/third_party/utf8-decoder/utf8-decoder.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/trace-event.h",
@@ -4364,6 +4363,7 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone-type-traits.h",
     "src/zone/zone-utils.h",
     "src/zone/zone.h",
+    "third_party/utf8-decoder/utf8-decoder.h",
   ]
 
   if (v8_enable_snapshot_compression) {
@@ -4469,7 +4469,6 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/wasm-typer.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
-      "src/third_party/utf8-decoder/generalized-utf8-decoder.h",
       "src/trap-handler/trap-handler-internal.h",
       "src/trap-handler/trap-handler.h",
       "src/wasm/baseline/liftoff-assembler-defs.h",
@@ -4545,6 +4544,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-value.h",
       "src/wasm/well-known-imports.h",
+      "third_party/utf8-decoder/generalized-utf8-decoder.h",
     ]
 
     if (v8_enable_drumbrake) {

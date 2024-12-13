@@ -10,7 +10,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/third_party/utf8-decoder/utf8-decoder.h"
+#include "third_party/utf8-decoder/utf8-decoder.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
