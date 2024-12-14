@@ -282,6 +282,19 @@ otherfile.js: TypeError: undefined is not a constructor
     check(['C', 'B', 'D'], ['C', 'D'])
     check(['E', 'C', 'A', 'F', 'B', 'G', 'D'], ['E', 'C', 'F', 'G', 'D'])
 
+  @unittest.mock.patch('v8_foozzie.DISALLOWED_FLAG_PREFIXES', ['A', 'B='])
+  def testFilterFlagPrefixes(self):
+    def check(input_flags, expected):
+      self.assertEqual(expected, v8_foozzie.filter_flags(input_flags))
+
+    check([], [])
+    check(['A'], [])
+    check(['D', 'A1'], ['D'])
+    check(['A1', 'D'], ['D'])
+    check(['B=42', 'D'], ['D'])
+    check(['D', 'B=42'], ['D'])
+    check(['A', 'B', 'C=42', 'D', 'B=-1'], ['B', 'C=42', 'D'])
+
   def _test_content(self, filename):
     with (TEST_DATA / filename).open() as f:
       return f.read()

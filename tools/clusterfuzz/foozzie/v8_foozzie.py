@@ -191,6 +191,14 @@ DISALLOWED_FLAGS = [
     '--rcs',
 ]
 
+# The same as above, but prefixes that either match multiple flags or flags
+# that assign values.
+DISALLOWED_FLAG_PREFIXES = [
+    # Already passed as a default flag. That default value should not be
+    # overwritten in one of the runs.
+    '--wasm-max-mem-pages=',
+]
+
 # List pairs of flags that lead to contradictory cycles, i.e.:
 # A -> no-C and B -> C makes (A, B) contradictory.
 # No need to list other contradictions, they are omitted by the
@@ -204,6 +212,9 @@ CONTRADICTORY_FLAGS = [
 ]
 
 
+def is_disallowed_flag_prefix(flag):
+  return any(flag.startswith(prefix) for prefix in DISALLOWED_FLAG_PREFIXES)
+
 def filter_flags(flags):
   """Drop disallowed and contradictory flags.
 
@@ -213,7 +224,7 @@ def filter_flags(flags):
   result = []
   flags_to_drop = set(DISALLOWED_FLAGS)
   for flag in reversed(flags):
-    if flag in flags_to_drop:
+    if flag in flags_to_drop or is_disallowed_flag_prefix(flag):
       continue
     result.append(flag)
     for contradicting_pair in CONTRADICTORY_FLAGS:
