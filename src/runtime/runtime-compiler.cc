@@ -174,7 +174,7 @@ void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
     if (function->tiering_in_progress() ||
         function->GetActiveTier(isolate) >= target_kind) {
       static_assert(kTieringStateInProgressBlocksTierup);
-      function->SetInterruptBudget(isolate);
+      function->SetInterruptBudget(isolate, BudgetModification::kRaise);
       return;
     }
   }
@@ -694,7 +694,7 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
   if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() ||
                   isolate->BatterySaverModeEnabled())) {
     function->feedback_vector()->reset_osr_urgency();
-    function->SetInterruptBudget(isolate);
+    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
     return Smi::zero();
   }
 

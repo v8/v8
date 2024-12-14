@@ -1700,7 +1700,8 @@ void Deoptimizer::DoComputeOutputFrames() {
     // maglev compilation when there is a long running turbofan one that was
     // started right before the deopt.
     function_->SetTieringInProgress(false);
-    function_->SetInterruptBudget(isolate_, CodeKind::INTERPRETED_FUNCTION);
+    function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
+                                  CodeKind::INTERPRETED_FUNCTION);
     function_->feedback_vector()->set_was_once_deoptimized();
   }
 

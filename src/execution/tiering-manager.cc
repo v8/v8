@@ -603,7 +603,7 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
         function->shared()->set_cached_tiering_decision(
             CachedTieringDecision::kEarlySparkplug);
       }
-      function->SetInterruptBudget(isolate_);
+      function->SetInterruptBudget(isolate_, BudgetModification::kRaise);
     }
     return;
   }
@@ -611,7 +611,7 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
   // Don't tier up if Turbofan is disabled.
   // TODO(jgruber): Update this for a multi-tier world.
   if (V8_UNLIKELY(!isolate_->use_optimizer())) {
-    function->SetInterruptBudget(isolate_);
+    function->SetInterruptBudget(isolate_, BudgetModification::kRaise);
     return;
   }
 
@@ -626,7 +626,7 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
   // Make sure to set the interrupt budget after maybe starting an optimization,
   // so that the interrupt budget size takes into account tiering state.
   DCHECK(had_feedback_vector);
-  function->SetInterruptBudget(isolate_);
+  function->SetInterruptBudget(isolate_, BudgetModification::kRaise);
 }
 
 }  // namespace internal

@@ -52,6 +52,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/js-function.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
@@ -1303,7 +1304,8 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 
   // Remember that the function is currently being processed.
   function->SetTieringInProgress(true, osr_offset);
-  function->SetInterruptBudget(isolate, CodeKind::MAGLEV);
+  function->SetInterruptBudget(isolate, BudgetModification::kRaise,
+                               CodeKind::MAGLEV);
 
   return {};
 #else   // V8_ENABLE_MAGLEV

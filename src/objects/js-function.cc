@@ -278,9 +278,22 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
 }
 
 void JSFunction::SetInterruptBudget(
-    Isolate* isolate, std::optional<CodeKind> override_active_tier) {
-  raw_feedback_cell()->set_interrupt_budget(
-      TieringManager::InterruptBudgetFor(isolate, *this, override_active_tier));
+    Isolate* isolate, BudgetModification kind,
+    std::optional<CodeKind> override_active_tier) {
+  int32_t current = raw_feedback_cell()->interrupt_budget();
+  int32_t new_budget =
+      TieringManager::InterruptBudgetFor(isolate, *this, override_active_tier);
+  switch (kind) {
+    case BudgetModification::kRaise:
+      new_budget = std::max(current, new_budget);
+      break;
+    case BudgetModification::kReduce:
+      new_budget = std::min(current, new_budget);
+      break;
+    case BudgetModification::kReset:
+      break;
+  }
+  raw_feedback_cell()->set_interrupt_budget(new_budget);
 }
 
 // static
@@ -575,7 +588,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   // cases.
   if (reset_budget_for_feedback_allocation ||
       !has_closure_feedback_cell_array) {
-    function->SetInterruptBudget(isolate);
+    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
   }
 
   if (has_closure_feedback_cell_array) {
@@ -606,7 +619,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     feedback_cell->set_dispatch_handle(function->dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
-    function->SetInterruptBudget(isolate);
+    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
   } else {
     function->raw_feedback_cell()->set_value(*feedback_cell_array,
                                              kReleaseStore);
@@ -655,7 +668,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   DCHECK_EQ(function->raw_feedback_cell()->value(), *feedback_vector);
-  function->SetInterruptBudget(isolate);
+  function->SetInterruptBudget(isolate, BudgetModification::kRaise);
 
 #ifndef V8_ENABLE_LEAPTIERING
   DCHECK_EQ(v8_flags.log_function_events,

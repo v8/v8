@@ -86,6 +86,8 @@ class JSWrappedFunction
   TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
 };
 
+enum class BudgetModification { kReduce, kRaise, kReset };
+
 // JSFunction describes JavaScript functions.
 class JSFunction : public TorqueGeneratedJSFunction<
                        JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
@@ -251,7 +253,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
-  void SetInterruptBudget(Isolate* isolate,
+  void SetInterruptBudget(Isolate* isolate, BudgetModification kind,
                           std::optional<CodeKind> override_active_tier = {});
 
   // If slack tracking is active, it computes instance size of the initial map

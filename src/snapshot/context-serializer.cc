@@ -222,7 +222,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       // serialize optimized code anyway.
       Tagged<JSFunction> closure = Cast<JSFunction>(*obj);
       if (closure->shared()->HasBytecodeArray()) {
-        closure->SetInterruptBudget(isolate());
+        closure->SetInterruptBudget(isolate(), BudgetModification::kReset);
       }
       closure->ResetIfCodeFlushed(isolate());
       if (closure->is_compiled(isolate())) {
