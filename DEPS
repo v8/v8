@@ -128,7 +128,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '236b1807950d5ef2d472076a9a3b6dd45253139d',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6767af303e1d63fb618cf9d1a6591b4f83b92150',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7d7540c349fd6e5fc4b2241ee8aa3b17ed7261b6',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '0436a33c875ead926d821b12075fd20d47b6bc77',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'fa69468414cedfab3ced42426df5920f9b2c345f',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -302,7 +302,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '940f7db9068d473a7705ca19c71b01ecf54aaa94',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '5e0e903f1345443d9e4c5946c9af1fa95a974063',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '42d3258086a8849a35923096295db17628c4a1d2',
   'third_party/libunwind/src':
@@ -496,7 +496,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b5ecd2133b937456caef1f5258da2e845c037db0',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '463f9281455ef1ee45c0cf3fd31caaabec3b16c7',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
