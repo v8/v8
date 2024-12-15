@@ -304,11 +304,11 @@ deps = {
   'third_party/libc++/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '5e0e903f1345443d9e4c5946c9af1fa95a974063',
   'third_party/libc++abi/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '42d3258086a8849a35923096295db17628c4a1d2',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '574b92bc1d7aa586ed30e4e9923041d1ec495017',
   'third_party/libunwind/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '19bfdd55df3d106d7611455375445ad47753b0aa',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'a4d792ed7bbbf7380a284f8660a8a31b3bfa5585',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4905789102a8bf6668e4813729798a7661532407',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
