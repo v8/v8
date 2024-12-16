@@ -642,9 +642,16 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
   if (map.IsStringMap()) return NodeType::kString;
+  if (map.IsNameMap()) return NodeType::kName;
+  if (map.IsJSPrimitiveWrapperMap() &&
+      IsStringWrapperElementsKind(map.elements_kind())) {
+    return NodeType::kStringOrStringWrapper;
+  }
+  if (map.IsSymbolMap()) return NodeType::kSymbol;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
   if (map.IsOddballMap()) return NodeType::kOddball;
+  if (map.IsCallableJSFunctionMap()) return NodeType::kCallable;
   if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
   return NodeType::kAnyHeapObject;
 }
