@@ -45,9 +45,23 @@ void WasmGCTypeAnalyzer::Run() {
         // defines more precise types than the previous iteration).
         if (needs_revisit) {
           block_to_snapshot_[loop_header.index()] = MaybeSnapshot(snapshot);
-          // This will push the successors of the loop header to the iterator
-          // stack, so the loop body will be visited in the next iteration.
-          iterator.MarkLoopForRevisitSkipHeader();
+          if (block.index() != loop_header.index()) {
+            // This will push the successors of the loop header to the iterator
+            // stack, so the loop body will be visited in the next iteration.
+            iterator.MarkLoopForRevisitSkipHeader();
+          } else {
+            // A single-block loop doesn't have any successors which would be
+            // re-evaluated and which might trigger another re-evaluation of the
+            // loop header.
+            // TODO(mliedtke): This is not a great design: We don't just
+            // schedule revisiting the loop header but afterwards we revisit it
+            // once again to evaluate whether we need to revisit it more times,
+            // so for single block loops the revisitation count will always be a
+            // multiple of 2. While this is inefficient, single-block loops are
+            // rare and are either endless loops or need to trigger an exception
+            // (e.g. a wasm trap) to terminate.
+            iterator.MarkLoopForRevisit();
+          }
         }
       }
     }
@@ -279,12 +293,9 @@ wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,
   if (current_block_->begin().id() <= input.id() && input.id() < phi_id.id()) {
     // Phi instructions have to be at the beginning of the block, so this can
     // only happen for inputs that are also phis. Furthermore, this is only
-    // possible in loop headers of loops with a single block (endless loops) and
-    // only for the backedge-input.
+    // possible in loop headers of loops and only for the backedge-input.
     DCHECK(graph_.Get(input).Is<PhiOp>());
     DCHECK(current_block_->IsLoop());
-    DCHECK(current_block_->HasBackedge(graph_));
-    DCHECK_EQ(current_block_->LastPredecessor(), current_block_);
     DCHECK_EQ(input_index, 1);
     return types_table_.Get(input);
   }
