@@ -367,7 +367,7 @@ class TNode {
  public:
   template <class U>
   TNode(const TNode<U>& other) V8_NOEXCEPT
-    requires is_subtype<U, T>::value
+    requires(is_subtype<U, T>::value)
       : node_(other.node_) {
     LazyTemplateChecks();
   }
@@ -417,7 +417,7 @@ class SloppyTNode : public TNode<T> {
       : TNode<T>(node) {}
   template <class U>
   SloppyTNode(const TNode<U>& other) V8_NOEXCEPT  // NOLINT(runtime/explicit)
-    requires is_subtype<U, T>::value
+    requires(is_subtype<U, T>::value)
       : TNode<T>(other) {}
 };
 

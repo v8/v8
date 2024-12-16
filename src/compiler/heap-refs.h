@@ -328,14 +328,14 @@ class OptionalRef {
   template <typename SRef>
   // NOLINTNEXTLINE
   V8_INLINE OptionalRef(OptionalRef<SRef> ref)
-    requires std::is_convertible<SRef*, TRef*>::value
+    requires std::is_convertible_v<SRef*, TRef*>
       : data_(ref.data_) {}
 
   // Allow implicit upcasting from compatible refs.
   template <typename SRef>
   // NOLINTNEXTLINE
   V8_INLINE OptionalRef(SRef ref)
-    requires std::is_convertible<SRef*, TRef*>::value
+    requires std::is_convertible_v<SRef*, TRef*>
       : data_(ref.data_) {}
 
   constexpr bool has_value() const { return data_ != nullptr; }
