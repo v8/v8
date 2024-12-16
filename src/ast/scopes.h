@@ -115,6 +115,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool is_reparsed() const { return !scope_info_.is_null(); }
 
+  // Re-writes the {VariableLocation} of top-level 'let' bindings from CONTEXT
+  // to REPL_GLOBAL. Should only be called on REPL scripts.
+  void RewriteReplGlobalVariables();
+
   class Snapshot final {
    public:
     inline explicit Snapshot(Scope* scope);
@@ -1216,10 +1220,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return needs_private_name_context_chain_recalc_;
   }
   void RecordNeedsPrivateNameContextChainRecalc();
-
-  // Re-writes the {VariableLocation} of top-level 'let' bindings from CONTEXT
-  // to REPL_GLOBAL. Should only be called on REPL scripts.
-  void RewriteReplGlobalVariables();
 
   void set_class_scope_has_private_brand(bool value) {
     class_scope_has_private_brand_ = value;

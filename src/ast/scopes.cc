@@ -722,7 +722,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   }
 
   if (!scope->AllocateVariables(info)) return false;
-  scope->GetScriptScope()->RewriteReplGlobalVariables();
+  scope->RewriteReplGlobalVariables();
 
 #ifdef DEBUG
   if (v8_flags.print_scopes) {
@@ -1761,14 +1761,15 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
   unresolved_list_ = std::move(new_unresolved_list);
 }
 
-void DeclarationScope::RewriteReplGlobalVariables() {
-  DCHECK(is_script_scope());
-  if (!is_repl_mode_scope()) return;
+void Scope::RewriteReplGlobalVariables() {
+  if (!GetScriptScope()->is_repl_mode_scope()) return;
 
-  for (VariableMap::Entry* p = variables_.Start(); p != nullptr;
-       p = variables_.Next(p)) {
-    Variable* var = reinterpret_cast<Variable*>(p->value);
-    var->RewriteLocationForRepl();
+  for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope_) {
+    for (VariableMap::Entry* p = scope->variables_.Start(); p != nullptr;
+         p = scope->variables_.Next(p)) {
+      Variable* var = reinterpret_cast<Variable*>(p->value);
+      if (var->scope()->is_repl_mode_scope()) var->RewriteLocationForRepl();
+    }
   }
 }
 
