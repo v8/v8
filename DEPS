@@ -83,7 +83,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:90146f88d98328d9b83b42d16ee30ff54b48d214',
+  'siso_version': 'git_revision:f9bfa081826a4ffb6f2a96b640d009cef900e69f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -250,7 +250,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '77e8bd63857b5a623791724373535a7dd40f7ed5',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cbead190e5a4badb427fda83c7a57868b634511e',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ac382467315c999745520e6d4de94a3e54a95789',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '439a167119afd3217376a24f4aa48f33468e9293',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -492,11 +492,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '82a5fecf8aae8f288267cfdb2d29c9ebf7b37e59',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd61c909ec46d794ba174c6d034c270bf9237f9b7',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e911dd7a7e260bd98a04fc17bfd92b3a10ca65f8',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '197e2d40924155c7171a29f2080102d02f9cb4d2',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '07cede32720da9f79bfd32c739a13a66bca78483',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
