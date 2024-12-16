@@ -553,9 +553,9 @@ DirectHandle<Object> TryLoadMutableHeapNumber(
     property = Cast<ContextSidePropertyCell>(data)->context_side_property();
   }
   if (property == ContextSidePropertyCell::kMutableInt32) {
-    auto int32_value = DoubleFitsInInt32(Cast<HeapNumber>(*value)->value());
-    DCHECK(int32_value.has_value());
-    return isolate->factory()->NewHeapNumber(static_cast<double>(*int32_value));
+    int32_t int32_value =
+        static_cast<int32_t>(Cast<HeapNumber>(*value)->value_as_bits());
+    return isolate->factory()->NewHeapNumber(static_cast<double>(int32_value));
   } else if (property == ContextSidePropertyCell::kMutableHeapNumber) {
     return isolate->factory()->NewHeapNumber(Cast<HeapNumber>(*value)->value());
   } else {
