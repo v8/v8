@@ -145,17 +145,12 @@ class V8_TRIVIAL_ABI CompressedPointer final {
     CPPGC_DCHECK(
         (reinterpret_cast<uintptr_t>(ptr) & kPointerCompressionShiftMask) == 0);
 
-#if defined(CPPGC_2GB_CAGE)
-    // Truncate the pointer.
-    auto compressed =
-        static_cast<IntegralType>(reinterpret_cast<uintptr_t>(ptr));
-#else   // !defined(CPPGC_2GB_CAGE)
     const auto uptr = reinterpret_cast<uintptr_t>(ptr);
     // Shift the pointer and truncate.
     auto compressed = static_cast<IntegralType>(
         uptr >> api_constants::kPointerCompressionShift);
-#endif  // !defined(CPPGC_2GB_CAGE)
-    // Normal compressed pointers must have the MSB set.
+    // Normal compressed pointers must have the MSB set. This is guaranteed by
+    // the cage alignment.
     CPPGC_DCHECK((!compressed || compressed == kCompressedSentinel) ||
                  (compressed & (1 << 31)));
     return compressed;
@@ -170,28 +165,22 @@ class V8_TRIVIAL_ABI CompressedPointer final {
   static V8_INLINE void* Decompress(IntegralType ptr, uintptr_t base) {
     CPPGC_DCHECK(CageBaseGlobal::IsSet());
     CPPGC_DCHECK(base == CageBaseGlobal::Get());
-    // Treat compressed pointer as signed and cast it to uint64_t, which will
-    // sign-extend it.
-#if defined(CPPGC_2GB_CAGE)
-    const uint64_t mask = static_cast<uint64_t>(static_cast<int32_t>(ptr));
-#else   // !defined(CPPGC_2GB_CAGE)
-    // Then, shift the result. It's important to shift the unsigned
-    // value, as otherwise it would result in undefined behavior.
+    // Sign-extend compressed pointer to full width. This ensure that normal
+    // pointers have only 1s in the base part of the address. It's also
+    // important to shift the unsigned value, as otherwise it would result in
+    // undefined behavior.
     const uint64_t mask = static_cast<uint64_t>(static_cast<int32_t>(ptr))
                           << api_constants::kPointerCompressionShift;
-#endif  // !defined(CPPGC_2GB_CAGE)
+    // Set the base part of the address for normal compressed pointers. Note
+    // that nullptr and the sentinel value do not have 1s in the base part and
+    // remain as-is in this operation.
     return reinterpret_cast<void*>(mask & base);
   }
 
  private:
-#if defined(CPPGC_2GB_CAGE)
-  static constexpr IntegralType kCompressedSentinel =
-      SentinelPointer::kSentinelValue;
-#else   // !defined(CPPGC_2GB_CAGE)
   static constexpr IntegralType kCompressedSentinel =
       SentinelPointer::kSentinelValue >>
       api_constants::kPointerCompressionShift;
-#endif  // !defined(CPPGC_2GB_CAGE)
   // All constructors initialize `value_`. Do not add a default value here as it
   // results in a non-atomic write on some builds, even when the atomic version
   // of the constructor is used.

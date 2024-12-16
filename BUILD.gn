@@ -1077,9 +1077,6 @@ if (cppgc_enable_young_generation) {
 if (cppgc_enable_pointer_compression) {
   enabled_external_cppgc_defines += [ "CPPGC_POINTER_COMPRESSION" ]
 }
-if (cppgc_enable_2gb_cage) {
-  enabled_external_cppgc_defines += [ "CPPGC_2GB_CAGE" ]
-}
 if (cppgc_enable_larger_cage) {
   enabled_external_cppgc_defines += [ "CPPGC_ENABLE_LARGER_CAGE" ]
 }

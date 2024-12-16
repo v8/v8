@@ -149,10 +149,6 @@ declare_args() {
   # Enable pointer compression in cppgc.
   cppgc_enable_pointer_compression = false
 
-  # Enable 2gb cage for fast compression/decompression. Currently disabled
-  # due to an increased number of OOMs.
-  cppgc_enable_2gb_cage = false
-
   # Enable support for larger cages, up to 16GB.
   cppgc_enable_larger_cage = true
 
