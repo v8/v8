@@ -73,10 +73,6 @@ class ReadOnlyHeap final {
   // Returns whether the object resides in the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(Tagged<HeapObject> object);
   V8_EXPORT_PRIVATE static bool SandboxSafeContains(Tagged<HeapObject> object);
-  // Gets read-only roots from an appropriate root list. Shared read only root
-  // must be initialized
-  V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
-      Tagged<HeapObject> object);
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
@@ -129,6 +125,7 @@ class ReadOnlyHeap final {
 #endif  // V8_ENABLE_LEAPTIERING
 
  private:
+  friend ReadOnlyRoots GetReadOnlyRoots();
   Address read_only_roots_[kEntriesCount];
 };
 

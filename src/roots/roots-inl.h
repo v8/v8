@@ -10,7 +10,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/page-metadata-inl.h"
-#include "src/heap/read-only-heap.h"
+#include "src/heap/read-only-heap-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
@@ -67,6 +67,15 @@ bool RootsTable::IsRootHandle(IndirectHandle<T> handle,
   // location against the root handle list is safe though.
   Address* handle_location = reinterpret_cast<Address*>(handle.address());
   return IsRootHandleLocation(handle_location, index);
+}
+
+ReadOnlyRoots GetReadOnlyRoots() {
+  ReadOnlyHeap* shared_ro_heap =
+      IsolateGroup::current()->shared_read_only_heap();
+  // If this check fails in code that runs during initialization use
+  // EarlyGetReadOnlyRoots instead.
+  DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
+  return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
 }
 
 ReadOnlyRoots::ReadOnlyRoots(Heap* heap)

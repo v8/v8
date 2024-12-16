@@ -173,7 +173,7 @@ void PrintHeapObjectHeaderWithoutMap(Tagged<HeapObject> object,
 template <typename T>
 void PrintDictionaryContents(std::ostream& os, Tagged<T> dict) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = dict->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
 
   if (dict->Capacity() == 0) {
     return;
@@ -1257,7 +1257,7 @@ template <typename T>
 void PrintTableContentsGeneric(std::ostream& os, T* dict,
                                DataPrinter print_data_at) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = dict->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
 
   for (InternalIndex i : dict->IterateEntries()) {
     Tagged<Object> k;
@@ -1461,7 +1461,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
   os << "\n - data table (omitting slots where key is the hole): {";
   for (int bucket = 0; bucket < this->Capacity(); ++bucket) {
     Tagged<Object> k;
-    if (!this->ToKey(this->GetReadOnlyRoots(), bucket, &k)) continue;
+    if (!this->ToKey(GetReadOnlyRoots(), bucket, &k)) continue;
 
     Tagged<Object> value = this->ValueAtRaw(bucket);
     PropertyDetails details = this->DetailsAt(bucket);
@@ -3960,7 +3960,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Tagged<Name> key,
   ShortPrint(key, os);
 #endif
   os << ": ";
-  ReadOnlyRoots roots = key->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   if (key == roots.nonextensible_symbol()) {
     os << "(transition to non-extensible)";
   } else if (key == roots.sealed_symbol()) {

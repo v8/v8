@@ -329,7 +329,7 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
 
 void StringStream::PrintFixedArray(Tagged<FixedArray> array,
                                    unsigned int limit) {
-  ReadOnlyRoots roots = array->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Tagged<Object> element = array->get(i);
     if (IsTheHole(element, roots)) continue;

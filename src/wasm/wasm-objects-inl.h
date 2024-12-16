@@ -69,10 +69,9 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
   DEF_GETTER(holder, has_##name, bool) {                     \
     Tagged<Object> value =                                   \
         TaggedField<Object, offset>::load(cage_base, *this); \
-    return !IsUndefined(value, GetReadOnlyRoots(cage_base)); \
+    return !IsUndefined(value);                              \
   }                                                          \
-  ACCESSORS_CHECKED2(holder, name, type, offset,             \
-                     !IsUndefined(value, GetReadOnlyRoots(cage_base)), true)
+  ACCESSORS_CHECKED2(holder, name, type, offset, !IsUndefined(value), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
   type holder::name() const {                                         \

@@ -50,7 +50,7 @@ void JSArray::SetContent(DirectHandle<JSArray> array,
   EnsureCanContainElements(array, storage, storage->length(),
                            ALLOW_COPIED_DOUBLE_ELEMENTS);
 #ifdef DEBUG
-  ReadOnlyRoots roots = array->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   Tagged<Map> map = storage->map();
   if (map == roots.fixed_double_array_map()) {
     DCHECK(IsDoubleElementsKind(array->GetElementsKind()));

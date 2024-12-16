@@ -750,7 +750,7 @@ Tagged<Object> SetHashAndUpdateProperties(Tagged<HeapObject> properties,
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  ReadOnlyRoots roots = properties->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   if (properties == roots.empty_fixed_array() ||
       properties == roots.empty_property_array() ||
       properties == roots.empty_property_dictionary() ||
@@ -795,7 +795,7 @@ int GetIdentityHashHelper(Tagged<JSReceiver> object) {
   }
 
 #ifdef DEBUG
-  ReadOnlyRoots roots = object->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(properties == roots.empty_fixed_array() ||
          properties == roots.empty_property_dictionary() ||
          properties == roots.empty_swiss_property_dictionary());
@@ -4211,10 +4211,10 @@ bool TestPropertiesIntegrityLevel(Tagged<JSObject> object,
 
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     return TestDictionaryPropertiesIntegrityLevel(
-        object->property_dictionary_swiss(), object->GetReadOnlyRoots(), level);
+        object->property_dictionary_swiss(), GetReadOnlyRoots(), level);
   } else {
-    return TestDictionaryPropertiesIntegrityLevel(
-        object->property_dictionary(), object->GetReadOnlyRoots(), level);
+    return TestDictionaryPropertiesIntegrityLevel(object->property_dictionary(),
+                                                  GetReadOnlyRoots(), level);
   }
 }
 
@@ -4226,8 +4226,7 @@ bool TestElementsIntegrityLevel(Isolate* isolate, Tagged<JSObject> object,
 
   if (IsDictionaryElementsKind(kind)) {
     return TestDictionaryPropertiesIntegrityLevel(
-        Cast<NumberDictionary>(object->elements()), object->GetReadOnlyRoots(),
-        level);
+        Cast<NumberDictionary>(object->elements()), GetReadOnlyRoots(), level);
   }
   if (IsTypedArrayOrRabGsabTypedArrayElementsKind(kind)) {
     if (level == FROZEN && Cast<JSArrayBufferView>(object)->byte_length() > 0) {

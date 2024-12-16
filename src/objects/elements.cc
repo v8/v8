@@ -379,7 +379,7 @@ void CopySmiToDoubleElements(Tagged<FixedArrayBase> from_base,
   if (copy_size == 0) return;
   Tagged<FixedArray> from = Cast<FixedArray>(from_base);
   Tagged<FixedDoubleArray> to = Cast<FixedDoubleArray>(to_base);
-  Tagged<Object> the_hole = from->GetReadOnlyRoots().the_hole_value();
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + static_cast<uint32_t>(copy_size);
        from_start < from_end; from_start++, to_start++) {
     Tagged<Object> hole_or_smi = from->get(from_start);
@@ -442,7 +442,7 @@ void CopyObjectToDoubleElements(Tagged<FixedArrayBase> from_base,
   if (copy_size == 0) return;
   Tagged<FixedArray> from = Cast<FixedArray>(from_base);
   Tagged<FixedDoubleArray> to = Cast<FixedDoubleArray>(to_base);
-  Tagged<Hole> the_hole = from->GetReadOnlyRoots().the_hole_value();
+  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + copy_size; from_start < from_end;
        from_start++, to_start++) {
     Tagged<Object> hole_or_object = from->get(from_start);
@@ -1606,7 +1606,7 @@ class DictionaryElementsAccessor
     Tagged<NumberDictionary> dict = Cast<NumberDictionary>(backing_store);
     if (!dict->requires_slow_elements()) return false;
     PtrComprCageBase cage_base = GetPtrComprCageBase(holder);
-    ReadOnlyRoots roots = holder->GetReadOnlyRoots(cage_base);
+    ReadOnlyRoots roots = GetReadOnlyRoots();
     for (InternalIndex i : dict->IterateEntries()) {
       Tagged<Object> key = dict->KeyAt(cage_base, i);
       if (!dict->IsKey(roots, key)) continue;
@@ -2020,7 +2020,7 @@ class DictionaryElementsAccessor
 #if DEBUG
     DCHECK_EQ(holder->map()->elements_kind(), DICTIONARY_ELEMENTS);
     if (!v8_flags.enable_slow_asserts) return;
-    ReadOnlyRoots roots = holder->GetReadOnlyRoots();
+    ReadOnlyRoots roots = GetReadOnlyRoots();
     Tagged<NumberDictionary> dictionary =
         Cast<NumberDictionary>(holder->elements());
     // Validate the requires_slow_elements and max_number_key values.
@@ -4946,7 +4946,7 @@ class SloppyArgumentsElementsAccessor
     // heap verification happy we postpone clearing out the mapped entry.
     if (entry.as_uint32() < length) {
       elements->set_mapped_entries(entry.as_uint32(),
-                                   obj->GetReadOnlyRoots().the_hole_value());
+                                   GetReadOnlyRoots().the_hole_value());
     }
   }
 

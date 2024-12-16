@@ -8,7 +8,6 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8 {

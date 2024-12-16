@@ -136,10 +136,10 @@ bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
     return Is##Type(obj, ReadOnlyRoots(isolate));                \
   }                                                              \
   bool Is##Type(Tagged<Object> obj) {                            \
-    return IsHeapObject(obj) && Is##Type(Cast<HeapObject>(obj)); \
+    return Is##Type(obj, GetReadOnlyRoots());                    \
   }                                                              \
   bool Is##Type(Tagged<HeapObject> obj) {                        \
-    return Is##Type(obj, obj->GetReadOnlyRoots());               \
+    return Is##Type(obj, GetReadOnlyRoots());                    \
   }                                                              \
   bool Is##Type(HeapObject obj) {                                \
     static_assert(kTaggedCanConvertToRawObjects);                \
@@ -185,11 +185,11 @@ bool IsNullOrUndefined(Tagged<Object> obj, ReadOnlyRoots roots) {
 }
 
 bool IsNullOrUndefined(Tagged<Object> obj) {
-  return IsHeapObject(obj) && IsNullOrUndefined(Cast<HeapObject>(obj));
+  return IsNullOrUndefined(obj, GetReadOnlyRoots());
 }
 
 bool IsNullOrUndefined(Tagged<HeapObject> obj) {
-  return IsNullOrUndefined(obj, obj->GetReadOnlyRoots());
+  return IsNullOrUndefined(obj, GetReadOnlyRoots());
 }
 
 bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
@@ -435,7 +435,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSourceTextModuleInfo) {
-  return obj->map(cage_base) == obj->GetReadOnlyRoots().module_info_map();
+  return obj->map(cage_base) == GetReadOnlyRoots().module_info_map();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
@@ -729,8 +729,7 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (IsUninitialized(heap_object,
-                             heap_object->GetReadOnlyRoots(cage_base))) {
+  } else if (IsUninitialized(heap_object)) {
     return Representation::None();
   }
   return Representation::HeapObject();
@@ -1271,19 +1270,6 @@ ReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
 
 ReadOnlyRoots HeapObjectLayout::EarlyGetReadOnlyRoots() const {
   return ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged(this));
-}
-
-ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
-  return ReadOnlyHeap::GetReadOnlyRoots(*this);
-}
-
-ReadOnlyRoots HeapObjectLayout::GetReadOnlyRoots() const {
-  return ReadOnlyHeap::GetReadOnlyRoots(Tagged(this));
-}
-
-// TODO(v8:13788): Remove this cage-ful accessor.
-ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
-  return GetReadOnlyRoots();
 }
 
 Tagged<Map> HeapObject::map() const {

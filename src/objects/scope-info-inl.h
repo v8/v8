@@ -103,7 +103,7 @@ class ScopeInfo::LocalNamesRange {
 
     void advance_hashtable_index() {
       DisallowGarbageCollection no_gc;
-      ReadOnlyRoots roots = scope_info()->GetReadOnlyRoots();
+      ReadOnlyRoots roots = GetReadOnlyRoots();
       InternalIndex max = range_->max_index();
       // Increment until iterator points to a valid key or max.
       while (index_ < max) {

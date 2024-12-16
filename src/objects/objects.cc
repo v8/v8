@@ -4895,7 +4895,7 @@ bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
   // the first in the descriptor array.
   InternalIndex first(0);
   DCHECK(js_array_map->instance_descriptors()->GetKey(first) ==
-         js_array_map->GetReadOnlyRoots().length_string());
+         GetReadOnlyRoots().length_string());
   return js_array_map->instance_descriptors()->GetDetails(first).IsReadOnly();
 }
 
@@ -5621,7 +5621,7 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
     // the dictionary with new enumeration indices.
     for (int i = 0; i < length; i++) {
       InternalIndex internal_index(Smi::ToInt(iteration_order->get(i)));
-      DCHECK(dictionary->IsKey(dictionary->GetReadOnlyRoots(),
+      DCHECK(dictionary->IsKey(GetReadOnlyRoots(),
                                dictionary->KeyAt(isolate, internal_index)));
 
       int enum_index = PropertyDetails::kInitialIndex + i;
@@ -5859,7 +5859,7 @@ void NumberDictionary::CopyValuesTo(Tagged<FixedArray> elements) {
 
 template <typename Derived, typename Shape>
 int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   int result = 0;
   for (InternalIndex i : this->IterateEntries()) {
     Tagged<Object> k;
@@ -5910,7 +5910,7 @@ template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
     Tagged<Object> value) {
   Tagged<Derived> dictionary = Cast<Derived>(this);
-  ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> k;
     if (!dictionary->ToKey(roots, i, &k)) continue;
@@ -5923,7 +5923,7 @@ Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
     DirectHandle<Derived> table) {
-  auto roots = table->GetReadOnlyRoots();
+  auto roots = GetReadOnlyRoots();
   int length = table->length();
   for (int i = Derived::EntryToIndex(InternalIndex(0)); i < length; i++) {
     table->set_the_hole(roots, i);
@@ -5934,7 +5934,7 @@ template <typename Derived, typename Shape>
 Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
     PtrComprCageBase cage_base, DirectHandle<Object> key, int32_t hash) {
   DisallowGarbageCollection no_gc;
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   InternalIndex entry = this->FindEntry(cage_base, roots, key, hash);
@@ -5947,7 +5947,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 int NameToIndexHashTable::Lookup(DirectHandle<Name> key) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
 
   InternalIndex entry = this->FindEntry(cage_base, roots, key, key->hash());
   if (entry.is_not_found()) return -1;
@@ -5960,7 +5960,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
   DisallowGarbageCollection no_gc;
 
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
@@ -6070,7 +6070,7 @@ template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
     Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     bool* was_present) {
-  DCHECK(table->IsKey(table->GetReadOnlyRoots(), *key));
+  DCHECK(table->IsKey(GetReadOnlyRoots(), *key));
 
   Tagged<Object> hash = Object::GetHash(*key);
   if (IsUndefined(hash)) {
@@ -6085,7 +6085,7 @@ template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
     Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     bool* was_present, int32_t hash) {
-  ReadOnlyRoots roots = table->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(table->IsKey(roots, *key));
 
   InternalIndex entry = table->FindEntry(isolate, roots, key, hash);
@@ -6111,7 +6111,7 @@ void ObjectHashTableBase<Derived, Shape>::AddEntry(InternalIndex entry,
 
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
-  auto roots = this->GetReadOnlyRoots();
+  auto roots = GetReadOnlyRoots();
   this->set_the_hole(roots, Derived::EntryToIndex(entry));
   this->set_the_hole(roots, Derived::EntryToValueIndex(entry));
   this->ElementRemoved();
@@ -6128,7 +6128,7 @@ std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     PtrComprCageBase cage_base, DirectHandle<Object> key) {
   DisallowGarbageCollection no_gc;
 
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(this->IsKey(roots, *key));
 
   Tagged<Object> hash_obj = Object::GetHash(*key);
@@ -6250,7 +6250,7 @@ void JSWeakCollection::Set(DirectHandle<JSWeakCollection> weak_collection,
   Handle<EphemeronHashTable> table(
       Cast<EphemeronHashTable>(weak_collection->table()),
       weak_collection->GetIsolate());
-  DCHECK(table->IsKey(weak_collection->GetReadOnlyRoots(), *key));
+  DCHECK(table->IsKey(GetReadOnlyRoots(), *key));
   DirectHandle<EphemeronHashTable> new_table = EphemeronHashTable::Put(
       weak_collection->GetIsolate(), table, key, value, hash);
   weak_collection->set_table(*new_table);
@@ -6266,7 +6266,7 @@ bool JSWeakCollection::Delete(DirectHandle<JSWeakCollection> weak_collection,
   Handle<EphemeronHashTable> table(
       Cast<EphemeronHashTable>(weak_collection->table()),
       weak_collection->GetIsolate());
-  DCHECK(table->IsKey(weak_collection->GetReadOnlyRoots(), *key));
+  DCHECK(table->IsKey(GetReadOnlyRoots(), *key));
   bool was_present = false;
   DirectHandle<EphemeronHashTable> new_table = EphemeronHashTable::Remove(
       weak_collection->GetIsolate(), table, key, &was_present, hash);

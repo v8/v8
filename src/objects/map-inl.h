@@ -720,11 +720,11 @@ bool Map::CanTransition() const {
 }
 
 bool IsBooleanMap(Tagged<Map> map) {
-  return map == map->GetReadOnlyRoots().boolean_map();
+  return map == GetReadOnlyRoots().boolean_map();
 }
 
 bool IsNullOrUndefinedMap(Tagged<Map> map) {
-  auto roots = map->GetReadOnlyRoots();
+  auto roots = GetReadOnlyRoots();
   return map == roots.null_map() || map == roots.undefined_map();
 }
 
@@ -797,7 +797,7 @@ DEF_GETTER(Map, GetBackPointer, Tagged<HeapObject>) {
   if (TryGetBackPointer(cage_base, &back_pointer)) {
     return back_pointer;
   }
-  return GetReadOnlyRoots(cage_base).undefined_value();
+  return GetReadOnlyRoots().undefined_value();
 }
 
 bool Map::TryGetBackPointer(PtrComprCageBase cage_base,

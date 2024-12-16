@@ -684,6 +684,8 @@ class RootsTable {
 READ_ONLY_ROOT_LIST(ROOT_TYPE_FWD_DECL)
 #undef ROOT_TYPE_FWD_DECL
 
+inline ReadOnlyRoots GetReadOnlyRoots();
+
 class ReadOnlyRoots {
  public:
   static constexpr size_t kEntriesCount =
@@ -756,6 +758,7 @@ class ReadOnlyRoots {
   friend class ReadOnlyHeap;
   friend class DeserializerAllocator;
   friend class ReadOnlyHeapImageDeserializer;
+  friend ReadOnlyRoots GetReadOnlyRoots();
 };
 
 }  // namespace internal

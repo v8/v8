@@ -155,7 +155,7 @@ void NumberDictionary::set_requires_slow_elements() {
 
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(InternalIndex entry) {
-  Tagged<Object> the_hole = this->GetReadOnlyRoots().the_hole_value();
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
   Cast<Derived>(this)->SetEntry(entry, the_hole, the_hole, details);
 }
@@ -273,7 +273,7 @@ void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
 }
 
 void GlobalDictionary::ClearEntry(InternalIndex entry) {
-  Tagged<Hole> the_hole = this->GetReadOnlyRoots().the_hole_value();
+  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
   set(EntryToIndex(entry) + kEntryKeyIndex, the_hole);
 }
 

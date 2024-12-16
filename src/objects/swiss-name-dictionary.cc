@@ -264,7 +264,7 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
 // HashTable<..>::NumberOfEnumerableProperties. Consolidate both versions
 // elsewhere (e.g., hash-table-utils)?
 int SwissNameDictionary::NumberOfEnumerableProperties() {
-  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   int result = 0;
   for (InternalIndex i : this->IterateEntries()) {
     Tagged<Object> k;

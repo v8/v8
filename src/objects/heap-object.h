@@ -79,11 +79,8 @@ V8_OBJECT class HeapObjectLayout {
   // Returns the address of this HeapObject.
   inline Address address() const { return reinterpret_cast<Address>(this); }
 
-  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
-  // way that doesn't require passing Isolate/Heap down huge call chains or to
-  // places where it might not be safe to access it.
-  inline ReadOnlyRoots GetReadOnlyRoots() const;
-  // This is slower, but safe to call during bootstrapping.
+  // This is slower that GetReadOnlyRoots, but safe to call during
+  // bootstrapping.
   inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Returns the heap object's size in bytes
@@ -215,14 +212,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void set_map_word_forwarded(Tagged<HeapObject> target_object,
                                      ReleaseStoreTag);
 
-  // This method exists to help remove GetIsolate/GetHeap from HeapObject, in a
-  // way that doesn't require passing Isolate/Heap down huge call chains or to
-  // places where it might not be safe to access it.
-  inline ReadOnlyRoots GetReadOnlyRoots() const;
-  // This version is intended to be used for the isolate values produced by
-  // i::GetPtrComprCageBase(HeapObject) function which may return nullptr.
-  inline ReadOnlyRoots GetReadOnlyRoots(PtrComprCageBase cage_base) const;
-  // This is slower, but safe to call during bootstrapping.
+  // This is slower than GetReadOnlyRoots, but safe to call during
+  // bootstrapping.
   inline ReadOnlyRoots EarlyGetReadOnlyRoots() const;
 
   // Converts an address to a HeapObject pointer.

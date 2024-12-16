@@ -41,7 +41,7 @@ static bool IsPropertyNameFeedback(Tagged<MaybeObject> feedback) {
   }
   if (!IsSymbol(heap_object)) return false;
   Tagged<Symbol> symbol = Cast<Symbol>(heap_object);
-  ReadOnlyRoots roots = symbol->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
          symbol != roots.mega_dom_symbol() &&
          symbol != roots.megamorphic_symbol();

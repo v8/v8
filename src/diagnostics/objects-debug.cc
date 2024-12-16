@@ -429,8 +429,7 @@ void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return elements(cage_base) !=
-         GetReadOnlyRoots(cage_base).one_pointer_filler_map();
+  return elements(cage_base) != GetReadOnlyRoots().one_pointer_filler_map();
 }
 
 namespace {
@@ -2853,8 +2852,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
     CHECK(has_hash);
     PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
-    if (!TransitionsAccessor::IsSpecialTransition(key->GetReadOnlyRoots(),
-                                                  key)) {
+    if (!TransitionsAccessor::IsSpecialTransition(GetReadOnlyRoots(), key)) {
       Tagged<Map> target = GetTarget(i);
       PropertyDetails details =
           TransitionsAccessor::GetTargetDetails(key, target);

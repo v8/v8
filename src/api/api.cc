@@ -2364,7 +2364,7 @@ Local<FixedArray> Module::GetModuleRequests() const {
     // Synthetic modules are leaf nodes in the module graph. They have no
     // ModuleRequests.
     return ToApiHandle<FixedArray>(
-        self->GetReadOnlyRoots().empty_fixed_array_handle());
+        i::GetReadOnlyRoots().empty_fixed_array_handle());
   } else {
     return ToApiHandle<FixedArray>(i::direct_handle(
         i::Cast<i::SourceTextModule>(self)->info()->module_requests(),

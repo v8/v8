@@ -1926,7 +1926,7 @@ void String::PrintOn(std::ostream& ostream) {
 
 Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
                                    uint32_t new_length) {
-  if (new_length == 0) return string->GetReadOnlyRoots().empty_string_handle();
+  if (new_length == 0) return GetReadOnlyRoots().empty_string_handle();
 
   int new_size, old_size;
   uint32_t old_length = string->length();

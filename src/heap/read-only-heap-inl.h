@@ -22,16 +22,6 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
   return ReadOnlyRoots(GetHeapFromWritableObject(object));
 }
 
-// static
-ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(Tagged<HeapObject> object) {
-  ReadOnlyHeap* shared_ro_heap =
-      IsolateGroup::current()->shared_read_only_heap();
-  // If this check fails in code that runs during initialization use
-  // EarlyGetReadOnlyRoots instead.
-  DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
-  return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
-}
-
 }  // namespace internal
 }  // namespace v8
 

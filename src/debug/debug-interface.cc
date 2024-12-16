@@ -486,8 +486,7 @@ bool Script::WasCompiled() const {
 
 bool Script::IsEmbedded() const {
   auto script = Utils::OpenDirectHandle(this);
-  return script->context_data() ==
-         script->GetReadOnlyRoots().uninitialized_symbol();
+  return script->context_data() == i::GetReadOnlyRoots().uninitialized_symbol();
 }
 
 int Script::Id() const { return Utils::OpenDirectHandle(this)->id(); }

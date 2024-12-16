@@ -187,7 +187,7 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
-    Tagged<Object> the_hole = object->GetReadOnlyRoots().the_hole_value();
+    Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
     for (uint32_t i = 0; i < count; ++i, ++objects) {
       Tagged<Object> current = *objects;
       if (current == the_hole) {
@@ -220,7 +220,7 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
                                         DirectHandle<FixedArrayBase> elements,
                                         uint32_t length,
                                         EnsureElementsMode mode) {
-  ReadOnlyRoots roots = object->GetReadOnlyRoots();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   if (elements->map() != roots.fixed_double_array_map()) {
     DCHECK(elements->map() == roots.fixed_array_map() ||
            elements->map() == roots.fixed_cow_array_map());
@@ -731,11 +731,11 @@ DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   if (ElementsAreSafeToExamine(cage_base)) {
     Tagged<Map> map = fixed_array->map();
     if (IsSmiOrObjectElementsKind(kind)) {
-      CHECK(map == GetReadOnlyRoots(cage_base).fixed_array_map() ||
-            map == GetReadOnlyRoots(cage_base).fixed_cow_array_map());
+      CHECK(map == GetReadOnlyRoots().fixed_array_map() ||
+            map == GetReadOnlyRoots().fixed_cow_array_map());
     } else if (IsDoubleElementsKind(kind)) {
       CHECK(IsFixedDoubleArray(fixed_array, cage_base) ||
-            fixed_array == GetReadOnlyRoots(cage_base).empty_fixed_array());
+            fixed_array == GetReadOnlyRoots().empty_fixed_array());
     } else if (kind == DICTIONARY_ELEMENTS) {
       CHECK(IsFixedArray(fixed_array, cage_base));
       CHECK(IsNumberDictionary(fixed_array, cage_base));
@@ -899,7 +899,7 @@ DEF_GETTER(JSReceiver, property_dictionary, Tagged<NameDictionary>) {
 
   Tagged<Object> prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop)) {
-    return GetReadOnlyRoots(cage_base).empty_property_dictionary();
+    return GetReadOnlyRoots().empty_property_dictionary();
   }
   return Cast<NameDictionary>(prop);
 }
@@ -911,7 +911,7 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
 
   Tagged<Object> prop = raw_properties_or_hash(cage_base);
   if (IsSmi(prop)) {
-    return GetReadOnlyRoots(cage_base).empty_swiss_property_dictionary();
+    return GetReadOnlyRoots().empty_swiss_property_dictionary();
   }
   return Cast<SwissNameDictionary>(prop);
 }
@@ -921,8 +921,8 @@ DEF_GETTER(JSReceiver, property_dictionary_swiss, Tagged<SwissNameDictionary>) {
 DEF_GETTER(JSReceiver, property_array, Tagged<PropertyArray>) {
   DCHECK(HasFastProperties(cage_base));
   Tagged<Object> prop = raw_properties_or_hash(cage_base);
-  if (IsSmi(prop) || prop == GetReadOnlyRoots(cage_base).empty_fixed_array()) {
-    return GetReadOnlyRoots(cage_base).empty_property_array();
+  if (IsSmi(prop) || prop == GetReadOnlyRoots().empty_fixed_array()) {
+    return GetReadOnlyRoots().empty_property_array();
   }
   return Cast<PropertyArray>(prop);
 }
