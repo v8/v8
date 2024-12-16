@@ -1162,6 +1162,13 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
     return OpIndex::Invalid();
   }
 
+  if (func_idx < module->num_imported_functions) {
+    TRACE("- not inlining: call to an imported function");
+    return OpIndex::Invalid();
+  }
+  DCHECK_LT(func_idx - module->num_imported_functions,
+            module->num_declared_functions);
+
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
   bool is_shared = module->type(func.sig_index).is_shared;
