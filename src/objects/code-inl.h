@@ -346,6 +346,18 @@ uintptr_t Code::GetBaselinePCForBytecodeOffset(
     Tagged<BytecodeArray> bytecodes) {
   DisallowGarbageCollection no_gc;
   CHECK_EQ(kind(), CodeKind::BASELINE);
+  // The following check ties together the bytecode being executed in
+  // Generate_BaselineOrInterpreterEntry with the bytecode that was used to
+  // compile this baseline code. Together, this ensures that we don't OSR into a
+  // wrong code object.
+  auto maybe_bytecodes = bytecode_or_interpreter_data();
+  if (IsBytecodeArray(maybe_bytecodes)) {
+    SBXCHECK_EQ(maybe_bytecodes, bytecodes);
+  } else {
+    CHECK(IsInterpreterData(maybe_bytecodes));
+    SBXCHECK_EQ(Cast<InterpreterData>(maybe_bytecodes)->bytecode_array(),
+                bytecodes);
+  }
   baseline::BytecodeOffsetIterator offset_iterator(
       Cast<TrustedByteArray>(bytecode_offset_table()), bytecodes);
   offset_iterator.AdvanceToBytecodeOffset(bytecode_offset);
