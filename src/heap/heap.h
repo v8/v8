@@ -2272,12 +2272,6 @@ class Heap final {
   std::unique_ptr<CodeRange> code_range_;
 #endif
 
-  // The process-wide virtual space reserved for trusted objects in the V8 heap.
-  // Only used when the sandbox is enabled.
-#if V8_ENABLE_SANDBOX
-  TrustedRange* trusted_range_ = nullptr;
-#endif
-
   // V8 configuration where V8 owns the heap which is either created or passed
   // in during Isolate initialization.
   std::unique_ptr<CppHeap> owning_cpp_heap_;

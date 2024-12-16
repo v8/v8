@@ -652,8 +652,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // for legacy API reasons.
   static void Delete(Isolate* isolate);
 
-  void SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts,
-                                  ReadOnlyHeap* ro_heap);
+  void SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts);
   void set_read_only_heap(ReadOnlyHeap* ro_heap) { read_only_heap_ = ro_heap; }
 
   // Page allocator that must be used for allocating V8 heap pages.

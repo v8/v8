@@ -531,7 +531,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
-  VirtualMemory reservation_;
 
   // Bump pointer for allocation. to_space_.page_low() <= allocation_top_ <=
   // to_space.page_high() always holds.

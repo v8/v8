@@ -4048,13 +4048,13 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-void Isolate::SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts,
-                                         ReadOnlyHeap* ro_heap) {
+void Isolate::SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts) {
   DCHECK_NOT_NULL(artifacts);
   InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
-  DCHECK_NOT_NULL(ro_heap);
-  DCHECK_IMPLIES(read_only_heap_ != nullptr, read_only_heap_ == ro_heap);
-  read_only_heap_ = ro_heap;
+  DCHECK_NOT_NULL(artifacts->read_only_heap());
+  DCHECK_IMPLIES(read_only_heap_ != nullptr,
+                 read_only_heap_ == artifacts->read_only_heap());
+  read_only_heap_ = artifacts->read_only_heap();
   heap_.SetUpFromReadOnlyHeap(read_only_heap_);
 }
 

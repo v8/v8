@@ -27,12 +27,6 @@ class List {
     return *this;
   }
 
-  void ShallowCopyTo(List* other) const {
-    other->front_ = front_;
-    other->back_ = back_;
-    other->size_ = size_;
-  }
-
   void PushBack(T* element) {
     DCHECK(!element->list_node().next());
     DCHECK(!element->list_node().prev());

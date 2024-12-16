@@ -81,7 +81,6 @@ class ReadOnlyHeap final {
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
       Tagged<HeapObject> object);
-  V8_EXPORT_PRIVATE inline static ReadOnlyHeap* GetSharedReadOnlyHeap();
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
@@ -104,8 +103,8 @@ class ReadOnlyHeap final {
 
   // Creates a new read-only heap and attaches it to the provided isolate. Only
   // used the first time when creating a ReadOnlyHeap for sharing.
-  static ReadOnlyHeap* CreateInitialHeapForBootstrapping(
-      Isolate* isolate, ReadOnlyArtifacts* artifacts);
+  static void CreateInitialHeapForBootstrapping(Isolate* isolate,
+                                                ReadOnlyArtifacts* artifacts);
   // Runs the read-only deserializer and calls InitFromIsolate to complete
   // read-only heap initialization.
   void DeserializeIntoIsolate(Isolate* isolate,
@@ -128,10 +127,6 @@ class ReadOnlyHeap final {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space js_dispatch_table_space_;
 #endif  // V8_ENABLE_LEAPTIERING
-
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  V8_EXPORT_PRIVATE static ReadOnlyHeap* shared_ro_heap_;
-#endif
 
  private:
   Address read_only_roots_[kEntriesCount];

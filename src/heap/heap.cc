@@ -5580,7 +5580,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
       V8::FatalProcessOutOfMemory(
           isolate_, "Failed to reserve virtual memory for CodeRange");
     }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#endif  // V8_COMPRESS_POINTERS
 
     LOG(isolate_,
         NewEvent("CodeRange",
@@ -5596,8 +5596,8 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
 
   v8::PageAllocator* trusted_page_allocator;
 #ifdef V8_ENABLE_SANDBOX
-  trusted_range_ = TrustedRange::GetProcessWideTrustedRange();
-  trusted_page_allocator = trusted_range_->page_allocator();
+  trusted_page_allocator =
+      TrustedRange::GetProcessWideTrustedRange()->page_allocator();
 #else
   trusted_page_allocator = isolate_->page_allocator();
 #endif
