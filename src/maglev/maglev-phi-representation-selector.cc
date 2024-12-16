@@ -680,6 +680,7 @@ bool MaglevPhiRepresentationSelector::IsUntagging(Opcode op) {
   switch (op) {
     case Opcode::kCheckedSmiUntag:
     case Opcode::kUnsafeSmiUntag:
+    case Opcode::kCheckedNumberToInt32:
     case Opcode::kCheckedObjectToIndex:
     case Opcode::kCheckedTruncateNumberOrOddballToInt32:
     case Opcode::kTruncateNumberOrOddballToInt32:
