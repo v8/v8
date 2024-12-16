@@ -2383,12 +2383,14 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   DCHECK(target.is_valid());
-  CallWasmCodePointer(target);
+  CallWasmCodePointer(target, call_descriptor->signature_hash());
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   DCHECK(target.is_valid());
-  CallWasmCodePointer(target, CallJumpMode::kTailCall);
+  CallWasmCodePointer(target, call_descriptor->signature_hash(),
+                      CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
@@ -2409,7 +2411,7 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffAssembler::emit_store_nonzero(Register dst) {
-  StoreU32(dst, MemOperand(dst));
+  Sw(dst, MemOperand(dst));
 }
 
 void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
