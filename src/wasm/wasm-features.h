@@ -76,7 +76,7 @@ class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
   static inline constexpr WasmEnabledFeatures ForAsmjs() { return {}; }
   // Retuns optional features that are enabled by flags, plus features that are
   // not enabled by a flag and are always on.
-  static WasmEnabledFeatures FromFlags();
+  static V8_EXPORT_PRIVATE WasmEnabledFeatures FromFlags();
   static V8_EXPORT_PRIVATE WasmEnabledFeatures FromIsolate(Isolate*);
   static V8_EXPORT_PRIVATE WasmEnabledFeatures
   FromContext(Isolate*, DirectHandle<NativeContext>);
