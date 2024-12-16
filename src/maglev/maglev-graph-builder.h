@@ -1903,6 +1903,7 @@ class MaglevGraphBuilder {
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       ValueNode* node, ValueNode** constant_node = nullptr);
+  std::optional<ValueNode*> TryGetConstantAlternative(ValueNode* node);
 
   template <typename LoadNode>
   ReduceResult TryBuildLoadDataView(const CallArguments& args,

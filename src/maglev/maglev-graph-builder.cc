@@ -1732,8 +1732,12 @@ std::optional<int32_t> MaglevGraphBuilder::TryGetInt32Constant(
       return FastD2I(value->Cast<Float64Constant>()->value().get_scalar());
     }
     default:
-      return {};
+      break;
   }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetInt32Constant(*c);
+  }
+  return {};
 }
 
 std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
@@ -1762,8 +1766,12 @@ std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
       return FastD2UI(value->Cast<Float64Constant>()->value().get_scalar());
     }
     default:
-      return {};
+      break;
   }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetUint32Constant(*c);
+  }
+  return {};
 }
 
 ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
@@ -1852,8 +1860,12 @@ std::optional<double> MaglevGraphBuilder::TryGetFloat64Constant(
       return {};
     }
     default:
-      return {};
+      break;
   }
+  if (auto c = TryGetConstantAlternative(value)) {
+    return TryGetFloat64Constant(*c, conversion_type);
+  }
+  return {};
 }
 
 ValueNode* MaglevGraphBuilder::GetFloat64(ValueNode* value) {
@@ -2673,10 +2685,20 @@ compiler::OptionalHeapObjectRef MaglevGraphBuilder::TryGetConstant(
     if (constant_node) *constant_node = node;
     return result;
   }
+  if (auto c = TryGetConstantAlternative(node)) {
+    return TryGetConstant(*c, constant_node);
+  }
+  return {};
+}
+
+std::optional<ValueNode*> MaglevGraphBuilder::TryGetConstantAlternative(
+    ValueNode* node) {
   const NodeInfo* info = known_node_aspects().TryGetInfoFor(node);
   if (info) {
     if (auto c = info->alternative().checked_value()) {
-      return TryGetConstant(c, constant_node);
+      if (IsConstantNode(c->opcode())) {
+        return c;
+      }
     }
   }
   return {};
