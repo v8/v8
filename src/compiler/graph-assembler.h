@@ -348,7 +348,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 #endif
 
   Node* LoadHeapNumberValue(Node* heap_number);
-  TNode<Int32T> LoadHeapInt32Value(Node* heap_number);
 
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)

@@ -1646,7 +1646,8 @@ Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
                             TNode<Object>::UncheckedCast(gasm.SmiConstant(
                                 ContextSidePropertyCell::kMutableInt32))))
                         .Then([&] {
-                          TNode<Int32T> number = gasm.LoadHeapInt32Value(value);
+                          Node* number = gasm.LoadField(
+                              AccessBuilder::ForHeapInt32Value(), value);
                           // Allocate a new HeapNumber.
                           AllocationBuilder a(jsgraph(), broker(),
                                               gasm.effect(), gasm.control());
@@ -1654,9 +1655,7 @@ Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
                                      Type::OtherInternal());
                           a.Store(AccessBuilder::ForMap(),
                                   broker()->heap_number_map());
-                          a.Store(AccessBuilder::ForHeapInt32Value(), number);
-                          a.Store(AccessBuilder::ForHeapInt32UpperValue(),
-                                  gasm.Int32Constant(kHoleNanUpper32));
+                          a.Store(AccessBuilder::ForHeapNumberValue(), number);
                           Node* new_heap_number = a.Finish();
                           gasm.UpdateEffectControlWith(new_heap_number);
                           return TNode<Object>::UncheckedCast(new_heap_number);

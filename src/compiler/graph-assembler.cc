@@ -158,13 +158,6 @@ Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
               IntPtrConstant(offsetof(HeapNumber, value_) - kHeapObjectTag));
 }
 
-TNode<Int32T> GraphAssembler::LoadHeapInt32Value(Node* heap_number) {
-  return TNode<Int32T>::UncheckedCast(
-      Load(MachineType::Int32(), heap_number,
-           IntPtrConstant(offsetof(HeapNumber, value_) +
-                          kIeeeDoubleMantissaWordOffset - kHeapObjectTag)));
-}
-
 #define SINGLETON_CONST_DEF(Name, Type)              \
   TNode<Type> JSGraphAssembler::Name##Constant() {   \
     return TNode<Type>::UncheckedCast(               \
