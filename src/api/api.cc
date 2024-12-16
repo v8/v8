@@ -9765,6 +9765,53 @@ void Isolate::HandleExternalMemoryInterrupt() {
   heap->HandleExternalMemoryInterrupt();
 }
 
+IsolateGroup::IsolateGroup(i::IsolateGroup*&& isolate_group)
+    : isolate_group_(isolate_group) {
+  DCHECK_NOT_NULL(isolate_group_);
+}
+
+IsolateGroup::~IsolateGroup() {
+  if (isolate_group_) {
+    isolate_group_->Release();
+#ifdef DEBUG
+    isolate_group_ = nullptr;
+#endif
+  }
+}
+
+// static
+IsolateGroup IsolateGroup::GetDefault() {
+  return IsolateGroup(i::IsolateGroup::AcquireDefault());
+}
+
+// static
+bool IsolateGroup::CanCreateNewGroups() {
+  return i::IsolateGroup::CanCreateNewGroups();
+}
+
+// static
+IsolateGroup IsolateGroup::Create() {
+  return IsolateGroup(i::IsolateGroup::New());
+}
+
+IsolateGroup::IsolateGroup(IsolateGroup&& other) {
+  isolate_group_ = other.isolate_group_;
+  other.isolate_group_ = nullptr;
+}
+
+IsolateGroup& v8::IsolateGroup::operator=(IsolateGroup&& other) {
+  if (this == &other) {
+    return *this;
+  }
+
+  if (isolate_group_) {
+    isolate_group_->Release();
+  }
+  isolate_group_ = other.isolate_group_;
+  other.isolate_group_ = nullptr;
+  return *this;
+}
+
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
       reinterpret_cast<i::Isolate*>(this)->heap_profiler();
@@ -10008,7 +10055,18 @@ bool Isolate::IsCurrent() const {
 
 // static
 Isolate* Isolate::Allocate() {
-  return reinterpret_cast<Isolate*>(i::Isolate::New());
+  return Isolate::Allocate(IsolateGroup::GetDefault());
+}
+
+// static
+Isolate* Isolate::Allocate(const IsolateGroup& group) {
+  i::IsolateGroup* isolate_group = group.isolate_group_->Acquire();
+  return reinterpret_cast<Isolate*>(i::Isolate::New(isolate_group));
+}
+
+IsolateGroup Isolate::GetGroup() const {
+  const i::Isolate* i_isolate = reinterpret_cast<const i::Isolate*>(this);
+  return IsolateGroup(i_isolate->isolate_group()->Acquire());
 }
 
 Isolate::CreateParams::CreateParams() = default;
@@ -10114,7 +10172,12 @@ void Isolate::Initialize(Isolate* v8_isolate,
 }
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
-  Isolate* v8_isolate = Allocate();
+  return Isolate::New(IsolateGroup::GetDefault(), params);
+}
+
+Isolate* Isolate::New(const IsolateGroup& group,
+                      const Isolate::CreateParams& params) {
+  Isolate* v8_isolate = Allocate(group);
   Initialize(v8_isolate, params);
   return v8_isolate;
 }

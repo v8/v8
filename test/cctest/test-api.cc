@@ -13299,6 +13299,12 @@ THREADED_TEST(SubclassGetConstructorName) {
   CheckGetConstructorNameOfVar(context, "c", "Child");
 }
 
+static v8::Isolate::CreateParams CreateTestParams() {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  return create_params;
+}
+
 UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
   // In multi-cage mode we create one cage per isolate
@@ -13309,8 +13315,7 @@ UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
   i::v8_flags.harmony_struct = true;
   i::FlagList::EnforceFlagImplications();
 
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope i_scope(isolate);
@@ -13331,6 +13336,66 @@ UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
     CheckGetConstructorNameOfVar(context, "c", "Atomics.Condition");
   }
   isolate->Dispose();
+}
+
+static void TestAllocateAndNewForTwoIsolateGroups(
+    const v8::Isolate::CreateParams& create_params,
+    const v8::IsolateGroup& group1, const v8::IsolateGroup& group2) {
+  // Allocate() can control groups into which isolates are allocated.
+  for (int i = 0; i < 3; i++) {
+    v8::Isolate* isolate1 = v8::Isolate::Allocate(group1);
+    v8::Isolate* isolate1bis = v8::Isolate::Allocate(group1);
+    v8::Isolate* isolate2 = v8::Isolate::Allocate(group2);
+
+    CHECK_EQ(group1, isolate1->GetGroup());
+    CHECK_EQ(group1, isolate1bis->GetGroup());
+    CHECK_EQ(group2, isolate2->GetGroup());
+
+    // Have to initialize before disposing.
+    v8::Isolate::Initialize(isolate1, create_params);
+    v8::Isolate::Initialize(isolate1bis, create_params);
+    v8::Isolate::Initialize(isolate2, create_params);
+
+    isolate1->Dispose();
+    isolate1bis->Dispose();
+    isolate2->Dispose();
+  }
+
+  // New() can control groups into which isolates are allocated.
+  for (int i = 0; i < 3; i++) {
+    v8::Isolate* isolate1 = v8::Isolate::New(group1, create_params);
+    v8::Isolate* isolate1bis = v8::Isolate::New(group1, create_params);
+    v8::Isolate* isolate2 = v8::Isolate::New(group2, create_params);
+
+    CHECK_EQ(group1, isolate1->GetGroup());
+    CHECK_EQ(group1, isolate1bis->GetGroup());
+    CHECK_EQ(group2, isolate2->GetGroup());
+
+    isolate1->Dispose();
+    isolate1bis->Dispose();
+    isolate2->Dispose();
+  }
+}
+
+UNINITIALIZED_TEST(DefaultIsolateGroup) {
+  v8::IsolateGroup group1 = v8::IsolateGroup::GetDefault();
+  v8::IsolateGroup group2 = v8::IsolateGroup::GetDefault();
+  CHECK_EQ(group1, group2);
+
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  TestAllocateAndNewForTwoIsolateGroups(create_params, group1, group2);
+}
+
+UNINITIALIZED_TEST(TwoIsolateGroups) {
+  if (!v8::IsolateGroup::CanCreateNewGroups()) return;
+
+  std::vector<v8::IsolateGroup> groups;
+  groups.push_back(v8::IsolateGroup::Create());
+  groups.push_back(v8::IsolateGroup::Create());
+  CHECK_NE(groups[0], groups[1]);
+
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  TestAllocateAndNewForTwoIsolateGroups(create_params, groups[0], groups[1]);
 }
 
 unsigned ApiTestFuzzer::linear_congruential_generator;
@@ -14086,8 +14151,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 
   // Run this test in a new isolate to make sure we don't
   // have remnants of state from other code.
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -17273,8 +17337,7 @@ TEST(ExternalizeOldSpaceOneByteCons) {
 
 TEST(ExternalStringCollectedAtTearDown) {
   int destroyed = 0;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -17296,8 +17359,7 @@ TEST(ExternalStringCollectedAtTearDown) {
 
 TEST(ExternalInternalizedStringCollectedAtTearDown) {
   int destroyed = 0;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   { v8::Isolate::Scope isolate_scope(isolate);
     LocalContext env(isolate);
@@ -18473,8 +18535,7 @@ TEST(GCInFailedAccessCheckCallback) {
 
 TEST(IsolateNewDispose) {
   v8::Isolate* current_isolate = CcTest::isolate();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   CHECK_NOT_NULL(isolate);
   CHECK(current_isolate != isolate);
@@ -18490,8 +18551,7 @@ TEST(IsolateNewDispose) {
 
 
 UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     v8::Isolate::Scope i_scope(isolate);
@@ -18511,8 +18571,7 @@ UNINITIALIZED_TEST(DisposeIsolateWhenInUse) {
 
 
 static void BreakArrayGuarantees(const char* script) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   isolate1->Enter();
   v8::Persistent<v8::Context> context1;
@@ -18559,8 +18618,7 @@ TEST(VerifyArrayPrototypeGuarantees) {
 
 TEST(RunTwoIsolatesOnSingleThread) {
   // Run isolate 1.
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
 
   CHECK(CcTest::isolate()->IsCurrent());
@@ -18734,8 +18792,7 @@ class IsolateThread : public v8::base::Thread {
       : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
 
   void Run() override {
-    v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate::CreateParams create_params = CreateTestParams();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     result_ = CalcFibonacci(isolate, fib_limit_);
     isolate->Dispose();
@@ -18773,8 +18830,7 @@ TEST(MultipleIsolatesOnIndividualThreads) {
 
 
 TEST(IsolateDifferentContexts) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Local<v8::Context> context;
   {
@@ -18813,8 +18869,7 @@ class InitDefaultIsolateThread : public v8::base::Thread {
         result_(false) {}
 
   void Run() override {
-    v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate::CreateParams create_params = CreateTestParams();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     isolate->Enter();
     switch (testCase_) {
@@ -20715,8 +20770,7 @@ TEST(StaticGetters) {
 }
 
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -24065,8 +24119,7 @@ TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
 }
 
 TEST(CodeCache) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
 
   const char* source = "Math.sqrt(4)";
   const char* origin = "code cache test";
@@ -24225,8 +24278,7 @@ v8::MaybeLocal<Module> SyntheticModuleThatThrowsDuringEvaluateResolveCallback(
 }
 
 TEST(ModuleCodeCache) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
 
   const char* origin = "code cache test";
   const char* source =
@@ -24726,8 +24778,7 @@ TEST(ModuleEvaluateImportTerminateExecution) {
 // Tests that the code cache does not confuse the same source code compiled as a
 // script and as a module.
 TEST(CodeCacheModuleScriptMismatch) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
 
   const char* origin = "code cache test";
   const char* source = "42";
@@ -24795,8 +24846,7 @@ TEST(CodeCacheModuleScriptMismatch) {
 
 // Same as above but other way around.
 TEST(CodeCacheScriptModuleMismatch) {
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
 
   const char* origin = "code cache test";
   const char* source = "42";
@@ -26246,9 +26296,8 @@ TEST(DeterministicRandomNumberGeneration) {
 }
 
 UNINITIALIZED_TEST(AllowAtomicsWait) {
-  v8::Isolate::CreateParams create_params;
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   create_params.allow_atomics_wait = false;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
@@ -27829,8 +27878,7 @@ UNINITIALIZED_TEST(NestedIsolates) {
   // frames from its own isolate.
   i::v8_flags.stack_trace_limit = 20;
   i::v8_flags.experimental_stack_trace_frames = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate::CreateParams create_params = CreateTestParams();
   isolate_1 = v8::Isolate::New(create_params);
   isolate_2 = v8::Isolate::New(create_params);
 

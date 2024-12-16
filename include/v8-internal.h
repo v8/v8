@@ -46,6 +46,7 @@ namespace internal {
 class Heap;
 class LocalHeap;
 class Isolate;
+class IsolateGroup;
 class LocalIsolate;
 
 typedef uintptr_t Address;
