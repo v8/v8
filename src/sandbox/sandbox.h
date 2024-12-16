@@ -217,6 +217,30 @@ class V8_EXPORT_PRIVATE Sandbox {
   Address end_address() const { return reinterpret_cast<Address>(&end_); }
   Address size_address() const { return reinterpret_cast<Address>(&size_); }
 
+  static void InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* vas);
+  static void TearDownDefault();
+
+  // Create a new sandbox allocating a fresh pointer cage.
+  // If new sandboxes cannot be created in this build configuration, abort.
+  //
+  static Sandbox* New(v8::VirtualAddressSpace* vas);
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#ifdef USING_V8_SHARED_PRIVATE
+  static Sandbox* current() { return current_non_inlined(); }
+  static void set_current(Sandbox* sandbox) {
+    set_current_non_inlined(sandbox);
+  }
+#else   // !USING_V8_SHARED_PRIVATE
+  static Sandbox* current() { return current_; }
+  static void set_current(Sandbox* sandbox) { current_ = sandbox; }
+#endif  // !USING_V8_SHARED_PRIVATE
+#else   // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  static Sandbox* current() { return GetDefault(); }
+#endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+  V8_INLINE static Sandbox* GetDefault() { return default_sandbox_; }
+
  private:
   // The SequentialUnmapperTest calls the private Initialize method to create a
   // sandbox without guard regions, which would consume too much memory.
@@ -225,6 +249,9 @@ class V8_EXPORT_PRIVATE Sandbox {
   // These tests call the private Initialize methods below.
   FRIEND_TEST(SandboxTest, InitializationWithSize);
   FRIEND_TEST(SandboxTest, PartiallyReservedSandbox);
+
+  // Default process-wide sandbox.
+  static Sandbox* default_sandbox_;
 
   // We allow tests to disable the guard regions around the sandbox. This is
   // useful for example for tests like the SequentialUnmapperTest which track
@@ -250,6 +277,13 @@ class V8_EXPORT_PRIVATE Sandbox {
 
   // Initialize the constant objects for this sandbox.
   void InitializeConstants();
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  // These non-inlined accessors to current_ field are used in component builds
+  // where cross-component access to thread local variables is not allowed.
+  static Sandbox* current_non_inlined();
+  static void set_current_non_inlined(Sandbox* sandbox);
+#endif
 
   Address base_ = kNullAddress;
   Address end_ = kNullAddress;
@@ -277,9 +311,11 @@ class V8_EXPORT_PRIVATE Sandbox {
   // inaccessible mapping). This for example mitigates Smi<->HeapObject
   // confusion bugs in which we treat a Smi value as a pointer and access it.
   static bool first_four_gb_of_address_space_are_reserved_;
-};
 
-V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  thread_local static Sandbox* current_;
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+};
 
 #endif  // V8_ENABLE_SANDBOX
 
@@ -288,7 +324,7 @@ V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 // Will always return false when the sandbox is disabled or partially reserved.
 V8_INLINE bool InsideSandbox(uintptr_t address) {
 #ifdef V8_ENABLE_SANDBOX
-  Sandbox* sandbox = GetProcessWideSandbox();
+  Sandbox* sandbox = Sandbox::current();
   // Use ReservationContains (instead of just Contains) to correctly handle the
   // case of partially-reserved sandboxes.
   return sandbox->ReservationContains(address);
@@ -300,7 +336,7 @@ V8_INLINE bool InsideSandbox(uintptr_t address) {
 V8_INLINE void* EmptyBackingStoreBuffer() {
 #ifdef V8_ENABLE_SANDBOX
   return reinterpret_cast<void*>(
-      GetProcessWideSandbox()->constants().empty_backing_store_buffer());
+      Sandbox::current()->constants().empty_backing_store_buffer());
 #else
   return nullptr;
 #endif

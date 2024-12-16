@@ -296,7 +296,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     // sandbox's virtual address space to essentially just reserve a number of
     // OS pages inside the sandbox, but then using mremap to replace these
     // pages directly afterwards. In practice, this works fine however.
-    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
     i::Address in_sandbox_page_reservation = vas->AllocatePages(
         VirtualAddressSpace::kNoHint, rounded_length,
         vas->allocation_granularity(), PagePermissions::kNoAccess);
@@ -354,7 +354,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
 #ifdef V8_ENABLE_SANDBOX
-    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
     vas->FreePages(reinterpret_cast<i::Address>(data), rounded_length);
 #else
     munmap(data, rounded_length);

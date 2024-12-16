@@ -80,8 +80,8 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
 
 #ifdef V8_ENABLE_SANDBOX
 v8::PageAllocator* GetSandboxPageAllocator() {
-  CHECK(GetProcessWideSandbox()->is_initialized());
-  return GetProcessWideSandbox()->page_allocator();
+  CHECK(Sandbox::current()->is_initialized());
+  return Sandbox::current()->page_allocator();
 }
 #endif
 

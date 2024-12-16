@@ -387,8 +387,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   class BackendAllocator {
    public:
     BackendAllocator() {
-      CHECK(i::GetProcessWideSandbox()->is_initialized());
-      VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+      CHECK(i::Sandbox::current()->is_initialized());
+      VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
       constexpr size_t max_backing_memory_size = 8ULL * i::GB;
       constexpr size_t min_backing_memory_size = 1ULL * i::GB;
       size_t backing_memory_size = max_backing_memory_size;
@@ -417,7 +417,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       region_alloc_->set_on_merge_callback([this](i::Address start,
                                                   size_t size) {
         mutex_.AssertHeld();
-        VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
         i::Address end = start + size;
         if (end == region_alloc_->end() &&
             start <= end_of_accessible_region_ - kChunkSize) {
@@ -446,8 +446,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     ~BackendAllocator() {
       // The sandbox may already have been torn down, in which case there's no
       // need to free any memory.
-      if (i::GetProcessWideSandbox()->is_initialized()) {
-        VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+      if (i::Sandbox::current()->is_initialized()) {
+        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
         vas->FreePages(region_alloc_->begin(), region_alloc_->size());
       }
     }
@@ -466,7 +466,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       i::Address end = region + length;
       size_t length_to_memset = length;
       if (end > end_of_accessible_region_) {
-        VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
         i::Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
         size_t size = new_end_of_accessible_region - end_of_accessible_region_;
         if (!vas->SetPagePermissions(end_of_accessible_region_, size,
@@ -6760,34 +6760,34 @@ const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 #ifdef V8_ENABLE_SANDBOX
 VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
-  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+  Utils::ApiCheck(i::Sandbox::current()->is_initialized(),
                   "v8::V8::GetSandboxAddressSpace",
                   "The sandbox must be initialized first");
-  return i::GetProcessWideSandbox()->address_space();
+  return i::Sandbox::current()->address_space();
 }
 
 size_t v8::V8::GetSandboxSizeInBytes() {
-  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+  Utils::ApiCheck(i::Sandbox::current()->is_initialized(),
                   "v8::V8::GetSandboxSizeInBytes",
                   "The sandbox must be initialized first.");
-  return i::GetProcessWideSandbox()->size();
+  return i::Sandbox::current()->size();
 }
 
 size_t v8::V8::GetSandboxReservationSizeInBytes() {
-  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+  Utils::ApiCheck(i::Sandbox::current()->is_initialized(),
                   "v8::V8::GetSandboxReservationSizeInBytes",
                   "The sandbox must be initialized first");
-  return i::GetProcessWideSandbox()->reservation_size();
+  return i::Sandbox::current()->reservation_size();
 }
 
 bool v8::V8::IsSandboxConfiguredSecurely() {
-  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+  Utils::ApiCheck(i::Sandbox::current()->is_initialized(),
                   "v8::V8::IsSandoxConfiguredSecurely",
                   "The sandbox must be initialized first");
   // The sandbox is (only) configured insecurely if it is a partially reserved
   // sandbox, since in that case unrelated memory mappings may end up inside
   // the sandbox address space where they could be corrupted by an attacker.
-  return !i::GetProcessWideSandbox()->is_partially_reserved();
+  return !i::Sandbox::current()->is_partially_reserved();
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -9260,7 +9260,7 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     void* deleter_data) {
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
 #ifdef V8_ENABLE_SANDBOX
-  Utils::ApiCheck(!data || i::GetProcessWideSandbox()->Contains(data),
+  Utils::ApiCheck(!data || i::Sandbox::current()->Contains(data),
                   "v8_ArrayBuffer_NewBackingStore",
                   "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
                   "must be allocated inside the sandbox address space. Please "

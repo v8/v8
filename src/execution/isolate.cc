@@ -4605,6 +4605,9 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
   ExternalCodeCompressionScheme::InitBase(isolate ? isolate->code_cage_base()
                                                   : kNullAddress);
 #endif
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox::set_current(isolate ? isolate->isolate_group()->sandbox() : nullptr);
+#endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
   if (isolate && isolate->main_thread_local_isolate()) {

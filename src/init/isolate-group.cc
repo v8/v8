@@ -98,6 +98,7 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ =
       TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
+  sandbox_ = sandbox;
 }
 #elif defined(V8_COMPRESS_POINTERS)
 void IsolateGroup::Initialize(bool process_wide) {
@@ -130,7 +131,7 @@ void IsolateGroup::InitializeOncePerProcess() {
 
   DCHECK_NULL(group->page_allocator_);
 #ifdef V8_ENABLE_SANDBOX
-  group->Initialize(true, GetProcessWideSandbox());
+  group->Initialize(true, Sandbox::GetDefault());
 #else
   group->Initialize(true);
 #endif
@@ -156,6 +157,19 @@ void IsolateGroup::InitializeOncePerProcess() {
 #ifdef V8_ENABLE_LEAPTIERING
   group->js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
+}
+
+void IsolateGroup::Release() {
+  DCHECK_LT(0, reference_count_.load());
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = sandbox_;
+#endif
+  if (--reference_count_ == 0) {
+    delete this;
+#ifdef V8_ENABLE_SANDBOX
+    sandbox->TearDown();
+#endif
+  }
 }
 
 namespace {
@@ -211,8 +225,8 @@ IsolateGroup* IsolateGroup::New() {
 
   IsolateGroup* group = new IsolateGroup;
 #ifdef V8_ENABLE_SANDBOX
-  // TODO(42204573): Support creation of multiple sandboxes.
-  UNREACHABLE();
+  Sandbox* sandbox = Sandbox::New(GetPlatformVirtualAddressSpace());
+  group->Initialize(false, sandbox);
 #else
   group->Initialize(false);
 #endif

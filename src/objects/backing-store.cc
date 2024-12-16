@@ -225,7 +225,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     }
 #ifdef V8_ENABLE_SANDBOX
     // Check to catch use of a non-sandbox-compatible ArrayBufferAllocator.
-    CHECK_WITH_MSG(GetProcessWideSandbox()->Contains(buffer_start),
+    CHECK_WITH_MSG(Sandbox::current()->Contains(buffer_start),
                    "When the V8 Sandbox is enabled, ArrayBuffer backing stores "
                    "must be allocated inside the sandbox address space. Please "
                    "use an appropriate ArrayBuffer::Allocator to allocate "

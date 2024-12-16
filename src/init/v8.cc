@@ -197,8 +197,8 @@ void V8::Initialize() {
 
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
-  GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
-  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+  Sandbox::InitializeDefaultOncePerProcess(GetPlatformVirtualAddressSpace());
+  CHECK_EQ(kSandboxSize, Sandbox::current()->size());
 
   // Enable sandbox testing mode if requested.
   //
@@ -275,9 +275,7 @@ void V8::DisposePlatform() {
   v8::base::SetPrintStackTrace(nullptr);
 
 #ifdef V8_ENABLE_SANDBOX
-  // TODO(chromium:1218005) alternatively, this could move to its own
-  // public TearDownSandbox function.
-  GetProcessWideSandbox()->TearDown();
+  Sandbox::TearDownDefault();
 #endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;

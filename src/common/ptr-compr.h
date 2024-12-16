@@ -12,6 +12,10 @@ namespace v8::internal {
 
 class IsolateGroup;
 
+#ifdef V8_ENABLE_SANDBOX
+class Sandbox;
+#endif  // V8_ENABLE_SANDBOX
+
 // This is just a collection of common compression scheme related functions.
 // Each pointer compression cage then has its own compression scheme, which
 // mainly differes in the cage base address they use.
@@ -227,6 +231,9 @@ class PtrComprCageAccessScope final {
   const Address code_cage_base_;
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup* saved_current_isolate_group_;
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* saved_current_sandbox_;
+#endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
 

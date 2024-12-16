@@ -27,6 +27,16 @@ namespace internal {
 
 bool Sandbox::first_four_gb_of_address_space_are_reserved_ = false;
 
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+thread_local Sandbox* Sandbox::current_ = nullptr;
+// static
+Sandbox* Sandbox::current_non_inlined() { return current_; }
+// static
+void Sandbox::set_current_non_inlined(Sandbox* sandbox) { current_ = sandbox; }
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+Sandbox* Sandbox::default_sandbox_ = nullptr;
+
 // Best-effort function to determine the approximate size of the virtual
 // address space that can be addressed by this process. Used to determine
 // appropriate sandbox size and placement.
@@ -335,7 +345,38 @@ void Sandbox::TearDown() {
   }
 }
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(Sandbox, GetProcessWideSandbox)
+// static
+void Sandbox::InitializeDefaultOncePerProcess(v8::VirtualAddressSpace* vas) {
+  static base::LeakyObject<Sandbox> default_sandbox;
+  default_sandbox_ = default_sandbox.get();
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  set_current(default_sandbox_);
+#endif
+  default_sandbox_->Initialize(vas);
+}
+
+// static
+void Sandbox::TearDownDefault() {
+  GetDefault()->TearDown();
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  set_current(nullptr);
+#endif
+}
+
+// static
+Sandbox* Sandbox::New(v8::VirtualAddressSpace* vas) {
+  if (!COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL) {
+    FATAL(
+        "Creation of new sandboxes requires enabling "
+        "multiple pointer compression cages at build-time");
+  }
+  Sandbox* sandbox = new Sandbox;
+  sandbox->Initialize(vas);
+  CHECK(!v8_flags.sandbox_testing && !v8_flags.sandbox_fuzzing);
+  return sandbox;
+}
 
 #endif  // V8_ENABLE_SANDBOX
 

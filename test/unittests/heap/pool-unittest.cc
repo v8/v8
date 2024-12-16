@@ -313,9 +313,9 @@ class PoolTest : public                                     //
     IsolateGroup::ReleaseDefault();
 #ifdef V8_ENABLE_SANDBOX
     // Reinitialze the sandbox so it uses the TrackingPageAllocator.
-    GetProcessWideSandbox()->TearDown();
+    Sandbox::current()->TearDown();
     constexpr bool use_guard_regions = false;
-    CHECK(GetProcessWideSandbox()->Initialize(
+    CHECK(Sandbox::current()->Initialize(
         tracking_page_allocator_, kSandboxMinimumSize, use_guard_regions));
 #endif
     IsolateGroup::InitializeOncePerProcess();
@@ -324,7 +324,7 @@ class PoolTest : public                                     //
   static void DoMixinTearDown() {
     IsolateGroup::ReleaseDefault();
 #ifdef V8_ENABLE_SANDBOX
-    GetProcessWideSandbox()->TearDown();
+    Sandbox::current()->TearDown();
 #endif
     i::v8_flags.concurrent_sweeping = old_sweeping_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
