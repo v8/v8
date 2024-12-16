@@ -2699,11 +2699,28 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
   if (!maybe_constant) return false;
 
   if (CheckType(other, NodeType::kBoolean)) {
-    std::optional<bool> compare_bool = {};
+    auto CompareOtherWith = [&](bool constant) {
+      compiler::OptionalHeapObjectRef const_other = TryGetConstant(other);
+      if (const_other) {
+        auto bool_other = const_other->TryGetBooleanValue(broker());
+        if (bool_other.has_value()) {
+          SetAccumulator(GetBooleanConstant(constant == *bool_other));
+          return;
+        }
+      }
+      if (constant) {
+        SetAccumulator(other);
+      } else {
+        SetAccumulator(AddNewNode<LogicalNot>({other}));
+      }
+    };
+
     if (maybe_constant.equals(broker_->true_value())) {
-      compare_bool = {true};
+      CompareOtherWith(true);
+      return true;
     } else if (maybe_constant.equals(broker_->false_value())) {
-      compare_bool = {false};
+      CompareOtherWith(false);
+      return true;
     } else if (kOperation == Operation::kEqual) {
       // For `bool == num` we can convert the actual comparison `ToNumber(bool)
       // == num` into `(num == 1) ? bool : ((num == 0) ? !bool : false)`,
@@ -2715,32 +2732,16 @@ bool MaglevGraphBuilder::TryReduceCompareEqualAgainstConstant() {
       }
       if (val) {
         if (*val == 0) {
-          compare_bool = {false};
+          CompareOtherWith(false);
         } else if (*val == 1) {
-          compare_bool = {true};
+          CompareOtherWith(true);
         } else {
           // The constant number is neither equal to `ToNumber(true)` nor
           // `ToNumber(false)`.
           SetAccumulator(GetBooleanConstant(false));
-          return true;
         }
+        return true;
       }
-    }
-    if (compare_bool) {
-      if (*compare_bool) {
-        SetAccumulator(other);
-      } else {
-        compiler::OptionalHeapObjectRef both_constant = TryGetConstant(other);
-        if (both_constant) {
-          DCHECK(both_constant.equals(broker_->true_value()) ||
-                 both_constant.equals(broker_->false_value()));
-          SetAccumulator(GetBooleanConstant(
-              *compare_bool == both_constant.equals(broker_->true_value())));
-        } else {
-          SetAccumulator(AddNewNode<LogicalNot>({other}));
-        }
-      }
-      return true;
     }
   }
 
@@ -4335,6 +4336,12 @@ void MaglevGraphBuilder::SetKnownValue(ValueNode* node, compiler::ObjectRef ref,
   NodeInfo* known_info = GetOrCreateInfoFor(node);
   // ref type should be compatible with type.
   DCHECK(NodeTypeIs(StaticTypeForConstant(broker(), ref), new_node_type));
+  if (ref.IsHeapObject()) {
+    DCHECK(IsInstanceOfNodeType(ref.AsHeapObject().map(broker()),
+                                known_info->type(), broker()));
+  } else {
+    DCHECK(!NodeTypeIs(known_info->type(), NodeType::kAnyHeapObject));
+  }
   known_info->CombineType(new_node_type);
   known_info->alternative().set_checked_value(GetConstant(ref));
 }
@@ -9875,6 +9882,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   DCHECK(!ref.IsSmi());
   DCHECK(!ref.IsHeapNumber());
 
+  if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+  }
   if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node)) {
     if (maybe_constant.value().equals(ref)) {
       return ReduceResult::Done();
