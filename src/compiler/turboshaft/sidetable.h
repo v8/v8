@@ -240,10 +240,23 @@ class SparseOpIndexSideTable {
     return data_.at(index);
   }
 
-  bool contains(OpIndex index) const {
+  bool contains(OpIndex index, const T** value = nullptr) const {
     DCHECK(OpIndexBelongsToTableGraph(graph_, index));
-    return data_.contains(index);
+    if (auto it = data_.find(index); it != data_.end()) {
+      if (value) *value = &it->second;
+      return true;
+    }
+    return false;
   }
+
+  void remove(OpIndex index) {
+    DCHECK(OpIndexBelongsToTableGraph(graph_, index));
+    auto it = data_.find(index);
+    if (it != data_.end()) data_.erase(it);
+  }
+
+  auto begin() { return data_.begin(); }
+  auto end() { return data_.end(); }
 
  private:
   ZoneAbslFlatHashMap<OpIndex, T> data_;
