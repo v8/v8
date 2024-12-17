@@ -160,16 +160,19 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
 
 class SelectParameters final {
  public:
-  explicit SelectParameters(MachineRepresentation representation,
-                            BranchHint hint = BranchHint::kNone)
-      : representation_(representation), hint_(hint) {}
+  explicit SelectParameters(
+      MachineRepresentation representation, BranchHint hint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified)
+      : representation_(representation), hint_(hint), semantics_(semantics) {}
 
   MachineRepresentation representation() const { return representation_; }
   BranchHint hint() const { return hint_; }
+  BranchSemantics semantics() const { return semantics_; }
 
  private:
   const MachineRepresentation representation_;
   const BranchHint hint_;
+  const BranchSemantics semantics_;
 };
 
 bool operator==(SelectParameters const&, SelectParameters const&);
@@ -622,7 +625,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* RelocatableInt64Constant(int64_t value,
                                            RelocInfo::Mode rmode);
 
-  const Operator* Select(MachineRepresentation, BranchHint = BranchHint::kNone);
+  const Operator* Select(
+      MachineRepresentation, BranchHint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified);
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);

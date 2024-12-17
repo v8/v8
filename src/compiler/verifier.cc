@@ -502,8 +502,16 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(0, effect_count);
       CHECK_EQ(0, control_count);
       CHECK_EQ(3, value_count);
-      // The condition must be a Boolean.
-      CheckValueInputIs(node, 0, Type::Boolean());
+      switch (SelectParametersOf(node->op()).semantics()) {
+        case BranchSemantics::kJS:
+        case BranchSemantics::kUnspecified:
+          // The condition must be a Boolean.
+          CheckValueInputIs(node, 0, Type::Boolean());
+          break;
+        case BranchSemantics::kMachine:
+          CheckValueInputIs(node, 0, Type::Machine());
+          break;
+      }
       CheckTypeIs(node, Type::Any());
       break;
     }

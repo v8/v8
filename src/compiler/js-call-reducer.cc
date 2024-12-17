@@ -8312,9 +8312,9 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access,
     Builtin builtin) {
   // TODO(v8:11111): Optimize for JS_RAB_GSAB_DATA_VIEW_TYPE too.
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  TNode<JSArrayBufferView> receiver = TNode<JSArrayBufferView>::UncheckedCast(
+      NodeProperties::GetValueInput(node, 1));
   Effect effect{NodeProperties::GetEffectInput(node)};
-  Control control{NodeProperties::GetControlInput(node)};
 
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
@@ -8343,38 +8343,39 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     return inference.NoChange();
   }
 
+  JSCallReducerAssembler a(this, node, effect);
+
   // Load the {receiver}s field.
-  Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
-                                          receiver, effect, control);
+  DCHECK_EQ(access.machine_type.representation(),
+            MachineType::PointerRepresentation());
+  TNode<UintPtrT> value = a.EnterMachineGraph<UintPtrT>(
+      a.LoadField<UintPtrT>(access, receiver), UseInfo::Word());
 
   // See if we can skip the detaching check.
   if (!depended_on_detaching_protector) {
     // Check whether {receiver}s JSArrayBuffer was detached.
-    Node* buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
-    Node* buffer_bit_field = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-        buffer, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
-        jsgraph()->ZeroConstant());
+    TNode<HeapObject> buffer = a.LoadField<HeapObject>(
+        AccessBuilder::ForJSArrayBufferViewBuffer(), receiver);
+    TNode<Word32T> bitfield = a.EnterMachineGraph<Word32T>(
+        a.LoadField<Word32T>(AccessBuilder::ForJSArrayBufferViewBitField(),
+                             buffer),
+        UseInfo::TruncatingWord32());
+    TNode<Word32T> detached_bit = a.Word32And(
+        bitfield, a.Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
 
     // TODO(turbofan): Ideally we would bail out here if the {receiver}s
     // JSArrayBuffer was detached, but there's no way to guard against
     // deoptimization loops right now, since the JSCall {node} is usually
     // created from a LOAD_IC inlining, and so there's no CALL_IC slot
     // from which we could use the speculation bit.
-    value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-        check, value, jsgraph()->ZeroConstant());
+    value = a.MachineSelect<UintPtrT>(detached_bit, a.UintPtrConstant(0), value,
+                                      BranchHint::kFalse);
   }
 
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  TNode<Number> result =
+      a.ExitMachineGraph<Number>(value, MachineType::PointerRepresentation(),
+                                 TypeCache::Get()->kJSTypedArrayLengthType);
+  return ReplaceWithSubgraph(&a, result);
 }
 
 Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,

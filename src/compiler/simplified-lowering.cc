@@ -519,6 +519,14 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kSelect: {
+        const auto& p = SelectParametersOf(node->op());
+        if (p.semantics() == BranchSemantics::kMachine) {
+          if (type.IsInvalid()) {
+            GetInfo(node)->set_feedback_type(NodeProperties::GetType(node));
+            return true;
+          }
+          return false;
+        }
         new_type = TypeSelect(node);
         break;
       }
@@ -2444,8 +2452,19 @@ class RepresentationSelector {
         ProcessInput<T>(node, 0, UseInfo::TruncatingWord32());
         EnqueueInput<T>(node, NodeProperties::FirstControlIndex(node));
         return;
-      case IrOpcode::kSelect:
-        return VisitSelect<T>(node, truncation, lowering);
+      case IrOpcode::kSelect: {
+        const auto& p = SelectParametersOf(node->op());
+        if (p.semantics() == BranchSemantics::kMachine) {
+          // If this is a machine select, all inputs are machine operators.
+          ProcessInput<T>(node, 0, UseInfo::Any());
+          ProcessInput<T>(node, 1, UseInfo::Any());
+          ProcessInput<T>(node, 2, UseInfo::Any());
+          SetOutput<T>(node, p.representation());
+        } else {
+          VisitSelect<T>(node, truncation, lowering);
+        }
+        return;
+      }
       case IrOpcode::kPhi:
         return VisitPhi<T>(node, truncation, lowering);
       case IrOpcode::kCall:

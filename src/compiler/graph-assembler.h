@@ -1402,6 +1402,15 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   IfBuilder1<T, Word32T> MachineSelectIf(TNode<Word32T> cond) {
     return {this, cond, false};
   }
+  template <typename T>
+  TNode<T> MachineSelect(TNode<Word32T> cond, TNode<T> true_value,
+                         TNode<T> false_value,
+                         BranchHint hint = BranchHint::kNone) {
+    return TNode<T>::UncheckedCast(AddNode(
+        graph()->NewNode(common()->Select(T::kMachineRepresentation, hint,
+                                          BranchSemantics::kMachine),
+                         cond, true_value, false_value)));
+  }
 
  protected:
   Operator const* PlainPrimitiveToNumberOperator();
