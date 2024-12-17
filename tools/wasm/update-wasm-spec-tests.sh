@@ -89,7 +89,9 @@ log_and_run mkdir -v ${TMP_BUILD_DIR}
 
 new_section "Process spec"
 log_and_run cd ${TMP_DIR}
-log_and_run git clone https://github.com/WebAssembly/spec
+# Note: We use the wasm-3.0 staging branch which has many features merged and
+# has fewer outdated and thus failing tests.
+log_and_run git clone --single-branch --no-tags -b wasm-3.0 https://github.com/WebAssembly/spec
 log_and_run cd spec
 log git rev-parse HEAD
 SPEC_HASH=$(git rev-parse HEAD)

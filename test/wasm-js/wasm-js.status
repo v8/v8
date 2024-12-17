@@ -42,13 +42,18 @@
   'proposals/js-promise-integration/js-promise-integration/rejects': [FAIL],
 
   # TODO(fgm): Remove after (https://crbug.com/377577806) is fixed
-  'wpt/jspi/rejects': [FAIL],
   'wpt/wasm/jsapi/jspi/rejects': [FAIL],
 
   # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
   'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
   'proposals/js-promise-integration/exception/identity.tentative': [FAIL],
   'proposals/js-promise-integration/exception/jsTag.tentative': [FAIL],
+
+  # TODO(https://crbug.com/42202693): RAB / GSAB integration.
+  'wpt/memory/to-fixed-length-buffer': [FAIL],
+  'wpt/memory/to-resizable-buffer': [FAIL],
+  'wpt/memory/to-resizable-buffer-shared': [FAIL],
+  'wpt/memory/to-fixed-length-buffer-shared': [FAIL],
 }], # ALWAYS
 
 ['system == android', {

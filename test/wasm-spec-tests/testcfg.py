@@ -2,10 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
-
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+
+# We use the 'wasm-3.0' branch on the main spec repo, so enable all proposals
+# that were merged into that branch.
+default_flags = ['--experimental-wasm-exnref']
 
 proposal_flags = [
     {
@@ -85,4 +87,4 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if f"proposals/{proposal['name']}" in self.name:
         return proposal['flags']
-    return []
+    return default_flags
