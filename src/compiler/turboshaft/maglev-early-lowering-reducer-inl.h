@@ -171,12 +171,25 @@ class MaglevEarlyLoweringReducer : public Next {
     V<Object> data = __ LoadScriptContextSideData(script_context, index);
     V<Object> property = __ LoadScriptContextPropertyFromSideData(data);
     ScopedVar<HeapNumber> result(this, heap_number);
+    Label<> done(this);
+    if (v8_flags.script_context_mutable_heap_int32) {
+      IF (__ TaggedEqual(
+              property,
+              __ SmiConstant(ContextSidePropertyCell::MutableInt32()))) {
+        result = __ AllocateHeapNumberWithValue(
+            __ ChangeInt32ToFloat64(__ LoadHeapInt32Value(heap_number)),
+            isolate_->factory());
+        GOTO(done);
+      }
+    }
     IF (__ TaggedEqual(
             property,
             __ SmiConstant(ContextSidePropertyCell::MutableHeapNumber()))) {
       result = __ AllocateHeapNumberWithValue(
           __ LoadHeapNumberValue(heap_number), isolate_->factory());
     }
+    GOTO(done);
+    BIND(done);
     return result;
   }
 
