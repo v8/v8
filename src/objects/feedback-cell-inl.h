@@ -54,6 +54,11 @@ void FeedbackCell::clear_interrupt_budget() {
   set_interrupt_budget(0);
 }
 
+void FeedbackCell::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                kNullJSDispatchHandle.value());
+}
+
 #ifdef V8_ENABLE_LEAPTIERING
 void FeedbackCell::allocate_dispatch_handle(Isolate* isolate,
                                             uint16_t parameter_count,
@@ -62,11 +67,6 @@ void FeedbackCell::allocate_dispatch_handle(Isolate* isolate,
   DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
   AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
                                      parameter_count, code, mode);
-}
-
-void FeedbackCell::clear_dispatch_handle() {
-  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
-                                                kNullJSDispatchHandle.value());
 }
 
 JSDispatchHandle FeedbackCell::dispatch_handle() const {

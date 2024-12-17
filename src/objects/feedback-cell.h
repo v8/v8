@@ -37,12 +37,12 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   DECL_RELEASE_ACQUIRE_ACCESSORS(value, Tagged<HeapObject>)
 
   inline void clear_interrupt_budget();
+  inline void clear_dispatch_handle();
 
 #ifdef V8_ENABLE_LEAPTIERING
   inline void allocate_dispatch_handle(
       Isolate* isolate, uint16_t parameter_count, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  inline void clear_dispatch_handle();
   inline JSDispatchHandle dispatch_handle() const;
   inline void set_dispatch_handle(JSDispatchHandle new_handle);
 #endif  // V8_ENABLE_LEAPTIERING
