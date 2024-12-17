@@ -828,9 +828,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // Compute the location from the function and the relocation info of the
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
-    std::vector<FrameSummary> frames;
-    it.frame()->Summarize(&frames);
-    auto& summary = frames.back().AsJavaScript();
+    FrameSummaries summaries = it.frame()->Summarize();
+    auto& summary = summaries.frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);

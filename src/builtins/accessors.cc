@@ -9,6 +9,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
@@ -450,10 +451,9 @@ Handle<JSObject> ArgumentsFromDeoptInfo(JavaScriptFrame* frame,
 
 int FindFunctionInFrame(JavaScriptFrame* frame,
                         DirectHandle<JSFunction> function) {
-  std::vector<FrameSummary> frames;
-  frame->Summarize(&frames);
-  for (size_t i = frames.size(); i != 0; i--) {
-    if (*frames[i - 1].AsJavaScript().function() == *function) {
+  FrameSummaries summaries = frame->Summarize();
+  for (int i = summaries.size(); i != 0; i--) {
+    if (*summaries.frames[i - 1].AsJavaScript().function() == *function) {
       return static_cast<int>(i) - 1;
     }
   }
@@ -632,7 +632,7 @@ class FrameFunctionIterator {
       if (inlined_frame_index_ <= 0) {
         if (!frame_iterator_.done()) {
           frame_iterator_.Advance();
-          frames_.clear();
+          summaries_.frames.clear();
           inlined_frame_index_ = -1;
           GetFrames();
         }
@@ -641,7 +641,7 @@ class FrameFunctionIterator {
 
       --inlined_frame_index_;
       DirectHandle<JSFunction> next_function =
-          frames_[inlined_frame_index_].AsJavaScript().function();
+          summaries_.frames[inlined_frame_index_].AsJavaScript().function();
       // Skip functions from other origins.
       if (!AllowAccessToFunction(isolate_->context(), *next_function)) continue;
       return next_function;
@@ -651,14 +651,14 @@ class FrameFunctionIterator {
     DCHECK_EQ(-1, inlined_frame_index_);
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
-    frame->Summarize(&frames_);
-    inlined_frame_index_ = static_cast<int>(frames_.size());
+    summaries_ = frame->Summarize();
+    inlined_frame_index_ = static_cast<int>(summaries_.size());
     DCHECK_LT(0, inlined_frame_index_);
   }
   Isolate* isolate_;
   DirectHandle<JSFunction> function_;
   JavaScriptStackFrameIterator frame_iterator_;
-  std::vector<FrameSummary> frames_;
+  FrameSummaries summaries_;
   int inlined_frame_index_;
 };
 

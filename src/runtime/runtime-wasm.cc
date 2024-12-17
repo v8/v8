@@ -259,15 +259,14 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
-  std::vector<FrameSummary> summary;
   FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
   WasmFrame* frame = frame_finder.frame();
   // TODO(ahaas): We cannot use frame->position() here because for inlined
   // function it does not return the correct source position. We should remove
   // frame->position() to avoid problems in the future.
-  frame->Summarize(&summary);
-  DCHECK(summary.back().IsWasm());
-  int pos = summary.back().AsWasm().SourcePosition();
+  FrameSummaries summaries = frame->Summarize();
+  DCHECK(summaries.frames.back().IsWasm());
+  int pos = summaries.frames.back().AsWasm().SourcePosition();
 
   wasm::WasmCodeRefScope code_ref_scope;
   auto wire_bytes = frame->wasm_code()->native_module()->wire_bytes();

@@ -84,6 +84,7 @@
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/call-site-info.h"
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
@@ -861,6 +862,15 @@ class CallSiteBuilder {
     elements_ = isolate->factory()->NewFixedArray(std::min(64, limit));
   }
 
+  void SetPrevFrameAsConstructCall() {
+    DCHECK(!Full());
+    if (skipped_prev_frame_) return;
+    DCHECK_GT(index_, 0);
+    Tagged<CallSiteInfo> info =
+        Tagged<CallSiteInfo>::cast(elements_->get(index_ - 1));
+    info->set_flags(info->flags() | CallSiteInfo::kIsConstructor);
+  }
+
   bool Visit(FrameSummary const& summary) {
     if (Full()) return false;
 #if V8_ENABLE_WEBASSEMBLY
@@ -895,7 +905,10 @@ class CallSiteBuilder {
 
   void AppendAsyncFrame(DirectHandle<JSGeneratorObject> generator_object) {
     DirectHandle<JSFunction> function(generator_object->function(), isolate_);
-    if (!IsVisibleInStackTrace(function)) return;
+    if (!IsVisibleInStackTrace(function)) {
+      skipped_prev_frame_ = true;
+      return;
+    }
     int flags = CallSiteInfo::kIsAsync;
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
@@ -918,7 +931,10 @@ class CallSiteBuilder {
 
   void AppendPromiseCombinatorFrame(DirectHandle<JSFunction> element_function,
                                     DirectHandle<JSFunction> combinator) {
-    if (!IsVisibleInStackTrace(combinator)) return;
+    if (!IsVisibleInStackTrace(combinator)) {
+      skipped_prev_frame_ = true;
+      return;
+    }
     int flags =
         CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
@@ -940,7 +956,10 @@ class CallSiteBuilder {
   void AppendJavaScriptFrame(
       FrameSummary::JavaScriptFrameSummary const& summary) {
     // Filter out internal frames that we do not want to show.
-    if (!IsVisibleInStackTrace(summary.function())) return;
+    if (!IsVisibleInStackTrace(summary.function())) {
+      skipped_prev_frame_ = true;
+      return;
+    }
 
     int flags = 0;
     DirectHandle<JSFunction> function = summary.function();
@@ -1087,6 +1106,7 @@ class CallSiteBuilder {
         Cast<JSAny>(receiver_or_instance), function, code, offset, flags,
         parameters);
     elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
+    skipped_prev_frame_ = false;
   }
 
   Isolate* isolate_;
@@ -1095,6 +1115,7 @@ class CallSiteBuilder {
   const int limit_;
   const Handle<Object> caller_;
   bool skip_next_frame_;
+  bool skipped_prev_frame_;
   bool encountered_strict_function_ = false;
   Handle<FixedArray> elements_;
 };
@@ -1330,9 +1351,12 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
       {
         // A standard frame may include many summarized frames (due to
         // inlining).
-        std::vector<FrameSummary> summaries;
-        CommonFrame::cast(frame)->Summarize(&summaries);
-        for (auto rit = summaries.rbegin(); rit != summaries.rend(); ++rit) {
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        if (summaries.top_frame_is_construct_call) {
+          visitor->SetPrevFrameAsConstructCall();
+        }
+        for (auto rit = summaries.frames.rbegin();
+             rit != summaries.frames.rend(); ++rit) {
           FrameSummary& summary = *rit;
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
@@ -1551,6 +1575,10 @@ class StackFrameBuilder {
         index_(0),
         limit_(limit) {}
 
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
   bool Visit(FrameSummary& summary) {
     // Check if we have enough capacity left.
     if (index_ >= limit_) return false;
@@ -1595,6 +1623,10 @@ class CurrentScriptNameStackVisitor {
   explicit CurrentScriptNameStackVisitor(Isolate* isolate)
       : isolate_(isolate) {}
 
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
   bool Visit(FrameSummary& summary) {
     // Skip frames that aren't subject to debugging. Keep this in sync with
     // StackFrameBuilder::Visit so both visitors visit the same frames.
@@ -1621,6 +1653,10 @@ class CurrentScriptNameStackVisitor {
 
 class CurrentScriptStackVisitor {
  public:
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
   bool Visit(FrameSummary& summary) {
     // Skip frames that aren't subject to debugging. Keep this in sync with
     // StackFrameBuilder::Visit so both visitors visit the same frames.
@@ -2626,7 +2662,7 @@ class StackFrameSummaryIterator {
   }
   void Advance() {
     if (index_ == 0) {
-      summaries_.clear();
+      summaries_.frames.clear();
       stack_iterator_.Advance();
       InitSummaries();
     } else {
@@ -2638,21 +2674,21 @@ class StackFrameSummaryIterator {
   bool has_frame_summary() const { return index_ < summaries_.size(); }
   const FrameSummary& frame_summary() const {
     DCHECK(has_frame_summary());
-    return summaries_[index_];
+    return summaries_.frames[index_];
   }
   Isolate* isolate() const { return stack_iterator_.isolate(); }
 
  private:
   void InitSummaries() {
     if (!done() && frame()->is_javascript()) {
-      JavaScriptFrame::cast(frame())->Summarize(&summaries_);
+      summaries_ = JavaScriptFrame::cast(frame())->Summarize();
       DCHECK_GT(summaries_.size(), 0);
       index_ = summaries_.size() - 1;
     }
   }
   StackFrameIterator stack_iterator_;
-  std::vector<FrameSummary> summaries_;
-  size_t index_;
+  FrameSummaries summaries_;
+  int index_;
 };
 
 HandlerTable::CatchPrediction CatchPredictionFor(Builtin builtin_id) {

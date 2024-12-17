@@ -20,6 +20,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/v8threads.h"
@@ -1383,10 +1384,9 @@ void Debug::PrepareStepOnThrow() {
       // Deoptimize frame to ensure calls are checked for step-in.
       Deoptimizer::DeoptimizeFunction(frame->function());
     }
-    std::vector<FrameSummary> summaries;
-    frame->Summarize(&summaries);
+    FrameSummaries summaries = frame->Summarize();
     for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
-      const FrameSummary& summary = summaries[i - 1];
+      const FrameSummary& summary = summaries.frames[i - 1];
       if (!found_handler) {
         // We have yet to find the handler. If the frame inlines multiple
         // functions, we have to check each one for the handler.
@@ -2896,9 +2896,8 @@ void Debug::PrintBreakLocation() {
   DebuggableStackFrameIterator iterator(isolate_);
   if (iterator.done()) return;
   CommonFrame* frame = iterator.frame();
-  std::vector<FrameSummary> frames;
-  frame->Summarize(&frames);
-  int inlined_frame_index = static_cast<int>(frames.size() - 1);
+  FrameSummaries summaries = frame->Summarize();
+  int inlined_frame_index = static_cast<int>(summaries.size() - 1);
   FrameInspector inspector(frame, inlined_frame_index, isolate_);
   int source_position = inspector.GetSourcePosition();
   Handle<Object> script_obj = inspector.GetScript();

@@ -10,6 +10,7 @@
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -236,9 +237,8 @@ bool DebugStackTraceIterator::CanBeRestarted() const {
 void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
   CHECK(!iterator_.done());
 
-  std::vector<FrameSummary> frames;
-  iterator_.frame()->Summarize(&frames);
-  inlined_frame_index_ = static_cast<int>(frames.size());
+  FrameSummaries summaries = iterator_.frame()->Summarize();
+  inlined_frame_index_ = static_cast<int>(summaries.size());
 
   if (resumable_fn_on_stack_) return;
 

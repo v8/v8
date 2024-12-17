@@ -100,13 +100,12 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
-        std::vector<FrameSummary> frames;
-        CommonFrame::cast(frame)->Summarize(&frames);
-        for (size_t i = frames.size(); i-- != 0;) {
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        for (size_t i = summaries.size(); i-- != 0;) {
           int offset = 0;
           Handle<Script> script;
 
-          auto& summary = frames[i];
+          auto& summary = summaries.frames[i];
           if (summary.IsJavaScript()) {
             FrameSummary::JavaScriptFrameSummary const& javascript =
                 summary.AsJavaScript();
@@ -160,9 +159,8 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
-        std::vector<FrameSummary> frames;
-        CommonFrame::cast(frame)->Summarize(&frames);
-        const size_t frame_count = frames.size();
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        const size_t frame_count = summaries.size();
         DCHECK_GT(frame_count, 0);
 
         if (frame_count > *frame_index) {
@@ -171,7 +169,7 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
 #else   // V8_ENABLE_DRUMBRAKE
           if (frame_it->is_wasm())
 #endif  // V8_ENABLE_DRUMBRAKE
-            return frames;
+            return summaries.frames;
           else
             return {};
         } else {
