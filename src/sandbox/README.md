@@ -65,7 +65,7 @@ memory.setUint32(addr + 8, 0x41414141, true);
 corruptMe.crash();
 
 // The process will now terminate cleanly with a message such as:
-// "Caught harmless memory access violaton (inside sandbox address space). Exiting process..."
+// "Caught harmless memory access violation (inside sandbox address space). Exiting process..."
 ```
 
 The --sandbox-testing and --sandbox-fuzzing flags are mostly identical.

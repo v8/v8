@@ -587,7 +587,7 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
 
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
     FilterCrash(
-        "Caught harmless memory access violaton (inside sandbox address "
+        "Caught harmless memory access violation (inside sandbox address "
         "space). Exiting process...\n");
   }
 
@@ -599,7 +599,7 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // out here. However, testcases need to be written with this in mind and
     // must cause crashes at valid addresses.
     FilterCrash(
-        "Caught harmless memory access violaton (non-canonical address). "
+        "Caught harmless memory access violation (non-canonical address). "
         "Exiting process...\n");
   }
 
@@ -610,7 +610,7 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // addresses above, so here we can just test if the most-significant bit of
     // the address is set, and if so assume that it's a kernel address.
     FilterCrash(
-        "Caught harmless memory access violatation (kernel space address). "
+        "Caught harmless memory access violation (kernel space address). "
         "Exiting process...\n");
   }
 
@@ -619,15 +619,15 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // the typical page size (which is also the default value of mmap_min_addr
     // on Linux) to determine what counts as a nullptr dereference here.
     FilterCrash(
-        "Caught harmless memory access violaton (nullptr dereference). Exiting "
-        "process...\n");
+        "Caught harmless memory access violation (nullptr dereference). "
+        "Exiting process...\n");
   }
 
   if (faultaddr < 4ULL * GB) {
     // Currently we also ignore access violations in the first 4GB of the
     // virtual address space. See crbug.com/1470641 for more details.
     FilterCrash(
-        "Caught harmless memory access violaton (first 4GB of virtual address "
+        "Caught harmless memory access violation (first 4GB of virtual address "
         "space). Exiting process...\n");
   }
 
@@ -690,8 +690,8 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
     // typically try to access non-existing memory to demonstrate the ability
     // to escape from the sandbox.
     FilterCrash(
-        "Caught harmless memory access violaton (memory permission violation). "
-        "Exiting process...\n");
+        "Caught harmless memory access violation (memory permission "
+        "violation). Exiting process...\n");
   }
 
   // Otherwise it's a sandbox violation, so restore the original signal
