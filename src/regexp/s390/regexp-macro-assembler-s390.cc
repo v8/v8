@@ -1477,7 +1477,7 @@ void RegExpMacroAssemblerS390::AssertAboveStackLimitMinusSlack() {
   __ mov(r2, Operand(l));
   __ LoadU64(r2, MemOperand(r2));
   __ SubS64(r2, r2, Operand(RegExpStack::kStackLimitSlackSize));
-  __ CmpU64(backtrack_stackpointer(), Operand(r2));
+  __ CmpU64(backtrack_stackpointer(), r2);
   __ bgt(&no_stack_overflow);
   __ DebugBreak();
   __ bind(&no_stack_overflow);
