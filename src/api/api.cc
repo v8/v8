@@ -6146,7 +6146,6 @@ static inline void WriteHelperV2(i::Isolate* i_isolate, const String* string,
   DCHECK_LE(offset, string->Length() - length);
 
   auto str = Utils::OpenDirectHandle(string);
-  str = i::String::Flatten(i_isolate, str);
   i::String::WriteToFlat(*str, buffer, offset, length);
   if (flags & String::WriteFlags::kNullTerminate) {
     buffer[length] = '\0';
