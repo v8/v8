@@ -188,22 +188,25 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     void* result = TryAllocateLargeObject(page_backend_, large_space,
                                           stats_collector_, size, gcinfo);
     if (!result) {
-      auto config = kOnAllocationFailureGCConfig;
-      garbage_collector_.CollectGarbage(config);
-      result = TryAllocateLargeObject(page_backend_, large_space,
-                                      stats_collector_, size, gcinfo);
-      if (!result) {
-#if defined(CPPGC_CAGED_HEAP)
-        const auto last_alloc_status =
-            CagedHeap::Instance().page_allocator().get_last_allocation_status();
-        const std::string suffix =
-            v8::base::BoundedPageAllocator::AllocationStatusToString(
-                last_alloc_status);
-        oom_handler_("Oilpan: Large allocation. " + suffix);
-#else
-        oom_handler_("Oilpan: Large allocation.");
-#endif
+      for (int i = 0; i < 2; i++) {
+        auto config = kOnAllocationFailureGCConfig;
+        garbage_collector_.CollectGarbage(config);
+        result = TryAllocateLargeObject(page_backend_, large_space,
+                                        stats_collector_, size, gcinfo);
+        if (result) {
+          return result;
+        }
       }
+#if defined(CPPGC_CAGED_HEAP)
+      const auto last_alloc_status =
+          CagedHeap::Instance().page_allocator().get_last_allocation_status();
+      const std::string suffix =
+          v8::base::BoundedPageAllocator::AllocationStatusToString(
+              last_alloc_status);
+      oom_handler_("Oilpan: Large allocation. " + suffix);
+#else
+      oom_handler_("Oilpan: Large allocation.");
+#endif
     }
     return result;
   }
@@ -216,10 +219,17 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     request_size += kAllocationGranularity;
   }
 
-  if (!TryRefillLinearAllocationBuffer(space, request_size)) {
-    auto config = kOnAllocationFailureGCConfig;
-    garbage_collector_.CollectGarbage(config);
-    if (!TryRefillLinearAllocationBuffer(space, request_size)) {
+  bool success = TryRefillLinearAllocationBuffer(space, request_size);
+  if (!success) {
+    for (int i = 0; i < 2; i++) {
+      auto config = kOnAllocationFailureGCConfig;
+      garbage_collector_.CollectGarbage(config);
+      success = TryRefillLinearAllocationBuffer(space, request_size);
+      if (success) {
+        break;
+      }
+    }
+    if (!success) {
 #if defined(CPPGC_CAGED_HEAP)
       const auto last_alloc_status =
           CagedHeap::Instance().page_allocator().get_last_allocation_status();
