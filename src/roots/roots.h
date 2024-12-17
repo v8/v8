@@ -230,6 +230,7 @@ class RootVisitor;
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
+  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \
   /* Table of strings of one-byte single characters */                         \
   V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
@@ -327,7 +328,6 @@ class RootVisitor;
   V(Map, message_object_map, JSMessageObjectMap)                               \
   /* Canonical empty values */                                                 \
   V(Script, empty_script, EmptyScript)                                         \
-  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   /* Protectors */                                                             \
   V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)      \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \

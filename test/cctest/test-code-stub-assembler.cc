@@ -3016,7 +3016,7 @@ TEST(AllocateRootFunctionWithContext) {
   CHECK_EQ(ReadOnlyRoots(isolate).empty_property_array(),
            fun->property_array());
   CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(), fun->elements());
-  CHECK_EQ(isolate->heap()->many_closures_cell(), fun->raw_feedback_cell());
+  CHECK_EQ(*isolate->factory()->many_closures_cell(), fun->raw_feedback_cell());
   CHECK(!fun->has_prototype_slot());
   CHECK_EQ(*isolate->factory()->promise_capability_default_resolve_shared_fun(),
            fun->shared());

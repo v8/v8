@@ -4775,8 +4775,12 @@ void CppClassGenerator::EmitStoreFieldStatement(
     const std::string value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
 
     if (!is_smi) {
-      stream << "  SLOW_DCHECK("
-             << GenerateRuntimeTypeCheck(field_type, "value") << ");\n";
+      // Don't DCHECK types if the roots aren't initialized, so that we don't
+      // incorrectly fail these checks during initial heap setup.
+      stream << "  "
+                "SLOW_DCHECK(!IsolateGroup::current()->shared_read_only_heap()-"
+                ">roots_init_complete() || ("
+             << GenerateRuntimeTypeCheck(field_type, "value") << "));\n";
     }
     stream << "  " << write_macro << "(*this, " << offset << ", "
            << value_to_write << ");\n";

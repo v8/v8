@@ -173,7 +173,8 @@ class InterpreterTester {
       is_compiled_scope = function->shared()->is_compiled_scope(isolate_);
     }
     if (HasFeedbackMetadata()) {
-      function->set_raw_feedback_cell(isolate_->heap()->many_closures_cell());
+      function->set_raw_feedback_cell(
+          *isolate_->factory()->many_closures_cell());
       // Set the raw feedback metadata to circumvent checks that we are not
       // overwriting existing metadata.
       function->shared()->set_raw_outer_scope_info_or_feedback_metadata(

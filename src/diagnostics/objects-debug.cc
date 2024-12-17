@@ -1289,8 +1289,9 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   // FeedbackCell, unless the FeedbackCell has no entry.
   JSDispatchHandle feedback_cell_handle =
       raw_feedback_cell(isolate)->dispatch_handle();
-  CHECK_EQ(raw_feedback_cell(isolate) == isolate->heap()->many_closures_cell(),
-           feedback_cell_handle == kNullJSDispatchHandle);
+  CHECK_EQ(
+      raw_feedback_cell(isolate) == *isolate->factory()->many_closures_cell(),
+      feedback_cell_handle == kNullJSDispatchHandle);
   if (feedback_cell_handle != kNullJSDispatchHandle) {
     CHECK_EQ(feedback_cell_handle, handle);
   }

@@ -577,33 +577,34 @@ void JSFunction::EnsureClosureFeedbackCellArray(
 
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(shared->HasBytecodeArray());
-
   const bool has_closure_feedback_cell_array =
       (function->has_closure_feedback_cell_array() ||
        function->has_feedback_vector());
-  // Initialize the interrupt budget to the feedback vector allocation budget
-  // when initializing the feedback cell for the first time or after a bytecode
-  // flush. We retain the closure feedback cell array on bytecode flush, so
-  // reset_budget_for_feedback_allocation is used to reset the budget in these
-  // cases.
-  if (reset_budget_for_feedback_allocation ||
-      !has_closure_feedback_cell_array) {
-    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
-  }
 
   if (has_closure_feedback_cell_array) {
+    // Initialize the interrupt budget to the feedback vector allocation budget
+    // after a bytecode flush. We retain the closure feedback cell array on
+    // bytecode flush, so reset_budget_for_feedback_allocation is used to reset
+    // the budget in this case.
+    if (reset_budget_for_feedback_allocation) {
+      function->SetInterruptBudget(isolate, BudgetModification::kRaise);
+    }
     return;
   }
 
-  DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =
-      ClosureFeedbackCellArray::New(isolate, shared);
   // Many closure cell is used as a way to specify that there is no
   // feedback cell for this function and a new feedback cell has to be
   // allocated for this function. For ex: for eval functions, we have to create
   // a feedback cell and cache it along with the code. It is safe to use
   // many_closure_cell to indicate this because in regular cases, it should
   // already have a feedback_vector / feedback cell array allocated.
-  if (function->raw_feedback_cell() == isolate->heap()->many_closures_cell()) {
+  const bool allocate_new_feedback_cell =
+      function->raw_feedback_cell() ==
+      *isolate->factory()->many_closures_cell();
+
+  DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =
+      ClosureFeedbackCellArray::New(isolate, shared);
+  if (allocate_new_feedback_cell) {
     DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
 #ifdef V8_ENABLE_LEAPTIERING
@@ -619,10 +620,12 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     feedback_cell->set_dispatch_handle(function->dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
-    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
   } else {
     function->raw_feedback_cell()->set_value(*feedback_cell_array,
                                              kReleaseStore);
+  }
+  if (allocate_new_feedback_cell || reset_budget_for_feedback_allocation) {
+    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
   }
 }
 
@@ -666,7 +669,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.
   DCHECK(function->raw_feedback_cell() !=
-         isolate->heap()->many_closures_cell());
+         *isolate->factory()->many_closures_cell());
   DCHECK_EQ(function->raw_feedback_cell()->value(), *feedback_vector);
   function->SetInterruptBudget(isolate, BudgetModification::kRaise);
 

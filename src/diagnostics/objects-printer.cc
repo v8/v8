@@ -1545,7 +1545,8 @@ void FeedbackCell::FeedbackCellPrint(std::ostream& os) {
 #ifdef V8_ENABLE_LEAPTIERING
   os << "\n - dispatch_handle: 0x" << std::hex << dispatch_handle() << std::dec;
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  if (jdt->IsTieringRequested(dispatch_handle())) {
+  if (dispatch_handle() != kNullJSDispatchHandle &&
+      jdt->IsTieringRequested(dispatch_handle())) {
     os << "\n - tiering request ";
     if (Tagged<FeedbackVector> fbv;
         TryCast(value(), &fbv) && fbv->tiering_in_progress()) {

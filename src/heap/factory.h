@@ -500,7 +500,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FeedbackCell> NewNoClosuresCell();
   Handle<FeedbackCell> NewOneClosureCell(
       DirectHandle<ClosureFeedbackCellArray> value);
-  Handle<FeedbackCell> NewManyClosuresCell();
+  Handle<FeedbackCell> NewManyClosuresCell(
+      AllocationType allocation = AllocationType::kOld);
 
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);

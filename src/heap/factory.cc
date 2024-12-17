@@ -2183,10 +2183,9 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(
   return handle(result, isolate());
 }
 
-Handle<FeedbackCell> Factory::NewManyClosuresCell() {
+Handle<FeedbackCell> Factory::NewManyClosuresCell(AllocationType allocation) {
   Tagged<FeedbackCell> result = Cast<FeedbackCell>(AllocateRawWithImmortalMap(
-      FeedbackCell::kAlignedSize, AllocationType::kOld,
-      *many_closures_cell_map()));
+      FeedbackCell::kAlignedSize, allocation, *many_closures_cell_map()));
   DisallowGarbageCollection no_gc;
   result->set_value(read_only_roots().undefined_value());
   result->clear_interrupt_budget();

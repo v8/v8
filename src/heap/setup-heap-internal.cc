@@ -1242,6 +1242,11 @@ bool Heap::CreateReadOnlyObjects() {
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
 
+  // Allocate FeedbackCell for builtins.
+  DirectHandle<FeedbackCell> many_closures_cell =
+      factory->NewManyClosuresCell(AllocationType::kReadOnly);
+  set_many_closures_cell(*many_closures_cell);
+
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1344,11 +1349,6 @@ void Heap::CreateInitialMutableObjects() {
       RegExpResultsCache::kRegExpResultsCacheSize, AllocationType::kOld));
   set_regexp_match_global_atom_cache(*factory->NewFixedArray(
       RegExpResultsCache_MatchGlobalAtom::kSize, AllocationType::kOld));
-
-  // Allocate FeedbackCell for builtins.
-  DirectHandle<FeedbackCell> many_closures_cell =
-      factory->NewManyClosuresCell();
-  set_many_closures_cell(*many_closures_cell);
 
   set_detached_contexts(roots.empty_weak_array_list());
 
