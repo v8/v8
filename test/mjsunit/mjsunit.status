@@ -1602,6 +1602,7 @@
   'wasm/atomics-memory64': [SKIP],
   'wasm/futex': [SKIP],
   'wasm/grow-shared-memory': [SKIP],
+  'wasm/wasm-interpreter': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
