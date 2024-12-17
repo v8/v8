@@ -66,8 +66,10 @@ template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDown() {
   DCHECK(this->is_initialized());
 
-  // Deallocate the (read-only) first segment.
-  this->vas_->FreePages(this->vas_->base(), kSegmentSize);
+  if (ExternalEntityTable::kUseContiguousMemory) {
+    // Deallocate the (read-only) first segment.
+    this->vas_->FreePages(this->vas_->base(), kSegmentSize);
+  }
 
   Base::TearDown();
 }
