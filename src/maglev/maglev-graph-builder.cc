@@ -1897,32 +1897,31 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
 
   switch (representation) {
     case ValueRepresentation::kTagged: {
-      switch (allowed_input_type) {
-        case NodeType::kSmi:
-          // Get the float64 value of a Smi value its int32 representation.
-          return GetFloat64(GetInt32(value));
-        case NodeType::kNumber:
-          // Number->Float64 conversions are exact alternatives, so they can
-          // also become the canonical float64_alternative.
-          return alternative.set_float64(BuildNumberOrOddballToFloat64(
-              value, NodeType::kNumber,
-              TaggedToFloat64ConversionType::kOnlyNumber));
-        case NodeType::kNumberOrBoolean:
-        case NodeType::kNumberOrOddball: {
-          // NumberOrOddball->Float64 conversions are not exact alternatives,
-          // since they lose the information that this is an oddball, so they
-          // can only become the canonical float64_alternative if they are a
-          // known number (and therefore not oddball).
-          ValueNode* float64_node = BuildNumberOrOddballToFloat64(
-              value, allowed_input_type, conversion_type);
-          if (NodeTypeIsNumber(node_info->type())) {
-            alternative.set_float64(float64_node);
-          }
-          return float64_node;
-        }
-        default:
-          UNREACHABLE();
+      auto combined_type = CombineType(allowed_input_type, node_info->type());
+      if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+        // Get the float64 value of a Smi value its int32 representation.
+        return GetFloat64(GetInt32(value));
       }
+      if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+        // Number->Float64 conversions are exact alternatives, so they can
+        // also become the canonical float64_alternative.
+        return alternative.set_float64(BuildNumberOrOddballToFloat64(
+            value, NodeType::kNumber,
+            TaggedToFloat64ConversionType::kOnlyNumber));
+      }
+      if (NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
+        // NumberOrOddball->Float64 conversions are not exact alternatives,
+        // since they lose the information that this is an oddball, so they
+        // can only become the canonical float64_alternative if they are a
+        // known number (and therefore not oddball).
+        return BuildNumberOrOddballToFloat64(value, combined_type,
+                                             conversion_type);
+      }
+      // The type is impossible. We could generate an unconditional deopt here,
+      // but it's too invasive. So we just generate a check which will always
+      // deopt.
+      return BuildNumberOrOddballToFloat64(value, allowed_input_type,
+                                           conversion_type);
     }
     case ValueRepresentation::kInt32:
       return alternative.set_float64(AddNewNode<ChangeInt32ToFloat64>({value}));

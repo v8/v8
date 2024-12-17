@@ -607,15 +607,15 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(Smi, (1 << 4) | kNumber)                                \
   V(AnyHeapObject, (1 << 5))                                \
   V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)  \
-  V(Boolean, (1 << 7) | kOddball | kNumberOrBoolean)        \
-  V(Name, (1 << 8) | kAnyHeapObject)                        \
-  V(StringOrStringWrapper, (1 << 9))                        \
-  V(String, (1 << 10) | kName | kStringOrStringWrapper)     \
-  V(InternalizedString, (1 << 11) | kString)                \
-  V(Symbol, (1 << 12) | kName)                              \
-  V(JSReceiver, (1 << 13) | kAnyHeapObject)                 \
-  V(JSArray, (1 << 14) | kJSReceiver)                       \
-  V(Callable, (1 << 15) | kJSReceiver)                      \
+  V(Boolean, kOddball | kNumberOrBoolean)                   \
+  V(Name, (1 << 7) | kAnyHeapObject)                        \
+  V(StringOrStringWrapper, (1 << 8))                        \
+  V(String, (1 << 9) | kName | kStringOrStringWrapper)      \
+  V(InternalizedString, (1 << 10) | kString)                \
+  V(Symbol, (1 << 11) | kName)                              \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                 \
+  V(JSArray, (1 << 13) | kJSReceiver)                       \
+  V(Callable, (1 << 14) | kJSReceiver)                      \
   V(HeapNumber, kAnyHeapObject | kNumber)
 
 enum class NodeType : uint32_t {
