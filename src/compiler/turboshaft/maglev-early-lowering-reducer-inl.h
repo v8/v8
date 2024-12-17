@@ -393,12 +393,12 @@ class MaglevEarlyLoweringReducer : public Next {
         __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
     IF (UNLIKELY(__ Word32BitwiseAnd(bitfield3,
                                      Map::Bits3::IsDeprecatedBit::kMask))) {
-      V<Object> result = __ CallRuntime_TryMigrateInstance(
+      V<Object> object_or_smi = __ CallRuntime_TryMigrateInstance(
           isolate_, __ NoContextConstant(), object);
-      __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+      __ DeoptimizeIf(__ ObjectIsSmi(object_or_smi), frame_state,
                       DeoptimizeReason::kInstanceMigrationFailed, feedback);
       // Reload the map since TryMigrateInstance might have changed it.
-      result = __ LoadMapField(V<HeapObject>::Cast(result));
+      result = __ LoadMapField(V<HeapObject>::Cast(object_or_smi));
     }
 
     return result;
