@@ -321,6 +321,10 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + kAdditionalStackMargin;
 }
 
+void Simulator::SetStackLimit(uintptr_t limit) {
+  stack_limit_ = static_cast<uintptr_t>(limit - kAdditionalStackMargin);
+}
+
 base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as users of this method are expected to add their
@@ -6532,7 +6536,7 @@ void Simulator::DoSwitchStackLimit(Instruction* instr) {
   // So without adjusting back incoming value by safety gap
   // {stack_limit_} will be shortened by kAdditionalStackMargin yielding
   // positive feedback loop.
-  stack_limit_ = static_cast<uintptr_t>(stack_limit - kAdditionalStackMargin);
+  SetStackLimit(stack_limit);
 }
 
 void Simulator::DoPrintf(Instruction* instr) {

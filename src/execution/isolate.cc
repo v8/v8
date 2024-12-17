@@ -2266,8 +2266,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       // to the central stack, handle the implicit switch back.
       if (switch_info.source_fp == iter.frame()->fp()) {
         thread_local_top()->is_on_central_stack_flag_ = false;
-        stack_guard()->SetStackLimitForStackSwitching(
-            reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit()));
+        uintptr_t limit =
+            reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
+        stack_guard()->SetStackLimitForStackSwitching(limit);
+#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
+        Simulator::current(this)->SetStackLimit(limit);
+#endif
         iter.wasm_stack()->clear_stack_switch_info();
       }
     }
@@ -2319,6 +2323,10 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
             .slot(RootIndex::kActiveContinuation)
             .store(iter.continuation());
         SyncStackLimit();
+#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
+        Simulator::current(this)->SetStackLimit(
+            reinterpret_cast<uintptr_t>(parent->jslimit()));
+#endif
         continue;
       }
     }
