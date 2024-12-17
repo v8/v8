@@ -1558,6 +1558,8 @@ void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
 void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
+  CHECK(isolate_->IsOnCentralStack());
+
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
     // if a new page allocation fails. In such a case we should crash with
