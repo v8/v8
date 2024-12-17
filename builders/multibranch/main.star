@@ -94,7 +94,6 @@ in_category(
         name = "V8 Linux64 css - debug",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "11.5",
         disable_resultdb_exports = True,
     ),
     main_multibranch_builder(
@@ -145,7 +144,6 @@ in_category(
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.TREE_CLOSER,
-        first_branch_version = "12.9",
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - bazel - builder",
@@ -234,12 +232,12 @@ in_category(
     main_multibranch_builder(
         name = "V8 Win32",
         parent_builder = "V8 Win32 - builder",
-        barrier = BARRIER.LKGR_ONLY,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug",
         parent_builder = "V8 Win32 - debug builder",
-        barrier = BARRIER.LKGR_ONLY,
+        barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
         name = "V8 Win64",
@@ -260,7 +258,6 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         barrier = BARRIER.LKGR_TREE_CLOSER,
         disable_resultdb_exports = True,
-        first_branch_version = "12.5",
     ),
 )
 
@@ -294,7 +291,6 @@ in_category(
         name = "V8 Mac - arm64",
         dimensions = {"os": "Mac", "cpu": "arm64"},
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "12.1",
         barrier = BARRIER.LKGR_TREE_CLOSER,
     ),
     main_multibranch_builder_pair(
@@ -331,7 +327,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Mac - arm64 - gc stress",
         parent_builder = "V8 Mac - arm64 - debug builder",
-        first_branch_version = "12.1",
         barrier = BARRIER.NONE,
     ),
 )
