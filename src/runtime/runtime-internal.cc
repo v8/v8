@@ -467,6 +467,13 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
   int flags = args.smi_value_at(1);
+
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
+  // flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+
   AllocationAlignment alignment =
       AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
   CHECK(IsAligned(size, kTaggedSize));
