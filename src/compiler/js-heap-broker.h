@@ -265,9 +265,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   std::optional<RootIndex> FindRootIndex(HeapObjectRef object) {
     // No root constant is a JSReceiver.
     if (object.IsJSReceiver()) return {};
-    Address address = object.object()->ptr();
     RootIndex root_index;
-    if (root_index_map_.Lookup(address, &root_index)) {
+    if (root_index_map_.Lookup(*object.object(), &root_index)) {
       return root_index;
     }
     return {};
@@ -283,8 +282,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   template <typename T>
   Handle<T> CanonicalPersistentHandle(Tagged<T> object) {
     DCHECK_NOT_NULL(canonical_handles_);
-    Address address = object.ptr();
-    if (Internals::HasHeapObjectTag(address)) {
+    if (Tagged<HeapObject> heap_object;
+        TryCast<HeapObject>(object, &heap_object)) {
       RootIndex root_index;
       // CollectArrayAndObjectPrototypes calls this function often with T equal
       // to JSObject. The root index map only contains immortal, immutable
@@ -293,20 +292,19 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       // created and destroyed. Thus, we can skip the lookup in the root index
       // map for those values and save a little time.
       if constexpr (std::is_convertible_v<T, JSObject>) {
-        DCHECK(!root_index_map_.Lookup(address, &root_index));
-      } else if (root_index_map_.Lookup(address, &root_index)) {
+        DCHECK(!root_index_map_.Lookup(heap_object, &root_index));
+      } else if (root_index_map_.Lookup(heap_object, &root_index)) {
         return Handle<T>(isolate_->root_handle(root_index).location());
       }
     }
 
-    Tagged<Object> obj(address);
-    auto find_result = canonical_handles_->FindOrInsert(obj);
+    auto find_result = canonical_handles_->FindOrInsert(object);
     if (find_result.already_exists) return Handle<T>(*find_result.entry);
 
     // Allocate new PersistentHandle if one wasn't created before.
     if (local_isolate()) {
       *find_result.entry =
-          local_isolate()->heap()->NewPersistentHandle(obj).location();
+          local_isolate()->heap()->NewPersistentHandle(object).location();
     } else {
       DCHECK(PersistentHandlesScope::IsActive(isolate()));
       *find_result.entry = IndirectHandle<T>(object, isolate()).location();
@@ -324,20 +322,19 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   template <typename T>
   bool IsCanonicalHandle(Handle<T> handle) {
     DCHECK_NOT_NULL(canonical_handles_);
-    Address* location = handle.location();
-    Address address = *location;
-    if (Internals::HasHeapObjectTag(address)) {
+    if (Tagged<HeapObject> heap_object;
+        TryCast<HeapObject>(*handle, &heap_object)) {
       RootIndex root_index;
-      if (root_index_map_.Lookup(address, &root_index)) {
+      if (root_index_map_.Lookup(heap_object, &root_index)) {
         return true;
       }
       // Builtins use pseudo handles that are canonical and persistent by
       // design.
-      if (isolate()->IsBuiltinTableHandleLocation(location)) {
+      if (isolate()->IsBuiltinTableHandleLocation(handle.location())) {
         return true;
       }
     }
-    return canonical_handles_->Find(Tagged<Object>(address)) != nullptr;
+    return canonical_handles_->Find(*handle) != nullptr;
   }
 
   std::string Trace() const;
