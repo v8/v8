@@ -3331,16 +3331,26 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Move(kScratchRegister, global_jump_table);
 
 #ifdef V8_ENABLE_SANDBOX
+  Label fail, ok;
+
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
   shlq(target, Immediate(4));
+
   cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
                wasm::WasmCodePointerTable::kOffsetOfSignatureHash),
        Immediate(static_cast<int32_t>(signature_hash)));
-  SbxCheck(Condition::equal, AbortReason::kWasmSignatureMismatch);
+  j(Condition::kNotEqual, &fail, Label::Distance::kNear);
+
   cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
                wasm::WasmCodePointerTable::kOffsetOfSignatureHash + 4),
        Immediate(static_cast<int32_t>(signature_hash >> 32)));
-  SbxCheck(Condition::equal, AbortReason::kWasmSignatureMismatch);
+  j(Condition::kNotEqual, &fail, Label::Distance::kNear);
+  jmp(&ok, Label::Distance::kNear);
+
+  bind(&fail);
+  Abort(AbortReason::kWasmSignatureMismatch);
+
+  bind(&ok);
   movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
