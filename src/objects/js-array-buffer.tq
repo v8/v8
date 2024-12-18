@@ -105,16 +105,12 @@ macro LoadJSArrayBufferViewByteLength(
 }
 
 extern class JSTypedArray extends JSArrayBufferView {
-  // A BoundedSize if the sandbox is enabled
-  raw_length: uintptr;
   // A SandboxedPtr if the sandbox is enabled
   external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
-extern operator '.length=' macro StoreJSTypedArrayLength(
-    JSTypedArray, uintptr): void;
 
 @export
 macro IsOnHeapTypedArray(array: JSTypedArray): bool {

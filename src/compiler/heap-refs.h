@@ -1186,7 +1186,7 @@ class JSTypedArrayRef : public JSObjectRef {
   IndirectHandle<JSTypedArray> object() const;
 
   bool is_on_heap() const;
-  size_t length() const;
+  size_t byte_length() const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
 };

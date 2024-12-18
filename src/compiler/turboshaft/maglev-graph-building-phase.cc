@@ -3031,9 +3031,6 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::LoadTypedArrayLength* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(dmercadier): consider loading the raw length instead of the byte
-    // length. This is not currently done because the raw length field might be
-    // removed soon.
     V<WordPtr> length =
         __ LoadField<WordPtr>(Map<JSTypedArray>(node->receiver_input()),
                               AccessBuilder::ForJSTypedArrayByteLength());

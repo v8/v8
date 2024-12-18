@@ -615,8 +615,16 @@ class ArrayBufferViewAccessBuilder {
     // Case 1: Normal (backed by AB/SAB) or non-length tracking backed by GSAB
     // (can't go oob once constructed)
     auto GsabFixedOrNormal = [&]() {
-      return MachineLoadField<UintPtrT>(AccessBuilder::ForJSTypedArrayLength(),
-                                        view, UseInfo::Word());
+      TNode<UintPtrT> byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteLength(), view,
+          UseInfo::Word());
+
+      TNode<Map> typed_array_map = a.LoadField<Map>(
+          AccessBuilder::ForMap(WriteBarrierKind::kNoWriteBarrier), view);
+      TNode<Uint32T> elements_kind = a.LoadElementsKind(typed_array_map);
+      TNode<Uint32T> element_size =
+          a.LookupByteSizeForElementsKind(elements_kind);
+      return a.UintPtrDiv(byte_length, a.ChangeUint32ToUintPtr(element_size));
     };
 
     // If we statically know we cannot have rab/gsab backed, we can simply

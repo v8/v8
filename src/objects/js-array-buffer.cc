@@ -422,7 +422,8 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
   return (backing_byte_length - array->byte_offset()) / element_byte_size;
 }
 
-size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
+size_t JSTypedArray::GetVariableByteLengthOrOutOfBounds(
+    bool& out_of_bounds) const {
   DCHECK(!WasDetached());
   if (is_length_tracking()) {
     if (is_backed_by_rab()) {
@@ -430,27 +431,27 @@ size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
         out_of_bounds = true;
         return 0;
       }
-      return (buffer()->byte_length() - byte_offset()) / element_size();
+      return (buffer()->byte_length() - byte_offset());
     }
-    if (byte_offset() >
-        buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
-      out_of_bounds = true;
-      return 0;
-    }
-    return (buffer()->GetBackingStore()->byte_length(
-                std::memory_order_seq_cst) -
-            byte_offset()) /
-           element_size();
+    // GSAB-backed TypedArrays can't be out of bounds.
+    size_t buffer_byte_length =
+        buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst);
+    CHECK_LE(byte_offset(), buffer_byte_length);
+    return buffer_byte_length - byte_offset();
   }
   DCHECK(is_backed_by_rab());
-  size_t array_length = LengthUnchecked();
+  size_t own_byte_length = byte_length();
   // The sum can't overflow, since we have managed to allocate the
   // JSTypedArray.
-  if (byte_offset() + array_length * element_size() > buffer()->byte_length()) {
+  if (byte_offset() + own_byte_length > buffer()->byte_length()) {
     out_of_bounds = true;
     return 0;
   }
-  return array_length;
+  return own_byte_length;
+}
+
+size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
+  return GetVariableByteLengthOrOutOfBounds(out_of_bounds) / element_size();
 }
 
 }  // namespace internal
