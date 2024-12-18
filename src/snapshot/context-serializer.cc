@@ -241,7 +241,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<EmbedderDataArray> embedder_data = Cast<EmbedderDataArray>(obj);
     int embedder_fields_count = embedder_data->length();
     if (embedder_data->length() > 0) {
-      Handle<Context> context_handle(context_, isolate());
+      DirectHandle<Context> context_handle(context_, isolate());
       v8::Local<v8::Context> api_obj =
           v8::Utils::ToLocal(Cast<NativeContext>(context_handle));
       v8::SerializeContextDataCallback user_callback =

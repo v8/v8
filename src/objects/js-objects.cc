@@ -1329,7 +1329,7 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
   if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
-    Handle<Object> getter = desc->get();
+    DirectHandle<Object> getter = desc->get();
     if (!getter.is_null() && IsFunctionTemplateInfo(*getter)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, getter,
@@ -1337,7 +1337,7 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
               isolate, Cast<FunctionTemplateInfo>(getter), MaybeHandle<Name>()),
           Nothing<InterceptorResult>());
     }
-    Handle<Object> setter = desc->set();
+    DirectHandle<Object> setter = desc->set();
     if (!setter.is_null() && IsFunctionTemplateInfo(*setter)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, setter,
@@ -1520,7 +1520,7 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
         DirectHandle<Object> setter(
             desc->has_set() ? desc->set()
                             : Cast<Object>(isolate->factory()->null_value()));
-        MaybeHandle<Object> result =
+        MaybeDirectHandle<Object> result =
             JSObject::DefineOwnAccessorIgnoreAttributes(it, getter, setter,
                                                         desc->ToAttributes());
         if (result.is_null()) return Nothing<bool>();
@@ -1708,8 +1708,9 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
           : current->has_set()
               ? current->set()
               : Cast<Object>(isolate->factory()->null_value()));
-      MaybeHandle<Object> result = JSObject::DefineOwnAccessorIgnoreAttributes(
-          it, getter, setter, attrs);
+      MaybeDirectHandle<Object> result =
+          JSObject::DefineOwnAccessorIgnoreAttributes(it, getter, setter,
+                                                      attrs);
       if (result.is_null()) return Nothing<bool>();
     }
   }

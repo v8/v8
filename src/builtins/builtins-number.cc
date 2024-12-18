@@ -21,7 +21,7 @@ namespace internal {
 // ES6 section 20.1.3.2 Number.prototype.toExponential ( fractionDigits )
 BUILTIN(NumberPrototypeToExponential) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
@@ -67,7 +67,7 @@ BUILTIN(NumberPrototypeToExponential) {
 // ES6 section 20.1.3.3 Number.prototype.toFixed ( fractionDigits )
 BUILTIN(NumberPrototypeToFixed) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
@@ -146,7 +146,7 @@ BUILTIN(NumberPrototypeToLocaleString) {
 // ES6 section 20.1.3.5 Number.prototype.toPrecision ( precision )
 BUILTIN(NumberPrototypeToPrecision) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.

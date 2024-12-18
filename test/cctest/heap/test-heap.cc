@@ -393,7 +393,7 @@ TEST(GarbageCollection) {
   // Function should be alive.
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, name));
   // Check function is retained.
-  Handle<Object> func_value =
+  DirectHandle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
   CHECK(IsJSFunction(*func_value));
   DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
@@ -410,7 +410,7 @@ TEST(GarbageCollection) {
   heap::InvokeMinorGC(CcTest::heap());
 
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
-  Handle<Object> obj =
+  DirectHandle<Object> obj =
       Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
   CHECK(IsJSObject(*obj));
   CHECK_EQ(Smi::FromInt(23),
@@ -772,7 +772,7 @@ TEST(ObjectProperties) {
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
-  Handle<Object> object =
+  DirectHandle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
@@ -871,14 +871,14 @@ TEST(JSArray) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("Array");
-  Handle<Object> fun_obj =
+  DirectHandle<Object> fun_obj =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
           .ToHandleChecked();
   DirectHandle<JSFunction> function = Cast<JSFunction>(fun_obj);
 
   // Allocate the object.
   DirectHandle<Object> element;
-  Handle<JSObject> object = factory->NewJSObject(function);
+  DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
   JSArray::Initialize(array, 0);
@@ -923,7 +923,7 @@ TEST(JSObjectCopy) {
   v8::HandleScope sc(CcTest::isolate());
   DirectHandle<String> object_string(
       Cast<String>(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
-  Handle<Object> object =
+  DirectHandle<Object> object =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(),
                           object_string)
           .ToHandleChecked();
@@ -943,7 +943,7 @@ TEST(JSObjectCopy) {
 
   // Make the clone.
   DirectHandle<Object> value1, value2;
-  Handle<JSObject> clone = factory->CopyJSObject(obj);
+  DirectHandle<JSObject> clone = factory->CopyJSObject(obj);
   CHECK(!clone.is_identical_to(obj));
 
   value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
@@ -1271,7 +1271,7 @@ HEAP_TEST(Regress10560) {
     CompileRun(source);
 
     // Check function is compiled.
-    Handle<Object> func_value =
+    DirectHandle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
@@ -1522,7 +1522,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 
   // Check f is compiled.
   DirectHandle<String> f_name = factory->InternalizeUtf8String("f");
-  Handle<Object> f_value =
+  DirectHandle<Object> f_value =
       Object::GetProperty(isolate, isolate->global_object(), f_name)
           .ToHandleChecked();
   DirectHandle<JSFunction> f_function = Cast<JSFunction>(f_value);
@@ -1530,7 +1530,7 @@ TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
 
   // Check g is not compiled.
   DirectHandle<String> g_name = factory->InternalizeUtf8String("g");
-  Handle<Object> g_value =
+  DirectHandle<Object> g_value =
       Object::GetProperty(isolate, isolate->global_object(), g_name)
           .ToHandleChecked();
   DirectHandle<JSFunction> g_function = Cast<JSFunction>(g_value);
@@ -3860,7 +3860,8 @@ void DetailedErrorStackTraceTest(const char* src,
   CompileRun(src);
 
   CHECK(try_catch.HasCaught());
-  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
+  DirectHandle<Object> exception =
+      v8::Utils::OpenDirectHandle(*try_catch.Exception());
 
   test(CcTest::i_isolate()->GetSimpleStackTrace(Cast<JSReceiver>(exception)));
 }
@@ -5484,7 +5485,7 @@ TEST(RetainedMapsCleanup) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
-  Handle<Context> context = Utils::OpenHandle(*ctx);
+  DirectHandle<Context> context = Utils::OpenDirectHandle(*ctx);
   CHECK(IsNativeContext(*context));
   DirectHandle<NativeContext> native_context = Cast<NativeContext>(context);
 
@@ -5510,7 +5511,7 @@ TEST(PreprocessStackTrace) {
   DirectHandle<JSAny> exception =
       Cast<JSAny>(v8::Utils::OpenHandle(*try_catch.Exception()));
   DirectHandle<Name> key = isolate->factory()->error_stack_symbol();
-  Handle<JSAny> stack_trace = Cast<JSAny>(
+  DirectHandle<JSAny> stack_trace = Cast<JSAny>(
       Object::GetProperty(isolate, exception, key).ToHandleChecked());
   DirectHandle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
@@ -5660,8 +5661,8 @@ TEST(MessageObjectLeak) {
 static void CheckEqualSharedFunctionInfos(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  Handle<Object> obj1 = v8::Utils::OpenHandle(*info[0]);
-  Handle<Object> obj2 = v8::Utils::OpenHandle(*info[1]);
+  DirectHandle<Object> obj1 = v8::Utils::OpenDirectHandle(*info[0]);
+  DirectHandle<Object> obj2 = v8::Utils::OpenDirectHandle(*info[1]);
   DirectHandle<JSFunction> fun1 = Cast<JSFunction>(obj1);
   DirectHandle<JSFunction> fun2 = Cast<JSFunction>(obj2);
   CHECK(fun1->shared() == fun2->shared());
@@ -5670,7 +5671,7 @@ static void CheckEqualSharedFunctionInfos(
 static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   Isolate* isolate = CcTest::i_isolate();
-  Handle<Object> obj = v8::Utils::OpenHandle(*info[0]);
+  DirectHandle<Object> obj = v8::Utils::OpenDirectHandle(*info[0]);
   DirectHandle<JSFunction> fun = Cast<JSFunction>(obj);
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
@@ -6149,7 +6150,7 @@ TEST(Regress631969) {
   heap::SimulateIncrementalMarking(heap, false);
 
   // Allocate a cons string and promote it to a fresh page in the old space.
-  Handle<String> s3 = factory->NewConsString(s1, s2).ToHandleChecked();
+  DirectHandle<String> s3 = factory->NewConsString(s1, s2).ToHandleChecked();
   heap::EmptyNewSpaceUsingGC(heap);
 
   heap::SimulateIncrementalMarking(heap, false);

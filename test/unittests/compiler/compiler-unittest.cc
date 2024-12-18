@@ -232,7 +232,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
                         isolate->factory()->empty_fixed_array())
       .Check();
 
-  Handle<Object> fun1 =
+  DirectHandle<Object> fun1 =
       JSReceiver::GetProperty(isolate, isolate->global_object(), "foo")
           .ToHandleChecked();
   EXPECT_TRUE(IsJSFunction(*fun1));
@@ -1034,7 +1034,8 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     old_g = scope.CloseAndEscape(g);
   })();
-  Handle<Script> old_script(Cast<Script>(old_g->shared()->script()), isolate());
+  DirectHandle<Script> old_script(Cast<Script>(old_g->shared()->script()),
+                                  isolate());
 
   // Make sure bytecode is cleared...
   for (int i = 0; i < 3; ++i) {

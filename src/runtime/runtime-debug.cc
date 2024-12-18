@@ -475,7 +475,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 
   DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
   // Find the number of break points
-  Handle<Object> break_locations =
+  DirectHandle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
   if (IsUndefined(*break_locations, isolate)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -691,7 +691,7 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<JSFunction> fun = args.at<JSFunction>(0);
-  Handle<Object> receiver = args.at(1);
+  DirectHandle<Object> receiver = args.at(1);
   if (isolate->debug()->needs_check_on_function_call()) {
     // Ensure that the callee will perform debug check on function call too.
     DirectHandle<SharedFunctionInfo> shared(fun->shared(), isolate);
@@ -858,7 +858,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
 RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<JSReceiver> promise = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseThen(Cast<JSPromise>(promise));
   }

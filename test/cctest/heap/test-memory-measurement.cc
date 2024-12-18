@@ -41,7 +41,7 @@ TEST(NativeContextInferrerJSFunction) {
   DirectHandle<NativeContext> native_context =
       GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("(function () { return 1; })");
-  Handle<Object> object = Utils::OpenHandle(*result);
+  DirectHandle<Object> object = Utils::OpenDirectHandle(*result);
   DirectHandle<HeapObject> function = Cast<HeapObject>(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;
@@ -56,7 +56,7 @@ TEST(NativeContextInferrerJSObject) {
   DirectHandle<NativeContext> native_context =
       GetNativeContext(isolate, env.local());
   v8::Local<v8::Value> result = CompileRun("({a : 10})");
-  Handle<Object> object = Utils::OpenHandle(*result);
+  DirectHandle<Object> object = Utils::OpenDirectHandle(*result);
   DirectHandle<HeapObject> function = Cast<HeapObject>(object);
   NativeContextInferrer inferrer;
   Address inferred_context = 0;

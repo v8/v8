@@ -920,7 +920,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
             .FromJust());
-  Handle<String> numberingSystem_string;
+  DirectHandle<String> numberingSystem_string;
   CHECK(Intl::ToString(isolate, numberingSystem_ustr)
             .ToHandle(&numberingSystem_string));
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
@@ -934,7 +934,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             .FromJust());
   const icu::UnicodeString currency_ustr = CurrencyFromSkeleton(skeleton);
   if (!currency_ustr.isEmpty()) {
-    Handle<String> currency_string;
+    DirectHandle<String> currency_string;
     CHECK(Intl::ToString(isolate, currency_ustr).ToHandle(&currency_string));
     CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                          factory->currency_string(),
@@ -1277,7 +1277,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(
 
     // 14.b. Set numberFormat.[[Currency]] to currency.
     if (!currency_ustr.isEmpty()) {
-      Handle<String> currency_string;
+      DirectHandle<String> currency_string;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, currency_string,
                                  Intl::ToString(isolate, currency_ustr));
 
@@ -1772,7 +1772,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   if (IsNumber(*value_)) {
     return Just(icu::Formattable(approx_));
   }
-  Handle<String> string;
+  DirectHandle<String> string;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, string, ToString(isolate),
                                    Nothing<icu::Formattable>());
   UErrorCode status = U_ZERO_ERROR;
@@ -1959,7 +1959,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
             Intl::NumberFieldToType(isolate, part, formatted_text, is_nan);
       }
     }
-    Handle<String> substring;
+    DirectHandle<String> substring;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, substring,
         Intl::ToString(isolate, formatted_text, part.begin_pos, part.end_pos),

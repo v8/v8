@@ -134,8 +134,9 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK(compilation_state->baseline_compilation_finished());
 
     // Instantiate and invoke function.
-    MaybeHandle<WasmInstanceObject> instance = GetWasmEngine()->SyncInstantiate(
-        isolate, &thrower, module.ToHandleChecked(), {}, {});
+    MaybeDirectHandle<WasmInstanceObject> instance =
+        GetWasmEngine()->SyncInstantiate(isolate, &thrower,
+                                         module.ToHandleChecked(), {}, {});
     CHECK(!instance.is_null());
     int32_t result = testing::CallWasmFunctionForTesting(
         isolate, instance.ToHandleChecked(), "main", {});
@@ -182,7 +183,7 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module =
+    MaybeDirectHandle<WasmModuleObject> module =
         testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
@@ -230,7 +231,7 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module =
+    MaybeDirectHandle<WasmModuleObject> module =
         testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 
@@ -293,7 +294,7 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module =
+    MaybeDirectHandle<WasmModuleObject> module =
         testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 

@@ -1748,9 +1748,9 @@ i::Handle<i::JSReceiver> GetProperException(
         isolate->factory()->NewStringFromAsciiChecked("TerminationException");
     return isolate->factory()->NewError(isolate->error_function(), string);
   }
-  i::MaybeHandle<i::String> maybe_string =
+  i::MaybeDirectHandle<i::String> maybe_string =
       i::Object::ToString(isolate, maybe_exception);
-  i::Handle<i::String> string = isolate->factory()->empty_string();
+  i::DirectHandle<i::String> string = isolate->factory()->empty_string();
   if (!maybe_string.ToHandle(&string)) {
     // If converting the {maybe_exception} to string threw another exception,
     // just give up and leave {string} as the empty string.

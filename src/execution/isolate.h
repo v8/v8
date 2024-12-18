@@ -1078,20 +1078,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // typically the top-most meaningful location on the stack.
   bool ComputeLocation(MessageLocation* target);
   bool ComputeLocationFromException(MessageLocation* target,
-                                    Handle<Object> exception);
+                                    DirectHandle<Object> exception);
   bool ComputeLocationFromSimpleStackTrace(MessageLocation* target,
-                                           Handle<Object> exception);
+                                           DirectHandle<Object> exception);
   bool ComputeLocationFromDetailedStackTrace(MessageLocation* target,
-                                             Handle<Object> exception);
+                                             DirectHandle<Object> exception);
 
-  Handle<JSMessageObject> CreateMessage(Handle<Object> exception,
+  Handle<JSMessageObject> CreateMessage(DirectHandle<Object> exception,
                                         MessageLocation* location);
-  Handle<JSMessageObject> CreateMessageOrAbort(Handle<Object> exception,
+  Handle<JSMessageObject> CreateMessageOrAbort(DirectHandle<Object> exception,
                                                MessageLocation* location);
   // Similar to Isolate::CreateMessage but DOESN'T inspect the JS stack and
   // only looks at the "detailed stack trace" as the "simple stack trace" might
   // have already been stringified.
-  Handle<JSMessageObject> CreateMessageFromException(Handle<Object> exception);
+  Handle<JSMessageObject> CreateMessageFromException(
+      DirectHandle<Object> exception);
 
   // Out of resource exception helpers.
   Tagged<Object> StackOverflow();
@@ -1968,14 +1969,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetHostImportModuleWithPhaseDynamicallyCallback(
       HostImportModuleWithPhaseDynamicallyCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
-      MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
+      MaybeDirectHandle<Script> maybe_referrer, Handle<Object> specifier,
       ModuleImportPhase phase,
-      MaybeHandle<Object> maybe_import_options_argument);
+      MaybeDirectHandle<Object> maybe_import_options_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
   MaybeHandle<JSObject> RunHostInitializeImportMetaObjectCallback(
-      Handle<SourceTextModule> module);
+      DirectHandle<SourceTextModule> module);
 
   void SetHostCreateShadowRealmContextCallback(
       HostCreateShadowRealmContextCallback callback);
@@ -2547,7 +2548,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
   MaybeHandle<FixedArray> GetImportAttributesFromArgument(
-      MaybeHandle<Object> maybe_import_options_argument);
+      MaybeDirectHandle<Object> maybe_import_options_argument);
 
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_ = nullptr;

@@ -691,7 +691,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSuccess) {
   m.Succeed();
 
   Handle<String> source = factory->NewStringFromStaticChars("");
-  Handle<Object> code_object = m.GetCode(source, {});
+  DirectHandle<Object> code_object = m.GetCode(source, {});
   DirectHandle<Code> code = Cast<Code>(code_object);
   DirectHandle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
@@ -743,7 +743,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimple) {
   DirectHandle<JSRegExp> regexp = CreateJSRegExp(source, code);
 
   int captures[4] = {42, 37, 87, 117};
-  Handle<String> input = factory->NewStringFromStaticChars("foofoo");
+  DirectHandle<String> input = factory->NewStringFromStaticChars("foofoo");
   DirectHandle<SeqOneByteString> seq_input = Cast<SeqOneByteString>(input);
   Address start_adr = seq_input->GetCharsAddress();
 
@@ -801,7 +801,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeSimpleUC16) {
   int captures[4] = {42, 37, 87, 117};
   const base::uc16 input_data[6] = {'f', 'o', 'o',
                                     'f', 'o', static_cast<base::uc16>(0x2603)};
-  Handle<String> input =
+  DirectHandle<String> input =
       factory
           ->NewStringFromTwoByte(base::Vector<const base::uc16>(input_data, 6))
           .ToHandleChecked();

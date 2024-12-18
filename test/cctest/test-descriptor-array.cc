@@ -39,11 +39,11 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
 }
 
 template <typename... Args>
-MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
+MaybeHandle<Object> Call(Isolate* isolate, DirectHandle<JSFunction> function,
                          Args... args) {
   const int nof_args = sizeof...(Args);
   DirectHandle<Object> call_args[] = {args...};
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  DirectHandle<Object> receiver = isolate->factory()->undefined_value();
   return Execution::Call(isolate, function, receiver, {call_args, nof_args});
 }
 

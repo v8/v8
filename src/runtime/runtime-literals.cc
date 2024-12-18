@@ -309,7 +309,7 @@ MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
                                DeprecationUpdateContext* site_context) {
   JSObjectWalkVisitor<DeprecationUpdateContext> v(site_context);
   MaybeHandle<JSObject> result = v.StructureWalk(object);
-  Handle<JSObject> for_assert;
+  DirectHandle<JSObject> for_assert;
   DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
   return result;
 }
@@ -318,7 +318,7 @@ MaybeHandle<JSObject> DeepWalk(Handle<JSObject> object,
                                AllocationSiteCreationContext* site_context) {
   JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context);
   MaybeHandle<JSObject> result = v.StructureWalk(object);
-  Handle<JSObject> for_assert;
+  DirectHandle<JSObject> for_assert;
   DCHECK(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
   return result;
 }
@@ -327,7 +327,7 @@ MaybeHandle<JSObject> DeepCopy(Handle<JSObject> object,
                                AllocationSiteUsageContext* site_context) {
   JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context);
   MaybeHandle<JSObject> copy = v.StructureWalk(object);
-  Handle<JSObject> for_assert;
+  DirectHandle<JSObject> for_assert;
   DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
   return copy;
 }
@@ -400,7 +400,8 @@ Handle<JSObject> CreateObjectLiteral(
   int length = object_boilerplate_description->boilerplate_properties_count();
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index++) {
-    Handle<Object> key(object_boilerplate_description->name(index), isolate);
+    DirectHandle<Object> key(object_boilerplate_description->name(index),
+                             isolate);
     Handle<Object> value(object_boilerplate_description->value(index), isolate);
 
     if (IsHeapObject(*value)) {
@@ -623,7 +624,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   // instance).
   CHECK(!HasBoilerplate(literal_site));
 
-  Handle<JSRegExp> regexp_instance;
+  DirectHandle<JSRegExp> regexp_instance;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, regexp_instance,
       JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));

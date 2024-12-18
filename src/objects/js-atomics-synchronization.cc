@@ -27,7 +27,7 @@ namespace {
 MaybeHandle<JSReceiver> PerformPromiseThen(
     Isolate* isolate, DirectHandle<JSReceiver> promise,
     DirectHandle<Object> fulfill_handler,
-    MaybeHandle<JSFunction> maybe_reject_handler = {}) {
+    MaybeDirectHandle<JSFunction> maybe_reject_handler = {}) {
   DCHECK(IsCallable(*fulfill_handler));
   DirectHandle<Object> reject_handler = isolate->factory()->undefined_value();
   if (!maybe_reject_handler.is_null()) {
@@ -66,7 +66,7 @@ MaybeHandle<Context> SetAsyncUnlockHandlers(
   DirectHandle<SharedFunctionInfo> reject_info(
       isolate->heap()->atomics_mutex_async_unlock_reject_handler_sfi(),
       isolate);
-  Handle<JSFunction> reject_callback =
+  DirectHandle<JSFunction> reject_callback =
       Factory::JSFunctionBuilder{isolate, reject_info, handlers_context}
           .set_map(isolate->strict_function_without_prototype_map())
           .set_allocation_type(AllocationType::kYoung)
@@ -368,7 +368,7 @@ class V8_NODISCARD AsyncWaiterQueueNode final : public WaiterQueueNode {
   explicit AsyncWaiterQueueNode(
       Isolate* requester, DirectHandle<T> synchronization_primitive,
       DirectHandle<JSPromise> internal_waiting_promise,
-      MaybeHandle<JSPromise> unlocked_promise)
+      MaybeDirectHandle<JSPromise> unlocked_promise)
       : WaiterQueueNode(requester),
         notify_task_id_(CancelableTaskManager::kInvalidTaskId) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(requester);
@@ -823,7 +823,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
     DirectHandle<Object> callback, std::optional<base::TimeDelta> timeout) {
   Handle<JSPromise> internal_locked_promise =
       requester->factory()->NewJSPromise();
-  Handle<JSReceiver> waiting_for_callback_promise;
+  DirectHandle<JSReceiver> waiting_for_callback_promise;
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, waiting_for_callback_promise,
       PerformPromiseThen(requester, internal_locked_promise, callback));
@@ -832,7 +832,7 @@ MaybeHandle<JSPromise> JSAtomicsMutex::LockOrEnqueuePromise(
   // cleanup if the inner `promise_then` call fails. Keep a reference to
   // the handlers' synthetic context so we can store the waiter node in it once
   // the node is created.
-  Handle<Context> handlers_context;
+  DirectHandle<Context> handlers_context;
   ASSIGN_RETURN_ON_EXCEPTION(
       requester, handlers_context,
       SetAsyncUnlockHandlers(requester, mutex, waiting_for_callback_promise,

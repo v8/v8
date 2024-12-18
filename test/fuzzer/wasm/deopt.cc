@@ -138,7 +138,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
   thrower.Reset();
   CHECK(!isolate->has_exception());
 
-  Handle<WasmInstanceObject> instance;
+  DirectHandle<WasmInstanceObject> instance;
   if (!GetWasmEngine()
            ->SyncInstantiate(isolate, &thrower, module_object, {}, {})
            .ToHandle(&instance)) {
@@ -320,7 +320,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   }
 
   Handle<WasmModuleObject> module_object = compiled.ToHandleChecked();
-  Handle<WasmInstanceObject> instance;
+  DirectHandle<WasmInstanceObject> instance;
   if (!GetWasmEngine()
            ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
            .ToHandle(&instance)) {

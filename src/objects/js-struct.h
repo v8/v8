@@ -52,7 +52,7 @@ class JSSharedStruct
       Isolate* isolate,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names,
-      MaybeHandle<String> maybe_registry_key);
+      MaybeDirectHandle<String> maybe_registry_key);
 
   static MaybeHandle<String> GetRegistryKey(Isolate* isolate,
                                             Tagged<Map> instance_map);

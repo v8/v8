@@ -83,9 +83,10 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
                                 const uint8_t* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  MaybeHandle<WasmInstanceObject> instance = CompileAndInstantiateForTesting(
-      isolate, &thrower,
-      base::VectorOf(module_start, module_end - module_start));
+  MaybeDirectHandle<WasmInstanceObject> instance =
+      CompileAndInstantiateForTesting(
+          isolate, &thrower,
+          base::VectorOf(module_start, module_end - module_start));
   if (instance.is_null()) {
     return -1;
   }
@@ -118,9 +119,9 @@ int32_t CallWasmFunctionForTesting(
     const char* name, base::Vector<const DirectHandle<Object>> args,
     std::unique_ptr<const char[]>* exception) {
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
-  MaybeHandle<WasmExportedFunction> maybe_export =
+  MaybeDirectHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
-  Handle<WasmExportedFunction> exported_function;
+  DirectHandle<WasmExportedFunction> exported_function;
   if (!maybe_export.ToHandle(&exported_function)) {
     return -1;
   }

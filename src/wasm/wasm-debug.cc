@@ -1091,7 +1091,7 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
       continue;
     }
     auto breakpoint_info = Cast<BreakPointInfo>(obj);
-    Handle<BreakPoint> breakpoint;
+    DirectHandle<BreakPoint> breakpoint;
     if (BreakPointInfo::GetBreakPointById(isolate, breakpoint_info,
                                           breakpoint_id)
             .ToHandle(&breakpoint)) {
@@ -1242,7 +1242,7 @@ bool CheckBreakPoint(Isolate* isolate, DirectHandle<BreakPoint> break_point,
 
   HandleScope scope(isolate);
   Handle<String> condition(break_point->condition(), isolate);
-  Handle<Object> result;
+  DirectHandle<Object> result;
   // The Wasm engine doesn't perform any sort of inlining.
   const int inlined_jsframe_index = 0;
   const bool throw_on_side_effect = false;

@@ -42,7 +42,7 @@ TEST_F(DirectHandlesTest, CreateMaybeDirectHandle) {
   i::DirectHandle<i::String> direct = handle;
 
   i::MaybeDirectHandle<i::String> maybe_direct(direct);
-  i::MaybeHandle<i::String> maybe_handle(handle);
+  i::MaybeDirectHandle<i::String> maybe_handle(handle);
 
   EXPECT_EQ(*maybe_direct.ToHandleChecked(), *maybe_handle.ToHandleChecked());
 }

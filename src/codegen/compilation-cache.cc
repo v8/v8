@@ -170,9 +170,9 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
-  Handle<Script> script;
+  DirectHandle<Script> script;
   if (result.script().ToHandle(&script)) {
-    Handle<SharedFunctionInfo> sfi;
+    DirectHandle<SharedFunctionInfo> sfi;
     if (result.toplevel_sfi().ToHandle(&sfi)) {
       isolate()->counters()->compilation_cache_hits()->Increment();
       LOG(isolate(), CompilationCacheEvent("hit", "script", *sfi));
@@ -232,7 +232,7 @@ MaybeHandle<RegExpData> CompilationCacheRegExp::Lookup(Handle<String> source,
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
-  Handle<Object> result = isolate()->factory()->undefined_value();
+  DirectHandle<Object> result = isolate()->factory()->undefined_value();
   int generation;
   for (generation = 0; generation < kGenerations; generation++) {
     DirectHandle<CompilationCacheTable> table = GetTable(generation);

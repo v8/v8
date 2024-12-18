@@ -116,7 +116,7 @@ MaybeHandle<JSReceiver> JSSegmentIterator::Next(
   // 9. Let segmentData be ! CreateSegmentDataObject(segmenter, string,
   // startIndex, endIndex).
 
-  Handle<JSSegmentDataObject> segment_data;
+  DirectHandle<JSSegmentDataObject> segment_data;
   if (segment_iterator->granularity() == JSSegmenter::Granularity::GRAPHEME &&
       start_index == end_index - 1) {
     // Fast path: use cached segment string and skip avoidable handle creations.

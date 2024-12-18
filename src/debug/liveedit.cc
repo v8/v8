@@ -514,11 +514,11 @@ class CollectFunctionLiterals final
 };
 
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
-                 MaybeHandle<ScopeInfo> outer_scope_info, bool compile_as_well,
-                 std::vector<FunctionLiteral*>* literals,
+                 MaybeDirectHandle<ScopeInfo> outer_scope_info,
+                 bool compile_as_well, std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   bool success = false;
   if (compile_as_well) {
     success = Compiler::CompileForLiveEdit(parse_info, script, outer_scope_info,
@@ -852,7 +852,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   flags.set_is_eager(true);
   flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
-  MaybeHandle<ScopeInfo> outer_scope_info =
+  MaybeDirectHandle<ScopeInfo> outer_scope_info =
       DetermineOuterScopeInfo(isolate, script);
   std::vector<FunctionLiteral*> literals;
   if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,

@@ -165,7 +165,7 @@ HEAP_TEST(MarkCompactCollector) {
     DirectHandle<String> func_name =
         factory->InternalizeUtf8String("theFunction");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, func_name));
-    Handle<Object> func_value =
+    DirectHandle<Object> func_value =
         Object::GetProperty(isolate, global, func_name).ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
     DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
@@ -183,7 +183,7 @@ HEAP_TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     DirectHandle<String> obj_name = factory->InternalizeUtf8String("theObject");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
-    Handle<Object> object =
+    DirectHandle<Object> object =
         Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
     CHECK(IsJSObject(*object));
     DirectHandle<String> prop_name = factory->InternalizeUtf8String("theSlot");

@@ -83,7 +83,7 @@ class CodeSerializer : public Serializer {
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<SharedFunctionInfo>
   Deserialize(Isolate* isolate, AlignedCachedData* cached_data,
               DirectHandle<String> source, const ScriptDetails& script_details,
-              MaybeHandle<Script> maybe_cached_script = {});
+              MaybeDirectHandle<Script> maybe_cached_script = {});
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
   StartDeserializeOffThread(LocalIsolate* isolate,

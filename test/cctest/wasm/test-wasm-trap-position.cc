@@ -87,7 +87,7 @@ WASM_COMPILED_EXEC_TEST(Unreachable) {
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> returnObjMaybe =
+  MaybeDirectHandle<Object> returnObjMaybe =
       Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
@@ -128,7 +128,7 @@ WASM_COMPILED_EXEC_TEST(IllegalLoad) {
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> returnObjMaybe =
+  MaybeDirectHandle<Object> returnObjMaybe =
       Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());

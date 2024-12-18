@@ -661,8 +661,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
 
   OptionalJSObjectRef optional_constructor;
   {
-    MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
-    Handle<JSObject> constructor;
+    MaybeDirectHandle<JSObject> maybe_constructor =
+        nexus.GetConstructorFeedback();
+    DirectHandle<JSObject> constructor;
     if (maybe_constructor.ToHandle(&constructor)) {
       optional_constructor = MakeRefAssumeMemoryFence(this, *constructor);
     }

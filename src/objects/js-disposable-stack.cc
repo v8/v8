@@ -58,7 +58,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
 
   int length = disposable_stack->length();
 
-  MaybeHandle<Object> result;
+  MaybeDirectHandle<Object> result;
   Handle<Object> continuation_error;
 
   if (maybe_continuation_error.ToHandle(&continuation_error)) {
@@ -115,7 +115,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
                                  base::VectorOf(args));
       }
 
-      Handle<Object> result_handle;
+      DirectHandle<Object> result_handle;
       //    ii. If result is a normal completion and hint is async-dispose, then
       //      1. Set result to Completion(Await(result.[[Value]])).
       //      2. Set hasAwaited to true.
@@ -221,7 +221,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
     Isolate* isolate,
     DirectHandle<JSDisposableStackBase> async_disposable_stack,
     DirectHandle<JSPromise> outer_promise) {
-  MaybeHandle<Object> result;
+  MaybeDirectHandle<Object> result;
 
   bool done;
   do {
@@ -234,7 +234,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
         DisposeResources(isolate, async_disposable_stack, MaybeHandle<Object>(),
                          DisposableStackResourcesType::kAtLeastOneAsync);
 
-    Handle<Object> result_handle;
+    DirectHandle<Object> result_handle;
 
     if (result.ToHandle(&result_handle)) {
       if (!IsTrue(*result_handle)) {

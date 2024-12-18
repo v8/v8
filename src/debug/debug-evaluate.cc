@@ -175,7 +175,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, DirectHandle<Object> receiver,
     Handle<String> source, bool throw_on_side_effect) {
-  Handle<JSFunction> eval_fun;
+  DirectHandle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
       Compiler::GetFunctionFromEval(source, outer_info, context,
@@ -243,10 +243,10 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
     context_chain_.push_back(context_chain_element);
   }
 
-  Handle<ScopeInfo> scope_info =
+  DirectHandle<ScopeInfo> scope_info =
       IsNativeContext(*evaluation_context_)
-          ? Handle<ScopeInfo>::null()
-          : handle(evaluation_context_->scope_info(), isolate);
+          ? DirectHandle<ScopeInfo>::null()
+          : direct_handle(evaluation_context_->scope_info(), isolate);
   for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
        rit++) {
     ContextChainElement element = *rit;
@@ -263,9 +263,9 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // the existing block list from the paused function scope
       // and also associate the temporary scope_info we create here with that
       // blocklist.
-      DirectHandle<ScopeInfo> function_scope_info = handle(
+      DirectHandle<ScopeInfo> function_scope_info(
           frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
-      Handle<Object> block_list = handle(
+      DirectHandle<Object> block_list(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
       CHECK(IsStringSet(*block_list));
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),

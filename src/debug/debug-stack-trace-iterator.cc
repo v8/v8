@@ -138,7 +138,7 @@ v8::Local<v8::String> DebugStackTraceIterator::GetFunctionDebugName() const {
 
 v8::Local<v8::debug::Script> DebugStackTraceIterator::GetScript() const {
   DCHECK(!Done());
-  Handle<Object> value = frame_inspector_->GetScript();
+  DirectHandle<Object> value = frame_inspector_->GetScript();
   if (!IsScript(*value)) return v8::Local<v8::debug::Script>();
   return ToApiHandle<debug::Script>(Cast<Script>(value));
 }
@@ -258,7 +258,7 @@ void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
-  Handle<Object> value;
+  DirectHandle<Object> value;
 
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
   if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),

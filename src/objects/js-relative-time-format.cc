@@ -344,7 +344,7 @@ MaybeHandle<T> FormatCommon(
                                      const icu::FormattedRelativeDateTime&,
                                      DirectHandle<String>, bool)) {
   // 3. Let value be ? ToNumber(value).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Object::ToNumber(isolate, value_obj));
   double number = Object::NumberValue(*value);
@@ -395,7 +395,7 @@ MaybeHandle<String> FormatToString(
 Maybe<bool> AddLiteral(Isolate* isolate, DirectHandle<JSArray> array,
                        const icu::UnicodeString& string, int32_t index,
                        int32_t start, int32_t limit) {
-  Handle<String> substring;
+  DirectHandle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, substring, Intl::ToString(isolate, string, start, limit),
       Nothing<bool>());
@@ -408,7 +408,7 @@ Maybe<bool> AddUnit(Isolate* isolate, DirectHandle<JSArray> array,
                     const icu::UnicodeString& string, int32_t index,
                     const NumberFormatSpan& part, DirectHandle<String> unit,
                     bool is_nan) {
-  Handle<String> substring;
+  DirectHandle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, substring,
       Intl::ToString(isolate, string, part.begin_pos, part.end_pos),

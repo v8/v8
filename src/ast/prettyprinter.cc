@@ -624,7 +624,7 @@ void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
   }
 }
 
-void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
+void CallPrinter::PrintLiteral(DirectHandle<Object> value, bool quote) {
   if (IsString(*value)) {
     if (quote) Print("\"");
     Print(Cast<String>(value));
@@ -644,7 +644,6 @@ void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     PrintLiteral(handle(Cast<Symbol>(value)->description(), isolate_), false);
   }
 }
-
 
 void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
   PrintLiteral(value->string(), quote);

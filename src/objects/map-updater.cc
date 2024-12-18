@@ -1056,9 +1056,10 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   PropertyDetails split_details = GetDetails(split_index);
 
   // Invalidate a transition target at |key|.
-  MaybeHandle<Map> maybe_transition = TransitionsAccessor::SearchTransition(
-      isolate_, split_map, GetKey(split_index), split_details.kind(),
-      split_details.attributes());
+  MaybeDirectHandle<Map> maybe_transition =
+      TransitionsAccessor::SearchTransition(
+          isolate_, split_map, GetKey(split_index), split_details.kind(),
+          split_details.attributes());
   if (!maybe_transition.is_null()) {
     maybe_transition.ToHandleChecked()->DeprecateTransitionTree(isolate_);
   }

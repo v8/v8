@@ -164,7 +164,8 @@ Tagged<Object> ThrowWasmError(
 
 Tagged<Object> ThrowWasmSuspendError(Isolate* isolate,
                                      MessageTemplate message) {
-  Handle<JSObject> error_obj = isolate->factory()->NewWasmSuspendError(message);
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
   return isolate->Throw(*error_obj);
 }
 }  // namespace
@@ -201,7 +202,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   wasm::CanonicalValueType type =
       wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
-  Handle<Object> result;
+  DirectHandle<Object> result;
   if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
@@ -226,7 +227,7 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   wasm::CanonicalValueType expected =
       wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
-  Handle<Object> result;
+  DirectHandle<Object> result;
   bool success = JSToWasmObject(isolate, value, expected, &error_message)
                      .ToHandle(&result);
   Tagged<Object> ret = success
@@ -1079,7 +1080,7 @@ bool ExecuteWasmDebugBreaks(
   DCHECK_EQ(script->break_on_entry(),
             !!trusted_instance_data->break_on_entry());
   if (script->break_on_entry()) {
-    MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
+    MaybeDirectHandle<FixedArray> maybe_on_entry_breakpoints =
         WasmScript::CheckBreakPoints(isolate, script,
                                      WasmScript::kOnEntryBreakpointPosition,
                                      frame->id());
@@ -1110,7 +1111,7 @@ bool ExecuteWasmDebugBreaks(
   }
 
   // Check whether we hit a breakpoint.
-  Handle<FixedArray> breakpoints;
+  DirectHandle<FixedArray> breakpoints;
   if (WasmScript::CheckBreakPoints(isolate, script, frame->position(),
                                    frame->id())
           .ToHandle(&breakpoints)) {
@@ -1241,7 +1242,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
         offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
   } else {
-    Handle<Object> elem_segment_raw = handle(
+    DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &trusted_instance_data->module()->elem_segments[segment_index];
@@ -1317,7 +1318,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 #endif
     return *isolate->factory()->undefined_value();
   } else {
-    Handle<Object> elem_segment_raw = handle(
+    DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &trusted_instance_data->module()->elem_segments[segment_index];
@@ -1403,7 +1404,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
 #define RETURN_RESULT_OR_TRAP(call)                                            \
   do {                                                                         \
-    Handle<Object> result;                                                     \
+    DirectHandle<Object> result;                                               \
     if (!(call).ToHandle(&result)) {                                           \
       DCHECK(isolate->has_exception());                                        \
       /* Mark any exception as uncatchable by Wasm. */                         \
@@ -1477,7 +1478,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{
       trusted_instance_data->memory_base(memory) + offset, size};
-  MaybeHandle<v8::internal::String> result_string =
+  MaybeDirectHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     // If the input was invalid, then the decoder has failed silently, and
@@ -1504,7 +1505,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  MaybeHandle<v8::internal::String> result_string =
+  MaybeDirectHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_exception());
@@ -1612,7 +1613,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
 
   Address source =
       trusted_instance_data->data_segment_starts()->get(segment_index) + offset;
-  MaybeHandle<String> result = isolate->factory()->NewStringFromUtf8(
+  MaybeDirectHandle<String> result = isolate->factory()->NewStringFromUtf8(
       {reinterpret_cast<const uint8_t*>(source), length}, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_exception());

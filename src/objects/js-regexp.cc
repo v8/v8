@@ -338,7 +338,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                                JSRegExp::AsRegExpFlags(flags),
                                                backtrack_limit));
 
-  Handle<String> escaped_source;
+  DirectHandle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source));
 

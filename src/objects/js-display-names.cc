@@ -605,7 +605,7 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 MaybeHandle<Object> JSDisplayNames::Of(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names,
     Handle<Object> code_obj) {
-  Handle<String> code;
+  DirectHandle<String> code;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, code,
                              Object::ToString(isolate, code_obj));
   DisplayNamesInternal* internal = display_names->internal()->raw();

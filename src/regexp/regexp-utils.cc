@@ -94,7 +94,7 @@ MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
 MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
                                            Handle<JSReceiver> regexp,
                                            DirectHandle<String> string,
-                                           Handle<Object> exec) {
+                                           DirectHandle<Object> exec) {
   if (IsUndefined(*exec, isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
@@ -207,7 +207,7 @@ uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
 MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
     Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
     bool unicode) {
-  Handle<Object> last_index_obj;
+  DirectHandle<Object> last_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, last_index_obj,
       Object::GetProperty(isolate, regexp,

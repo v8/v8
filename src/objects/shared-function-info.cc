@@ -412,7 +412,7 @@ void SharedFunctionInfo::DiscardCompiled(
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
 
-  MaybeHandle<UncompiledData> data;
+  MaybeDirectHandle<UncompiledData> data;
   if (!shared_info->HasUncompiledDataWithPreparseData()) {
     // Create a new UncompiledData, without pre-parsed scope.
     data = isolate->factory()->NewUncompiledDataWithoutPreparseData(

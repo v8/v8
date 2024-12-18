@@ -1136,8 +1136,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 // static
 MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
-    MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
-    MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
+    MaybeDirectHandle<JSArrayBuffer> maybe_untagged_buffer,
+    MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
     int32_t offset, bool is_mutable) {
   DirectHandle<JSFunction> global_ctor(
       isolate->native_context()->wasm_global_constructor(), isolate);
@@ -1158,7 +1158,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
 
   if (type.is_reference()) {
     DCHECK(maybe_untagged_buffer.is_null());
-    Handle<FixedArray> tagged_buffer;
+    DirectHandle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
       // If no buffer was provided, create one.
       tagged_buffer =
@@ -1170,9 +1170,9 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     DCHECK(maybe_tagged_buffer.is_null());
     uint32_t type_size = type.value_kind_size();
 
-    Handle<JSArrayBuffer> untagged_buffer;
+    DirectHandle<JSArrayBuffer> untagged_buffer;
     if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
-      MaybeHandle<JSArrayBuffer> result =
+      MaybeDirectHandle<JSArrayBuffer> result =
           isolate->factory()->NewJSArrayBufferAndBackingStore(
               offset + type_size, InitializedFlag::kZeroInitialized);
 
@@ -2633,7 +2633,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  MaybeHandle<String> maybe_name;
+  MaybeDirectHandle<String> maybe_name;
   bool is_asm_js_module = is_asmjs_module(module);
   if (is_asm_js_module) {
     // We can use the function name only for asm.js. For WebAssembly, the
@@ -2641,7 +2641,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     maybe_name = WasmModuleObject::GetFunctionNameOrNull(
         isolate, handle(instance_data->module_object(), isolate), func_index);
   }
-  Handle<String> name;
+  DirectHandle<String> name;
   if (!maybe_name.ToHandle(&name)) {
     base::EmbeddedVector<char, 16> buffer;
     int length = SNPrintF(buffer, "%d", func_index);
@@ -2729,7 +2729,7 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
 
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
-                                           Handle<JSReceiver> callable,
+                                           DirectHandle<JSReceiver> callable,
                                            wasm::Suspend suspend) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int parameter_count = static_cast<int>(sig->parameter_count());

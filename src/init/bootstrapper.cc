@@ -208,7 +208,7 @@ class Genesis {
   // See ES#sec-%throwtypeerror% for details.
   DirectHandle<JSFunction> GetThrowTypeErrorIntrinsic();
 
-  void CreateSloppyModeFunctionMaps(Handle<JSFunction> empty);
+  void CreateSloppyModeFunctionMaps(DirectHandle<JSFunction> empty);
   void CreateStrictModeFunctionMaps(DirectHandle<JSFunction> empty);
   void CreateObjectFunction(DirectHandle<JSFunction> empty);
   void CreateIteratorMaps(DirectHandle<JSFunction> empty);
@@ -797,7 +797,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   return empty_function;
 }
 
-void Genesis::CreateSloppyModeFunctionMaps(Handle<JSFunction> empty) {
+void Genesis::CreateSloppyModeFunctionMaps(DirectHandle<JSFunction> empty) {
   Factory* factory = isolate_->factory();
   DirectHandle<Map> map;
 
@@ -7087,7 +7087,7 @@ Genesis::Genesis(Isolate* isolate,
     // We get here if there was no context snapshot.
     CreateRoots();
     MathRandom::InitializeContext(isolate, native_context());
-    Handle<JSFunction> empty_function = CreateEmptyFunction();
+    DirectHandle<JSFunction> empty_function = CreateEmptyFunction();
     CreateSloppyModeFunctionMaps(empty_function);
     CreateStrictModeFunctionMaps(empty_function);
     CreateObjectFunction(empty_function);

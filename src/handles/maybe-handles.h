@@ -205,6 +205,11 @@ class MaybeDirectHandle final {
     }
   }
 
+  // Address equality.
+  bool equals(MaybeHandle<T> other) const {
+    return address() == other.address();
+  }
+
   // Returns the raw address where this direct handle is stored.
   V8_INLINE Address address() const { return location_; }
 

@@ -212,9 +212,10 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   CompilationCache* compilation_cache = nullptr;
   if (is_compilation_cache_enabled) {
     compilation_cache = isolate->compilation_cache();
-    MaybeHandle<RegExpData> maybe_cached = compilation_cache->LookupRegExp(
-        pattern, JSRegExp::AsJSRegExpFlags(flags));
-    Handle<RegExpData> cached;
+    MaybeDirectHandle<RegExpData> maybe_cached =
+        compilation_cache->LookupRegExp(pattern,
+                                        JSRegExp::AsJSRegExpFlags(flags));
+    DirectHandle<RegExpData> cached;
     if (maybe_cached.ToHandle(&cached)) {
       re->set_data(*cached);
       return re;
@@ -263,7 +264,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     // The pattern source might (?) contain escape sequences, but they're
     // resolved in atom_string.
     base::Vector<const base::uc16> atom_pattern = atom->data();
-    Handle<String> atom_string;
+    DirectHandle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
         isolate->factory()->NewStringFromTwoByte(atom_pattern));

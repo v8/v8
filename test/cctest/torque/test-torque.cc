@@ -993,7 +993,7 @@ TEST(TestReturnNever_Runtime_Called) {
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK(result.is_null());
   CHECK(isolate->has_exception());
 }
@@ -1013,7 +1013,7 @@ TEST(TestReturnNever_Builtin_Called) {
     m.Return(result);
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK(result.is_null());
   CHECK(isolate->has_exception());
 }

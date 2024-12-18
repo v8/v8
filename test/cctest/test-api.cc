@@ -26419,12 +26419,12 @@ TEST(DynamicImport) {
   i::DirectHandle<i::String> source =
       v8::Utils::OpenDirectHandle(*v8_str("foo"));
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
+  i::DirectHandle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
   i::DirectHandle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
       kCustomHostDefinedOptionsLengthForTesting);
   referrer->set_host_defined_options(*options);
-  i::MaybeHandle<i::JSPromise> maybe_promise =
+  i::MaybeDirectHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, v8::ModuleImportPhase::kEvaluation,
           i::MaybeHandle<i::Object>());
@@ -26505,16 +26505,16 @@ TEST(DynamicImportWithAttributes) {
           ->ToObject(context.local())
           .ToLocalChecked();
 
-  i::Handle<i::Object> i_import_options =
-      v8::Utils::OpenHandle(*import_options);
+  i::DirectHandle<i::Object> i_import_options =
+      v8::Utils::OpenDirectHandle(*import_options);
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::Script> referrer = i_isolate->factory()->NewScript(source);
+  i::DirectHandle<i::Script> referrer = i_isolate->factory()->NewScript(source);
   referrer->set_name(*url);
   i::DirectHandle<i::FixedArray> options = i_isolate->factory()->NewFixedArray(
       kCustomHostDefinedOptionsLengthForTesting);
   referrer->set_host_defined_options(*options);
-  i::MaybeHandle<i::JSPromise> maybe_promise =
+  i::MaybeDirectHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, v8::ModuleImportPhase::kEvaluation,
           i_import_options);

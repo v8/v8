@@ -88,7 +88,7 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
 std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
   os << info.type() << ", " << info.bailout_id() << ", "
      << info.state_combine();
-  Handle<SharedFunctionInfo> shared_info;
+  DirectHandle<SharedFunctionInfo> shared_info;
   if (info.shared_info().ToHandle(&shared_info)) {
     os << ", " << Brief(*shared_info);
   }

@@ -104,7 +104,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
 
   // Compare the cached_templates to the original maybe_cached_templates loaded
   // from the weakmap -- if it doesn't match, we need to update the weakmap.
-  Handle<ArrayList> old_cached_templates;
+  DirectHandle<ArrayList> old_cached_templates;
   if (!maybe_cached_templates.ToHandle(&old_cached_templates) ||
       *old_cached_templates != *cached_templates) {
     Tagged<HeapObject> maybe_template_weakmap =

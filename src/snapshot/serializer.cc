@@ -709,7 +709,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   ReadOnlyRoots roots(isolate());
   PtrComprCageBase cage_base(isolate());
   DCHECK(IsExternalString(*object_, cage_base));
-  Handle<ExternalString> string = Cast<ExternalString>(object_);
+  DirectHandle<ExternalString> string = Cast<ExternalString>(object_);
   uint32_t length = string->length();
   Tagged<Map> map;
   int content_size;

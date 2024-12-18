@@ -714,7 +714,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
 
 Maybe<bool> ValueSerializer::WriteJSObjectSlow(DirectHandle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
-  Handle<FixedArray> keys;
+  DirectHandle<FixedArray> keys;
   uint32_t properties_written = 0;
   if (!KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
@@ -810,7 +810,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
       }
     }
 
-    Handle<FixedArray> keys;
+    DirectHandle<FixedArray> keys;
     if (!KeyAccumulator::GetKeys(isolate_, array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS,
                                  GetKeysConversion::kKeepNumbers, false, true)
@@ -828,7 +828,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
   } else {
     WriteTag(SerializationTag::kBeginSparseJSArray);
     WriteVarint<uint32_t>(length);
-    Handle<FixedArray> keys;
+    DirectHandle<FixedArray> keys;
     uint32_t properties_written = 0;
     if (!KeyAccumulator::GetKeys(isolate_, array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
@@ -1056,7 +1056,7 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
   if (!JSObject::GetProperty(isolate_, error, "name").ToHandle(&name_object)) {
     return Nothing<bool>();
   }
-  Handle<String> name;
+  DirectHandle<String> name;
   if (!Object::ToString(isolate_, name_object).ToHandle(&name)) {
     return Nothing<bool>();
   }
@@ -1510,8 +1510,9 @@ void ValueDeserializer::TransferArrayBuffer(
   }
   Handle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  Handle<SimpleNumberDictionary> new_dictionary = SimpleNumberDictionary::Set(
-      isolate_, dictionary, transfer_id, array_buffer);
+  DirectHandle<SimpleNumberDictionary> new_dictionary =
+      SimpleNumberDictionary::Set(isolate_, dictionary, transfer_id,
+                                  array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(dictionary.location());
     array_buffer_transfer_map_ =
@@ -1553,7 +1554,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
 
   // ArrayBufferView is special in that it consumes the value before it, even
   // after format version 0.
-  Handle<Object> object;
+  DirectHandle<Object> object;
   SerializationTag tag;
   if (result.ToHandle(&object) && V8_UNLIKELY(IsJSArrayBuffer(*object)) &&
       PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
@@ -1836,7 +1837,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
       continue;
     }
 
-    Handle<Object> element;
+    DirectHandle<Object> element;
     if (!ReadObject().ToHandle(&element)) return MaybeHandle<JSArray>();
 
     // Serialization versions less than 11 encode the hole the same as
@@ -1904,7 +1905,7 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       break;
     }
     case SerializationTag::kBigIntObject: {
-      Handle<BigInt> bigint;
+      DirectHandle<BigInt> bigint;
       if (!ReadBigInt().ToHandle(&bigint))
         return MaybeHandle<JSPrimitiveWrapper>();
       value = Cast<JSPrimitiveWrapper>(
@@ -1913,7 +1914,7 @@ MaybeHandle<JSPrimitiveWrapper> ValueDeserializer::ReadJSPrimitiveWrapper(
       break;
     }
     case SerializationTag::kStringObject: {
-      Handle<String> string;
+      DirectHandle<String> string;
       if (!ReadString().ToHandle(&string))
         return MaybeHandle<JSPrimitiveWrapper>();
       value = Cast<JSPrimitiveWrapper>(
@@ -2253,7 +2254,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   // Check for message property.
   DirectHandle<Object> message = isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kMessage) {
-    Handle<String> message_string;
+    DirectHandle<String> message_string;
     if (!ReadString().ToHandle(&message_string)) {
       return MaybeHandle<JSObject>();
     }
@@ -2264,7 +2265,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   // Check for stack property.
   DirectHandle<Object> stack = isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
-    Handle<String> stack_string;
+    DirectHandle<String> stack_string;
     if (!ReadString().ToHandle(&stack_string)) {
       return MaybeHandle<JSObject>();
     }
@@ -2338,7 +2339,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   wasm::AddressType address_type =
       memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
 
-  Handle<Object> buffer_object;
+  DirectHandle<Object> buffer_object;
   if (!ReadObject().ToHandle(&buffer_object)) return {};
   if (!IsJSArrayBuffer(*buffer_object)) return {};
 
@@ -2630,7 +2631,7 @@ MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
 void ValueDeserializer::AddObjectWithID(uint32_t id,
                                         DirectHandle<JSReceiver> object) {
   DCHECK(!HasObjectWithID(id));
-  Handle<FixedArray> new_array =
+  DirectHandle<FixedArray> new_array =
       FixedArray::SetAndGrow(isolate_, id_map_, id, object);
 
   // If the dictionary was reallocated, update the global handle.

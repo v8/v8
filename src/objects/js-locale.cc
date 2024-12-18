@@ -416,7 +416,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
   DirectHandle<JSFunction> constructor(
       isolate->native_context()->intl_locale_function(), isolate);
 
-  Handle<Map> map;
+  DirectHandle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor));

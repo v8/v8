@@ -46,7 +46,7 @@ namespace v8::internal::wasm {
 
 namespace {
 
-uint8_t* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
+uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<uint8_t*>(buffer.ToHandleChecked()->backing_store()) +
          offset;
 }
@@ -927,7 +927,7 @@ class InstanceBuilder {
   // Process a single imported table.
   bool ProcessImportedTable(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int import_index, int table_index, Handle<Object> value);
+      int import_index, int table_index, DirectHandle<Object> value);
 
   // Process a single imported global.
   bool ProcessImportedGlobal(
@@ -1132,7 +1132,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
     for (uint32_t memory_index = 0; memory_index < num_memories;
          ++memory_index) {
-      Handle<WasmMemoryObject> memory_object;
+      DirectHandle<WasmMemoryObject> memory_object;
       if (!IsUndefined(memory_objects->get(memory_index))) {
         memory_object =
             handle(Cast<WasmMemoryObject>(memory_objects->get(memory_index)),
@@ -1497,7 +1497,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
 
   // Call the JS function.
   DirectHandle<Object> undefined = isolate_->factory()->undefined_value();
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate_, start_function_, undefined, {});
   hsi->LeaveContext();
   // {start_function_} has to be called only once.
@@ -1518,8 +1518,8 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(
   // the JS-API layer that the ffi object, if present, is a JSObject.
   DCHECK(!ffi_.is_null());
   // Look up the module first.
-  Handle<Object> module;
-  Handle<JSReceiver> module_recv;
+  DirectHandle<Object> module;
+  DirectHandle<JSReceiver> module_recv;
   if (!Object::GetPropertyOrElement(isolate_, ffi_.ToHandleChecked(),
                                     module_name)
            .ToHandle(&module) ||
@@ -1554,7 +1554,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   LookupIterator value_of_it{isolate, function,
                              isolate->factory()->valueOf_string()};
   if (value_of_it.state() != LookupIterator::DATA) return false;
-  Handle<Object> value_of = value_of_it.GetDataValue();
+  DirectHandle<Object> value_of = value_of_it.GetDataValue();
   if (!IsJSFunction(*value_of)) return false;
   Builtin value_of_builtin_id =
       Cast<JSFunction>(value_of)->code(isolate)->builtin_id();
@@ -1564,7 +1564,7 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   LookupIterator to_string_it{isolate, function,
                               isolate->factory()->toString_string()};
   if (to_string_it.state() != LookupIterator::DATA) return false;
-  Handle<Object> to_string = to_string_it.GetDataValue();
+  DirectHandle<Object> to_string = to_string_it.GetDataValue();
   if (!IsJSFunction(*to_string)) return false;
   Builtin to_string_builtin_id =
       Cast<JSFunction>(to_string)->code(isolate)->builtin_id();
@@ -1735,7 +1735,7 @@ Handle<JSFunction> CreateFunctionForCompileTimeImport(Isolate* isolate,
   Factory* factory = isolate->factory();
   DirectHandle<NativeContext> context(isolate->native_context());
   DirectHandle<Map> map = isolate->strict_function_without_prototype_map();
-  Handle<String> name_str = factory->InternalizeUtf8String(name);
+  DirectHandle<String> name_str = factory->InternalizeUtf8String(name);
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name_str, builtin, length,
                                                kAdapt);
@@ -1986,7 +1986,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
 bool InstanceBuilder::ProcessImportedTable(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int import_index, int table_index, Handle<Object> value) {
+    int import_index, int table_index, DirectHandle<Object> value) {
   if (!IsWasmTableObject(*value)) {
     thrower_->LinkError("%s: table import requires a WebAssembly.Table",
                         ImportName(import_index).c_str());
@@ -2101,18 +2101,18 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   }
   if (global.mutability) {
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
-    Handle<Object> buffer;
+    DirectHandle<Object> buffer;
     if (global.type.is_reference()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
-      buffer = handle(global_object->tagged_buffer(), isolate_);
+      buffer = direct_handle(global_object->tagged_buffer(), isolate_);
       // For externref globals we use a relative offset, not an absolute
       // address.
       trusted_instance_data->imported_mutable_globals()->set(
           global.index, global_object->offset());
     } else {
-      buffer = handle(global_object->untagged_buffer(), isolate_);
+      buffer = direct_handle(global_object->untagged_buffer(), isolate_);
       // It is safe in this case to store the raw pointer to the buffer
       // since the backing store of the JSArrayBuffer will not be
       // relocated.
@@ -2506,7 +2506,7 @@ void InstanceBuilder::ProcessExports(
       trusted_instance_data->instance_object(), isolate_};
   DirectHandle<JSObject> exports_object =
       handle(instance_object->exports_object(), isolate_);
-  MaybeHandle<String> single_function_name;
+  MaybeDirectHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
     DirectHandle<JSFunction> object_function = Handle<JSFunction>(
@@ -2592,8 +2592,8 @@ void InstanceBuilder::ProcessExports(
             break;
           }
         }
-        Handle<JSArrayBuffer> untagged_buffer;
-        Handle<FixedArray> tagged_buffer;
+        DirectHandle<JSArrayBuffer> untagged_buffer;
+        DirectHandle<FixedArray> tagged_buffer;
         uint32_t offset;
 
         if (global.mutability && global.imported) {

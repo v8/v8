@@ -134,7 +134,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
   // 6. Let segment be the String value equal to the substring of string
   // consisting of the code units at indices startIndex (inclusive) through
   // endIndex (exclusive).
-  Handle<String> segment;
+  DirectHandle<String> segment;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, segment,
       Intl::ToString(isolate, unicode_string, start_index, end_index));

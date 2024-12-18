@@ -165,7 +165,7 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
 Handle<Map> JSSharedStruct::CreateInstanceMap(
     Isolate* isolate, const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names,
-    MaybeHandle<String> maybe_registry_key) {
+    MaybeDirectHandle<String> maybe_registry_key) {
   auto* factory = isolate->factory();
 
   int num_fields = 0;
@@ -190,7 +190,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
 
     // Store the registry key if the map is registered. This must be the first
     // slot if present. The registry depends on this for rehashing.
-    Handle<String> registry_key;
+    DirectHandle<String> registry_key;
     if (maybe_registry_key.ToHandle(&registry_key)) {
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_registry_key_symbol(), registry_key,

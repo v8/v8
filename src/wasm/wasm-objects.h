@@ -366,8 +366,8 @@ class WasmGlobalObject
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
-      MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
-      MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
+      MaybeDirectHandle<JSArrayBuffer> maybe_untagged_buffer,
+      MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
   inline int type_size() const;
@@ -967,7 +967,7 @@ class WasmJSFunction : public JSFunction {
 
   static Handle<WasmJSFunction> New(Isolate* isolate,
                                     const wasm::FunctionSig* sig,
-                                    Handle<JSReceiver> callable,
+                                    DirectHandle<JSReceiver> callable,
                                     wasm::Suspend suspend);
 
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);

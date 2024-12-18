@@ -8185,7 +8185,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(wrapper_sig_)) LowerInt64(wasm::kCalledFromWasm);
   }
 
-  void BuildJSFastApiCallWrapper(Handle<JSReceiver> callable) {
+  void BuildJSFastApiCallWrapper(DirectHandle<JSReceiver> callable) {
     // Here 'callable_node' must be equal to 'callable' but we cannot pass a
     // HeapConstant(callable) because WasmCode::Validate() fails with
     // Unexpected mode: FULL_EMBEDDED_OBJECT.
@@ -8499,7 +8499,7 @@ bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
 }
 
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
-    const wasm::CanonicalSig* sig, Handle<JSReceiver> callable) {
+    const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmJSFastCallWrapper");
 

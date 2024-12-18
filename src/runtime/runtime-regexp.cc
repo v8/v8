@@ -844,7 +844,7 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 
   if (limit == 0xFFFFFFFFu) {
     Tagged<FixedArray> last_match_cache_unused;
-    Handle<Object> cached_answer(
+    DirectHandle<Object> cached_answer(
         RegExpResultsCache::Lookup(isolate->heap(), *subject, *pattern,
                                    &last_match_cache_unused,
                                    RegExpResultsCache::STRING_SPLIT_SUBSTRINGS),
@@ -1447,7 +1447,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     uint32_t last_index = 0;
     if (sticky) {
-      Handle<Object> last_index_obj(regexp->last_index(), isolate);
+      DirectHandle<Object> last_index_obj(regexp->last_index(), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
                                  Object::ToLength(isolate, last_index_obj));
       last_index = PositiveNumberToUint32(*last_index_obj);
@@ -1484,7 +1484,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     if (replace->length() > 0) {
       MatchInfoBackedMatch m(isolate, regexp, data, string, match_indices);
-      Handle<String> replacement;
+      DirectHandle<String> replacement;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, replacement,
                                  String::GetSubstitution(isolate, &m, replace));
       builder.AppendString(replacement);
@@ -1590,7 +1590,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const bool sticky = (flags & JSRegExp::kSticky) != 0;
   uint32_t last_index = 0;
   if (sticky) {
-    Handle<Object> last_index_obj(regexp->last_index(), isolate);
+    DirectHandle<Object> last_index_obj(regexp->last_index(), isolate);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
@@ -1680,7 +1680,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
       Execution::Call(isolate, replace_obj, factory->undefined_value(),
                       base::VectorOf(arguments)));
 
-  Handle<String> replacement;
+  DirectHandle<String> replacement;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, replacement, Object::ToString(isolate, replacement_obj));
 
@@ -1701,7 +1701,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
     return object;
   }
 
-  Handle<Object> number;
+  DirectHandle<Object> number;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, number,
                              Object::ToNumber(isolate, object));
   *out = NumberToUint32(*number);
@@ -1731,7 +1731,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> regexp_fun = isolate->regexp_function();
-  Handle<Object> ctor;
+  DirectHandle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor, Object::SpeciesConstructor(isolate, recv, regexp_fun));
 
@@ -1751,7 +1751,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<String> y_str = factory->LookupSingleCharacterStringFromCode('y');
   const bool sticky = (String::IndexOf(isolate, flags, y_str, 0) >= 0);
 
-  Handle<String> new_flags = flags;
+  DirectHandle<String> new_flags = flags;
   if (!sticky) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_flags,
                                        factory->NewConsString(flags, y_str));
@@ -1778,7 +1778,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   if (limit == 0) return *factory->NewJSArray(0);
 
   if (length == 0) {
-    Handle<Object> result;
+    DirectHandle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
                                                  factory->undefined_value()));
@@ -1800,7 +1800,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, RegExpUtils::SetLastIndex(isolate, splitter, string_index));
 
-    Handle<JSAny> result;
+    DirectHandle<JSAny> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, RegExpUtils::RegExpExec(isolate, splitter, string,
                                                  factory->undefined_value()));
@@ -1811,7 +1811,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
       continue;
     }
 
-    Handle<Object> last_index_obj;
+    DirectHandle<Object> last_index_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, RegExpUtils::GetLastIndex(isolate, splitter));
 
@@ -1837,7 +1837,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     prev_string_index = end;
 
-    Handle<Object> num_captures_obj;
+    DirectHandle<Object> num_captures_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj,
         Object::GetProperty(isolate, result,
@@ -1848,7 +1848,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     const uint32_t num_captures = PositiveNumberToUint32(*num_captures_obj);
 
     for (uint32_t i = 1; i < num_captures; i++) {
-      Handle<Object> capture;
+      DirectHandle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, i));
       elems = FixedArray::SetAndGrow(isolate, elems, num_elems++, capture);
@@ -1897,7 +1897,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
     // We should never get here with functional replace because unmodified
     // regexp and functional replace should be fully handled in CSA code.
     CHECK(!functional_replace);
-    Handle<Object> result;
+    DirectHandle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         RegExpReplace(isolate, Cast<JSRegExp>(recv), string, replace));
@@ -1907,7 +1907,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
   const uint32_t length = string->length();
 
-  Handle<Object> global_obj;
+  DirectHandle<Object> global_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, global_obj,
       JSReceiver::GetProperty(isolate, recv, factory->global_string()));
@@ -1915,7 +1915,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
   bool unicode = false;
   if (global) {
-    Handle<Object> unicode_obj;
+    DirectHandle<Object> unicode_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, unicode_obj,
         JSReceiver::GetProperty(isolate, recv, factory->unicode_string()));
@@ -1942,7 +1942,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
                                        Object::GetElement(isolate, result, 0));
 
-    Handle<String> match;
+    DirectHandle<String> match;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match,
                                        Object::ToString(isolate, match_obj));
 
@@ -1958,7 +1958,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
   for (const auto& result : results) {
     HandleScope handle_scope(isolate);
-    Handle<Object> captures_length_obj;
+    DirectHandle<Object> captures_length_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
         Object::GetProperty(isolate, result, factory->length_string()));
@@ -2011,7 +2011,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
     const bool has_named_captures = !IsUndefined(*groups_obj, isolate);
 
-    Handle<String> replacement;
+    DirectHandle<String> replacement;
     if (functional_replace) {
       const uint32_t argc =
           GetArgcForReplaceCallable(captures_length, has_named_captures);

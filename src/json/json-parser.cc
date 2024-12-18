@@ -168,7 +168,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     Maybe<bool> is_array = Object::IsArray(object);
     if (is_array.IsNothing()) return MaybeHandle<Object>();
     if (is_array.FromJust()) {
-      Handle<Object> length_object;
+      DirectHandle<Object> length_object;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, length_object,
           Object::GetLengthFromArrayLike(isolate_, object));
@@ -210,7 +210,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
         }
       }
     } else {
-      Handle<FixedArray> contents;
+      DirectHandle<FixedArray> contents;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, contents,
           KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
@@ -1020,7 +1020,7 @@ class JSDataObjectBuilder {
       }
     }
 
-    Handle<String> key = *key_out = get_key(expected_key);
+    DirectHandle<String> key = *key_out = get_key(expected_key);
     if (key.is_identical_to(expected_key)) {
       // We were successful and we are done.
       DCHECK_EQ(target_map->instance_descriptors()

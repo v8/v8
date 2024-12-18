@@ -4217,7 +4217,7 @@ TEST_F(ParsingTest, AsmModuleFlag) {
       "m();";
 
   v8::Local<v8::Value> v = RunJS(src);
-  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(*v);
   i::DirectHandle<i::JSObject> m = i::Cast<i::JSObject>(o);
 
   // The asm.js module should be marked as such.

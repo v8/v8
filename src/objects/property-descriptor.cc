@@ -41,7 +41,8 @@ bool GetPropertyIfPresent(Isolate* isolate, DirectHandle<JSReceiver> receiver,
 // objects: nothing on the prototype chain, just own fast data properties.
 // Must not have observable side effects, because the slow path will restart
 // the entire conversion!
-bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
+bool ToPropertyDescriptorFastPath(Isolate* isolate,
+                                  DirectHandle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   {
     DisallowGarbageCollection no_gc;
@@ -70,7 +71,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
-    Handle<Object> value;
+    DirectHandle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
         value = JSObject::FastPropertyAt(isolate, Cast<JSObject>(obj),
@@ -204,7 +205,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  Handle<JSReceiver> receiver = Cast<JSReceiver>(obj);
+  DirectHandle<JSReceiver> receiver = Cast<JSReceiver>(obj);
   if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }

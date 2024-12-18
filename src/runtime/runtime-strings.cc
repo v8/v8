@@ -117,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   // retry with a flattened subject string.
   const int kRecursionLimit = 0x1000;
   bool found = false;
-  Handle<String> result;
+  DirectHandle<String> result;
   if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
@@ -265,7 +265,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 
   if (one_byte) {
-    Handle<SeqOneByteString> answer;
+    DirectHandle<SeqOneByteString> answer;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
@@ -273,7 +273,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
                               array_length);
     return *answer;
   } else {
-    Handle<SeqTwoByteString> answer;
+    DirectHandle<SeqTwoByteString> answer;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;

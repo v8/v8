@@ -4744,7 +4744,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
     }
 
     // Check function is compiled.
-    Handle<Object> func_value =
+    DirectHandle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));

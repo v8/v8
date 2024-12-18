@@ -65,7 +65,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
       i_isolate(), Handle<WasmTrustedInstanceData>(), wasm::kWasmAnyRef,
       wasm::kCanonicalAnyRef, initial, has_maximum, maximum,
       i_isolate()->factory()->null_value(), wasm::AddressType::kI32);
-  MaybeHandle<JSArray> result =
+  MaybeDirectHandle<JSArray> result =
       Runtime::GetInternalProperties(i_isolate(), table);
   ASSERT_FALSE(result.is_null());
   // ["[[Prototype]]", <map>, "[[Entries]]", <entries>]

@@ -590,7 +590,7 @@ class ContextProxyPrototype {
       const char* kDelegateNames[] = {"memories", "locals", "tables",
                                       "functions", "globals"};
       for (auto delegate_name : kDelegateNames) {
-        Handle<JSAny> delegate;
+        DirectHandle<JSAny> delegate;
         ASSIGN_RETURN_ON_EXCEPTION(isolate, delegate,
                                    Cast<JSAny>(JSObject::GetProperty(
                                        isolate, receiver, delegate_name)));
@@ -610,7 +610,7 @@ class ContextProxyPrototype {
     auto name_string = Cast<String>(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
     auto receiver = Cast<JSObject>(Utils::OpenHandle(*info.This()));
-    Handle<Object> value;
+    DirectHandle<Object> value;
     if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
       return v8::Intercepted::kYes;
@@ -1064,7 +1064,7 @@ Handle<WasmValueObject> WasmValueObject::New(
     }
     case wasm::kRefNull:
     case wasm::kRef: {
-      Handle<Object> ref = value.to_ref();
+      DirectHandle<Object> ref = value.to_ref();
       if (value.type().heap_type().representation() == wasm::HeapType::kExn) {
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));

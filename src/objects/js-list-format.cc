@@ -254,7 +254,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
   int index = 0;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string = formatted.toString(status);
-  Handle<String> substring;
+  DirectHandle<String> substring;
   while (formatted.nextPosition(cfpos, status) && U_SUCCESS(status)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,

@@ -187,7 +187,7 @@ MaybeLocal<Array> GetInternalProperties(Isolate* v8_isolate,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
-  i::Handle<i::JSArray> result;
+  i::DirectHandle<i::JSArray> result;
   if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
     return MaybeLocal<Array>();
   return Utils::ToLocal(result);
@@ -256,7 +256,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
 
   i::PropertyFilter key_filter =
       static_cast<i::PropertyFilter>(i::PropertyFilter::PRIVATE_NAMES_ONLY);
-  i::Handle<i::FixedArray> keys;
+  i::DirectHandle<i::FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
       i::KeyAccumulator::GetKeys(isolate, receiver,
@@ -274,7 +274,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(keys->get(i)), isolate);
     if (key->is_private_brand()) {
       if (include_methods_or_accessors) {
-        i::Handle<i::Object> value;
+        i::DirectHandle<i::Object> value;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, value, i::Object::GetProperty(isolate, receiver, key),
             false);
@@ -332,7 +332,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object, int filter,
     i::DirectHandle<i::Object> obj_key(keys->get(i), isolate);
     i::DirectHandle<i::Symbol> key(i::Cast<i::Symbol>(*obj_key), isolate);
     CHECK(key->is_private_name());
-    i::Handle<i::Object> value;
+    i::DirectHandle<i::Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, value, i::Object::GetProperty(isolate, receiver, key), false);
     if (key->is_private_brand()) {
@@ -455,7 +455,7 @@ size_t ScriptSource::Size() const {
 }
 
 MaybeLocal<String> ScriptSource::JavaScriptCode() const {
-  i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
+  i::DirectHandle<i::HeapObject> source = Utils::OpenDirectHandle(this);
   if (!IsString(*source)) return MaybeLocal<String>();
   return Utils::ToLocal(i::Cast<i::String>(source));
 }
@@ -1101,7 +1101,7 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   i::Builtin builtin = i::Builtin::kStringPrototypeToLocaleLowerCase;
 
   i::Factory* factory = isolate->factory();
-  i::Handle<i::String> name = isolate->factory()->empty_string();
+  i::DirectHandle<i::String> name = isolate->factory()->empty_string();
   i::DirectHandle<i::NativeContext> context(isolate->native_context());
   i::DirectHandle<i::SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, builtin, 0, i::kAdapt);
@@ -1138,7 +1138,7 @@ ConsoleCallArguments::ConsoleCallArguments(
 
 v8::Local<v8::Message> CreateMessageFromException(
     Isolate* v8_isolate, v8::Local<v8::Value> v8_error) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(*v8_error);
+  i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(*v8_error);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
@@ -1417,7 +1417,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
 
   i::DirectHandle<i::Symbol> key =
       isolate->factory()->promise_debug_message_symbol();
-  i::Handle<i::Object> maybeMessage =
+  i::DirectHandle<i::Object> maybeMessage =
       i::JSReceiver::GetDataProperty(isolate, promise, key);
 
   if (!IsJSMessageObject(*maybeMessage, isolate)) return MaybeLocal<Message>();

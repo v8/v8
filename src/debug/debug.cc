@@ -72,7 +72,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
     }
   }
 
-  bool HasObject(Handle<HeapObject> obj) {
+  bool HasObject(DirectHandle<HeapObject> obj) {
     if (IsJSObject(*obj) && Cast<JSObject>(obj)->GetEmbedderFieldCount()) {
       // Embedder may store any pointers using embedder fields and implements
       // non trivial logic, e.g. create wrappers lazily and store pointer to
@@ -211,7 +211,7 @@ MaybeHandle<FixedArray> Debug::CheckBreakPointsForLocations(
   bool has_break_points_at_all = false;
   for (size_t i = 0; i < break_locations.size(); i++) {
     bool location_has_break_points;
-    MaybeHandle<FixedArray> check_result = CheckBreakPoints(
+    MaybeDirectHandle<FixedArray> check_result = CheckBreakPoints(
         debug_info, &break_locations[i], &location_has_break_points);
     has_break_points_at_all |= location_has_break_points;
     if (!check_result.is_null()) {
@@ -932,8 +932,8 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
 
   if (!break_point->condition()->length()) return true;
   Handle<String> condition(break_point->condition(), isolate_);
-  MaybeHandle<Object> maybe_result;
-  Handle<Object> result;
+  MaybeDirectHandle<Object> maybe_result;
+  DirectHandle<Object> result;
 
   if (is_break_at_entry) {
     maybe_result = DebugEvaluate::WithTopmostArguments(isolate_, condition);
@@ -1911,7 +1911,7 @@ void Debug::InstallDebugBreakTrampoline() {
   for (AccessorPairWithContext tuple : needs_instantiate) {
     DirectHandle<AccessorPair> accessor_pair = tuple.first;
     DirectHandle<NativeContext> native_context = tuple.second;
-    Handle<Object> getter = AccessorPair::GetComponent(
+    DirectHandle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
       Cast<JSFunction>(getter)->UpdateCode(*trampoline);
@@ -2147,7 +2147,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
 
     if (!triedTopLevelCompile && !candidateSubsumesRange &&
         script->infos()->length() > 0) {
-      MaybeHandle<SharedFunctionInfo> shared =
+      MaybeDirectHandle<SharedFunctionInfo> shared =
           GetTopLevelWithRecompile(script, &triedTopLevelCompile);
       if (shared.is_null()) return false;
       if (triedTopLevelCompile) continue;
@@ -2682,7 +2682,7 @@ bool Debug::ShouldBeSkipped() {
 
   DebuggableStackFrameIterator iterator(isolate_);
   FrameSummary summary = iterator.GetTopValidFrame();
-  Handle<Object> script_obj = summary.script();
+  DirectHandle<Object> script_obj = summary.script();
   if (!IsScript(*script_obj)) return false;
 
   DirectHandle<Script> script = Cast<Script>(script_obj);
@@ -2900,7 +2900,7 @@ void Debug::PrintBreakLocation() {
   int inlined_frame_index = static_cast<int>(summaries.size() - 1);
   FrameInspector inspector(frame, inlined_frame_index, isolate_);
   int source_position = inspector.GetSourcePosition();
-  Handle<Object> script_obj = inspector.GetScript();
+  DirectHandle<Object> script_obj = inspector.GetScript();
   PrintF("[debug] break in function '");
   inspector.GetFunctionName()->PrintOn(stdout);
   PrintF("'.\n");
@@ -3101,7 +3101,7 @@ void Debug::ClearSideEffectChecks(DirectHandle<DebugInfo> debug_info) {
 }
 
 bool Debug::PerformSideEffectCheck(DirectHandle<JSFunction> function,
-                                   Handle<Object> receiver) {
+                                   DirectHandle<Object> receiver) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   DisallowJavascriptExecution no_js(isolate_);
@@ -3177,7 +3177,7 @@ void Debug::PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id) {
 }
 
 bool Debug::PerformSideEffectCheckForAccessor(
-    DirectHandle<AccessorInfo> accessor_info, Handle<Object> receiver,
+    DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
     AccessorComponent component) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
@@ -3306,12 +3306,12 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
       reg = bytecode_iterator.GetRegisterOperand(0);
       break;
   }
-  Handle<Object> object =
-      handle(frame->ReadInterpreterRegister(reg.index()), isolate_);
+  DirectHandle<Object> object(frame->ReadInterpreterRegister(reg.index()),
+                              isolate_);
   return PerformSideEffectCheckForObject(object);
 }
 
-bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
+bool Debug::PerformSideEffectCheckForObject(DirectHandle<Object> object) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 

@@ -88,7 +88,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     }
   }
 
-  Handle<Map> initial_map;
+  DirectHandle<Map> initial_map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target));
@@ -227,7 +227,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   Handle<Object> from_index = args.at(2);
 
   // Let O be ? ToObject(this value).
-  Handle<JSReceiver> object;
+  DirectHandle<JSReceiver> object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, object,
       Object::ToObject(isolate, Handle<Object>(args[0], isolate)));
@@ -243,7 +243,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
       USE(success);
       len = len32;
     } else {
-      Handle<Object> len_;
+      DirectHandle<Object> len_;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, len_,
           Object::GetProperty(isolate, object,
@@ -306,7 +306,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     HandleScope iteration_hs(isolate);
 
     // Let elementK be the result of ? Get(O, ! ToString(k)).
-    Handle<Object> element_k;
+    DirectHandle<Object> element_k;
     {
       PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);
@@ -329,7 +329,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   Handle<Object> from_index = args.at(2);
 
   // Let O be ? ToObject(this value).
-  Handle<JSReceiver> object;
+  DirectHandle<JSReceiver> object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, object,
       Object::ToObject(isolate, args.at(0), "Array.prototype.indexOf"));
@@ -345,7 +345,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
       USE(success);
       len = len32;
     } else {
-      Handle<Object> len_;
+      DirectHandle<Object> len_;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, len_,
           Object::GetProperty(isolate, object,
@@ -404,7 +404,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   for (; index < len; ++index) {
     HandleScope iteration_hs(isolate);
     // Let elementK be the result of ? Get(O, ! ToString(k)).
-    Handle<Object> element_k;
+    DirectHandle<Object> element_k;
     {
       PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);

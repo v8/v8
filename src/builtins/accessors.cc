@@ -122,7 +122,7 @@ void Accessors::ReconfigureToDataProperty(
       Cast<JSObject>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Name> name = Utils::OpenDirectHandle(*key);
   Handle<Object> value = Utils::OpenHandle(*val);
-  MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
+  MaybeDirectHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
       isolate, receiver, holder, name, value);
   if (!result.is_null()) {
     info.GetReturnValue().Set(true);

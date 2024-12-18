@@ -3281,7 +3281,7 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
         i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
     base::OwnedVector<const uint8_t> wire_bytes =
         base::OwnedCopyOf(kIncrementerWasm);
-    i::MaybeHandle<i::JSObject> compiled =
+    i::MaybeDirectHandle<i::JSObject> compiled =
         i::wasm::GetWasmEngine()->SyncCompile(i_isolate(), enabled_features,
                                               i::wasm::CompileTimeImports{},
                                               &thrower, std::move(wire_bytes));

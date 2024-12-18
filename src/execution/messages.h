@@ -102,7 +102,7 @@ class ErrorUtils : public AllStatic {
       FrameSkipMode mode);
 
   static Handle<JSObject> ShadowRealmConstructTypeErrorCopy(
-      Isolate* isolate, Handle<Object> original, MessageTemplate index,
+      Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
       base::Vector<const DirectHandle<Object>> args);
 
   // Formats a textual stack trace from the given structured stack trace.

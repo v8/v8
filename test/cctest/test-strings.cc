@@ -2072,7 +2072,7 @@ TEST(CheckCachedDataInternalExternalUncachedString) {
   const char* raw_small = "smalls";
 #endif  // V8_COMPRESS_POINTERS
 
-  Handle<String> string =
+  DirectHandle<String> string =
       factory->InternalizeString(factory->NewStringFromAsciiChecked(raw_small));
   OneByteResource* resource =
       new OneByteResource(i::StrDup(raw_small), strlen(raw_small));
@@ -2117,7 +2117,7 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
 
   size_t len;
   const uint16_t* two_byte = AsciiToTwoByteString(raw_small, &len);
-  Handle<String> string = factory->InternalizeString(
+  DirectHandle<String> string = factory->InternalizeString(
       factory->NewStringFromTwoByte(base::VectorOf(two_byte, len))
           .ToHandleChecked());
   Resource* resource = new Resource(two_byte, len);

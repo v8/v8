@@ -2176,7 +2176,7 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
   for (int i = 0; i < length; i++) {
     CHECK_NE(TranslatedValue::kCapturedObject,
              frame->values_[*value_index].kind());
-    Handle<Object> value = frame->values_[*value_index].GetValue();
+    DirectHandle<Object> value = frame->values_[*value_index].GetValue();
     if (IsNumber(*value)) {
       array->set(i, Object::NumberValue(*value));
     } else {
@@ -2760,7 +2760,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 
     DirectHandle<Object> previous_value(previously_materialized_objects->get(i),
                                         isolate_);
-    Handle<Object> value(value_info->GetRawValue(), isolate_);
+    DirectHandle<Object> value(value_info->GetRawValue(), isolate_);
 
     if (value.is_identical_to(marker)) {
       DCHECK_EQ(*previous_value, *marker);

@@ -85,7 +85,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
-  Handle<Object> access_index_obj;
+  DirectHandle<Object> access_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, access_index_obj,
       Object::ToIndex(isolate, request_index,
@@ -126,7 +126,7 @@ BUILTIN(AtomicsNotify) {
   Handle<Object> index = args.atOrUndefined(isolate, 2);
   Handle<Object> count = args.atOrUndefined(isolate, 3);
 
-  Handle<JSTypedArray> sta;
+  DirectHandle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta,
       ValidateIntegerTypedArray(isolate, array, "Atomics.notify", true));
@@ -180,7 +180,7 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
                       Handle<Object> array, Handle<Object> index,
                       Handle<Object> value, Handle<Object> timeout) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
-  Handle<JSTypedArray> sta;
+  DirectHandle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta,
       ValidateIntegerTypedArray(isolate, array, "Atomics.wait", true));

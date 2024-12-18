@@ -209,7 +209,7 @@ MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
     Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), isolate);
-    Handle<JSObject> site;
+    DirectHandle<JSObject> site;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
                                JSObject::New(constructor, constructor,
                                              Handle<AllocationSite>::null()));
@@ -374,7 +374,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
       DirectHandle<Object> exception(isolate->exception(), isolate);
       try_catch.Reset();
 
-      MaybeHandle<String> exception_string =
+      MaybeDirectHandle<String> exception_string =
           ErrorUtils::ToString(isolate, exception);
       if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
@@ -753,7 +753,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 
 // static
 Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
-    Isolate* isolate, Handle<Object> original, MessageTemplate index,
+    Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
     base::Vector<const DirectHandle<Object>> args) {
   if (v8_flags.clear_exceptions_on_js_entry) {
     // This function used to be implemented in JavaScript, and JSEntry
@@ -766,7 +766,7 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
   DirectHandle<Object> options = isolate->factory()->undefined_value();
 
   DirectHandle<JSObject> maybe_error_object;
-  Handle<Object> error_stack;
+  DirectHandle<Object> error_stack;
   StackTraceCollection collection = StackTraceCollection::kEnabled;
   if (IsJSObject(*original)) {
     maybe_error_object = Cast<JSObject>(original);

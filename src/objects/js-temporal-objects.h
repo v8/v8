@@ -220,12 +220,12 @@ class JSTemporalDuration
   // #sec-temporal.duration.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Round(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-      Handle<Object> round_to_obj);
+      DirectHandle<Object> round_to_obj);
 
   // #sec-temporal.duration.prototype.total
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Total(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-      Handle<Object> total_of);
+      DirectHandle<Object> total_of);
 
   // #sec-temporal.duration.prototype.tojson
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
@@ -244,7 +244,7 @@ class JSTemporalDuration
   // #sec-temporal.duration.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> With(
       Isolate* isolate, DirectHandle<JSTemporalDuration> duration,
-      Handle<Object> temporal_duration_like);
+      DirectHandle<Object> temporal_duration_like);
 
   DECL_PRINTER(JSTemporalDuration)
 
@@ -257,7 +257,8 @@ class JSTemporalInstant
   // #sec-temporal-instant-constructor
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Constructor(
       Isolate* isolate, DirectHandle<JSFunction> target,
-      DirectHandle<HeapObject> new_target, Handle<Object> epoch_nanoseconds);
+      DirectHandle<HeapObject> new_target,
+      DirectHandle<Object> epoch_nanoseconds);
 
   // #sec-temporal.now.instant
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Now(
@@ -265,24 +266,27 @@ class JSTemporalInstant
 
   // #sec-temporal.instant.fromepochseconds
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> FromEpochSeconds(
-      Isolate* isolate, Handle<Object> epoch_seconds);
+      Isolate* isolate, DirectHandle<Object> epoch_seconds);
 
   // #sec-temporal.instant.fromepochmilliseconds
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
-  FromEpochMilliseconds(Isolate* isolate, Handle<Object> epoch_milliseconds);
+  FromEpochMilliseconds(Isolate* isolate,
+                        DirectHandle<Object> epoch_milliseconds);
 
   // #sec-temporal.instant.fromepochmicroseconds
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
-  FromEpochMicroseconds(Isolate* isolate, Handle<Object> epoch_microseconds);
+  FromEpochMicroseconds(Isolate* isolate,
+                        DirectHandle<Object> epoch_microseconds);
 
   // #sec-temporal.instant.fromepochnanoeconds
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
-  FromEpochNanoseconds(Isolate* isolate, Handle<Object> epoch_nanoseconds);
+  FromEpochNanoseconds(Isolate* isolate,
+                       DirectHandle<Object> epoch_nanoseconds);
 
   // #sec-temporal.instant.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Round(
       Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-      Handle<Object> round_to);
+      DirectHandle<Object> round_to);
 
   // #sec-temporal.instant.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> From(
@@ -291,7 +295,7 @@ class JSTemporalInstant
   // #sec-temporal.instant.prototype.tozoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
   ToZonedDateTime(Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
-                  Handle<Object> item);
+                  DirectHandle<Object> item);
 
   // #sec-temporal.instant.prototype.tozoneddatetimeiso
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
@@ -529,7 +533,8 @@ class JSTemporalPlainDateTime
   // #sec-temporal.plaindatetime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> With(
       Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
-      Handle<Object> temporal_date_time_like, DirectHandle<Object> options);
+      DirectHandle<Object> temporal_date_time_like,
+      DirectHandle<Object> options);
 
   // #sec-temporal.plaindatetime.prototype.tojson
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
@@ -548,7 +553,7 @@ class JSTemporalPlainDateTime
   // #sec-temporal.plaindatetime.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Round(
       Isolate* isolate, DirectHandle<JSTemporalPlainDateTime> date_time,
-      Handle<Object> round_to);
+      DirectHandle<Object> round_to);
 
   // #sec-temporal.plaindatetime.prototype.until
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Until(
@@ -628,7 +633,7 @@ class JSTemporalPlainMonthDay
   // #sec-temporal.plainmonthday.prototype.toplaindate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> ToPlainDate(
       Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
-      Handle<Object> item);
+      DirectHandle<Object> item);
 
   // #sec-temporal.plainmonthday.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
@@ -685,7 +690,7 @@ class JSTemporalPlainTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
   ToZonedDateTime(Isolate* isolate,
                   DirectHandle<JSTemporalPlainTime> plain_time,
-                  Handle<Object> item);
+                  DirectHandle<Object> item);
 
   // #sec-temporal.plaintime.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Add(
@@ -710,7 +715,7 @@ class JSTemporalPlainTime
   // #sec-temporal.plaintime.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Round(
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
-      Handle<Object> round_to);
+      DirectHandle<Object> round_to);
 
   // #sec-temporal.plaintime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
@@ -725,7 +730,7 @@ class JSTemporalPlainTime
   // #sec-temporal.plaintime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> With(
       Isolate* isolate, DirectHandle<JSTemporalPlainTime> plain_time,
-      Handle<Object> temporal_time_like, DirectHandle<Object> options);
+      DirectHandle<Object> temporal_time_like, DirectHandle<Object> options);
 
   // #sec-temporal.now.plaintimeiso
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> NowISO(
@@ -789,7 +794,7 @@ class JSTemporalPlainYearMonth
   // #sec-temporal.plainyearmonth.prototype.toplaindate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> ToPlainDate(
       Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
-      Handle<Object> item);
+      DirectHandle<Object> item);
 
   // #sec-temporal.plainyearmonth.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
@@ -942,7 +947,7 @@ class JSTemporalZonedDateTime
   // #sec-temporal.zoneddatetime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> With(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-      Handle<Object> temporal_zoned_date_time_like,
+      DirectHandle<Object> temporal_zoned_date_time_like,
       DirectHandle<Object> options);
 
   // #sec-temporal.zoneddatetime.prototype.withcalendar
@@ -976,7 +981,7 @@ class JSTemporalZonedDateTime
   // #sec-temporal.zoneddatetime.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Round(
       Isolate* isolate, DirectHandle<JSTemporalZonedDateTime> zoned_date_time,
-      Handle<Object> round_to);
+      DirectHandle<Object> round_to);
 
   // #sec-temporal.zoneddatetime.prototype.until
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Until(
@@ -1211,7 +1216,7 @@ struct DurationRecord {
 
 // #sec-temporal-topartialduration
 Maybe<DurationRecord> ToPartialDuration(
-    Isolate* isolate, Handle<Object> temporal_duration_like_obj,
+    Isolate* isolate, DirectHandle<Object> temporal_duration_like_obj,
     const DurationRecord& input);
 
 // #sec-temporal-isvalidduration

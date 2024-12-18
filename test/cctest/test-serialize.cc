@@ -708,7 +708,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       DirectHandle<String> o =
           isolate->factory()->NewStringFromAsciiChecked("o");
       DirectHandle<JSObject> global_object(context->global_object(), isolate);
-      Handle<Object> property =
+      DirectHandle<Object> property =
           JSReceiver::GetDataProperty(isolate, global_object, o);
       CHECK(property.is_identical_to(global_proxy));
 
@@ -2332,7 +2332,7 @@ TEST(CodeSerializerInternalizedString) {
   DirectHandle<JSFunction> orig_fun =
       Factory::JSFunctionBuilder{isolate, orig, isolate->native_context()}
           .Build();
-  Handle<Object> orig_result =
+  DirectHandle<Object> orig_result =
       Execution::CallScript(isolate, orig_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -2551,7 +2551,7 @@ TEST(CodeSerializerLargeStrings) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  Handle<Object> copy_result =
+  DirectHandle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
@@ -5214,8 +5214,10 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
           "o.c = 3;"
           "var p = { foo: 1 };"  // Test rehashing of transition arrays.
           "p = JSON.parse('{\"foo\": {\"x\": 1}}');");
-      i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
-      i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
+      i::DirectHandle<i::Object> i_a =
+          v8::Utils::OpenDirectHandle(*CompileRun("a"));
+      i::DirectHandle<i::Object> i_o =
+          v8::Utils::OpenDirectHandle(*CompileRun("o"));
       CHECK(IsJSArray(*i_a));
       CHECK(IsJSObject(*i_a));
       CHECK(!i::Cast<i::JSArray>(i_a)->HasFastElements());
@@ -5243,8 +5245,10 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
-    i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
-    i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
+    i::DirectHandle<i::Object> i_a =
+        v8::Utils::OpenDirectHandle(*CompileRun("a"));
+    i::DirectHandle<i::Object> i_o =
+        v8::Utils::OpenDirectHandle(*CompileRun("o"));
     CHECK(IsJSArray(*i_a));
     CHECK(IsJSObject(*i_a));
     CHECK(!i::Cast<i::JSArray>(i_a)->HasFastElements());

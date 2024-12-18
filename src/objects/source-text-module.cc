@@ -792,7 +792,7 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
 }
 
 MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
-    Isolate* isolate, Handle<SourceTextModule> module) {
+    Isolate* isolate, DirectHandle<SourceTextModule> module) {
   Handle<UnionOf<JSObject, Hole>> import_meta(module->import_meta(kAcquireLoad),
                                               isolate);
   if (IsTheHole(*import_meta, isolate)) {

@@ -79,7 +79,7 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
 bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
-    const wasm::CanonicalSig*, Handle<JSReceiver> callable);
+    const wasm::CanonicalSig*, DirectHandle<JSReceiver> callable);
 
 // Returns a TurboshaftCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(

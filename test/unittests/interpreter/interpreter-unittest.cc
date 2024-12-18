@@ -51,7 +51,7 @@ TEST_F(InterpreterTest, InterpreterReturn) {
   builder.Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(undefined_value));
 }
 
@@ -62,7 +62,7 @@ TEST_F(InterpreterTest, InterpreterLoadUndefined) {
   builder.LoadUndefined().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(undefined_value));
 }
 
@@ -73,7 +73,7 @@ TEST_F(InterpreterTest, InterpreterLoadNull) {
   builder.LoadNull().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(null_value));
 }
 
@@ -84,7 +84,7 @@ TEST_F(InterpreterTest, InterpreterLoadTheHole) {
   builder.LoadTheHole().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(the_hole_value));
 }
 
@@ -95,7 +95,7 @@ TEST_F(InterpreterTest, InterpreterLoadTrue) {
   builder.LoadTrue().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(true_value));
 }
 
@@ -106,7 +106,7 @@ TEST_F(InterpreterTest, InterpreterLoadFalse) {
   builder.LoadFalse().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(false_value));
 }
 
@@ -179,7 +179,7 @@ TEST_F(InterpreterTest, InterpreterLoadStoreRegisters) {
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    Handle<Object> return_val = RunBytecode(bytecode_array);
+    DirectHandle<Object> return_val = RunBytecode(bytecode_array);
     CHECK(return_val.is_identical_to(true_value));
   }
 }
@@ -513,7 +513,7 @@ TEST_F(InterpreterTest, InterpreterReceiverParameter) {
 
   InterpreterTester tester(i_isolate(), bytecode_array);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<Object> return_val = callable(object).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
 
   CHECK(return_val.is_identical_to(object));
 }
@@ -529,7 +529,7 @@ TEST_F(InterpreterTest, InterpreterParameter0) {
 
   // Check for heap objects.
   Handle<Object> true_value = i_isolate()->factory()->true_value();
-  Handle<Object> return_val = callable(true_value).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(true_value).ToHandleChecked();
   CHECK(return_val.is_identical_to(true_value));
 
   // Check for Smis.
@@ -1183,7 +1183,7 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
   auto callable = tester.GetCallableWithReceiver<>();
   Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  Handle<Object> result;
+  DirectHandle<Object> result;
   callable(object).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object, name->string())
             .ToHandle(&result));
@@ -1245,7 +1245,7 @@ TEST_F(InterpreterTest, InterpreterSetKeyedProperty) {
   auto callable = tester.GetCallableWithReceiver<>();
   Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  Handle<Object> result;
+  DirectHandle<Object> result;
   callable(object).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object, name->string())
             .ToHandle(&result));
@@ -1629,7 +1629,7 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
     CHECK(found_16bit_constant_jump);
   }
 
-  Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array, metadata);
   CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 256.0 / 2 * (1.5 + 256.5));
 }
 
@@ -1669,7 +1669,7 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
     CHECK(found_32bit_jump);
   }
 
-  Handle<Object> return_value = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array);
   CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 65536.5);
 }
 
@@ -2906,7 +2906,7 @@ TEST_F(InterpreterTest, InterpreterCreateArguments) {
   for (size_t i = 0; i < arraysize(create_args); i++) {
     InterpreterTester tester(i_isolate(), create_args[i].first);
     auto callable = tester.GetCallable<>();
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     CHECK(return_val.is_identical_to(factory->undefined_value()));
   }
 
@@ -2914,7 +2914,7 @@ TEST_F(InterpreterTest, InterpreterCreateArguments) {
   for (size_t i = 0; i < arraysize(create_args); i++) {
     InterpreterTester tester(i_isolate(), create_args[i].first);
     auto callable = tester.GetCallable<Handle<Object>>();
-    Handle<Object> return_val =
+    DirectHandle<Object> return_val =
         callable(handle(Smi::FromInt(40), i_isolate())).ToHandleChecked();
     if (create_args[i].second == 0) {
       CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(40));
@@ -4322,7 +4322,7 @@ TEST_F(InterpreterTest, InterpreterCallWideRegisters) {
     std::string source = InterpreterTester::SourceForBody(os.str().c_str());
     InterpreterTester tester(i_isolate(), source.c_str());
     auto callable = tester.GetCallable();
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     DirectHandle<String> return_string = Cast<String>(return_val);
     CHECK_EQ(return_string->length(), kLength);
     for (int i = 0; i < kLength; i += 1) {
@@ -4886,7 +4886,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
 
   {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
-    MaybeHandle<Object> result = Execution::Call(
+    MaybeDirectHandle<Object> result = Execution::Call(
         i_isolate(), function, i_isolate()->factory()->undefined_value(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
@@ -4921,7 +4921,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
 
   {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
-    MaybeHandle<Object> result = Execution::Call(
+    MaybeDirectHandle<Object> result = Execution::Call(
         i_isolate(), function, i_isolate()->factory()->undefined_value(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
@@ -4942,7 +4942,8 @@ void CheckStringEqual(const char* expected_ptr, const char* actual_ptr) {
   CHECK_EQ(expected, actual);
 }
 
-void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
+void CheckStringEqual(const char* expected_ptr,
+                      DirectHandle<Object> actual_handle) {
   v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(),
                              v8::Utils::ToLocal(Cast<String>(actual_handle)));
   CheckStringEqual(expected_ptr, *utf8);
@@ -4974,7 +4975,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
-    Handle<Object> result =
+    DirectHandle<Object> result =
         Execution::Call(i_isolate(), function,
                         i_isolate()->factory()->undefined_value(), {})
             .ToHandleChecked();

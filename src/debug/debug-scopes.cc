@@ -267,7 +267,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
                 .set_is_eager(true);
   flags.set_is_reparse(true);
 
-  MaybeHandle<ScopeInfo> maybe_outer_scope;
+  MaybeDirectHandle<ScopeInfo> maybe_outer_scope;
   if (flags.is_toplevel() &&
       script->compilation_type() == Script::CompilationType::kEval) {
     // Re-parsing a full eval script requires us to correctly set the outer
@@ -278,7 +278,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
 
     DCHECK(flags.is_eval());
 
-    Handle<ScopeInfo> eval_scope;
+    DirectHandle<ScopeInfo> eval_scope;
     if (FindEvalScope(isolate_, *scope_info).ToHandle(&eval_scope)) {
       flags.set_outer_language_mode(eval_scope->language_mode());
       if (eval_scope->HasOuterScopeInfo()) {

@@ -553,7 +553,7 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
       format->icu_number_formatter()->raw()->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
-  Handle<String> numbering_system;
+  DirectHandle<String> numbering_system;
   CHECK(Intl::ToString(isolate,
                        JSNumberFormat::NumberingSystemFromSkeleton(skeleton))
             .ToHandle(&numbering_system));
@@ -1072,7 +1072,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
         switch (it.part_type) {
           case Part::Type::kSeparator: {
             icu::UnicodeString sep(SeparatorToChar(separator));
-            Handle<String> separator_string;
+            DirectHandle<String> separator_string;
             ASSIGN_RETURN_ON_EXCEPTION(isolate, separator_string,
                                        Intl::ToString(isolate, sep));
             Intl::AddElement(isolate, array, index++, factory->literal_string(),
@@ -1089,7 +1089,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
         }
       }
     } else {
-      Handle<String> substring;
+      DirectHandle<String> substring;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
           Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()));

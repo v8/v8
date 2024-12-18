@@ -258,7 +258,7 @@ Tagged<Object> AddToDisposableStack(Isolate* isolate,
     value = isolate->factory()->undefined_value();
   }
 
-  Handle<Object> method;
+  DirectHandle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
@@ -308,7 +308,7 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   Handle<Object> continuation_error = args.at<Object>(2);
   DirectHandle<Smi> has_await_using = args.at<Smi>(3);
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSDisposableStackBase::DisposeResources(
@@ -372,7 +372,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   InitializationFlag init_flag;
   VariableMode mode;
 
-  Handle<Object> holder =
+  DirectHandle<Object> holder =
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
                       &init_flag, &mode);
   DCHECK(holder.is_null() || !IsSourceTextModule(*holder));
@@ -762,8 +762,8 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   InitializationFlag flag;
   VariableMode mode;
   Handle<Context> context(isolate->context(), isolate);
-  Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
-                                          &attributes, &flag, &mode);
+  DirectHandle<Object> holder = Context::Lookup(
+      context, name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -885,7 +885,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<String> name = args.at<String>(0);
-  Handle<Object> value;
+  DirectHandle<Object> value;
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
@@ -901,7 +901,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
   FullObjectSlot value_ret = args.slot_from_address_at(1, 0);
   FullObjectSlot receiver_ret = args.slot_from_address_at(1, -1);
   Handle<Object> receiver;
-  Handle<Object> value;
+  DirectHandle<Object> value;
   if (!LoadLookupSlot(isolate, name, kThrowOnError, &receiver)
            .ToHandle(&value)) {
     DCHECK((isolate)->has_exception());

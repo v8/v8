@@ -911,7 +911,7 @@ class CallSiteBuilder {
     int flags = CallSiteInfo::kIsAsync;
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
-    Handle<JSAny> receiver(generator_object->receiver(), isolate_);
+    DirectHandle<JSAny> receiver(generator_object->receiver(), isolate_);
     DirectHandle<BytecodeArray> code(
         function->shared()->GetBytecodeArray(isolate_), isolate_);
     int offset = GetGeneratorBytecodeOffset(generator_object);
@@ -937,7 +937,7 @@ class CallSiteBuilder {
     int flags =
         CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
-    Handle<JSFunction> receiver(
+    DirectHandle<JSFunction> receiver(
         combinator->native_context()->promise_function(), isolate_);
     DirectHandle<Code> code(combinator->code(isolate_), isolate_);
 
@@ -973,7 +973,7 @@ class CallSiteBuilder {
 #if V8_ENABLE_WEBASSEMBLY
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
-    Handle<WasmInstanceObject> instance = summary.wasm_instance();
+    DirectHandle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm;
     if (instance->module_object()->is_asm_js()) {
       flags |= CallSiteInfo::kIsAsmJsWasm;
@@ -1092,7 +1092,7 @@ class CallSiteBuilder {
     return true;
   }
 
-  void AppendFrame(Handle<UnionOf<JSAny, Hole>> receiver_or_instance,
+  void AppendFrame(DirectHandle<UnionOf<JSAny, Hole>> receiver_or_instance,
                    DirectHandle<UnionOf<Smi, JSFunction>> function,
                    DirectHandle<HeapObject> code, int offset, int flags,
                    DirectHandle<FixedArray> parameters) {
@@ -1293,7 +1293,7 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
       }
     } else {
 #if V8_ENABLE_WEBASSEMBLY
-      Handle<WasmSuspenderObject> suspender;
+      DirectHandle<WasmSuspenderObject> suspender;
       if (TryGetWasmSuspender(isolate, promise_reaction_job_task->handler())
               .ToHandle(&suspender)) {
         // The {promise_reaction_job_task} belongs to a suspended Wasm stack
@@ -1317,7 +1317,7 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
-  Handle<JSPromise> promise;
+  DirectHandle<JSPromise> promise;
   if (TryGetCurrentTaskPromise(isolate).ToHandle(&promise)) {
     CaptureAsyncStackTrace(isolate, promise, builder);
   }
@@ -1416,7 +1416,7 @@ Handle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
     if (call_site_info->IsAsync()) {
       break;
     }
-    Handle<Script> script;
+    DirectHandle<Script> script;
     if (!CallSiteInfo::GetScript(isolate, call_site_info).ToHandle(&script) ||
         !script->IsSubjectToDebugging()) {
       continue;
@@ -1690,7 +1690,7 @@ MaybeHandle<Script> Isolate::CurrentReferrerScript() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptStackVisitor visitor{};
   VisitStack(this, &visitor);
-  Handle<Script> script;
+  DirectHandle<Script> script;
   if (!visitor.CurrentScript().ToHandle(&script)) {
     return MaybeHandle<Script>();
   }
@@ -1886,7 +1886,7 @@ Tagged<Object> Isolate::StackOverflow() {
       MessageFormatter::TemplateString(MessageTemplate::kStackOverflow));
   DirectHandle<Object> options = factory()->undefined_value();
   DirectHandle<Object> no_caller;
-  Handle<JSObject> exception;
+  DirectHandle<JSObject> exception;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       this, exception,
       ErrorUtils::Construct(this, fun, fun, msg, options, SKIP_NONE, no_caller,
@@ -2038,7 +2038,7 @@ void ReportBootstrappingException(DirectHandle<Object> exception,
 }  // anonymous namespace
 
 Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
-    Handle<Object> exception, MessageLocation* location) {
+    DirectHandle<Object> exception, MessageLocation* location) {
   Handle<JSMessageObject> message_obj = CreateMessage(exception, location);
 
   // If the abort-on-uncaught-exception flag is specified, and if the
@@ -2080,7 +2080,7 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
           !trap_handler::IsThreadInWasm());
 
   HandleScope scope(this);
-  Handle<Object> exception(raw_exception, this);
+  DirectHandle<Object> exception(raw_exception, this);
 
   if (v8_flags.print_all_exceptions) {
     PrintF("=========================================================\n");
@@ -2887,7 +2887,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
 }
 
 bool Isolate::ComputeLocationFromException(MessageLocation* target,
-                                           Handle<Object> exception) {
+                                           DirectHandle<Object> exception) {
   if (!IsJSObject(*exception)) return false;
 
   DirectHandle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
@@ -2912,8 +2912,8 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
   return true;
 }
 
-bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
-                                                  Handle<Object> exception) {
+bool Isolate::ComputeLocationFromSimpleStackTrace(
+    MessageLocation* target, DirectHandle<Object> exception) {
   if (!IsJSReceiver(*exception)) {
     return false;
   }
@@ -2929,8 +2929,8 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
   return false;
 }
 
-bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
-                                                    Handle<Object> exception) {
+bool Isolate::ComputeLocationFromDetailedStackTrace(
+    MessageLocation* target, DirectHandle<Object> exception) {
   if (!IsJSReceiver(*exception)) return false;
 
   DirectHandle<StackTraceInfo> stack_trace =
@@ -2945,7 +2945,7 @@ bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
   return true;
 }
 
-Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
+Handle<JSMessageObject> Isolate::CreateMessage(DirectHandle<Object> exception,
                                                MessageLocation* location) {
   DirectHandle<StackTraceInfo> stack_trace;
   if (capture_stack_trace_for_uncaught_exceptions_) {
@@ -2978,7 +2978,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
 }
 
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
-    Handle<Object> exception) {
+    DirectHandle<Object> exception) {
   DirectHandle<StackTraceInfo> stack_trace;
   if (IsJSError(*exception)) {
     stack_trace = GetDetailedStackTrace(Cast<JSObject>(exception));
@@ -3125,8 +3125,8 @@ bool WalkPromiseTreeInternal(
   DirectHandle<Object> current(promise->reactions(), isolate);
   while (!IsSmi(*current)) {
     auto reaction = Cast<PromiseReaction>(current);
-    Handle<HeapObject> promise_or_capability(reaction->promise_or_capability(),
-                                             isolate);
+    DirectHandle<HeapObject> promise_or_capability(
+        reaction->promise_or_capability(), isolate);
     if (!IsUndefined(*promise_or_capability, isolate)) {
       if (!IsJSPromise(*promise_or_capability)) {
         promise_or_capability = handle(
@@ -3136,17 +3136,17 @@ bool WalkPromiseTreeInternal(
         DirectHandle<JSPromise> next_promise =
             Cast<JSPromise>(promise_or_capability);
         bool caught = false;
-        Handle<JSReceiver> reject_handler;
+        DirectHandle<JSReceiver> reject_handler;
         if (!IsUndefined(reaction->reject_handler(), isolate)) {
-          reject_handler =
-              handle(Cast<JSReceiver>(reaction->reject_handler()), isolate);
+          reject_handler = direct_handle(
+              Cast<JSReceiver>(reaction->reject_handler()), isolate);
           if (!ReceiverIsForwardingHandler(isolate, reject_handler) &&
               !IsBuiltinForwardingRejectHandler(isolate, *reject_handler)) {
             caught = true;
           }
         }
         // Pass each handler to the callback
-        Handle<JSGeneratorObject> async_function;
+        DirectHandle<JSGeneratorObject> async_function;
         if (TryGetAsyncGenerator(isolate, reaction).ToHandle(&async_function)) {
           caught = caught ||
                    PredictExceptionFromGenerator(async_function, isolate) ==
@@ -3156,7 +3156,7 @@ bool WalkPromiseTreeInternal(
         } else {
           // Not an async function, look at individual handlers
           if (!IsUndefined(reaction->fulfill_handler(), isolate)) {
-            Handle<JSReceiver> fulfill_handler(
+            DirectHandle<JSReceiver> fulfill_handler(
                 Cast<JSReceiver>(reaction->fulfill_handler()), isolate);
             if (!ReceiverIsForwardingHandler(isolate, fulfill_handler)) {
               if (IsBuiltinFunction(isolate, *fulfill_handler,
@@ -3168,8 +3168,8 @@ bool WalkPromiseTreeInternal(
                     isolate);
                 int const index =
                     PromiseBuiltins::PromiseFinallyContextSlot::kOnFinallySlot;
-                fulfill_handler =
-                    handle(Cast<JSReceiver>(context->get(index)), isolate);
+                fulfill_handler = direct_handle(
+                    Cast<JSReceiver>(context->get(index)), isolate);
               }
               if (IsJSFunction(*fulfill_handler)) {
                 callback({Cast<JSFunction>(fulfill_handler)->shared(), true});
@@ -3191,14 +3191,13 @@ bool WalkPromiseTreeInternal(
       }
     } else {
 #if V8_ENABLE_WEBASSEMBLY
-      Handle<WasmSuspenderObject> suspender;
+      DirectHandle<WasmSuspenderObject> suspender;
       if (TryGetWasmSuspender(isolate, reaction->fulfill_handler())
               .ToHandle(&suspender)) {
         // If in the future we support Wasm exceptions or ignore listing in
         // Wasm, we will need to iterate through these frames. For now, we
         // only care about the resulting promise.
-        DirectHandle<JSPromise> next_promise =
-            handle(suspender->promise(), isolate);
+        DirectHandle<JSPromise> next_promise(suspender->promise(), isolate);
         bool caught = WalkPromiseTreeInternal(isolate, next_promise, callback);
         any_caught = any_caught || caught;
         any_uncaught = any_uncaught || !caught;
@@ -3213,7 +3212,7 @@ bool WalkPromiseTreeInternal(
   if (!caught) {
     // If there is an outer promise, follow that to see if it is caught.
     DirectHandle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
-    Handle<Object> outer_promise_obj = JSObject::GetDataProperty(
+    DirectHandle<Object> outer_promise_obj = JSObject::GetDataProperty(
         isolate, indirect_handle(promise, isolate), key);
     if (IsJSPromise(*outer_promise_obj)) {
       return WalkPromiseTreeInternal(
@@ -4822,7 +4821,8 @@ void Isolate::NotifyExceptionPropagationCallback() {
         // TODO(https://crbug.com/333672197): remove.
         START_ALLOW_USE_DEPRECATED()
 
-        Handle<Object> holder = Utils::OpenHandle(*callback_info->Holder());
+        DirectHandle<Object> holder =
+            Utils::OpenDirectHandle(*callback_info->Holder());
         Handle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
         Handle<Name> name =
@@ -4876,7 +4876,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
     case StackFrame::API_ACCESSOR_EXIT: {
       ApiAccessorExitFrame* frame = ApiAccessorExitFrame::cast(it.frame());
 
-      Handle<Object> holder(frame->holder(), this);
+      DirectHandle<Object> holder(frame->holder(), this);
       Handle<Name> name(frame->property_name(), this);
       DCHECK(IsJSReceiver(*holder));
 
@@ -4959,7 +4959,7 @@ void Isolate::ReportExceptionPropertyCallback(
 
   DirectHandle<Object> maybe_message(pending_message(), this);
 
-  Handle<String> property_name;
+  DirectHandle<String> property_name;
   std::ignore = Name::ToFunctionName(this, name).ToHandle(&property_name);
   DirectHandle<String> interface_name =
       JSReceiver::GetConstructorName(this, holder);
@@ -6433,9 +6433,9 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 }  // namespace
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
-    MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
+    MaybeDirectHandle<Script> maybe_referrer, Handle<Object> specifier,
     ModuleImportPhase phase,
-    MaybeHandle<Object> maybe_import_options_argument) {
+    MaybeDirectHandle<Object> maybe_import_options_argument) {
   DCHECK(!is_execution_terminating());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   if (host_import_module_dynamically_callback_ == nullptr) {
@@ -6444,8 +6444,8 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     return NewRejectedPromise(this, api_context, exception);
   }
 
-  Handle<String> specifier_str;
-  MaybeHandle<String> maybe_specifier = Object::ToString(this, specifier);
+  DirectHandle<String> specifier_str;
+  MaybeDirectHandle<String> maybe_specifier = Object::ToString(this, specifier);
   if (!maybe_specifier.ToHandle(&specifier_str)) {
     if (is_execution_terminating()) {
       return MaybeHandle<JSPromise>();
@@ -6457,7 +6457,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   DCHECK(!has_exception());
 
   v8::Local<v8::Promise> promise;
-  Handle<FixedArray> import_attributes_array;
+  DirectHandle<FixedArray> import_attributes_array;
   if (!GetImportAttributesFromArgument(maybe_import_options_argument)
            .ToHandle(&import_attributes_array)) {
     if (is_execution_terminating()) {
@@ -6511,9 +6511,9 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
 }
 
 MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
-    MaybeHandle<Object> maybe_import_options_argument) {
+    MaybeDirectHandle<Object> maybe_import_options_argument) {
   Handle<FixedArray> import_attributes_array = factory()->empty_fixed_array();
-  Handle<Object> import_options_argument;
+  DirectHandle<Object> import_options_argument;
   if (!maybe_import_options_argument.ToHandle(&import_options_argument) ||
       IsUndefined(*import_options_argument)) {
     return import_attributes_array;
@@ -6532,7 +6532,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   DirectHandle<JSReceiver> import_options_argument_receiver =
       Cast<JSReceiver>(import_options_argument);
 
-  Handle<Object> import_attributes_object;
+  DirectHandle<Object> import_attributes_object;
 
   if (v8_flags.harmony_import_attributes) {
     DirectHandle<Name> with_key = factory()->with_string();
@@ -6558,7 +6558,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   DirectHandle<JSReceiver> import_attributes_object_receiver =
       Cast<JSReceiver>(import_attributes_object);
 
-  Handle<FixedArray> attribute_keys;
+  DirectHandle<FixedArray> attribute_keys;
   if (!KeyAccumulator::GetKeys(this, import_attributes_object_receiver,
                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
                                GetKeysConversion::kConvertToString)
@@ -6578,7 +6578,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   for (int i = 0; i < attribute_keys->length(); i++) {
     DirectHandle<String> attribute_key(Cast<String>(attribute_keys->get(i)),
                                        this);
-    Handle<Object> attribute_value;
+    DirectHandle<Object> attribute_value;
     if (!Object::GetPropertyOrElement(this, import_attributes_object_receiver,
                                       attribute_key)
              .ToHandle(&attribute_value)) {
@@ -6619,7 +6619,7 @@ void Isolate::SetHostImportModuleWithPhaseDynamicallyCallback(
 }
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
-    Handle<SourceTextModule> module) {
+    DirectHandle<SourceTextModule> module) {
   CHECK(IsTheHole(module->import_meta(kAcquireLoad), this));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
   if (host_initialize_import_meta_object_callback_ != nullptr) {
@@ -6926,10 +6926,10 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   if (IsPromiseReactionJobTask(*current_microtask)) {
     auto promise_reaction_job_task =
         Cast<PromiseReactionJobTask>(current_microtask);
-    Handle<HeapObject> promise_or_capability(
+    DirectHandle<HeapObject> promise_or_capability(
         promise_reaction_job_task->promise_or_capability(), this);
     if (IsPromiseCapability(*promise_or_capability)) {
-      promise_or_capability = handle(
+      promise_or_capability = direct_handle(
           Cast<PromiseCapability>(promise_or_capability)->promise(), this);
     }
     if (IsJSPromise(*promise_or_capability)) {

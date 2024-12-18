@@ -116,7 +116,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     MaybeHandle<ScopeInfo> outer_scope_info, Isolate* isolate);
+                     MaybeDirectHandle<ScopeInfo> outer_scope_info,
+                     Isolate* isolate);
 
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
@@ -609,7 +610,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   MaybeHandle<SharedFunctionInfo> FinalizeScript(
       Isolate* isolate, DirectHandle<String> source,
       const ScriptDetails& script_details,
-      MaybeHandle<Script> maybe_cached_script);
+      MaybeDirectHandle<Script> maybe_cached_script);
 
   bool FinalizeFunction(Isolate* isolate, Compiler::ClearExceptionFlag flag);
 

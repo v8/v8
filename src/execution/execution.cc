@@ -335,7 +335,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
     // Set up a ScriptContext when running scripts that need it.
     if (function->shared()->needs_script_context()) {
-      Handle<Context> context;
+      DirectHandle<Context> context;
       DirectHandle<FixedArray> host_defined_options =
           const_cast<InvokeParams&>(params).GetAndResetHostDefinedOptions();
       if (!NewScriptContext(isolate, function, host_defined_options)

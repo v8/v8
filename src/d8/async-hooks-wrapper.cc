@@ -32,7 +32,8 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
     return nullptr;
   }
 
-  i::Handle<i::Object> handle = Utils::OpenHandle(*hook->GetInternalField(0));
+  i::DirectHandle<i::Object> handle =
+      Utils::OpenDirectHandle(*hook->GetInternalField(0));
   return Cast<i::Managed<AsyncHooksWrap>>(handle)->get();
 }
 

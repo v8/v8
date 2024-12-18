@@ -31,7 +31,7 @@ V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info,
 // nodes) if parsing failed.
 V8_EXPORT_PRIVATE bool ParseProgram(ParseInfo* info,
                                     DirectHandle<Script> script,
-                                    MaybeHandle<ScopeInfo> outer_scope,
+                                    MaybeDirectHandle<ScopeInfo> outer_scope,
                                     Isolate* isolate,
                                     ReportStatisticsMode mode);
 

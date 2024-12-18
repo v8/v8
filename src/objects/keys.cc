@@ -1251,7 +1251,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
     return CollectOwnJSProxyTargetKeys(proxy, target);
   }
   // 7. Let trapResultArray be Call(trap, handler, «target»).
-  Handle<Object> trap_result_array;
+  DirectHandle<Object> trap_result_array;
   DirectHandle<Object> args[] = {target};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, trap_result_array,

@@ -572,7 +572,7 @@ bool JsonStringifier::InitializeReplacer(Handle<JSAny> replacer) {
   if (is_array.FromJust()) {
     HandleScope handle_scope(isolate_);
     Handle<OrderedHashSet> set = factory()->NewOrderedHashSet();
-    Handle<Object> length_obj;
+    DirectHandle<Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_obj,
         Object::GetLengthFromArrayLike(isolate_, Cast<JSReceiver>(replacer)),
@@ -661,7 +661,7 @@ MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(
 
   // Retrieve toJSON function. The LookupIterator automatically handles
   // the ToObject() equivalent ("GetRoot") if {object} is a BigInt.
-  Handle<Object> fun;
+  DirectHandle<Object> fun;
   LookupIterator it(isolate_, object, factory()->toJSON_string(),
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it));
@@ -753,13 +753,13 @@ class CircularStructureMessageBuilder {
   explicit CircularStructureMessageBuilder(Isolate* isolate)
       : builder_(isolate) {}
 
-  void AppendStartLine(Handle<Object> start_object) {
+  void AppendStartLine(DirectHandle<Object> start_object) {
     builder_.AppendCString(kStartPrefix);
     builder_.AppendCStringLiteral("starting at object with constructor ");
     AppendConstructorName(start_object);
   }
 
-  void AppendNormalLine(DirectHandle<Object> key, Handle<Object> object) {
+  void AppendNormalLine(DirectHandle<Object> key, DirectHandle<Object> object) {
     builder_.AppendCString(kLinePrefix);
     AppendKey(key);
     builder_.AppendCStringLiteral(" -> object with constructor ");
@@ -780,7 +780,7 @@ class CircularStructureMessageBuilder {
   MaybeDirectHandle<String> Finish() { return builder_.Finish(); }
 
  private:
-  void AppendConstructorName(Handle<Object> object) {
+  void AppendConstructorName(DirectHandle<Object> object) {
     builder_.AppendCharacter('\'');
     DirectHandle<String> constructor_name = JSReceiver::GetConstructorName(
         builder_.isolate(), Cast<JSReceiver>(object));
@@ -1017,7 +1017,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
     SerializeString<false>(Cast<String>(value));
   } else if (IsNumber(raw)) {
-    Handle<Object> value;
+    DirectHandle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
     if (IsSmi(*value)) return SerializeSmi(Cast<Smi>(*value));
@@ -1351,7 +1351,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 
 JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
     DirectHandle<JSReceiver> object) {
-  Handle<FixedArray> contents = property_list_;
+  DirectHandle<FixedArray> contents = property_list_;
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
@@ -1387,7 +1387,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
   Maybe<bool> is_array = Object::IsArray(object);
   if (is_array.IsNothing()) return EXCEPTION;
   if (is_array.FromJust()) {
-    Handle<Object> length_object;
+    DirectHandle<Object> length_object;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_object,
         Object::GetLengthFromArrayLike(isolate_, Cast<JSReceiver>(object)),

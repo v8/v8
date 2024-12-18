@@ -37,7 +37,7 @@ void MaybeReportStatistics(ParseInfo* info, DirectHandle<Script> script,
 }  // namespace
 
 bool ParseProgram(ParseInfo* info, DirectHandle<Script> script,
-                  MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+                  MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
                   Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(info->flags().is_toplevel());
   DCHECK_NULL(info->literal());
@@ -99,14 +99,14 @@ bool ParseAny(ParseInfo* info, DirectHandle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
   if (info->flags().is_toplevel()) {
-    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info;
     if (shared_info->HasOuterScopeInfo()) {
       maybe_outer_scope_info =
-          handle(shared_info->GetOuterScopeInfo(), isolate);
+          direct_handle(shared_info->GetOuterScopeInfo(), isolate);
     }
-    return ParseProgram(info,
-                        handle(Cast<Script>(shared_info->script()), isolate),
-                        maybe_outer_scope_info, isolate, mode);
+    return ParseProgram(
+        info, direct_handle(Cast<Script>(shared_info->script()), isolate),
+        maybe_outer_scope_info, isolate, mode);
   }
   return ParseFunction(info, shared_info, isolate, mode);
 }

@@ -18,12 +18,12 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   ModuleImportPhase phase =
       static_cast<ModuleImportPhase>(args.smi_value_at(2));
 
-  MaybeHandle<Object> import_options;
+  MaybeDirectHandle<Object> import_options;
   if (args.length() == 4) {
     import_options = args.at<Object>(3);
   }
 
-  Handle<Script> referrer_script = handle(
+  DirectHandle<Script> referrer_script(
       Cast<Script>(function->shared()->script())->GetEvalOrigin(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->RunHostImportModuleDynamicallyCallback(
@@ -41,7 +41,7 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
 RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  Handle<SourceTextModule> module(isolate->context()->module(), isolate);
+  DirectHandle<SourceTextModule> module(isolate->context()->module(), isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            SourceTextModule::GetImportMeta(isolate, module));
 }

@@ -695,14 +695,10 @@ class V8_TRIVIAL_ABI DirectHandle :
     handle_.PatchValue(new_value);
   }
 
-  template <typename S>
-  V8_INLINE bool equals(Handle<S> other) const {
-    return handle_.equals(other);
-  }
-  template <typename S>
-  V8_INLINE bool equals(DirectHandle<S> other) const {
+  V8_INLINE bool equals(DirectHandle<T> other) const {
     return handle_.equals(other.handle_);
   }
+
   template <typename S>
   V8_INLINE bool is_identical_to(Handle<S> other) const {
     return handle_.is_identical_to(other);

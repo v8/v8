@@ -2236,7 +2236,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   Local<Object> object =
       info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-  i::Handle<i::JSReceiver> i_object = Utils::OpenHandle(*object);
+  i::DirectHandle<i::JSReceiver> i_object = Utils::OpenDirectHandle(*object);
   if (IsJSGlobalProxy(*i_object) &&
       i::Cast<i::JSGlobalProxy>(i_object)->IsDetached()) {
     return;
@@ -2265,7 +2265,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // global objects.
   Local<Object> global =
       Local<Context>::New(info.GetIsolate(), data->realms_[index])->Global();
-  i::Handle<i::Object> i_global = Utils::OpenHandle(*global);
+  i::DirectHandle<i::Object> i_global = Utils::OpenDirectHandle(*global);
   if (IsJSGlobalObject(*i_global)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
     i::DirectHandle<i::JSObject> i_global_proxy(

@@ -2737,7 +2737,7 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
                                                source->cached_data->length));
   }
 
-  i::Handle<i::JSFunction> result;
+  i::DirectHandle<i::JSFunction> result;
   has_exception =
       !i::Compiler::GetWrappedFunction(
            Utils::OpenHandle(*source->source_string), context, script_details,
@@ -12196,7 +12196,7 @@ void InvokeAccessorGetterCallback(
         accessor_info->getter(i_isolate));
 
     if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
-      i::Handle<Object> receiver_check_unsupported;
+      i::DirectHandle<Object> receiver_check_unsupported;
 
       if (!i_isolate->debug()->PerformSideEffectCheckForAccessor(
               direct_handle(accessor_info, i_isolate),

@@ -940,7 +940,8 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckResult(kImmutable, 42);
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
-  Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();
+  DirectHandle<Object> h_result =
+      tester.GetResultObject(kAllocate).ToHandleChecked();
   CHECK(IsWasmArray(*h_result));
   CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
@@ -948,16 +949,17 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   CHECK(IsWasmArray(*h_result));
   CHECK_EQ(2, Cast<WasmArray>(h_result)->length());
 
-  Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
+  DirectHandle<Object> init_result =
+      tester.GetResultObject(kInit).ToHandleChecked();
   CHECK(IsWasmArray(*init_result));
   CHECK_EQ(3, Cast<WasmArray>(init_result)->length());
   CHECK_EQ(10, Cast<WasmArray>(init_result)->GetElement(0).to_i32());
   CHECK_EQ(20, Cast<WasmArray>(init_result)->GetElement(1).to_i32());
   CHECK_EQ(30, Cast<WasmArray>(init_result)->GetElement(2).to_i32());
 
-  MaybeHandle<Object> maybe_large_result =
+  MaybeDirectHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
-  Handle<Object> large_result = maybe_large_result.ToHandleChecked();
+  DirectHandle<Object> large_result = maybe_large_result.ToHandleChecked();
   CHECK(IsWasmArray(*large_result));
   CHECK(Cast<WasmArray>(large_result)->Size() > kMaxRegularHeapObjectSize);
 
@@ -1162,7 +1164,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
         tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
     CHECK(IsWasmNull(*result5));
     for (int i = 6; i <= 9; i++) {
-      Handle<Object> res =
+      DirectHandle<Object> res =
           tester.GetResultObject(kCopyRef, i).ToHandleChecked();
       CHECK(IsWasmArray(*res));
       CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
@@ -1170,12 +1172,12 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   }
   CHECK(IsWasmNull(
       *tester.GetResultObject(kCopyRefOverlapping, 6).ToHandleChecked()));
-  Handle<Object> res0 =
+  DirectHandle<Object> res0 =
       tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
   CHECK(IsWasmArray(*res0));
   CHECK_EQ(Cast<WasmArray>(res0)->length(), static_cast<uint32_t>(2));
   for (int i = 2; i <= 5; i++) {
-    Handle<Object> res =
+    DirectHandle<Object> res =
         tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
     CHECK(IsWasmArray(*res));
     CHECK_EQ(Cast<WasmArray>(res)->length(), static_cast<uint32_t>(i));
@@ -1440,7 +1442,8 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
       {WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(42)), kExprEnd});
 
   tester.CompileModule();
-  Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
+  DirectHandle<Object> result =
+      tester.GetResultObject(array_new).ToHandleChecked();
   CHECK(IsWasmArray(*result));
   CHECK_EQ(Cast<WasmArray>(result)->map(),
            tester.trusted_instance_data()->managed_object_maps()->get(
@@ -2038,7 +2041,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
   Isolate* isolate = tester.isolate();
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   for (const char* producer : {"typed_producer", "untyped_producer"}) {
-    MaybeHandle<Object> maybe_result =
+    MaybeDirectHandle<Object> maybe_result =
         tester.CallExportedFunction(producer, {});
     if (maybe_result.is_null()) {
       FATAL("Calling %s failed: %s", producer,

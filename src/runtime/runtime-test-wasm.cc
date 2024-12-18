@@ -530,10 +530,10 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
   // JSArrayBuffer backing store doesn't get relocated.
   wasm::CompileTimeImports compile_imports{};
-  MaybeHandle<WasmModuleObject> maybe_module_object =
+  MaybeDirectHandle<WasmModuleObject> maybe_module_object =
       wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec,
                                     compile_imports, {});
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -739,11 +739,12 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     return ReadOnlyRoots(isolate).exception();
   }
   // Instantiate the module.
-  MaybeHandle<WasmInstanceObject> maybe_instance = engine->SyncInstantiate(
-      isolate, &thrower, module_object, Handle<JSReceiver>::null(),
-      MaybeHandle<JSArrayBuffer>());
+  MaybeDirectHandle<WasmInstanceObject> maybe_instance =
+      engine->SyncInstantiate(isolate, &thrower, module_object,
+                              Handle<JSReceiver>::null(),
+                              MaybeHandle<JSArrayBuffer>());
   CHECK(!thrower.error());
-  Handle<WasmInstanceObject> instance;
+  DirectHandle<WasmInstanceObject> instance;
   if (!maybe_instance.ToHandle(&instance)) {
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
@@ -773,7 +774,7 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
 // function creates a frozen JS object that should behave the same as a wasm
 // object within JS.
 static Tagged<Object> CreateDummyWasmLookAlikeForFuzzing(Isolate* isolate) {
-  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
   CHECK(IsJSReceiver(*obj));
   MAYBE_RETURN(JSReceiver::SetIntegrityLevel(isolate, Cast<JSReceiver>(obj),
                                              FROZEN, kThrowOnError),
@@ -1092,7 +1093,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
   }
 
   wasm::ErrorThrower thrower{isolate, "WasmGenerateRandomModule"};
-  MaybeHandle<WasmModuleObject> maybe_module_object =
+  MaybeDirectHandle<WasmModuleObject> maybe_module_object =
       wasm::GetWasmEngine()->SyncCompile(isolate,
                                          wasm::WasmEnabledFeatures::FromFlags(),
                                          wasm::CompileTimeImports{}, &thrower,

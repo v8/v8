@@ -24,10 +24,10 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmImportValue) {
   HandleScope scope(isolate);
   Handle<String> specifier = args.at<String>(0);
 
-  Handle<JSPromise> inner_capability;
+  DirectHandle<JSPromise> inner_capability;
 
-  MaybeHandle<Object> import_options;
-  MaybeHandle<Script> referrer;
+  MaybeDirectHandle<Object> import_options;
+  MaybeDirectHandle<Script> referrer;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, inner_capability,
       isolate->RunHostImportModuleDynamicallyCallback(

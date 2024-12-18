@@ -276,7 +276,7 @@ RUNTIME_FUNCTION(Runtime_RuntimeEvaluateREPL) {
     return CrashUnlessFuzzing(isolate);
   }
   Handle<String> source = args.at<String>(0);
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       DebugEvaluate::Global(isolate, source,
@@ -361,7 +361,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
     return CrashUnlessFuzzing(isolate);
   }
 
-  Handle<Object> function_object = args.at(0);
+  DirectHandle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
@@ -374,7 +374,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 
   ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
   if (args.length() == 2) {
-    Handle<Object> type = args.at(1);
+    DirectHandle<Object> type = args.at(1);
     if (!IsString(*type)) return CrashUnlessFuzzing(isolate);
     if (Cast<String>(type)->IsOneByteEqualTo(
             base::StaticCharVector("concurrent")) &&
@@ -435,7 +435,7 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<Object> function_object = args.at(0);
+  DirectHandle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 
@@ -2054,7 +2054,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
   if (args.length() != 1 || !IsHeapObject(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  DirectHandle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(IsString(*obj) &&
                                     Cast<String>(obj)->IsShared());
 }
@@ -2068,8 +2068,9 @@ RUNTIME_FUNCTION(Runtime_ShareObject) {
   }
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   ShouldThrow should_throw = v8_flags.fuzzing ? kDontThrow : kThrowOnError;
-  MaybeHandle<Object> maybe_shared = Object::Share(isolate, obj, should_throw);
-  Handle<Object> shared;
+  MaybeDirectHandle<Object> maybe_shared =
+      Object::Share(isolate, obj, should_throw);
+  DirectHandle<Object> shared;
   if (!maybe_shared.ToHandle(&shared)) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -2223,7 +2224,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<Object> function_object = args.at(0);
+  DirectHandle<Object> function_object = args.at(0);
   if (!IsJSFunction(*function_object)) return CrashUnlessFuzzing(isolate);
   DirectHandle<JSFunction> function = Cast<JSFunction>(function_object);
 

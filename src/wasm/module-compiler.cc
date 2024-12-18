@@ -2773,9 +2773,10 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
       sourcemap_symbol.type != WasmDebugSymbols::Type::None &&
       !sourcemap_symbol.external_url.is_empty()) {
     ModuleWireBytes wire_bytes(native_module_->wire_bytes());
-    MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
-        wire_bytes.GetNameOrNull(sourcemap_symbol.external_url),
-        AllocationType::kOld);
+    MaybeDirectHandle<String> src_map_str =
+        isolate_->factory()->NewStringFromUtf8(
+            wire_bytes.GetNameOrNull(sourcemap_symbol.external_url),
+            AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   {
@@ -3531,7 +3532,7 @@ bool AsyncStreamingProcessor::Deserialize(
   HandleScope scope(job_->isolate_);
   SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
 
-  MaybeHandle<WasmModuleObject> result = DeserializeNativeModule(
+  MaybeDirectHandle<WasmModuleObject> result = DeserializeNativeModule(
       job_->isolate_, module_bytes, wire_bytes, job_->compile_imports_,
       base::VectorOf(job_->stream_->url()));
 

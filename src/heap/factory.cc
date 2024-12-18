@@ -2776,7 +2776,7 @@ Handle<JSObject> Factory::NewError(DirectHandle<JSFunction> constructor,
 }
 
 Handle<JSObject> Factory::ShadowRealmNewTypeErrorCopy(
-    Handle<Object> original, MessageTemplate template_index,
+    DirectHandle<Object> original, MessageTemplate template_index,
     base::Vector<const DirectHandle<Object>> args) {
   return ErrorUtils::ShadowRealmConstructTypeErrorCopy(isolate(), original,
                                                        template_index, args);
@@ -4257,7 +4257,8 @@ Handle<String> Factory::ToPrimitiveHintString(ToPrimitiveHint hint) {
 }
 
 Handle<Map> Factory::CreateSloppyFunctionMap(
-    FunctionMode function_mode, MaybeHandle<JSFunction> maybe_empty_function) {
+    FunctionMode function_mode,
+    MaybeDirectHandle<JSFunction> maybe_empty_function) {
   bool has_prototype = IsFunctionModeWithPrototype(function_mode);
   int header_size = has_prototype ? JSFunction::kSizeWithPrototype
                                   : JSFunction::kSizeWithoutPrototype;
@@ -4275,7 +4276,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     raw_map->set_is_constructor(has_prototype);
     raw_map->set_is_callable(true);
   }
-  Handle<JSFunction> empty_function;
+  DirectHandle<JSFunction> empty_function;
   if (maybe_empty_function.ToHandle(&empty_function)) {
     // Temporarily set constructor to empty function to calm down map verifier.
     map->SetConstructor(*empty_function);
@@ -4516,7 +4517,7 @@ Handle<JSFunction> Factory::NewFunctionForTesting(DirectHandle<String> name) {
 
 Handle<JSSharedStruct> Factory::NewJSSharedStruct(
     DirectHandle<JSFunction> constructor,
-    MaybeHandle<NumberDictionary> maybe_elements_template) {
+    MaybeDirectHandle<NumberDictionary> maybe_elements_template) {
   SharedObjectSafePublishGuard publish_guard;
 
   DirectHandle<Map> instance_map(constructor->initial_map(), isolate());
@@ -4529,7 +4530,7 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
         NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
   }
 
-  Handle<NumberDictionary> elements_dictionary;
+  DirectHandle<NumberDictionary> elements_dictionary;
   bool has_elements_dictionary;
   if ((has_elements_dictionary =
            maybe_elements_template.ToHandle(&elements_dictionary))) {

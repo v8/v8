@@ -330,7 +330,7 @@ class V8FileLogger : public LogEventListener {
   // each script is logged only once.
   bool EnsureLogScriptSource(Tagged<Script> script);
 
-  void LogSourceCodeInformation(Handle<AbstractCode> code,
+  void LogSourceCodeInformation(DirectHandle<AbstractCode> code,
                                 DirectHandle<SharedFunctionInfo> shared);
   void LogCodeDisassemble(DirectHandle<AbstractCode> code);
 

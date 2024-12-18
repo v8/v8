@@ -88,7 +88,8 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate,
                        stack->GetFrame(v8_isolate, 0));
 }
 
-void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
+void CheckComputeLocation(v8::internal::Isolate* i_isolate,
+                          DirectHandle<Object> exc,
                           const ExceptionInfo& topLocation,
                           const v8::Local<v8::StackFrame> stackFrame) {
   MessageLocation loc;
@@ -154,7 +155,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> returnObjMaybe =
+  MaybeDirectHandle<Object> returnObjMaybe =
       Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
@@ -203,7 +204,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
   MaybeDirectHandle<Object> maybe_exc;
   DirectHandle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> maybe_return_obj =
+  MaybeDirectHandle<Object> maybe_return_obj =
       Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
 
@@ -217,7 +218,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   DirectHandle<CallSiteInfo> stack_frame(
       Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 
-  MaybeHandle<String> maybe_stack_trace_str =
+  MaybeDirectHandle<String> maybe_stack_trace_str =
       SerializeCallSiteInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
   DirectHandle<String> stack_trace_str =
@@ -259,7 +260,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     DirectHandle<Object> global(isolate->context()->global_object(), isolate);
     MaybeDirectHandle<Object> maybe_exc;
     DirectHandle<Object> args[] = {js_wasm_wrapper};
-    MaybeHandle<Object> maybe_return_obj =
+    MaybeDirectHandle<Object> maybe_return_obj =
         Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                            Execution::MessageHandling::kReport, &maybe_exc);
     CHECK(maybe_return_obj.is_null());

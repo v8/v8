@@ -563,7 +563,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, holder,
                                                     {}, {});
   }
-  Handle<Object> maybe_accessors = get_accessors();
+  DirectHandle<Object> maybe_accessors = get_accessors();
   if (!IsAccessorPair(*maybe_accessors)) {
     return PropertyAccessInfo::Invalid(zone);
   }

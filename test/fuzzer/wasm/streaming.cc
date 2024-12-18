@@ -128,7 +128,7 @@ CompilationResult CompileSync(Isolate* isolate,
                               WasmEnabledFeatures enabled_features,
                               base::Vector<const uint8_t> data) {
   ErrorThrower thrower{isolate, "wasm-streaming-fuzzer"};
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   CompilationResult result;
   if (!GetWasmEngine()
            ->SyncCompile(isolate, enabled_features, CompileTimeImports{},

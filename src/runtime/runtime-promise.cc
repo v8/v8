@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> promise = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseBefore(Cast<JSPromise>(promise));
     RETURN_FAILURE_IF_EXCEPTION(isolate);
@@ -119,7 +119,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
 RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> promise = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> promise = args.at<JSReceiver>(0);
   if (IsJSPromise(*promise)) {
     isolate->OnPromiseAfter(Cast<JSPromise>(promise));
     RETURN_FAILURE_IF_EXCEPTION(isolate);
@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
   DCHECK_EQ(2, args.length());
   DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   DirectHandle<Object> resolution = args.at(1);
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSPromise::Resolve(promise, resolution));
   return *result;
@@ -160,7 +160,7 @@ RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
 
   DCHECK_EQ(*target, *isolate->aggregate_error_function());
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       ErrorUtils::Construct(isolate, target, new_target, message, options));
@@ -190,7 +190,7 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
       MessageFormatter::Format(isolate, MessageTemplate(message_template_index),
                                base::VectorOf(message_args, num_message_args));
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       ErrorUtils::Construct(isolate, isolate->aggregate_error_function(),
@@ -208,7 +208,7 @@ RUNTIME_FUNCTION(Runtime_ConstructSuppressedError) {
 
   DCHECK_EQ(*target, *isolate->suppressed_error_function());
 
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       ErrorUtils::Construct(isolate, target, new_target, message,

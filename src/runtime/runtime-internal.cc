@@ -671,14 +671,14 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<JSAny> sync_iterator_any = args.at<JSAny>(0);
-  Handle<JSReceiver> sync_iterator;
+  DirectHandle<JSAny> sync_iterator_any = args.at<JSAny>(0);
+  DirectHandle<JSReceiver> sync_iterator;
   if (!TryCast<JSReceiver>(sync_iterator_any, &sync_iterator)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
   }
 
-  Handle<Object> next;
+  DirectHandle<Object> next;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, next,
       Object::GetProperty(isolate, sync_iterator,
@@ -708,7 +708,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  Handle<Object> exception = args.at(0);
+  DirectHandle<Object> exception = args.at(0);
 
   DCHECK(!isolate->has_exception());
   isolate->set_exception(*exception);
@@ -749,7 +749,7 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<HeapObject> value = args.at<HeapObject>(0);
-  Handle<Object> shared_value;
+  DirectHandle<Object> shared_value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::ShareSlow(isolate, value, kThrowOnError));
   return *shared_value;

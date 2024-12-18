@@ -40,7 +40,7 @@ class IC {
   // Compute the current IC state based on the target stub, lookup_start_object
   // and name.
   void UpdateState(DirectHandle<Object> lookup_start_object,
-                   Handle<Object> name);
+                   DirectHandle<Object> name);
 
   bool RecomputeHandlerForName(DirectHandle<Object> name);
   void MarkRecomputeHandler(DirectHandle<Object> name) {
@@ -243,7 +243,7 @@ class KeyedLoadIC : public LoadIC {
                                                      Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
-  void UpdateLoadElement(Handle<HeapObject> receiver,
+  void UpdateLoadElement(DirectHandle<HeapObject> receiver,
                          KeyedAccessLoadMode new_load_mode);
 
  private:
@@ -331,9 +331,10 @@ class KeyedStoreIC : public StoreIC {
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      TransitionMode transition_mode);
 
-  Handle<Object> StoreElementHandler(
-      DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
-      MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
+  Handle<Object> StoreElementHandler(DirectHandle<Map> receiver_map,
+                                     KeyedAccessStoreMode store_mode,
+                                     MaybeDirectHandle<UnionOf<Smi, Cell>>
+                                         prev_validity_cell = kNullMaybeHandle);
 
   void StoreElementPolymorphicHandlers(
       MapsAndHandlers* receiver_maps_and_handlers,
@@ -351,7 +352,7 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 
-  MaybeHandle<Object> Store(Handle<JSArray> array, Handle<Object> index,
+  MaybeHandle<Object> Store(DirectHandle<JSArray> array, Handle<Object> index,
                             Handle<Object> value);
 };
 

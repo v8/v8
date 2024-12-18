@@ -76,7 +76,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::Factory* factory = i_isolate->factory();
 
   if (size > INT_MAX) return 0;
-  v8::internal::MaybeHandle<v8::internal::String> source =
+  v8::internal::MaybeDirectHandle<v8::internal::String> source =
       factory->NewStringFromOneByte(v8::base::VectorOf(data, size));
   if (source.is_null()) return 0;
 

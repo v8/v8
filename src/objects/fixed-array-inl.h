@@ -594,9 +594,9 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 
 // static
 template <class IsolateT>
-Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
-                                           AllocationType allocation,
-                                           MaybeHandle<Object> initial_value) {
+Handle<WeakFixedArray> WeakFixedArray::New(
+    IsolateT* isolate, int capacity, AllocationType allocation,
+    MaybeDirectHandle<Object> initial_value) {
   CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
   if (V8_UNLIKELY(capacity == 0)) {

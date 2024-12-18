@@ -117,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
   int opcode = args.smi_value_at(1);
   Operation op = static_cast<Operation>(opcode);
 
-  MaybeHandle<BigInt> result;
+  MaybeDirectHandle<BigInt> result;
   switch (op) {
     case Operation::kBitwiseNot:
       result = BigInt::BitwiseNot(isolate, x);

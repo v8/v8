@@ -473,7 +473,7 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
 MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data,
     DirectHandle<String> source, const ScriptDetails& script_details,
-    MaybeHandle<Script> maybe_cached_script) {
+    MaybeDirectHandle<Script> maybe_cached_script) {
   if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
@@ -520,7 +520,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   // existing Script from the Isolate compilation cache. If so, perform
   // the merge in a single-threaded manner since this deserialization was
   // single-threaded.
-  if (Handle<Script> cached_script;
+  if (DirectHandle<Script> cached_script;
       maybe_cached_script.ToHandle(&cached_script)) {
     BackgroundMergeTask merge;
     merge.SetUpOnMainThread(isolate, cached_script);

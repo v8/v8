@@ -224,7 +224,7 @@ TEST(DeserializeWithSourceUrl) {
   {
     HandleScope scope(CcTest::i_isolate());
     const std::string url = "http://example.com/example.wasm";
-    Handle<WasmModuleObject> module_object;
+    DirectHandle<WasmModuleObject> module_object;
     CHECK(test.Deserialize(base::VectorOf(url)).ToHandle(&module_object));
     Tagged<String> url_str = Cast<String>(module_object->script()->name());
     CHECK_EQ(url, url_str->ToCString().get());
@@ -298,11 +298,11 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     testing::SetupIsolateForWasmModule(from_i_isolate);
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmEnabledFeatures::FromIsolate(from_i_isolate);
-    MaybeHandle<WasmModuleObject> maybe_module_object =
+    MaybeDirectHandle<WasmModuleObject> maybe_module_object =
         GetWasmEngine()->SyncCompile(from_i_isolate, enabled_features,
                                      CompileTimeImports{}, &thrower,
                                      base::OwnedCopyOf(buffer));
-    Handle<WasmModuleObject> module_object =
+    DirectHandle<WasmModuleObject> module_object =
         maybe_module_object.ToHandleChecked();
     v8::Local<v8::WasmModuleObject> v8_module =
         v8::Local<v8::WasmModuleObject>::Cast(
@@ -338,7 +338,7 @@ TEST(TierDownAfterDeserialization) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   CHECK(test.Deserialize().ToHandle(&module_object));
 
   auto* native_module = module_object->native_module();
@@ -371,7 +371,7 @@ TEST(SerializeLiftoffModuleFails) {
   WasmSerializationTest::BuildWireBytes(&zone, &wire_bytes_buffer);
 
   ErrorThrower thrower(isolate, "Test");
-  MaybeHandle<WasmModuleObject> maybe_module_object =
+  MaybeDirectHandle<WasmModuleObject> maybe_module_object =
       GetWasmEngine()->SyncCompile(isolate, WasmEnabledFeatures::All(),
                                    CompileTimeImports{}, &thrower,
                                    base::OwnedCopyOf(wire_bytes_buffer));
@@ -395,7 +395,7 @@ TEST(SerializeTieringBudget) {
   uint32_t mock_budget[3]{1, 2, 3};
   {
     HandleScope scope(isolate);
-    Handle<WasmModuleObject> module_object;
+    DirectHandle<WasmModuleObject> module_object;
     CHECK(test.Deserialize().ToHandle(&module_object));
 
     auto* native_module = module_object->native_module();
@@ -418,7 +418,7 @@ TEST(SerializeTieringBudget) {
       isolate->heap());
   test.CollectGarbage();
   HandleScope scope(isolate);
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   CompileTimeImports compile_imports = test.MakeCompileTimeImports();
   CHECK(
       DeserializeNativeModule(

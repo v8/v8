@@ -13,11 +13,11 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> function = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
 
   if (IsJSFunction(*function)) {
-    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
-                          isolate);
+    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                                isolate);
     if (IsScript(*script)) return Cast<Script>(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -26,11 +26,11 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> function = args.at<JSReceiver>(0);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
 
   if (IsJSFunction(*function)) {
-    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
-                          isolate);
+    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                                isolate);
     if (IsScript(*script)) {
       return Smi::FromInt(Cast<Script>(script)->id());
     }

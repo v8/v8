@@ -577,7 +577,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   DirectHandle<String> foo_str = factory->InternalizeUtf8String("foo");
   DirectHandle<String> obj_name = factory->InternalizeUtf8String("o");
 
-  Handle<Object> obj_value =
+  DirectHandle<Object> obj_value =
       Object::GetProperty(isolate, isolate->global_object(), obj_name)
           .ToHandleChecked();
   CHECK(IsJSObject(*obj_value));
@@ -1563,7 +1563,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      Handle<String> name = factory->empty_string();
+      DirectHandle<String> name = factory->empty_string();
       DirectHandle<Map> sloppy_map =
           Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
       DirectHandle<SharedFunctionInfo> info =
@@ -2246,7 +2246,7 @@ static void TestGeneralizeFieldWithSpecialTransition(
 
         // If Map::TryUpdate() manages to succeed the result must match the
         // result of Map::Update().
-        Handle<Map> tmp_map;
+        DirectHandle<Map> tmp_map;
         CHECK(Map::TryUpdate(isolate, map_a).ToHandle(&tmp_map));
         CHECK_EQ(*new_map_a, *tmp_map);
         CHECK(Map::TryUpdate(isolate, map_b).ToHandle(&tmp_map));
@@ -2700,7 +2700,7 @@ static void TestGeneralizeFieldWithSpecialTransitionLegacy(
         CHECK(!new_map2->is_deprecated());
         CHECK(!new_map2->is_dictionary_map());
 
-        Handle<Map> tmp_map;
+        DirectHandle<Map> tmp_map;
         if (Map::TryUpdate(isolate, map2).ToHandle(&tmp_map)) {
           // If Map::TryUpdate() manages to succeed the result must match the
           // result of Map::Update().
@@ -3234,7 +3234,7 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<String> name = factory->empty_string();
+  DirectHandle<String> name = factory->empty_string();
   DirectHandle<Map> sloppy_map =
       Map::CopyInitialMap(isolate, isolate->sloppy_function_map());
   DirectHandle<SharedFunctionInfo> info =

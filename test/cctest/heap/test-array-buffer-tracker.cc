@@ -272,7 +272,7 @@ TEST(ArrayBuffer_LivePromotion) {
   Tagged<JSArrayBuffer> raw_ab;
   {
     v8::HandleScope handle_scope(isolate);
-    Handle<FixedArray> root =
+    DirectHandle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
       v8::HandleScope new_handle_scope(isolate);

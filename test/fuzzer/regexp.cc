@@ -72,7 +72,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
               v8::base::Vector<const v8::base::uc16>(two_byte_array, 6))
           .ToHandleChecked();
 
-  i::Handle<i::JSRegExp> regexp;
+  i::DirectHandle<i::JSRegExp> regexp;
   {
     CHECK(!i_isolate->has_exception());
     v8::TryCatch try_catch_inner(isolate);
@@ -80,7 +80,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string str = std::string(reinterpret_cast<const char*>(data), size);
     i::JSRegExp::Flags flag = static_cast<i::JSRegExp::Flags>(
         std::hash<std::string>()(str) % (kAllFlags + 1));
-    i::MaybeHandle<i::JSRegExp> maybe_regexp =
+    i::MaybeDirectHandle<i::JSRegExp> maybe_regexp =
         i::JSRegExp::New(i_isolate, source, flag);
     if (!maybe_regexp.ToHandle(&regexp)) {
       i_isolate->clear_exception();

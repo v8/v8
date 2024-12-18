@@ -338,7 +338,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Rehash(
     Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity) {
   MaybeHandle<OrderedNameDictionary> new_table_candidate =
       Base::Rehash(isolate, table, new_capacity);
-  Handle<OrderedNameDictionary> new_table;
+  DirectHandle<OrderedNameDictionary> new_table;
   if (new_table_candidate.ToHandle(&new_table)) {
     new_table->SetHash(table->Hash());
   }
@@ -549,7 +549,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Allocate(
     Isolate* isolate, int capacity, AllocationType allocation) {
   MaybeHandle<OrderedNameDictionary> table_candidate =
       Base::Allocate(isolate, capacity, allocation);
-  Handle<OrderedNameDictionary> table;
+  DirectHandle<OrderedNameDictionary> table;
   if (table_candidate.ToHandle(&table)) {
     table->SetHash(PropertyArray::kNoHashSentinel);
   }
@@ -573,7 +573,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::AllocateEmpty(
   RootIndex ri = RootIndex::kEmptyOrderedPropertyDictionary;
   MaybeHandle<OrderedNameDictionary> table_candidate =
       Base::AllocateEmpty(isolate, allocation, ri);
-  Handle<OrderedNameDictionary> table;
+  DirectHandle<OrderedNameDictionary> table;
   if (table_candidate.ToHandle(&table)) {
     table->SetHash(PropertyArray::kNoHashSentinel);
   }

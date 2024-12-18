@@ -2354,7 +2354,7 @@ Tagged<JSFunction> V8HeapExplorer::GetConstructor(Isolate* isolate,
                                                   Tagged<JSReceiver> receiver) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  MaybeHandle<JSFunction> maybe_constructor =
+  MaybeDirectHandle<JSFunction> maybe_constructor =
       JSReceiver::GetConstructor(isolate, handle(receiver, isolate));
 
   if (maybe_constructor.is_null()) return JSFunction();
@@ -2859,8 +2859,8 @@ V8HeapExplorer::CollectTemporaryGlobalObjectsTags() {
   TemporaryGlobalObjectTags global_object_tags;
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator(
-      isolate, [this, isolate,
-                &global_object_tags](Handle<JSGlobalObject> global_object) {
+      isolate, [this, isolate, &global_object_tags](
+                   DirectHandle<JSGlobalObject> global_object) {
         if (const char* tag = global_object_name_resolver_->GetName(
                 Utils::ToLocal(Cast<JSObject>(global_object)))) {
           global_object_tags.emplace_back(

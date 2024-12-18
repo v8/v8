@@ -874,7 +874,7 @@ void JitLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
   event.code_type = IsCode(code, cage_base) ? JitCodeEvent::JIT_CODE
                                             : JitCodeEvent::BYTE_CODE;
   event.code_len = code->InstructionSize(cage_base);
-  Handle<SharedFunctionInfo> shared;
+  DirectHandle<SharedFunctionInfo> shared;
   if (maybe_shared.ToHandle(&shared) &&
       IsScript(shared->script(cage_base), cage_base)) {
     event.script = ToApiHandle<v8::UnboundScript>(shared);
@@ -1402,7 +1402,7 @@ void AppendCodeCreateHeader(Isolate* isolate, LogFile::MessageBuilder& msg,
 //      S<shared-function-info-address>
 
 void V8FileLogger::LogSourceCodeInformation(
-    Handle<AbstractCode> code, DirectHandle<SharedFunctionInfo> shared) {
+    DirectHandle<AbstractCode> code, DirectHandle<SharedFunctionInfo> shared) {
   PtrComprCageBase cage_base(isolate_);
   Tagged<Object> script_object = shared->script(cage_base);
   if (!IsScript(script_object, cage_base)) return;

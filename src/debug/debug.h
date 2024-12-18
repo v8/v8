@@ -414,19 +414,19 @@ class V8_EXPORT_PRIVATE Debug {
   void IgnoreSideEffectsOnNextCallTo(Handle<FunctionTemplateInfo> function);
 
   bool PerformSideEffectCheck(DirectHandle<JSFunction> function,
-                              Handle<Object> receiver);
+                              DirectHandle<Object> receiver);
 
   void PrepareBuiltinForSideEffectCheck(Isolate* isolate, Builtin id);
 
   bool PerformSideEffectCheckForAccessor(
-      DirectHandle<AccessorInfo> accessor_info, Handle<Object> receiver,
+      DirectHandle<AccessorInfo> accessor_info, DirectHandle<Object> receiver,
       AccessorComponent component);
   bool PerformSideEffectCheckForCallback(Handle<FunctionTemplateInfo> function);
   bool PerformSideEffectCheckForInterceptor(
       DirectHandle<InterceptorInfo> interceptor_info);
 
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
-  bool PerformSideEffectCheckForObject(Handle<Object> object);
+  bool PerformSideEffectCheckForObject(DirectHandle<Object> object);
 
   // Flags and states.
   inline bool is_active() const { return is_active_; }

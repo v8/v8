@@ -1256,7 +1256,7 @@ BUILTIN(SegmenterPrototypeSegment) {
   CHECK_RECEIVER(JSSegmenter, segmenter, "Intl.Segmenter.prototype.segment");
   Handle<Object> input_text = args.atOrUndefined(isolate, 1);
   // 3. Let string be ? ToString(string).
-  Handle<String> string;
+  DirectHandle<String> string;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string,
                                      Object::ToString(isolate, input_text));
 
@@ -1337,7 +1337,7 @@ BUILTIN(V8BreakIteratorInternalAdoptText) {
       isolate);
 
   Handle<Object> input_text = args.atOrUndefined(isolate, 1);
-  Handle<String> text;
+  DirectHandle<String> text;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, text,
                                      Object::ToString(isolate, input_text));
 

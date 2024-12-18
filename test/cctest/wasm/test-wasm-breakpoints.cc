@@ -274,7 +274,7 @@ std::vector<WasmValue> wasmVec(Args... args) {
   return std::vector<WasmValue>{arr.begin(), arr.end()};
 }
 
-int GetIntReturnValue(MaybeHandle<Object> retval) {
+int GetIntReturnValue(MaybeDirectHandle<Object> retval) {
   CHECK(!retval.is_null());
   int result;
   CHECK(Object::ToInt32(*retval.ToHandleChecked(), &result));
@@ -323,7 +323,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
@@ -341,7 +341,7 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(1024, GetIntReturnValue(retval));
 }
@@ -365,7 +365,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
                             });
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
@@ -482,7 +482,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
                                       {4, BreakHandler::Continue}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
@@ -510,7 +510,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
                  }}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
@@ -540,7 +540,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
                  }}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
@@ -572,7 +572,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   BreakHandler count_breaks(isolate, {{3, BreakHandler::Continue}});
 
   DirectHandle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(kReturn, GetIntReturnValue(retval));
 }

@@ -105,7 +105,7 @@ class DependentCode : public WeakArrayList {
  private:
   // Get/Set {object}'s {DependentCode}.
   static Tagged<DependentCode> GetDependentCode(Tagged<HeapObject> object);
-  static void SetDependentCode(Handle<HeapObject> object,
+  static void SetDependentCode(DirectHandle<HeapObject> object,
                                DirectHandle<DependentCode> dep);
 
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,

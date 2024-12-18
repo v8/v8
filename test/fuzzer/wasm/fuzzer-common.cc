@@ -140,7 +140,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   Handle<WasmModuleObject> module_ref = CompileReferenceModule(
       isolate, module_object->native_module()->wire_bytes(), &max_steps,
       &nondeterminism);
-  Handle<WasmInstanceObject> instance_ref;
+  DirectHandle<WasmInstanceObject> instance_ref;
 
   // Try to instantiate the reference instance, return if it fails.
   {
@@ -156,7 +156,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   }
 
   // Get the "main" exported function. Do nothing if it does not exist.
-  Handle<WasmExportedFunction> main_function;
+  DirectHandle<WasmExportedFunction> main_function;
   if (!testing::GetExportedFunction(isolate, instance_ref, "main")
            .ToHandle(&main_function)) {
     return;
@@ -224,7 +224,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
-  Handle<WasmInstanceObject> instance;
+  DirectHandle<WasmInstanceObject> instance;
   {
     ErrorThrower thrower(isolate, "ExecuteAgainstReference (second)");
     // We instantiated before, so the second instantiation must also succeed.

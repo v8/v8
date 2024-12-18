@@ -157,10 +157,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
   template <typename IsolateT>
-  void DeserializeScopeChain(IsolateT* isolate, ParseInfo* info,
-                             MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-                             Scope::DeserializationMode mode =
-                                 Scope::DeserializationMode::kScopesOnly);
+  void DeserializeScopeChain(
+      IsolateT* isolate, ParseInfo* info,
+      MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
+      Scope::DeserializationMode mode =
+          Scope::DeserializationMode::kScopesOnly);
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);
@@ -180,7 +181,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(
       ParseInfo*, DirectHandle<Script>,
-      MaybeHandle<ScopeInfo> maybe_outer_scope_info, Isolate*,
+      MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info, Isolate*,
       parsing::ReportStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, DirectHandle<SharedFunctionInfo> shared_info, Isolate*,
@@ -224,7 +225,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Sets the literal on |info| if parsing succeeded.
   void ParseProgram(Isolate* isolate, DirectHandle<Script> script,
                     ParseInfo* info,
-                    MaybeHandle<ScopeInfo> maybe_outer_scope_info);
+                    MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info);
 
   // Sets the literal on |info| if parsing succeeded.
   void ParseFunction(Isolate* isolate, ParseInfo* info,

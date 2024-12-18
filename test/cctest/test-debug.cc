@@ -4483,7 +4483,7 @@ TEST(BreakLocationIterator) {
       "  debugger;   \n"
       "}             \n"
       "f");
-  Handle<i::Object> function_obj = v8::Utils::OpenHandle(*result);
+  DirectHandle<i::Object> function_obj = v8::Utils::OpenDirectHandle(*result);
   DirectHandle<i::JSFunction> function = Cast<i::JSFunction>(function_obj);
   Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
 
@@ -4779,7 +4779,7 @@ TEST(DebugEvaluateNoSideEffect) {
     bool failed = false;
     isolate->debug()->StartSideEffectCheckMode();
     failed = !isolate->debug()->PerformSideEffectCheck(
-        fun, v8::Utils::OpenHandle(*env->Global()));
+        fun, v8::Utils::OpenDirectHandle(*env->Global()));
     isolate->debug()->StopSideEffectCheckMode();
     if (failed) isolate->clear_exception();
   }

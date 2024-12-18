@@ -64,7 +64,7 @@ TEST(SimpleIntPtrReturn) {
   m.Return(m.BitcastWordToTagged(
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<Address>(&test), (*result.ToHandleChecked()).ptr());
 }
 
@@ -163,7 +163,7 @@ TEST(SimpleCallJSFunction0Arg) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(42), *result.ToHandleChecked());
 }
 
@@ -186,7 +186,7 @@ TEST(SimpleCallJSFunction1Arg) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(55), *result.ToHandleChecked());
 }
 
@@ -210,7 +210,7 @@ TEST(SimpleCallJSFunction2Arg) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(&ft);
-  MaybeHandle<Object> result = ft.Call(sum);
+  MaybeDirectHandle<Object> result = ft.Call(sum);
   CHECK_EQ(Smi::FromInt(208), *result.ToHandleChecked());
 }
 

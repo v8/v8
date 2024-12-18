@@ -285,7 +285,7 @@ void IsValidPositiveSmiCase(Isolate* isolate, intptr_t value) {
       m.SelectBooleanConstant(m.IsValidPositiveSmi(m.IntPtrConstant(value))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  MaybeHandle<Object> maybe_handle = ft.Call();
+  MaybeDirectHandle<Object> maybe_handle = ft.Call();
 
   bool expected = i::PlatformSmiTagging::IsValidSmi(value) && (value >= 0);
   if (expected) {
@@ -426,7 +426,7 @@ TEST(FixedArrayAccessSmiIndex) {
   m.Return(m.LoadFixedArrayElement(m.HeapConstantNoHole(array),
                                    m.SmiTag(m.IntPtrConstant(4)), 0));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(733, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
@@ -438,7 +438,7 @@ TEST(LoadHeapNumberValue) {
   m.Return(m.SmiFromInt32(m.Signed(m.ChangeFloat64ToUint32(
       m.LoadHeapNumberValue(m.HeapConstantNoHole(number))))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(1234, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
@@ -449,7 +449,7 @@ TEST(LoadInstanceType) {
   Handle<HeapObject> undefined = isolate->factory()->undefined_value();
   m.Return(m.SmiFromInt32(m.LoadInstanceType(m.HeapConstantNoHole(undefined))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
            Cast<Smi>(*result.ToHandleChecked()).value());
 }
@@ -463,7 +463,7 @@ TEST(DecodeWordFromWord32) {
   m.Return(m.SmiTag(
       m.Signed(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F)))));
   FunctionTester ft(asm_tester.GenerateCode());
-  MaybeHandle<Object> result = ft.Call();
+  MaybeDirectHandle<Object> result = ft.Call();
   // value  = 00101111
   // mask   = 00111000
   // result = 101
@@ -480,8 +480,8 @@ TEST(JSFunction) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-  MaybeHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
-                                       handle(Smi::FromInt(34), isolate));
+  MaybeDirectHandle<Object> result = ft.Call(handle(Smi::FromInt(23), isolate),
+                                             handle(Smi::FromInt(34), isolate));
   CHECK_EQ(57, Cast<Smi>(*result.ToHandleChecked()).value());
 }
 
@@ -562,7 +562,7 @@ TEST(ToString) {
                                   isolate);
     Handle<Object> obj(test->get(0), isolate);
     DirectHandle<String> expected(Cast<String>(test->get(1)), isolate);
-    Handle<Object> result = ft.Call(obj).ToHandleChecked();
+    DirectHandle<Object> result = ft.Call(obj).ToHandleChecked();
     CHECK(IsString(*result));
     CHECK(String::Equals(isolate, Cast<String>(result), expected));
   }
@@ -1176,7 +1176,7 @@ void AddProperties(DirectHandle<JSObject> object, Handle<Name> names[],
                    size_t values_count, int seed = 0) {
   Isolate* isolate = object->GetIsolate();
   for (size_t i = 0; i < names_count; i++) {
-    Handle<Object> value = values[(seed + i) % values_count];
+    DirectHandle<Object> value = values[(seed + i) % values_count];
     if (IsAccessorPair(*value)) {
       DirectHandle<AccessorPair> pair = Cast<AccessorPair>(value);
       DirectHandle<Object> getter(pair->getter(), isolate);
@@ -2803,7 +2803,7 @@ TEST(NewJSPromise2) {
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
+  DirectHandle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsJSPromise(*result));
   DirectHandle<JSPromise> js_promise = Cast<JSPromise>(result);
@@ -2888,7 +2888,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   m.Return(promise_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
+  DirectHandle<Object> result = ft.Call().ToHandleChecked();
   CHECK(IsContext(*result));
   DirectHandle<Context> context_js = Cast<Context>(result);
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
@@ -2921,7 +2921,7 @@ TEST(CreatePromiseResolvingFunctions) {
   m.Return(arr);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsFixedArray(*result_obj));
   DirectHandle<FixedArray> result_arr = Cast<FixedArray>(result_obj);
@@ -3009,7 +3009,7 @@ TEST(AllocateRootFunctionWithContext) {
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsJSFunction(*result_obj));
   DirectHandle<JSFunction> fun = Cast<JSFunction>(result_obj);
@@ -3043,7 +3043,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   m.Return(executor_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result_obj =
+  DirectHandle<Object> result_obj =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(IsContext(*result_obj));
   DirectHandle<Context> context_js = Cast<Context>(result_obj);
@@ -3074,7 +3074,7 @@ TEST(NewPromiseCapability) {
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
-    Handle<Object> result_obj = ft.Call().ToHandleChecked();
+    DirectHandle<Object> result_obj = ft.Call().ToHandleChecked();
     CHECK(IsPromiseCapability(*result_obj));
     DirectHandle<PromiseCapability> result =
         Cast<PromiseCapability>(result_obj);
@@ -3130,7 +3130,7 @@ TEST(NewPromiseCapability) {
             "  executor(resolve, reject);"
             "})")));
 
-    Handle<Object> result_obj = ft.Call(constructor_fn).ToHandleChecked();
+    DirectHandle<Object> result_obj = ft.Call(constructor_fn).ToHandleChecked();
     CHECK(IsPromiseCapability(*result_obj));
     DirectHandle<PromiseCapability> result =
         Cast<PromiseCapability>(result_obj);
@@ -4044,7 +4044,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   Handle<Object> input = isolate->factory()->NewNumber(8);
-  MaybeHandle<Object> result = ft.Call(input);
+  MaybeDirectHandle<Object> result = ft.Call(input);
   CHECK(IsSmi(*result.ToHandleChecked()));
   CHECK_EQ(Object::NumberValue(*result.ToHandleChecked()), 13);
 

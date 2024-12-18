@@ -1479,12 +1479,12 @@ MaybeDirectHandle<JSPrototype> JSProxy::GetPrototype(
   }
   // 7. Let handlerProto be ? Call(trap, handler, «target»).
   DirectHandle<Object> args[] = {target};
-  Handle<Object> handler_proto_result;
+  DirectHandle<Object> handler_proto_result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, handler_proto_result,
       Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
-  Handle<JSPrototype> handler_proto;
+  DirectHandle<JSPrototype> handler_proto;
   if (!TryCast(handler_proto_result, &handler_proto)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid));
@@ -1558,7 +1558,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
   }
 
   // Regular accessor.
-  Handle<Object> getter(accessor_pair->getter(), isolate);
+  DirectHandle<Object> getter(accessor_pair->getter(), isolate);
   if (IsFunctionTemplateInfo(*getter)) {
     SaveAndSwitchContext save(isolate, holder->GetCreationContext().value());
     return Cast<JSAny>(Builtins::InvokeApiFunction(

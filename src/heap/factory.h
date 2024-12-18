@@ -919,7 +919,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // https://tc39.es/proposal-shadowrealm/#sec-create-type-error-copy
   Handle<JSObject> ShadowRealmNewTypeErrorCopy(
-      Handle<Object> original, MessageTemplate template_index,
+      DirectHandle<Object> original, MessageTemplate template_index,
       base::Vector<const DirectHandle<Object>> args);
 
   template <typename... Args>
@@ -994,7 +994,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
   Handle<Map> CreateSloppyFunctionMap(
-      FunctionMode function_mode, MaybeHandle<JSFunction> maybe_empty_function);
+      FunctionMode function_mode,
+      MaybeDirectHandle<JSFunction> maybe_empty_function);
 
   Handle<Map> CreateStrictFunctionMap(FunctionMode function_mode,
                                       DirectHandle<JSFunction> empty_function);
@@ -1069,7 +1070,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSSharedStruct> NewJSSharedStruct(
       DirectHandle<JSFunction> constructor,
-      MaybeHandle<NumberDictionary> maybe_elements_template);
+      MaybeDirectHandle<NumberDictionary> maybe_elements_template);
 
   Handle<JSSharedArray> NewJSSharedArray(DirectHandle<JSFunction> constructor,
                                          int length);

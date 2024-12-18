@@ -336,7 +336,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
 #if V8_ENABLE_WEBASSEMBLY
   if (shared->HasAsmWasmData()) {
     DirectHandle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
-    MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
+    MaybeDirectHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
     if (!result.is_null()) {
       isolate->counters()->asmjs_instantiate_result()->AddSample(
@@ -608,7 +608,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
     mode = ConcurrencyMode::kSynchronous;
   }
 
-  Handle<Code> result;
+  DirectHandle<Code> result;
   if (!Compiler::CompileOptimizedOSR(
            isolate, function, osr_offset, mode,
            (maglev::IsMaglevOsrEnabled() && min_opt_level == CodeKind::MAGLEV)
@@ -786,8 +786,8 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   if (source.is_null()) {
     Handle<Object> error_message =
         native_context->ErrorMessageForCodeGenerationFromStrings();
-    Handle<Object> error;
-    MaybeHandle<Object> maybe_error = isolate->factory()->NewEvalError(
+    DirectHandle<Object> error;
+    MaybeDirectHandle<Object> maybe_error = isolate->factory()->NewEvalError(
         MessageTemplate::kCodeGenFromStrings, error_message);
     if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
     return ReadOnlyRoots(isolate).exception();
@@ -796,7 +796,7 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
-  Handle<JSFunction> compiled;
+  DirectHandle<JSFunction> compiled;
   DirectHandle<Context> context(isolate->context(), isolate);
   if (!Is<NativeContext>(*context)) {
     Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();

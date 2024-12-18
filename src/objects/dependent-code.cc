@@ -29,7 +29,7 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
   UNREACHABLE();
 }
 
-void DependentCode::SetDependentCode(Handle<HeapObject> object,
+void DependentCode::SetDependentCode(DirectHandle<HeapObject> object,
                                      DirectHandle<DependentCode> dep) {
   if (IsMap(*object)) {
     Cast<Map>(object)->set_dependent_code(*dep);
@@ -71,7 +71,7 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
   }
   Handle<DependentCode> old_deps(DependentCode::GetDependentCode(*object),
                                  isolate);
-  Handle<DependentCode> new_deps =
+  DirectHandle<DependentCode> new_deps =
       InsertWeakCode(isolate, old_deps, groups, code);
 
   // Update the list head if necessary.
