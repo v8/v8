@@ -382,7 +382,7 @@ void WasmCode::Validate() const {
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
         WasmCodePointer call_target =
             it.rinfo()->wasm_code_pointer_table_entry();
-        uint32_t function_index = function_index_map.at(call_target.value());
+        uint32_t function_index = function_index_map.at(call_target);
         CHECK_EQ(call_target,
                  native_module_->GetCodePointerHandle(function_index));
         break;
@@ -2051,7 +2051,7 @@ NativeModule::CreateIndirectCallTargetToFunctionIndexMap() const {
   CallIndirectTargetMap lookup_map;
   for (uint32_t func_index = num_imported_functions();
        func_index < num_functions(); func_index++) {
-    lookup_map.emplace(GetCodePointerHandle(func_index).value(), func_index);
+    lookup_map.emplace(GetCodePointerHandle(func_index), func_index);
   }
   return lookup_map;
 }

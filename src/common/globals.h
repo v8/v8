@@ -2807,11 +2807,10 @@ class WasmCodePointer {
     return value_ != other.value_;
   }
 
-  struct Hasher {
-    size_t operator()(const WasmCodePointer& code_pointer) const {
-      return std::hash<uint32_t>()(code_pointer.value());
-    }
-  };
+  template <typename H>
+  friend H AbslHashValue(H h, const WasmCodePointer& code_pointer) {
+    return H::combine(std::move(h), code_pointer.value());
+  }
 
  private:
   uint32_t value_ = -1;
