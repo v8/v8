@@ -293,9 +293,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
   inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(
-      DirectHandle<JSFunction> function,
-      bool reset_budget_for_feedback_allocation);
+  static void EnsureClosureFeedbackCellArray(DirectHandle<JSFunction> function);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback

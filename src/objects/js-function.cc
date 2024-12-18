@@ -566,8 +566,7 @@ Handle<String> JSFunction::GetName(Isolate* isolate,
 
 // static
 void JSFunction::EnsureClosureFeedbackCellArray(
-    DirectHandle<JSFunction> function,
-    bool reset_budget_for_feedback_allocation) {
+    DirectHandle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   DCHECK(function->shared()->is_compiled());
   DCHECK(function->shared()->HasFeedbackMetadata());
@@ -582,13 +581,6 @@ void JSFunction::EnsureClosureFeedbackCellArray(
        function->has_feedback_vector());
 
   if (has_closure_feedback_cell_array) {
-    // Initialize the interrupt budget to the feedback vector allocation budget
-    // after a bytecode flush. We retain the closure feedback cell array on
-    // bytecode flush, so reset_budget_for_feedback_allocation is used to reset
-    // the budget in this case.
-    if (reset_budget_for_feedback_allocation) {
-      function->SetInterruptBudget(isolate, BudgetModification::kRaise);
-    }
     return;
   }
 
@@ -624,9 +616,10 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     function->raw_feedback_cell()->set_value(*feedback_cell_array,
                                              kReleaseStore);
   }
-  if (allocate_new_feedback_cell || reset_budget_for_feedback_allocation) {
-    function->SetInterruptBudget(isolate, BudgetModification::kRaise);
-  }
+  // Initialize the interrupt budget when initializing the feedback cell with
+  // the closure feedback cell for the first time, whether the feedback cell
+  // itself is new or not.
+  function->SetInterruptBudget(isolate, BudgetModification::kReset);
 }
 
 // static
@@ -657,7 +650,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared()->HasBytecodeArray());
 
-  EnsureClosureFeedbackCellArray(function, false);
+  EnsureClosureFeedbackCellArray(function);
   DirectHandle<ClosureFeedbackCellArray> closure_feedback_cell_array(
       function->closure_feedback_cell_array(), isolate);
   DirectHandle<FeedbackVector> feedback_vector = FeedbackVector::New(
@@ -713,7 +706,9 @@ void JSFunction::InitializeFeedbackCell(
     return;
   }
 
-  if (function->has_closure_feedback_cell_array()) {
+  bool has_closure_feedback_cell_array =
+      function->has_closure_feedback_cell_array();
+  if (has_closure_feedback_cell_array) {
     CHECK_EQ(
         function->closure_feedback_cell_array()->length(),
         function->shared()->feedback_metadata()->create_closure_slot_count());
@@ -730,9 +725,16 @@ void JSFunction::InitializeFeedbackCell(
 
   if (needs_feedback_vector) {
     CreateAndAttachFeedbackVector(isolate, function, is_compiled_scope);
+  } else if (has_closure_feedback_cell_array) {
+    // Initialize the interrupt budget to the feedback vector allocation budget
+    // after a bytecode flush. We retain the closure feedback cell array on
+    // bytecode flush, so reset_budget_for_feedback_allocation is used to reset
+    // the budget in this case.
+    if (reset_budget_for_feedback_allocation) {
+      function->SetInterruptBudget(isolate, BudgetModification::kReset);
+    }
   } else {
-    EnsureClosureFeedbackCellArray(function,
-                                   reset_budget_for_feedback_allocation);
+    EnsureClosureFeedbackCellArray(function);
   }
 #ifdef V8_ENABLE_SPARKPLUG
   // TODO(jgruber): Unduplicate these conditions from tiering-manager.cc.
