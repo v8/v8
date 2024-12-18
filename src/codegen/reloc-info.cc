@@ -40,8 +40,8 @@ void RelocInfoWriter::WriteShortTaggedPC(uint32_t pc_delta, int tag) {
   *--pos_ = pc_delta << kTagBits | tag;
 }
 
-void RelocInfoWriter::WriteShortData(intptr_t data_delta) {
-  *--pos_ = static_cast<uint8_t>(data_delta);
+void RelocInfoWriter::WriteShortData(uint8_t data_delta) {
+  *--pos_ = data_delta;
 }
 
 void RelocInfoWriter::WriteMode(RelocInfo::Mode rmode) {
@@ -87,7 +87,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteModeAndPC(pc_delta, rmode);
     if (RelocInfo::IsDeoptReason(rmode)) {
       DCHECK_LT(rinfo->data(), 1 << kBitsPerByte);
-      WriteShortData(rinfo->data());
+      WriteShortData(static_cast<uint8_t>(rinfo->data()));
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
                RelocInfo::IsDeoptPosition(rmode) ||
