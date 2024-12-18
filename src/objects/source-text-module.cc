@@ -713,7 +713,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
           DCHECK(IsCell(*it->second));
           // Different star exports provide different cells for this name, hence
           // mark the name as ambiguous.
-          it->second = roots.undefined_value_handle();
+          it->second = isolate->factory()->undefined_value();
         }
       }
     }

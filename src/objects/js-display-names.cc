@@ -562,12 +562,12 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
   DCHECK(maybe_locale.IsJust());
   DirectHandle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
       maybe_locale.FromJust().c_str());
-  DirectHandle<String> style = display_names->StyleAsString();
+  DirectHandle<String> style = display_names->StyleAsString(isolate);
   DirectHandle<String> type =
       factory->NewStringFromAsciiChecked(internal->type());
-  DirectHandle<String> fallback = display_names->FallbackAsString();
+  DirectHandle<String> fallback = display_names->FallbackAsString(isolate);
   DirectHandle<String> language_display =
-      display_names->LanguageDisplayAsString();
+      display_names->LanguageDisplayAsString(isolate);
 
   Maybe<bool> maybe_create_locale = JSReceiver::CreateDataProperty(
       isolate, options, factory->locale_string(), locale, Just(kDontThrow));
@@ -634,34 +634,34 @@ const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
   return available_locales.Pointer()->Get();
 }
 
-Handle<String> JSDisplayNames::StyleAsString() const {
+Handle<String> JSDisplayNames::StyleAsString(Isolate* isolate) const {
   switch (style()) {
     case Style::kLong:
-      return GetReadOnlyRoots().long_string_handle();
+      return isolate->factory()->long_string();
     case Style::kShort:
-      return GetReadOnlyRoots().short_string_handle();
+      return isolate->factory()->short_string();
     case Style::kNarrow:
-      return GetReadOnlyRoots().narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSDisplayNames::FallbackAsString() const {
+Handle<String> JSDisplayNames::FallbackAsString(Isolate* isolate) const {
   switch (fallback()) {
     case Fallback::kCode:
-      return GetReadOnlyRoots().code_string_handle();
+      return isolate->factory()->code_string();
     case Fallback::kNone:
-      return GetReadOnlyRoots().none_string_handle();
+      return isolate->factory()->none_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSDisplayNames::LanguageDisplayAsString() const {
+Handle<String> JSDisplayNames::LanguageDisplayAsString(Isolate* isolate) const {
   switch (language_display()) {
     case LanguageDisplay::kDialect:
-      return GetReadOnlyRoots().dialect_string_handle();
+      return isolate->factory()->dialect_string();
     case LanguageDisplay::kStandard:
-      return GetReadOnlyRoots().standard_string_handle();
+      return isolate->factory()->standard_string();
   }
   UNREACHABLE();
 }

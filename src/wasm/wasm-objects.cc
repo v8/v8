@@ -2384,7 +2384,7 @@ Handle<Object> WasmExceptionPackage::GetExceptionTag(
           .ToHandle(&tag)) {
     return tag;
   }
-  return ReadOnlyRoots(isolate).undefined_value_handle();
+  return isolate->factory()->undefined_value();
 }
 
 // static
@@ -2398,7 +2398,7 @@ Handle<Object> WasmExceptionPackage::GetExceptionValues(
     DCHECK_IMPLIES(!IsUndefined(*values), IsFixedArray(*values));
     return values;
   }
-  return ReadOnlyRoots(isolate).undefined_value_handle();
+  return isolate->factory()->undefined_value();
 }
 
 void EncodeI32ExceptionValue(DirectHandle<FixedArray> encoded_values,

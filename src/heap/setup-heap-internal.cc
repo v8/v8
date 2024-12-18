@@ -549,7 +549,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   DCHECK(!HeapLayout::InYoungGeneration(roots.undefined_value()));
   {
     AllocationResult allocation =
-        Allocate(roots.hole_map_handle(), AllocationType::kReadOnly);
+        Allocate(roots_table().hole_map(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_the_hole_value(Cast<Hole>(obj));
@@ -560,7 +560,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   // Allocate the empty enum cache.
   {
     AllocationResult allocation =
-        Allocate(roots.enum_cache_map_handle(), AllocationType::kReadOnly);
+        Allocate(roots_table().enum_cache_map(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_empty_enum_cache(Cast<EnumCache>(obj));
@@ -1032,7 +1032,7 @@ bool Heap::CreateReadOnlyObjects() {
   {
     // Empty array boilerplate description
     AllocationResult alloc =
-        Allocate(roots.array_boilerplate_description_map_handle(),
+        Allocate(roots_table().array_boilerplate_description_map(),
                  AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
 

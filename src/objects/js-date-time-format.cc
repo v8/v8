@@ -525,13 +525,13 @@ Handle<String> DateTimeStyleAsString(Isolate* isolate,
                                      JSDateTimeFormat::DateTimeStyle style) {
   switch (style) {
     case JSDateTimeFormat::DateTimeStyle::kFull:
-      return ReadOnlyRoots(isolate).full_string_handle();
+      return isolate->factory()->full_string();
     case JSDateTimeFormat::DateTimeStyle::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDateTimeFormat::DateTimeStyle::kMedium:
-      return ReadOnlyRoots(isolate).medium_string_handle();
+      return isolate->factory()->medium_string();
     case JSDateTimeFormat::DateTimeStyle::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDateTimeFormat::DateTimeStyle::kUndefined:
       UNREACHABLE();
   }
@@ -712,7 +712,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   if (hc != HourCycle::kUndefined) {
     Maybe<bool> maybe_create_hour_cycle = JSReceiver::CreateDataProperty(
         isolate, options, factory->hourCycle_string(),
-        date_time_format->HourCycleAsString(), Just(kDontThrow));
+        date_time_format->HourCycleAsString(isolate), Just(kDontThrow));
     DCHECK(maybe_create_hour_cycle.FromJust());
     USE(maybe_create_hour_cycle);
     switch (hc) {
@@ -2881,18 +2881,18 @@ const std::set<std::string>& JSDateTimeFormat::GetAvailableLocales() {
   return Intl::GetAvailableLocalesForDateFormat();
 }
 
-Handle<String> JSDateTimeFormat::HourCycleAsString() const {
+Handle<String> JSDateTimeFormat::HourCycleAsString(Isolate* isolate) const {
   switch (hour_cycle()) {
     case HourCycle::kUndefined:
-      return GetReadOnlyRoots().undefined_string_handle();
+      return isolate->factory()->undefined_string();
     case HourCycle::kH11:
-      return GetReadOnlyRoots().h11_string_handle();
+      return isolate->factory()->h11_string();
     case HourCycle::kH12:
-      return GetReadOnlyRoots().h12_string_handle();
+      return isolate->factory()->h12_string();
     case HourCycle::kH23:
-      return GetReadOnlyRoots().h23_string_handle();
+      return isolate->factory()->h23_string();
     case HourCycle::kH24:
-      return GetReadOnlyRoots().h24_string_handle();
+      return isolate->factory()->h24_string();
     default:
       UNREACHABLE();
   }

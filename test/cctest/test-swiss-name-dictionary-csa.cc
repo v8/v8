@@ -160,7 +160,7 @@ void CSATestRunner::Allocate(Handle<Smi> capacity) {
   // AllocateSwissNameDictionary (just like AllocateNameDictionary) always
   // returns a non-zero sized table.
   if ((*capacity).value() == 0) {
-    table = ReadOnlyRoots(isolate_).empty_swiss_property_dictionary_handle();
+    table = isolate_->factory()->empty_swiss_property_dictionary();
   } else {
     table = allocate_ft_.CallChecked<SwissNameDictionary>(capacity);
   }

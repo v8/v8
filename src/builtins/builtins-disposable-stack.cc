@@ -207,10 +207,10 @@ BUILTIN(DisposableStackPrototypeDefer) {
 
   // 5. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
   // undefined, sync-dispose, onDispose).
-  JSDisposableStackBase::Add(
-      isolate, disposable_stack,
-      ReadOnlyRoots(isolate).undefined_value_handle(), on_dispose,
-      DisposeMethodCallType::kValueIsReceiver, DisposeMethodHint::kSyncDispose);
+  JSDisposableStackBase::Add(isolate, disposable_stack,
+                             isolate->factory()->undefined_value(), on_dispose,
+                             DisposeMethodCallType::kValueIsReceiver,
+                             DisposeMethodHint::kSyncDispose);
 
   // 6. Return undefined.
   return ReadOnlyRoots(isolate).undefined_value();

@@ -46,7 +46,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   // Ensure that the function can be compiled lazily.
   shared->set_uncompiled_data(
       *isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
-          ReadOnlyRoots(isolate).empty_string_handle(), 0, source->length()));
+          isolate->factory()->empty_string(), 0, source->length()));
   // Make sure we have an outer scope info, even though it's empty
   shared->set_raw_outer_scope_info_or_feedback_metadata(
       ScopeInfo::Empty(isolate));

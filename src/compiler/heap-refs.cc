@@ -1362,7 +1362,7 @@ NameRef MapRef::GetPropertyKey(JSHeapBroker* broker,
 
 bool MapRef::IsFixedCowArrayMap(JSHeapBroker* broker) const {
   Handle<Map> fixed_cow_array_map =
-      ReadOnlyRoots(broker->isolate()).fixed_cow_array_map_handle();
+      broker->isolate()->factory()->fixed_cow_array_map();
   return equals(MakeRef(broker, fixed_cow_array_map));
 }
 

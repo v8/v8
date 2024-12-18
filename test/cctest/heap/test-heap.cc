@@ -7521,7 +7521,7 @@ TEST(Regress10900) {
                     ReadOnlyRoots(heap).undefined_value().ptr())));
   masm.Push(tmp, tmp);
 #else
-  masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+  masm.Push(isolate->factory()->undefined_value());
 #endif
   CodeDesc desc;
   masm.GetCode(isolate, &desc);

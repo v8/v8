@@ -1624,7 +1624,7 @@ own<Ref> V8RefValueToWasm(StoreImpl* store, i::Handle<i::Object> value) {
 }
 
 i::Handle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
-  if (ref == nullptr) return i::ReadOnlyRoots(isolate).null_value_handle();
+  if (ref == nullptr) return isolate->factory()->null_value();
   return impl(ref)->v8_object();
 }
 

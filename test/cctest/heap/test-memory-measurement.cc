@@ -260,7 +260,7 @@ TEST(PartiallyInitializedContext) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   DirectHandle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+      factory->global_this_binding_scope_info();
   DirectHandle<Context> context = factory->NewScriptContext(
       GetNativeContext(isolate, env.local()), scope_info);
   DirectHandle<Map> map(context->map(), isolate);

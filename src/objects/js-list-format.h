@@ -55,8 +55,8 @@ class JSListFormat
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  Handle<String> StyleAsString() const;
-  Handle<String> TypeAsString() const;
+  Handle<String> StyleAsString(Isolate* isolate) const;
+  Handle<String> TypeAsString(Isolate* isolate) const;
 
   // ListFormat accessors.
   DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::ListFormatter>>)

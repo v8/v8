@@ -556,6 +556,10 @@ static_assert(RootIndex::kFirstNameForProtector <=
 NAME_FOR_PROTECTOR_ROOT_LIST(FOR_PROTECTOR_CHECK)
 #undef FOR_PROTECTOR_CHECK
 
+#define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;
+ROOT_LIST(ROOT_TYPE_FWD_DECL)
+#undef ROOT_TYPE_FWD_DECL
+
 // Represents a storage of V8 heap roots.
 class RootsTable {
  public:
@@ -569,6 +573,16 @@ class RootsTable {
 
   template <typename T>
   bool IsRootHandle(IndirectHandle<T> handle, RootIndex* index) const;
+
+  // Returns heap number with identical value if it already exists or the empty
+  // handle otherwise.
+  IndirectHandle<HeapNumber> FindHeapNumber(double value);
+
+#define ROOT_ACCESSOR(Type, name, CamelName) V8_INLINE Handle<Type> name();
+  ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
+  V8_INLINE Handle<Object> handle_at(RootIndex root_index);
 
   Address const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
@@ -680,10 +694,6 @@ class RootsTable {
   friend class RootsSerializer;
 };
 
-#define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;
-READ_ONLY_ROOT_LIST(ROOT_TYPE_FWD_DECL)
-#undef ROOT_TYPE_FWD_DECL
-
 inline ReadOnlyRoots GetReadOnlyRoots();
 
 class ReadOnlyRoots {
@@ -699,10 +709,9 @@ class ReadOnlyRoots {
   // map-word instead of a tagged heap pointer.
   MapWord one_pointer_filler_map_word();
 
-#define ROOT_ACCESSOR(Type, name, CamelName)       \
-  V8_INLINE Tagged<Type> name() const;             \
-  V8_INLINE Tagged<Type> unchecked_##name() const; \
-  V8_INLINE IndirectHandle<Type> name##_handle() const;
+#define ROOT_ACCESSOR(Type, name, CamelName) \
+  V8_INLINE Tagged<Type> name() const;       \
+  V8_INLINE Tagged<Type> unchecked_##name() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -714,15 +723,9 @@ class ReadOnlyRoots {
 #endif
 
   V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
-  V8_INLINE IndirectHandle<Boolean> boolean_value_handle(bool value) const;
-
-  // Returns heap number with identical value if it already exists or the empty
-  // handle otherwise.
-  IndirectHandle<HeapNumber> FindHeapNumber(double value);
 
   V8_INLINE Address address_at(RootIndex root_index) const;
   V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
-  V8_INLINE IndirectHandle<Object> handle_at(RootIndex root_index) const;
 
   // Check if a slot is initialized yet. Should only be neccessary for code
   // running during snapshot creation.
@@ -750,8 +753,6 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Address* ro_roots)
       : read_only_roots_(ro_roots) {}
-
-  V8_INLINE Address* GetLocation(RootIndex root_index) const;
 
   Address* read_only_roots_;
 

@@ -212,7 +212,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
         NumberDictionary::UncheckedAdd<Isolate, DirectHandle,
                                        AllocationType::kSharedOld>(
             isolate, elements_template, index,
-            ReadOnlyRoots(isolate).undefined_value_handle(), details);
+            isolate->factory()->undefined_value(), details);
       }
       elements_template->SetInitialNumberOfElements(num_elements);
       DCHECK(HeapLayout::InAnySharedSpace(*elements_template));

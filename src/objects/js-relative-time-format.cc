@@ -234,11 +234,11 @@ namespace {
 Handle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
     case Style::LONG:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case Style::SHORT:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case Style::NARROW:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
@@ -261,18 +261,18 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
       isolate, result, factory->style_string(),
       StyleAsString(isolate, fromIcuStyle(formatter->getFormatStyle())), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
-                        format_holder->NumericAsString(), NONE);
+                        format_holder->NumericAsString(isolate), NONE);
   JSObject::AddProperty(isolate, result, factory->numberingSystem_string(),
                         numberingSystem, NONE);
   return result;
 }
 
-Handle<String> JSRelativeTimeFormat::NumericAsString() const {
+Handle<String> JSRelativeTimeFormat::NumericAsString(Isolate* isolate) const {
   switch (numeric()) {
     case Numeric::ALWAYS:
-      return GetReadOnlyRoots().always_string_handle();
+      return isolate->factory()->always_string();
     case Numeric::AUTO:
-      return GetReadOnlyRoots().auto_string_handle();
+      return isolate->factory()->auto_string();
   }
   UNREACHABLE();
 }

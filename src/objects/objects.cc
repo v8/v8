@@ -2423,7 +2423,7 @@ bool Object::CheckContextualStoreToJSGlobalObject(
       // to throw now instead of putting it into the global dictionary. However,
       // the cell might already have been stored into the feedback vector, so
       // we must invalidate it nevertheless.
-      it->transition_cell()->ClearAndInvalidate(ReadOnlyRoots(isolate));
+      it->transition_cell()->ClearAndInvalidate(isolate);
     }
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, it->GetName()));
@@ -5291,7 +5291,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
   auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
-      Derived::GetMap(ReadOnlyRoots(isolate)), length, allocation);
+      Derived::GetMap(isolate->roots_table()), length, allocation);
   Handle<Derived> table = Cast<Derived>(array);
   DisallowGarbageCollection no_gc;
   Tagged<Derived> raw_table = *table;
@@ -5778,7 +5778,7 @@ Handle<Derived> Dictionary<Derived, Shape>::ShallowCopy(
     Isolate* isolate, DirectHandle<Derived> dictionary,
     AllocationType allocation) {
   return Cast<Derived>(isolate->factory()->CopyFixedArrayWithMap(
-      dictionary, Derived::GetMap(ReadOnlyRoots(isolate)), allocation));
+      dictionary, Derived::GetMap(isolate->roots_table()), allocation));
 }
 
 // static
@@ -6328,13 +6328,11 @@ void JSDisposableStackBase::InitializeJSDisposableStackBase(
       *(isolate->factory()->uninitialized_value()));
 }
 
-void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
-  DCHECK(!IsPropertyCellHole(value(), roots));
+void PropertyCell::ClearAndInvalidate(Isolate* isolate) {
+  DCHECK(!IsPropertyCellHole(value(), isolate));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
-  Transition(details, roots.property_cell_hole_value_handle());
-  // TODO(11527): pass Isolate as an argument.
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  Transition(details, isolate->factory()->property_cell_hole_value());
   DependentCode::DeoptimizeDependencyGroups(
       isolate, *this, DependentCode::kPropertyCellChangedGroup);
 }
@@ -6354,7 +6352,7 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
       isolate->factory()->NewPropertyCell(name, new_details, new_value);
   dictionary->ValueAtPut(entry, *new_cell);
 
-  cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
+  cell->ClearAndInvalidate(isolate);
   return new_cell;
 }
 

@@ -109,7 +109,7 @@ class JSDateTimeFormat
   V8_EXPORT_PRIVATE static std::string CanonicalizeTimeZoneID(
       const std::string& input);
 
-  Handle<String> HourCycleAsString() const;
+  Handle<String> HourCycleAsString(Isolate* isolate) const;
 
   // ecma-402/#sec-properties-of-intl-datetimeformat-instances
   enum class DateTimeStyle { kUndefined, kFull, kLong, kMedium, kShort };

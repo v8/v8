@@ -265,7 +265,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
   Handle<SeqTwoByteString> result;
   std::unique_ptr<base::uc16[]> sap;
 
-  if (dest_length == 0) return ReadOnlyRoots(isolate).empty_string_handle();
+  if (dest_length == 0) return isolate->factory()->empty_string();
 
   // This is not a real loop. It'll be executed only once (no overflow) or
   // twice (overflow).
@@ -3050,11 +3050,11 @@ bool Intl::FormatRangeSourceTracker::FieldContains(int32_t field, int32_t start,
 Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
   switch (source) {
     case FormatRangeSource::kShared:
-      return ReadOnlyRoots(isolate).shared_string_handle();
+      return isolate->factory()->shared_string();
     case FormatRangeSource::kStartRange:
-      return ReadOnlyRoots(isolate).startRange_string_handle();
+      return isolate->factory()->startRange_string();
     case FormatRangeSource::kEndRange:
-      return ReadOnlyRoots(isolate).endRange_string_handle();
+      return isolate->factory()->endRange_string();
   }
 }
 

@@ -62,7 +62,7 @@ class PropertyCell
       Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
       InternalIndex entry, DirectHandle<Object> value, PropertyDetails details);
 
-  void ClearAndInvalidate(ReadOnlyRoots roots);
+  void ClearAndInvalidate(Isolate* isolate);
   static Handle<PropertyCell> InvalidateAndReplaceEntry(
       Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
       InternalIndex entry, PropertyDetails new_details,

@@ -3146,15 +3146,15 @@ void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {
   os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
   os << "\n - icu date interval format: " << Brief(icu_date_interval_format());
   os << "\n - bound format: " << Brief(bound_format());
-  os << "\n - hour cycle: " << HourCycleAsString();
+  os << "\n - hour cycle: " << HourCycleAsString(GetIsolate());
   JSObjectPrintBody(os, *this);
 }
 
 void JSDisplayNames::JSDisplayNamesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDisplayNames");
   os << "\n - internal: " << Brief(internal());
-  os << "\n - style: " << StyleAsString();
-  os << "\n - fallback: " << FallbackAsString();
+  os << "\n - style: " << StyleAsString(GetIsolate());
+  os << "\n - fallback: " << FallbackAsString(GetIsolate());
   JSObjectPrintBody(os, *this);
 }
 
@@ -3170,8 +3170,8 @@ void JSDurationFormat::JSDurationFormatPrint(std::ostream& os) {
 void JSListFormat::JSListFormatPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSListFormat");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - style: " << StyleAsString();
-  os << "\n - type: " << TypeAsString();
+  os << "\n - style: " << StyleAsString(GetIsolate());
+  os << "\n - type: " << TypeAsString(GetIsolate());
   os << "\n - icu formatter: " << Brief(icu_formatter());
   JSObjectPrintBody(os, *this);
 }
@@ -3193,7 +3193,7 @@ void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {
 void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSPluralRules");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << TypeAsString();
+  os << "\n - type: " << TypeAsString(GetIsolate());
   os << "\n - icu plural rules: " << Brief(icu_plural_rules());
   os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   JSObjectPrintBody(os, *this);
@@ -3203,7 +3203,7 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
   os << "\n - numberingSystem: " << Brief(numberingSystem());
-  os << "\n - numeric: " << NumericAsString();
+  os << "\n - numeric: " << NumericAsString(GetIsolate());
   os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
 }

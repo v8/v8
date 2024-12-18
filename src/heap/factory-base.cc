@@ -203,8 +203,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithMap(
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
   DCHECK_LT(0, length);
-  return NewFixedArrayWithFiller(
-      map, length, read_only_roots().undefined_value_handle(), allocation);
+  return NewFixedArrayWithFiller(map, length, undefined_value(), allocation);
 }
 
 template <typename Impl>
@@ -212,9 +211,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
-  return NewFixedArrayWithFiller(
-      read_only_roots().fixed_array_map_handle(), length,
-      read_only_roots().the_hole_value_handle(), allocation);
+  return NewFixedArrayWithFiller(fixed_array_map(), length, the_hole_value(),
+                                 allocation);
 }
 
 template <typename Impl>
@@ -1131,8 +1129,7 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
 template <typename Impl>
 Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
   return Cast<SourceTextModuleInfo>(NewFixedArrayWithMap(
-      read_only_roots().module_info_map_handle(), SourceTextModuleInfo::kLength,
-      AllocationType::kOld));
+      module_info_map(), SourceTextModuleInfo::kLength, AllocationType::kOld));
 }
 
 template <typename Impl>
@@ -1306,7 +1303,7 @@ FactoryBase<Impl>::NewSwissNameDictionaryWithCapacity(
         read_only_roots().address_at(RootIndex::kEmptySwissPropertyDictionary),
         kNullAddress);
 
-    return read_only_roots().empty_swiss_property_dictionary_handle();
+    return empty_swiss_property_dictionary();
   }
 
   if (capacity < 0 || capacity > SwissNameDictionary::MaxCapacity()) {
@@ -1354,21 +1351,19 @@ MaybeDirectHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
   switch (instance_type) {
     case SEQ_TWO_BYTE_STRING_TYPE:
     case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
-      map = read_only_roots().internalized_two_byte_string_map_handle();
+      map = internalized_two_byte_string_map();
       break;
     case SEQ_ONE_BYTE_STRING_TYPE:
     case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
-      map = read_only_roots().internalized_one_byte_string_map_handle();
+      map = internalized_one_byte_string_map();
       break;
     case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_TWO_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().external_internalized_two_byte_string_map_handle();
+      map = external_internalized_two_byte_string_map();
       break;
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().external_internalized_one_byte_string_map_handle();
+      map = external_internalized_one_byte_string_map();
       break;
     default:
       break;

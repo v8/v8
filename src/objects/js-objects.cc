@@ -887,7 +887,7 @@ void JSReceiver::DeleteNormalizedProperty(DirectHandle<JSReceiver> object,
     Cast<JSGlobalObject>(*object)->set_global_dictionary(*new_dictionary,
                                                          kReleaseStore);
 
-    cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
+    cell->ClearAndInvalidate(isolate);
   } else {
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       DirectHandle<SwissNameDictionary> dictionary(

@@ -90,9 +90,8 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
 
-  MaybeDirectHandle<Object> result =
-      Execution::Call(isolate, sync_method,
-                      ReadOnlyRoots(isolate).undefined_value_handle(), {});
+  MaybeDirectHandle<Object> result = Execution::Call(
+      isolate, sync_method, isolate->factory()->undefined_value(), {});
 
   DirectHandle<Object> result_handle;
 
@@ -183,9 +182,8 @@ BUILTIN(AsyncDisposableStackPrototypeUse) {
 
   JSDisposableStackBase::Add(
       isolate, async_disposable_stack,
-      (IsNullOrUndefined(*value)
-           ? ReadOnlyRoots(isolate).undefined_value_handle()
-           : value),
+      (IsNullOrUndefined(*value) ? isolate->factory()->undefined_value()
+                                 : value),
       method, DisposeMethodCallType::kValueIsReceiver,
       DisposeMethodHint::kAsyncDispose);
 
@@ -340,11 +338,10 @@ BUILTIN(AsyncDisposableStackPrototypeDefer) {
   // 5. Perform ?
   // AddDisposableResource(asyncDisposableStack.[[DisposeCapability]],
   // undefined, async-dispose, onDisposeAsync).
-  JSDisposableStackBase::Add(isolate, async_disposable_stack,
-                             ReadOnlyRoots(isolate).undefined_value_handle(),
-                             on_dispose_async,
-                             DisposeMethodCallType::kValueIsReceiver,
-                             DisposeMethodHint::kAsyncDispose);
+  JSDisposableStackBase::Add(
+      isolate, async_disposable_stack, isolate->factory()->undefined_value(),
+      on_dispose_async, DisposeMethodCallType::kValueIsReceiver,
+      DisposeMethodHint::kAsyncDispose);
 
   // 6. Return undefined.
   return ReadOnlyRoots(isolate).undefined_value();

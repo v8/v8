@@ -1355,7 +1355,7 @@ void Genesis::CreateRoots() {
 
 void Genesis::InstallGlobalThisBinding() {
   DirectHandle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate()).global_this_binding_scope_info_handle();
+      isolate()->factory()->global_this_binding_scope_info();
   DirectHandle<Context> context =
       factory()->NewScriptContext(native_context(), scope_info);
 
@@ -5783,7 +5783,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
     DirectHandle<String> shared_array_str =
         isolate()->factory()->InternalizeUtf8String("SharedArray");
     DirectHandle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
-        isolate(), shared_array_str, roots.js_shared_array_map_handle(),
+        isolate(), shared_array_str,
+        isolate()->factory()->js_shared_array_map(),
         Builtin::kSharedArrayConstructor, 0, kAdapt);
 
     // Install SharedArray constructor.
@@ -5798,7 +5799,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
     DirectHandle<String> mutex_str =
         isolate()->factory()->InternalizeUtf8String("Mutex");
     DirectHandle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
-        isolate(), mutex_str, roots.js_atomics_mutex_map_handle(),
+        isolate(), mutex_str, isolate()->factory()->js_atomics_mutex_map(),
         Builtin::kAtomicsMutexConstructor, 0, kAdapt);
     JSObject::AddProperty(isolate(), atomics_object, mutex_str, mutex_fun,
                           DONT_ENUM);
@@ -5819,7 +5820,8 @@ void Genesis::InitializeGlobal_harmony_struct() {
     DirectHandle<String> condition_str =
         isolate()->factory()->InternalizeUtf8String("Condition");
     DirectHandle<JSFunction> condition_fun = CreateSharedObjectConstructor(
-        isolate(), condition_str, roots.js_atomics_condition_map_handle(),
+        isolate(), condition_str,
+        isolate()->factory()->js_atomics_condition_map(),
         Builtin::kAtomicsConditionConstructor, 0, kAdapt);
     JSObject::AddProperty(isolate(), atomics_object, condition_str,
                           condition_fun, DONT_ENUM);

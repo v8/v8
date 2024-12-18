@@ -139,13 +139,13 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
     cloned_break_iterator->setText(data);
     switch (cloned_break_iterator->next()) {
       case 1:  // After "H"
-        return ReadOnlyRoots(isolate).character_string_handle();
+        return isolate->factory()->character_string();
       case 2:  // After "He"
-        return ReadOnlyRoots(isolate).word_string_handle();
+        return isolate->factory()->word_string();
       case 3:  // After "He "
-        return ReadOnlyRoots(isolate).line_string_handle();
+        return isolate->factory()->line_string();
       case 6:  // After "He is."
-        return ReadOnlyRoots(isolate).sentence_string_handle();
+        return isolate->factory()->sentence_string();
       default:
         UNREACHABLE();
     }

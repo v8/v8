@@ -69,7 +69,7 @@ MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
   // Lookup the {name} on {receiver}.
   Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
   if (maybe.IsNothing()) return MaybeHandle<Object>();
-  return ReadOnlyRoots(isolate).boolean_value_handle(maybe.FromJust());
+  return isolate->factory()->ToBoolean(maybe.FromJust());
 }
 
 Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,

@@ -4918,25 +4918,25 @@ Unit LargerOfTwoTemporalUnits(Unit u1, Unit u2) {
 Handle<String> UnitToString(Isolate* isolate, Unit unit) {
   switch (unit) {
     case Unit::kYear:
-      return ReadOnlyRoots(isolate).year_string_handle();
+      return isolate->factory()->year_string();
     case Unit::kMonth:
-      return ReadOnlyRoots(isolate).month_string_handle();
+      return isolate->factory()->month_string();
     case Unit::kWeek:
-      return ReadOnlyRoots(isolate).week_string_handle();
+      return isolate->factory()->week_string();
     case Unit::kDay:
-      return ReadOnlyRoots(isolate).day_string_handle();
+      return isolate->factory()->day_string();
     case Unit::kHour:
-      return ReadOnlyRoots(isolate).hour_string_handle();
+      return isolate->factory()->hour_string();
     case Unit::kMinute:
-      return ReadOnlyRoots(isolate).minute_string_handle();
+      return isolate->factory()->minute_string();
     case Unit::kSecond:
-      return ReadOnlyRoots(isolate).second_string_handle();
+      return isolate->factory()->second_string();
     case Unit::kMillisecond:
-      return ReadOnlyRoots(isolate).millisecond_string_handle();
+      return isolate->factory()->millisecond_string();
     case Unit::kMicrosecond:
-      return ReadOnlyRoots(isolate).microsecond_string_handle();
+      return isolate->factory()->microsecond_string();
     case Unit::kNanosecond:
-      return ReadOnlyRoots(isolate).nanosecond_string_handle();
+      return isolate->factory()->nanosecond_string();
     case Unit::kNotPresent:
     case Unit::kAuto:
       UNREACHABLE();

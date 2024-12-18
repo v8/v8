@@ -52,12 +52,12 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
 
 }  // namespace
 
-Handle<String> JSPluralRules::TypeAsString() const {
+Handle<String> JSPluralRules::TypeAsString(Isolate* isolate) const {
   switch (type()) {
     case Type::CARDINAL:
-      return GetReadOnlyRoots().cardinal_string_handle();
+      return isolate->factory()->cardinal_string();
     case Type::ORDINAL:
-      return GetReadOnlyRoots().ordinal_string_handle();
+      return isolate->factory()->ordinal_string();
   }
   UNREACHABLE();
 }
@@ -253,8 +253,8 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   DirectHandle<String> locale_value(plural_rules->locale(), isolate);
   CreateDataPropertyForOptions(isolate, options, locale_value, "locale");
 
-  CreateDataPropertyForOptions(isolate, options, plural_rules->TypeAsString(),
-                               "type");
+  CreateDataPropertyForOptions(isolate, options,
+                               plural_rules->TypeAsString(isolate), "type");
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::LocalizedNumberFormatter* icu_number_formatter =

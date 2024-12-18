@@ -496,13 +496,13 @@ namespace {
 Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
   switch (style) {
     case JSDurationFormat::Style::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::Style::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::Style::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::Style::kDigital:
-      return ReadOnlyRoots(isolate).digital_string_handle();
+      return isolate->factory()->digital_string();
   }
 }
 
@@ -510,20 +510,20 @@ Handle<String> StyleToString(Isolate* isolate,
                              JSDurationFormat::FieldStyle style) {
   switch (style) {
     case JSDurationFormat::FieldStyle::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::FieldStyle::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::FieldStyle::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::FieldStyle::kNumeric:
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::k2Digit:
-      return ReadOnlyRoots(isolate).two_digit_string_handle();
+      return isolate->factory()->two_digit_string();
     case JSDurationFormat::FieldStyle::kFractional:
       // Step 3 in Intl.DurationFormat.prototype.resolvedOptions ( )
       // e. If v is "fractional", then
       // ii. Set v to "numeric".
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::kUndefined:
       UNREACHABLE();
   }
@@ -533,9 +533,9 @@ Handle<String> DisplayToString(Isolate* isolate,
                                JSDurationFormat::Display display) {
   switch (display) {
     case JSDurationFormat::Display::kAuto:
-      return ReadOnlyRoots(isolate).auto_string_handle();
+      return isolate->factory()->auto_string();
     case JSDurationFormat::Display::kAlways:
-      return ReadOnlyRoots(isolate).always_string_handle();
+      return isolate->factory()->always_string();
   }
 }
 

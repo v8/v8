@@ -46,9 +46,9 @@ class JSDisplayNames
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  Handle<String> StyleAsString() const;
-  Handle<String> FallbackAsString() const;
-  Handle<String> LanguageDisplayAsString() const;
+  Handle<String> StyleAsString(Isolate* isolate) const;
+  Handle<String> FallbackAsString(Isolate* isolate) const;
+  Handle<String> LanguageDisplayAsString(Isolate* isolate) const;
 
   // Style: identifying the display names style used.
   //

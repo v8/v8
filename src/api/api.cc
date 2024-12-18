@@ -2363,8 +2363,7 @@ Local<FixedArray> Module::GetModuleRequests() const {
   if (i::IsSyntheticModule(*self)) {
     // Synthetic modules are leaf nodes in the module graph. They have no
     // ModuleRequests.
-    return ToApiHandle<FixedArray>(
-        i::GetReadOnlyRoots().empty_fixed_array_handle());
+    return ToApiHandle<FixedArray>(i_isolate->factory()->empty_fixed_array());
   } else {
     return ToApiHandle<FixedArray>(i::direct_handle(
         i::Cast<i::SourceTextModule>(self)->info()->module_requests(),
@@ -3015,7 +3014,7 @@ v8::Local<v8::Value> v8::TryCatch::ReThrow() {
 v8::Local<Value> v8::TryCatch::Exception() const {
   if (!HasCaught()) return v8::Local<Value>();
   if (HasTerminated()) {
-    return v8::Utils::ToLocal(i::ReadOnlyRoots(i_isolate_).null_value_handle());
+    return v8::Utils::ToLocal(i_isolate_->factory()->null_value());
   }
   return v8::Utils::ToLocal(i::direct_handle(ToObject(exception_), i_isolate_));
 }
@@ -6873,7 +6872,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
         global_constructor->set_needs_access_check(false);
         i::FunctionTemplateInfo::SetAccessCheckInfo(
             i_isolate, global_constructor,
-            i::ReadOnlyRoots(i_isolate).undefined_value_handle());
+            i_isolate->factory()->undefined_value());
       }
 
       // Same for other interceptors. If the global constructor has
@@ -6886,7 +6885,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
             global_constructor->GetNamedPropertyHandler(), i_isolate);
         i::FunctionTemplateInfo::SetNamedPropertyHandler(
             i_isolate, global_constructor,
-            i::ReadOnlyRoots(i_isolate).noop_interceptor_info_handle());
+            i_isolate->factory()->noop_interceptor_info());
       }
       if (!IsUndefined(global_constructor->GetIndexedPropertyHandler(),
                        i_isolate)) {
@@ -6894,7 +6893,7 @@ static i::DirectHandle<ObjectType> CreateEnvironment(
             global_constructor->GetIndexedPropertyHandler(), i_isolate);
         i::FunctionTemplateInfo::SetIndexedPropertyHandler(
             i_isolate, global_constructor,
-            i::ReadOnlyRoots(i_isolate).noop_interceptor_info_handle());
+            i_isolate->factory()->noop_interceptor_info());
       }
     }
 
@@ -8076,8 +8075,7 @@ Local<v8::Value> v8::BooleanObject::New(Isolate* v8_isolate, bool value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, BooleanObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::DirectHandle<i::Object> boolean =
-      i::ReadOnlyRoots(i_isolate).boolean_value_handle(value);
+  i::DirectHandle<i::Object> boolean = i_isolate->factory()->ToBoolean(value);
   i::DirectHandle<i::Object> obj =
       i::Object::ToObject(i_isolate, boolean).ToHandleChecked();
   return Utils::ToLocal(obj);

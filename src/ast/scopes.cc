@@ -516,7 +516,7 @@ void Scope::SetScriptScopeInfo(IsolateT* isolate,
                                DeclarationScope* script_scope) {
   if (script_scope->scope_info_.is_null()) {
     script_scope->SetScriptScopeInfo(
-        ReadOnlyRoots(isolate).global_this_binding_scope_info_handle());
+        isolate->factory()->global_this_binding_scope_info());
   }
 }
 

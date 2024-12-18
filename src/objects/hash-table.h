@@ -146,7 +146,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   // Garbage collection support.
   void IteratePrefix(ObjectVisitor* visitor);
@@ -422,7 +422,7 @@ EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
 class V8_EXPORT_PRIVATE EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape> {
  public:
-  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   DECL_PRINTER(EphemeronHashTable)
   class BodyDescriptor;
@@ -516,7 +516,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
  public:
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
 
-  inline static Handle<Map> GetMap(ReadOnlyRoots roots);
+  inline static Handle<Map> GetMap(RootsTable& roots);
   int Lookup(DirectHandle<Name> key);
 
   // Returns the value at entry.
@@ -561,7 +561,7 @@ class RegisteredSymbolTable
   // Returns the value at entry.
   Tagged<Object> ValueAt(InternalIndex entry);
 
-  inline static Handle<Map> GetMap(ReadOnlyRoots roots);
+  inline static Handle<Map> GetMap(RootsTable& roots);
 
   static Handle<RegisteredSymbolTable> Add(Isolate* isolate,
                                            Handle<RegisteredSymbolTable> table,

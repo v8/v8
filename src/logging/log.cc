@@ -2654,7 +2654,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
     } else {
       CALL_CODE_EVENT_HANDLER(CodeCreateEvent(
           V8FileLogger::ToNativeByScript(tag, *script), code, shared,
-          ReadOnlyRoots(isolate_).empty_string_handle(), line_num, column_num))
+          isolate_->factory()->empty_string(), line_num, column_num))
     }
   } else if (shared->IsApiFunction()) {
     // API function.

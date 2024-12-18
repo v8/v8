@@ -355,13 +355,13 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 Handle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
     case Style::PERCENT:
-      return ReadOnlyRoots(isolate).percent_string_handle();
+      return isolate->factory()->percent_string();
     case Style::CURRENCY:
-      return ReadOnlyRoots(isolate).currency_string_handle();
+      return isolate->factory()->currency_string();
     case Style::UNIT:
-      return ReadOnlyRoots(isolate).unit_string_handle();
+      return isolate->factory()->unit_string();
     case Style::DECIMAL:
-      return ReadOnlyRoots(isolate).decimal_string_handle();
+      return isolate->factory()->decimal_string();
   }
   UNREACHABLE();
 }
@@ -372,20 +372,20 @@ Handle<String> CurrencyDisplayString(Isolate* isolate,
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up unit-width-iso-code"
   if (skeleton.indexOf("unit-width-iso-code") >= 0) {
-    return ReadOnlyRoots(isolate).code_string_handle();
+    return isolate->factory()->code_string();
   }
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up unit-width-full-name;"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
-    return ReadOnlyRoots(isolate).name_string_handle();
+    return isolate->factory()->name_string();
   }
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up unit-width-narrow;
   if (skeleton.indexOf("unit-width-narrow") >= 0) {
-    return ReadOnlyRoots(isolate).narrowSymbol_string_handle();
+    return isolate->factory()->narrowSymbol_string();
   }
   // Ex: skeleton as "currency/TWD .00 rounding-mode-half-up"
-  return ReadOnlyRoots(isolate).symbol_string_handle();
+  return isolate->factory()->symbol_string();
 }
 
 Handle<Object> UseGroupingFromSkeleton(Isolate* isolate,
@@ -404,17 +404,17 @@ Handle<Object> UseGroupingFromSkeleton(Isolate* isolate,
     // Ex: skeleton as
     // .### rounding-mode-half-up group-min2
     if (check.startsWith("min2")) {
-      return ReadOnlyRoots(isolate).min2_string_handle();
+      return isolate->factory()->min2_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-half-up group-on-aligned
     if (check.startsWith("on-aligned")) {
-      return ReadOnlyRoots(isolate).always_string_handle();
+      return isolate->factory()->always_string();
     }
   }
   // Ex: skeleton as
   // .###
-  return ReadOnlyRoots(isolate).auto_string_handle();
+  return isolate->factory()->auto_string();
 }
 
 // Parse currency code from skeleton. For example, skeleton as
@@ -450,9 +450,9 @@ Handle<String> CurrencySignString(Isolate* isolate,
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-always" OR
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-except-zero"
   if (skeleton.indexOf("sign-accounting") >= 0) {
-    return ReadOnlyRoots(isolate).accounting_string_handle();
+    return isolate->factory()->accounting_string();
   }
-  return ReadOnlyRoots(isolate).standard_string_handle();
+  return isolate->factory()->standard_string();
 }
 
 // Return UnitDisplay as string based on skeleton.
@@ -461,16 +461,16 @@ Handle<String> UnitDisplayString(Isolate* isolate,
   // Ex: skeleton as
   // "unit/length-meter .### rounding-mode-half-up unit-width-full-name"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
-    return ReadOnlyRoots(isolate).long_string_handle();
+    return isolate->factory()->long_string();
   }
   // Ex: skeleton as
   // "unit/length-meter .### rounding-mode-half-up unit-width-narrow".
   if (skeleton.indexOf("unit-width-narrow") >= 0) {
-    return ReadOnlyRoots(isolate).narrow_string_handle();
+    return isolate->factory()->narrow_string();
   }
   // Ex: skeleton as
   // "unit/length-foot .### rounding-mode-half-up"
-  return ReadOnlyRoots(isolate).short_string_handle();
+  return isolate->factory()->short_string();
 }
 
 // Parse Notation from skeleton.
@@ -499,13 +499,13 @@ Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
 Handle<String> NotationAsString(Isolate* isolate, Notation notation) {
   switch (notation) {
     case Notation::SCIENTIFIC:
-      return ReadOnlyRoots(isolate).scientific_string_handle();
+      return isolate->factory()->scientific_string();
     case Notation::ENGINEERING:
-      return ReadOnlyRoots(isolate).engineering_string_handle();
+      return isolate->factory()->engineering_string();
     case Notation::COMPACT:
-      return ReadOnlyRoots(isolate).compact_string_handle();
+      return isolate->factory()->compact_string();
     case Notation::STANDARD:
-      return ReadOnlyRoots(isolate).standard_string_handle();
+      return isolate->factory()->standard_string();
   }
   UNREACHABLE();
 }
@@ -516,12 +516,12 @@ Handle<String> CompactDisplayString(Isolate* isolate,
   // Ex: skeleton as
   // "compact-long .### rounding-mode-half-up"
   if (skeleton.indexOf("compact-long") >= 0) {
-    return ReadOnlyRoots(isolate).long_string_handle();
+    return isolate->factory()->long_string();
   }
   // Ex: skeleton as
   // "compact-short .### rounding-mode-half-up"
   DCHECK_GE(skeleton.indexOf("compact-short"), 0);
-  return ReadOnlyRoots(isolate).short_string_handle();
+  return isolate->factory()->short_string();
 }
 
 // Return SignDisplay as string based on skeleton.
@@ -530,30 +530,30 @@ Handle<String> SignDisplayString(Isolate* isolate,
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up sign-never"
   if (skeleton.indexOf("sign-never") >= 0) {
-    return ReadOnlyRoots(isolate).never_string_handle();
+    return isolate->factory()->never_string();
   }
   // Ex: skeleton as
   // ".### rounding-mode-half-up sign-always" or
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-always"
   if (skeleton.indexOf("sign-always") >= 0 ||
       skeleton.indexOf("sign-accounting-always") >= 0) {
-    return ReadOnlyRoots(isolate).always_string_handle();
+    return isolate->factory()->always_string();
   }
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-except-zero" or
   // "currency/TWD .00 rounding-mode-half-up sign-except-zero"
   if (skeleton.indexOf("sign-accounting-except-zero") >= 0 ||
       skeleton.indexOf("sign-except-zero") >= 0) {
-    return ReadOnlyRoots(isolate).exceptZero_string_handle();
+    return isolate->factory()->exceptZero_string();
   }
   // Ex: skeleton as
   // ".### rounding-mode-half-up sign-negative" or
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-negative"
   if (skeleton.indexOf("sign-accounting-negative") >= 0 ||
       skeleton.indexOf("sign-negative") >= 0) {
-    return ReadOnlyRoots(isolate).negative_string_handle();
+    return isolate->factory()->negative_string();
   }
-  return ReadOnlyRoots(isolate).auto_string_handle();
+  return isolate->factory()->auto_string();
 }
 
 }  // anonymous namespace
@@ -570,47 +570,47 @@ Handle<String> JSNumberFormat::RoundingModeString(
     // Ex: skeleton as
     // .### rounding-mode-ceiling
     if (check.startsWith("ceiling")) {
-      return ReadOnlyRoots(isolate).ceil_string_handle();
+      return isolate->factory()->ceil_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-down
     if (check.startsWith("down")) {
-      return ReadOnlyRoots(isolate).trunc_string_handle();
+      return isolate->factory()->trunc_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-floor
     if (check.startsWith("floor")) {
-      return ReadOnlyRoots(isolate).floor_string_handle();
+      return isolate->factory()->floor_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-half-ceiling
     if (check.startsWith("half-ceiling")) {
-      return ReadOnlyRoots(isolate).halfCeil_string_handle();
+      return isolate->factory()->halfCeil_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-half-down
     if (check.startsWith("half-down")) {
-      return ReadOnlyRoots(isolate).halfTrunc_string_handle();
+      return isolate->factory()->halfTrunc_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-half-floor
     if (check.startsWith("half-floor")) {
-      return ReadOnlyRoots(isolate).halfFloor_string_handle();
+      return isolate->factory()->halfFloor_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-half-up
     if (check.startsWith("half-up")) {
-      return ReadOnlyRoots(isolate).halfExpand_string_handle();
+      return isolate->factory()->halfExpand_string();
     }
     // Ex: skeleton as
     // .### rounding-mode-up
     if (check.startsWith("up")) {
-      return ReadOnlyRoots(isolate).expand_string_handle();
+      return isolate->factory()->expand_string();
     }
   }
   // Ex: skeleton as
   // .###
-  return ReadOnlyRoots(isolate).halfEven_string_handle();
+  return isolate->factory()->halfEven_string();
 }
 
 Handle<Object> JSNumberFormat::RoundingIncrement(
@@ -636,17 +636,17 @@ Handle<String> JSNumberFormat::RoundingPriorityString(
   if ((found = skeleton.indexOf("#r")) >= 0 ||
       (found = skeleton.indexOf("@r")) >= 0) {
     if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
-      return ReadOnlyRoots(isolate).morePrecision_string_handle();
+      return isolate->factory()->morePrecision_string();
     }
   }
   // If #s or @s is followed by a SPACE or in the end of line.
   if ((found = skeleton.indexOf("#s")) >= 0 ||
       (found = skeleton.indexOf("@s")) >= 0) {
     if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
-      return ReadOnlyRoots(isolate).lessPrecision_string_handle();
+      return isolate->factory()->lessPrecision_string();
     }
   }
-  return ReadOnlyRoots(isolate).auto_string_handle();
+  return isolate->factory()->auto_string();
 }
 
 // Return trailingZeroDisplay as string based on skeleton.
@@ -655,10 +655,10 @@ Handle<String> JSNumberFormat::TrailingZeroDisplayString(
   int32_t found;
   if ((found = skeleton.indexOf("/w")) >= 0) {
     if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
-      return ReadOnlyRoots(isolate).stripIfInteger_string_handle();
+      return isolate->factory()->stripIfInteger_string();
     }
   }
-  return ReadOnlyRoots(isolate).auto_string_handle();
+  return isolate->factory()->auto_string();
 }
 
 // Return the minimum integer digits by counting the number of '0' after

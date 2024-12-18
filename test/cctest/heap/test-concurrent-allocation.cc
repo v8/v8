@@ -555,10 +555,10 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       // Arm64 requires stack alignment.
       UseScratchRegisterScope temps(&masm);
       Register tmp = temps.AcquireX();
-      masm.Mov(tmp, Operand(ReadOnlyRoots(heap).undefined_value_handle()));
+      masm.Mov(tmp, Operand(i_isolate->factory()->undefined_value()));
       masm.Push(tmp, padreg);
 #else
-      masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+      masm.Push(i_isolate->factory()->undefined_value());
 #endif
       CodeDesc desc;
       masm.GetCode(i_isolate, &desc);

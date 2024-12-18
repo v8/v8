@@ -548,7 +548,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
 Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
                                      Isolate* isolate) {
   if (array->is_the_hole(index)) {
-    return ReadOnlyRoots(isolate).the_hole_value_handle();
+    return isolate->factory()->the_hole_value();
   } else {
     return isolate->factory()->NewNumber(array->get_scalar(index));
   }

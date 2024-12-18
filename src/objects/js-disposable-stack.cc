@@ -100,7 +100,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
       disposable_stack->set_needs_await(false);
 
       return ResolveAPromiseWithValueAndReturnIt(
-          isolate, ReadOnlyRoots(isolate).undefined_value_handle());
+          isolate, isolate->factory()->undefined_value());
     }
 
     //  e. If method is not undefined, then
@@ -110,9 +110,9 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
       if (call_type == DisposeMethodCallType::kValueIsReceiver) {
         result = Execution::Call(isolate, method, value, {});
       } else if (call_type == DisposeMethodCallType::kValueIsArgument) {
-        result = Execution::Call(
-            isolate, method, ReadOnlyRoots(isolate).undefined_value_handle(),
-            base::VectorOf(args));
+        result = Execution::Call(isolate, method,
+                                 isolate->factory()->undefined_value(),
+                                 base::VectorOf(args));
       }
 
       Handle<Object> result_handle;
@@ -170,7 +170,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     disposable_stack->set_has_awaited(true);
 
     return ResolveAPromiseWithValueAndReturnIt(
-        isolate, ReadOnlyRoots(isolate).undefined_value_handle());
+        isolate, isolate->factory()->undefined_value());
   }
 
   // 5. NOTE: After disposeCapability has been disposed, it will never be used
@@ -283,7 +283,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
         // 8. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result
         // »).
         if (JSPromise::Resolve(outer_promise,
-                               ReadOnlyRoots(isolate).undefined_value_handle())
+                               isolate->factory()->undefined_value())
                 .is_null()) {
           CHECK_EXCEPTION_ON_DISPOSAL(isolate, async_disposable_stack,
                                       Nothing<bool>());

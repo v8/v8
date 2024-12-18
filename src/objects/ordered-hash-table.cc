@@ -31,7 +31,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
-      Derived::GetMap(ReadOnlyRoots(isolate)),
+      Derived::GetMap(isolate->roots_table()),
       HashTableStartIndex() + num_buckets + (capacity * kEntrySize),
       allocation);
   Handle<Derived> table = Cast<Derived>(backing_store);
@@ -55,7 +55,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
   DCHECK(!ReadOnlyRoots(isolate).is_initialized(root_index));
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(
-      Derived::GetMap(ReadOnlyRoots(isolate)), HashTableStartIndex(),
+      Derived::GetMap(isolate->roots_table()), HashTableStartIndex(),
       allocation);
   Handle<Derived> table = Cast<Derived>(backing_store);
   DisallowHandleAllocation no_gc;

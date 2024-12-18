@@ -45,7 +45,7 @@ template <template <typename> typename HandleType>
 HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
     Isolate* isolate, HandleType<FixedArray> array, int new_length) {
   if (new_length == 0) {
-    return ReadOnlyRoots{isolate}.empty_fixed_array_handle();
+    return isolate->factory()->empty_fixed_array();
   }
   array->RightTrim(isolate, new_length);
   return array;

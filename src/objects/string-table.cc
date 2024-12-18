@@ -705,8 +705,7 @@ void StringTable::InsertEmptyStringForBootstrapping(Isolate* isolate) {
 
     Data* const data = EnsureCapacity(isolate, 1);
 
-    DirectHandle<String> empty_string =
-        ReadOnlyRoots(isolate).empty_string_handle();
+    DirectHandle<String> empty_string = isolate->factory()->empty_string();
     uint32_t hash = empty_string->EnsureHash();
 
     InternalIndex entry = data->table().FindInsertionEntry(isolate, hash);

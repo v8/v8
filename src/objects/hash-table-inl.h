@@ -104,23 +104,23 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
 
 // static
 template <typename Derived, typename Shape>
-Handle<Map> HashTable<Derived, Shape>::GetMap(ReadOnlyRoots roots) {
-  return roots.hash_table_map_handle();
+Handle<Map> HashTable<Derived, Shape>::GetMap(RootsTable& roots) {
+  return roots.hash_table_map();
 }
 
 // static
-Handle<Map> NameToIndexHashTable::GetMap(ReadOnlyRoots roots) {
-  return roots.name_to_index_hash_table_map_handle();
+Handle<Map> NameToIndexHashTable::GetMap(RootsTable& roots) {
+  return roots.name_to_index_hash_table_map();
 }
 
 // static
-Handle<Map> RegisteredSymbolTable::GetMap(ReadOnlyRoots roots) {
-  return roots.registered_symbol_table_map_handle();
+Handle<Map> RegisteredSymbolTable::GetMap(RootsTable& roots) {
+  return roots.registered_symbol_table_map();
 }
 
 // static
-Handle<Map> EphemeronHashTable::GetMap(ReadOnlyRoots roots) {
-  return roots.ephemeron_hash_table_map_handle();
+Handle<Map> EphemeronHashTable::GetMap(RootsTable& roots) {
+  return roots.ephemeron_hash_table_map();
 }
 
 template <typename Derived, typename Shape>

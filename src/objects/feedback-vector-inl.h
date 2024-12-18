@@ -457,15 +457,15 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
 }
 
 Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
-  return ReadOnlyRoots(isolate).uninitialized_symbol_handle();
+  return isolate->factory()->uninitialized_symbol();
 }
 
 Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
-  return ReadOnlyRoots(isolate).megamorphic_symbol_handle();
+  return isolate->factory()->megamorphic_symbol();
 }
 
 Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
-  return ReadOnlyRoots(isolate).mega_dom_symbol_handle();
+  return isolate->factory()->mega_dom_symbol();
 }
 
 Tagged<Symbol> FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {

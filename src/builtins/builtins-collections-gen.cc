@@ -2603,7 +2603,7 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(AllocateFixedArray(HOLEY_ELEMENTS, length));
 
   TNode<Map> map =
-      HeapConstantNoHole(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));
+      HeapConstantNoHole(EphemeronHashTable::GetMap(isolate()->roots_table()));
   StoreMapNoWriteBarrier(table, map);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);

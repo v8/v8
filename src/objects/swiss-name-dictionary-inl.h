@@ -647,7 +647,7 @@ SwissNameDictionary::IterateEntriesOrdered() {
   // If we are supposed to iterate the empty dictionary (which is non-writable),
   // we have no simple way to get the isolate, which we would need to create a
   // handle.
-  // TODO(emrich): Consider always using roots.empty_swiss_dictionary_handle()
+  // TODO(emrich): Consider always using roots.empty_swiss_dictionary()
   // in the condition once this function gets Isolate as a parameter in order to
   // avoid empty dict checks.
   if (Capacity() == 0) {

@@ -205,8 +205,8 @@ Tagged<Object> GlobalDictionaryShape::Unwrap(Tagged<Object> object) {
   return Cast<PropertyCell>(object)->name();
 }
 
-Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.global_dictionary_map_handle();
+Handle<Map> GlobalDictionary::GetMap(RootsTable& roots) {
+  return roots.global_dictionary_map();
 }
 
 Tagged<Name> NameDictionary::NameAt(InternalIndex entry) {
@@ -219,8 +219,8 @@ Tagged<Name> NameDictionary::NameAt(PtrComprCageBase cage_base,
   return Cast<Name>(KeyAt(cage_base, entry));
 }
 
-Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.name_dictionary_map_handle();
+Handle<Map> NameDictionary::GetMap(RootsTable& roots) {
+  return roots.name_dictionary_map();
 }
 
 uint32_t NameDictionary::flags() const {
@@ -309,12 +309,12 @@ DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
-Handle<Map> NumberDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.number_dictionary_map_handle();
+Handle<Map> NumberDictionary::GetMap(RootsTable& roots) {
+  return roots.number_dictionary_map();
 }
 
-Handle<Map> SimpleNumberDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.simple_number_dictionary_map_handle();
+Handle<Map> SimpleNumberDictionary::GetMap(RootsTable& roots) {
+  return roots.simple_number_dictionary_map();
 }
 
 bool BaseNameDictionaryShape::IsMatch(DirectHandle<Name> key,

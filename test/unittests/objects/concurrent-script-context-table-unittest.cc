@@ -111,7 +111,7 @@ TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
       factory->NewScriptContextTable();
 
   DirectHandle<ScopeInfo> scope_info =
-      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
+      i_isolate()->factory()->global_this_binding_scope_info();
 
   for (int i = 0; i < 10; ++i) {
     DirectHandle<Context> script_context =
@@ -158,7 +158,7 @@ TEST_F(ConcurrentScriptContextTableTest,
   native_context->set_script_context_map(*script_context_map);
 
   DirectHandle<ScopeInfo> scope_info =
-      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
+      i_isolate()->factory()->global_this_binding_scope_info();
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();

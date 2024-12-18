@@ -357,7 +357,7 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
          exported_functions) {
       DirectHandle<Object> return_value =
           Execution::Call(i_isolate, exported_function,
-                          ReadOnlyRoots{i_isolate}.undefined_value_handle(), {})
+                          i_isolate->factory()->undefined_value(), {})
               .ToHandleChecked();
       CHECK(IsSmi(*return_value));
       CHECK_EQ(0, Cast<Smi>(*return_value).value());
@@ -1473,7 +1473,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
     for (DirectHandle<WasmExportedFunction> exported_function :
          exported_functions) {
       Execution::Call(i_isolate, exported_function,
-                      ReadOnlyRoots{i_isolate}.undefined_value_handle(), {})
+                      i_isolate->factory()->undefined_value(), {})
           .Check();
     }
     tester.RunCompilerTasks();
@@ -1575,8 +1575,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
   // caching).
   DirectHandle<WasmExportedFunction> func_a =
       testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
-  DirectHandle<Object> receiver =
-      ReadOnlyRoots{i_isolate}.undefined_value_handle();
+  DirectHandle<Object> receiver = i_isolate->factory()->undefined_value();
   for (int i = 0; i < 100; ++i) {
     Execution::Call(i_isolate, func_a, receiver, {}).Check();
   }
@@ -1669,8 +1668,7 @@ STREAM_TEST(TestHardCachingThreshold) {
   // Execute the function 100 times (which triggers tier-up and hence caching).
   DirectHandle<WasmExportedFunction> func_a =
       testing::GetExportedFunction(i_isolate, instance, "a").ToHandleChecked();
-  DirectHandle<Object> receiver =
-      ReadOnlyRoots{i_isolate}.undefined_value_handle();
+  DirectHandle<Object> receiver = i_isolate->factory()->undefined_value();
   for (int i = 0; i < 100; ++i) {
     Execution::Call(i_isolate, func_a, receiver, {}).Check();
   }

@@ -45,7 +45,7 @@ class JSRelativeTimeFormat
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder);
 
-  Handle<String> NumericAsString() const;
+  Handle<String> NumericAsString(Isolate* isolate) const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(

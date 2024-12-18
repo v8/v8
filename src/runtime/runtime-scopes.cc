@@ -255,7 +255,7 @@ Tagged<Object> AddToDisposableStack(Isolate* isolate,
     return *value;
   } else if (IsNullOrUndefined(*value) &&
              hint == DisposeMethodHint::kAsyncDispose) {
-    value = ReadOnlyRoots(isolate).undefined_value_handle();
+    value = isolate->factory()->undefined_value();
   }
 
   Handle<Object> method;

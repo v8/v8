@@ -161,33 +161,33 @@ Handle<JSObject> JSListFormat::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
-                        format->TypeAsString(), NONE);
+                        format->TypeAsString(isolate), NONE);
   JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format->StyleAsString(), NONE);
+                        format->StyleAsString(isolate), NONE);
   // 6. Return options.
   return result;
 }
 
-Handle<String> JSListFormat::StyleAsString() const {
+Handle<String> JSListFormat::StyleAsString(Isolate* isolate) const {
   switch (style()) {
     case Style::LONG:
-      return GetReadOnlyRoots().long_string_handle();
+      return isolate->factory()->long_string();
     case Style::SHORT:
-      return GetReadOnlyRoots().short_string_handle();
+      return isolate->factory()->short_string();
     case Style::NARROW:
-      return GetReadOnlyRoots().narrow_string_handle();
+      return isolate->factory()->narrow_string();
   }
   UNREACHABLE();
 }
 
-Handle<String> JSListFormat::TypeAsString() const {
+Handle<String> JSListFormat::TypeAsString(Isolate* isolate) const {
   switch (type()) {
     case Type::CONJUNCTION:
-      return GetReadOnlyRoots().conjunction_string_handle();
+      return isolate->factory()->conjunction_string();
     case Type::DISJUNCTION:
-      return GetReadOnlyRoots().disjunction_string_handle();
+      return isolate->factory()->disjunction_string();
     case Type::UNIT:
-      return GetReadOnlyRoots().unit_string_handle();
+      return isolate->factory()->unit_string();
   }
   UNREACHABLE();
 }

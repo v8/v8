@@ -21,7 +21,7 @@ namespace internal {
 #define RO_ROOT_ACCESSOR(Type, name, CamelName) \
   template <typename Impl>                      \
   Handle<Type> FactoryBase<Impl>::name() {      \
-    return read_only_roots().name##_handle();   \
+    return isolate()->roots_table().name();     \
   }
 READ_ONLY_ROOT_LIST(RO_ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

@@ -998,26 +998,22 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
   }
   switch (instance_type) {
     case SEQ_TWO_BYTE_STRING_TYPE:
-      *shared_map = read_only_roots().shared_seq_two_byte_string_map_handle();
+      *shared_map = shared_seq_two_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     case SEQ_ONE_BYTE_STRING_TYPE:
-      *shared_map = read_only_roots().shared_seq_one_byte_string_map_handle();
+      *shared_map = shared_seq_one_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     case EXTERNAL_TWO_BYTE_STRING_TYPE:
-      *shared_map =
-          read_only_roots().shared_external_two_byte_string_map_handle();
+      *shared_map = shared_external_two_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      *shared_map =
-          read_only_roots().shared_external_one_byte_string_map_handle();
+      *shared_map = shared_external_one_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     case UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
-      *shared_map = read_only_roots()
-                        .shared_uncached_external_two_byte_string_map_handle();
+      *shared_map = shared_uncached_external_two_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      *shared_map = read_only_roots()
-                        .shared_uncached_external_one_byte_string_map_handle();
+      *shared_map = shared_uncached_external_one_byte_string_map();
       return StringTransitionStrategy::kInPlace;
     default:
       return StringTransitionStrategy::kCopy;
@@ -2748,7 +2744,7 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
 
 Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
   ReadOnlyRoots roots(isolate());
-  auto num = roots.FindHeapNumber(value);
+  auto num = isolate()->roots_table().FindHeapNumber(value);
   if (!num.is_null()) return num;
   // Add known HeapNumber constants to the read only roots. This ensures
   // r/o snapshots to be deterministic.
@@ -4077,7 +4073,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
 
 Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
                                                   MaybeObjectHandle context) {
-  DirectHandle<Map> map = read_only_roots().mega_dom_handler_map_handle();
+  DirectHandle<Map> map = mega_dom_handler_map();
   Tagged<MegaDomHandler> handler =
       Cast<MegaDomHandler>(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -4570,7 +4566,7 @@ Handle<JSSharedArray> Factory::NewJSSharedArray(
 
 Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
   SharedObjectSafePublishGuard publish_guard;
-  DirectHandle<Map> map = read_only_roots().js_atomics_mutex_map_handle();
+  DirectHandle<Map> map = js_atomics_mutex_map();
   auto mutex =
       Cast<JSAtomicsMutex>(NewJSObjectFromMap(map, AllocationType::kSharedOld));
   mutex->set_state(JSAtomicsMutex::kUnlockedUncontended);
@@ -4581,7 +4577,7 @@ Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
 
 Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   SharedObjectSafePublishGuard publish_guard;
-  DirectHandle<Map> map = read_only_roots().js_atomics_condition_map_handle();
+  DirectHandle<Map> map = js_atomics_condition_map();
   Handle<JSAtomicsCondition> cond = Cast<JSAtomicsCondition>(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
@@ -4665,8 +4661,7 @@ Handle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
 Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
     DirectHandle<FixedArray> property_names) {
   const int size = DictionaryTemplateInfo::SizeFor();
-  DirectHandle<Map> map =
-      read_only_roots().dictionary_template_info_map_handle();
+  DirectHandle<Map> map = dictionary_template_info_map();
   Tagged<DictionaryTemplateInfo> obj = Cast<DictionaryTemplateInfo>(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
   obj->set_property_names(*property_names);
