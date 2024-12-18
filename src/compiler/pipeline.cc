@@ -3562,6 +3562,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   data.BeginPhaseKind("V8.WasmOptimization");
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data);
+
 #if defined(V8_ENABLE_WASM_SIMD256_REVEC) && defined(V8_TARGET_ARCH_X64)
   if (v8_flags.experimental_wasm_revectorize) {
     bool cpu_feature_support =
@@ -3595,6 +3596,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   }
 
   if (v8_flags.wasm_loop_unrolling) {
+    // TODO(384870251): Note that if we don't run this, subsequent analyses and
+    // optimizations (DCE, decompression optimization) can run much slower.
     turboshaft_pipeline.Run<turboshaft::LoopUnrollingPhase>();
   }
 
@@ -3605,6 +3608,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   // TODO(mliedtke): This phase could be merged with the WasmGCOptimizePhase
   // if wasm_opt is enabled to improve compile time. Consider potential code
   // size increase.
+  // TODO(384870251,dmercardier): Run a CopyingPhase with LoopFinder to
+  // improve block ordering, independent of loop unrolling.
   turboshaft_pipeline.Run<turboshaft::WasmLoweringPhase>();
 
   // TODO(14108): Do we need value numbering if wasm_opt is turned off?
