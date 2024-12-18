@@ -76,7 +76,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
 template <>
 struct ObjectTraits<Oddball> {
   using BodyDescriptor =
-      FixedBodyDescriptor<offsetof(Oddball, to_number_raw_),
+      FixedBodyDescriptor<offsetof(Oddball, to_string_),
                           offsetof(Oddball, kind_), sizeof(Oddball)>;
 
   static_assert(offsetof(Oddball, kind_) == Internals::kOddballKindOffset);
