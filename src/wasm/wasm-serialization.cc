@@ -658,12 +658,12 @@ class DeserializationQueue {
  public:
   void Add(std::vector<DeserializationUnit> batch) {
     DCHECK(!batch.empty());
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     queue_.emplace(std::move(batch));
   }
 
   std::vector<DeserializationUnit> Pop() {
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     if (queue_.empty()) return {};
     auto batch = std::move(queue_.front());
     queue_.pop();
@@ -671,7 +671,7 @@ class DeserializationQueue {
   }
 
   std::vector<DeserializationUnit> PopAll() {
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     if (queue_.empty()) return {};
     auto units = std::move(queue_.front());
     queue_.pop();
@@ -684,12 +684,12 @@ class DeserializationQueue {
   }
 
   size_t NumBatches() const {
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     return queue_.size();
   }
 
  private:
-  mutable base::Mutex mutex_;
+  mutable base::SelfishMutex mutex_;
   std::queue<std::vector<DeserializationUnit>> queue_;
 };
 

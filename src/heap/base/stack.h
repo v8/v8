@@ -99,7 +99,7 @@ class V8_EXPORT_PRIVATE Stack final {
 
   bool IsMarkerSet() const { return current_segment_.top != nullptr; }
   bool IsMarkerSetForBackgroundThread(ThreadId thread) const {
-    v8::base::MutexGuard guard(&lock_);
+    v8::base::SelfishMutexGuard guard(&lock_);
     auto it = background_stacks_.find(thread);
     if (it == background_stacks_.end()) return false;
     DCHECK_NOT_NULL(it->second.top);
@@ -177,7 +177,7 @@ class V8_EXPORT_PRIVATE Stack final {
     auto& background_stacks = stack->background_stacks_;
     Segment previous_segment;
     {
-      v8::base::MutexGuard guard(&stack->lock_);
+      v8::base::SelfishMutexGuard guard(&stack->lock_);
       if (auto it = background_stacks.find(thread);
           it != background_stacks.end()) {
         previous_segment = it->second;
@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE Stack final {
     }
     (*callback)();
     {
-      v8::base::MutexGuard guard(&stack->lock_);
+      v8::base::SelfishMutexGuard guard(&stack->lock_);
       if (previous_segment.top)
         background_stacks[thread] = previous_segment;
       else
@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE Stack final {
 
   Segment current_segment_;
 
-  mutable v8::base::Mutex lock_;
+  mutable v8::base::SelfishMutex lock_;
   std::map<ThreadId, Segment> background_stacks_;
 };
 

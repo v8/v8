@@ -411,7 +411,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  private:
   // Lazy loading must guard against concurrent modifications from multiple
   // {WasmModuleObject}s.
-  mutable base::Mutex mutex_;
+  mutable base::SelfishMutex mutex_;
   bool has_functions_{false};
   NameMap function_names_;
 };
@@ -435,7 +435,7 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   // The offset information table is decoded lazily, hence needs to be
   // protected against concurrent accesses.
   // Exactly one of the two fields below will be set at a time.
-  mutable base::Mutex mutex_;
+  mutable base::SelfishMutex mutex_;
 
   // Holds the encoded offset table bytes.
   base::OwnedVector<const uint8_t> encoded_offsets_;
@@ -936,11 +936,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
 #if V8_ENABLE_DRUMBRAKE
   void SetWasmInterpreter(
       std::shared_ptr<WasmInterpreterRuntime> interpreter) const {
-    base::MutexGuard lock(&interpreter_mutex_);
+    base::SelfishMutexGuard lock(&interpreter_mutex_);
     interpreter_ = interpreter;
   }
   mutable std::weak_ptr<WasmInterpreterRuntime> interpreter_;
-  mutable base::Mutex interpreter_mutex_;
+  mutable base::SelfishMutex interpreter_mutex_;
 #endif  // V8_ENABLE_DRUMBRAKE
 
   size_t EstimateStoredSize() const;                // No tracing.

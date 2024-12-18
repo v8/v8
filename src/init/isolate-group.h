@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     shared_read_only_heap_ = heap;
   }
 
-  base::Mutex* read_only_heap_creation_mutex() {
+  base::SelfishMutex* read_only_heap_creation_mutex() {
     return &read_only_heap_creation_mutex_;
   }
 
@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   bool process_wide_;
 
   // Mutex used to ensure that ReadOnlyArtifacts creation is only done once.
-  base::Mutex read_only_heap_creation_mutex_;
+  base::SelfishMutex read_only_heap_creation_mutex_;
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;

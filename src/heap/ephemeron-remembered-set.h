@@ -37,7 +37,7 @@ class EphemeronRememberedSet final {
   TableMap* tables() { return &tables_; }
 
  private:
-  base::Mutex insertion_mutex_;
+  base::SelfishMutex insertion_mutex_;
   TableMap tables_;
 };
 

@@ -10,6 +10,8 @@
 #include "include/v8config.h"
 
 #if V8_OS_DARWIN
+#include <os/lock.h>
+
 #include "absl/synchronization/mutex.h"
 #endif
 
@@ -36,7 +38,6 @@ namespace base {
 
 class ConditionVariable;
 
-// ----------------------------------------------------------------------------
 // Mutex - a replacement for std::mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
@@ -96,7 +97,6 @@ class V8_BASE_EXPORT Mutex final {
   }
 
  private:
-  NativeHandle native_handle_;
 #ifdef DEBUG
   // This is being used for Assert* methods. Accesses are only allowed if you
   // actually hold the mutex, otherwise you would get race conditions.
@@ -122,6 +122,61 @@ class V8_BASE_EXPORT Mutex final {
   }
 
   friend class ConditionVariable;
+
+  NativeHandle native_handle_;
+};
+
+// SelfishMutex - a replacement for std::mutex
+//
+// A specializaton of Mutex that should be used when fairness isn't the
+// priority, but performance across the lock is.
+class V8_BASE_EXPORT SelfishMutex final {
+ public:
+  SelfishMutex();
+  SelfishMutex(const SelfishMutex&) = delete;
+  SelfishMutex& operator=(const SelfishMutex&) = delete;
+  ~SelfishMutex();
+
+  // Locks the given mutex. If the mutex is currently unlocked, it becomes
+  // locked and owned by the calling thread, and immediately. If the mutex
+  // is already locked by another thread, suspends the calling thread until
+  // the mutex is unlocked.
+  void Lock();
+
+  // Unlocks the given mutex. The mutex is assumed to be locked and owned by
+  // the calling thread on entrance.
+  void Unlock();
+
+  // Tries to lock the given mutex. Returns whether the mutex was
+  // successfully locked.
+  // Note: Instead of `DCHECK(!mutex.TryLock())` use `mutex.AssertHeld()`.
+  bool TryLock() V8_WARN_UNUSED_RESULT;
+
+  V8_INLINE void AssertHeld() const {
+    // If this access results in a race condition being detected by TSan, this
+    // means that you in fact did *not* hold the mutex.
+    DCHECK_EQ(1, level_);
+  }
+
+ private:
+#ifdef DEBUG
+  // This is being used for Assert* methods. Accesses are only allowed if you
+  // actually hold the mutex, otherwise you would get race conditions.
+  int level_;
+#endif
+
+  // The implementation-defined native handle type.
+#if V8_OS_DARWIN
+  using NativeHandle = os_unfair_lock;
+#elif V8_OS_POSIX
+  using NativeHandle = pthread_mutex_t;
+#elif V8_OS_WIN
+  using NativeHandle = V8_SRWLOCK;
+#elif V8_OS_STARBOARD
+  using NativeHandle = SbMutex;
+#endif
+
+  NativeHandle native_handle_;
 };
 
 // POD Mutex initialized lazily (i.e. the first time Pointer() is called).
@@ -135,10 +190,13 @@ class V8_BASE_EXPORT Mutex final {
 //
 using LazyMutex = LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
                                      ThreadSafeInitOnceTrait>::type;
-
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
+using LazySelfishMutex =
+    LazyStaticInstance<SelfishMutex, DefaultConstructTrait<SelfishMutex>,
+                       ThreadSafeInitOnceTrait>::type;
 
-// -----------------------------------------------------------------------------
+#define LAZY_SELFISH_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
+
 // RecursiveMutex - a replacement for std::recursive_mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
@@ -226,7 +284,6 @@ using LazyRecursiveMutex =
 
 #define LAZY_RECURSIVE_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-// ----------------------------------------------------------------------------
 // SharedMutex - a replacement for std::shared_mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
@@ -308,7 +365,6 @@ class V8_BASE_EXPORT SharedMutex final {
   NativeHandle native_handle_;
 };
 
-// -----------------------------------------------------------------------------
 // LockGuard
 //
 // This class is a mutex wrapper that provides a convenient RAII-style mechanism
@@ -352,6 +408,7 @@ class V8_NODISCARD LockGuard final {
 };
 
 using MutexGuard = LockGuard<Mutex>;
+using SelfishMutexGuard = LockGuard<SelfishMutex>;
 using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };

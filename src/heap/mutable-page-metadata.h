@@ -99,8 +99,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return Chunk()->SetYoungGenerationPageFlags(marking_mode);
   }
 
-  base::Mutex& mutex() { return mutex_; }
-  const base::Mutex& mutex() const { return mutex_; }
+  base::SelfishMutex& mutex() { return mutex_; }
+  const base::SelfishMutex& mutex() const { return mutex_; }
   base::SharedMutex& shared_mutex() { return shared_mutex_; }
   const base::SharedMutex& shared_mutex() const { return shared_mutex_; }
 
@@ -357,7 +357,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // platforms. In theory, there could be a difference between Linux and Android
   // in terms of Mutex size.
 
-  base::Mutex mutex_;
+  base::SelfishMutex mutex_;
   base::SharedMutex shared_mutex_;
 
  private:

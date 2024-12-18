@@ -55,7 +55,7 @@ template void IndirectNameMap::FinishInitialization();
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
     ModuleWireBytes wire_bytes, uint32_t function_index) {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   if (!has_functions_) {
     has_functions_ = true;
     DecodeFunctionNames(wire_bytes.module_bytes(), function_names_);
@@ -67,7 +67,7 @@ WireBytesRef LazilyGeneratedNames::LookupFunctionName(
 
 bool LazilyGeneratedNames::Has(uint32_t function_index) {
   DCHECK(has_functions_);
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   return function_names_.Get(function_index) != nullptr;
 }
 
@@ -123,7 +123,7 @@ int GetSubtypingDepth(const WasmModule* module, ModuleTypeIndex type_index) {
 
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   function_names_.Put(function_index, name);
 }
 
@@ -174,7 +174,7 @@ std::pair<int, int> AsmJsOffsetInformation::GetFunctionOffsets(
 }
 
 void AsmJsOffsetInformation::EnsureDecodedOffsets() {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   DCHECK_EQ(encoded_offsets_ == nullptr, decoded_offsets_ != nullptr);
 
   if (decoded_offsets_) return;
@@ -709,7 +709,7 @@ size_t NameMap::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t LazilyGeneratedNames::EstimateCurrentMemoryConsumption() const {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   return function_names_.EstimateCurrentMemoryConsumption();
 }
 

@@ -354,7 +354,7 @@ bool Heap::IsPendingAllocation(Tagged<Object> object) {
 }
 
 void Heap::ExternalStringTable::AddString(Tagged<String> string) {
-  std::optional<base::MutexGuard> guard;
+  std::optional<base::SelfishMutexGuard> guard;
 
   // With --shared-string-table client isolates may insert into the main
   // isolate's table concurrently.

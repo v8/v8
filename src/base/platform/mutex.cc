@@ -39,6 +39,22 @@ bool SharedMutexNotHeld(SharedMutex* shared_mutex) {
           held_shared_mutexes->count(shared_mutex) == 0);
 }
 
+void AssertHeldAndUnmark(int* level) {
+#ifdef DEBUG
+  // If this access results in a race condition being detected by TSan, this
+  // means that you in fact did *not* hold the mutex.
+  DCHECK_EQ(1, (*level)--);
+#endif
+}
+
+void AssertUnheldAndMark(int* level) {
+#ifdef DEBUG
+  // This is only invoked *after* actually getting the mutex, so should not
+  // result in race conditions.
+  DCHECK_EQ(0, (*level)++);
+#endif
+}
+
 // Tries to hold {shared_mutex}. Returns true iff it hadn't been held prior to
 // this function call.
 bool TryHoldSharedMutex(SharedMutex* shared_mutex) {
@@ -79,6 +95,51 @@ bool TryReleaseSharedMutex(SharedMutex* shared_mutex) {
 }
 }  // namespace
 #endif  // DEBUG
+
+#if V8_OS_DARWIN
+static V8_INLINE void InitializeNativeHandle(os_unfair_lock* lock) {
+  *lock = OS_UNFAIR_LOCK_INIT;
+}
+
+// TODO(verwaest): We should use the constants from the header, but they aren't
+// exposed until macOS 15.
+#define OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION 0x00010000
+#define OS_UNFAIR_LOCK_ADAPTIVE_SPIN 0x00040000
+
+typedef uint32_t os_unfair_lock_options_t;
+
+extern "C" {
+void __attribute__((weak))
+os_unfair_lock_lock_with_options(os_unfair_lock* lock,
+                                 os_unfair_lock_options_t);
+}
+
+static V8_INLINE void LockNativeHandle(os_unfair_lock* lock) {
+  if (__builtin_available(macOS 15, *)) {
+    const os_unfair_lock_flags_t options = static_cast<os_unfair_lock_flags_t>(
+        OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION | OS_UNFAIR_LOCK_ADAPTIVE_SPIN);
+    os_unfair_lock_lock_with_flags(lock, options);
+  } else if (os_unfair_lock_lock_with_options) {
+    const os_unfair_lock_options_t options =
+        static_cast<os_unfair_lock_options_t>(
+            OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION | OS_UNFAIR_LOCK_ADAPTIVE_SPIN);
+    os_unfair_lock_lock_with_options(lock, options);
+  } else {
+    os_unfair_lock_lock(lock);
+  }
+}
+
+static V8_INLINE void UnlockNativeHandle(os_unfair_lock* lock) {
+  os_unfair_lock_unlock(lock);
+}
+
+static V8_INLINE bool TryLockNativeHandle(os_unfair_lock* lock) {
+  return os_unfair_lock_trylock(lock);
+}
+
+static V8_INLINE void DestroyNativeHandle(os_unfair_lock* lock) {}
+
+#endif
 
 #if V8_OS_POSIX
 
@@ -182,6 +243,41 @@ bool Mutex::TryLock() {
   return true;
 }
 
+SelfishMutex::SelfishMutex() {
+  InitializeNativeHandle(&native_handle_);
+#ifdef DEBUG
+  level_ = 0;
+#endif
+}
+
+SelfishMutex::~SelfishMutex() {
+  DestroyNativeHandle(&native_handle_);
+  DCHECK_EQ(0, level_);
+}
+
+void SelfishMutex::Lock() {
+  LockNativeHandle(&native_handle_);
+#ifdef DEBUG
+  AssertUnheldAndMark(&level_);
+#endif
+}
+
+void SelfishMutex::Unlock() {
+#ifdef DEBUG
+  AssertHeldAndUnmark(&level_);
+#endif
+  UnlockNativeHandle(&native_handle_);
+}
+
+bool SelfishMutex::TryLock() {
+  if (!TryLockNativeHandle(&native_handle_)) {
+    return false;
+  }
+#ifdef DEBUG
+  AssertUnheldAndMark(&level_);
+#endif
+  return true;
+}
 
 RecursiveMutex::RecursiveMutex() {
   InitializeRecursiveNativeHandle(&native_handle_);
@@ -353,6 +449,37 @@ bool Mutex::TryLock() {
   return true;
 }
 
+SelfishMutex::SelfishMutex() : native_handle_(SRWLOCK_INIT) {
+#ifdef DEBUG
+  level_ = 0;
+#endif
+}
+
+SelfishMutex::~SelfishMutex() { DCHECK_EQ(0, level_); }
+
+void SelfishMutex::Lock() {
+  AcquireSRWLockExclusive(V8ToWindowsType(&native_handle_));
+#ifdef DEBUG
+  AssertUnheldAndMark(&level_);
+#endif
+}
+
+void SelfishMutex::Unlock() {
+#ifdef DEBUG
+  AssertHeldAndUnmark(&level_);
+#endif
+  ReleaseSRWLockExclusive(V8ToWindowsType(&native_handle_));
+}
+
+bool SelfishMutex::TryLock() {
+  if (!TryAcquireSRWLockExclusive(V8ToWindowsType(&native_handle_))) {
+    return false;
+  }
+#ifdef DEBUG
+  AssertUnheldAndMark(&level_);
+#endif
+  return true;
+}
 
 RecursiveMutex::RecursiveMutex() {
   InitializeCriticalSection(V8ToWindowsType(&native_handle_));
@@ -444,6 +571,14 @@ Mutex::~Mutex() { SbMutexDestroy(&native_handle_); }
 void Mutex::Lock() { SbMutexAcquire(&native_handle_); }
 
 void Mutex::Unlock() { SbMutexRelease(&native_handle_); }
+
+SelfishMutex::SelfishMutex() { SbMutexCreate(&native_handle_); }
+
+SelfishMutex::~SelfishMutex() { SbMutexDestroy(&native_handle_); }
+
+void SelfishMutex::Lock() { SbMutexAcquire(&native_handle_); }
+
+void SelfishMutex::Unlock() { SbMutexRelease(&native_handle_); }
 
 RecursiveMutex::RecursiveMutex() {}
 

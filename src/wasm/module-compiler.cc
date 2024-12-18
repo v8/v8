@@ -203,8 +203,8 @@ class CompilationUnitQueues {
       queue = queues_[queue_to_add].get();
     }
 
-    base::MutexGuard guard(&queue->mutex);
-    std::optional<base::MutexGuard> big_units_guard;
+    base::SelfishMutexGuard guard(&queue->mutex);
+    std::optional<base::SelfishMutexGuard> big_units_guard;
     for (auto pair :
          {std::make_pair(CompilationTier::kBaseline, baseline_units),
           std::make_pair(CompilationTier::kTopTier, top_tier_units)}) {
@@ -248,7 +248,7 @@ class CompilationUnitQueues {
 
     {
       auto* queue = queues_[queue_to_add].get();
-      base::MutexGuard guard(&queue->mutex);
+      base::SelfishMutexGuard guard(&queue->mutex);
       queue->top_tier_priority_units.emplace(priority, unit);
       num_priority_units_.fetch_add(1, std::memory_order_relaxed);
       num_units_[CompilationTier::kTopTier].fetch_add(
@@ -313,7 +313,7 @@ class CompilationUnitQueues {
 #endif
     }
 
-    mutable base::Mutex mutex;
+    mutable base::SelfishMutex mutex;
 
     // Can be read concurrently to check whether any elements are in the queue.
     std::atomic<bool> has_units[CompilationTier::kNumTiers];
@@ -332,7 +332,7 @@ class CompilationUnitQueues {
     // publishing arbitrarily.
     std::atomic<int> publish_limit{kMaxInt};
 
-    base::Mutex mutex;
+    base::SelfishMutex mutex;
 
     // All fields below are protected by {mutex}.
     std::vector<WasmCompilationUnit> units[CompilationTier::kNumTiers];
@@ -363,7 +363,7 @@ class CompilationUnitQueues {
     // so, return it, otherwise get the task id to steal from.
     int steal_task_id;
     {
-      base::MutexGuard mutex_guard(&queue->mutex);
+      base::SelfishMutexGuard mutex_guard(&queue->mutex);
       if (!queue->units[tier].empty()) {
         auto unit = queue->units[tier].back();
         queue->units[tier].pop_back();
@@ -396,7 +396,7 @@ class CompilationUnitQueues {
     if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
       return {};
     }
-    base::MutexGuard guard(&big_units_queue_.mutex);
+    base::SelfishMutexGuard guard(&big_units_queue_.mutex);
     if (big_units_queue_.units[tier].empty()) return {};
     WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
     big_units_queue_.units[tier].pop();
@@ -414,7 +414,7 @@ class CompilationUnitQueues {
 
     int steal_task_id;
     {
-      base::MutexGuard mutex_guard(&queue->mutex);
+      base::SelfishMutexGuard mutex_guard(&queue->mutex);
       while (!queue->top_tier_priority_units.empty()) {
         auto unit = queue->top_tier_priority_units.top().unit;
         queue->top_tier_priority_units.pop();
@@ -460,7 +460,7 @@ class CompilationUnitQueues {
     std::vector<WasmCompilationUnit> stolen;
     std::optional<WasmCompilationUnit> returned_unit;
     {
-      base::MutexGuard guard(&steal_queue->mutex);
+      base::SelfishMutexGuard guard(&steal_queue->mutex);
       auto* steal_from_vector = &steal_queue->units[wanted_tier];
       if (steal_from_vector->empty()) return {};
       size_t remaining = steal_from_vector->size() / 2;
@@ -469,7 +469,7 @@ class CompilationUnitQueues {
       stolen.assign(steal_begin + 1, steal_from_vector->end());
       steal_from_vector->erase(steal_begin, steal_from_vector->end());
     }
-    base::MutexGuard guard(&queue->mutex);
+    base::SelfishMutexGuard guard(&queue->mutex);
     auto* target_queue = &queue->units[wanted_tier];
     target_queue->insert(target_queue->end(), stolen.begin(), stolen.end());
     queue->next_steal_task_id = steal_from_task_id + 1;
@@ -486,7 +486,7 @@ class CompilationUnitQueues {
     if (steal_queue == queue) return {};
     std::optional<WasmCompilationUnit> returned_unit;
     {
-      base::MutexGuard guard(&steal_queue->mutex);
+      base::SelfishMutexGuard guard(&steal_queue->mutex);
       while (true) {
         if (steal_queue->top_tier_priority_units.empty()) return {};
 
@@ -503,7 +503,7 @@ class CompilationUnitQueues {
             1, std::memory_order_relaxed);
       }
     }
-    base::MutexGuard guard(&queue->mutex);
+    base::SelfishMutexGuard guard(&queue->mutex);
     queue->next_steal_task_id = steal_from_task_id + 1;
     return returned_unit;
   }
@@ -533,13 +533,13 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     base::SharedMutexGuard<base::kShared> lock(&queues_mutex_);
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
-      base::MutexGuard guard(&q->mutex);
+      base::SelfishMutexGuard guard(&q->mutex);
       result += ContentSize(*q->units);
       result += q->top_tier_priority_units.size() * sizeof(TopTierPriorityUnit);
     }
   }
   {
-    base::MutexGuard lock(&big_units_queue_.mutex);
+    base::SelfishMutexGuard lock(&big_units_queue_.mutex);
     result += big_units_queue_.units[0].size() * sizeof(BigUnit);
     result += big_units_queue_.units[1].size() * sizeof(BigUnit);
   }
@@ -672,7 +672,7 @@ class CompilationStateImpl {
   }
 
   bool baseline_compilation_finished() const {
-    base::MutexGuard guard(&callbacks_mutex_);
+    base::SelfishMutexGuard guard(&callbacks_mutex_);
     return outstanding_baseline_units_ == 0;
   }
 
@@ -682,12 +682,12 @@ class CompilationStateImpl {
 
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     wire_bytes_storage_ = std::move(wire_bytes_storage);
   }
 
   std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const {
-    base::MutexGuard guard(&mutex_);
+    base::SelfishMutexGuard guard(&mutex_);
     DCHECK_NOT_NULL(wire_bytes_storage_);
     return wire_bytes_storage_;
   }
@@ -744,7 +744,7 @@ class CompilationStateImpl {
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
-  mutable base::Mutex mutex_;
+  mutable base::SelfishMutex mutex_;
 
   // The compile job handles, initialized right after construction of
   // {CompilationStateImpl}.
@@ -773,7 +773,7 @@ class CompilationStateImpl {
   // This mutex protects the callbacks vector, and the counters used to
   // determine which callbacks to call. The counters plus the callbacks
   // themselves need to be synchronized to ensure correct order of events.
-  mutable base::Mutex callbacks_mutex_;
+  mutable base::SelfishMutex callbacks_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {callbacks_mutex_}:
@@ -801,7 +801,7 @@ class CompilationStateImpl {
 
   struct PublishState {
     // {mutex_} protects {publish_queue_} and {publisher_running_}.
-    base::Mutex mutex_;
+    base::SelfishMutex mutex_;
     std::vector<std::unique_ptr<WasmCode>> publish_queue_;
     bool publisher_running_ = false;
   };
@@ -830,7 +830,7 @@ size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
   size_t result = sizeof(CompilationStateImpl);
 
   {
-    base::MutexGuard guard{&mutex_};
+    base::SelfishMutexGuard guard{&mutex_};
     result += compilation_unit_queues_.EstimateCurrentMemoryConsumption();
   }
 
@@ -3575,7 +3575,7 @@ void CompilationStateImpl::InitCompileJob() {
 
 void CompilationStateImpl::CancelCompilation(
     CompilationStateImpl::CancellationPolicy cancellation_policy) {
-  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  base::SelfishMutexGuard callbacks_guard(&callbacks_mutex_);
 
   if (cancellation_policy == kCancelInitialCompilation &&
       finished_events_.contains(
@@ -3683,7 +3683,7 @@ void CompilationStateImpl::ApplyPgoInfoLate(ProfileInformation* pgo_info) {
   const WasmModule* module = native_module_->module();
   CompilationUnitBuilder builder{native_module_};
 
-  base::MutexGuard guard(&callbacks_mutex_);
+  base::SelfishMutexGuard guard(&callbacks_mutex_);
   // Functions that were executed in the profiling run are eagerly compiled to
   // Liftoff (in the background).
   for (int func_index : pgo_info->executed_functions()) {
@@ -3737,7 +3737,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
     ProfileInformation* pgo_info) {
   DCHECK(!failed());
 
-  base::MutexGuard guard(&callbacks_mutex_);
+  base::SelfishMutexGuard guard(&callbacks_mutex_);
 
   if (!v8_flags.wasm_jitless) {
     auto* module = native_module_->module();
@@ -3818,7 +3818,7 @@ void CompilationStateImpl::InitializeCompilationUnits(
   if (!v8_flags.wasm_jitless) {
     int offset = native_module_->module()->num_imported_functions;
     {
-      base::MutexGuard guard(&callbacks_mutex_);
+      base::SelfishMutexGuard guard(&callbacks_mutex_);
 
       for (size_t i = 0, e = compilation_progress_.size(); i < e; ++i) {
         uint8_t function_progress = compilation_progress_[i];
@@ -3843,7 +3843,7 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
     // lock-free.
     // 2) Have a copy of compilation_progress_ that we use for initialization.
     // 3) Just re-calculate the content of compilation_progress_.
-    base::MutexGuard guard(&callbacks_mutex_);
+    base::SelfishMutexGuard guard(&callbacks_mutex_);
     function_progress = compilation_progress_[progress_index];
   }
   AddCompilationUnitInternal(builder, func_index, function_progress);
@@ -3863,7 +3863,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
 
   auto* module = native_module_->module();
   {
-    base::MutexGuard guard(&callbacks_mutex_);
+    base::SelfishMutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());
 
     // Initialize the compilation progress as if everything was
@@ -3920,7 +3920,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
 
 void CompilationStateImpl::AddCallback(
     std::unique_ptr<CompilationEventCallback> callback) {
-  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  base::SelfishMutexGuard callbacks_guard(&callbacks_mutex_);
   // Immediately trigger events that already happened.
   for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
                      CompilationEvent::kFailedCompilation}) {
@@ -3938,7 +3938,7 @@ void CompilationStateImpl::AddCallback(
 void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> baseline_units,
     base::Vector<WasmCompilationUnit> top_tier_units) {
-  base::MutexGuard guard{&mutex_};
+  base::SelfishMutexGuard guard{&mutex_};
   if (!baseline_units.empty() || !top_tier_units.empty()) {
     compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
                                       native_module_->module());
@@ -3982,7 +3982,7 @@ void CompilationStateImpl::OnFinishedUnits(
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.OnFinishedUnits", "units", code_vector.size());
 
-  base::MutexGuard guard(&callbacks_mutex_);
+  base::SelfishMutexGuard guard(&callbacks_mutex_);
 
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
@@ -4177,7 +4177,7 @@ void CompilationStateImpl::TriggerCallbacks(
 }
 
 void CompilationStateImpl::TriggerCachingAfterTimeout() {
-  base::MutexGuard guard{&callbacks_mutex_};
+  base::SelfishMutexGuard guard{&callbacks_mutex_};
 
   // It can happen that we reached the hard threshold while waiting for the
   // timeout to expire. In that case, {bytes_since_last_chunk_} might be zero
@@ -4274,7 +4274,7 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     CompilationTier tier) {
   PublishState& state = publish_state_[tier];
   {
-    base::MutexGuard guard(&state.mutex_);
+    base::SelfishMutexGuard guard(&state.mutex_);
     if (state.publisher_running_) {
       // Add new code to the queue and return.
       state.publish_queue_.reserve(state.publish_queue_.size() +
@@ -4291,7 +4291,7 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     unpublished_code.clear();
 
     // Keep publishing new code that came in.
-    base::MutexGuard guard(&state.mutex_);
+    base::SelfishMutexGuard guard(&state.mutex_);
     DCHECK(state.publisher_running_);
     if (state.publish_queue_.empty()) {
       state.publisher_running_ = false;
@@ -4312,7 +4312,7 @@ void CompilationStateImpl::SetError() {
     return;  // Already failed before.
   }
 
-  base::MutexGuard callbacks_guard(&callbacks_mutex_);
+  base::SelfishMutexGuard callbacks_guard(&callbacks_mutex_);
   TriggerOutstandingCallbacks();
   callbacks_.clear();
 }
@@ -4330,7 +4330,7 @@ void CompilationStateImpl::WaitForCompilationEvent(
 #ifdef DEBUG
   base::EnumSet<CompilationEvent> events{expect_event,
                                          CompilationEvent::kFailedCompilation};
-  base::MutexGuard guard(&callbacks_mutex_);
+  base::SelfishMutexGuard guard(&callbacks_mutex_);
   DCHECK(finished_events_.contains_any(events));
 #endif
 }

@@ -39,7 +39,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
 
   // Multiple threads could try to register recursive groups concurrently.
   // TODO(manoskouk): Investigate if we can fine-grain the synchronization.
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   // Compute the first canonical index in the recgroup in the case that it does
   // not already exist.
   CanonicalTypeIndex first_new_canonical_index{
@@ -95,7 +95,7 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
 void TypeCanonicalizer::AddRecursiveSingletonGroup(WasmModule* module) {
   DCHECK(!module->types.empty());
   uint32_t type_index = static_cast<uint32_t>(module->types.size() - 1);
-  base::MutexGuard guard(&mutex_);
+  base::SelfishMutexGuard guard(&mutex_);
   CanonicalTypeIndex new_canonical_index{
       static_cast<uint32_t>(canonical_supertypes_.size())};
   // Snapshot the zone before allocating the new type; the zone will be reset if
@@ -147,7 +147,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
                 ValueType::Primitive(kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
                           CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared};
-  base::MutexGuard guard(&mutex_);
+  base::SelfishMutexGuard guard(&mutex_);
   // Fast path lookup before canonicalizing (== copying into the
   // TypeCanonicalizer's zone) the function signature.
   CanonicalTypeIndex new_canonical_index{
@@ -188,7 +188,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
 
 const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
     CanonicalTypeIndex index) const {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   auto it = canonical_function_sigs_.find(index);
   CHECK(it != canonical_function_sigs_.end());
   return it->second;
@@ -224,7 +224,7 @@ bool TypeCanonicalizer::IsCanonicalSubtype(CanonicalTypeIndex sub_index,
   // Multiple threads could try to register and access recursive groups
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   while (sub_index.valid()) {
     if (sub_index == super_index) return true;
     sub_index = canonical_supertypes_[sub_index.index];
@@ -243,7 +243,7 @@ bool TypeCanonicalizer::IsCanonicalSubtype(ModuleTypeIndex sub_index,
 }
 
 void TypeCanonicalizer::EmptyStorageForTesting() {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   canonical_supertypes_.clear();
   canonical_groups_.clear();
   canonical_singleton_groups_.clear();
@@ -345,7 +345,7 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 296);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   size_t result = ContentSize(canonical_supertypes_);
   result += ContentSize(canonical_groups_);
   result += ContentSize(canonical_singleton_groups_);
@@ -358,7 +358,7 @@ size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
 }
 
 size_t TypeCanonicalizer::GetCurrentNumberOfTypes() const {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   return canonical_supertypes_.size();
 }
 
@@ -415,7 +415,7 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
 }
 
 bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   auto it = canonical_function_sigs_.find(index);
   return it != canonical_function_sigs_.end();
 }
@@ -438,7 +438,7 @@ CanonicalTypeIndex TypeCanonicalizer::FindIndex_Slow(
 
 #ifdef DEBUG
 bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {
-  base::MutexGuard mutex_guard(&mutex_);
+  base::SelfishMutexGuard mutex_guard(&mutex_);
   return zone_.Contains(sig);
 }
 #endif

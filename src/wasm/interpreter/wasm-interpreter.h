@@ -193,7 +193,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThreadMap {
   typedef std::unordered_map<int, std::unique_ptr<WasmInterpreterThread>>
       ThreadInterpreterMap;
   ThreadInterpreterMap map_;
-  base::Mutex mutex_;
+  base::SelfishMutex mutex_;
 };
 
 // Representation of a thread in the interpreter.

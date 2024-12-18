@@ -28,7 +28,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::operator[](
 // this action is triggered by some isolate; so we use this isolate for error
 // reporting and running GCs if required.
 void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   if (code_allocator_.get() != nullptr) return;  // Already initialized.
   // Most wrappers are small (200-300 bytes), most modules don't need many.
   // 32K is enough for ~100 wrappers.
@@ -140,7 +140,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
 
 WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
   if (call_target == kInvalidWasmCodePointer) return nullptr;
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   auto iter = codes_.find(
       GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
           call_target));
@@ -188,7 +188,7 @@ void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
 }
 
 void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   if (codes_.empty() || wrappers.empty()) return;
   // {WasmCodeAllocator::FreeCode()} wants code objects to be sorted.
   std::sort(wrappers.begin(), wrappers.end(), [](WasmCode* a, WasmCode* b) {
@@ -220,7 +220,7 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
                                            CanonicalTypeIndex type_index,
                                            int expected_arity,
                                            Suspend suspend) const {
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
 
   auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
   if (it == entry_map_.end()) return nullptr;
@@ -231,7 +231,7 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
 WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
   // This can be called from the disassembler via `code->MaybePrint()` in
   // `AddWrapper()` above, so we need a recursive mutex.
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   auto iter = codes_.upper_bound(pc);
   if (iter == codes_.begin()) return nullptr;
   --iter;
@@ -244,7 +244,7 @@ WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
 
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 120);
-  base::MutexGuard lock(&mutex_);
+  base::SelfishMutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_) +
          ContentSize(codes_);
 }

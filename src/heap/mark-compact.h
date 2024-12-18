@@ -391,7 +391,7 @@ class MarkCompactCollector final {
 
   Heap* const heap_;
 
-  base::Mutex mutex_;
+  base::SelfishMutex mutex_;
   base::Semaphore page_parallel_job_semaphore_{0};
 
 #ifdef DEBUG
@@ -429,7 +429,7 @@ class MarkCompactCollector final {
   NativeContextStats native_context_stats_;
 
   std::vector<GlobalHandleVector<DescriptorArray>> strong_descriptor_arrays_;
-  base::Mutex strong_descriptor_arrays_mutex_;
+  base::SelfishMutex strong_descriptor_arrays_mutex_;
 
   // Candidates for pages that should be evacuated.
   std::vector<PageMetadata*> evacuation_candidates_;

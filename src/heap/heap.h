@@ -280,7 +280,7 @@ class Heap final {
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
-  base::Mutex* relocation_mutex() { return &relocation_mutex_; }
+  base::SelfishMutex* relocation_mutex() { return &relocation_mutex_; }
 
   // Support for context snapshots.  After calling this we have a linear
   // space to write objects in each space.
@@ -1248,7 +1248,7 @@ class Heap final {
   // Returns the capacity of the old generation.
   V8_EXPORT_PRIVATE size_t OldGenerationCapacity() const;
 
-  base::Mutex* heap_expansion_mutex() { return &heap_expansion_mutex_; }
+  base::SelfishMutex* heap_expansion_mutex() { return &heap_expansion_mutex_; }
 
   // Returns the amount of memory currently held alive by the pool.
   size_t CommittedMemoryOfPool();
@@ -1600,7 +1600,8 @@ class Heap final {
   // Checks whether OldGenerationCapacity() can be expanded by `size` bytes and
   // still fits into `max_old_generation_size_`.
   V8_EXPORT_PRIVATE bool IsOldGenerationExpansionAllowed(
-      size_t size, const base::MutexGuard& expansion_mutex_witness) const;
+      size_t size,
+      const base::SelfishMutexGuard& expansion_mutex_witness) const;
 
   bool ShouldReduceMemory() const {
     return current_gc_flags_ & GCFlag::kReduceMemoryFootprint;
@@ -1682,7 +1683,7 @@ class Heap final {
     std::vector<TaggedBase> young_strings_;
     std::vector<TaggedBase> old_strings_;
     // Used to protect access with --shared-string-table.
-    base::Mutex mutex_;
+    base::SelfishMutex mutex_;
   };
 
   static const int kInitialEvalCacheSize = 64;
@@ -2287,9 +2288,9 @@ class Heap final {
   std::optional<EmbedderStackStateOrigin> embedder_stack_state_origin_;
 
   StrongRootsEntry* strong_roots_head_ = nullptr;
-  base::Mutex strong_roots_mutex_;
+  base::SelfishMutex strong_roots_mutex_;
 
-  base::Mutex heap_expansion_mutex_;
+  base::SelfishMutex heap_expansion_mutex_;
 
   bool need_to_remove_stress_concurrent_allocation_observer_ = false;
 
@@ -2342,7 +2343,7 @@ class Heap final {
 
   const AllocationType allocation_type_for_in_place_internalizable_strings_;
 
-  base::Mutex relocation_mutex_;
+  base::SelfishMutex relocation_mutex_;
 
   std::unique_ptr<CollectionBarrier> collection_barrier_;
 
