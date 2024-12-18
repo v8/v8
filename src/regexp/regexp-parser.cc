@@ -536,7 +536,13 @@ class RegExpParserImpl final {
   bool contains_anchor() const { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
   int captures_started() const { return captures_started_; }
-  int position() const { return next_pos_ - 1; }
+  int position() const {
+    const bool current_is_surrogate =
+        current() != kEndMarker &&
+        current() > unibrow::Utf16::kMaxNonSurrogateCharCode;
+    const int rewind_bytes = current_is_surrogate ? 2 : 1;
+    return next_pos_ - rewind_bytes;
+  }
   bool failed() const { return failed_; }
   RegExpFlags flags() const { return flags_; }
   bool IsUnicodeMode() const {
