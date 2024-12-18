@@ -8357,8 +8357,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     TNode<HeapObject> buffer = a.LoadField<HeapObject>(
         AccessBuilder::ForJSArrayBufferViewBuffer(), receiver);
     TNode<Word32T> bitfield = a.EnterMachineGraph<Word32T>(
-        a.LoadField<Word32T>(AccessBuilder::ForJSArrayBufferViewBitField(),
-                             buffer),
+        a.LoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(), buffer),
         UseInfo::TruncatingWord32());
     TNode<Word32T> detached_bit = a.Word32And(
         bitfield, a.Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
