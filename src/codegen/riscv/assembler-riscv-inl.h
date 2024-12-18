@@ -38,6 +38,8 @@
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"
+#include "src/diagnostics/disasm.h"
+#include "src/diagnostics/disassembler.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-layout.h"
 #include "src/objects/objects-inl.h"
@@ -109,14 +111,29 @@ int RelocInfo::target_address_size() {
 void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
     WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
-  Assembler::set_target_address_at(pc, constant_pool,
-                                   static_cast<Address>(target), jit_allocation,
-                                   icache_flush_mode);
+  if (COMPRESS_POINTERS_BOOL) {
+    Assembler::set_uint32_constant_at(pc, constant_pool, target, jit_allocation,
+                                      icache_flush_mode);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 Tagged_t Assembler::target_compressed_address_at(Address pc,
                                                  Address constant_pool) {
-  return static_cast<Tagged_t>(target_address_at(pc, constant_pool));
+  disasm::NameConverter converter;
+  disasm::Disassembler disasm(converter);
+  base::EmbeddedVector<char, 128> disasm_buffer;
+
+  disasm.InstructionDecode(disasm_buffer, reinterpret_cast<uint8_t*>(pc));
+  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  disasm.InstructionDecode(disasm_buffer,
+                           reinterpret_cast<uint8_t*>(pc + kInstrSize));
+  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+
+  DEBUG_PRINTF("\t target_compressed_address_at %d\n",
+               uint32_constant_at(pc, constant_pool));
+  return static_cast<Tagged_t>(uint32_constant_at(pc, constant_pool));
 }
 
 WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
@@ -140,9 +157,53 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 
 Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
     Address pc, Address const_pool) {
+  DEBUG_PRINTF("compressed_embedded_object_handle_at: pc: 0x%" PRIxPTR " \t ",
+               pc);
   return GetEmbeddedObject(target_compressed_address_at(pc, const_pool));
 }
 
+Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
+  DEBUG_PRINTF("embedded_object_handle_at: pc: 0x%" PRIxPTR " \t", pc);
+  disasm::NameConverter converter;
+  disasm::Disassembler disasm(converter);
+  base::EmbeddedVector<char, 128> disasm_buffer;
+
+  disasm.InstructionDecode(disasm_buffer, reinterpret_cast<uint8_t*>(pc));
+  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+  disasm.InstructionDecode(disasm_buffer,
+                           reinterpret_cast<uint8_t*>(pc + kInstrSize));
+  DEBUG_PRINTF("%s\n", disasm_buffer.begin());
+#if V8_TARGET_ARCH_RISCV64
+  Instr instr1 = Assembler::instr_at(pc);
+  Instr instr2 = Assembler::instr_at(pc + kInstrSize);
+  DCHECK(IsAuipc(instr1));
+  DCHECK(IsLd(instr2));
+  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  DEBUG_PRINTF("\tembedded_target_offset %d\n", embedded_target_offset);
+  static_assert(sizeof(EmbeddedObjectIndex) == sizeof(intptr_t));
+  DEBUG_PRINTF("\t EmbeddedObjectIndex %lu\n",
+               Memory<EmbeddedObjectIndex>(pc + embedded_target_offset));
+  return GetEmbeddedObject(
+      Memory<EmbeddedObjectIndex>(pc + embedded_target_offset));
+#else
+  return Handle<HeapObject>(
+      reinterpret_cast<Address*>(uint32_constant_at(pc, kNullAddress)));
+#endif
+}
+
+void Assembler::set_embedded_object_index_referenced_from(
+    Address pc, EmbeddedObjectIndex data) {
+#if V8_TARGET_ARCH_RISCV64
+  Instr instr1 = Assembler::instr_at(pc);
+  Instr instr2 = Assembler::instr_at(pc + kInstrSize);
+  DCHECK(IsAuipc(instr1));
+  DCHECK(IsLd(instr2));
+  int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
+  Memory<EmbeddedObjectIndex>(pc + embedded_target_offset) = data;
+#else
+  set_target_value_at(pc, data);
+#endif
+}
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
@@ -184,14 +245,14 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+  DEBUG_PRINTF("\t target_object_handle %d\n", rmode_);
   if (IsCodeTarget(rmode_)) {
     return Cast<HeapObject>(
         origin->code_target_object_handle_at(pc_, constant_pool_));
   } else if (IsCompressedEmbeddedObject(rmode_)) {
     return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);
   } else if (IsFullEmbeddedObject(rmode_)) {
-    return Handle<HeapObject>(reinterpret_cast<Address*>(
-        Assembler::target_address_at(pc_, constant_pool_)));
+    return origin->embedded_object_handle_at(pc_);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_));
     return origin->relative_code_target_object_handle_at(pc_);
@@ -239,7 +300,7 @@ Address RelocInfo::target_internal_reference() {
     // Encoded internal references are j/jal instructions.
     DCHECK(IsInternalReferenceEncoded(rmode_));
     DCHECK(Assembler::IsLui(Assembler::instr_at(pc_ + 0 * kInstrSize)));
-    Address address = Assembler::target_address_at(pc_);
+    Address address = Assembler::target_constant_address_at(pc_);
     return address;
   }
 }

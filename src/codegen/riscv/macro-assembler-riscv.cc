@@ -2580,19 +2580,15 @@ void MacroAssembler::Scd(Register rd, const MemOperand& rs, Trapper&& trapper) {
 
 void MacroAssembler::li(Register dst, Handle<HeapObject> value,
                         RelocInfo::Mode rmode) {
+  ASM_CODE_COMMENT(this);
   // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
   // non-isolate-independent code. In many cases it might be cheaper than
   // embedding the relocatable value.
   if (root_array_available_ && options().isolate_independent_code) {
     IndirectLoadConstant(dst, value);
     return;
-  } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-    EmbeddedObjectIndex index = AddEmbeddedObject(value);
-    DCHECK(is_uint32(index));
-    li(dst, Operand(index, rmode));
   } else {
-    DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
-    li(dst, Operand(value.address(), rmode));
+    li(dst, Operand(value, rmode));
   }
 }
 
@@ -2669,6 +2665,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       }
     }
   } else if (MustUseReg(j.rmode())) {
+    int64_t immediate;
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
         RelocInfo::IsWasmCodePointerTableEntry(j.rmode()) ||
         RelocInfo::IsJSDispatchHandle(j.rmode())) {
@@ -2680,18 +2677,48 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
 #elif V8_TARGET_ARCH_RISCV32
       li_constant(rd, int32_t(j.immediate()));
 #endif
-    } else {
-      int64_t immediate;
+      return;
+    } else if (RelocInfo::IsCompressedEmbeddedObject(j.rmode())) {
+      Handle<HeapObject> handle(reinterpret_cast<Address*>(j.immediate()));
+      EmbeddedObjectIndex index = AddEmbeddedObject(handle);
+      DCHECK(is_uint32(index));
+      RecordRelocInfo(j.rmode());
+#if V8_TARGET_ARCH_RISCV64
+      li_constant32(rd, static_cast<uint32_t>(index));
+#elif V8_TARGET_ARCH_RISCV32
+      li_constant(rd, index);
+#endif
+      return;
+    } else if (RelocInfo::IsFullEmbeddedObject(j.rmode())) {
       if (j.IsHeapNumberRequest()) {
         RequestHeapNumber(j.heap_number_request());
-        immediate = 0;
+        immediate = j.immediate_for_heap_number_request();
       } else {
         immediate = j.immediate();
       }
-
-      RecordRelocInfo(j.rmode(), immediate);
-      li_ptr(rd, immediate);
+#if V8_TARGET_ARCH_RISCV64
+      BlockPoolsScope block_pools(this);
+      Handle<HeapObject> handle(reinterpret_cast<Address*>(immediate));
+      EmbeddedObjectIndex index = AddEmbeddedObject(handle);
+      if (RecordEntry(static_cast<uint64_t>(index), j.rmode()) ==
+          RelocInfoStatus::kMustRecord) {
+        RecordRelocInfo(j.rmode(), immediate);
+      }
+      DEBUG_PRINTF("\t EmbeddedObjectIndex%lu\n", index);
+      auipc(rd, 0);
+      // Record a value into constant pool, passing 1 as the offset makes the
+      // promise that LoadWord() generates full 32-bit instruction to be
+      // patched with real value in the future
+      LoadWord(rd, MemOperand(rd, 1));
+#elif V8_TARGET_ARCH_RISCV32
+      li_constant(rd, immediate);
+#endif
+      return;
+    } else {
+      immediate = j.immediate();
     }
+    RecordRelocInfo(j.rmode(), immediate);
+    li_ptr(rd, immediate);
   } else if (mode == ADDRESS_LOAD) {
     // We always need the same number of instructions as we may need to patch
     // this code to load another value which may need all 6 instructions.

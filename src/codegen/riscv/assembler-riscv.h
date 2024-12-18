@@ -95,7 +95,8 @@ class Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
 
-  explicit Operand(Handle<HeapObject> handle);
+  explicit Operand(Handle<HeapObject> handle,
+                   RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
@@ -104,6 +105,13 @@ class Operand {
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
+
+  inline intptr_t immediate_for_heap_number_request() const {
+    DCHECK(rmode() == RelocInfo::FULL_EMBEDDED_OBJECT);
+    return value_.immediate;
+    ;
+  }
+
   inline intptr_t immediate() const {
     DCHECK(!is_reg());
     DCHECK(!IsHeapNumberRequest());
@@ -262,13 +270,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
-  static Address target_address_at(Address pc);
+  static Address target_constant_address_at(Address pc);
   V8_INLINE static void set_target_address_at(
       Address pc, Address target,
       WritableJitAllocation* jit_allocation = nullptr,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(pc, target, jit_allocation, icache_flush_mode);
-  }
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   static Address target_address_at(Address pc, Address constant_pool);
 
@@ -289,6 +295,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                                      Address constant_pool);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(
       Address pc, Address constant_pool);
+
+  inline Handle<HeapObject> embedded_object_handle_at(Address pc);
+  inline void set_embedded_object_index_referenced_from(
+      Address p, EmbeddedObjectIndex index);
 
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
@@ -587,12 +597,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
   }
 
-  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
+  RelocInfoStatus RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry(data, rmode);
   }
 
-  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
+  RelocInfoStatus RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry(data, rmode);
   }
 
   void CheckTrampolinePoolQuick(int extra_instructions = 0) {

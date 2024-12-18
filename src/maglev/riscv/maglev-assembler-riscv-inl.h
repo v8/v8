@@ -845,7 +845,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   LoadFPRImmediate(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
-  li(dst, Operand(obj));
+  li(dst, obj);
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #ifdef V8_COMPRESS_POINTERS
