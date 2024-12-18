@@ -85,30 +85,20 @@ struct ObjectTraits<Oddball> {
 };
 
 V8_OBJECT class Null : public Oddball {
- public:
-  inline Null();
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
- public:
-  inline Undefined();
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
  public:
-  inline Boolean();
-
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
 
 V8_OBJECT class True : public Boolean {
- public:
-  inline True();
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
- public:
-  inline False();
 } V8_OBJECT_END;
 
 }  // namespace internal
