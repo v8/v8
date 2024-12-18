@@ -27,6 +27,7 @@
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -881,31 +882,43 @@ class TurbofanStateObjectDeduplicator {
   ZoneVector<Node*> objects_;
 };
 
+enum class ObjectType { kRegularObject, kStringConcat };
+
 class TurboshaftStateObjectDeduplicator {
  public:
-  explicit TurboshaftStateObjectDeduplicator(Zone* zone) : object_ids_(zone) {}
-  static constexpr uint32_t kArgumentsElementsDummy =
-      std::numeric_limits<uint32_t>::max();
+  explicit TurboshaftStateObjectDeduplicator(Zone* zone)
+      : objects_ids_mapping_(zone), string_ids_mapping_(zone) {}
   static constexpr size_t kNotDuplicated = std::numeric_limits<size_t>::max();
 
-  size_t GetObjectId(uint32_t object) {
-    for (size_t i = 0; i < object_ids_.size(); ++i) {
-      if (object_ids_[i] == object) return i;
-    }
-    return kNotDuplicated;
+  size_t GetObjectId(uint32_t old_id, ObjectType type) {
+    auto& ids_map = GetMapForType(type);
+    auto it = ids_map.find(old_id);
+    if (it == ids_map.end()) return kNotDuplicated;
+    return it->second;
   }
 
-  size_t InsertObject(uint32_t object) {
-    object_ids_.push_back(object);
-    return object_ids_.size() - 1;
+  size_t InsertObject(uint32_t old_id, ObjectType type) {
+    auto& ids_map = GetMapForType(type);
+    uint32_t new_id = next_id_++;
+    ids_map.insert({old_id, new_id});
+    return new_id;
   }
 
-  void InsertDummyForArgumentsElements() {
-    object_ids_.push_back(kArgumentsElementsDummy);
-  }
+  void InsertDummyForArgumentsElements() { next_id_++; }
 
  private:
-  ZoneVector<uint32_t> object_ids_;
+  ZoneAbslFlatHashMap<uint32_t, uint32_t>& GetMapForType(ObjectType type) {
+    switch (type) {
+      case ObjectType::kRegularObject:
+        return objects_ids_mapping_;
+      case ObjectType::kStringConcat:
+        return string_ids_mapping_;
+    }
+  }
+  uint32_t next_id_ = 0;
+
+  ZoneAbslFlatHashMap<uint32_t, uint32_t> objects_ids_mapping_;
+  ZoneAbslFlatHashMap<uint32_t, uint32_t> string_ids_mapping_;
 };
 
 // Returns the number of instruction operands added to inputs.
@@ -1105,9 +1118,9 @@ size_t AddOperandToStateValueDescriptor(
       uint32_t obj_id;
       uint32_t field_count;
       it->ConsumeDematerializedObject(&obj_id, &field_count);
-      size_t id = deduplicator->GetObjectId(obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kRegularObject);
       if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
-        id = deduplicator->InsertObject(obj_id);
+        id = deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
         size_t entries = 0;
         StateValueList* nested = values->PushRecursiveField(zone, id);
         for (uint32_t i = 0; i < field_count; ++i) {
@@ -1118,7 +1131,7 @@ size_t AddOperandToStateValueDescriptor(
       } else {
         // Deoptimizer counts duplicate objects for the running id, so we have
         // to push the input again.
-        deduplicator->InsertObject(obj_id);
+        deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
         values->PushDuplicate(id);
         return 0;
       }
@@ -1126,11 +1139,11 @@ size_t AddOperandToStateValueDescriptor(
     case FrameStateData::Instr::kDematerializedObjectReference: {
       uint32_t obj_id;
       it->ConsumeDematerializedObjectReference(&obj_id);
-      size_t id = deduplicator->GetObjectId(obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kRegularObject);
       DCHECK_NE(id, TurboshaftStateObjectDeduplicator::kNotDuplicated);
       // Deoptimizer counts duplicate objects for the running id, so we have
       // to push the input again.
-      deduplicator->InsertObject(obj_id);
+      deduplicator->InsertObject(obj_id, ObjectType::kRegularObject);
       values->PushDuplicate(id);
       return 0;
     }
@@ -1138,9 +1151,9 @@ size_t AddOperandToStateValueDescriptor(
       DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
       uint32_t obj_id;
       it->ConsumeDematerializedStringConcat(&obj_id);
-      size_t id = deduplicator->GetObjectId(obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kStringConcat);
       if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
-        id = deduplicator->InsertObject(obj_id);
+        id = deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
         StateValueList* nested = values->PushStringConcat(zone, id);
         static constexpr int kLeft = 1, kRight = 1;
         static constexpr int kInputCount = kLeft + kRight;
@@ -1153,10 +1166,22 @@ size_t AddOperandToStateValueDescriptor(
       } else {
         // Deoptimizer counts duplicate objects for the running id, so we have
         // to push the input again.
-        deduplicator->InsertObject(obj_id);
+        deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
         values->PushDuplicate(id);
         return 0;
       }
+    }
+    case FrameStateData::Instr::kDematerializedStringConcatReference: {
+      DCHECK(v8_flags.turboshaft_string_concat_escape_analysis);
+      uint32_t obj_id;
+      it->ConsumeDematerializedStringConcatReference(&obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id, ObjectType::kStringConcat);
+      DCHECK_NE(id, TurboshaftStateObjectDeduplicator::kNotDuplicated);
+      // Deoptimizer counts duplicate objects for the running id, so we have
+      // to push the input again.
+      deduplicator->InsertObject(obj_id, ObjectType::kStringConcat);
+      values->PushDuplicate(id);
+      return 0;
     }
     case FrameStateData::Instr::kArgumentsElements: {
       CreateArgumentsType type;

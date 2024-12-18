@@ -23,7 +23,12 @@ struct FrameStateData {
     kArgumentsElements,              // 1 Operand: type
     kArgumentsLength,
     kRestLength,
-    kDematerializedStringConcat
+    kDematerializedStringConcat,  // 1 Operand: id
+    // TODO(dmercadier): do escape analysis for objects and string-concat in a
+    // single pass, and always use kDematerializedObjectReference rather than
+    // kDematerializedStringConcatReference (and thus remove
+    // kDematerializedStringConcatReference).
+    kDematerializedStringConcatReference  // 1 Operand: id
   };
 
   class Builder {
@@ -56,6 +61,11 @@ struct FrameStateData {
 
     void AddDematerializedStringConcat(uint32_t id) {
       instructions_.push_back(Instr::kDematerializedStringConcat);
+      int_operands_.push_back(id);
+    }
+
+    void AddDematerializedStringConcatReference(uint32_t id) {
+      instructions_.push_back(Instr::kDematerializedStringConcatReference);
       int_operands_.push_back(id);
     }
 
@@ -132,6 +142,12 @@ struct FrameStateData {
     }
     void ConsumeDematerializedStringConcat(uint32_t* id) {
       DCHECK_EQ(instructions[0], Instr::kDematerializedStringConcat);
+      instructions += 1;
+      *id = int_operands[0];
+      int_operands += 1;
+    }
+    void ConsumeDematerializedStringConcatReference(uint32_t* id) {
+      DCHECK_EQ(instructions[0], Instr::kDematerializedStringConcatReference);
       instructions += 1;
       *id = int_operands[0];
       int_operands += 1;

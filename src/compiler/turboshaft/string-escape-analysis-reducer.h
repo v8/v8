@@ -207,8 +207,7 @@ class StringEscapeAnalysisReducer : public Next {
  private:
   class Deduplicator {
    public:
-    explicit Deduplicator(Zone* zone)
-        : object_ids_(zone), old_to_new_ids_(zone) {}
+    explicit Deduplicator(Zone* zone) : string_ids_(zone) {}
 
     struct DuplicatedId {
       uint32_t id;
@@ -216,52 +215,27 @@ class StringEscapeAnalysisReducer : public Next {
     };
     DuplicatedId GetDuplicatedIdForElidedString(ElidedStringPart index) {
       // TODO(dmercadier): do better than a linear search here.
-      for (uint32_t id = 0; id < object_ids_.size(); id++) {
-        if (object_ids_[id] == index) {
+      for (uint32_t id = 0; id < string_ids_.size(); id++) {
+        if (string_ids_[id] == index) {
           return {id, true};
         }
       }
-      uint32_t new_id = next_id();
-      object_ids_.push_back(index);
+      uint32_t new_id = static_cast<uint32_t>(string_ids_.size());
+      string_ids_.push_back(index);
       return {new_id, false};
     }
 
-    uint32_t RecordOldId(uint32_t old_id) {
-      uint32_t new_id = next_id();
-      // Block this id from being used by GetDuplicatedIdForElidedString.
-      object_ids_.push_back(ElidedStringPart::Invalid());
-      if (old_id >= old_to_new_ids_.size()) {
-        old_to_new_ids_.resize(old_id + 1, kUndefinedId);
-      }
-      old_to_new_ids_[old_id] = new_id;
-      return new_id;
-    }
-    uint32_t GetNewDuplicatedIdForOldObject(uint32_t old_id) const {
-      DCHECK_LT(old_id, old_to_new_ids_.size());
-      DCHECK_NE(old_to_new_ids_[old_id], kUndefinedId);
-      return old_to_new_ids_[old_id];
-    }
-
     Deduplicator* clone(Zone* zone) const {
-      return zone->New<Deduplicator>(object_ids_, old_to_new_ids_);
+      return zone->New<Deduplicator>(string_ids_);
     }
 
    private:
-    Deduplicator(const ZoneVector<ElidedStringPart>& object_ids,
-                 const ZoneVector<uint32_t>& old_to_new_ids)
-        : object_ids_(object_ids), old_to_new_ids_(old_to_new_ids) {}
+    explicit Deduplicator(const ZoneVector<ElidedStringPart>& string_ids)
+        : string_ids_(string_ids) {}
 
-    // TODO(dmercadier): consider using a linked list for {object_ids_} so that
+    // TODO(dmercadier): consider using a linked list for {string_ids_} so that
     // we don't ever need to clone it.
-    ZoneVector<ElidedStringPart> object_ids_;
-
-    static constexpr uint32_t kUndefinedId = -1;
-    ZoneVector<uint32_t> old_to_new_ids_;
-
-    uint32_t next_id() {
-      CHECK_LT(object_ids_.size(), std::numeric_limits<uint32_t>::max());
-      return static_cast<uint32_t>(object_ids_.size());
-    }
+    ZoneVector<ElidedStringPart> string_ids_;
 
     friend class i::Zone;  // For access to private constructor.
   };
@@ -341,8 +315,7 @@ class StringEscapeAnalysisReducer : public Next {
         uint32_t old_id;
         uint32_t field_count;
         it->ConsumeDematerializedObject(&old_id, &field_count);
-        uint32_t new_id = deduplicator->RecordOldId(old_id);
-        builder->AddDematerializedObject(new_id, field_count);
+        builder->AddDematerializedObject(old_id, field_count);
         for (uint32_t i = 0; i < field_count; ++i) {
           BuildFrameStateInput(builder, it, deduplicator);
         }
@@ -351,8 +324,7 @@ class StringEscapeAnalysisReducer : public Next {
       case Instr::kDematerializedObjectReference: {
         uint32_t old_id;
         it->ConsumeDematerializedObjectReference(&old_id);
-        uint32_t new_id = deduplicator->GetNewDuplicatedIdForOldObject(old_id);
-        builder->AddDematerializedObjectReference(new_id);
+        builder->AddDematerializedObjectReference(old_id);
         break;
       }
       case Instr::kArgumentsElements: {
@@ -374,6 +346,7 @@ class StringEscapeAnalysisReducer : public Next {
         builder->AddUnusedRegister();
         break;
       case FrameStateData::Instr::kDematerializedStringConcat:
+      case FrameStateData::Instr::kDematerializedStringConcatReference:
         // StringConcat should not have been escaped before this point.
         UNREACHABLE();
     }
@@ -389,7 +362,7 @@ class StringEscapeAnalysisReducer : public Next {
         // For performance reasons, we de-duplicate repeated StringConcat inputs
         // in the FrameState. Unlike for elided objects, deduplication has no
         // impact on correctness.
-        builder->AddDematerializedObjectReference(dup_id.id);
+        builder->AddDematerializedStringConcatReference(dup_id.id);
         return;
       }
       builder->AddDematerializedStringConcat(dup_id.id);

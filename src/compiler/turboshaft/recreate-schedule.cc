@@ -1433,6 +1433,7 @@ std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
       // which doesn't use recreate-schedule.
       [[fallthrough]];
     case Instr::kDematerializedStringConcat:
+    case Instr::kDematerializedStringConcatReference:
       // Escaped StringConcat are not supported by the Turbofan instruction
       // selector.
       [[fallthrough]];
