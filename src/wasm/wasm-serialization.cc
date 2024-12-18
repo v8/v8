@@ -532,7 +532,7 @@ void NativeModuleSerializer::WriteCode(
       case RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY: {
         WasmCodePointer target =
             orig_iter.rinfo()->wasm_code_pointer_table_entry();
-        uint32_t function_index = function_index_map.at(target);
+        uint32_t function_index = function_index_map.at(target.value());
         iter.rinfo()->set_wasm_code_pointer_table_entry(
             WasmCodePointer{function_index}, SKIP_ICACHE_FLUSH);
       } break;

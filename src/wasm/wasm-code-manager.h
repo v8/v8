@@ -656,8 +656,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
-  using CallIndirectTargetMap =
-      absl::flat_hash_map<WasmCodePointer, uint32_t, WasmCodePointer::Hasher>;
+  using CallIndirectTargetMap = absl::flat_hash_map<uint32_t, uint32_t>;
   CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
   // For cctests, where we build both WasmModule and the runtime objects
