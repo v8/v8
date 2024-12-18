@@ -210,13 +210,37 @@ class MaglevEarlyLoweringReducer : public Next {
                        __ SmiConstant(ContextSidePropertyCell::Const())),
         frame_state, DeoptimizeReason::kWrongValue, feedback);
     if (v8_flags.script_context_mutable_heap_number) {
-      // Check for smi case
+      // Check for smi case.
       IF (__ TaggedEqual(
               property, __ SmiConstant(ContextSidePropertyCell::SmiMarker()))) {
         __ DeoptimizeIfNot(__ IsSmi(new_value), frame_state,
                            DeoptimizeReason::kWrongValue, feedback);
       } ELSE {
-        // Check mutable heap number case.
+        if (v8_flags.script_context_mutable_heap_int32) {
+          // Check for mutable heap int32 case.
+          IF (__ TaggedEqual(
+                  property,
+                  __ SmiConstant(ContextSidePropertyCell::MutableInt32()))) {
+            ScopedVar<Word32> number_value(this);
+            IF (__ IsSmi(new_value)) {
+              number_value = __ UntagSmi(V<Smi>::Cast(new_value));
+            } ELSE {
+              V<i::Map> map = __ LoadMapField(new_value);
+              __ DeoptimizeIfNot(
+                  __ TaggedEqual(map,
+                                 __ HeapConstant(factory_->heap_number_map())),
+                  frame_state, DeoptimizeReason::kWrongValue, feedback);
+              number_value = __ ChangeFloat64ToInt32OrDeopt(
+                  __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value)),
+                  frame_state, CheckForMinusZeroMode::kCheckForMinusZero,
+                  feedback);
+            }
+            __ StoreField(old_value, AccessBuilder::ForHeapInt32Value(),
+                          number_value);
+            GOTO(done);
+          }
+        }
+        // It must be a mutable heap number case.
         ScopedVar<Float64> number_value(this);
         IF (__ IsSmi(new_value)) {
           number_value =
