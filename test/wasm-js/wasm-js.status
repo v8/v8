@@ -39,10 +39,6 @@
   # WebAssembly.Function.type. The tests should be updated anyway since they
   # still use the old API (which works but is deprecated).
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
-  'proposals/js-promise-integration/js-promise-integration/rejects': [FAIL],
-
-  # TODO(fgm): Remove after (https://crbug.com/377577806) is fixed
-  'wpt/wasm/jsapi/jspi/rejects': [FAIL],
 
   # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
   'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
