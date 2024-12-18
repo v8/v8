@@ -2650,7 +2650,7 @@ class HeapObjectAllocationTracker {
 };
 
 template <typename T>
-inline T ForwardingAddress(T heap_obj);
+inline Tagged<T> ForwardingAddress(Tagged<T> heap_obj);
 
 // Specialized strong root allocator for blocks of Addresses, retained
 // as strong references.
