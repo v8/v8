@@ -863,7 +863,6 @@ class CallSiteBuilder {
   }
 
   void SetPrevFrameAsConstructCall() {
-    DCHECK(!Full());
     if (skipped_prev_frame_) return;
     DCHECK_GT(index_, 0);
     Tagged<CallSiteInfo> info =
@@ -1115,7 +1114,7 @@ class CallSiteBuilder {
   const int limit_;
   const Handle<Object> caller_;
   bool skip_next_frame_;
-  bool skipped_prev_frame_;
+  bool skipped_prev_frame_ = false;
   bool encountered_strict_function_ = false;
   Handle<FixedArray> elements_;
 };
@@ -1328,6 +1327,10 @@ template <typename Visitor>
 void VisitStack(Isolate* isolate, Visitor* visitor,
                 StackTrace::StackTraceOptions options = StackTrace::kDetailed) {
   DisallowJavascriptExecution no_js(isolate);
+  // Keep track if we visited a stack frame, but did not visit any summarized
+  // frames. Either because the stack frame didn't create any summarized frames
+  // or due to security origin.
+  bool skipped_last_frame = false;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     switch (frame->type()) {
@@ -1352,19 +1355,20 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
         // A standard frame may include many summarized frames (due to
         // inlining).
         FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
-        if (summaries.top_frame_is_construct_call) {
+        if (summaries.top_frame_is_construct_call && !skipped_last_frame) {
           visitor->SetPrevFrameAsConstructCall();
         }
-        for (auto rit = summaries.frames.rbegin();
-             rit != summaries.frames.rend(); ++rit) {
-          FrameSummary& summary = *rit;
+        skipped_last_frame = true;
+        for (auto summary = summaries.frames.rbegin();
+             summary != summaries.frames.rend(); ++summary) {
           // Skip frames from other origins when asked to do so.
           if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-              !summary.native_context()->HasSameSecurityTokenAs(
+              !summary->native_context()->HasSameSecurityTokenAs(
                   isolate->context())) {
             continue;
           }
-          if (!visitor->Visit(summary)) return;
+          if (!visitor->Visit(*summary)) return;
+          skipped_last_frame = false;
         }
         break;
       }
