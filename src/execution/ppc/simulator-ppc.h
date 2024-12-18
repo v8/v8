@@ -203,6 +203,7 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
+
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
@@ -242,6 +243,11 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
+  // Manage instruction tracing.
+  bool InstructionTracingEnabled();
+
+  void ToggleInstructionTracing();
+
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -276,6 +282,10 @@ class Simulator : public SimulatorBase {
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
   void DebugAtNextPC();
+
+  // Take a copy of v8 simulator tracing flag because flags are frozen after
+  // start.
+  bool instruction_tracing_ = v8_flags.trace_sim;
 
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);
@@ -470,7 +480,7 @@ class Simulator : public SimulatorBase {
     simd_registers_[reg] = value;
   }
 
-  // Simulator support.
+  // Simulator support for the stack.
   uint8_t* stack_;
   static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
   // This includes a protection margin at each end of the stack area.
