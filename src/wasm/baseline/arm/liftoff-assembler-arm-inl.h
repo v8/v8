@@ -499,21 +499,23 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
                                        int stack_param_delta) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
 
-  // Push the return address and frame pointer to complete the stack frame.
-  sub(sp, sp, Operand(8));
-  ldr(scratch, MemOperand(fp, 4));
-  str(scratch, MemOperand(sp, 4));
-  ldr(scratch, MemOperand(fp, 0));
-  str(scratch, MemOperand(sp, 0));
+    // Push the return address and frame pointer to complete the stack frame.
+    sub(sp, sp, Operand(8));
+    ldr(scratch, MemOperand(fp, 4));
+    str(scratch, MemOperand(sp, 4));
+    ldr(scratch, MemOperand(fp, 0));
+    str(scratch, MemOperand(sp, 0));
 
-  // Shift the whole frame upwards.
-  int slot_count = num_callee_stack_params + 2;
-  for (int i = slot_count - 1; i >= 0; --i) {
-    ldr(scratch, MemOperand(sp, i * 4));
-    str(scratch, MemOperand(fp, (i - stack_param_delta) * 4));
+    // Shift the whole frame upwards.
+    int slot_count = num_callee_stack_params + 2;
+    for (int i = slot_count - 1; i >= 0; --i) {
+      ldr(scratch, MemOperand(sp, i * 4));
+      str(scratch, MemOperand(fp, (i - stack_param_delta) * 4));
+    }
   }
 
   // Set the new stack and frame pointer.
