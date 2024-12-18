@@ -698,20 +698,18 @@ void ScavengerCollector::CollectGarbage() {
         // moving.
         TRACE_GC(heap_->tracer(),
                  GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
-        {
-          ObjectPinningVisitor pinning_visitor(main_thread_scavenger,
-                                               pinned_objects);
-          // Scavenger reuses the page's marking bitmap as a temporary object
-          // start bitmap. Stack scanning will incrementally build the map as it
-          // searches through pages.
-          YoungGenerationConservativeStackVisitor stack_visitor(
-              isolate_, &pinning_visitor);
-          // Marker was already set by Heap::CollectGarbage.
-          heap_->stack().IteratePointersUntilMarker(&stack_visitor);
-          if (v8_flags.stress_scavenger_pinning_objects) {
-            TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
-            isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
-          }
+        ObjectPinningVisitor pinning_visitor(main_thread_scavenger,
+                                             pinned_objects);
+        // Scavenger reuses the page's marking bitmap as a temporary object
+        // start bitmap. Stack scanning will incrementally build the map as it
+        // searches through pages.
+        YoungGenerationConservativeStackVisitor stack_visitor(isolate_,
+                                                              &pinning_visitor);
+        // Marker was already set by Heap::CollectGarbage.
+        heap_->stack().IteratePointersUntilMarker(&stack_visitor);
+        if (v8_flags.stress_scavenger_pinning_objects) {
+          TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
+          isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
         }
       }
 
