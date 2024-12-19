@@ -656,8 +656,10 @@ void WasmTableObject::UpdateDispatchTable(
     } else {
       // We still don't have a compiled wrapper. Allocate a new import_data
       // so we can store the proper call_origin for later wrapper tier-up.
-      DCHECK_EQ(call_target,
-                Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+      DCHECK(call_target ==
+                 Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate) ||
+             call_target == Builtins::EntryOf(
+                                Builtin::kWasmToJsWrapperInvalidSig, isolate));
       import_data = isolate->factory()->NewWasmImportData(
           callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
       import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
@@ -667,7 +669,9 @@ void WasmTableObject::UpdateDispatchTable(
 
   DCHECK(wasm_code ||
          call_target ==
-             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate));
+             Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate) ||
+         call_target ==
+             Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate));
   dispatch_table->SetForWrapper(entry_index, *import_data, call_target, sig_id,
                                 signature_hash,
 #if V8_ENABLE_DRUMBRAKE
@@ -2914,6 +2918,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     if (wrapper) {
       code_pointer =
           function_data->offheap_data()->set_compiled_wrapper(wrapper);
+      // Some later DCHECKs assume that we don't have a {call_origin} when
+      // the function already uses a compiled wrapper.
+      Cast<WasmImportData>(internal_function->implicit_arg())
+          ->clear_call_origin();
     } else if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
       Address code_entry =
           Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
@@ -2930,6 +2938,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
           expected_arity, suspend);
       code_pointer =
           function_data->offheap_data()->set_compiled_wrapper(wrapper);
+      // Some later DCHECKs assume that we don't have a {call_origin} when
+      // the function already uses a compiled wrapper.
+      Cast<WasmImportData>(internal_function->implicit_arg())
+          ->clear_call_origin();
     }
     internal_function->set_call_target(code_pointer);
   }
