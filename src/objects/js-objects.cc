@@ -302,9 +302,6 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   // We should never try to copy properties from an object itself.
   CHECK_IMPLIES(!use_set, !target.is_identical_to(from));
 
-  DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
-                                            isolate);
-
   bool stable = true;
 
   // Process symbols last and only do that if we found symbols.
@@ -314,7 +311,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     for (InternalIndex i : map->IterateOwnDescriptors()) {
       HandleScope inner_scope(isolate);
 
-      DirectHandle<Name> next_key(descriptors->GetKey(i), isolate);
+      // The descriptor array is not cached on purpose since it has to stay in
+      // sync with map->instance_descriptors to avoid it from being pruned.
+      DirectHandle<Name> next_key(map->instance_descriptors(isolate)->GetKey(i),
+                                  isolate);
       if (mode == PropertiesEnumerationMode::kEnumerationOrder) {
         if (IsSymbol(*next_key)) {
           has_symbol = true;
@@ -328,27 +328,23 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
       // shape.
       if (stable) {
         DCHECK_EQ(from->map(), *map);
-        DCHECK_EQ(*descriptors, map->instance_descriptors(isolate));
 
-        PropertyDetails details = descriptors->GetDetails(i);
+        PropertyDetails details =
+            map->instance_descriptors(isolate)->GetDetails(i);
         if (!details.IsEnumerable()) continue;
         if (details.kind() == PropertyKind::kData) {
-          if (details.location() == PropertyLocation::kDescriptor) {
-            prop_value = direct_handle(descriptors->GetStrongValue(i), isolate);
-          } else {
-            Representation representation = details.representation();
-            FieldIndex index = FieldIndex::ForPropertyIndex(
-                *map, details.field_index(), representation);
-            prop_value =
-                JSObject::FastPropertyAt(isolate, from, representation, index);
-          }
+          CHECK_EQ(details.location(), PropertyLocation::kField);
+          Representation representation = details.representation();
+          FieldIndex index = FieldIndex::ForPropertyIndex(
+              *map, details.field_index(), representation);
+          prop_value =
+              JSObject::FastPropertyAt(isolate, from, representation, index);
         } else {
           LookupIterator it(isolate, from, next_key,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
           stable = from->map() == *map;
-          descriptors.SetValue(map->instance_descriptors(isolate));
         }
       } else {
         // If the map did change, do a slower lookup. We are still guaranteed
@@ -374,7 +370,6 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         if (result.IsNothing()) return result;
         if (stable) {
           stable = from->map() == *map;
-          descriptors.SetValue(map->instance_descriptors(isolate));
         }
       } else {
         // No element indexes should get here or the exclusion check may
