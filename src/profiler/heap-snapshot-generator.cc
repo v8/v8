@@ -1976,18 +1976,20 @@ void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry,
 
   // Must be large enough to fit any double, int, or size_t.
   char arr[32];
-  base::Vector<char> buffer(arr, arraysize(arr));
+  base::Vector<char> buffer = base::ArrayVector(arr);
 
-  const char* string;
+  std::string_view string;
   if (IsSmi(number)) {
     int int_value = Smi::ToInt(number);
-    string = IntToCString(int_value, buffer);
+    string = IntToStringView(int_value, buffer);
   } else {
     double double_value = Cast<HeapNumber>(number)->value();
-    string = DoubleToCString(double_value, buffer);
+    string = DoubleToStringView(double_value, buffer);
   }
 
-  const char* name = names_->GetCopy(string);
+  // GetCopy() requires a null-terminated C-String, as the underlying hash map
+  // uses strcmp.
+  const char* name = names_->GetCopy(std::string(string).c_str());
 
   SnapshotObjectId id = heap_object_map_->get_next_id();
   HeapEntry* child_entry =

@@ -81,12 +81,6 @@ Handle<String> Factory::NewStringFromStaticChars(const char (&str)[N],
       .ToHandleChecked();
 }
 
-Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
-                                                  AllocationType allocation) {
-  return NewStringFromOneByte(base::OneByteVector(str), allocation)
-      .ToHandleChecked();
-}
-
 template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, HandleType<String>>)
 HandleType<String> Factory::NewSubString(HandleType<T> str, uint32_t begin,

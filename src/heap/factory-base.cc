@@ -997,9 +997,9 @@ MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
 namespace {
 
 template <typename Impl>
-V8_INLINE Handle<String> CharToString(FactoryBase<Impl>* factory,
-                                      const char* string,
-                                      NumberCacheMode mode) {
+V8_INLINE Handle<String> StringViewToString(FactoryBase<Impl>* factory,
+                                            std::string_view string,
+                                            NumberCacheMode mode) {
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
   AllocationType type = mode == NumberCacheMode::kIgnore
@@ -1045,8 +1045,8 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = DoubleToCString(value, buffer);
-    result = CharToString(this, string, mode);
+    std::string_view string = DoubleToStringView(value, buffer);
+    result = StringViewToString(this, string, mode);
   }
   if (mode != NumberCacheMode::kIgnore) {
     impl()->NumberToStringCacheSet(number, hash, result);
@@ -1072,8 +1072,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = IntToCString(number.value(), buffer);
-    result = CharToString(this, string, mode);
+    std::string_view string = IntToStringView(number.value(), buffer);
+    result = StringViewToString(this, string, mode);
   }
   if (mode != NumberCacheMode::kIgnore) {
     impl()->NumberToStringCacheSet(direct_handle(number, isolate()), hash,

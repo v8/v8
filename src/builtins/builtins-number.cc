@@ -57,10 +57,11 @@ BUILTIN(NumberPrototypeToExponential) {
   int const f = IsUndefined(*args.atOrUndefined(isolate, 1), isolate)
                     ? -1
                     : static_cast<int>(fraction_digits_number);
-  char* const str = DoubleToExponentialCString(value_number, f);
+  char chars[kDoubleToExponentialMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToExponentialStringView(value_number, f, buffer);
   DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
   return *result;
 }
 
@@ -102,11 +103,12 @@ BUILTIN(NumberPrototypeToFixed) {
     return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
                                 : ReadOnlyRoots(isolate).Infinity_string();
   }
-  char* const str = DoubleToFixedCString(
-      value_number, static_cast<int>(fraction_digits_number));
+  char chars[kDoubleToFixedMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToFixedStringView(
+      value_number, static_cast<int>(fraction_digits_number), buffer);
   DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
   return *result;
 }
 
@@ -181,11 +183,12 @@ BUILTIN(NumberPrototypeToPrecision) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kToPrecisionFormatRange));
   }
-  char* const str = DoubleToPrecisionCString(
-      value_number, static_cast<int>(precision_number));
+  char chars[kDoubleToPrecisionMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToPrecisionStringView(
+      value_number, static_cast<int>(precision_number), buffer);
   DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
   return *result;
 }
 

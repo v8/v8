@@ -4,6 +4,8 @@
 
 #include "src/json/json-stringifier.h"
 
+#include <string_view>
+
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
@@ -121,6 +123,15 @@ class JsonStringifier {
       while (*s != '\0') Append<SrcChar, uint8_t>(*s++);
     } else {
       while (*s != '\0') Append<SrcChar, base::uc16>(*s++);
+    }
+  }
+
+  template <typename SrcChar>
+  V8_INLINE void AppendString(std::basic_string_view<SrcChar> s) {
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      for (SrcChar c : s) Append<SrcChar, uint8_t>(c);
+    } else {
+      for (SrcChar c : s) Append<SrcChar, base::uc16>(c);
     }
   }
 
@@ -266,6 +277,12 @@ class JsonStringifier {
     V8_INLINE void AppendCString(const char* s) {
       const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
       while (*u != '\0') Append(*(u++));
+    }
+    V8_INLINE void AppendString(std::string_view str) {
+      AppendChars(
+          base::Vector<const uint8_t>(
+              reinterpret_cast<const uint8_t*>(str.data()), str.length()),
+          str.length());
     }
 
     // Appends all of the chars from the provided span, but only increases the
@@ -811,10 +828,10 @@ class CircularStructureMessageBuilder {
     static_assert(Smi::kMaxValue <= 2147483647);
     static_assert(Smi::kMinValue >= -2147483648);
     // sizeof(string) includes \0.
-    static const int kBufferSize = sizeof("-2147483648");
+    static const int kBufferSize = sizeof("-2147483648") - 1;
     char chars[kBufferSize];
     base::Vector<char> buffer(chars, kBufferSize);
-    builder_.AppendCString(IntToCString(smi.value(), buffer));
+    builder_.AppendString(IntToStringView(smi.value(), buffer));
   }
 
   IncrementalStringBuilder builder_;
@@ -1043,10 +1060,10 @@ JsonStringifier::Result JsonStringifier::SerializeSmi(Tagged<Smi> object) {
   static_assert(Smi::kMaxValue <= 2147483647);
   static_assert(Smi::kMinValue >= -2147483648);
   // sizeof(string) includes \0.
-  static const int kBufferSize = sizeof("-2147483648");
+  static const int kBufferSize = sizeof("-2147483648") - 1;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(IntToCString(object.value(), buffer));
+  AppendString(IntToStringView(object.value(), buffer));
   return SUCCESS;
 }
 
@@ -1058,7 +1075,8 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(DoubleToCString(number, buffer));
+  std::string_view str = DoubleToStringView(number, buffer);
+  AppendString(str);
   return SUCCESS;
 }
 
@@ -1433,6 +1451,10 @@ bool JsonStringifier::SerializeStringUnchecked_(
       // The current character is a surrogate.
       required_escaping = true;
       dest->AppendSubstring(src.data(), prev_escaped_offset + 1, i);
+
+      char double_to_radix_chars[kDoubleToRadixMaxChars];
+      base::Vector<char> double_to_radix_buffer =
+          base::ArrayVector(double_to_radix_chars);
       if (c <= 0xDBFF) {
         // The current character is a leading surrogate.
         if (i + 1 < src.length()) {
@@ -1449,17 +1471,17 @@ bool JsonStringifier::SerializeStringUnchecked_(
             // The next character is not a trailing surrogate. Thus, the
             // current character is a lone leading surrogate.
             dest->AppendCString("\\u");
-            char* const hex = DoubleToRadixCString(c, 16);
-            dest->AppendCString(hex);
-            DeleteArray(hex);
+            std::string_view hex =
+                DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+            dest->AppendString(hex);
           }
         } else {
           // There is no next character. Thus, the current character is a lone
           // leading surrogate.
           dest->AppendCString("\\u");
-          char* const hex = DoubleToRadixCString(c, 16);
-          dest->AppendCString(hex);
-          DeleteArray(hex);
+          std::string_view hex =
+              DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+          dest->AppendString(hex);
         }
       } else {
         // The current character is a lone trailing surrogate. (If it had been
@@ -1467,9 +1489,9 @@ bool JsonStringifier::SerializeStringUnchecked_(
         // branch earlier on, and the current character would've been handled
         // as part of the surrogate pair already.)
         dest->AppendCString("\\u");
-        char* const hex = DoubleToRadixCString(c, 16);
-        dest->AppendCString(hex);
-        DeleteArray(hex);
+        std::string_view hex =
+            DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+        dest->AppendString(hex);
       }
       prev_escaped_offset = i;
     } else {
@@ -1512,6 +1534,10 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
         // The current character is a surrogate.
         required_escaping = true;
         AppendSubstring(vector.data(), prev_escaped_offset + 1, i);
+
+        char double_to_radix_chars[kDoubleToRadixMaxChars];
+        base::Vector<char> double_to_radix_buffer =
+            base::ArrayVector(double_to_radix_chars);
         if (c <= 0xDBFF) {
           // The current character is a leading surrogate.
           if (i + 1 < vector.length()) {
@@ -1528,17 +1554,17 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
               // The next character is not a trailing surrogate. Thus, the
               // current character is a lone leading surrogate.
               AppendCStringLiteral("\\u");
-              char* const hex = DoubleToRadixCString(c, 16);
-              AppendCString(hex);
-              DeleteArray(hex);
+              std::string_view hex =
+                  DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+              AppendString(hex);
             }
           } else {
             // There is no next character. Thus, the current character is a
             // lone leading surrogate.
             AppendCStringLiteral("\\u");
-            char* const hex = DoubleToRadixCString(c, 16);
-            AppendCString(hex);
-            DeleteArray(hex);
+            std::string_view hex =
+                DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+            AppendString(hex);
           }
         } else {
           // The current character is a lone trailing surrogate. (If it had
@@ -1546,9 +1572,9 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
           // other branch earlier on, and the current character would've been
           // handled as part of the surrogate pair already.)
           AppendCStringLiteral("\\u");
-          char* const hex = DoubleToRadixCString(c, 16);
-          AppendCString(hex);
-          DeleteArray(hex);
+          std::string_view hex =
+              DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+          AppendString(hex);
         }
         prev_escaped_offset = i;
       } else {
@@ -1886,13 +1912,15 @@ class FastJsonStringifier {
     buffer_.Append(chars, length);
   }
 
-  V8_INLINE void AppendCString(const char* chars) {
+  V8_INLINE void AppendCString(const char* chars, size_t len) {
     buffer_.Append(reinterpret_cast<const unsigned char*>(chars),
-                   static_cast<int>(strlen(chars)));
+                   static_cast<int>(len));
   }
-  V8_INLINE void AppendCString(const char* from, const char* to) {
-    buffer_.Append(reinterpret_cast<const unsigned char*>(from),
-                   static_cast<int>(to - from));
+  V8_INLINE void AppendCString(const char* chars) {
+    AppendCString(chars, strlen(chars));
+  }
+  V8_INLINE void AppendString(std::string_view str) {
+    AppendCString(str.data(), str.length());
   }
 
   V8_INLINE FastJsonStringifierResult
@@ -1973,10 +2001,10 @@ void FastJsonStringifier<Char>::SerializeSmi(Tagged<Smi> object) {
   static_assert(Smi::kMaxValue <= 2147483647);
   static_assert(Smi::kMinValue >= -2147483648);
   // sizeof(string) includes \0.
-  static constexpr int kBufferSize = sizeof("-2147483648");
+  static constexpr int kBufferSize = sizeof("-2147483648") - 1;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(IntToCString(object.value(), buffer));
+  AppendString(IntToStringView(object.value(), buffer));
 }
 
 template <typename Char>
@@ -1988,7 +2016,8 @@ void FastJsonStringifier<Char>::SerializeDouble(double number) {
   static constexpr int kBufferSize = 100;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
-  AppendCString(DoubleToCString(number, buffer));
+  std::string_view str = DoubleToStringView(number, buffer);
+  AppendString(str);
 }
 
 template <typename Char>
@@ -2627,6 +2656,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
                           static_cast<SrcChar>(0xDFFF))) {
         // The current character is a surrogate.
         buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
+
+        char double_to_radix_chars[kDoubleToRadixMaxChars];
+        base::Vector<char> double_to_radix_buffer =
+            base::ArrayVector(double_to_radix_chars);
         if (c <= 0xDBFF) {
           // The current character is a leading surrogate.
           if (i + 1 < length) {
@@ -2643,17 +2676,17 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
               // The next character is not a trailing surrogate. Thus, the
               // current character is a lone leading surrogate.
               AppendCStringLiteral("\\u");
-              char* const hex = DoubleToRadixCString(c, 16);
-              AppendCString(hex);
-              DeleteArray(hex);
+              std::string_view hex =
+                  DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+              AppendString(hex);
             }
           } else {
             // There is no next character. Thus, the current character is a lone
             // leading surrogate.
             AppendCStringLiteral("\\u");
-            char* const hex = DoubleToRadixCString(c, 16);
-            AppendCString(hex);
-            DeleteArray(hex);
+            std::string_view hex =
+                DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+            AppendString(hex);
           }
         } else {
           // The current character is a lone trailing surrogate. (If it had been
@@ -2661,9 +2694,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
           // branch earlier on, and the current character would've been handled
           // as part of the surrogate pair already.)
           AppendCStringLiteral("\\u");
-          char* const hex = DoubleToRadixCString(c, 16);
-          AppendCString(hex);
-          DeleteArray(hex);
+          std::string_view hex =
+              DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+          AppendString(hex);
         }
         escape_char_idx = i;
       } else {

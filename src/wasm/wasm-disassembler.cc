@@ -598,7 +598,8 @@ class ImmediatesPrinter {
       }
     } else {
       char buffer[100];
-      const char* str = DoubleToCString(d, base::VectorOf(buffer, 100u));
+      std::string_view str =
+          DoubleToStringView(d, base::VectorOf(buffer, 100u));
       out_ << " " << str;
     }
   }

@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_FACTORY_BASE_H_
 #define V8_HEAP_FACTORY_BASE_H_
 
+#include <string_view>
+
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
@@ -320,6 +322,14 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   inline Handle<String> NewStringFromAsciiChecked(
       const char* str, AllocationType allocation = AllocationType::kYoung) {
     return NewStringFromOneByte(base::OneByteVector(str), allocation)
+        .ToHandleChecked();
+  }
+
+  inline Handle<String> NewStringFromAsciiChecked(
+      std::string_view str,
+      AllocationType allocation = AllocationType::kYoung) {
+    return NewStringFromOneByte(base::OneByteVector(str.data(), str.length()),
+                                allocation)
         .ToHandleChecked();
   }
 

@@ -246,9 +246,10 @@ static void EnsureNoUninstrumentedInternals(v8::Isolate* isolate,
                                             const v8::HeapGraphNode* node) {
   for (int i = 0; i < 20; ++i) {
     v8::base::ScopedVector<char> buffer(10);
-    const v8::HeapGraphNode* internal =
-        GetProperty(isolate, node, v8::HeapGraphEdge::kInternal,
-                    i::IntToCString(i, buffer));
+    std::string_view str = i::IntToStringView(i, buffer);
+    // GetProperty requires a null-terminated string.
+    const v8::HeapGraphNode* internal = GetProperty(
+        isolate, node, v8::HeapGraphEdge::kInternal, std::string(str).c_str());
     CHECK(!internal);
   }
 }

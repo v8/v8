@@ -275,8 +275,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N], AllocationType allocation = AllocationType::kYoung);
-  inline Handle<String> NewStringFromAsciiChecked(
-      const char* str, AllocationType allocation = AllocationType::kYoung);
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.

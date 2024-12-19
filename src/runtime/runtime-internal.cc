@@ -738,10 +738,11 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   int32_t radix = 0;
   CHECK(Object::ToInt32(args[1], &radix));
 
-  char* const str = DoubleToRadixCString(number, radix);
+  char chars[kDoubleToRadixMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToRadixStringView(number, radix, buffer);
   DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
   return *result;
 }
 

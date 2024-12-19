@@ -125,25 +125,22 @@ class SimpleStringBuilder final {
     }
   }
 
-  // Finalize the string by 0-terminating it and returning the buffer.
+  // Finalize the string by, checking that there is no null-character in the
+  // content. Returns a pointer one past the last character.
   char* Finalize() {
     DCHECK(!is_finalized());
     DCHECK_LE(position(), buffer_.length());
-    // If there is no space for null termination, overwrite last character.
-    if (cursor_ == buffer_.end()) {
-      cursor_--;
-      // Print ellipsis.
-      for (int i = 3; i > 0 && cursor_ - i > buffer_.begin(); --i) {
-        *(cursor_ - i) = '.';
-      }
-    }
-    *cursor_ = '\0';
+#ifdef DEBUG
     // Make sure nobody managed to add a 0-character to the
     // buffer while building the string.
-    DCHECK_EQ(strlen(buffer_.begin()), position());
+    for (const char* buf = buffer_.begin(); buf != cursor_; buf++) {
+      DCHECK_NE(*buf, '\0');
+    }
+#endif
+    char* ret = cursor_;
     cursor_ = nullptr;
     DCHECK(is_finalized());
-    return buffer_.begin();
+    return ret;
   }
 
  private:
@@ -946,7 +943,7 @@ std::unique_ptr<char[]> BigIntLiteralToDecimal(
   return helper.DecimalString(isolate->bigint_processor());
 }
 
-const char* DoubleToCString(double v, base::Vector<char> buffer) {
+std::string_view DoubleToStringView(double v, base::Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
     case FP_NAN:
       return "NaN";
@@ -958,7 +955,7 @@ const char* DoubleToCString(double v, base::Vector<char> buffer) {
       if (IsInt32Double(v)) {
         // This will trigger if v is -0 and -0.0 is stringified to "0".
         // (see ES section 7.1.12.1 #sec-tostring-applied-to-the-number-type)
-        return IntToCString(FastD2I(v), buffer);
+        return IntToStringView(FastD2I(v), buffer);
       }
       SimpleStringBuilder builder(buffer.begin(), buffer.length());
       int decimal_point;
@@ -1004,12 +1001,12 @@ const char* DoubleToCString(double v, base::Vector<char> buffer) {
         if (exponent < 0) exponent = -exponent;
         builder.AddDecimalInteger(exponent);
       }
-      return builder.Finalize();
+      return {buffer.begin(), builder.Finalize()};
     }
   }
 }
 
-const char* IntToCString(int n, base::Vector<char> buffer) {
+std::string_view IntToStringView(int n, base::Vector<char> buffer) {
   bool negative = true;
   if (n >= 0) {
     n = -n;
@@ -1017,18 +1014,17 @@ const char* IntToCString(int n, base::Vector<char> buffer) {
   }
   // Build the string backwards from the least significant digit.
   int i = buffer.length();
-  buffer[--i] = '\0';
   do {
     // We ensured n <= 0, so the subtraction does the right addition.
     buffer[--i] = '0' - (n % 10);
     n /= 10;
   } while (n);
   if (negative) buffer[--i] = '-';
-  return buffer.begin() + i;
+  return {buffer.begin() + i, buffer.end()};
 }
 
-char* DoubleToFixedCString(double value, int f) {
-  const int kMaxDigitsBeforePoint = 21;
+std::string_view DoubleToFixedStringView(double value, int f,
+                                         base::Vector<char> buffer) {
   const double kFirstNonFixed = 1e21;
   DCHECK_GE(f, 0);
   DCHECK_LE(f, kMaxFractionDigits);
@@ -1040,12 +1036,10 @@ char* DoubleToFixedCString(double value, int f) {
     negative = true;
   }
 
-  // If abs_value has more than kMaxDigitsBeforePoint digits before the point
-  // use the non-fixed conversion routine.
+  // If abs_value has more than kDoubleToFixedMaxDigitsBeforePoint digits before
+  // the point use the non-fixed conversion routine.
   if (abs_value >= kFirstNonFixed) {
-    char arr[kMaxFractionDigits];
-    base::Vector<char> buffer(arr, arraysize(arr));
-    return StrDup(DoubleToCString(value, buffer));
+    return DoubleToStringView(value, buffer);
   }
 
   // Find a sufficiently precise decimal representation of n.
@@ -1053,7 +1047,7 @@ char* DoubleToFixedCString(double value, int f) {
   int sign;
   // Add space for the '\0' byte.
   const int kDecimalRepCapacity =
-      kMaxDigitsBeforePoint + kMaxFractionDigits + 1;
+      kDoubleToFixedMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   base::DoubleToAscii(value, base::DTOA_FIXED, f,
@@ -1076,40 +1070,39 @@ char* DoubleToFixedCString(double value, int f) {
 
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
-  SimpleStringBuilder rep_builder(rep_length + 1);
+  // TODO(pthier): Get rid of this intermediate string builder.
+  base::Vector<char> rep_buffer = base::Vector<char>::New(rep_length + 1);
+  SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.length());
   rep_builder.AddPadding('0', zero_prefix_length);
   rep_builder.AddString(decimal_rep, decimal_rep_length);
   rep_builder.AddPadding('0', zero_postfix_length);
-  char* rep = rep_builder.Finalize();
+  char* rep_end = rep_builder.Finalize();
+  // AddSubstring requires a null-terminated string (for DCHECKs only).
+  *rep_end = '\0';
 
   // Create the result string by appending a minus and putting in a
   // decimal point if needed.
-  unsigned result_size = decimal_point + f + 2;
-  SimpleStringBuilder builder(result_size + 1);
+  SimpleStringBuilder builder(buffer.begin(), buffer.length());
   if (negative) builder.AddCharacter('-');
-  builder.AddSubstring(rep, decimal_point);
+  builder.AddSubstring(rep_buffer.begin(), decimal_point);
   if (f > 0) {
     builder.AddCharacter('.');
-    builder.AddSubstring(rep + decimal_point, f);
+    builder.AddSubstring(rep_buffer.begin() + decimal_point, f);
   }
-  DeleteArray(rep);
-  return builder.Finalize();
+  DeleteArray(rep_buffer.begin());
+  return {buffer.begin(), builder.Finalize()};
 }
 
-static char* CreateExponentialRepresentation(char* decimal_rep, int rep_length,
-                                             int exponent, bool negative,
-                                             int significant_digits) {
+static std::string_view CreateExponentialRepresentation(
+    char* decimal_rep, int rep_length, int exponent, bool negative,
+    int significant_digits, base::Vector<char> buffer) {
   bool negative_exponent = false;
   if (exponent < 0) {
     negative_exponent = true;
     exponent = -exponent;
   }
 
-  // Leave room in the result for appending a minus, for a period, the
-  // letter 'e', a minus or a plus depending on the exponent, and a
-  // three digit exponent.
-  unsigned result_size = significant_digits + 7;
-  SimpleStringBuilder builder(result_size + 1);
+  SimpleStringBuilder builder(buffer.begin(), buffer.length());
 
   if (negative) builder.AddCharacter('-');
   builder.AddCharacter(decimal_rep[0]);
@@ -1124,10 +1117,11 @@ static char* CreateExponentialRepresentation(char* decimal_rep, int rep_length,
   builder.AddCharacter('e');
   builder.AddCharacter(negative_exponent ? '-' : '+');
   builder.AddDecimalInteger(exponent);
-  return builder.Finalize();
+  return {buffer.begin(), builder.Finalize()};
 }
 
-char* DoubleToExponentialCString(double value, int f) {
+std::string_view DoubleToExponentialStringView(double value, int f,
+                                               base::Vector<char> buffer) {
   // f might be -1 to signal that f was undefined in JavaScript.
   DCHECK(f >= -1 && f <= kMaxFractionDigits);
 
@@ -1164,13 +1158,12 @@ char* DoubleToExponentialCString(double value, int f) {
   DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;
-  char* result = CreateExponentialRepresentation(
-      decimal_rep, decimal_rep_length, exponent, negative, f + 1);
-
-  return result;
+  return CreateExponentialRepresentation(decimal_rep, decimal_rep_length,
+                                         exponent, negative, f + 1, buffer);
 }
 
-char* DoubleToPrecisionCString(double value, int p) {
+std::string_view DoubleToPrecisionStringView(double value, int p,
+                                             base::Vector<char> buffer) {
   const int kMinimalDigits = 1;
   DCHECK(p >= kMinimalDigits && p <= kMaxFractionDigits);
   USE(kMinimalDigits);
@@ -1196,20 +1189,18 @@ char* DoubleToPrecisionCString(double value, int p) {
 
   int exponent = decimal_point - 1;
 
-  char* result = nullptr;
+  std::string_view result;
 
   if (exponent < -6 || exponent >= p) {
     result = CreateExponentialRepresentation(decimal_rep, decimal_rep_length,
-                                             exponent, negative, p);
+                                             exponent, negative, p, buffer);
   } else {
     // Use fixed notation.
     //
     // Leave room in the result for appending a minus, a period and in
     // the case where decimal_point is not positive for a zero in
     // front of the period.
-    unsigned result_size =
-        (decimal_point <= 0) ? -decimal_point + p + 3 : p + 2;
-    SimpleStringBuilder builder(result_size + 1);
+    SimpleStringBuilder builder(buffer.begin(), buffer.length());
     if (negative) builder.AddCharacter('-');
     if (decimal_point <= 0) {
       builder.AddStringLiteral("0.");
@@ -1233,27 +1224,21 @@ char* DoubleToPrecisionCString(double value, int p) {
         builder.AddPadding('0', extra + (p - builder.position()));
       }
     }
-    result = builder.Finalize();
+    result = {buffer.begin(), builder.Finalize()};
   }
 
   return result;
 }
 
-char* DoubleToRadixCString(double value, int radix) {
+std::string_view DoubleToRadixStringView(double value, int radix,
+                                         base::Vector<char> buffer) {
   DCHECK(radix >= 2 && radix <= 36);
   DCHECK(std::isfinite(value));
   DCHECK_NE(0.0, value);
   // Character array used for conversion.
   static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-  // Temporary buffer for the result. We start with the decimal point in the
-  // middle and write to the left for the integer part and to the right for the
-  // fractional part. 1024 characters for the exponent and 52 for the mantissa
-  // either way, with additional space for sign, decimal point and string
-  // termination should be sufficient.
-  static const int kBufferSize = 2200;
-  char buffer[kBufferSize];
-  int integer_cursor = kBufferSize / 2;
+  int integer_cursor = buffer.length() / 2;
   int fraction_cursor = integer_cursor;
 
   bool negative = value < 0;
@@ -1284,7 +1269,7 @@ char* DoubleToRadixCString(double value, int radix) {
           // We need to back trace already written digits in case of carry-over.
           while (true) {
             fraction_cursor--;
-            if (fraction_cursor == kBufferSize / 2) {
+            if (fraction_cursor == buffer.length() / 2) {
               CHECK_EQ('.', buffer[fraction_cursor]);
               // Carry over to the integer part.
               integer += 1;
@@ -1317,13 +1302,10 @@ char* DoubleToRadixCString(double value, int radix) {
 
   // Add sign and terminate string.
   if (negative) buffer[--integer_cursor] = '-';
-  buffer[fraction_cursor++] = '\0';
-  DCHECK_LT(fraction_cursor, kBufferSize);
   DCHECK_LE(0, integer_cursor);
-  // Allocate new string as return value.
-  char* result = NewArray<char>(fraction_cursor - integer_cursor);
-  memcpy(result, buffer + integer_cursor, fraction_cursor - integer_cursor);
-  return result;
+  DCHECK_GT(fraction_cursor - integer_cursor, 0);
+  return {buffer.begin() + integer_cursor,
+          static_cast<size_t>(fraction_cursor - integer_cursor)};
 }
 
 // ES6 18.2.4 parseFloat(string)
@@ -1445,7 +1427,9 @@ bool IsSpecialIndex(Tagged<String> string,
   // Compute reverse string.
   char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.
   base::Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
-  const char* reverse_string = DoubleToCString(d, reverse_vector);
+  std::string_view reverse_string = DoubleToStringView(d, reverse_vector);
+
+  if (reverse_string.length() != length) return false;
   for (uint32_t i = 0; i < length; ++i) {
     if (static_cast<uint16_t>(reverse_string[i]) != buffer[i]) return false;
   }

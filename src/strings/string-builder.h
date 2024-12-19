@@ -92,6 +92,7 @@ class IncrementalStringBuilder {
 
   template <typename SrcChar>
   V8_INLINE void AppendCString(const SrcChar* s);
+  V8_INLINE void AppendString(std::string_view str);
 
   V8_INLINE void AppendInt(int i);
 
@@ -104,9 +105,6 @@ class IncrementalStringBuilder {
   V8_INLINE int EscapedLengthIfCurrentPartFits(int length);
 
   void AppendString(DirectHandle<String> string);
-
-  template <typename SrcChar>
-  void AppendSubstring(const SrcChar* src, size_t from, size_t to);
 
   MaybeDirectHandle<String> Finish();
 
@@ -195,7 +193,7 @@ class IncrementalStringBuilder {
   static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
   // sizeof(string) includes \0.
-  static const int kIntToCStringBufferSize = sizeof("-2147483648");
+  static const int kIntToStringViewBufferSize = sizeof("-2147483648") - 1;
 
   Isolate* isolate_;
   String::Encoding encoding_;

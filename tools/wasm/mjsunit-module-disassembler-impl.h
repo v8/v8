@@ -698,8 +698,8 @@ void PrintF32Const(StringBuilder& out, ImmF32Immediate& imm) {
     return;
   }
   char buffer[100];
-  const char* str =
-      DoubleToCString(imm.value, base::VectorOf(buffer, sizeof(buffer)));
+  std::string_view str =
+      DoubleToStringView(imm.value, base::ArrayVector(buffer));
   out << "wasmF32Const(" << str << ")";
 }
 
@@ -720,8 +720,8 @@ void PrintF64Const(StringBuilder& out, ImmF64Immediate& imm) {
     return;
   }
   char buffer[100];
-  const char* str =
-      DoubleToCString(imm.value, base::VectorOf(buffer, sizeof(buffer)));
+  std::string_view str =
+      DoubleToStringView(imm.value, base::ArrayVector(buffer));
   out << "wasmF64Const(" << str << ")";
 }
 
