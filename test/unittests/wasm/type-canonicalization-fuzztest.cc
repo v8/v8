@@ -197,10 +197,8 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
       fuzztest::StructOf<test::RecursionGroup>(
           fuzztest::VectorOf(type_domain).WithSize(1), fuzztest::Just(true)),
       // An actual recursion group of arbitrary size.
-      // TODO(381687256): Allow recursion groups of size 0.
-      fuzztest::StructOf<test::RecursionGroup>(
-          fuzztest::VectorOf(type_domain).WithMinSize(1),
-          fuzztest::Just(false)));
+      fuzztest::StructOf<test::RecursionGroup>(fuzztest::VectorOf(type_domain),
+                                               fuzztest::Just(false)));
 
   auto module_domain =
       fuzztest::StructOf<test::Module>(fuzztest::VectorOf(recgroup_domain));
@@ -251,8 +249,7 @@ void TypeCanonicalizerTest::TestCanonicalization(
       // Skip empty recursion groups; they do not get a canonical ID assigned,
       // so we cannot check anything for them (except that they do not confuse
       // canonicalization of surrounding types or groups).
-      // TODO(381687256): Enable this once we generate empty recursion groups.
-      // if (rec_group.types.empty()) continue;
+      if (rec_group.types.empty()) continue;
       DCHECK(!rec_group.types.empty());
       CanonicalTypeIndex first_canonical_id =
           module->canonical_type_id(ModuleTypeIndex{first_type_id});

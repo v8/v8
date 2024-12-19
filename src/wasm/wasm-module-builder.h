@@ -388,16 +388,14 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void EndRecursiveTypeGroup() {
     // Make sure we are in a recursive group.
     DCHECK_NE(current_recursive_group_start_, -1);
-    // Make sure the current recursive group has at least one element.
-    DCHECK_GT(static_cast<int>(types_.size()), current_recursive_group_start_);
-    recursive_groups_.emplace(
+    recursive_groups_.emplace_back(
         current_recursive_group_start_,
         static_cast<uint32_t>(types_.size()) - current_recursive_group_start_);
     current_recursive_group_start_ = -1;
   }
 
   void AddRecursiveTypeGroup(uint32_t start, uint32_t size) {
-    recursive_groups_.emplace(start, size);
+    recursive_groups_.emplace_back(start, size);
   }
 
   // Writing methods.
@@ -549,8 +547,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<ModuleTypeIndex> tags_;
   ZoneUnorderedMap<FunctionSig, ModuleTypeIndex> signature_map_;
   int current_recursive_group_start_;
-  // first index -> size
-  ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
+  struct RecGroup {
+    uint32_t start_index;
+    uint32_t size;
+  };
+  ZoneVector<RecGroup> recursive_groups_;
   int start_function_index_;
 #if DEBUG
   // Once AddExportedImport is called, no more imports can be added.

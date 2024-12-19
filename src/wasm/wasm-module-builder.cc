@@ -662,20 +662,26 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit types =============================================================
   if (!types_.empty()) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
-    size_t type_count = types_.size();
-    for (auto pair : recursive_groups_) {
-      // Every rec. group counts as one type entry.
-      type_count -= pair.second - 1;
+    // Every recursion group occupies one type entry.
+    size_t type_count = types_.size() + recursive_groups_.size();
+    // Types inside recursion groups occupy no additional type entry.
+    for (auto [first_index, size] : recursive_groups_) {
+      type_count -= size;
     }
 
     buffer->write_size(type_count);
 
-    for (uint32_t i = 0; i < types_.size(); i++) {
-      auto recursive_group = recursive_groups_.find(i);
+    const RecGroup* next_rec_group =
+        recursive_groups_.empty() ? nullptr : recursive_groups_.data();
 
-      if (recursive_group != recursive_groups_.end()) {
+    for (uint32_t i = 0; i < types_.size(); i++) {
+      // Note: while loop, because recgroups can be empty.
+      while (next_rec_group && i == next_rec_group->start_index) {
         buffer->write_u8(kWasmRecursiveTypeGroupCode);
-        buffer->write_u32v(recursive_group->second);
+        buffer->write_u32v(next_rec_group->size);
+        next_rec_group = next_rec_group == &recursive_groups_.back()
+                             ? nullptr
+                             : next_rec_group + 1;
       }
 
       const TypeDefinition& type = types_[i];
@@ -722,6 +728,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
         }
       }
     }
+
+    // Handle empty recursion groups defined after all types.
+    while (next_rec_group) {
+      DCHECK_EQ(types_.size(), next_rec_group->start_index);
+      DCHECK_EQ(0, next_rec_group->size);
+      buffer->write_u8(kWasmRecursiveTypeGroupCode);
+      buffer->write_u32v(0);
+      if (next_rec_group == &recursive_groups_.back()) break;
+      ++next_rec_group;
+    }
+
     FixupSection(buffer, start);
   }
 
