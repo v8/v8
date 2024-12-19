@@ -4054,6 +4054,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  void StoreJSTypedArrayLength(TNode<JSTypedArray> typed_array,
+                               TNode<UintPtrT> value);
   TNode<UintPtrT> LoadJSTypedArrayLengthAndCheckDetached(
       TNode<JSTypedArray> typed_array, Label* detached);
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
@@ -4081,7 +4083,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<UintPtrT> index,
                               Label* detached_or_out_of_bounds);
 
-  TNode<IntPtrT> ElementsKindToElementByteSize(TNode<Int32T> elementsKind);
+  TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
+      TNode<Int32T> elementsKind);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
   TNode<JSArrayBuffer> GetTypedArrayBuffer(TNode<Context> context,
                                            TNode<JSTypedArray> array);

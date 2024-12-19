@@ -224,7 +224,7 @@ size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   if (IsVariableLength()) {
     return GetVariableLengthOrOutOfBounds(out_of_bounds);
   }
-  return byte_length() / element_size();
+  return LengthUnchecked();
 }
 
 size_t JSTypedArray::GetLength() const {
@@ -233,12 +233,7 @@ size_t JSTypedArray::GetLength() const {
 }
 
 size_t JSTypedArray::GetByteLength() const {
-  if (WasDetached()) return 0;
-  if (IsVariableLength()) {
-    bool out_of_bounds = false;
-    return GetVariableByteLengthOrOutOfBounds(out_of_bounds);
-  }
-  return byte_length();
+  return GetLength() * element_size();
 }
 
 bool JSTypedArray::IsOutOfBounds() const {
@@ -275,6 +270,20 @@ inline void JSTypedArray::ForFixedTypedArray(ExternalArrayType array_type,
 #undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
+}
+
+size_t JSTypedArray::length() const {
+  DCHECK(!is_length_tracking());
+  DCHECK(!is_backed_by_rab());
+  return ReadBoundedSizeField(kRawLengthOffset);
+}
+
+size_t JSTypedArray::LengthUnchecked() const {
+  return ReadBoundedSizeField(kRawLengthOffset);
+}
+
+void JSTypedArray::set_length(size_t value) {
+  WriteBoundedSizeField(kRawLengthOffset, value);
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {

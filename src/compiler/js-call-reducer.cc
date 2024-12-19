@@ -6596,23 +6596,12 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // Load the length of the {iterated_object}. Due to the map checks we
   // already know something about the length here, which we can leverage
   // to generate Word32 operations below without additional checking.
-  Node* length;
-  if (IsTypedArrayElementsKind(elements_kind)) {
-    Node* byte_length = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSTypedArrayByteLength()),
-        iterated_object, effect, control);
-    Node* byte_length_shifted = graph()->NewNode(
-        jsgraph()->machine()->WordShr(), byte_length,
-        jsgraph()->UintPtrConstant(ElementsKindToShiftSize(elements_kind)));
-    length = graph()->NewNode(
-        common()->ExitMachineGraph(MachineType::PointerRepresentation(),
-                                   TypeCache::Get()->kJSTypedArrayLengthType),
-        byte_length_shifted);
-  } else {
-    length = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
-        iterated_object, effect, control);
-  }
+  FieldAccess length_access =
+      IsTypedArrayElementsKind(elements_kind)
+          ? AccessBuilder::ForJSTypedArrayLength()
+          : AccessBuilder::ForJSArrayLength(elements_kind);
+  Node* length = effect = graph()->NewNode(
+      simplified()->LoadField(length_access), iterated_object, effect, control);
 
   // Check whether {index} is within the valid range for the {iterated_object}.
   Node* check = graph()->NewNode(simplified()->NumberLessThan(), index, length);
@@ -7794,9 +7783,9 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
     Reduction unused_reduction = inference.NoChange();
     USE(unused_reduction);
     // Call default implementation for non-rab/gsab TAs.
-    return ReduceArrayBufferViewAccessor(
-        node, JS_TYPED_ARRAY_TYPE, AccessBuilder::ForJSTypedArrayByteLength(),
-        Builtin::kTypedArrayPrototypeLength);
+    return ReduceArrayBufferViewAccessor(node, JS_TYPED_ARRAY_TYPE,
+                                         AccessBuilder::ForJSTypedArrayLength(),
+                                         Builtin::kTypedArrayPrototypeLength);
   }
 
   if (!inference.RelyOnMapsViaStability(dependencies())) {
@@ -8380,16 +8369,6 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     // from which we could use the speculation bit.
     value = a.MachineSelect<UintPtrT>(detached_bit, a.UintPtrConstant(0), value,
                                       BranchHint::kFalse);
-  }
-
-  if (builtin == Builtin::kTypedArrayPrototypeLength) {
-    TNode<UintPtrT> byte_length = value;
-    // Divide the byte length by element size.
-    TNode<Map> map = a.LoadMap(TNode<HeapObject>::UncheckedCast(receiver));
-    TNode<Uint32T> elements_kind = a.LoadElementsKind(map);
-    TNode<Uint32T> shift = a.LookupByteShiftForElementsKind(elements_kind);
-    value = TNode<UintPtrT>::UncheckedCast(
-        a.WordShr(byte_length, a.ChangeUint32ToUintPtr(shift)));
   }
 
   TNode<Number> result =

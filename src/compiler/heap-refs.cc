@@ -1809,10 +1809,10 @@ bool JSTypedArrayRef::is_on_heap() const {
   return object()->is_on_heap(kAcquireLoad);
 }
 
-size_t JSTypedArrayRef::byte_length() const {
+size_t JSTypedArrayRef::length() const {
   CHECK(!is_on_heap());
   // Immutable after initialization.
-  return object()->byte_length();
+  return object()->length();
 }
 
 HeapObjectRef JSTypedArrayRef::buffer(JSHeapBroker* broker) const {
