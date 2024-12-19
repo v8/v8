@@ -22,5 +22,5 @@ assertOptimized(foo);
 
 // Whereas if we disrupt the prototype chain...
 Array.prototype[1] = 'cow';
-assertUnoptimized(foo);
 assertEquals('cow', foo(a, 1));
+assertUnoptimized(foo);

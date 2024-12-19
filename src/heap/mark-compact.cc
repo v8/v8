@@ -3243,8 +3243,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
             heap_, non_atomic_marking_state_, object) &&
         !code->embedded_objects_cleared()) {
       if (!code->marked_for_deoptimization()) {
-        code->SetMarkedForDeoptimization(heap_->isolate(),
-                                         LazyDeoptimizeReason::kWeakObjects);
+        code->SetMarkedForDeoptimization(heap_->isolate(), "weak objects");
         have_code_to_deoptimize_ = true;
       }
       code->ClearEmbeddedObjects(heap_);

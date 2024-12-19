@@ -128,15 +128,12 @@ namespace internal {
 
 #ifdef V8_ENABLE_LEAPTIERING
 
-// TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
-// the optimization tier as an argument.
 #define FOR_EACH_INTRINSIC_TIERING(F, I) \
   F(FunctionLogNextExecution, 1, 1)      \
   F(OptimizeMaglevEager, 1, 1)           \
   F(StartMaglevOptimizeJob, 1, 1)        \
   F(OptimizeTurbofanEager, 1, 1)         \
-  F(StartTurbofanOptimizeJob, 1, 1)      \
-  F(MarkLazyDeoptimized, 2, 1)
+  F(StartTurbofanOptimizeJob, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I)   \
   FOR_EACH_INTRINSIC_COMPILER_GENERIC(F, I) \

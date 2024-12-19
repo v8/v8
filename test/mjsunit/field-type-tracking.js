@@ -18,7 +18,6 @@
   %PrepareFunctionForOptimization(readA);
   var a = new A();
   assertUnoptimized(readA);
-  %DeoptimizeFunction(readA);
   readA(a); readA(a); readA(a);
   %OptimizeFunctionOnNextCall(readA);
   assertEquals(readA(a), o);
@@ -28,7 +27,6 @@
   b.b = o;
   assertEquals(readA(b), o);
   assertUnoptimized(readA);
-  %DeoptimizeFunction(readA);
   %PrepareFunctionForOptimization(readA);
   %OptimizeFunctionOnNextCall(readA);
   assertEquals(readA(a), o);
@@ -41,7 +39,6 @@
     return x.a;
   }
   assertUnoptimized(readAFromB);
-  %DeoptimizeFunction(readAFromB);
   %PrepareFunctionForOptimization(readAFromB);
   readAFromB(b); readAFromB(b); readAFromB(b);
   %OptimizeFunctionOnNextCall(readAFromB);
@@ -55,8 +52,6 @@
   c.a = [1];
   assertUnoptimized(readA);
   assertUnoptimized(readAFromB);
-  %DeoptimizeFunction(readA);
-  %DeoptimizeFunction(readAFromB);
   %PrepareFunctionForOptimization(readA);
   %PrepareFunctionForOptimization(readAFromB);
   assertEquals(readA(a), o);
@@ -97,15 +92,11 @@
   assertEquals(20, B(c));
   assertOptimized(B);
   c.a.y = 10;
-  assertUnoptimized(B);
-  %DeoptimizeFunction(B);
-  %ClearFunctionFeedback(B);
   assertEquals(10, B(c));
+  assertUnoptimized(B);
 
-  %DeoptimizeFunction(B);
   %PrepareFunctionForOptimization(B);
   var c = new C();
-  assertEquals(20, B(c));
   %OptimizeFunctionOnNextCall(B);
   assertEquals(20, B(c));
   assertOptimized(B);
@@ -137,7 +128,6 @@
   assertEquals(readX(f1), 1);
   assertEquals(readX(f2), 2);
   assertUnoptimized(readX);
-  %DeoptimizeFunction(readX);
   %OptimizeFunctionOnNextCall(readX);
   assertEquals(readX(f3), 3);
   assertOptimized(readX);
@@ -146,7 +136,6 @@
   writeX(f1, {x: 11});
   writeX(f2, {x: 22});
   assertUnoptimized(writeX);
-  %DeoptimizeFunction(writeX);
   assertEquals(readX(f1), 11);
   assertEquals(readX(f2), 22);
   assertOptimized(readX);

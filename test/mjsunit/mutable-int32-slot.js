@@ -34,8 +34,8 @@ let x = 0;
   // Try a normal double.
   // We should deopt.
   x = 12.3;
-  assertFalse(isOptimized(read));
   assertEquals(12.3, read());
+  assertFalse(isOptimized(read));
 
   // Optimize again.
   x = 0x4fffffff;
@@ -84,8 +84,8 @@ let y = 0;
   // Try a normal double.
   // We should deopt.
   write(12.3);
-  assertFalse(isOptimized(read));
   assertEquals(12.3, read());
+  assertFalse(isOptimized(read));
   assertFalse(isOptimized(write));
 
   // Optimize again.
@@ -118,8 +118,8 @@ let z = 0;
 
   // Should deopt in -0.0.
   z = -0.0;
-  assertFalse(isOptimized(read));
   assertEquals(-0.0, read());
+  assertFalse(isOptimized(read));
 
   // Optimize again.
   z = 0x4fffffff;
@@ -128,7 +128,6 @@ let z = 0;
 
   // We shouldn't deopt anymore.
   z = -0.0;
-  assertTrue(isOptimized(read));
   assertEquals(-0.0, read());
   assertTrue(isOptimized(read));
 })();

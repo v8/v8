@@ -22,8 +22,7 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
 #ifdef V8_ENABLE_LEAPTIERING
-  template <typename Function>
-  void TieringBuiltinImpl(const Function& Impl);
+  void TieringBuiltinImpl(Runtime::FunctionId);
 
 #else
   void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,

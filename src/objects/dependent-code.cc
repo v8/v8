@@ -144,9 +144,9 @@ bool DependentCode::MarkCodeForDeoptimization(
       // deopt reason. Only one group is reported to avoid string concatenation.
       DependencyGroup first_group = static_cast<DependencyGroup>(
           1 << base::bits::CountTrailingZeros32(groups & deopt_groups));
-      code->SetMarkedForDeoptimization(
-          isolate,
-          DependentCode::DependencyGroupToLazyDeoptReason(first_group));
+      const char* reason = DependentCode::DependencyGroupName(first_group);
+
+      code->SetMarkedForDeoptimization(isolate, reason);
       marked_something = true;
     }
 
@@ -211,35 +211,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "script-context-slot-property-changed";
     case kEmptyContextExtensionGroup:
       return "empty-context-extension";
-  }
-  UNREACHABLE();
-}
-
-LazyDeoptimizeReason DependentCode::DependencyGroupToLazyDeoptReason(
-    DependencyGroup group) {
-  switch (group) {
-    case kTransitionGroup:
-      return LazyDeoptimizeReason::kMapDeprecated;
-    case kPrototypeCheckGroup:
-      return LazyDeoptimizeReason::kPrototypeChange;
-    case kPropertyCellChangedGroup:
-      return LazyDeoptimizeReason::kPropertyCellChange;
-    case kFieldConstGroup:
-      return LazyDeoptimizeReason::kFieldTypeConstChange;
-    case kFieldTypeGroup:
-      return LazyDeoptimizeReason::kFieldTypeChange;
-    case kFieldRepresentationGroup:
-      return LazyDeoptimizeReason::kFieldRepresentationChange;
-    case kInitialMapChangedGroup:
-      return LazyDeoptimizeReason::kInitialMapChange;
-    case kAllocationSiteTenuringChangedGroup:
-      return LazyDeoptimizeReason::kAllocationSiteTenuringChange;
-    case kAllocationSiteTransitionChangedGroup:
-      return LazyDeoptimizeReason::kAllocationSiteTransitionChange;
-    case kScriptContextSlotPropertyChangedGroup:
-      return LazyDeoptimizeReason::kScriptContextSlotPropertyChange;
-    case kEmptyContextExtensionGroup:
-      return LazyDeoptimizeReason::kEmptyContextExtensionChange;
   }
   UNREACHABLE();
 }

@@ -21,5 +21,5 @@ assertOptimized(read);
 // This invalidates the constness.
 eval("a = 1;");
 
-assertUnoptimized(read);
 assertEquals(1, read());
+assertUnoptimized(read);

@@ -1382,8 +1382,7 @@ void Debug::PrepareStepOnThrow() {
     JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
     if (last_step_action() == StepInto) {
       // Deoptimize frame to ensure calls are checked for step-in.
-      Deoptimizer::DeoptimizeFunction(frame->function(),
-                                      LazyDeoptimizeReason::kDebugger);
+      Deoptimizer::DeoptimizeFunction(frame->function());
     }
     FrameSummaries summaries = frame->Summarize();
     for (size_t i = summaries.size(); i != 0; i--, current_frame_count--) {
@@ -1578,8 +1577,7 @@ void Debug::PrepareStep(StepAction step_action) {
         JavaScriptFrame* js_frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepInto) {
           // Deoptimize frame to ensure calls are checked for step-in.
-          Deoptimizer::DeoptimizeFunction(js_frame->function(),
-                                          LazyDeoptimizeReason::kDebugger);
+          Deoptimizer::DeoptimizeFunction(js_frame->function());
         }
         HandleScope inner_scope(isolate_);
         std::vector<Handle<SharedFunctionInfo>> infos;
@@ -3349,9 +3347,7 @@ bool Debug::GetTemporaryObjectTrackingDisabled() const {
 
 void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
                                 int inlined_frame_index) {
-  if (frame->is_optimized())
-    Deoptimizer::DeoptimizeFunction(frame->function(),
-                                    LazyDeoptimizeReason::kDebugger);
+  if (frame->is_optimized()) Deoptimizer::DeoptimizeFunction(frame->function());
 
   thread_local_.restart_frame_id_ = frame->id();
   thread_local_.restart_inline_frame_index_ = inlined_frame_index;

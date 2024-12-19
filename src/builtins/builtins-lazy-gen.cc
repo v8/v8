@@ -193,8 +193,8 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 
 #ifdef V8_ENABLE_LEAPTIERING
 
-template <typename Function>
-void LazyBuiltinsAssembler::TieringBuiltinImpl(const Function& Impl) {
+void LazyBuiltinsAssembler::TieringBuiltinImpl(
+    Runtime::FunctionId function_id) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
@@ -209,8 +209,9 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(const Function& Impl) {
       function, JSFunction::kDispatchHandleOffset);
 #endif
 
-  // Apply the actual tiering. This function must uninstall the tiering builtin.
-  Impl(context, function);
+  // Apply the tiering runtime function. This function must update the function
+  // uninstalling the tiering builtin.
+  CallRuntime(function_id, context, function);
 
   // The dispatch handle of the function shouldn't change.
   CSA_DCHECK(this,
@@ -228,47 +229,23 @@ void LazyBuiltinsAssembler::TieringBuiltinImpl(const Function& Impl) {
 }
 
 TF_BUILTIN(FunctionLogNextExecution, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kFunctionLogNextExecution, context, function);
-  });
+  TieringBuiltinImpl(Runtime::kFunctionLogNextExecution);
 }
 
 TF_BUILTIN(StartMaglevOptimizeJob, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kStartMaglevOptimizeJob, context, function);
-  });
+  TieringBuiltinImpl(Runtime::kStartMaglevOptimizeJob);
 }
 
 TF_BUILTIN(StartTurbofanOptimizeJob, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kStartTurbofanOptimizeJob, context, function);
-  });
+  TieringBuiltinImpl(Runtime::kStartTurbofanOptimizeJob);
 }
 
 TF_BUILTIN(OptimizeMaglevEager, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kOptimizeMaglevEager, context, function);
-  });
+  TieringBuiltinImpl(Runtime::kOptimizeMaglevEager);
 }
 
 TF_BUILTIN(OptimizeTurbofanEager, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kOptimizeTurbofanEager, context, function);
-  });
-}
-
-TF_BUILTIN(MarkLazyDeoptimized, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
-                /* reoptimize */ SmiConstant(false));
-  });
-}
-
-TF_BUILTIN(MarkReoptimizeLazyDeoptimized, LazyBuiltinsAssembler) {
-  TieringBuiltinImpl([&](TNode<Context> context, TNode<JSFunction> function) {
-    CallRuntime(Runtime::kMarkLazyDeoptimized, context, function,
-                /* reoptimize */ SmiConstant(true));
-  });
+  TieringBuiltinImpl(Runtime::kOptimizeTurbofanEager);
 }
 
 #else

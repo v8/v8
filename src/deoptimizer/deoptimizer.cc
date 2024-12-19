@@ -455,8 +455,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   {
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
-      code->SetMarkedForDeoptimization(isolate,
-                                       LazyDeoptimizeReason::kDebugger);
+      code->SetMarkedForDeoptimization(isolate, nullptr);
     }
   }
 
@@ -465,7 +464,6 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 // static
 void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
-                                     LazyDeoptimizeReason reason,
                                      Tagged<Code> code) {
   Isolate* isolate = function->GetIsolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
@@ -478,7 +476,7 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
     // Mark the code for deoptimization and unlink any functions that also
     // refer to that code. The code cannot be shared across native contexts,
     // so we only need to search one.
-    code->SetMarkedForDeoptimization(isolate, reason);
+    code->SetMarkedForDeoptimization(isolate, nullptr);
 #ifndef V8_ENABLE_LEAPTIERING_BOOL
     // The code in the function's optimized code feedback vector slot might
     // be different from the code on the function - evict it if necessary.
@@ -506,8 +504,7 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
       if (code->Inlines(*function)) {
-        code->SetMarkedForDeoptimization(isolate,
-                                         LazyDeoptimizeReason::kDebugger);
+        code->SetMarkedForDeoptimization(isolate, nullptr);
         any_marked = true;
       }
     }
@@ -845,7 +842,7 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 // static
 void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
                                              Tagged<Code> code,
-                                             LazyDeoptimizeReason reason) {
+                                             const char* reason) {
   DCHECK(code->uses_deoptimization_data());
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
@@ -859,17 +856,16 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
     PrintF(scope.file(), " (");
     ShortPrint(deopt_data->GetSharedFunctionInfo(), scope.file());
     PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
-           deopt_data->OptimizationId().value(),
-           DeoptimizeReasonToString(reason));
+           deopt_data->OptimizationId().value(), reason);
   }
   if (!v8_flags.log_deopt) return;
   no_gc.Release();
   {
     HandleScope handle_scope(isolate);
-    PROFILE(isolate, CodeDependencyChangeEvent(
-                         handle(code, isolate),
-                         handle(deopt_data->GetSharedFunctionInfo(), isolate),
-                         DeoptimizeReasonToString(reason)));
+    PROFILE(isolate,
+            CodeDependencyChangeEvent(
+                handle(code, isolate),
+                handle(deopt_data->GetSharedFunctionInfo(), isolate), reason));
   }
 }
 

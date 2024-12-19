@@ -16,10 +16,9 @@ assertEquals(false, check_undetectable(42));
 %OptimizeFunctionOnNextCall(check_undetectable);
 assertEquals(false, check_undetectable(42));
 assertOptimized(check_undetectable);
-var undetectable = %GetUndetectable();
+assertEquals(17, check_undetectable(%GetUndetectable()));
 // Should deoptimize because of invalidated NoUndetectableObjects protector.
 assertUnoptimized(check_undetectable);
-assertEquals(17, check_undetectable(undetectable));
 %OptimizeFunctionOnNextCall(check_undetectable);
 assertEquals(17, check_undetectable(%GetUndetectable()));
 assertOptimized(check_undetectable);

@@ -27,7 +27,6 @@ class SafepointEntry;
 class RootVisitor;
 
 enum class Builtin;
-enum class LazyDeoptimizeReason : uint8_t;
 
 // Code is a container for data fields related to its associated
 // {InstructionStream} object. Since {InstructionStream} objects reside on
@@ -304,10 +303,8 @@ class Code : public ExposedTrustedObject {
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
-  inline void SetMarkedForDeoptimization(Isolate* isolate,
-                                         LazyDeoptimizeReason reason);
-  void TraceMarkForDeoptimization(Isolate* isolate,
-                                  LazyDeoptimizeReason reason);
+  inline void SetMarkedForDeoptimization(Isolate* isolate, const char* reason);
+  void TraceMarkForDeoptimization(Isolate* isolate, const char* reason);
 
   inline bool CanContainWeakObjects();
   inline bool IsWeakObject(Tagged<HeapObject> object);

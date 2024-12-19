@@ -229,7 +229,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   }
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -246,7 +246,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
-    Deoptimizer::DeoptimizeFunction(*function, LazyDeoptimizeReason::kTesting);
+    Deoptimizer::DeoptimizeFunction(*function);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1156,9 +1156,6 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   DCHECK_EQ(args.length(), 1);
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
   function->ClearAllTypeFeedbackInfoForTesting();
-  // Typically tests use this function to start from scratch. Thus, we should
-  // also clear tiering requests.
-  function->ResetTieringRequests(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
