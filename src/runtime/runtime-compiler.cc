@@ -17,6 +17,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8::internal {
 
@@ -534,6 +535,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
   isolate->set_context(deoptimizer->function()->native_context());
+
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();

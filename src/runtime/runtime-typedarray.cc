@@ -9,6 +9,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -68,6 +69,15 @@ RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSArrayBuffer> array_buffer = args.at<JSArrayBuffer>(0);
+
+  // When this is called from Wasm code (which can happen by recognizing the
+  // special `DataView.prototype.byteLength` import), clear the "thread in wasm"
+  // flag, which is important in case any GC needs to happen when allocating the
+  // number below.
+  // TODO(40192807): Find a better fix, either by replacing the global flag, or
+  // by implementing this via a Wasm-specific external reference callback which
+  // returns a uintptr_t directly (without allocating on the heap).
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
   CHECK_EQ(0, array_buffer->byte_length());
   size_t byte_length = array_buffer->GetBackingStore()->byte_length();

@@ -122,8 +122,7 @@ class V8_NODISCARD ClearThreadInWasmScope {
 #endif  // V8_ENABLE_DRUMBRAKE
   }
   ~ClearThreadInWasmScope() {
-    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                   !trap_handler::IsThreadInWasm());
+    trap_handler::AssertThreadNotInWasm();
     if (!isolate_->has_exception() && is_thread_in_wasm_) {
       trap_handler::SetThreadInWasm();
 

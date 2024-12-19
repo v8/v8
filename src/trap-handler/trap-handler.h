@@ -13,9 +13,7 @@
 #include "include/v8config.h"
 #include "src/base/immediate-crash.h"
 
-namespace v8 {
-namespace internal {
-namespace trap_handler {
+namespace v8::internal::trap_handler {
 
 // X64 on Linux, Windows, MacOS, FreeBSD.
 #if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
@@ -191,8 +189,20 @@ TH_EXPORT_PRIVATE void RemoveTrapHandler();
 
 TH_EXPORT_PRIVATE size_t GetRecoveredTrapCount();
 
-}  // namespace trap_handler
-}  // namespace internal
-}  // namespace v8
+// Check that the current thread does not have the "in wasm" flag set, without
+// any other side effects. Note that e.g. "!IsTrapHandlerEnabled() ||
+// !IsThreadInWasm()" has the side effect of disabling later
+// EnableTrapHandler(). We need to allow later enabling though, because
+// allocations can happen *before* initializing the trap handler, and we want to
+// execute this check there.
+#if defined(BUILDING_V8_SHARED_PRIVATE) || defined(USING_V8_SHARED_PRIVATE)
+TH_EXPORT_PRIVATE void AssertThreadNotInWasm();
+#else
+inline void AssertThreadNotInWasm() {
+  TH_DCHECK(!g_is_trap_handler_enabled || !g_thread_in_wasm_code);
+}
+#endif
+
+}  // namespace v8::internal::trap_handler
 
 #endif  // V8_TRAP_HANDLER_TRAP_HANDLER_H_

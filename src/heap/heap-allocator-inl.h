@@ -76,6 +76,9 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   DCHECK(AllowHeapAllocation::IsAllowed());
   CHECK(AllowHeapAllocationInRelease::IsAllowed());
   DCHECK(local_heap_->IsRunning());
+#if V8_ENABLE_WEBASSEMBLY
+  trap_handler::AssertThreadNotInWasm();
+#endif
 #if DEBUG
   local_heap_->VerifyCurrent();
 #endif

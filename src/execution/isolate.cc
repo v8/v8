@@ -2080,8 +2080,9 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   DCHECK(!has_exception());
   DCHECK_IMPLIES(IsHole(raw_exception),
                  raw_exception == ReadOnlyRoots{this}.termination_exception());
-  IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
-          !trap_handler::IsThreadInWasm());
+#if V8_ENABLE_WEBASSEMBLY
+  trap_handler::AssertThreadNotInWasm();
+#endif
 
   HandleScope scope(this);
   DirectHandle<Object> exception(raw_exception, this);
@@ -2202,10 +2203,7 @@ namespace {
 // destructors. The thread-in-wasm flag is only set when the scope gets enabled.
 class SetThreadInWasmFlagScope {
  public:
-  SetThreadInWasmFlagScope() {
-    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                   !trap_handler::IsThreadInWasm());
-  }
+  SetThreadInWasmFlagScope() { trap_handler::AssertThreadNotInWasm(); }
 
   ~SetThreadInWasmFlagScope() {
     if (enabled_) trap_handler::SetThreadInWasm();

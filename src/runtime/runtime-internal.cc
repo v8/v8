@@ -448,8 +448,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
 
   // When this is called from WasmGC code, clear the "thread in wasm" flag,
   // which is important in case any GC needs to happen.
-  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
-  // flag.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
   // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
@@ -470,8 +469,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
 
   // When this is called from WasmGC code, clear the "thread in wasm" flag,
   // which is important in case any GC needs to happen.
-  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
-  // flag.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
   SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
   AllocationAlignment alignment =
