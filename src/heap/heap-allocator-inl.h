@@ -201,29 +201,6 @@ AllocationResult HeapAllocator::AllocateRaw(int size_in_bytes,
   UNREACHABLE();
 }
 
-AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
-                                                AllocationType type,
-                                                AllocationOrigin origin,
-                                                AllocationAlignment alignment) {
-  switch (type) {
-    case AllocationType::kYoung:
-      return AllocateRaw<AllocationType::kYoung>(size_in_bytes, origin,
-                                                 alignment);
-    case AllocationType::kOld:
-      return AllocateRaw<AllocationType::kOld>(size_in_bytes, origin,
-                                               alignment);
-    case AllocationType::kCode:
-    case AllocationType::kMap:
-    case AllocationType::kReadOnly:
-    case AllocationType::kSharedMap:
-    case AllocationType::kSharedOld:
-    case AllocationType::kTrusted:
-    case AllocationType::kSharedTrusted:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-}
-
 template <HeapAllocator::AllocationRetryMode mode>
 V8_WARN_UNUSED_RESULT V8_INLINE Tagged<HeapObject>
 HeapAllocator::AllocateRawWith(int size, AllocationType allocation,

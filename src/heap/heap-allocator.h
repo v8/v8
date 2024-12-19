@@ -58,14 +58,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  // Supports only `AllocationType::kYoung` and `AllocationType::kOld`.
-  //
-  // Returns a failed result on an unsuccessful allocation attempt.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawData(int size_in_bytes, AllocationType allocation,
-                  AllocationOrigin origin = AllocationOrigin::kRuntime,
-                  AllocationAlignment alignment = kTaggedAligned);
-
   enum AllocationRetryMode { kLightRetry, kRetryOrFail };
 
   // Supports all `AllocationType` types and allows specifying retry handling.
