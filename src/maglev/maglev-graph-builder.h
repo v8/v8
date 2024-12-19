@@ -2152,6 +2152,8 @@ class MaglevGraphBuilder {
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
   ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
+  ReduceResult BuildCheckNumericalValue(ValueNode* node,
+                                        compiler::ObjectRef ref);
 
   ValueNode* BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);

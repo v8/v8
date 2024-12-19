@@ -9929,6 +9929,12 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   if (ref.IsHeapObject() && !ref.IsHeapNumber()) {
     return BuildCheckValue(node, ref.AsHeapObject());
   }
+  return BuildCheckNumericalValue(node, ref);
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
+    ValueNode* node, compiler::ObjectRef ref) {
+  DCHECK(ref.IsSmi() || ref.IsHeapNumber());
   if (ref.IsSmi()) {
     int ref_value = ref.AsSmi();
     if (IsConstantNode(node->opcode())) {
@@ -9941,6 +9947,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
         return ReduceResult::Done();
       }
       return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+    }
+    if (NodeTypeIs(GetType(node), NodeType::kAnyHeapObject)) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
     }
     AddNewNode<CheckValueEqualsInt32>({node}, ref_value);
   } else {
@@ -9966,12 +9975,16 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
       }
       return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     }
+    if (!NodeTypeIs(NodeType::kNumber, GetType(node))) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+    }
     if (ref_value.is_nan()) {
       AddNewNode<CheckFloat64IsNan>({node});
     } else {
       AddNewNode<CheckValueEqualsFloat64>({node}, ref_value);
     }
   }
+
   SetKnownValue(node, ref, NodeType::kNumber);
   return ReduceResult::Done();
 }
