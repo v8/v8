@@ -1092,16 +1092,17 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      handle(Smi::zero(), isolate()), "object", Oddball::kNull);
+                      direct_handle(Smi::zero(), isolate()), "object",
+                      Oddball::kNull);
 
   // Initialize the true_value.
   Oddball::Initialize(isolate(), factory->true_value(), "true",
-                      handle(Smi::FromInt(1), isolate()), "boolean",
+                      direct_handle(Smi::FromInt(1), isolate()), "boolean",
                       Oddball::kTrue);
 
   // Initialize the false_value.
   Oddball::Initialize(isolate(), factory->false_value(), "false",
-                      handle(Smi::zero(), isolate()), "boolean",
+                      direct_handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
 
   // Initialize the_hole_value.

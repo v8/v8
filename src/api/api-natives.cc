@@ -415,7 +415,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
           InstantiateObject(isolate, Cast<ObjectTemplateInfo>(prototype_templ),
-                            Handle<JSReceiver>(), true));
+                            DirectHandle<JSReceiver>(), true));
     }
     DirectHandle<Object> parent(data->GetParentTemplate(), isolate);
     if (!IsUndefined(*parent, isolate)) {

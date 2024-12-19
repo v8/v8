@@ -464,14 +464,15 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   DCHECK(!shared->name_should_print_as_anonymous());
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
-  builder.AppendString(Handle<String>(shared->Name(), isolate));
+  builder.AppendString(DirectHandle<String>(shared->Name(), isolate));
   builder.AppendCharacter('(');
   DirectHandle<FixedArray> args(
       Cast<Script>(shared->script())->wrapped_arguments(), isolate);
   int argc = args->length();
   for (int i = 0; i < argc; i++) {
     if (i > 0) builder.AppendCStringLiteral(", ");
-    builder.AppendString(Handle<String>(Cast<String>(args->get(i)), isolate));
+    builder.AppendString(
+        DirectHandle<String>(Cast<String>(args->get(i)), isolate));
   }
   builder.AppendCStringLiteral(") {\n");
   builder.AppendString(source);

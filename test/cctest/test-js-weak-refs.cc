@@ -22,7 +22,7 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
   DirectHandle<String> finalization_registry_name =
       factory->NewStringFromStaticChars("FinalizationRegistry");
   DirectHandle<JSGlobalObject> global =
-      handle(isolate->native_context()->global_object(), isolate);
+      direct_handle(isolate->native_context()->global_object(), isolate);
   DirectHandle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, finalization_registry_name)
           .ToHandleChecked());
@@ -49,7 +49,7 @@ Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
   Factory* factory = isolate->factory();
   DirectHandle<String> weak_ref_name = factory->WeakRef_string();
   DirectHandle<JSGlobalObject> global =
-      handle(isolate->native_context()->global_object(), isolate);
+      direct_handle(isolate->native_context()->global_object(), isolate);
   DirectHandle<JSFunction> weak_ref_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());
   auto weak_ref = Cast<JSWeakRef>(
@@ -99,7 +99,7 @@ Handle<WeakCell> FinalizationRegistryRegister(
     DirectHandle<JSFinalizationRegistry> finalization_registry,
     DirectHandle<JSObject> target, Isolate* isolate) {
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
   return FinalizationRegistryRegister(finalization_registry, target, undefined,
                                       undefined, isolate);
 }
@@ -254,7 +254,7 @@ TEST(TestRegisterWithKey) {
   DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
   DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   // Register a weak reference with a key and verify internal data structures.
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
@@ -371,7 +371,7 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
   DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<Object> holdings1 =
       factory->NewStringFromAsciiChecked("holdings1");
@@ -488,7 +488,7 @@ TEST(TestUnregisterActiveCells) {
   DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
   DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
@@ -540,7 +540,7 @@ TEST(TestUnregisterActiveAndClearedCells) {
   DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
   DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
@@ -594,7 +594,7 @@ TEST(TestWeakCellUnregisterTwice) {
 
   DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
   DirectHandle<Object> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
@@ -833,7 +833,7 @@ TEST(TestRemoveUnregisterToken) {
   DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
   DirectHandle<JSObject> token2 = CreateKey("token2", isolate);
   DirectHandle<HeapObject> undefined =
-      handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
+      direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);

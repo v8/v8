@@ -204,7 +204,7 @@ MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
     size_t context_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  if (!isolate->snapshot_available()) return Handle<Context>();
+  if (!isolate->snapshot_available()) return DirectHandle<Context>();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);

@@ -852,8 +852,8 @@ void TransitionsAccessor::EnsureHasSideStepTransitions(Isolate* isolate,
   Tagged<TransitionArray> transitions =
       GetTransitionArray(isolate, map->raw_transitions());
   if (transitions->HasSideStepTransitions()) return;
-  TransitionArray::CreateSideStepTransitions(isolate,
-                                             handle(transitions, isolate));
+  TransitionArray::CreateSideStepTransitions(
+      isolate, direct_handle(transitions, isolate));
 }
 
 // static
@@ -862,7 +862,7 @@ void TransitionArray::CreateSideStepTransitions(
   DCHECK(!transitions->HasSideStepTransitions());  // Callers must check first.
   DirectHandle<WeakFixedArray> result = WeakFixedArray::New(
       isolate, SideStepTransition::kSize, AllocationType::kYoung,
-      handle(SideStepTransition::Empty, isolate));
+      direct_handle(SideStepTransition::Empty, isolate));
   transitions->SetSideStepTransitions(*result);
 }
 

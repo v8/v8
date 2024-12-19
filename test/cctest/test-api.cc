@@ -24375,8 +24375,8 @@ TEST(CreateSyntheticModule) {
   i::DirectHandle<i::String> default_name =
       i_isolate->factory()->NewStringFromAsciiChecked("default");
 
-  CHECK(
-      IsCell(*i::Handle<i::Object>(exports->Lookup(default_name), i_isolate)));
+  CHECK(IsCell(
+      *i::DirectHandle<i::Object>(exports->Lookup(default_name), i_isolate)));
   CHECK(IsUndefined(
       i::Cast<i::Cell>(
           i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
@@ -26427,7 +26427,7 @@ TEST(DynamicImport) {
   i::MaybeDirectHandle<i::JSPromise> maybe_promise =
       i_isolate->RunHostImportModuleDynamicallyCallback(
           referrer, specifier, v8::ModuleImportPhase::kEvaluation,
-          i::MaybeHandle<i::Object>());
+          i::MaybeDirectHandle<i::Object>());
   i::DirectHandle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
   CHECK(result->Equals(i::Cast<i::String>(promise->result())));
@@ -31240,8 +31240,8 @@ TEST(WrappedFunctionWithClass) {
   i::DirectHandle<i::JSFunction> i_class =
       Cast<i::JSFunction>(v8::Utils::OpenHandle(*the_class));
   CHECK(i_class->shared()->CanDiscardCompiled());
-  i::SharedFunctionInfo::DiscardCompiled(i_isolate,
-                                         handle(i_class->shared(), i_isolate));
+  i::SharedFunctionInfo::DiscardCompiled(
+      i_isolate, direct_handle(i_class->shared(), i_isolate));
   i_class->ResetIfCodeFlushed(i_isolate);
 
   maybe_instance = the_class->NewInstance(context, 0, nullptr);

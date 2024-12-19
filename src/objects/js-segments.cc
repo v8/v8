@@ -87,7 +87,7 @@ MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
   // endIndex).
   return CreateSegmentDataObject(
       isolate, segments->granularity(), break_iterator,
-      handle(segments->raw_string(), isolate),
+      direct_handle(segments->raw_string(), isolate),
       *(segments->unicode_string()->raw()), start_index, end_index);
 }
 

@@ -326,9 +326,9 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(handle(str, isolate()));
+        PushObjectToRehash(direct_handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {
-        PushObjectToRehash(handle(o, isolate()));
+        PushObjectToRehash(direct_handle(o, isolate()));
       }
     }
 

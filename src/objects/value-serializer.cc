@@ -1010,7 +1010,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
   if (IsJSTypedArray(view)) {
     if (Cast<JSTypedArray>(view)->IsOutOfBounds()) {
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
-                                 handle(view, isolate_));
+                                 direct_handle(view, isolate_));
     }
     switch (Cast<JSTypedArray>(view)->type()) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -1025,7 +1025,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
     if (IsJSRabGsabDataView(view) &&
         Cast<JSRabGsabDataView>(view)->IsOutOfBounds()) {
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
-                                 handle(view, isolate_));
+                                 direct_handle(view, isolate_));
     }
 
     tag = ArrayBufferViewTag::kDataView;

@@ -183,7 +183,8 @@ class PendingDependencies final {
     return static_cast<uint32_t>(base::hash_value(handle->ptr()));
   }
   struct HandleValueEqual {
-    bool operator()(uint32_t hash1, uint32_t hash2, Handle<HeapObject> lhs,
+    bool operator()(uint32_t hash1, uint32_t hash2,
+                    DirectHandle<HeapObject> lhs,
                     Handle<HeapObject> rhs) const {
       return hash1 == hash2 && lhs.is_identical_to(rhs);
     }

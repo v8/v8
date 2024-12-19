@@ -68,8 +68,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
       builder.AppendString(body);
     }
     builder.AppendCStringLiteral("\n})");
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, source,
-                               indirect_handle(builder.Finish(), isolate));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, source, builder.Finish());
   }
 
   bool is_code_like = true;
@@ -84,11 +83,12 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // come from here.
   DirectHandle<JSFunction> function;
   {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, function,
-                               Compiler::GetFunctionFromString(
-                                   handle(target->native_context(), isolate),
-                                   indirect_handle(source, isolate),
-                                   parameters_end_pos, is_code_like));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, function,
+        Compiler::GetFunctionFromString(
+            direct_handle(target->native_context(), isolate),
+            indirect_handle(source, isolate), parameters_end_pos,
+            is_code_like));
     DirectHandle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,

@@ -309,7 +309,7 @@ bool AddDescriptorsByTemplate(
     Tagged<Object> value = descriptors_template->GetStrongValue(i);
     if (IsAccessorPair(value)) {
       DirectHandle<AccessorPair> pair = AccessorPair::Copy(
-          isolate, handle(Cast<AccessorPair>(value), isolate));
+          isolate, direct_handle(Cast<AccessorPair>(value), isolate));
       value = *pair;
     }
     DisallowGarbageCollection no_gc;
@@ -645,7 +645,7 @@ MaybeHandle<Object> DefineClass(
                  direct_handle(constructor->map(), isolate),
                  "init class constructor",
                  SharedFunctionInfo::DebugName(
-                     isolate, handle(constructor->shared(), isolate))));
+                     isolate, direct_handle(constructor->shared(), isolate))));
     LOG(isolate, MapEvent("InitialMap", empty_map,
                           direct_handle(prototype->map(), isolate),
                           "init class prototype"));

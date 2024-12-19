@@ -714,7 +714,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
   JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
   DCHECK_EQ(frame->LookupCode()->kind(), CodeKind::MAGLEV);
-  DirectHandle<JSFunction> function = handle(frame->function(), isolate);
+  DirectHandle<JSFunction> function = direct_handle(frame->function(), isolate);
 
   return CompileOptimizedOSRFromMaglev(isolate, function, osr_offset);
 }

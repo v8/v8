@@ -429,13 +429,13 @@ TEST_F(ConversionsTest, PositiveNumberToUint32) {
   // Test Smi conversions.
   DirectHandle<Object> number(Smi::FromInt(0), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
-  number = handle(Smi::FromInt(-1), i_isolate());
+  number = direct_handle(Smi::FromInt(-1), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
-  number = handle(Smi::FromInt(-1), i_isolate());
+  number = direct_handle(Smi::FromInt(-1), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
-  number = handle(Smi::FromInt(Smi::kMinValue), i_isolate());
+  number = direct_handle(Smi::FromInt(Smi::kMinValue), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
-  number = handle(Smi::FromInt(Smi::kMaxValue), i_isolate());
+  number = direct_handle(Smi::FromInt(Smi::kMaxValue), i_isolate());
   CHECK_EQ(PositiveNumberToUint32(*number),
            static_cast<uint32_t>(Smi::kMaxValue));
   // Test Double conversions.

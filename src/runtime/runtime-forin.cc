@@ -56,7 +56,7 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
       case LookupIterator::JSPROXY: {
         // For proxies we have to invoke the [[GetOwnProperty]] trap.
         result = JSProxy::GetPropertyAttributes(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() == ABSENT) {
           // Continue lookup on the proxy's prototype.
           DirectHandle<JSProxy> proxy = it.GetHolder<JSProxy>();
@@ -80,14 +80,14 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
                         NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         continue;
       }
       case LookupIterator::ACCESS_CHECK: {
         if (it.HasAccess()) continue;
         result = JSObject::GetPropertyAttributesWithFailedAccessCheck(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         return isolate->factory()->undefined_value();
       }
@@ -97,7 +97,7 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
       case LookupIterator::ACCESSOR: {
         if (IsJSModuleNamespace(*it.GetHolder<Object>())) {
           result = JSModuleNamespace::GetPropertyAttributes(&it);
-          if (result.IsNothing()) return MaybeHandle<Object>();
+          if (result.IsNothing()) return MaybeDirectHandle<Object>();
           DCHECK_EQ(0, result.FromJust() & DONT_ENUM);
         }
         return it.GetName();

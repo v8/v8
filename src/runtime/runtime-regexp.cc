@@ -1413,7 +1413,8 @@ static Tagged<Object> SearchRegExpMultiple(
           isolate->factory()->CopyFixedArrayWithMap(
               result_fixed_array, isolate->factory()->fixed_array_map());
       RegExpResultsCache::Enter(
-          isolate, subject, handle(regexp->data(isolate)->wrapper(), isolate),
+          isolate, subject,
+          direct_handle(regexp->data(isolate)->wrapper(), isolate),
           copied_fixed_array, last_match_cache,
           RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
@@ -2240,7 +2241,7 @@ RUNTIME_FUNCTION(Runtime_RegExpMatchGlobalAtom) {
     Tagged<String> pattern = data_handle->pattern();
 
     DCHECK(pattern->IsFlat());
-    pattern_handle = handle(pattern, isolate);
+    pattern_handle = direct_handle(pattern, isolate);
     pattern_length = pattern->length();
 
     // Reset lastIndex (the final state after this call is always 0).

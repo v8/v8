@@ -853,7 +853,8 @@ template <typename T, template <typename> typename HandleType>
 typename HandleType<Number>::MaybeType Object::ToUint32(Isolate* isolate,
                                                         HandleType<T> input) {
   if (IsSmi(*input)) {
-    return handle(Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
+    return typename HandleType<Number>::MaybeType(
+        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
   }
   return ConvertToUint32(isolate, Cast<Object>(input));
 }

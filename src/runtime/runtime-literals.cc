@@ -644,8 +644,8 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
           Smi::FromInt(static_cast<int>(regexp_instance->flags())));
 
   vector->SynchronizedSet(literal_slot, *boilerplate);
-  DCHECK(
-      HasBoilerplate(handle(Cast<Object>(vector->Get(literal_slot)), isolate)));
+  DCHECK(HasBoilerplate(
+      direct_handle(Cast<Object>(vector->Get(literal_slot)), isolate)));
 
   return *regexp_instance;
 }

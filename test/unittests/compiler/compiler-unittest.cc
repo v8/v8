@@ -619,9 +619,9 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
   auto fun_i = i::Cast<i::JSFunction>(Utils::OpenHandle(*fun));
   EXPECT_TRUE(IsSharedFunctionInfo(fun_i->shared()));
   EXPECT_TRUE(
-      Utils::ToLocal(
-          i::handle(i::Cast<i::Script>(fun_i->shared()->script())->name(),
-                    i_isolate()))
+      Utils::ToLocal(i::direct_handle(
+                         i::Cast<i::Script>(fun_i->shared()->script())->name(),
+                         i_isolate()))
           ->StrictEquals(NewString("test")));
   v8::TryCatch try_catch(isolate());
   isolate()->SetCaptureStackTraceForUncaughtExceptions(true);

@@ -1982,7 +1982,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       HostCreateShadowRealmContextCallback callback);
   MaybeHandle<NativeContext> RunHostCreateShadowRealmContextCallback();
 
-  bool IsJSApiWrapperNativeError(Handle<JSReceiver> obj);
+  bool IsJSApiWrapperNativeError(DirectHandle<JSReceiver> obj);
 
   void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
     embedded_file_writer_ = writer;

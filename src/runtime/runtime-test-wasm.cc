@@ -227,7 +227,7 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedJSToJSWrapper) {
 
   DirectHandle<JSFunction> external_function =
       WasmInternalFunction::GetOrCreateExternal(
-          handle(function_data->internal(), isolate));
+          direct_handle(function_data->internal(), isolate));
   DirectHandle<Code> external_function_code(external_function->code(isolate),
                                             isolate);
   DirectHandle<Code> function_data_code(function_data->wrapper_code(isolate),
@@ -760,12 +760,12 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK_EQ(struct_type->field_count(), 1);
     DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
-                                              handle(map, isolate));
+                                              direct_handle(map, isolate));
   } else {
     DCHECK_EQ(instance->module()->array_type(type_index)->element_type(),
               wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(wasm::kWasmI64, 1, value,
-                                             handle(map, isolate));
+                                             direct_handle(map, isolate));
   }
 }
 

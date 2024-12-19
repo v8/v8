@@ -2584,14 +2584,14 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
       Intl::ResolvedLocale{canonicalized_locale, icu_locale, extensions});
 }
 
-Handle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
+DirectHandle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
     Isolate* isolate, DirectHandle<String> text,
     icu::BreakIterator* break_iterator) {
   text = String::Flatten(isolate, text);
   std::shared_ptr<icu::UnicodeString> u_text{static_cast<icu::UnicodeString*>(
       Intl::ToICUUnicodeString(isolate, text).clone())};
 
-  Handle<Managed<icu::UnicodeString>> new_u_text =
+  DirectHandle<Managed<icu::UnicodeString>> new_u_text =
       Managed<icu::UnicodeString>::From(isolate, 0, u_text);
 
   break_iterator->setText(*u_text);

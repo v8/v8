@@ -68,7 +68,8 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
       Cast<Script>(function->shared()->script())->host_defined_options(),
       isolate);
   MaybeHandle<Object> result = Execution::CallScript(
-      isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
+      isolate, function,
+      DirectHandle<JSObject>(context->global_proxy(), isolate),
       host_defined_options);
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StopSideEffectCheckMode();
@@ -159,7 +160,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
       ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
   scope_info->SetIsDebugEvaluateScope();
   DirectHandle<Context> evaluation_context = factory->NewDebugEvaluateContext(
-      native_context, scope_info, materialized, Handle<Context>());
+      native_context, scope_info, materialized, DirectHandle<Context>());
   Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
   DirectHandle<JSObject> receiver(native_context->global_proxy(), isolate);

@@ -414,7 +414,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     object = Cast<JSObject>(holder);
 
   } else if (context->has_extension() && !is_debug_evaluate_in_module) {
-    object = handle(context->extension_object(), isolate);
+    object = direct_handle(context->extension_object(), isolate);
     DCHECK(IsJSContextExtensionObject(*object));
   } else if (context->scope_info()->HasContextExtensionSlot() &&
              !is_debug_evaluate_in_module) {
@@ -515,7 +515,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     DirectHandleVector<Object> param_data(isolate, args_count);
     for (int i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
-          Handle<Object>(frame->GetParameter(i), isolate);
+          DirectHandle<Object>(frame->GetParameter(i), isolate);
       param_data[i] = val;
     }
     return param_data;
@@ -978,7 +978,7 @@ MaybeHandle<Object> StoreLookupSlot(
                     NewReferenceError(MessageTemplate::kNotDefined, name));
   } else {
     // If absent in sloppy mode: add the property to the global object.
-    object = handle(context->global_object(), isolate);
+    object = direct_handle(context->global_object(), isolate);
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,

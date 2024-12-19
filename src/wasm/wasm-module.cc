@@ -404,8 +404,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
   DirectHandle<FixedArray> storage = factory->NewFixedArray(num_imports);
   JSArray::SetContent(array_object, storage);
 
-  DirectHandle<JSFunction> object_function =
-      Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
+  DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
+      isolate->native_context()->object_function(), isolate);
 
   // Populate the result array.
   const WellKnownImportsList& well_known_imports =
@@ -525,8 +525,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_exports));
 
-  DirectHandle<JSFunction> object_function =
-      Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
+  DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
+      isolate->native_context()->object_function(), isolate);
 
   // Populate the result array.
   for (int index = 0; index < num_exports; ++index) {

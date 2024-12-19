@@ -367,7 +367,7 @@ class Intl {
   };
 
   // Utility function to set text to BreakIterator.
-  static Handle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
+  static DirectHandle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
       Isolate* isolate, DirectHandle<String> text,
       icu::BreakIterator* break_iterator);
 

@@ -430,9 +430,9 @@ Handle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
   slot_at(kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   AccessorNameGetterCallback f =
       reinterpret_cast<AccessorNameGetterCallback>(info->getter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, v8::Value, info,
-                                 handle(receiver(), isolate), ACCESSOR_GETTER,
-                                 ExceptionContext::kAttributeGet);
+  PREPARE_CALLBACK_INFO_ACCESSOR(
+      isolate, f, v8::Value, info, direct_handle(receiver(), isolate),
+      ACCESSOR_GETTER, ExceptionContext::kAttributeGet);
   f(v8::Utils::ToLocal(name), callback_info);
   return GetReturnValue<JSAny>(isolate);
 }
@@ -459,9 +459,9 @@ bool PropertyCallbackArguments::CallAccessorSetter(
   // the result of [[Set]] operation according to JavaScript semantics.
   AccessorNameSetterCallback f = reinterpret_cast<AccessorNameSetterCallback>(
       accessor_info->setter(isolate));
-  PREPARE_CALLBACK_INFO_ACCESSOR(isolate, f, void, accessor_info,
-                                 handle(receiver(), isolate), ACCESSOR_SETTER,
-                                 ExceptionContext::kAttributeSet);
+  PREPARE_CALLBACK_INFO_ACCESSOR(
+      isolate, f, void, accessor_info, direct_handle(receiver(), isolate),
+      ACCESSOR_SETTER, ExceptionContext::kAttributeSet);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
   // Historically, in case of v8::AccessorNameSetterCallback it wasn't allowed
   // to set the result and not setting the result was treated as successful

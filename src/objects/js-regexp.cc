@@ -359,7 +359,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
         isolate,
         Object::SetProperty(
             isolate, regexp, factory->lastIndex_string(),
-            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)));
+            DirectHandle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)));
   }
 
   return regexp;

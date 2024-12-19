@@ -1107,7 +1107,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         DirectHandle<Object> value = lookup->GetDataValue();
 
         if (IsThinString(*value)) {
-          value = handle(Cast<ThinString>(*value)->actual(), isolate());
+          value = direct_handle(Cast<ThinString>(*value)->actual(), isolate());
         }
 
         // Non internalized strings could turn into thin/cons strings
@@ -1187,7 +1187,7 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
 
   if (target_receiver_maps.empty()) {
     Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
-    return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+    return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   }
 
   for (DirectHandle<Map> map : target_receiver_maps) {
@@ -1216,7 +1216,7 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
              Cast<JSObject>(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
       Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
-      return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+      return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
     }
   }
 
@@ -1248,11 +1248,12 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
   if (target_receiver_maps.empty()) {
     Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
-    ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+    ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   } else if (target_receiver_maps.size() == 1) {
-    ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
+    ConfigureVectorState(DirectHandle<Name>(), target_receiver_maps[0],
+                         handlers[0]);
   } else {
-    ConfigureVectorState(Handle<Name>(),
+    ConfigureVectorState(DirectHandle<Name>(),
                          MapHandlesSpan(target_receiver_maps.begin(),
                                         target_receiver_maps.end()),
                          &handlers);
@@ -1551,8 +1552,8 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(DirectHandle<JSAny> object,
   if (IsKeyedLoadIC()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Runtime::GetObjectProperty(isolate(), object, key, Handle<JSAny>(),
-                                   is_found));
+        Runtime::GetObjectProperty(isolate(), object, key,
+                                   DirectHandle<JSAny>(), is_found));
   } else {
     DCHECK(IsKeyedHasIC());
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
@@ -1763,8 +1764,8 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
         v8_flags.const_tracking_let) {
       AllowGarbageCollection yes_gc;
       Context::StoreScriptContextAndUpdateSlotProperty(
-          handle(script_context, isolate()), lookup_result.slot_index, value,
-          isolate());
+          direct_handle(script_context, isolate()), lookup_result.slot_index,
+          value, isolate());
     } else {
       script_context->set(lookup_result.slot_index, *value);
     }
@@ -2174,8 +2175,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // This is currently guaranteed by checks in StoreIC::Store.
       DirectHandle<JSObject> receiver = Cast<JSObject>(lookup->GetReceiver());
       USE(receiver);
-      DirectHandle<JSObject> holder =
-          indirect_handle(lookup->GetHolder<JSObject>(), isolate());
+      DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!IsAccessCheckNeeded(*receiver) || lookup->name()->IsPrivate());
 
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
@@ -2230,7 +2230,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
     }
     case LookupIterator::JSPROXY: {
       DirectHandle<JSReceiver> receiver =
-          indirect_handle(Cast<JSReceiver>(lookup->GetReceiver()), isolate());
+          Cast<JSReceiver>(lookup->GetReceiver());
       Handle<JSProxy> holder =
           indirect_handle(lookup->GetHolder<JSProxy>(), isolate());
 
@@ -2271,7 +2271,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       monomorphic_map = new_receiver_map;
     }
     Handle<Object> handler = StoreElementHandler(monomorphic_map, store_mode);
-    return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
+    return ConfigureVectorState(DirectHandle<Name>(), monomorphic_map, handler);
   }
 
   for (const MapAndHandler& map_and_handler : target_maps_and_handlers) {
@@ -2298,7 +2298,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       Handle<Object> handler =
           StoreElementHandler(transitioned_receiver_map, store_mode);
-      ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
+      ConfigureVectorState(DirectHandle<Name>(), transitioned_receiver_map,
+                           handler);
       return;
     }
     // If there is no transition and if we have seen the same map earlier and
@@ -2317,7 +2318,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
       Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
-      return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+      return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
     }
   }
 
@@ -2385,12 +2386,13 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   StoreElementPolymorphicHandlers(&target_maps_and_handlers, store_mode);
   if (target_maps_and_handlers.empty()) {
     Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
-    ConfigureVectorState(Handle<Name>(), receiver_map, handler);
+    ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   } else if (target_maps_and_handlers.size() == 1) {
-    ConfigureVectorState(Handle<Name>(), target_maps_and_handlers[0].first,
+    ConfigureVectorState(DirectHandle<Name>(),
+                         target_maps_and_handlers[0].first,
                          target_maps_and_handlers[0].second);
   } else {
-    ConfigureVectorState(Handle<Name>(), target_maps_and_handlers);
+    ConfigureVectorState(DirectHandle<Name>(), target_maps_and_handlers);
   }
 }
 
@@ -2504,7 +2506,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
           }
-          transition = handle(tmap, isolate());
+          transition = direct_handle(tmap, isolate());
         }
       }
 
@@ -3632,8 +3634,9 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
         DCHECK_EQ(kind, SideStepTransition::Kind::kObjectAssign);
         [[fallthrough]];
       case FastCloneObjectMode::kDifferentMap:
-        DCHECK(CanFastCloneObjectToObjectLiteral(
-            source_map, handle(target, isolate), override_map, false, isolate));
+        DCHECK(CanFastCloneObjectToObjectLiteral(source_map,
+                                                 direct_handle(target, isolate),
+                                                 override_map, false, isolate));
         break;
       default:
         UNREACHABLE();
@@ -4043,7 +4046,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
       (!receiver->HasNamedInterceptor() ||
        receiver->GetNamedInterceptor()->non_masking())) {
     interceptor_holder =
-        handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
+        direct_handle(Cast<JSObject>(receiver->map()->prototype()), isolate);
   }
   DCHECK(interceptor_holder->HasNamedInterceptor());
   {

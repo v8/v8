@@ -188,7 +188,7 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   i::DirectHandle<i::Object> exception;
   // Keep track of any previously thrown exception.
   if (i_isolate->has_exception()) {
-    exception = handle(i_isolate->exception(), i_isolate);
+    exception = direct_handle(i_isolate->exception(), i_isolate);
   }
   {
     TryCatch try_catch(v8_isolate);

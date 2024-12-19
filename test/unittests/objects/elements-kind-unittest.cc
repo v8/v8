@@ -335,7 +335,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastSmiElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_SMI_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // add a couple of elements again
   name = MakeString("0");
@@ -358,7 +358,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastSmiElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // We don't transition back to FAST_SMI even if we remove the string
   name = MakeString("0");
@@ -406,7 +406,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingFastElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // add a couple of elements, elements_kind stays HOLEY
   name = MakeString("0");
@@ -443,7 +443,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(PACKED_DOUBLE_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(1, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // `array[1] = value_smi` doesn't alter the |elements_kind|
   name = MakeString("1");
@@ -461,7 +461,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_DOUBLE_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // filling the hole `array[0] = value_smi` again doesn't transition back
   name = MakeString("0");
@@ -480,7 +480,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(HOLEY_ELEMENTS, array->map()->elements_kind());
   CHECK_EQ(2, Smi::ToInt(array->length()));
-  previous_map = handle(array->map(), i_isolate());
+  previous_map = direct_handle(array->map(), i_isolate());
 
   // Adding a double doesn't change the map
   name = MakeString("0");

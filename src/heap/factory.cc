@@ -1323,7 +1323,7 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
     side_data = empty_fixed_array();
   }
   Tagged<Context> context =
-      NewContextInternal(handle(outer->script_context_map(), isolate()),
+      NewContextInternal(direct_handle(outer->script_context_map(), isolate()),
                          Context::SizeFor(variadic_part_length),
                          variadic_part_length, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
@@ -1744,8 +1744,9 @@ Handle<WasmImportData> Factory::NewWasmImportData(
 Handle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<WasmImportData> import_data) {
   return NewWasmImportData(
-      handle(import_data->callable(), isolate()), import_data->suspend(),
-      handle(import_data->instance_data(), isolate()), import_data->sig());
+      direct_handle(import_data->callable(), isolate()), import_data->suspend(),
+      direct_handle(import_data->instance_data(), isolate()),
+      import_data->sig());
 }
 
 Handle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
@@ -2044,10 +2045,10 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
     return handle(Smi::FromEnum(opt_error.value()), isolate());
   }
 
-  DirectHandle<FixedArray> elements =
-      handle(Cast<FixedArray>(
-                 trusted_instance_data->element_segments()->get(segment_index)),
-             isolate());
+  DirectHandle<FixedArray> elements = direct_handle(
+      Cast<FixedArray>(
+          trusted_instance_data->element_segments()->get(segment_index)),
+      isolate());
 
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
@@ -2126,7 +2127,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmResume(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
     DirectHandle<WasmCapiFunctionData> data) {
-  return NewSharedFunctionInfo(MaybeHandle<String>(), data,
+  return NewSharedFunctionInfo(MaybeDirectHandle<String>(), data,
                                Builtin::kNoBuiltinId, 0, kDontAdapt,
                                FunctionKind::kConciseMethod);
 }
@@ -2228,7 +2229,7 @@ Handle<ContextSidePropertyCell> Factory::NewContextSidePropertyCell(
 Handle<PropertyCell> Factory::NewProtector() {
   return NewPropertyCell(
       empty_string(), PropertyDetails::Empty(PropertyCellType::kConstantType),
-      handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
+      direct_handle(Smi::FromInt(Protectors::kProtectorValid), isolate()));
 }
 
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
@@ -2452,7 +2453,7 @@ Handle<Map> Factory::NewContextlessMap(InstanceType type, int instance_size,
 }
 
 Handle<JSObject> Factory::CopyJSObject(DirectHandle<JSObject> source) {
-  return CopyJSObjectWithAllocationSite(source, Handle<AllocationSite>());
+  return CopyJSObjectWithAllocationSite(source, DirectHandle<AllocationSite>());
 }
 
 Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
@@ -3210,8 +3211,8 @@ Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
     Tagged<JSFunction> array_function = native_context->array_function();
     map = array_function->initial_map();
   }
-  return NewJSArrayWithUnverifiedElements(handle(map, isolate()), elements,
-                                          length, allocation);
+  return NewJSArrayWithUnverifiedElements(direct_handle(map, isolate()),
+                                          elements, length, allocation);
 }
 
 Handle<JSArray> Factory::NewJSArrayWithUnverifiedElements(
@@ -3238,8 +3239,8 @@ Handle<JSArray> Factory::NewJSArrayForTemplateLiteralArray(
   DirectHandle<NativeContext> native_context = isolate()->native_context();
   auto template_object =
       Cast<TemplateLiteralObject>(NewJSArrayWithUnverifiedElements(
-          handle(native_context->js_array_template_literal_object_map(),
-                 isolate()),
+          direct_handle(native_context->js_array_template_literal_object_map(),
+                        isolate()),
           cooked_strings, cooked_strings->length(), AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<TemplateLiteralObject> raw_template_object = *template_object;
@@ -3867,8 +3868,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeDirectHandle<String> maybe_name, Builtin builtin, int len,
     AdaptArguments adapt, FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, MaybeHandle<HeapObject>(), builtin,
-                               len, adapt, kind);
+  return NewSharedFunctionInfo(maybe_name, MaybeDirectHandle<HeapObject>(),
+                               builtin, len, adapt, kind);
 }
 
 Handle<InterpreterData> Factory::NewInterpreterData(

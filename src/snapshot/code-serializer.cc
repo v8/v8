@@ -173,7 +173,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
       if (auto maybe_debug_info = sfi->TryGetDebugInfo(isolate())) {
-        debug_info = handle(maybe_debug_info.value(), isolate());
+        debug_info = direct_handle(maybe_debug_info.value(), isolate());
         // Clear debug info.
         if (debug_info->HasInstrumentedBytecodeArray()) {
           restore_bytecode = true;
@@ -234,7 +234,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       Tagged<DependentCode> empty_dependent_code =
           DependentCode::empty_dependent_code(ReadOnlyRoots(isolate()));
       if (scope_info->dependent_code() != empty_dependent_code) {
-        dependent_code = handle(scope_info->dependent_code(), isolate());
+        dependent_code = direct_handle(scope_info->dependent_code(), isolate());
         restore_dependent_code = true;
         scope_info->set_dependent_code(empty_dependent_code);
       }
@@ -502,7 +502,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeDirectHandle<SharedFunctionInfo>();
   }
 
   // Deserialize.

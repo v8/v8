@@ -319,8 +319,8 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   // the debugger for retrieving names of private methods.
   DCHECK_GE(depth, 0);
   for (; depth > 0; depth--) {
-    context =
-        handle(Cast<Context>(context->get(Context::PREVIOUS_INDEX)), isolate);
+    context = direct_handle(
+        Cast<Context>(context->get(Context::PREVIOUS_INDEX)), isolate);
   }
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
@@ -1184,8 +1184,8 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
 
   // If source is undefined or null, throw a non-coercible error.
   if (IsNullOrUndefined(*source, isolate)) {
-    return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, source,
-                                                    MaybeHandle<Object>());
+    return ErrorUtils::ThrowLoadFromNullOrUndefined(
+        isolate, source, MaybeDirectHandle<Object>());
   }
 
   DirectHandleVector<Object> excluded_properties(isolate,

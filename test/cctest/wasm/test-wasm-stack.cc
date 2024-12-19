@@ -84,7 +84,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate,
     }
   }
 
-  CheckComputeLocation(i_isolate, indirect_handle(exc, i_isolate), excInfos[0],
+  CheckComputeLocation(i_isolate, exc, excInfos[0],
                        stack->GetFrame(v8_isolate, 0));
 }
 
@@ -212,8 +212,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   DirectHandle<Object> exception = maybe_exc.ToHandleChecked();
 
   // Extract stack trace from the exception.
-  DirectHandle<FixedArray> stack_trace_object = isolate->GetSimpleStackTrace(
-      indirect_handle(Cast<JSReceiver>(exception), isolate));
+  DirectHandle<FixedArray> stack_trace_object =
+      isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
   CHECK_NE(0, stack_trace_object->length());
   DirectHandle<CallSiteInfo> stack_frame(
       Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);

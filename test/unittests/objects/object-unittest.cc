@@ -388,10 +388,11 @@ TEST_F(ObjectTest, EnumCache) {
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
-  previous_enum_cache =
-      handle(a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
-  previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
-  previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
+  previous_enum_cache = direct_handle(
+      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
+  previous_keys = direct_handle(previous_enum_cache->keys(), a->GetIsolate());
+  previous_indices =
+      direct_handle(previous_enum_cache->indices(), a->GetIsolate());
   RunJS("var s = 0; for (let key in b) { s += b[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);

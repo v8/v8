@@ -459,7 +459,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     if (has_seen_debug_evaluate_context &&
         IsEphemeronHashTable(isolate->heap()->locals_block_list_cache())) {
       DirectHandle<ScopeInfo> scope_info =
-          handle(context->scope_info(), isolate);
+          direct_handle(context->scope_info(), isolate);
       Tagged<Object> maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
       if (IsStringSet(maybe_outer_block_list) &&

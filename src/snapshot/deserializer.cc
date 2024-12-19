@@ -1646,7 +1646,7 @@ Tagged<HeapObject> Deserializer<IsolateT>::Allocate(
           size, allocation, AllocationOrigin::kRuntime, alignment));
 
 #ifdef DEBUG
-  previous_allocation_obj_ = handle(obj, isolate());
+  previous_allocation_obj_ = direct_handle(obj, isolate());
   previous_allocation_size_ = size;
 #endif
 

@@ -19,12 +19,12 @@ TEST_F(ArrayListTest, ArrayList) {
   Handle<ArrayList> array = i_isolate()->factory()->empty_array_list();
   EXPECT_EQ(0, array->length());
   array = ArrayList::Add(i_isolate(), array,
-                         handle(Smi::FromInt(100), i_isolate()));
+                         direct_handle(Smi::FromInt(100), i_isolate()));
   EXPECT_EQ(1, array->length());
   EXPECT_EQ(100, Smi::ToInt(array->get(0)));
-  array =
-      ArrayList::Add(i_isolate(), array, handle(Smi::FromInt(200), i_isolate()),
-                     handle(Smi::FromInt(300), i_isolate()));
+  array = ArrayList::Add(i_isolate(), array,
+                         direct_handle(Smi::FromInt(200), i_isolate()),
+                         direct_handle(Smi::FromInt(300), i_isolate()));
   EXPECT_EQ(3, array->length());
   EXPECT_EQ(100, Smi::ToInt(array->get(0)));
   EXPECT_EQ(200, Smi::ToInt(array->get(1)));

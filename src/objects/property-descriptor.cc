@@ -86,7 +86,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate,
     } else {
       DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
       if (details.kind() == PropertyKind::kData) {
-        value = handle(descs->GetStrongValue(i), isolate);
+        value = direct_handle(descs->GetStrongValue(i), isolate);
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         // Bail out to slow path.

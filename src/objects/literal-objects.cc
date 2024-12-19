@@ -177,7 +177,7 @@ void DictionaryUpdateMaxNumberKey(HandleType<Dictionary> dictionary,
 
 void DictionaryUpdateMaxNumberKey(DirectHandle<NumberDictionary> dictionary,
                                   uint32_t element) {
-  dictionary->UpdateMaxNumberKey(element, Handle<JSObject>());
+  dictionary->UpdateMaxNumberKey(element, DirectHandle<JSObject>());
   dictionary->set_requires_slow_elements();
 }
 

@@ -200,7 +200,7 @@ class LoadIC : public IC {
   // If receiver is empty, use object as the receiver.
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(
       Handle<JSAny> object, Handle<Name> name, bool update_feedback = true,
-      DirectHandle<JSAny> receiver = Handle<JSAny>());
+      DirectHandle<JSAny> receiver = DirectHandle<JSAny>());
 
  protected:
   // Update the inline cache and the global stub cache based on the

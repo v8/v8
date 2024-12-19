@@ -1342,8 +1342,8 @@ Handle<String> JSFunction::GetDebugName(DirectHandle<JSFunction> function) {
         GetDataProperty(isolate, function, isolate->factory()->name_string());
     if (IsString(*name)) return Cast<String>(name);
   }
-  return SharedFunctionInfo::DebugName(isolate,
-                                       handle(function->shared(), isolate));
+  return SharedFunctionInfo::DebugName(
+      isolate, direct_handle(function->shared(), isolate));
 }
 
 bool JSFunction::SetName(DirectHandle<JSFunction> function, Handle<Name> name,
@@ -1396,8 +1396,7 @@ Handle<String> JSFunction::ToString(DirectHandle<JSFunction> function) {
   if (IsClassConstructor(shared_info->kind())) {
     // Check if we should print {function} as a class.
     DirectHandle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-        isolate, indirect_handle(function, isolate),
-        isolate->factory()->class_positions_symbol());
+        isolate, function, isolate->factory()->class_positions_symbol());
     if (IsClassPositions(*maybe_class_positions)) {
       Tagged<ClassPositions> class_positions =
           Cast<ClassPositions>(*maybe_class_positions);

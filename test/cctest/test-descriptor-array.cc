@@ -49,7 +49,7 @@ MaybeHandle<Object> Call(Isolate* isolate, DirectHandle<JSFunction> function,
 
 void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
                                  std::vector<Handle<Name>>& names,
-                                 Handle<JSFunction> csa_lookup) {
+                                 DirectHandle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
@@ -80,7 +80,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
 void CheckTransitionArrayLookups(Isolate* isolate,
                                  Handle<TransitionArray> transitions,
                                  std::vector<Handle<Map>>& maps,
-                                 Handle<JSFunction> csa_lookup) {
+                                 DirectHandle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
@@ -252,7 +252,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
               .ToHandleChecked();
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
@@ -303,7 +303,7 @@ TEST(DescriptorArrayHashCollision) {
               .ToHandleChecked();
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
@@ -353,7 +353,7 @@ TEST(TransitionArrayHashCollisionMassive) {
     maps.push_back(map);
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
 
   Handle<TransitionArray> transition_array(
       TestTransitionsAccessor(isolate, root_map).transitions(), isolate);
@@ -411,7 +411,7 @@ TEST(TransitionArrayHashCollision) {
     maps.push_back(map);
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
 
   Handle<TransitionArray> transition_array(
       TestTransitionsAccessor(isolate, root_map).transitions(), isolate);

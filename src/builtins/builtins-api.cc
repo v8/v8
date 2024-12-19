@@ -74,9 +74,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         Cast<ObjectTemplateInfo>(fun_data->GetInstanceTemplate()), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, js_receiver,
-        ApiNatives::InstantiateObject(
-            isolate, instance_template,
-            indirect_handle(Cast<JSReceiver>(new_target), isolate)));
+        ApiNatives::InstantiateObject(isolate, instance_template,
+                                      Cast<JSReceiver>(new_target)));
     argv[BuiltinArguments::kReceiverArgsIndex] = js_receiver->ptr();
     raw_holder = *js_receiver;
   } else {
@@ -177,9 +176,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, receiver,
-        Object::ConvertReceiver(isolate, indirect_handle(receiver, isolate)));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   // We assume that all lazy accessor pairs have been instantiated when setting

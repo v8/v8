@@ -226,9 +226,10 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     os << ", ";
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
-    JsonPrintFunctionSource(os, source_id, shared->DebugNameCStr(),
-                            handle(Cast<Script>(shared->script()), isolate),
-                            isolate, shared, true);
+    JsonPrintFunctionSource(
+        os, source_id, shared->DebugNameCStr(),
+        direct_handle(Cast<Script>(shared->script()), isolate), isolate, shared,
+        true);
   }
   os << "}, ";
   os << "\"inlinings\" : {";

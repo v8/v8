@@ -581,7 +581,7 @@ PipelineCompilationJob::PipelineCompilationJob(
       compilation_info_(&zone_, isolate, shared_info, function, code_kind,
                         osr_offset),
       pipeline_statistics_(CreatePipelineStatistics(
-          handle(Cast<Script>(shared_info->script()), isolate),
+          direct_handle(Cast<Script>(shared_info->script()), isolate),
           compilation_info(), isolate, &zone_stats_)),
       data_(&zone_stats_, isolate, compilation_info(),
             pipeline_statistics_.get()),
@@ -855,8 +855,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
       }
       return FAILED;
     }
-    context =
-        Handle<NativeContext>(compilation_info()->native_context(), isolate);
+    context = DirectHandle<NativeContext>(compilation_info()->native_context(),
+                                          isolate);
     if (context->IsDetached()) {
       return AbortOptimization(BailoutReason::kDetachedNativeContext);
     }
@@ -874,8 +874,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
       }
       return FAILED;
     }
-    context =
-        Handle<NativeContext>(compilation_info()->native_context(), isolate);
+    context = DirectHandle<NativeContext>(compilation_info()->native_context(),
+                                          isolate);
     if (context->IsDetached()) {
       return AbortOptimization(BailoutReason::kDetachedNativeContext);
     }
@@ -2878,8 +2878,8 @@ PipelineCompilationJob::Status CodeAssemblerCompilationJob::PrepareJobImpl(
       TurboJsonFile json_of(&compilation_info_, std::ios_base::trunc);
       json_of << "{\"function\" : ";
       JsonPrintFunctionSource(json_of, -1, compilation_info_.GetDebugName(),
-                              Handle<Script>(), isolate,
-                              Handle<SharedFunctionInfo>());
+                              DirectHandle<Script>(), isolate,
+                              DirectHandle<SharedFunctionInfo>());
       json_of << ",\n\"phases\":[";
     }
     pipeline->Run<PrintGraphPhase>("V8.TFMachineCode");

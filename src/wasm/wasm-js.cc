@@ -401,8 +401,8 @@ class InstantiateBytesResultResolver
       // `CreateDataProperty` can fail here. We should revisit
       // https://crbug.com/1515227 again if this CHECK fails.
       CHECK(i::IsTerminationException(i_isolate->exception()));
-      result = Utils::ToLocal(
-          handle(i::Cast<i::JSObject>(i_isolate->exception()), i_isolate));
+      result = Utils::ToLocal(direct_handle(
+          i::Cast<i::JSObject>(i_isolate->exception()), i_isolate));
       success = WasmAsyncSuccess::kFail;
     }
     if (V8_UNLIKELY(result
@@ -412,8 +412,8 @@ class InstantiateBytesResultResolver
                         .IsNothing())) {
       i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
       CHECK(i::IsTerminationException(i_isolate->exception()));
-      result = Utils::ToLocal(
-          handle(i::Cast<i::JSObject>(i_isolate->exception()), i_isolate));
+      result = Utils::ToLocal(direct_handle(
+          i::Cast<i::JSObject>(i_isolate->exception()), i_isolate));
       success = WasmAsyncSuccess::kFail;
     }
 
@@ -1539,8 +1539,8 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(!type.has_index());  // The JS API can't express type indices.
   i::wasm::CanonicalValueType canonical_type{type};
   i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      i_isolate, i::Handle<i::WasmTrustedInstanceData>(), type, canonical_type,
-      initial, maybe_maximum.has_value(),
+      i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
+      canonical_type, initial, maybe_maximum.has_value(),
       maybe_maximum.value_or(0) /* note: unused if previous param is false */,
       DefaultReferenceValue(i_isolate, type), address_type);
 
@@ -1880,9 +1880,9 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   const uint32_t offset = 0;
   i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(
-          i_isolate, i::Handle<i::WasmTrustedInstanceData>(),
-          i::MaybeHandle<i::JSArrayBuffer>(), i::MaybeHandle<i::FixedArray>(),
-          type, offset, is_mutable);
+          i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
+          i::MaybeDirectHandle<i::JSArrayBuffer>(),
+          i::MaybeDirectHandle<i::FixedArray>(), type, offset, is_mutable);
 
   i::Handle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
@@ -2064,7 +2064,7 @@ void WebAssemblyTagImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::DirectHandle<i::JSObject> tag_object =
       i::WasmTagObject::New(i_isolate, &sig, type_index, tag,
-                            i::Handle<i::WasmTrustedInstanceData>());
+                            i::DirectHandle<i::WasmTrustedInstanceData>());
   info.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
@@ -3422,7 +3422,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     static constexpr wasm::CanonicalTypeIndex kInitialCanonicalTypeIndex{0};
     DirectHandle<JSObject> js_tag_object = WasmTagObject::New(
         isolate, &kWasmExceptionTagSignature, kInitialCanonicalTypeIndex,
-        js_tag, Handle<WasmTrustedInstanceData>());
+        js_tag, DirectHandle<WasmTrustedInstanceData>());
     native_context->set_wasm_js_tag(*js_tag_object);
     JSObject::AddProperty(isolate, webassembly, "JSTag", js_tag_object,
                           ro_attributes);
@@ -3489,8 +3489,9 @@ void WasmJs::InstallModule(Isolate* isolate,
     DirectHandle<FunctionTemplateInfo>
         intrinsic_abstract_module_source_interface_template =
             NewFunctionTemplate(isolate, nullptr, false);
-    DirectHandle<JSObject> abstract_module_source_prototype = Handle<JSObject>(
-        native_context->abstract_module_source_prototype(), isolate);
+    DirectHandle<JSObject> abstract_module_source_prototype =
+        DirectHandle<JSObject>(
+            native_context->abstract_module_source_prototype(), isolate);
     ApiNatives::AddDataProperty(
         isolate, intrinsic_abstract_module_source_interface_template,
         v8_str(isolate, "prototype"), abstract_module_source_prototype, NONE);
@@ -3768,8 +3769,8 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
                 "WebAssembly.Function");
   CHECK(JSObject::SetPrototype(
             isolate, function_proto,
-            handle(context->function_function()->prototype(), isolate), false,
-            kDontThrow)
+            direct_handle(context->function_function()->prototype(), isolate),
+            false, kDontThrow)
             .FromJust());
   JSFunction::SetInitialMap(isolate, function_constructor, function_map,
                             function_proto);

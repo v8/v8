@@ -5674,7 +5674,8 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DirectHandle<Object> obj = v8::Utils::OpenDirectHandle(*info[0]);
   DirectHandle<JSFunction> fun = Cast<JSFunction>(obj);
   // Bytecode is code too.
-  SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
+  SharedFunctionInfo::DiscardCompiled(isolate,
+                                      direct_handle(fun->shared(), isolate));
   fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
@@ -6000,7 +6001,7 @@ TEST(Regress598319) {
         v8::HandleScope new_scope(CcTest::isolate());
         DirectHandle<JSArray> js_array =
             isolate->factory()->NewJSArrayWithElements(
-                Handle<FixedArray>(arr.get(), isolate));
+                DirectHandle<FixedArray>(arr.get(), isolate));
         js_array->GetElementsAccessor()->Shift(js_array).Check();
       }
       break;

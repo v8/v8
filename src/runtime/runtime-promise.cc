@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
   // At this point, no revocation has been issued before
   CHECK(!promise->has_handler());
-  isolate->ReportPromiseReject(promise, Handle<Object>(),
+  isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -66,7 +66,7 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
 
   DirectHandle<CallableTask> microtask = isolate->factory()->NewCallableTask(
-      function, handle(function->native_context(), isolate));
+      function, direct_handle(function->native_context(), isolate));
   MicrotaskQueue* microtask_queue =
       function->native_context()->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*microtask);

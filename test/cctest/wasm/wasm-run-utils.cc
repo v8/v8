@@ -266,7 +266,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           : Cast<HeapObject>(isolate_->factory()->null_value());
   CanonicalValueType canonical_type = test_module_->canonical_type(table.type);
   DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
-      isolate_, handle(instance_object_->trusted_data(isolate_), isolate_),
+      isolate_,
+      direct_handle(instance_object_->trusted_data(isolate_), isolate_),
       table.type, canonical_type, table.initial_size, table.has_maximum_size,
       table.maximum_size, value,
       // TODO(clemensb): Make this configurable.

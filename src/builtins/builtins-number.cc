@@ -26,7 +26,7 @@ BUILTIN(NumberPrototypeToExponential) {
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -72,7 +72,7 @@ BUILTIN(NumberPrototypeToFixed) {
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -151,7 +151,7 @@ BUILTIN(NumberPrototypeToPrecision) {
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

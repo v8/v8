@@ -1076,7 +1076,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
     result = CharToString(this, string, mode);
   }
   if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(handle(number, isolate()), hash, result);
+    impl()->NumberToStringCacheSet(direct_handle(number, isolate()), hash,
+                                   result);
   }
 
   // Compute the hash here (rather than letting the caller take care of it) so

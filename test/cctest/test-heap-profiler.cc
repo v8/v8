@@ -3332,7 +3332,7 @@ TEST(EmbedderGraph) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3396,7 +3396,7 @@ TEST(EmbedderGraphWithNamedEdges) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3462,7 +3462,7 @@ TEST(EmbedderGraphMultipleCallbacks) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3539,7 +3539,7 @@ TEST(EmbedderGraphWithWrapperNode) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -3596,7 +3596,7 @@ TEST(EmbedderGraphWithPrefix) {
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
   v8::Local<v8::Value> global_object =
-      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+      v8::Utils::ToLocal(i::DirectHandle<i::JSObject>(
           (isolate->context()->native_context()->global_object()), isolate));
   global_object_pointer = &global_object;
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -4218,7 +4218,8 @@ TEST(WeakReference) {
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
   i::DirectHandle<i::FeedbackVector> fv = factory->NewFeedbackVector(
       shared_function, feedback_cell_array,
-      handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(), i_isolate));
+      direct_handle(i::Cast<i::JSFunction>(*obj)->raw_feedback_cell(),
+                    i_isolate));
 
   // Create a Code object.
   i::Assembler assm(i_isolate->allocator(), i::AssemblerOptions{});

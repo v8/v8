@@ -278,7 +278,7 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
     // Never grow larger than the max size.
     grow = std::min(grow, static_cast<int>(max_size - old_capacity));
     auto new_store = isolate->factory()->CopyFixedArrayAndGrow(
-        handle(table->entries(), isolate), grow);
+        direct_handle(table->entries(), isolate), grow);
     table->set_entries(*new_store, WriteBarrierMode::UPDATE_WRITE_BARRIER);
   }
 
@@ -761,8 +761,8 @@ void WasmTableObject::SetFunctionTablePlaceholder(
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(trusted_instance_data->has_instance_object());
   DirectHandle<Tuple2> tuple = isolate->factory()->NewTuple2(
-      handle(trusted_instance_data->instance_object(), isolate),
-      handle(Smi::FromInt(func_index), isolate), AllocationType::kOld);
+      direct_handle(trusted_instance_data->instance_object(), isolate),
+      direct_handle(Smi::FromInt(func_index), isolate), AllocationType::kOld);
   table->entries()->set(entry_index, *tuple);
 }
 
@@ -801,7 +801,7 @@ void WasmTableObject::GetFunctionTableEntry(
         target_func->shared()->wasm_exported_function_data());
     *instance_data = handle(func_data->instance_data(), isolate);
     *function_index = func_data->function_index();
-    *maybe_js_function = MaybeHandle<WasmJSFunction>();
+    *maybe_js_function = MaybeDirectHandle<WasmJSFunction>();
     return;
   }
   if (WasmJSFunction::IsWasmJSFunction(*element)) {
@@ -2571,7 +2571,8 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, wasm::StackMemory* stack,
     wasm::JumpBuffer::StackState state, AllocationType allocation_type) {
   auto parent = ReadOnlyRoots(isolate).undefined_value();
-  return New(isolate, stack, state, handle(parent, isolate), allocation_type);
+  return New(isolate, stack, state, direct_handle(parent, isolate),
+             allocation_type);
 }
 #ifdef DEBUG
 
@@ -2739,7 +2740,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     // We can use the function name only for asm.js. For WebAssembly, the
     // function name is specified as the function_index.toString().
     maybe_name = WasmModuleObject::GetFunctionNameOrNull(
-        isolate, handle(instance_data->module_object(), isolate), func_index);
+        isolate, direct_handle(instance_data->module_object(), isolate),
+        func_index);
   }
   DirectHandle<String> name;
   if (!maybe_name.ToHandle(&name)) {
@@ -2815,7 +2817,7 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, Handle<WasmTrustedInstanceData>(),
+      kNullAddress, opt_rtt_parent, DirectHandle<WasmTrustedInstanceData>(),
       wasm::ModuleTypeIndex::Invalid());
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
@@ -3274,8 +3276,8 @@ Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value) {
   if (IsWasmNull(*value)) {
     return isolate->factory()->null_value();
   } else if (IsWasmFuncRef(*value)) {
-    return i::WasmInternalFunction::GetOrCreateExternal(
-        i::handle(i::Cast<i::WasmFuncRef>(*value)->internal(isolate), isolate));
+    return i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
+        i::Cast<i::WasmFuncRef>(*value)->internal(isolate), isolate));
   } else {
     return value;
   }

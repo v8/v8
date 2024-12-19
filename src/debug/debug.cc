@@ -952,7 +952,7 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
   if (maybe_result.ToHandle(&result)) {
     exception_thrown = false;
   } else if (isolate_->has_exception()) {
-    maybe_exception = handle(isolate_->exception(), isolate_);
+    maybe_exception = direct_handle(isolate_->exception(), isolate_);
     isolate_->clear_exception();
   }
 
@@ -2436,7 +2436,7 @@ std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception) {
     std::optional<Isolate::ExceptionScope> exception_scope;
     if (isolate_->has_exception()) exception_scope.emplace(isolate_);
     Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
-    OnException(exception, MaybeHandle<JSPromise>(),
+    OnException(exception, MaybeDirectHandle<JSPromise>(),
                 catch_type == Isolate::CAUGHT_BY_ASYNC_AWAIT ||
                         catch_type == Isolate::CAUGHT_BY_PROMISE
                     ? v8::debug::kPromiseRejection
@@ -2510,7 +2510,7 @@ void Debug::OnException(DirectHandle<Object> exception,
         }
         all_frames_ignored =
             all_frames_ignored &&
-            IsBlackboxed(handle(handler.function_info, isolate_));
+            IsBlackboxed(direct_handle(handler.function_info, isolate_));
       });
 
   if (all_frames_ignored || !is_debuggable) {

@@ -1333,16 +1333,18 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
     if (!getter.is_null() && IsFunctionTemplateInfo(*getter)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, getter,
-          ApiNatives::InstantiateFunction(
-              isolate, Cast<FunctionTemplateInfo>(getter), MaybeHandle<Name>()),
+          ApiNatives::InstantiateFunction(isolate,
+                                          Cast<FunctionTemplateInfo>(getter),
+                                          MaybeDirectHandle<Name>()),
           Nothing<InterceptorResult>());
     }
     DirectHandle<Object> setter = desc->set();
     if (!setter.is_null() && IsFunctionTemplateInfo(*setter)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, setter,
-          ApiNatives::InstantiateFunction(
-              isolate, Cast<FunctionTemplateInfo>(setter), MaybeHandle<Name>()),
+          ApiNatives::InstantiateFunction(isolate,
+                                          Cast<FunctionTemplateInfo>(setter),
+                                          MaybeDirectHandle<Name>()),
           Nothing<InterceptorResult>());
     }
     descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),
@@ -3996,7 +3998,7 @@ void JSObject::MigrateSlowToFast(DirectHandle<JSObject> object,
           Representation::Tagged(), MaybeObjectHandle(FieldType::Any(isolate)));
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
-      d = Descriptor::AccessorConstant(key, handle(value, isolate),
+      d = Descriptor::AccessorConstant(key, direct_handle(value, isolate),
                                        details.attributes());
     }
     details = d.GetDetails();

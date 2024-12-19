@@ -228,8 +228,8 @@ void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
 DebugInfo::SideEffectState DebugInfo::GetSideEffectState(Isolate* isolate) {
   if (side_effect_state() == kNotComputed) {
     SideEffectState has_no_side_effect =
-        DebugEvaluate::FunctionGetSideEffectState(isolate,
-                                                  handle(shared(), isolate));
+        DebugEvaluate::FunctionGetSideEffectState(
+            isolate, direct_handle(shared(), isolate));
     set_side_effect_state(has_no_side_effect);
   }
   return static_cast<SideEffectState>(side_effect_state());

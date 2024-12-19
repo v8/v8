@@ -50,7 +50,7 @@ MaybeDirectHandle<Object> ContextDeserializer::Deserialize(
   // Replace serialized references to the global proxy and its map with the
   // given global proxy and its map.
   AddAttachedObject(global_proxy);
-  AddAttachedObject(handle(global_proxy->map(), isolate));
+  AddAttachedObject(direct_handle(global_proxy->map(), isolate));
 
   DirectHandle<Object> result;
   {

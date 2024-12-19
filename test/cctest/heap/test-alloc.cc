@@ -160,7 +160,7 @@ TEST(StressJS) {
   Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
+      DirectHandle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(isolate, &d);
 
   // Add the Foo constructor the global object.

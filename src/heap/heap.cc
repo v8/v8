@@ -3021,7 +3021,7 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
       for (FullObjectSlot p = start; p < end; ++p) {
         DCHECK(IsExternalString(*p));
         visitor_->VisitExternalString(
-            Utils::ToLocal(Handle<String>(Cast<String>(*p), isolate_)));
+            Utils::ToLocal(DirectHandle<String>(Cast<String>(*p), isolate_)));
       }
     }
 

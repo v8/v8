@@ -1157,7 +1157,7 @@ MaybeLocal<Script> GeneratorObject::Script() {
 
 Local<Function> GeneratorObject::Function() {
   auto obj = Utils::OpenDirectHandle(this);
-  return Utils::ToLocal(handle(obj->function(), obj->GetIsolate()));
+  return Utils::ToLocal(direct_handle(obj->function(), obj->GetIsolate()));
 }
 
 Location GeneratorObject::SuspendedLocation() {
@@ -1169,7 +1169,7 @@ Location GeneratorObject::SuspendedLocation() {
   i::DirectHandle<i::Script> script(i::Cast<i::Script>(maybe_script), isolate);
   i::Script::PositionInfo info;
   i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
-      isolate, i::handle(obj->function()->shared(), isolate));
+      isolate, i::direct_handle(obj->function()->shared(), isolate));
   i::Script::GetPositionInfo(script, obj->source_position(), &info);
   return Location(info.line, info.column);
 }
@@ -1238,7 +1238,7 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
     for (auto it : i::ScopeInfo::IterateLocalNames(scope_info)) {
       if (i::ScopeInfo::VariableIsSynthetic(it->name())) continue;
       names->emplace_back(reinterpret_cast<Isolate*>(isolate),
-                          Utils::ToLocal(handle(it->name(), isolate)));
+                          Utils::ToLocal(direct_handle(it->name(), isolate)));
     }
   }
 }
@@ -1455,8 +1455,8 @@ Maybe<bool> DebugPropertyIterator::Advance() {
   if (isolate_->is_execution_terminating()) {
     return Nothing<bool>();
   }
-  Local<v8::Context> context =
-      Utils::ToLocal(handle(isolate_->context()->native_context(), isolate_));
+  Local<v8::Context> context = Utils::ToLocal(
+      direct_handle(isolate_->context()->native_context(), isolate_));
   CallDepthScope<false> call_depth_scope(isolate_, context);
 
   if (!AdvanceInternal()) {

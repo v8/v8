@@ -345,7 +345,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
             CHECK(IsWasmFuncRef(*global_val));
             CHECK(
                 WasmExportedFunction::IsWasmExportedFunction(*function_result));
-            CHECK(*WasmInternalFunction::GetOrCreateExternal(handle(
+            CHECK(*WasmInternalFunction::GetOrCreateExternal(direct_handle(
                       Cast<WasmFuncRef>(*global_val)->internal(i_isolate),
                       i_isolate)) == *function_result);
           } else {

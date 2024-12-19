@@ -22,7 +22,7 @@ static void Destructor(void* ptr) {
 
 // static
 template <class CppType>
-Handle<Managed<CppType>> Managed<CppType>::From(
+DirectHandle<Managed<CppType>> Managed<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
@@ -32,10 +32,11 @@ Handle<Managed<CppType>> Managed<CppType>::From(
       detail::Destructor<CppType>);
   destructor->external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
-  Handle<Managed<CppType>> handle =
+  DirectHandle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
-  Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
+  IndirectHandle<Object> global_handle =
+      isolate->global_handles()->Create(*handle);
   destructor->global_handle_location_ = global_handle.location();
   GlobalHandles::MakeWeak(destructor->global_handle_location_, destructor,
                           &ManagedObjectFinalizer,
@@ -46,7 +47,7 @@ Handle<Managed<CppType>> Managed<CppType>::From(
 
 // static
 template <class CppType>
-Handle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
+DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
     Isolate* isolate, size_t estimated_size,
     std::shared_ptr<CppType> shared_ptr) {
   auto destructor = new ManagedPtrDestructor(
@@ -54,10 +55,11 @@ Handle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
       detail::Destructor<CppType>);
   destructor->external_memory_accounter_.Increase(
       reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
-  Handle<TrustedManaged<CppType>> handle =
+  DirectHandle<TrustedManaged<CppType>> handle =
       Cast<TrustedManaged<CppType>>(isolate->factory()->NewTrustedForeign(
           reinterpret_cast<Address>(destructor)));
-  Handle<Object> global_handle = isolate->global_handles()->Create(*handle);
+  IndirectHandle<Object> global_handle =
+      isolate->global_handles()->Create(*handle);
   destructor->global_handle_location_ = global_handle.location();
   GlobalHandles::MakeWeak(destructor->global_handle_location_, destructor,
                           &ManagedObjectFinalizer,

@@ -1134,9 +1134,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
          ++memory_index) {
       DirectHandle<WasmMemoryObject> memory_object;
       if (!IsUndefined(memory_objects->get(memory_index))) {
-        memory_object =
-            handle(Cast<WasmMemoryObject>(memory_objects->get(memory_index)),
-                   isolate_);
+        memory_object = direct_handle(
+            Cast<WasmMemoryObject>(memory_objects->get(memory_index)),
+            isolate_);
       } else if (AllocateMemory(memory_index).ToHandle(&memory_object)) {
         memory_objects->set(memory_index, *memory_object);
       } else {
@@ -2505,11 +2505,11 @@ void InstanceBuilder::ProcessExports(
   DirectHandle<WasmInstanceObject> instance_object{
       trusted_instance_data->instance_object(), isolate_};
   DirectHandle<JSObject> exports_object =
-      handle(instance_object->exports_object(), isolate_);
+      direct_handle(instance_object->exports_object(), isolate_);
   MaybeDirectHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
-    DirectHandle<JSFunction> object_function = Handle<JSFunction>(
+    DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
     single_function_name =
@@ -2568,15 +2568,16 @@ void InstanceBuilder::ProcessExports(
         bool shared = module_->tables[exp.index].shared;
         DirectHandle<WasmTrustedInstanceData> data =
             shared ? shared_trusted_instance_data : trusted_instance_data;
-        value = handle(Cast<JSAny>(data->tables()->get(exp.index)), isolate_);
+        value = direct_handle(Cast<JSAny>(data->tables()->get(exp.index)),
+                              isolate_);
         break;
       }
       case kExternalMemory: {
         // Export the memory as a WebAssembly.Memory object. A WasmMemoryObject
         // should already be available if the module has memory, since we always
         // create or import it when building an WasmInstanceObject.
-        value =
-            handle(trusted_instance_data->memory_object(exp.index), isolate_);
+        value = direct_handle(trusted_instance_data->memory_object(exp.index),
+                              isolate_);
         break;
       }
       case kExternalGlobal: {
@@ -2602,7 +2603,7 @@ void InstanceBuilder::ProcessExports(
                   ->imported_mutable_globals_buffers(),
               isolate_);
           if (global.type.is_reference()) {
-            tagged_buffer = handle(
+            tagged_buffer = direct_handle(
                 Cast<FixedArray>(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
@@ -2610,9 +2611,9 @@ void InstanceBuilder::ProcessExports(
                 maybe_shared_trusted_instance_data->imported_mutable_globals()
                     ->get(global.index));
           } else {
-            untagged_buffer =
-                handle(Cast<JSArrayBuffer>(buffers_array->get(global.index)),
-                       isolate_);
+            untagged_buffer = direct_handle(
+                Cast<JSArrayBuffer>(buffers_array->get(global.index)),
+                isolate_);
             Address global_addr =
                 maybe_shared_trusted_instance_data->imported_mutable_globals()
                     ->get_sandboxed_pointer(global.index);
@@ -2626,11 +2627,11 @@ void InstanceBuilder::ProcessExports(
           }
         } else {
           if (global.type.is_reference()) {
-            tagged_buffer = handle(
+            tagged_buffer = direct_handle(
                 maybe_shared_trusted_instance_data->tagged_globals_buffer(),
                 isolate_);
           } else {
-            untagged_buffer = handle(
+            untagged_buffer = direct_handle(
                 maybe_shared_trusted_instance_data->untagged_globals_buffer(),
                 isolate_);
           }

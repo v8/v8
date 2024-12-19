@@ -685,8 +685,8 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     v8::Local<v8::Object> value = WrapperHelper::CreateWrapper(
         v8_isolate()->GetCurrentContext(), wrappable_object);
     EXPECT_FALSE(value.IsEmpty());
-    DirectHandle<JSObject> js_key =
-        handle(Cast<JSObject>(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
+    DirectHandle<JSObject> js_key = direct_handle(
+        Cast<JSObject>(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
     DirectHandle<JSReceiver> js_value = v8::Utils::OpenDirectHandle(*value);
     int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);

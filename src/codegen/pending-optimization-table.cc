@@ -37,7 +37,8 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
   // in-sandbox wrapper object.
   table = ObjectHashTable::Put(
       table, shared_info,
-      handle(shared_info->GetBytecodeArray(isolate)->wrapper(), isolate));
+      direct_handle(shared_info->GetBytecodeArray(isolate)->wrapper(),
+                    isolate));
   isolate->heap()->SetFunctionsMarkedForManualOptimization(*table);
 }
 
@@ -47,11 +48,11 @@ bool ManualOptimizationTable::IsMarkedForManualOptimization(
 
   DirectHandle<Object> table(
       isolate->heap()->functions_marked_for_manual_optimization(), isolate);
-  DirectHandle<Object> entry(IsUndefined(*table)
-                                 ? ReadOnlyRoots(isolate).the_hole_value()
-                                 : Cast<ObjectHashTable>(table)->Lookup(
-                                       handle(function->shared(), isolate)),
-                             isolate);
+  DirectHandle<Object> entry(
+      IsUndefined(*table) ? ReadOnlyRoots(isolate).the_hole_value()
+                          : Cast<ObjectHashTable>(table)->Lookup(
+                                direct_handle(function->shared(), isolate)),
+      isolate);
 
   return !IsTheHole(*entry);
 }

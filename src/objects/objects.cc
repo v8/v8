@@ -416,7 +416,8 @@ typename HandleType<Number>::MaybeType Object::ConvertToUint32(
     Isolate* isolate, HandleType<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input));
   if (IsSmi(*input))
-    return handle(Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
+    return typename HandleType<Number>::MaybeType(
+        Smi::ToUint32Smi(Cast<Smi>(*input)), isolate);
   return isolate->factory()->NewNumberFromUint(
       DoubleToUint32(Cast<HeapNumber>(*input)->value()));
 }
@@ -2780,7 +2781,7 @@ typename HandleType<Object>::MaybeType Object::ShareSlow(
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kCannotBeShared, value));
   }
-  return MaybeHandle<Object>();
+  return {};
 }
 
 template V8_EXPORT_PRIVATE MaybeDirectHandle<Object> Object::ShareSlow(

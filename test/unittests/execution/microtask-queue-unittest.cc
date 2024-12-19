@@ -624,7 +624,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
 
   JSPromise::Fulfill(
       stale_promise,
-      handle(ReadOnlyRoots(isolate()).undefined_value(), isolate()));
+      direct_handle(ReadOnlyRoots(isolate()).undefined_value(), isolate()));
 
   microtask_queue()->RunMicrotasks(isolate());
   EXPECT_TRUE(

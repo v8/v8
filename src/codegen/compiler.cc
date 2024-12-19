@@ -441,7 +441,7 @@ void LogUnoptimizedCompilation(Isolate* isolate,
 
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
   Compiler::LogFunctionCompilation(
-      isolate, code_type, script, shared, Handle<FeedbackVector>(),
+      isolate, code_type, script, shared, DirectHandle<FeedbackVector>(),
       abstract_code, CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
 }
 
@@ -3082,11 +3082,11 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
 
   if (IsScript(shared->script())) {
-    LogFunctionCompilation(isolate, LogEventListener::CodeTag::kFunction,
-                           handle(Cast<Script>(shared->script()), isolate),
-                           shared, Handle<FeedbackVector>(),
-                           Cast<AbstractCode>(code), CodeKind::BASELINE,
-                           time_taken_ms);
+    LogFunctionCompilation(
+        isolate, LogEventListener::CodeTag::kFunction,
+        direct_handle(Cast<Script>(shared->script()), isolate), shared,
+        DirectHandle<FeedbackVector>(), Cast<AbstractCode>(code),
+        CodeKind::BASELINE, time_taken_ms);
   }
   return true;
 }
@@ -3237,7 +3237,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       source, outer_info, context, language_mode, eval_cache_position);
   DirectHandle<FeedbackCell> feedback_cell;
   if (eval_result.has_feedback_cell()) {
-    feedback_cell = handle(eval_result.feedback_cell(), isolate);
+    feedback_cell = direct_handle(eval_result.feedback_cell(), isolate);
   }
 
   DirectHandle<SharedFunctionInfo> shared_info;
@@ -3245,7 +3245,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   IsCompiledScope is_compiled_scope;
   bool allow_eval_cache;
   if (eval_result.has_shared()) {
-    shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
+    shared_info =
+        DirectHandle<SharedFunctionInfo>(eval_result.shared(), isolate);
     script = Handle<Script>(Cast<Script>(shared_info->script()), isolate);
     is_compiled_scope = shared_info->is_compiled_scope(isolate);
     allow_eval_cache = true;
@@ -3265,7 +3266,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
     MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info;
     if (!IsNativeContext(*context)) {
-      maybe_outer_scope_info = handle(context->scope_info(), isolate);
+      maybe_outer_scope_info = direct_handle(context->scope_info(), isolate);
     }
     script = parse_info.CreateScript(
         isolate, source, kNullMaybeHandle,
@@ -3799,7 +3800,7 @@ CompileScriptOnBothBackgroundAndMainThread(Handle<String> source,
     if (main_thread_maybe_result.is_null()) {
       // Assume all range errors are stack overflows.
       main_thread_had_stack_overflow = CompilationExceptionIsRangeError(
-          isolate, handle(isolate->exception(), isolate));
+          isolate, direct_handle(isolate->exception(), isolate));
       isolate->clear_exception();
     }
   }

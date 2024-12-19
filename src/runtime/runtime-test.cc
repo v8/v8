@@ -242,7 +242,7 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   // Find the JavaScript function on the top of the stack.
   JavaScriptStackFrameIterator it(isolate);
-  if (!it.done()) function = handle(it.frame()->function(), isolate);
+  if (!it.done()) function = direct_handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
   if (function->HasAttachedOptimizedCode(isolate)) {
@@ -712,7 +712,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     } else if (it.frame()->is_maglev()) {
       function = MaglevFrame::cast(it.frame())->GetInnermostFunction();
     } else {
-      function = handle(it.frame()->function(), isolate);
+      function = direct_handle(it.frame()->function(), isolate);
     }
   }
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
@@ -1063,7 +1063,7 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
     }
   }
 
-  SharedFunctionInfo::DiscardCompiled(isolate, handle(sfi, isolate));
+  SharedFunctionInfo::DiscardCompiled(isolate, direct_handle(sfi, isolate));
   function->ResetIfCodeFlushed(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -2239,7 +2239,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 #else
 #ifdef OBJECT_PRINT
   DirectHandle<FeedbackVector> feedback_vector =
-      handle(function->feedback_vector(), isolate);
+      direct_handle(function->feedback_vector(), isolate);
 
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(feedback_vector->length());

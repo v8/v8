@@ -603,7 +603,7 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   // i. If v is not undefined, set v to 𝔽(v).
   if (kUndefinedFractionalDigits != fractional_digits) {
     DirectHandle<Smi> fractional_digits_obj =
-        handle(Smi::FromInt(fractional_digits), isolate);
+        direct_handle(Smi::FromInt(fractional_digits), isolate);
     // f. If v is not undefined, then
     // i. Perform ! CreateDataPropertyOrThrow(options, p, v).
     OUTPUT_PROPERTY(fractionalDigits_string, fractional_digits_obj);

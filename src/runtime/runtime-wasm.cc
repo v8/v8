@@ -182,7 +182,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
     // Slow path:
     HandleScope scope(isolate);
     return *WasmInternalFunction::GetOrCreateExternal(
-        handle(internal, isolate));
+        direct_handle(internal, isolate));
   }
   if (IsWasmNull(value)) return ReadOnlyRoots(isolate).null_value();
   return value;

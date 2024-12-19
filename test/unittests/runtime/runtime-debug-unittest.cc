@@ -62,7 +62,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
   bool has_maximum = false;
   uint32_t maximum = std::numeric_limits<uint32_t>::max();
   Handle<WasmTableObject> table = WasmTableObject::New(
-      i_isolate(), Handle<WasmTrustedInstanceData>(), wasm::kWasmAnyRef,
+      i_isolate(), DirectHandle<WasmTrustedInstanceData>(), wasm::kWasmAnyRef,
       wasm::kCanonicalAnyRef, initial, has_maximum, maximum,
       i_isolate()->factory()->null_value(), wasm::AddressType::kI32);
   MaybeDirectHandle<JSArray> result =

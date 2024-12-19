@@ -1828,7 +1828,7 @@ Handle<Map> Map::Copy(Isolate* isolate, DirectHandle<Map> map,
       isolate, descriptors, number_of_own_descriptors);
   auto res =
       CopyReplaceDescriptors(isolate, map, new_descriptors, OMIT_TRANSITION,
-                             MaybeHandle<Name>(), reason, kind);
+                             MaybeDirectHandle<Name>(), reason, kind);
   return res;
 }
 

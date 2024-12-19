@@ -282,7 +282,8 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     if (FindEvalScope(isolate_, *scope_info).ToHandle(&eval_scope)) {
       flags.set_outer_language_mode(eval_scope->language_mode());
       if (eval_scope->HasOuterScopeInfo()) {
-        maybe_outer_scope = handle(eval_scope->OuterScopeInfo(), isolate_);
+        maybe_outer_scope =
+            direct_handle(eval_scope->OuterScopeInfo(), isolate_);
       }
     } else {
       DCHECK_EQ(flags.outer_language_mode(), LanguageMode::kSloppy);
@@ -291,7 +292,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   } else if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
     flags.set_is_eval(true);
     if (!IsNativeContext(*context_)) {
-      maybe_outer_scope = handle(context_->scope_info(), isolate_);
+      maybe_outer_scope = direct_handle(context_->scope_info(), isolate_);
     }
     // Language mode may be inherited from the eval caller.
     // Retrieve it from shared function info.
@@ -793,7 +794,7 @@ int ScopeIterator::GetSourcePosition() const {
   } else {
     DCHECK(!generator_.is_null());
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
-        isolate_, handle(generator_->function()->shared(), isolate_));
+        isolate_, direct_handle(generator_->function()->shared(), isolate_));
     return generator_->source_position();
   }
 }
@@ -1331,13 +1332,13 @@ void LocalBlocklistsCollector::CollectAndStore() {
         // `context_` is already the right context for `scope_` so we don't
         // need to advance `context_`.
         isolate_->LocalsBlockListCacheSet(
-            handle(context_->scope_info(), isolate_),
-            handle(context_->previous()->scope_info(), isolate_),
+            direct_handle(context_->scope_info(), isolate_),
+            direct_handle(context_->previous()->scope_info(), isolate_),
             context_blocklist_);
         context_ = handle(context_->previous(), isolate_);
       }
 
-      StoreFunctionBlocklists(handle(context_->scope_info(), isolate_));
+      StoreFunctionBlocklists(direct_handle(context_->scope_info(), isolate_));
 
       context_blocklist_ = StringSet::New(isolate_);
       function_blocklists_.clear();
@@ -1351,7 +1352,7 @@ void LocalBlocklistsCollector::CollectAndStore() {
 
   // In case we don't have any outer scopes we still need to record the empty
   // block list for the paused function to prevent future re-parses.
-  StoreFunctionBlocklists(handle(context_->scope_info(), isolate_));
+  StoreFunctionBlocklists(direct_handle(context_->scope_info(), isolate_));
 }
 
 }  // namespace
@@ -1363,7 +1364,7 @@ void ScopeIterator::MaybeCollectAndStoreLocalBlocklists() const {
   }
 
   DCHECK(IsTheHole(isolate_->LocalsBlockListCacheGet(
-      handle(function_->shared()->scope_info(), isolate_))));
+      direct_handle(function_->shared()->scope_info(), isolate_))));
   LocalBlocklistsCollector collector(isolate_, script_, context_,
                                      closure_scope_);
   collector.CollectAndStore();

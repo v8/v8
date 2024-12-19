@@ -51,7 +51,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   JavaScriptStackFrameIterator it(isolate);
   if (isolate->debug_execution_mode() == DebugInfo::kBreakpoints) {
     isolate->debug()->Break(it.frame(),
-                            handle(it.frame()->function(), isolate));
+                            direct_handle(it.frame()->function(), isolate));
   }
 
   // If the user requested to restart a frame, there is no need
@@ -187,7 +187,7 @@ static Handle<ArrayList> AddIteratorInternalProperties(
   result = ArrayList::Add(
       isolate, result,
       isolate->factory()->NewStringFromAsciiChecked("[[IteratorIndex]]"),
-      handle(iterator->index(), isolate));
+      direct_handle(iterator->index(), isolate));
   result = ArrayList::Add(
       isolate, result,
       isolate->factory()->NewStringFromAsciiChecked("[[IteratorKind]]"),
@@ -225,11 +225,11 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[TargetFunction]]"),
-        handle(function->bound_target_function(), isolate));
+        direct_handle(function->bound_target_function(), isolate));
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[BoundThis]]"),
-        handle(function->bound_this(), isolate));
+        direct_handle(function->bound_this(), isolate));
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[BoundArgs]]"),
@@ -261,11 +261,11 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[GeneratorFunction]]"),
-        handle(generator->function(), isolate));
+        direct_handle(generator->function(), isolate));
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[GeneratorReceiver]]"),
-        handle(generator->receiver(), isolate));
+        direct_handle(generator->receiver(), isolate));
   } else if (IsJSPromise(*object)) {
     auto promise = Cast<JSPromise>(object);
 
@@ -286,11 +286,11 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[Handler]]"),
-        handle(js_proxy->handler(), isolate));
+        direct_handle(js_proxy->handler(), isolate));
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[Target]]"),
-        handle(js_proxy->target(), isolate));
+        direct_handle(js_proxy->target(), isolate));
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[IsRevoked]]"),
@@ -301,14 +301,14 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
-        handle(js_value->value(), isolate));
+        direct_handle(js_value->value(), isolate));
   } else if (IsJSWeakRef(*object)) {
     auto js_weak_ref = Cast<JSWeakRef>(object);
 
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
-        handle(js_weak_ref->target(), isolate));
+        direct_handle(js_weak_ref->target(), isolate));
   } else if (IsJSArrayBuffer(*object)) {
     DirectHandle<JSArrayBuffer> js_array_buffer = Cast<JSArrayBuffer>(object);
     if (js_array_buffer->was_detached()) {
@@ -614,11 +614,12 @@ Handle<Object> GetJSPositionInfo(DirectHandle<Script> script, int position,
   JSObject::AddProperty(isolate, jsinfo, isolate->factory()->script_string(),
                         script, NONE);
   JSObject::AddProperty(isolate, jsinfo, isolate->factory()->position_string(),
-                        handle(Smi::FromInt(position), isolate), NONE);
+                        direct_handle(Smi::FromInt(position), isolate), NONE);
   JSObject::AddProperty(isolate, jsinfo, isolate->factory()->line_string(),
-                        handle(Smi::FromInt(info.line), isolate), NONE);
+                        direct_handle(Smi::FromInt(info.line), isolate), NONE);
   JSObject::AddProperty(isolate, jsinfo, isolate->factory()->column_string(),
-                        handle(Smi::FromInt(info.column), isolate), NONE);
+                        direct_handle(Smi::FromInt(info.column), isolate),
+                        NONE);
   JSObject::AddProperty(isolate, jsinfo,
                         isolate->factory()->sourceText_string(), sourceText,
                         NONE);
@@ -780,7 +781,8 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
     DirectHandle<JSArray> script_obj =
         factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
     JSObject::AddProperty(isolate, script_obj, script_string,
-                          handle(script_data.script->source(), isolate), NONE);
+                          direct_handle(script_data.script->source(), isolate),
+                          NONE);
     scripts_array->set(i, *script_obj);
   }
   return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);

@@ -98,7 +98,7 @@ BUILTIN(GlobalEval) {
   bool unhandled_object;
   std::tie(source, unhandled_object) =
       Compiler::ValidateDynamicCompilationSource(
-          isolate, handle(target->native_context(), isolate), x);
+          isolate, direct_handle(target->native_context(), isolate), x);
   if (unhandled_object) return *x;
 
   DirectHandle<JSFunction> function;

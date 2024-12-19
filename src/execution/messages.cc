@@ -111,7 +111,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
   // We pass the exception object into the message handler callback though.
   DirectHandle<Object> exception = isolate->factory()->undefined_value();
   if (isolate->has_exception()) {
-    exception = handle(isolate->exception(), isolate);
+    exception = direct_handle(isolate->exception(), isolate);
   }
 
   Isolate::ExceptionScope exception_scope(isolate);
@@ -773,7 +773,8 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
     if (!ErrorUtils::GetFormattedStack(isolate, maybe_error_object)
              .ToHandle(&error_stack)) {
       DCHECK(isolate->has_exception());
-      DirectHandle<Object> exception = handle(isolate->exception(), isolate);
+      DirectHandle<Object> exception =
+          direct_handle(isolate->exception(), isolate);
       isolate->clear_exception();
       // Return a new side-effect-free TypeError to be loud about inner error.
       DirectHandle<String> string =
@@ -1134,7 +1135,8 @@ ErrorUtils::StackPropertyLookupResult ErrorUtils::GetErrorStackProperty(
   Handle<Object> result = JSReceiver::GetDataProperty(&it);
 
   if (!it.IsFound()) {
-    return {MaybeHandle<JSObject>{}, isolate->factory()->undefined_value()};
+    return {MaybeDirectHandle<JSObject>{},
+            isolate->factory()->undefined_value()};
   }
   return {it.GetHolder<JSObject>(), result};
 }
@@ -1158,8 +1160,9 @@ MaybeHandle<Object> ErrorUtils::GetFormattedStack(
     Handle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
-        FormatStackTrace(isolate, error_object,
-                         handle(error_stack_data->call_site_infos(), isolate)));
+        FormatStackTrace(
+            isolate, error_object,
+            direct_handle(error_stack_data->call_site_infos(), isolate)));
     error_stack_data->set_formatted_stack(*formatted_stack);
     return formatted_stack;
   }

@@ -182,8 +182,9 @@ class TestInstance {
       size_t len = strlen("test_generated_function") + 1;
       auto name = std::make_unique<char[]>(len);
       snprintf(name.get(), len, "test_generated_function");
-      JsonPrintFunctionSource(*stream_, -1, std::move(name), Handle<Script>{},
-                              isolate_, Handle<SharedFunctionInfo>{});
+      JsonPrintFunctionSource(*stream_, -1, std::move(name),
+                              DirectHandle<Script>{}, isolate_,
+                              DirectHandle<SharedFunctionInfo>{});
       *stream_ << ",\n\"phases\":[";
     }
     PrintTurboshaftGraphForTurbolizer(*stream_, graph(), phase_name, nullptr,

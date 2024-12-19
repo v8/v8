@@ -1832,7 +1832,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
            !code_field_const->marked_for_deoptimization());
   CheckCodeObjectForDeopt(from, expected, code_field_type, code_field_repr,
-                          Handle<Code>(), false);
+                          DirectHandle<Code>(), false);
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));

@@ -888,7 +888,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale =
-      Handle<String>(number_format->locale(), isolate);
+      DirectHandle<String>(number_format->locale(), isolate);
   const icu::UnicodeString numberingSystem_ustr =
       JSNumberFormat::NumberingSystemFromSkeleton(skeleton);
   // 5. For each row of Table 4, except the header row, in table order, do
@@ -2077,7 +2077,7 @@ MaybeHandle<JSArray> FormatToJSArray(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, format_to_parts,
       ConstructParts(isolate, formatted, result, 0, is_unit, is_nan,
-                     output_source, false, Handle<String>()),
+                     output_source, false, DirectHandle<String>()),
       Handle<JSArray>());
   USE(format_to_parts);
 

@@ -2355,7 +2355,7 @@ Tagged<JSFunction> V8HeapExplorer::GetConstructor(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   MaybeDirectHandle<JSFunction> maybe_constructor =
-      JSReceiver::GetConstructor(isolate, handle(receiver, isolate));
+      JSReceiver::GetConstructor(isolate, direct_handle(receiver, isolate));
 
   if (maybe_constructor.is_null()) return JSFunction();
 
@@ -2366,7 +2366,8 @@ Tagged<String> V8HeapExplorer::GetConstructorName(Isolate* isolate,
                                                   Tagged<JSObject> object) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  return *JSReceiver::GetConstructorName(isolate, handle(object, isolate));
+  return *JSReceiver::GetConstructorName(isolate,
+                                         direct_handle(object, isolate));
 }
 
 HeapEntry* V8HeapExplorer::GetEntry(Tagged<Object> obj) {

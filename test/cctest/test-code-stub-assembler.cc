@@ -3846,8 +3846,9 @@ TEST(SmallOrderedHashMapAllocate) {
         factory->NewSmallOrderedHashMap(capacity);
     DirectHandle<Object> result_raw =
         ft.Call(Handle<Smi>(Smi::FromInt(capacity), isolate)).ToHandleChecked();
-    DirectHandle<SmallOrderedHashMap> actual = Handle<SmallOrderedHashMap>(
-        Cast<SmallOrderedHashMap>(*result_raw), isolate);
+    DirectHandle<SmallOrderedHashMap> actual =
+        DirectHandle<SmallOrderedHashMap>(
+            Cast<SmallOrderedHashMap>(*result_raw), isolate);
     CHECK_EQ(capacity, actual->Capacity());
     CHECK_EQ(0, actual->NumberOfElements());
     CHECK_EQ(0, actual->NumberOfDeletedElements());

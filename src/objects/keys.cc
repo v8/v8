@@ -209,7 +209,7 @@ MaybeDirectHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
       PropertyDescriptor desc;
       Maybe<bool> found =
           JSProxy::GetOwnPropertyDescriptor(isolate, owner, key, &desc);
-      MAYBE_RETURN(found, MaybeHandle<FixedArray>());
+      MAYBE_RETURN(found, MaybeDirectHandle<FixedArray>());
       if (!found.FromJust()) continue;
       if (!desc.enumerable()) {
         accumulator->AddShadowingKey(key);

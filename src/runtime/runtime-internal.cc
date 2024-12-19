@@ -527,7 +527,7 @@ RUNTIME_FUNCTION(Runtime_ThrowPatternAssignmentNonCoercible) {
   DCHECK_EQ(1, args.length());
   DirectHandle<Object> object = args.at(0);
   return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, object,
-                                                  MaybeHandle<Object>());
+                                                  MaybeDirectHandle<Object>());
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {

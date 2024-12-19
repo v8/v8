@@ -1801,10 +1801,10 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 
   i::DirectHandle<i::Object> object_ref;
   if (function_index < static_cast<int>(module->num_imported_functions)) {
-    object_ref =
-        i::handle(instance_data->dispatch_table_for_imports()->implicit_arg(
-                      function_index),
-                  isolate);
+    object_ref = i::direct_handle(
+        instance_data->dispatch_table_for_imports()->implicit_arg(
+            function_index),
+        isolate);
     if (IsWasmImportData(*object_ref)) {
       i::Tagged<i::JSFunction> jsfunc = i::Cast<i::JSFunction>(
           i::Cast<i::WasmImportData>(*object_ref)->callable());
@@ -1824,7 +1824,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   } else {
     // TODO(42204563): Avoid crashing if the instance object is not available.
     CHECK(instance_data->has_instance_object());
-    object_ref = handle(instance_data->instance_object(), isolate);
+    object_ref = direct_handle(instance_data->instance_object(), isolate);
   }
 
   i::Execution::CallWasm(isolate, wrapper_code, call_target, object_ref,
@@ -1961,10 +1961,10 @@ auto Global::make(Store* store_abs, const GlobalType* type, const Val& val)
   bool is_mutable = (type->mutability() == VAR);
   const int32_t offset = 0;
   i::Handle<i::WasmGlobalObject> obj =
-      i::WasmGlobalObject::New(isolate, i::Handle<i::WasmTrustedInstanceData>(),
-                               i::MaybeHandle<i::JSArrayBuffer>(),
-                               i::MaybeHandle<i::FixedArray>(), i_type, offset,
-                               is_mutable)
+      i::WasmGlobalObject::New(
+          isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
+          i::MaybeDirectHandle<i::JSArrayBuffer>(),
+          i::MaybeDirectHandle<i::FixedArray>(), i_type, offset, is_mutable)
           .ToHandleChecked();
 
   auto global = implement<Global>::type::make(store, obj);
@@ -2002,7 +2002,7 @@ auto Global::get() const -> Val {
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
       if (IsWasmFuncRef(*result)) {
-        result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
+        result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
             i::Cast<i::WasmFuncRef>(*result)->internal(store->i_isolate()),
             store->i_isolate()));
       }
@@ -2104,9 +2104,9 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   }
 
   i::Handle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
-      isolate, i::Handle<i::WasmTrustedInstanceData>(), i_type, canonical_type,
-      minimum, has_maximum, maximum, isolate->factory()->null_value(),
-      i::wasm::AddressType::kI32);
+      isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), i_type,
+      canonical_type, minimum, has_maximum, maximum,
+      isolate->factory()->null_value(), i::wasm::AddressType::kI32);
 
   if (ref) {
     i::DirectHandle<i::JSReceiver> init = impl(ref)->v8_object();
@@ -2149,7 +2149,7 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   if (IsWasmFuncRef(*result)) {
-    result = i::WasmInternalFunction::GetOrCreateExternal(i::handle(
+    result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(
         i::Cast<i::WasmFuncRef>(*result)->internal(isolate), isolate));
   }
   if (IsWasmNull(*result)) {

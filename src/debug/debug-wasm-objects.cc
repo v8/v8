@@ -1101,10 +1101,10 @@ Handle<WasmValueObject> WasmValueObject::New(
         // available.
         if (module_object.is_null() &&
             IsWasmTrustedInstanceData(internal_fct->implicit_arg())) {
-          module_object =
-              handle(Cast<WasmTrustedInstanceData>(internal_fct->implicit_arg())
-                         ->module_object(),
-                     isolate);
+          module_object = direct_handle(
+              Cast<WasmTrustedInstanceData>(internal_fct->implicit_arg())
+                  ->module_object(),
+              isolate);
         }
         t = GetRefTypeName(isolate, value.type(), module_object);
       } else if (IsWasmNull(*ref)) {
@@ -1171,7 +1171,7 @@ Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
   result = ArrayList::Add(
       isolate, result,
       isolate->factory()->NewStringFromAsciiChecked("[[Module]]"),
-      handle(instance->module_object(), isolate));
+      direct_handle(instance->module_object(), isolate));
 
   if (FunctionsProxy::Count(isolate, instance) != 0) {
     result = ArrayList::Add(
@@ -1228,7 +1228,7 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
     DirectHandle<WasmModuleObject> module;
     const wasm::WasmModule* mod = nullptr;
     if (table->has_trusted_data()) {
-      module = Handle<WasmModuleObject>(
+      module = DirectHandle<WasmModuleObject>(
           table->trusted_data(isolate)->module_object(), isolate);
       mod = table->trusted_data(isolate)->module();
     }

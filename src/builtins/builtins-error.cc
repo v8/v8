@@ -56,7 +56,7 @@ BUILTIN(ErrorPrototypeToString) {
 // https://tc39.es/proposal-is-error/
 BUILTIN(ErrorIsError) {
   HandleScope scope(isolate);
-  Handle<Object> obj = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> obj = args.atOrUndefined(isolate, 1);
 
   isolate->CountUsage(v8::Isolate::kErrorIsError);
 

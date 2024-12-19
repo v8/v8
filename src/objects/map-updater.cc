@@ -1376,8 +1376,8 @@ void MapUpdater::GeneralizeField(Isolate* isolate, DirectHandle<Map> map,
         map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
         details.representation(),
         descriptors->GetDetails(modify_index).representation(), old_constness,
-        new_constness, old_field_type, MaybeHandle<Object>(), new_field_type,
-        MaybeHandle<Object>());
+        new_constness, old_field_type, MaybeDirectHandle<Object>(),
+        new_field_type, MaybeDirectHandle<Object>());
   }
 }
 

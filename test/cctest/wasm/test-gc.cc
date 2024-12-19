@@ -233,7 +233,7 @@ class WasmGCTester {
     if (isolate_->has_exception()) {
       DirectHandle<String> message =
           ErrorUtils::ToString(isolate_,
-                               handle(isolate_->exception(), isolate_))
+                               direct_handle(isolate_->exception(), isolate_))
               .ToHandleChecked();
       FATAL("%s", message->ToCString().get());
     }
@@ -246,7 +246,8 @@ class WasmGCTester {
     CallFunctionImpl(function_index, sig, packer);
     CHECK(isolate_->has_exception());
     DirectHandle<String> message =
-        ErrorUtils::ToString(isolate_, handle(isolate_->exception(), isolate_))
+        ErrorUtils::ToString(isolate_,
+                             direct_handle(isolate_->exception(), isolate_))
             .ToHandleChecked();
     std::string message_str(message->ToCString().get());
     CHECK_NE(message_str.find(expected), std::string::npos);

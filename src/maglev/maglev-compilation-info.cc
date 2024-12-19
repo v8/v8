@@ -110,7 +110,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
     // Heap broker initialization may already use IsPendingAllocation.
     isolate->heap()->PublishMainThreadPendingAllocations();
     broker()->InitializeAndStartSerializing(
-        handle(function->native_context(), isolate));
+        direct_handle(function->native_context(), isolate));
     broker()->StopSerializing();
 
     // Serialization may have allocated.
