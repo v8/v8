@@ -1214,7 +1214,7 @@ struct OperationT : Operation {
   // Check graph invariants for this operation. Will be invoked in debug mode
   // immediately upon construction.
   // Concrete Operator classes are expected to re-define it.
-  void Validate(const Graph& graph) const = delete;
+  void Validate(const Graph& graph) const {}
 
  private:
   template <class... T, size_t... I>
@@ -1391,7 +1391,6 @@ struct DeadOp : FixedArityOperationT<0, DeadOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -1410,7 +1409,6 @@ struct AbortCSADcheckOp : FixedArityOperationT<1, AbortCSADcheckOp> {
 
   explicit AbortCSADcheckOp(V<String> message) : Base(message) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -1463,7 +1461,6 @@ struct GenericBinopOp : FixedArityOperationT<4, GenericBinopOp> {
         kind(kind),
         lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -1501,7 +1498,6 @@ struct GenericUnopOp : FixedArityOperationT<3, GenericUnopOp> {
         kind(kind),
         lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -1530,7 +1526,6 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
         kind(kind),
         lazy_deopt_on_throw(lazy_deopt_on_throw) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, lazy_deopt_on_throw}; }
 };
 
@@ -1558,7 +1553,6 @@ struct Word32SignHintOp : FixedArityOperationT<1, Word32SignHintOp> {
 
   Word32SignHintOp(V<Word32> input, Sign sign) : Base(input), sign(sign) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{sign}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -1669,7 +1663,6 @@ struct WordBinopOp : FixedArityOperationT<2, WordBinopOp> {
   WordBinopOp(V<Word> left, V<Word> right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1765,7 +1758,6 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
                     OpIndex right_high, Kind kind)
       : Base(left_low, left_high, right_low, right_high), kind(kind) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1865,8 +1857,6 @@ struct OverflowCheckedBinopOp
                          WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, rep}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -1899,8 +1889,6 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
   explicit WordUnaryOp(V<Word> input, Kind kind, WordRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, rep}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -1937,7 +1925,6 @@ struct OverflowCheckedUnaryOp
                                   WordRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, rep}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -1994,8 +1981,6 @@ struct FloatUnaryOp : FixedArityOperationT<1, FloatUnaryOp> {
   explicit FloatUnaryOp(V<Float> input, Kind kind, FloatRepresentation rep)
       : Base(input), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, rep}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -2065,8 +2050,6 @@ struct ShiftOp : FixedArityOperationT<2, ShiftOp> {
   ShiftOp(V<Word> left, V<Word32> right, Kind kind, WordRepresentation rep)
       : Base(left, right), kind(kind), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, rep}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -2400,8 +2383,6 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
               WordRepresentation to)
       : Base(input), kind(kind), from(from), to(to) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, from, to}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -2426,8 +2407,6 @@ struct BitcastWord32PairToFloat64Op
   BitcastWord32PairToFloat64Op(V<Word32> high_word32, V<Word32> low_word32)
       : Base(high_word32, low_word32) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{}; }
 };
 
@@ -2589,8 +2568,6 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep)
       : Base(first), rep(rep) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{rep}; }
 };
 
@@ -3276,7 +3253,6 @@ struct AtomicWord32PairOp : OperationT<AtomicWord32PairOp> {
                                           : V<Word32>::Invalid();
   }
 
-  void Validate(const Graph& graph) const {}
 
   AtomicWord32PairOp(V<WordPtr> base, OptionalV<WordPtr> index,
                      OptionalV<Word32> value_low, OptionalV<Word32> value_high,
@@ -3367,7 +3343,6 @@ struct MemoryBarrierOp : FixedArityOperationT<0, MemoryBarrierOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{memory_order}; }
   void PrintOptions(std::ostream& os) const;
@@ -3522,7 +3497,6 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   AllocateOp(V<WordPtr> size, AllocationType type) : Base(size), type(type) {}
 
-  void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
 
   auto options() const { return std::tuple{type}; }
@@ -3639,8 +3613,6 @@ struct RetainOp : FixedArityOperationT<1, RetainOp> {
 
   explicit RetainOp(V<Object> retained) : Base(retained) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{}; }
 };
 
@@ -3667,8 +3639,6 @@ struct StackPointerGreaterThanOp
   StackPointerGreaterThanOp(V<WordPtr> stack_limit, StackCheckKind kind)
       : Base(stack_limit), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind}; }
 };
 
@@ -3694,7 +3664,6 @@ struct StackSlotOp : FixedArityOperationT<0, StackSlotOp> {
 
   StackSlotOp(int size, int alignment, bool is_tagged = false)
       : size(size), alignment(alignment), is_tagged(is_tagged) {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{size, alignment, is_tagged}; }
 };
 
@@ -3726,7 +3695,6 @@ struct FrameConstantOp : FixedArityOperationT<0, FrameConstantOp> {
   }
 
   explicit FrameConstantOp(Kind kind) : Base(), kind(kind) {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -3858,7 +3826,6 @@ struct WasmStackCheckOp : FixedArityOperationT<0, WasmStackCheckOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -3936,7 +3903,6 @@ struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
   StaticAssertOp(V<Word32> condition, const char* source)
       : Base(condition), source(source) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{source}; }
 };
 
@@ -3961,7 +3927,6 @@ struct ParameterOp : FixedArityOperationT<0, ParameterOp> {
         parameter_index(parameter_index),
         rep(rep),
         debug_name(debug_name) {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{parameter_index, rep, debug_name}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -3980,7 +3945,6 @@ struct OsrValueOp : FixedArityOperationT<0, OsrValueOp> {
   }
 
   explicit OsrValueOp(int32_t index) : Base(), index(index) {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{index}; }
 };
 
@@ -4198,7 +4162,6 @@ struct CatchBlockBeginOp : FixedArityOperationT<0, CatchBlockBeginOp> {
   }
 
   CatchBlockBeginOp() : Base() {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -4324,7 +4287,6 @@ struct TailCallOp : OperationT<TailCallOp> {
     return fn(mapped_callee, base::VectorOf(mapped_arguments), descriptor);
   }
 
-  void Validate(const Graph& graph) const {}
   static TailCallOp& New(Graph* graph, OpIndex callee,
                          base::Vector<const OpIndex> arguments,
                          const TSCallDescriptor* descriptor) {
@@ -4347,7 +4309,6 @@ struct UnreachableOp : FixedArityOperationT<0, UnreachableOp> {
   }
 
   UnreachableOp() : Base() {}
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -4391,8 +4352,6 @@ struct ReturnOp : OperationT<ReturnOp> {
               spill_caller_frame_slots);
   }
 
-  void Validate(const Graph& graph) const {
-  }
   static ReturnOp& New(Graph* graph, V<Word32> pop_count,
                        base::Vector<const OpIndex> return_values,
                        bool spill_caller_frame_slots) {
@@ -4416,7 +4375,6 @@ struct GotoOp : FixedArityOperationT<0, GotoOp> {
 
   explicit GotoOp(Block* destination, bool is_backedge)
       : Base(), is_backedge(is_backedge), destination(destination) {}
-  void Validate(const Graph& graph) const {}
   size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{destination, is_backedge}; }
 };
@@ -4439,8 +4397,6 @@ struct BranchOp : FixedArityOperationT<1, BranchOp> {
   BranchOp(OpIndex condition, Block* if_true, Block* if_false, BranchHint hint)
       : Base(condition), hint(hint), if_true(if_true), if_false(if_false) {}
 
-  void Validate(const Graph& graph) const {
-  }
   size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{if_true, if_false, hint}; }
 };
@@ -4480,7 +4436,6 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
         cases(cases),
         default_case(default_case) {}
 
-  void Validate(const Graph& graph) const {}
   void PrintOptions(std::ostream& os) const;
   size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{cases, default_case, default_hint}; }
@@ -4550,7 +4505,6 @@ struct TupleOp : OperationT<TupleOp> {
     return fn(base::VectorOf(mapped_inputs));
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -4604,8 +4558,6 @@ struct CheckTurboshaftTypeOfOp
                           bool successful)
       : Base(input), rep(rep), type(std::move(type)), successful(successful) {}
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{rep, type, successful}; }
 };
 
@@ -4657,7 +4609,6 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
   ObjectIsOp(V<Object> input, Kind kind, InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -4694,7 +4645,6 @@ struct Float64IsOp : FixedArityOperationT<1, Float64IsOp> {
 
   V<Float64> input() const { return Base::input<Float64>(0); }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{kind}; }
 };
 
@@ -4722,8 +4672,6 @@ struct ObjectIsNumericValueOp
 
   V<Object> input() const { return Base::input<Object>(0); }
 
-  void Validate(const Graph& graph) const {
-  }
   auto options() const { return std::tuple{kind, input_rep}; }
 };
 
@@ -4763,7 +4711,6 @@ struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
   ConvertOp(V<Object> input, Kind from, Kind to)
       : Base(input), from(from), to(to) {}
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{from, to}; }
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -4959,8 +4906,6 @@ struct ConvertJSPrimitiveToUntaggedOp
   ConvertJSPrimitiveToUntaggedOp(V<JSPrimitive> input, UntaggedKind kind,
                                  InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
@@ -5082,8 +5027,6 @@ struct TruncateJSPrimitiveToUntaggedOp
   TruncateJSPrimitiveToUntaggedOp(V<JSPrimitive> input, UntaggedKind kind,
                                   InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
@@ -5165,7 +5108,6 @@ struct ConvertJSPrimitiveToObjectOp
                                ConvertReceiverMode mode)
       : Base(value, native_context, global_proxy), mode(mode) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{mode}; }
 };
@@ -5196,8 +5138,6 @@ struct NewConsStringOp : FixedArityOperationT<3, NewConsStringOp> {
 
   NewConsStringOp(V<Word32> length, V<String> first, V<String> second)
       : Base(length, first, second) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -5230,8 +5170,6 @@ struct NewArrayOp : FixedArityOperationT<1, NewArrayOp> {
 
   NewArrayOp(OpIndex length, Kind kind, AllocationType allocation_type)
       : Base(length), kind(kind), allocation_type(allocation_type) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind, allocation_type}; }
 };
@@ -5265,8 +5203,6 @@ struct DoubleArrayMinMaxOp : FixedArityOperationT<1, DoubleArrayMinMaxOp> {
   V<JSArray> array() const { return Base::input<JSArray>(0); }
 
   DoubleArrayMinMaxOp(V<JSArray> array, Kind kind) : Base(array), kind(kind) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5305,8 +5241,6 @@ struct LoadFieldByIndexOp : FixedArityOperationT<2, LoadFieldByIndexOp> {
   OpIndex index() const { return Base::input(1); }
 
   LoadFieldByIndexOp(OpIndex object, OpIndex index) : Base(object, index) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -5322,7 +5256,6 @@ struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   }
 
   DebugBreakOp() : Base() {}
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5351,8 +5284,6 @@ struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
 
   DebugPrintOp(OpIndex input, RegisterRepresentation rep)
       : Base(input), rep(rep) {}
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{rep}; }
 };
@@ -5434,7 +5365,6 @@ struct BigIntComparisonOp : FixedArityOperationT<2, BigIntComparisonOp> {
   BigIntComparisonOp(V<BigInt> left, V<BigInt> right, Kind kind)
       : Base(left, right), kind(kind) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5467,8 +5397,6 @@ struct BigIntUnaryOp : FixedArityOperationT<1, BigIntUnaryOp> {
 
   BigIntUnaryOp(V<BigInt> input, Kind kind) : Base(input), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5488,7 +5416,6 @@ struct LoadRootRegisterOp : FixedArityOperationT<0, LoadRootRegisterOp> {
   }
 
   LoadRootRegisterOp() : Base() {}
-  void Validate(const Graph& graph) const {}
   std::tuple<> options() const { return {}; }
 };
 
@@ -5520,8 +5447,6 @@ struct StringAtOp : FixedArityOperationT<2, StringAtOp> {
   StringAtOp(V<String> string, V<WordPtr> position, Kind kind)
       : Base(string, position), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5556,8 +5481,6 @@ struct StringToCaseIntlOp : FixedArityOperationT<1, StringToCaseIntlOp> {
 
   StringToCaseIntlOp(V<String> string, Kind kind) : Base(string), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5584,8 +5507,6 @@ struct StringLengthOp : FixedArityOperationT<1, StringLengthOp> {
 
   explicit StringLengthOp(V<String> string) : Base(string) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -5618,8 +5539,6 @@ struct StringIndexOfOp : FixedArityOperationT<3, StringIndexOfOp> {
   StringIndexOfOp(V<String> string, V<String> search, V<Smi> position)
       : Base(string, search, position) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -5649,7 +5568,6 @@ struct StringFromCodePointAtOp
   StringFromCodePointAtOp(V<String> string, V<WordPtr> index)
       : Base(string, index) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5680,7 +5598,6 @@ struct StringSubstringOp : FixedArityOperationT<3, StringSubstringOp> {
   StringSubstringOp(V<String> string, V<Word32> start, V<Word32> end)
       : Base(string, start, end) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5711,7 +5628,6 @@ struct StringConcatOp : FixedArityOperationT<3, StringConcatOp> {
   StringConcatOp(V<Smi> length, V<String> left, V<String> right)
       : Base(length, left, right) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -5747,8 +5663,6 @@ struct StringComparisonOp : FixedArityOperationT<2, StringComparisonOp> {
   StringComparisonOp(V<String> left, V<String> right, Kind kind)
       : Base(left, right), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -5779,7 +5693,6 @@ struct ArgumentsLengthOp : FixedArityOperationT<0, ArgumentsLengthOp> {
     DCHECK_IMPLIES(kind == Kind::kArguments, formal_parameter_count == 0);
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind, formal_parameter_count}; }
 };
@@ -5814,8 +5727,6 @@ struct NewArgumentsElementsOp
         type(type),
         formal_parameter_count(formal_parameter_count) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{type, formal_parameter_count}; }
 };
@@ -5882,8 +5793,6 @@ struct LoadTypedElementOp : FixedArityOperationT<4, LoadTypedElementOp> {
                      OpIndex index, ExternalArrayType array_type)
       : Base(buffer, base, external, index), array_type(array_type) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{array_type}; }
 };
@@ -5919,8 +5828,6 @@ struct LoadDataViewElementOp : FixedArityOperationT<4, LoadDataViewElementOp> {
       : Base(object, storage, index, is_little_endian),
         element_type(element_type) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -5946,8 +5853,6 @@ struct LoadStackArgumentOp : FixedArityOperationT<2, LoadStackArgumentOp> {
 
   LoadStackArgumentOp(OpIndex base, OpIndex index) : Base(base, index) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -5984,8 +5889,6 @@ struct StoreTypedElementOp : FixedArityOperationT<5, StoreTypedElementOp> {
                       ExternalArrayType array_type)
       : Base(buffer, base, external, index, value), array_type(array_type) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{array_type}; }
 };
@@ -6025,8 +5928,6 @@ struct StoreDataViewElementOp
       : Base(object, storage, index, value, is_little_endian),
         element_type(element_type) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -6073,7 +5974,6 @@ struct TransitionAndStoreArrayElementOp
         fast_map(fast_map),
         double_map(double_map) {}
 
-  void Validate(const Graph& graph) const {}
 
   RegisterRepresentation value_representation() const {
     switch (kind) {
@@ -6133,7 +6033,6 @@ struct CompareMapsOp : OperationT<CompareMapsOp> {
     }
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
   void PrintOptions(std::ostream& os) const;
@@ -6232,7 +6131,6 @@ struct AssumeMapOp : FixedArityOperationT<1, AssumeMapOp> {
   AssumeMapOp(V<HeapObject> heap_object, ZoneRefSet<Map> maps)
       : Base(heap_object), maps(std::move(maps)) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{maps}; }
   void PrintOptions(std::ostream& os) const;
@@ -6319,8 +6217,6 @@ struct LoadMessageOp : FixedArityOperationT<1, LoadMessageOp> {
 
   explicit LoadMessageOp(V<WordPtr> offset) : Base(offset) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -6344,8 +6240,6 @@ struct StoreMessageOp : FixedArityOperationT<2, StoreMessageOp> {
   explicit StoreMessageOp(V<WordPtr> offset, V<Object> object)
       : Base(offset, object) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{}; }
 };
@@ -6377,7 +6271,6 @@ struct SameValueOp : FixedArityOperationT<2, SameValueOp> {
   SameValueOp(V<Object> left, V<Object> right, Mode mode)
       : Base(left, right), mode(mode) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{mode}; }
 };
@@ -6401,7 +6294,6 @@ struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
 
   Float64SameValueOp(V<Float64> left, V<Float64> right) : Base(left, right) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -6532,8 +6424,6 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
               base::VectorOf(mapped_arguments), parameters, out_reps);
   }
 
-  void Validate(const Graph& graph) const {
-  }
 
   static FastApiCallOp& New(
       Graph* graph, V<FrameState> frame_state, V<Object> data_argument,
@@ -6564,7 +6454,6 @@ struct RuntimeAbortOp : FixedArityOperationT<0, RuntimeAbortOp> {
 
   explicit RuntimeAbortOp(AbortReason reason) : reason(reason) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{reason}; }
 };
@@ -6589,7 +6478,6 @@ struct EnsureWritableFastElementsOp
   EnsureWritableFastElementsOp(OpIndex object, OpIndex elements)
       : Base(object, elements) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -6651,8 +6539,6 @@ struct TransitionElementsKindOp
   TransitionElementsKindOp(OpIndex object, const ElementsTransition& transition)
       : Base(object), transition(transition) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{transition}; }
 };
@@ -6676,7 +6562,6 @@ struct TransitionElementsKindOrCheckMapOp
       const ElementsTransitionWithMultipleSources& transition)
       : Base(object, map, frame_state), transition(transition) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{transition}; }
 };
@@ -6717,8 +6602,6 @@ struct FindOrderedHashEntryOp
   FindOrderedHashEntryOp(OpIndex data_structure, V<Word32> key, Kind kind)
       : Base(data_structure, key), kind(kind) {}
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -6740,7 +6623,6 @@ struct CommentOp : FixedArityOperationT<0, CommentOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{message}; }
 };
 
@@ -6808,8 +6690,6 @@ struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {
-  }
 
   auto options() const { return std::tuple{global}; }
 };
@@ -6881,9 +6761,6 @@ struct IsNullOp : FixedArityOperationT<1, IsNullOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {
-  }
-
   auto options() const { return std::tuple{type}; }
 };
 
@@ -6940,7 +6817,6 @@ struct RttCanonOp : FixedArityOperationT<1, RttCanonOp> {
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{type_index}; }
 };
@@ -6981,7 +6857,6 @@ struct WasmTypeCheckOp : OperationT<WasmTypeCheckOp> {
                : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{config}; }
 
@@ -7027,7 +6902,6 @@ struct WasmTypeCastOp : OperationT<WasmTypeCastOp> {
                : MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{config}; }
 
@@ -7086,7 +6960,6 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple(); }
 };
@@ -7107,7 +6980,6 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple(); }
 };
@@ -7241,7 +7113,6 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{array_type, is_signed}; }
   void PrintOptions(std::ostream& os) const;
@@ -7274,7 +7145,6 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
                                   RepresentationFor(element_type)});
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{element_type}; }
 };
@@ -7309,7 +7179,6 @@ struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
     return MaybeRepVector<RegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{null_check}; }
 };
@@ -7337,7 +7206,6 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{array_type}; }
   void PrintOptions(std::ostream& os) const;
 };
@@ -7362,7 +7230,6 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{struct_type}; }
 };
 
@@ -7387,7 +7254,6 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{function_index}; }
 };
 
@@ -7414,7 +7280,6 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
     return MaybeRepVector<RegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -7442,7 +7307,6 @@ struct StringPrepareForGetCodeUnitOp
     return MaybeRepVector<RegisterRepresentation::Tagged()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -7666,7 +7530,6 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   V<Simd128> left() const { return input<Simd128>(0); }
   V<Simd128> right() const { return input<Simd128>(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -7783,7 +7646,6 @@ struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -7822,7 +7684,6 @@ struct Simd128ReduceOp : FixedArityOperationT<1, Simd128ReduceOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -7870,7 +7731,6 @@ struct Simd128ShiftOp : FixedArityOperationT<2, Simd128ShiftOp> {
   V<Simd128> input() const { return Base::input<Simd128>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -7912,7 +7772,6 @@ struct Simd128TestOp : FixedArityOperationT<1, Simd128TestOp> {
 
   V<Simd128> input() const { return Base::input<Simd128>(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -7966,7 +7825,6 @@ struct Simd128SplatOp : FixedArityOperationT<1, Simd128SplatOp> {
 
   V<Any> input() const { return Base::input<Any>(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8026,7 +7884,6 @@ struct Simd128TernaryOp : FixedArityOperationT<3, Simd128TernaryOp> {
   V<Simd128> second() const { return input<Simd128>(1); }
   V<Simd128> third() const { return input<Simd128>(2); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8582,7 +8439,6 @@ struct Simd256UnaryOp : FixedArityOperationT<1, Simd256UnaryOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8728,7 +8584,6 @@ struct Simd256BinopOp : FixedArityOperationT<2, Simd256BinopOp> {
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8772,7 +8627,6 @@ struct Simd256ShiftOp : FixedArityOperationT<2, Simd256ShiftOp> {
   V<Simd256> input() const { return Base::input<Simd256>(0); }
   V<Word32> shift() const { return Base::input<Word32>(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8827,7 +8681,6 @@ struct Simd256TernaryOp : FixedArityOperationT<3, Simd256TernaryOp> {
   V<Simd256> second() const { return input<Simd256>(1); }
   V<Simd256> third() const { return input<Simd256>(2); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8876,7 +8729,6 @@ struct Simd256SplatOp : FixedArityOperationT<1, Simd256SplatOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -8898,7 +8750,6 @@ struct SimdPack128To256Op : FixedArityOperationT<2, SimdPack128To256Op> {
   SimdPack128To256Op(V<Simd128> left, V<Simd128> right) : Base(left, right) {}
   V<Simd128> left() const { return Base::input<Simd128>(0); }
   V<Simd128> right() const { return Base::input<Simd128>(1); }
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -8921,7 +8772,6 @@ struct Simd256ShufdOp : FixedArityOperationT<1, Simd256ShufdOp> {
 
   V<Simd256> input() const { return Base::input<Simd256>(0); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{control}; }
 
@@ -8948,7 +8798,6 @@ struct Simd256ShufpsOp : FixedArityOperationT<2, Simd256ShufpsOp> {
   V<Simd256> left() const { return Base::input<Simd256>(0); }
   V<Simd256> right() const { return Base::input<Simd256>(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{control}; }
 
@@ -8983,7 +8832,6 @@ struct Simd256UnpackOp : FixedArityOperationT<2, Simd256UnpackOp> {
   V<Simd256> left() const { return Base::input<Simd256>(0); }
   V<Simd256> right() const { return Base::input<Simd256>(1); }
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{kind}; }
 };
@@ -9005,7 +8853,6 @@ struct LoadStackPointerOp : FixedArityOperationT<0, LoadStackPointerOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -9024,7 +8871,6 @@ struct SetStackPointerOp : FixedArityOperationT<1, SetStackPointerOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::WordPtr()>();
   }
 
-  void Validate(const Graph& graph) const {}
   auto options() const { return std::tuple{}; }
 };
 
@@ -9046,7 +8892,6 @@ struct GetContinuationPreservedEmbedderDataOp
 
   GetContinuationPreservedEmbedderDataOp() : Base() {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
@@ -9065,7 +8910,6 @@ struct SetContinuationPreservedEmbedderDataOp
   explicit SetContinuationPreservedEmbedderDataOp(V<Object> value)
       : Base(value) {}
 
-  void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
 };
