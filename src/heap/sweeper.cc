@@ -1322,6 +1322,7 @@ void Sweeper::AddNewSpacePage(PageMetadata* page) {
 
 void Sweeper::AddPageImpl(AllocationSpace space, PageMetadata* page) {
   DCHECK(heap_->IsMainThread());
+  DCHECK(page->SweepingDone());
   DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),

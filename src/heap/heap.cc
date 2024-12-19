@@ -7294,6 +7294,12 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       }
 
       trusted_space()->RefillFreeList();
+    } else if (v8_flags.sticky_mark_bits) {
+      // With sticky markbits there is no separate young gen. Minor sweeping
+      // will thus sweep pages in old space, so old space freelist should be
+      // refilled.
+      DCHECK(was_minor_sweeping_in_progress);
+      old_space()->RefillFreeList();
     }
 
     if (!v8_flags.sticky_mark_bits && v8_flags.minor_ms && use_new_space() &&
