@@ -304,7 +304,7 @@ class NodeBase {
     DCHECK_EQ(offsetof(NodeBase, flags_), Internals::kNodeFlagsOffset);
   }
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_GLOBAL_HANDLE_ZAPPING
   ~NodeBase() {
     ClearFields();
     data_.next_free = nullptr;

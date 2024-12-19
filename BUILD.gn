@@ -94,8 +94,18 @@ declare_args() {
   # See v8:7381 for more details.
   v8_enable_private_mapping_fork_optimization = false
 
-  # Sets -DENABLE_HANDLE_ZAPPING.
+  # Sets the default for v8_enable_local_handle_zapping and
+  # v8_enable_global_handle_zapping.
   v8_enable_handle_zapping = is_asan || is_debug
+
+  # Sets -DENABLE_LOCAL_HANDLE_ZAPPING, which is more expensive than just
+  # the global handles.  By default it is enabled if v8_enable_handle_zapping
+  # is enabled.
+  v8_enable_local_handle_zapping = ""
+
+  # Sets -DENABLE_GLOBAL_HANDLE_ZAPPING.  By default it is enabled if
+  # v8_enable_handle_zapping is enabled.
+  v8_enable_global_handle_zapping = ""
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
@@ -541,6 +551,12 @@ if (v8_enable_pointer_compression_shared_cage == "") {
 }
 if (v8_enable_pointer_compression_8gb == "") {
   v8_enable_pointer_compression_8gb = false
+}
+if (v8_enable_local_handle_zapping == "") {
+  v8_enable_local_handle_zapping = v8_enable_handle_zapping
+}
+if (v8_enable_global_handle_zapping == "") {
+  v8_enable_global_handle_zapping = v8_enable_handle_zapping
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
@@ -1187,8 +1203,11 @@ config("features") {
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
   }
-  if (v8_enable_handle_zapping) {
-    defines += [ "ENABLE_HANDLE_ZAPPING" ]
+  if (v8_enable_local_handle_zapping) {
+    defines += [ "ENABLE_LOCAL_HANDLE_ZAPPING" ]
+  }
+  if (v8_enable_global_handle_zapping) {
+    defines += [ "ENABLE_GLOBAL_HANDLE_ZAPPING" ]
   }
   if (v8_code_comments == true) {
     defines += [ "V8_CODE_COMMENTS" ]

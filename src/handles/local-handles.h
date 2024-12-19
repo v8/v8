@@ -34,7 +34,7 @@ class LocalHandles {
   V8_EXPORT_PRIVATE Address* AddBlock();
   V8_EXPORT_PRIVATE void RemoveUnusedBlocks();
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
   V8_EXPORT_PRIVATE static void ZapRange(Address* start, Address* end);
 #endif
 

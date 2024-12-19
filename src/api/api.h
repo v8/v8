@@ -488,14 +488,14 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
             reinterpret_cast<Address>(prev_limit) &&
         reinterpret_cast<Address>(prev_limit) <=
             reinterpret_cast<Address>(block_limit)) {
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
       internal::HandleScope::ZapRange(prev_limit, block_limit);
 #endif
       break;
     }
 
     blocks_.pop_back();
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
     if (spare_ != nullptr) {

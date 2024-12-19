@@ -236,7 +236,7 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
     limit = prev_limit;
     DeleteExtensions(isolate);
   }
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
   ZapRange(current->next, limit);
 #endif
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(

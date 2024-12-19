@@ -222,11 +222,12 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
 }
 
-#ifdef ENABLE_HANDLE_ZAPPING
-void HandleScope::ZapRange(Address* start, Address* end) {
+#if defined(ENABLE_GLOBAL_HANDLE_ZAPPING) || \
+    defined(ENABLE_LOCAL_HANDLE_ZAPPING)
+void HandleScope::ZapRange(Address* start, Address* end, uintptr_t zap_value) {
   DCHECK_LE(end - start, kHandleBlockSize);
   for (Address* p = start; p != end; p++) {
-    *p = static_cast<Address>(kHandleZapValue);
+    *p = static_cast<Address>(zap_value);
   }
 }
 #endif

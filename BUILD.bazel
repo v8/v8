@@ -108,7 +108,9 @@ v8_flag(name = "v8_enable_debug_code")
 
 v8_flag(name = "v8_enable_disassembler")
 
-v8_flag(name = "v8_enable_handle_zapping")
+v8_flag(name = "v8_enable_local_handle_zapping")
+
+v8_flag(name = "v8_enable_global_handle_zapping")
 
 v8_flag(name = "v8_enable_runtime_call_stats")
 
@@ -447,7 +449,8 @@ v8_config(
         "v8_imminent_deprecation_warnings": "V8_IMMINENT_DEPRECATION_WARNINGS",
         "v8_enable_debug_code": "V8_ENABLE_DEBUG_CODE",
         "v8_enable_disassembler": "ENABLE_DISASSEMBLER",
-        "v8_enable_handle_zapping": "ENABLE_HANDLE_ZAPPING",
+        "v8_enable_global_handle_zapping": "ENABLE_GLOBAL_HANDLE_ZAPPING",
+        "v8_enable_local_handle_zapping": "ENABLE_LOCAL_HANDLE_ZAPPING",
         "v8_enable_hugepage": "ENABLE_HUGEPAGE",
         "v8_enable_future": "V8_ENABLE_FUTURE",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",

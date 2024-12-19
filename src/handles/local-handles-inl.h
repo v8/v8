@@ -100,7 +100,7 @@ void LocalHandleScope::CloseScope(LocalHeap* local_heap, Address* prev_next,
     old_limit = handles->scope_.limit;
   }
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
   LocalHandles::ZapRange(handles->scope_.next, old_limit);
 #endif
 
