@@ -1766,14 +1766,6 @@ class V8_EXPORT Isolate {
       StackTrace::StackTraceOptions options = StackTrace::kOverview);
 
   /**
-   * Iterates through all external resources referenced from current isolate
-   * heap.  GC is not invoked prior to iterating, therefore there is no
-   * guarantee that visited objects are still alive.
-   */
-  V8_DEPRECATED("Will be removed without replacement. crbug.com/v8/14172")
-  void VisitExternalResources(ExternalResourceVisitor* visitor);
-
-  /**
    * Check if this isolate is in use.
    * True if at least one thread Enter'ed this isolate.
    */

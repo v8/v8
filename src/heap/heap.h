@@ -585,8 +585,6 @@ class Heap final {
       v8::Local<v8::Context> context, v8::Local<v8::Promise::Resolver> promise,
       v8::MeasureMemoryMode mode);
 
-  void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
-
   void IncrementDeferredCounts(
       base::Vector<const v8::Isolate::UseCounterFeature> features);
 

@@ -10995,11 +10995,6 @@ void Isolate::SetCaptureStackTraceForUncaughtExceptions(
                                                        options);
 }
 
-void Isolate::VisitExternalResources(ExternalResourceVisitor* visitor) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->heap()->VisitExternalResources(visitor);
-}
-
 bool Isolate::IsInUse() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   return i_isolate->IsInUse();

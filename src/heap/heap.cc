@@ -3007,32 +3007,6 @@ void Heap::EvaluateOldSpaceLocalPretenuring(
   }
 }
 
-void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
-  DisallowGarbageCollection no_gc;
-  // All external strings are listed in the external string table.
-
-  class ExternalStringTableVisitorAdapter : public RootVisitor {
-   public:
-    explicit ExternalStringTableVisitorAdapter(
-        Isolate* isolate, v8::ExternalResourceVisitor* visitor)
-        : isolate_(isolate), visitor_(visitor) {}
-    void VisitRootPointers(Root root, const char* description,
-                           FullObjectSlot start, FullObjectSlot end) override {
-      for (FullObjectSlot p = start; p < end; ++p) {
-        DCHECK(IsExternalString(*p));
-        visitor_->VisitExternalString(
-            Utils::ToLocal(DirectHandle<String>(Cast<String>(*p), isolate_)));
-      }
-    }
-
-   private:
-    Isolate* isolate_;
-    v8::ExternalResourceVisitor* visitor_;
-  } external_string_table_visitor(isolate(), visitor);
-
-  external_string_table_.IterateAll(&external_string_table_visitor);
-}
-
 static_assert(IsAligned(OFFSET_OF_DATA_START(FixedDoubleArray),
                         kDoubleAlignment));
 
