@@ -1333,7 +1333,7 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
   // Keep track if we visited a stack frame, but did not visit any summarized
   // frames. Either because the stack frame didn't create any summarized frames
   // or due to security origin.
-  bool skipped_last_frame = false;
+  bool skipped_last_frame = true;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     switch (frame->type()) {
