@@ -232,6 +232,40 @@ RUNTIME_FUNCTION(Runtime_OptimizeTurbofanEager) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<JSFunction> function = args.at<JSFunction>(0);
+  bool reoptimize = (*args.at<Smi>(1)).value();
+
+  IsCompiledScope is_compiled_scope(function->shared(), isolate);
+  if (!is_compiled_scope.is_compiled()) {
+    StackLimitCheck check(isolate);
+    if (V8_UNLIKELY(
+            check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB))) {
+      return isolate->StackOverflow();
+    }
+    if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
+                           &is_compiled_scope)) {
+      return ReadOnlyRoots(isolate).exception();
+    }
+    // In case this code was flushed we should not re-optimize it too quickly.
+    reoptimize = false;
+  }
+
+  function->ResetTieringRequests(isolate);
+  if (reoptimize) {
+    // Set the budget such that we have one invocation which allows us to detect
+    // if any ICs need updating before re-optimization.
+    function->raw_feedback_cell()->set_interrupt_budget(
+        function->shared()->GetBytecodeArray(isolate)->BytecodeArraySize());
+  } else {
+    function->SetInterruptBudget(isolate, BudgetModification::kRaise,
+                                 CodeKind::INTERPRETED_FUNCTION);
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #else
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized) {
@@ -436,7 +470,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
   if (it.done()) return;
   for (size_t i = 0, size = osr_codes.size(); i < size; i++) {
     // Deoptimize type b osr'd loops
-    Deoptimizer::DeoptimizeFunction(function, osr_codes[i]);
+    Deoptimizer::DeoptimizeFunction(function, LazyDeoptimizeReason::kEagerDeopt,
+                                    osr_codes[i]);
   }
   // Visit after the first loop-with-deopt is found
   int last_deopt_in_range_loop_jump_target;
@@ -454,7 +489,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
     last_deopt_in_range_loop_jump_target = it.GetJumpTargetOffset();
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
       // Deoptimize type c osr'd loops
-      Deoptimizer::DeoptimizeFunction(function, code);
+      Deoptimizer::DeoptimizeFunction(function,
+                                      LazyDeoptimizeReason::kEagerDeopt, code);
     }
     // We've reached nesting level 0, i.e. the current JumpLoop concludes a
     // top-level loop.
@@ -469,7 +505,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
       // Deoptimize type a osr'd loops
-      Deoptimizer::DeoptimizeFunction(function, code);
+      Deoptimizer::DeoptimizeFunction(function,
+                                      LazyDeoptimizeReason::kEagerDeopt, code);
     }
   }
 }
@@ -535,12 +572,14 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the loop should pay for the deoptimization costs.
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(
+        *function, LazyDeoptimizeReason::kEagerDeopt, *optimized_code);
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (deopt_reason != DeoptimizeReason::kOSREarlyExit &&
              Deoptimizer::DeoptExitIsInsideOsrLoop(
                  isolate, *function, deopt_exit_offset, osr_offset)) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(
+        *function, LazyDeoptimizeReason::kEagerDeopt, *optimized_code);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

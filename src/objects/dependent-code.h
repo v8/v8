@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+enum class LazyDeoptimizeReason : uint8_t;
+
 // Dependent code is conceptually the list of {Code, DependencyGroup} tuples
 // associated with an object, where the dependency group is a reason that could
 // lead to a deopt of the corresponding code.
@@ -69,6 +71,8 @@ class DependentCode : public WeakArrayList {
   using DependencyGroups = base::Flags<DependencyGroup, uint32_t>;
 
   static const char* DependencyGroupName(DependencyGroup group);
+  static LazyDeoptimizeReason DependencyGroupToLazyDeoptReason(
+      DependencyGroup group);
 
   // Register a dependency of {code} on {object}, of the kinds given by
   // {groups}.

@@ -1554,6 +1554,9 @@ DEFINE_BOOL(optimize_for_size, false,
             "speed")
 DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 
+DEFINE_BOOL(reopt_after_lazy_deopts, true,
+            "Immediately re-optimize code after some lazy deopts")
+
 // Flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
 

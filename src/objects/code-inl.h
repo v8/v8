@@ -7,6 +7,7 @@
 
 #include "src/baseline/bytecode-offset-iterator.h"
 #include "src/codegen/code-desc.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
@@ -508,19 +509,64 @@ void Code::set_marked_for_deoptimization(bool flag) {
 }
 
 inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
-                                             const char* reason) {
+                                             LazyDeoptimizeReason reason) {
   set_marked_for_deoptimization(true);
-  if (reason && (v8_flags.trace_deopt || v8_flags.log_deopt)) {
+  // Eager deopts are already logged by the deoptimizer.
+  if (reason != LazyDeoptimizeReason::kEagerDeopt &&
+      V8_UNLIKELY(v8_flags.trace_deopt || v8_flags.log_deopt)) {
     TraceMarkForDeoptimization(isolate, reason);
   }
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = js_dispatch_handle();
   if (handle != kNullJSDispatchHandle) {
     JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-    if (SafeEquals(jdt->GetCode(handle))) {
-      // TODO(olivf): Use a dedicated builtin which re-sets the Budget according
-      // to which tier we currently are in.
-      jdt->SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
+    Tagged<Code> cur = jdt->GetCode(handle);
+    if (SafeEquals(cur)) {
+      if (v8_flags.reopt_after_lazy_deopts) {
+        jdt->SetCodeNoWriteBarrier(
+            handle, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+        // Somewhat arbitrary list of lazy deopt reasons which we expect to be
+        // stable enough to warrant either immediate re-optimization, or
+        // re-optimization after one invocation (to detect potential follow-up
+        // IC changes).
+        // TODO(olivf): We should also work on reducing the number of
+        // dependencies we create in the compilers to require less of these
+        // quick re-compilations.
+        switch (reason) {
+          case LazyDeoptimizeReason::kAllocationSiteTenuringChange:
+          case LazyDeoptimizeReason::kAllocationSiteTransitionChange:
+          case LazyDeoptimizeReason::kEmptyContextExtensionChange:
+          case LazyDeoptimizeReason::kExceptionCaught:
+          case LazyDeoptimizeReason::kFieldTypeConstChange:
+          case LazyDeoptimizeReason::kFrameValueMaterialized:
+          case LazyDeoptimizeReason::kPropertyCellChange:
+          case LazyDeoptimizeReason::kPrototypeChange:
+          case LazyDeoptimizeReason::kScriptContextSlotPropertyChange:
+            jdt->SetTieringRequest(
+                handle,
+                v8_flags.maglev ? TieringBuiltin::kStartMaglevOptimizeJob
+                                : TieringBuiltin::kStartTurbofanOptimizeJob,
+                isolate);
+            break;
+          case LazyDeoptimizeReason::kFieldRepresentationChange:
+          case LazyDeoptimizeReason::kFieldTypeChange:
+          case LazyDeoptimizeReason::kInitialMapChange:
+          case LazyDeoptimizeReason::kMapDeprecated:
+            jdt->SetTieringRequest(
+                handle, TieringBuiltin::kMarkReoptimizeLazyDeoptimized,
+                isolate);
+            break;
+          default:
+            // TODO(olivf): This trampoline is just used to reset the budget. If
+            // we knew the feedback cell and the bytecode size here, we could
+            // directly reset the budget.
+            jdt->SetTieringRequest(handle, TieringBuiltin::kMarkLazyDeoptimized,
+                                   isolate);
+            break;
+        }
+      } else {
+        jdt->SetCodeNoWriteBarrier(handle, *BUILTIN_CODE(isolate, CompileLazy));
+      }
     }
     // Ensure we don't try to patch the entry multiple times.
     set_js_dispatch_handle(kNullJSDispatchHandle);

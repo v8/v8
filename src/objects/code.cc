@@ -324,7 +324,8 @@ void Code::DisassembleOnlyCode(const char* name, std::ostream& os,
 
 #endif  // ENABLE_DISASSEMBLER
 
-void Code::TraceMarkForDeoptimization(Isolate* isolate, const char* reason) {
+void Code::TraceMarkForDeoptimization(Isolate* isolate,
+                                      LazyDeoptimizeReason reason) {
   Deoptimizer::TraceMarkForDeoptimization(isolate, *this, reason);
 }
 
