@@ -1900,6 +1900,9 @@
   # Multi-mapped mock allocator is only available on Linux.
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
+
+  # WebAssembly memory control is only implemented on Linux so far.
+  'wasm/memory-control': [SKIP],
 }],
 
 ##############################################################################

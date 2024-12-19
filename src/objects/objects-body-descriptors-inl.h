@@ -1028,6 +1028,16 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmMemoryMapDescriptor::BodyDescriptor : public DataOnlyBodyDescriptor {
+ public:
+  static_assert(WasmMemoryMapDescriptor::kStartOfStrongFieldsOffset ==
+                WasmMemoryMapDescriptor::kEndOfStrongFieldsOffset);
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
+  }
+};
+
 class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>

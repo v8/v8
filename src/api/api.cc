@@ -3809,10 +3809,12 @@ VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
 VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
 #if V8_ENABLE_WEBASSEMBLY
+VALUE_IS_SPECIFIC_TYPE(WasmMemoryMapDescriptor, WasmMemoryMapDescriptor)
 VALUE_IS_SPECIFIC_TYPE(WasmMemoryObject, WasmMemoryObject)
 VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
 VALUE_IS_SPECIFIC_TYPE(WasmNull, WasmNull)
 #else
+bool Value::IsWasmMemoryMapDescriptor() const { return false; }
 bool Value::IsWasmMemoryObject() const { return false; }
 bool Value::IsWasmModuleObject() const { return false; }
 bool Value::IsWasmNull() const { return false; }
@@ -4188,6 +4190,12 @@ void v8::Proxy::CheckCast(Value* that) {
 void v8::WasmMemoryObject::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsWasmMemoryObject(), "v8::WasmMemoryObject::Cast",
                   "Value is not a WasmMemoryObject");
+}
+
+void v8::WasmMemoryMapDescriptor::CheckCast(Value* that) {
+  Utils::ApiCheck(that->IsWasmMemoryMapDescriptor(),
+                  "v8::WasmMemoryMapDescriptor::Cast",
+                  "Value is not a WasmMemoryMapDescriptor");
 }
 
 void v8::WasmModuleObject::CheckCast(Value* that) {
@@ -9060,6 +9068,22 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
                   "WebAssembly support is not enabled");
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+// static
+Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
+    v8::Isolate* v8_isolate, WasmMemoryMapDescriptor::WasmFileDescriptor fd) {
+#if V8_ENABLE_WEBASSEMBLY
+  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::Handle<i::WasmMemoryMapDescriptor> result =
+      i::WasmMemoryMapDescriptor::NewFromFileDescriptor(i_isolate, fd);
+  return Utils::ToLocal(result);
+#else
+  Utils::ApiCheck(false, "WasmMemoryMapDescriptor::New",
+                  "WebAssembly support is not enabled");
+  UNREACHABLE();
+#endif
 }
 
 void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -2920,6 +2921,26 @@ void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(source);
 }
 
+#if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
+void Shell::CreateWasmMemoryMapDescriptor(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  DCHECK(i::ValidateCallbackInfo(info));
+  String::Utf8Value file_name(info.GetIsolate(), info[0]);
+  if (*file_name == nullptr) {
+    ThrowError(info.GetIsolate(), "Error converting filename to string");
+    return;
+  }
+
+  int file_descriptor = open(*file_name, O_RDWR);
+
+  WasmMemoryMapDescriptor::WasmFileDescriptor wasm_fd =
+      static_cast<WasmMemoryMapDescriptor::WasmFileDescriptor>(file_descriptor);
+  info.GetReturnValue().Set(
+      v8::WasmMemoryMapDescriptor::New(info.GetIsolate(), wasm_fd));
+}
+#endif  // V8_TARGET_OS_LINUX
+
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
@@ -3928,6 +3949,13 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                        FunctionTemplate::New(isolate, Shell::ReadFile));
     file_template->Set(isolate, "execute",
                        FunctionTemplate::New(isolate, Shell::ExecuteFile));
+#if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
+    if (i::v8_flags.experimental_wasm_memory_control) {
+      file_template->Set(
+          isolate, "create_wasm_memory_map_descriptor",
+          FunctionTemplate::New(isolate, Shell::CreateWasmMemoryMapDescriptor));
+    }
+#endif
     d8_template->Set(isolate, "file", file_template);
   }
   {

@@ -42,8 +42,10 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyInstanceGetExports)         \
   V(WebAssemblyInstantiate)                \
   V(WebAssemblyMemory)                     \
+  V(WebAssemblyMemoryMapDescriptor)        \
   V(WebAssemblyMemoryGetBuffer)            \
   V(WebAssemblyMemoryGrow)                 \
+  V(WebAssemblyMemoryMap)                  \
   V(WebAssemblyModule)                     \
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \
@@ -82,6 +84,10 @@ class WasmJs {
  private:
   V8_EXPORT_PRIVATE static void InstallModule(
       Isolate* isolate, DirectHandle<JSObject> webassembly);
+
+  V8_EXPORT_PRIVATE static void InstallMemoryControl(
+      Isolate* isolate, DirectHandle<NativeContext> context,
+      DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallTypeReflection(
       Isolate* isolate, DirectHandle<NativeContext> context,

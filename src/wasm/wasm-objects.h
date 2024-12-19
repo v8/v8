@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 
+#include "include/v8-wasm.h"
 #include "src/base/bit-field.h"
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
@@ -307,6 +308,23 @@ class WasmTableObject
   TQ_OBJECT_CONSTRUCTORS(WasmTableObject)
 };
 
+class WasmMemoryMapDescriptor
+    : public TorqueGeneratedWasmMemoryMapDescriptor<WasmMemoryMapDescriptor,
+                                                    JSObject> {
+ public:
+  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryMapDescriptor>
+  NewFromAnonymous(Isolate* isolate, size_t length);
+
+  V8_EXPORT_PRIVATE static Handle<WasmMemoryMapDescriptor>
+  NewFromFileDescriptor(
+      Isolate* isolate,
+      v8::WasmMemoryMapDescriptor::WasmFileDescriptor file_descriptor);
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmMemoryMapDescriptor)
+};
+
 // Representation of a WebAssembly.Memory JavaScript-level object.
 class WasmMemoryObject
     : public TorqueGeneratedWasmMemoryObject<WasmMemoryObject, JSObject> {
@@ -344,6 +362,10 @@ class WasmMemoryObject
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
                                         uint32_t pages);
+
+  // Returns the number of bytes that got mapped into the WebAssembly.Memory.
+  V8_EXPORT_PRIVATE size_t
+  MapDescriptor(Handle<WasmMemoryMapDescriptor> descriptor, size_t offset);
 
   static constexpr int kNoMaximum = -1;
 

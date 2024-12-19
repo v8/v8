@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if V8_TARGET_OS_LINUX
+#include <sys/mman.h>
+#include <sys/stat.h>
+// `sys/mman.h defines `MAP_TYPE`, but `MAP_TYPE` also gets defined within V8.
+// Since we don't need `sys/mman.h`'s `MAP_TYPE`, we undefine it immediately
+// after the `#include`.
+#undef MAP_TYPE
+#endif  // V8_TARGET_OS_LINUX
+
 #include "src/wasm/wasm-objects.h"
 
 #include <optional>
@@ -1131,6 +1140,97 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
   return static_cast<int32_t>(old_pages);  // success
+}
+
+MaybeHandle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromAnonymous(
+    Isolate* isolate, size_t length) {
+#if V8_TARGET_OS_LINUX
+  CHECK(v8_flags.experimental_wasm_memory_control);
+  Handle<JSFunction> descriptor_ctor(
+      isolate->native_context()->wasm_memory_map_descriptor_constructor(),
+      isolate);
+
+  auto descriptor_object = Cast<WasmMemoryMapDescriptor>(
+      isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
+
+  int file_descriptor = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
+  printf("Create file descriptor: %d\n", file_descriptor);
+  if (file_descriptor == -1) {
+    return {};
+  }
+  int ret_val = ftruncate(file_descriptor, length);
+  if (ret_val == -1) {
+    return {};
+  }
+  v8::WasmMemoryMapDescriptor::WasmFileDescriptor wasm_fd =
+      static_cast<v8::WasmMemoryMapDescriptor::WasmFileDescriptor>(
+          file_descriptor);
+  descriptor_object->set_file_descriptor(wasm_fd);
+
+  return descriptor_object;
+#else   // V8_TARGET_OS_LINUX
+  return {};
+#endif  // V8_TARGET_OS_LINUX
+}
+
+Handle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromFileDescriptor(
+    Isolate* isolate, int file_descriptor) {
+  CHECK(v8_flags.experimental_wasm_memory_control);
+  Handle<JSFunction> descriptor_ctor(
+      isolate->native_context()->wasm_memory_map_descriptor_constructor(),
+      isolate);
+
+  auto descriptor_object = Cast<WasmMemoryMapDescriptor>(
+      isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
+
+  descriptor_object->set_file_descriptor(file_descriptor);
+
+  return descriptor_object;
+}
+
+size_t WasmMemoryObject::MapDescriptor(
+    Handle<WasmMemoryMapDescriptor> descriptor, size_t offset) {
+#if V8_TARGET_OS_LINUX
+  CHECK(v8_flags.experimental_wasm_memory_control);
+  if (this->array_buffer()->is_shared()) {
+    // TODO(ahaas): Handle concurrent calls to `MapDescriptor`. To prevent
+    // concurrency issues, we disable `MapDescriptor` for shared wasm memories
+    // so far.
+    return 0;
+  }
+
+  uint8_t* target =
+      reinterpret_cast<uint8_t*>(this->array_buffer()->backing_store()) +
+      offset;
+
+  struct stat stat_for_size;
+  if (fstat(descriptor->file_descriptor(), &stat_for_size) == -1) {
+    // Could not determine file size.
+    return 0;
+  }
+  size_t size = RoundUp(stat_for_size.st_size,
+                        GetArrayBufferPageAllocator()->AllocatePageSize());
+
+  if (size + offset < size) {
+    // Overflow
+    return 0;
+  }
+  if (size + offset > this->array_buffer()->byte_length()) {
+    return 0;
+  }
+
+  void* ret_val =
+      mmap(target, size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED,
+           descriptor->file_descriptor(), 0);
+  if (ret_val == MAP_FAILED) {
+    printf("%s\n", strerror(errno));
+    return 0;
+  }
+  DCHECK_EQ(ret_val, target);
+  return size;
+#else
+  return 0;
+#endif
 }
 
 // static

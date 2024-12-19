@@ -290,6 +290,7 @@ namespace internal {
   IF_WASM(V, WasmGlobalObject)                  \
   IF_WASM(V, WasmInstanceObject)                \
   IF_WASM(V, WasmMemoryObject)                  \
+  IF_WASM(V, WasmMemoryMapDescriptor)           \
   IF_WASM(V, WasmModuleObject)                  \
   IF_WASM(V, WasmNull)                          \
   IF_WASM(V, WasmObject)                        \

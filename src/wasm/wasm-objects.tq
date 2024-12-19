@@ -240,6 +240,15 @@ extern class WasmMemoryObject extends JSObject {
   @if(TAGGED_SIZE_8_BYTES) padding_for_address_type_2: uint32;
 }
 
+extern class WasmMemoryMapDescriptor extends JSObject {
+  // TODO(ahaas): Don't store the file descriptor here directly, but store it
+  // in an array in the isolate, and only store an index into that array here.
+  // An attacker could otherwise change the file descriptor here and thereby
+  // access an arbitrary file descriptor.
+  file_descriptor: int32;
+  @if(TAGGED_SIZE_8_BYTES) padding: uint32;
+}
+
 extern class WasmGlobalObject extends JSObject {
   // The instance in which this WasmGlobalObject is defined.
   // This field is not set if the global is defined outside any Wasm module,

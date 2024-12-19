@@ -66,7 +66,11 @@
   V(fp16, "fp16", false)                                                       \
                                                                                \
   /* V8 side owner: irezvov */                                                 \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(growable_stacks, "growable stacks for jspi", false)                        \
+  /* Memory Control proposal */                                                \
+  /* https://github.com/WebAssembly/memory-control */                          \
+  /* V8 side owner: ahaas */                                                   \
+  V(memory_control, "memory control", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
