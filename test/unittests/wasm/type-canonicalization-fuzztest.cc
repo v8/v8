@@ -40,6 +40,7 @@ struct StructType {
     // TODO(381687256): Populate final and supertype.
     constexpr bool kNotFinal = false;
     constexpr ModuleTypeIndex kNoSupertype = ModuleTypeIndex::Invalid();
+    // If this fails, we need to constrain vector sizes in the fuzzer domains.
     DCHECK_GE(kMaxUInt32, field_types.size());
     uint32_t field_count = static_cast<uint32_t>(field_types.size());
     // Offsets are not used and never accessed, hence we can pass nullptr.
@@ -104,15 +105,42 @@ std::ostream& operator<<(std::ostream& os, const Type& type) {
   return os;
 }
 
-// A module with a number of types.
-struct Module {
-  // TODO(381687256): Add recursion groups.
+struct RecursionGroup {
   std::vector<Type> types;
+  // If {single_type} is false, this type will be outside any recursion group.
+  // This is only allowed if {types.size() == 1}.
+  bool single_type = false;
 
   void BuildTypes(Zone* zone, WasmModuleBuilder* builder) const {
-    for (const Type& type : types) {
-      std::visit([zone, builder](const auto& t) { t.BuildType(zone, builder); },
-                 type);
+    auto build_type = [zone, builder](const auto& t) {
+      t.BuildType(zone, builder);
+    };
+    if (single_type) {
+      DCHECK_EQ(1, types.size());
+      std::visit(build_type, types[0]);
+    } else {
+      builder->StartRecursiveTypeGroup();
+      for (const Type& type : types) {
+        std::visit(build_type, type);
+      }
+      builder->EndRecursiveTypeGroup();
+    }
+  }
+
+  void Print(std::ostream& os) const {
+    // Note: {single_type} is not included here because it makes no difference
+    // for canonicalization.
+    os << "recgroup(" << PrintCollection(types).WithoutBrackets() << ")";
+  }
+};
+
+// A module with a number of types.
+struct Module {
+  std::vector<RecursionGroup> rec_groups;
+
+  void BuildTypes(Zone* zone, WasmModuleBuilder* builder) const {
+    for (const RecursionGroup& rec_group : rec_groups) {
+      rec_group.BuildTypes(zone, builder);
     }
   }
 };
@@ -164,8 +192,18 @@ static fuzztest::Domain<test::Module> ArbitraryModule() {
   auto type_domain = fuzztest::VariantOf<test::Type>(
       struct_type_domain, array_type_domain, function_type_domain);
 
+  auto recgroup_domain = fuzztest::OneOf(
+      // A single type declared outside any recursion group.
+      fuzztest::StructOf<test::RecursionGroup>(
+          fuzztest::VectorOf(type_domain).WithSize(1), fuzztest::Just(true)),
+      // An actual recursion group of arbitrary size.
+      // TODO(381687256): Allow recursion groups of size 0.
+      fuzztest::StructOf<test::RecursionGroup>(
+          fuzztest::VectorOf(type_domain).WithMinSize(1),
+          fuzztest::Just(false)));
+
   auto module_domain =
-      fuzztest::StructOf<test::Module>(fuzztest::VectorOf(type_domain));
+      fuzztest::StructOf<test::Module>(fuzztest::VectorOf(recgroup_domain));
   return module_domain;
 }
 
@@ -177,9 +215,9 @@ void TypeCanonicalizerTest::TestCanonicalization(
   // independent of each other.
   Reset();
 
-  // Keep a map of all types in all modules to check that canonicalization works
-  // as expected. The key is a text representation of the respective type; we
-  // expect same text to mean identical type.
+  // Keep a map of all recgroups in all modules to check that canonicalization
+  // works as expected. The key is a text representation of the respective type
+  // or recursion group; we expect same text to mean identical group.
   std::map<std::string, CanonicalTypeIndex> canonical_types;
 
   for (const test::Module& test_module : test_modules) {
@@ -194,22 +232,45 @@ void TypeCanonicalizerTest::TestCanonicalization(
         DecodeWasmModule(enabled_features_, base::VectorOf(buffer),
                          kValidateModule, kWasmOrigin, &detected_features);
 
+    // If this fails due to too many types, we need to constrain vector sizes in
+    // the fuzzer domains.
     ASSERT_TRUE(result.ok());
     std::shared_ptr<WasmModule> module = std::move(result).value();
-    ASSERT_EQ(module->types.size(), test_module.types.size());
+    size_t total_types = 0;
+    for (const test::RecursionGroup& rec_group : test_module.rec_groups) {
+      total_types += rec_group.types.size();
+    }
+    ASSERT_EQ(module->types.size(), total_types);
 
-    for (size_t type_id = 0; type_id < test_module.types.size(); ++type_id) {
-      const test::Type& type = test_module.types[type_id];
-      CanonicalTypeIndex canonical_id = module->canonical_type_id(
-          ModuleTypeIndex{static_cast<uint32_t>(type_id)});
-      std::string type_str = (std::ostringstream{} << type).str();
-      auto [it, added] =
-          canonical_types.insert(std::make_pair(type_str, canonical_id));
-      // Check that the entry holds canonical_id; either it was added here, or
-      // it existed and we check against the existing entry.
-      ASSERT_EQ(it->second, canonical_id) << "New type:\n"
-                                          << type_str << "\nOld type:\n"
-                                          << it->first;
+    size_t num_previous_types = 0;
+    for (const test::RecursionGroup& rec_group : test_module.rec_groups) {
+      // The total number of types must be within kV8MaxWasmTypes.
+      ASSERT_GE(kMaxUInt32, num_previous_types);
+      uint32_t first_type_id = static_cast<uint32_t>(num_previous_types);
+      num_previous_types += rec_group.types.size();
+      // Skip empty recursion groups; they do not get a canonical ID assigned,
+      // so we cannot check anything for them (except that they do not confuse
+      // canonicalization of surrounding types or groups).
+      // TODO(381687256): Enable this once we generate empty recursion groups.
+      // if (rec_group.types.empty()) continue;
+      DCHECK(!rec_group.types.empty());
+      CanonicalTypeIndex first_canonical_id =
+          module->canonical_type_id(ModuleTypeIndex{first_type_id});
+      for (uint32_t i = 1; i < rec_group.types.size(); ++i) {
+        // Canonical IDs are consecutive within the recursion group.
+        ASSERT_EQ(
+            CanonicalTypeIndex{first_canonical_id.index + i},
+            module->canonical_type_id(ModuleTypeIndex{first_type_id + i}));
+      }
+      std::string recgroup_str = (std::ostringstream{} << rec_group).str();
+      auto [it, added] = canonical_types.insert(
+          std::make_pair(recgroup_str, first_canonical_id));
+      // Check that the entry holds first_canonical_id; either it was added
+      // here, or it existed and we check against the existing entry.
+      ASSERT_EQ(it->second, first_canonical_id)
+          << "New recgroup:\n"
+          << recgroup_str << "\nOld recgroup:\n"
+          << it->first;
     }
   }
 }

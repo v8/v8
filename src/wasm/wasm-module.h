@@ -816,6 +816,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   CanonicalTypeIndex canonical_type_id(ModuleTypeIndex index) const {
     size_t num_types = isorecursive_canonical_type_ids.size();
+    DCHECK_EQ(num_types, types.size());
     V8_ASSUME(index.index < num_types);
     return isorecursive_canonical_type_ids[index.index];
   }
