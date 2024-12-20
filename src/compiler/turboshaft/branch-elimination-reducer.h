@@ -235,7 +235,7 @@ class BranchEliminationReducer : public Next {
     }
   }
 
-  OpIndex REDUCE(Branch)(OpIndex cond, Block* if_true, Block* if_false,
+  V<None> REDUCE(Branch)(V<Word32> cond, Block* if_true, Block* if_false,
                          BranchHint hint) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceBranch(cond, if_true, if_false, hint);
@@ -258,7 +258,7 @@ class BranchEliminationReducer : public Next {
           if (!merge_block->HasPhis(__ input_graph())) {
             // Using `ReduceInputGraphGoto()` here enables more optimizations.
             __ Goto(__ MapToNewGraph(merge_block));
-            return OpIndex::Invalid();
+            return V<None>::Invalid();
           }
         }
       }
@@ -269,7 +269,7 @@ class BranchEliminationReducer : public Next {
       // the "first" optimization in the documentation at the top of this
       // module).
       __ Goto(*cond_value ? if_true : if_false);
-      return OpIndex::Invalid();
+      return V<None>::Invalid();
     }
     // We can't optimize this branch.
     goto no_change;
@@ -602,7 +602,7 @@ class BranchEliminationReducer : public Next {
   // {known_conditions_}, and to reuse the existing merging/replay logic of the
   // SnapshotTable.
   ZoneVector<Block*> dominator_path_{__ phase_zone()};
-  LayeredHashMap<OpIndex, bool> known_conditions_{
+  LayeredHashMap<V<Word32>, bool> known_conditions_{
       __ phase_zone(), __ input_graph().DominatorTreeDepth() * 2};
 };
 
