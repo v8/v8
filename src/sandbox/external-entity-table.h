@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
     // Similar to `num_segments()` but also locks the mutex.
     uint32_t NumSegmentsForTesting() {
-      base::SelfishMutexGuard guard(&mutex_);
+      base::SpinningMutexGuard guard(&mutex_);
       return num_segments();
     }
 
@@ -143,7 +143,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
     bool is_internal_read_only_space_ = false;
 
     // Mutex guarding access to the segments_ set.
-    base::SelfishMutex mutex_;
+    base::SpinningMutex mutex_;
   };
 
   // A Space that supports black allocations.

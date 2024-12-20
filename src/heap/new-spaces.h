@@ -249,7 +249,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   explicit NewSpace(Heap* heap);
 
-  base::SelfishMutex* mutex() { return &mutex_; }
+  base::SpinningMutex* mutex() { return &mutex_; }
 
   inline bool Contains(Tagged<Object> o) const;
   inline bool Contains(Tagged<HeapObject> o) const;
@@ -294,7 +294,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  protected:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
 
-  base::SelfishMutex mutex_;
+  base::SpinningMutex mutex_;
 
   virtual void RemovePage(PageMetadata* page) = 0;
 };

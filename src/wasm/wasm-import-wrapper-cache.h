@@ -65,7 +65,7 @@ class WasmImportWrapperCache {
 
    private:
     WasmImportWrapperCache* const cache_;
-    base::SelfishMutexGuard guard_;
+    base::SpinningMutexGuard guard_;
   };
 
   WasmImportWrapperCache() = default;
@@ -99,7 +99,7 @@ class WasmImportWrapperCache {
 
  private:
   std::unique_ptr<WasmCodeAllocator> code_allocator_;
-  mutable base::SelfishMutex mutex_;
+  mutable base::SpinningMutex mutex_;
   std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;
   // Lookup support. The map key is the instruction start address.
   std::map<Address, WasmCode*> codes_;

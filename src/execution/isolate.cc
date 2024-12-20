@@ -247,7 +247,7 @@ std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 // - sticky_embedded_blob_data_size_
 // - enable_embedded_blob_refcounting_
 // - current_embedded_blob_refs_
-base::LazySelfishMutex current_embedded_blob_refcount_mutex_ =
+base::LazySpinningMutex current_embedded_blob_refcount_mutex_ =
     LAZY_SELFISH_MUTEX_INITIALIZER;
 
 const uint8_t* sticky_embedded_blob_code_ = nullptr;
@@ -278,14 +278,14 @@ void SetStickyEmbeddedBlob(const uint8_t* code, uint32_t code_size,
 }  // namespace
 
 void DisableEmbeddedBlobRefcounting() {
-  base::SelfishMutexGuard guard(
+  base::SpinningMutexGuard guard(
       current_embedded_blob_refcount_mutex_.Pointer());
   enable_embedded_blob_refcounting_ = false;
 }
 
 void FreeCurrentEmbeddedBlob() {
   CHECK(!enable_embedded_blob_refcounting_);
-  base::SelfishMutexGuard guard(
+  base::SpinningMutexGuard guard(
       current_embedded_blob_refcount_mutex_.Pointer());
 
   if (StickyEmbeddedBlobCode() == nullptr) return;
@@ -538,7 +538,7 @@ Isolate::FindOrAllocatePerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::SelfishMutexGuard lock_guard(&thread_data_table_mutex_);
+    base::SpinningMutexGuard lock_guard(&thread_data_table_mutex_);
     per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread == nullptr) {
       if (v8_flags.adjust_os_scheduling_parameters) {
@@ -557,7 +557,7 @@ void Isolate::DiscardPerThreadDataForThisThread() {
   if (thread_id.IsValid()) {
     DCHECK_NE(thread_manager_->mutex_owner_.load(std::memory_order_relaxed),
               thread_id);
-    base::SelfishMutexGuard lock_guard(&thread_data_table_mutex_);
+    base::SpinningMutexGuard lock_guard(&thread_data_table_mutex_);
     PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread) {
       DCHECK(!per_thread->thread_state_);
@@ -575,7 +575,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = nullptr;
   {
-    base::SelfishMutexGuard lock_guard(&thread_data_table_mutex_);
+    base::SpinningMutexGuard lock_guard(&thread_data_table_mutex_);
     per_thread = thread_data_table_.Lookup(thread_id);
   }
   return per_thread;
@@ -3723,7 +3723,7 @@ char* Isolate::RestoreThread(char* from) {
 }
 
 void Isolate::ReleaseSharedPtrs() {
-  base::SelfishMutexGuard lock(&managed_ptr_destructors_mutex_);
+  base::SpinningMutexGuard lock(&managed_ptr_destructors_mutex_);
   while (managed_ptr_destructors_head_) {
     ManagedPtrDestructor* l = managed_ptr_destructors_head_;
     ManagedPtrDestructor* n = nullptr;
@@ -3748,7 +3748,7 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::SelfishMutexGuard lock(&managed_ptr_destructors_mutex_);
+  base::SpinningMutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
   if (managed_ptr_destructors_head_) {
@@ -3759,7 +3759,7 @@ void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
-  base::SelfishMutexGuard lock(&managed_ptr_destructors_mutex_);
+  base::SpinningMutexGuard lock(&managed_ptr_destructors_mutex_);
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
@@ -3912,18 +3912,18 @@ class TracingAccountingAllocator : public AccountingAllocator {
 
  protected:
   void TraceAllocateSegmentImpl(v8::internal::Segment* segment) override {
-    base::SelfishMutexGuard lock(&mutex_);
+    base::SpinningMutexGuard lock(&mutex_);
     UpdateMemoryTrafficAndReportMemoryUsage(segment->total_size());
   }
 
   void TraceZoneCreationImpl(const Zone* zone) override {
-    base::SelfishMutexGuard lock(&mutex_);
+    base::SpinningMutexGuard lock(&mutex_);
     active_zones_.insert(zone);
     nesting_depth_++;
   }
 
   void TraceZoneDestructionImpl(const Zone* zone) override {
-    base::SelfishMutexGuard lock(&mutex_);
+    base::SpinningMutexGuard lock(&mutex_);
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
     if (v8_flags.trace_zone_type_stats) {
       type_stats_.MergeWith(zone->type_stats());
@@ -4029,7 +4029,7 @@ class TracingAccountingAllocator : public AccountingAllocator {
   Isolate* const isolate_;
   std::atomic<size_t> nesting_depth_{0};
 
-  base::SelfishMutex mutex_;
+  base::SpinningMutex mutex_;
   std::unordered_set<const Zone*> active_zones_;
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   TypeStats type_stats_;
@@ -4585,7 +4585,7 @@ void Isolate::Deinit() {
 #endif  // V8_ENABLE_LEAPTIERING
 
   {
-    base::SelfishMutexGuard lock_guard(&thread_data_table_mutex_);
+    base::SpinningMutexGuard lock_guard(&thread_data_table_mutex_);
     thread_data_table_.RemoveAllThreads();
   }
 }
@@ -5047,7 +5047,7 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
 
   if (StickyEmbeddedBlobCode() != nullptr) {
-    base::SelfishMutexGuard guard(
+    base::SpinningMutexGuard guard(
         current_embedded_blob_refcount_mutex_.Pointer());
     // Check again now that we hold the lock.
     if (StickyEmbeddedBlobCode() != nullptr) {
@@ -5067,7 +5067,7 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
 }
 
 void Isolate::CreateAndSetEmbeddedBlob() {
-  base::SelfishMutexGuard guard(
+  base::SpinningMutexGuard guard(
       current_embedded_blob_refcount_mutex_.Pointer());
 
   PrepareBuiltinSourcePositionMap();
@@ -5163,7 +5163,7 @@ void Isolate::TearDownEmbeddedBlob() {
   CHECK_EQ(CurrentEmbeddedBlobCode(), StickyEmbeddedBlobCode());
   CHECK_EQ(CurrentEmbeddedBlobData(), StickyEmbeddedBlobData());
 
-  base::SelfishMutexGuard guard(
+  base::SpinningMutexGuard guard(
       current_embedded_blob_refcount_mutex_.Pointer());
   current_embedded_blob_refs_--;
   if (current_embedded_blob_refs_ == 0 && enable_embedded_blob_refcounting_) {
@@ -7311,7 +7311,7 @@ bool Overlapping(const MemoryRange& a, const MemoryRange& b) {
 #endif  // DEBUG
 
 void Isolate::AddCodeMemoryRange(MemoryRange range) {
-  base::SelfishMutexGuard guard(&code_pages_mutex_);
+  base::SpinningMutexGuard guard(&code_pages_mutex_);
   std::vector<MemoryRange>* old_code_pages = GetCodePages();
   DCHECK_NOT_NULL(old_code_pages);
 #ifdef DEBUG
@@ -7564,7 +7564,7 @@ void DefaultWasmAsyncResolvePromiseCallback(
 
 // Mutex used to ensure that the dispatch table entries for builtins are only
 // initialized once.
-base::LazySelfishMutex read_only_dispatch_entries_mutex_ =
+base::LazySpinningMutex read_only_dispatch_entries_mutex_ =
     LAZY_SELFISH_MUTEX_INITIALIZER;
 
 void Isolate::InitializeBuiltinJSDispatchTable() {
@@ -7574,7 +7574,7 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
   // patch it up here. Also, we need a mutex so the shared read only heaps space
   // is not initialized multiple times. This must be blocking as no isolate
   // should be allowed to proceed until the table is initialized.
-  base::SelfishMutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
+  base::SpinningMutexGuard guard(read_only_dispatch_entries_mutex_.Pointer());
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
 
   bool needs_initialization =

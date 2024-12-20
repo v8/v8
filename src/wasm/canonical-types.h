@@ -416,7 +416,7 @@ class TypeCanonicalizer {
       canonical_function_sigs_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
-  mutable base::SelfishMutex mutex_;
+  mutable base::SpinningMutex mutex_;
 };
 
 // Returns a reference to the TypeCanonicalizer shared by the entire process.

@@ -212,7 +212,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   std::unique_ptr<IncrementalMarkingJob> incremental_marking_job_;
   Observer new_generation_observer_;
   Observer old_generation_observer_;
-  base::SelfishMutex background_live_bytes_mutex_;
+  base::SpinningMutex background_live_bytes_mutex_;
   std::unordered_map<MutablePageMetadata*, intptr_t,
                      base::hash<MutablePageMetadata*>>
       background_live_bytes_;

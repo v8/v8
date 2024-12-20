@@ -283,7 +283,7 @@ class StringForwardingTable::BlockVector {
   }
 
   static std::unique_ptr<BlockVector> Grow(BlockVector* data, size_t capacity,
-                                           const base::SelfishMutex& mutex);
+                                           const base::SpinningMutex& mutex);
 
   size_t size() const { return size_; }
 

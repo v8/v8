@@ -27,12 +27,12 @@ class SharedFunctionInfo;
 class V8_EXPORT OptimizingCompileDispatcherQueue {
  public:
   inline bool IsAvailable() {
-    base::SelfishMutexGuard access(&mutex_);
+    base::SpinningMutexGuard access(&mutex_);
     return length_ < capacity_;
   }
 
   inline int Length() {
-    base::SelfishMutexGuard access_queue(&mutex_);
+    base::SpinningMutexGuard access_queue(&mutex_);
     return length_;
   }
 
@@ -44,7 +44,7 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
   ~OptimizingCompileDispatcherQueue() { DeleteArray(queue_); }
 
   TurbofanCompilationJob* Dequeue() {
-    base::SelfishMutexGuard access(&mutex_);
+    base::SpinningMutexGuard access(&mutex_);
     if (length_ == 0) return nullptr;
     TurbofanCompilationJob* job = queue_[QueueIndex(0)];
     DCHECK_NOT_NULL(job);
@@ -54,7 +54,7 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
   }
 
   void Enqueue(TurbofanCompilationJob* job) {
-    base::SelfishMutexGuard access(&mutex_);
+    base::SpinningMutexGuard access(&mutex_);
     DCHECK_LT(length_, capacity_);
     queue_[QueueIndex(length_)] = job;
     length_++;
@@ -76,7 +76,7 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
   int capacity_;
   int length_;
   int shift_;
-  base::SelfishMutex mutex_;
+  base::SpinningMutex mutex_;
 };
 
 class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
@@ -143,7 +143,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   std::deque<TurbofanCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
-  base::SelfishMutex output_queue_mutex_;
+  base::SpinningMutex output_queue_mutex_;
 
   std::unique_ptr<JobHandle> job_handle_;
 

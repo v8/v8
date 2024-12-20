@@ -46,7 +46,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
   IsolateGroup* group = isolate->isolate_group();
   if (read_only_snapshot_data != nullptr) {
     bool read_only_heap_created = false;
-    base::SelfishMutexGuard guard(group->read_only_heap_creation_mutex());
+    base::SpinningMutexGuard guard(group->read_only_heap_creation_mutex());
     ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
     if (!artifacts) {
       artifacts = group->InitializeReadOnlyArtifacts();
@@ -84,7 +84,7 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
 void ReadOnlyHeap::TearDown(Isolate* isolate) {
   IsolateGroup* group = isolate->isolate_group();
   if (group->DecrementIsolateCount() == 0) {
-    base::SelfishMutexGuard guard(group->read_only_heap_creation_mutex());
+    base::SpinningMutexGuard guard(group->read_only_heap_creation_mutex());
     if (isolate->is_shared_space_isolate()) group->ClearSharedSpaceIsolate();
     group->ClearReadOnlyArtifacts();
   }

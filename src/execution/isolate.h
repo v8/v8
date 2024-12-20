@@ -2753,7 +2753,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool allow_atomics_wait_ = true;
 
-  base::SelfishMutex managed_ptr_destructors_mutex_;
+  base::SpinningMutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_ = 0;
@@ -2776,7 +2776,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(kenton@cloudflare.com): This mutex can be removed if
   // thread_data_table_ is always accessed under the isolate lock. I do not
   // know if this is the case, so I'm preserving it for now.
-  base::SelfishMutex thread_data_table_mutex_;
+  base::SpinningMutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
 
   // Stores the isolate containing the shared space.
@@ -2816,7 +2816,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::vector<MemoryRange> code_pages_buffer1_;
   std::vector<MemoryRange> code_pages_buffer2_;
   // The mutex only guards adding pages, the retrieval is signal safe.
-  base::SelfishMutex code_pages_mutex_;
+  base::SpinningMutex code_pages_mutex_;
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;

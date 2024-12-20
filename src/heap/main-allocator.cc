@@ -457,7 +457,7 @@ Heap* AllocatorPolicy::isolate_heap() const {
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  std::optional<base::SelfishMutexGuard> guard;
+  std::optional<base::SpinningMutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();
@@ -513,7 +513,7 @@ void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   allocator_->Verify();
 #endif  // DEBUG
 
-  std::optional<base::SelfishMutexGuard> guard;
+  std::optional<base::SpinningMutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();
@@ -908,7 +908,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
 void PagedSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   if (!allocator_->IsLabValid()) return;
 
-  base::SelfishMutexGuard guard(space_->mutex());
+  base::SpinningMutexGuard guard(space_->mutex());
   FreeLinearAllocationAreaUnsynchronized();
 }
 

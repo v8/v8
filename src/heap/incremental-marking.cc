@@ -108,7 +108,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
 void IncrementalMarking::MarkBlackBackground(Tagged<HeapObject> obj,
                                              int object_size) {
   CHECK(marking_state()->TryMark(obj));
-  base::SelfishMutexGuard guard(&background_live_bytes_mutex_);
+  base::SpinningMutexGuard guard(&background_live_bytes_mutex_);
   background_live_bytes_[MutablePageMetadata::FromHeapObject(obj)] +=
       static_cast<intptr_t>(object_size);
 }

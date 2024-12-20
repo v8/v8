@@ -1895,13 +1895,13 @@ std::string Operation::ToString() const {
   return ss.str();
 }
 
-base::LazySelfishMutex SupportedOperations::mutex_ =
+base::LazySpinningMutex SupportedOperations::mutex_ =
     LAZY_SELFISH_MUTEX_INITIALIZER;
 SupportedOperations SupportedOperations::instance_;
 bool SupportedOperations::initialized_;
 
 void SupportedOperations::Initialize() {
-  base::SelfishMutexGuard lock(mutex_.Pointer());
+  base::SpinningMutexGuard lock(mutex_.Pointer());
   if (initialized_) return;
   initialized_ = true;
 

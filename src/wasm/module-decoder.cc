@@ -491,7 +491,7 @@ class ValidateFunctionsTask : public JobTask {
   // Set the error from the argument if it's earlier than the error we already
   // have (or if we have none yet). Thread-safe.
   void SetError(int func_index, WasmError error) {
-    base::SelfishMutexGuard mutex_guard{&set_error_mutex_};
+    base::SpinningMutexGuard mutex_guard{&set_error_mutex_};
     if (error_out_->has_error() && error_out_->offset() <= error.offset()) {
       return;
     }
@@ -514,7 +514,7 @@ class ValidateFunctionsTask : public JobTask {
   const std::function<bool(int)> filter_;
   std::atomic<int> next_function_;
   const int after_last_function_;
-  base::SelfishMutex set_error_mutex_;
+  base::SpinningMutex set_error_mutex_;
   WasmError* const error_out_;
   std::atomic<WasmDetectedFeatures>* const detected_features_;
 };

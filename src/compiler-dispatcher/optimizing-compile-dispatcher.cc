@@ -100,7 +100,7 @@ void OptimizingCompileDispatcher::CompileNext(TurbofanCompilationJob* job,
     // The function may have already been optimized by OSR.  Simply continue.
     // Use a mutex to make sure that functions marked for install
     // are always also queued.
-    base::SelfishMutexGuard access_output_queue_(&output_queue_mutex_);
+    base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
     output_queue_.push_back(job);
   }
 
@@ -111,7 +111,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::SelfishMutexGuard access_output_queue_(&output_queue_mutex_);
+      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
       output_queue_.pop_front();
@@ -122,7 +122,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
 }
 
 void OptimizingCompileDispatcherQueue::Flush(Isolate* isolate) {
-  base::SelfishMutexGuard access(&mutex_);
+  base::SpinningMutexGuard access(&mutex_);
   while (length_ > 0) {
     std::unique_ptr<TurbofanCompilationJob> job(queue_[QueueIndex(0)]);
     DCHECK_NOT_NULL(job);
@@ -182,7 +182,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::SelfishMutexGuard access_output_queue_(&output_queue_mutex_);
+      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
       output_queue_.pop_front();
@@ -222,7 +222,7 @@ bool OptimizingCompileDispatcher::InstallGeneratedBuiltins(
 
   CHECK(isolate_->IsGeneratingEmbeddedBuiltins());
 
-  base::SelfishMutexGuard access_output_queue_(&output_queue_mutex_);
+  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
 
   std::sort(output_queue_.begin(), output_queue_.end(),
             [](const TurbofanCompilationJob* job1,
@@ -249,7 +249,7 @@ bool OptimizingCompileDispatcher::InstallGeneratedBuiltins(
 
 size_t OptimizingCompileDispatcher::ComputeOutputQueueTotalZoneSize() {
   size_t total_size = 0;
-  base::SelfishMutexGuard access_output_queue_(&output_queue_mutex_);
+  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
   for (const TurbofanCompilationJob* job : output_queue_) {
     total_size += job->compilation_info()->zone()->allocation_size();
   }
@@ -275,7 +275,7 @@ void OptimizingCompileDispatcher::QueueForOptimization(
 
 void OptimizingCompileDispatcherQueue::Prioritize(
     Tagged<SharedFunctionInfo> function) {
-  base::SelfishMutexGuard access(&mutex_);
+  base::SpinningMutexGuard access(&mutex_);
   if (length_ > 1) {
     for (int i = length_ - 1; i > 1; --i) {
       if (*queue_[QueueIndex(i)]->compilation_info()->shared_info() ==

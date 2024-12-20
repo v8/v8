@@ -65,7 +65,7 @@ class MemoryAllocator {
     }
 
     MutablePageMetadata* TryGetPooled() {
-      base::SelfishMutexGuard guard(&mutex_);
+      base::SpinningMutexGuard guard(&mutex_);
       if (pooled_chunks_.empty()) return nullptr;
       MutablePageMetadata* chunk = pooled_chunks_.back();
       pooled_chunks_.pop_back();
@@ -80,7 +80,7 @@ class MemoryAllocator {
    private:
     MemoryAllocator* const allocator_;
     std::vector<MutablePageMetadata*> pooled_chunks_;
-    mutable base::SelfishMutex mutex_;
+    mutable base::SpinningMutex mutex_;
 
     friend class MemoryAllocator;
   };
@@ -190,7 +190,7 @@ class MemoryAllocator {
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
   bool IsMemoryChunkExecutable(MutablePageMetadata* chunk) {
-    base::SelfishMutexGuard guard(&executable_memory_mutex_);
+    base::SpinningMutexGuard guard(&executable_memory_mutex_);
     return executable_memory_.find(chunk) != executable_memory_.end();
   }
 #endif  // DEBUG
@@ -370,14 +370,14 @@ class MemoryAllocator {
 
 #ifdef DEBUG
   void RegisterExecutableMemoryChunk(MutablePageMetadata* chunk) {
-    base::SelfishMutexGuard guard(&executable_memory_mutex_);
+    base::SpinningMutexGuard guard(&executable_memory_mutex_);
     DCHECK(chunk->Chunk()->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
     DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.insert(chunk);
   }
 
   void UnregisterExecutableMemoryChunk(MutablePageMetadata* chunk) {
-    base::SelfishMutexGuard guard(&executable_memory_mutex_);
+    base::SpinningMutexGuard guard(&executable_memory_mutex_);
     DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
     executable_memory_.erase(chunk);
   }
@@ -434,7 +434,7 @@ class MemoryAllocator {
   // This data structure is used only in DCHECKs.
   std::unordered_set<MutablePageMetadata*, base::hash<MutablePageMetadata*>>
       executable_memory_;
-  base::SelfishMutex executable_memory_mutex_;
+  base::SpinningMutex executable_memory_mutex_;
 #endif  // DEBUG
 
   // Allocated normal and large pages are stored here, to be used during
@@ -443,7 +443,7 @@ class MemoryAllocator {
       normal_pages_;
   std::set<const MemoryChunk*> large_pages_;
 
-  mutable base::SelfishMutex chunks_mutex_;
+  mutable base::SpinningMutex chunks_mutex_;
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;
