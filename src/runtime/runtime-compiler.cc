@@ -733,7 +733,7 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
              "concurrent_osr is disabled. function: %s, osr offset: %d]\n",
              function->DebugNameCStr().get(), osr_offset.ToInt());
     }
-    return function->code(isolate);
+    return Smi::zero();
   }
 
   if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() ||
