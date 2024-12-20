@@ -1799,7 +1799,6 @@ class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
 
   bool done() const { return iterator_.done(); }
   void Advance();
-  void AdvanceOneFrame() { iterator_.Advance(); }
   int FrameFunctionCount() const;
 
   inline CommonFrame* frame() const;
