@@ -655,27 +655,17 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   DoubleRegister fscratch1 = temps.AcquireScratchDouble();
 
-  // TODO(Yuri Gaevsky): can we be better here?
   if (kind_ == Kind::kNearest) {
-    Register tmp = temps.AcquireScratch();
-    DoubleRegister half_one = temps.AcquireDouble();  // available in this mode
-    __ Round_d_d(out, in, fscratch1);
     // RISC-V Rounding Mode RNE means "Round to Nearest, ties to Even", while JS
     // expects it to round towards +Infinity (see ECMA-262, 20.2.2.28).
-    // Fix the difference by checking if we rounded down by exactly 0.5, and
-    // if so, round to the other side.
-    DoubleRegister fsubtract = fscratch1;
-    __ fmv_d(fsubtract, in);
-    __ fsub_d(fsubtract, fsubtract, out);
+    // The best seems to be to add 0.5 then round with RDN mode.
+
+    DoubleRegister half_one = temps.AcquireDouble();  // available in this mode
     __ LoadFPRImmediate(half_one, 0.5);
-    __ CompareF64(tmp, FPUCondition::NE, fsubtract, half_one);
-    Label done;
-    // (in - rounded(in)) != 0.5?
-    __ MacroAssembler::Branch(&done, ne, tmp, Operand(zero_reg), Label::kNear);
-    // Fix wrong tie-to-even by adding 0.5 twice.
-    __ fadd_d(out, out, half_one);
-    __ fadd_d(out, out, half_one);
-    __ bind(&done);
+    DoubleRegister tmp = half_one;
+    __ fadd_d(tmp, in, half_one);
+    __ Floor_d_d(out, tmp, fscratch1);
+    __ fsgnj_d(out, out, in);
   } else if (kind_ == Kind::kCeil) {
     __ Ceil_d_d(out, in, fscratch1);
   } else if (kind_ == Kind::kFloor) {
