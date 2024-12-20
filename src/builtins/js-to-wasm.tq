@@ -130,6 +130,8 @@ const kWrapperBufferGPReturnRegister2: constexpr intptr
     ;
 const kWrapperBufferSize: constexpr int32
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferSize';
+const kMaxParamBufferSize: constexpr intptr
+    generates 'wasm::kGenericJSToWasmWrapperParamBufferMaxSize';
 
 const kValueTypeKindBits: constexpr int32
     generates 'wasm::ValueType::kKindBits';
@@ -181,6 +183,8 @@ struct Int64AsInt32Pair {
 
 // This is only safe to use on 32-bit platforms.
 extern macro BigIntToRawBytes(BigInt): Int64AsInt32Pair;
+
+extern macro GenericJSToWasmWrapperParamBuffer(): RawPtr<intptr>;
 
 // The ReturnSlotAllocator calculates the size of the space needed on the stack
 // for return values.
@@ -368,6 +372,10 @@ struct LocationAllocator {
         this.object, offset);
   }
 
+  macro CheckBufferEnd(): void {
+    check(this.paramBufferEnd == 0 || this.nextStack < this.paramBufferEnd);
+  }
+
   object: HeapObject|TaggedZeroPattern;
   remainingGPRegs: intptr;
   remainingFPRegs: intptr;
@@ -375,6 +383,9 @@ struct LocationAllocator {
   nextFPReg: intptr;
   nextStack: intptr;
   stackStart: intptr;
+  // The end of the paramBuffer. The stack buffer is not allowed to be filled
+  // beyond the buffer end.
+  paramBufferEnd: intptr;
   // Even on 32-bit platforms we always allocate 64-bit stack space at a time to
   // preserve alignment. If we allocate a 64-bit slot for a 32-bit type, then we
   // remember the second half of the 64-bit slot as `smallSlot` so that it can
@@ -406,6 +417,7 @@ macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
   result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
+  result.paramBufferEnd = paramBuffer.offset + kMaxParamBufferSize;
   return result;
 }
 
@@ -421,6 +433,7 @@ macro LocationAllocatorForReturns(
   result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
+  result.paramBufferEnd = 0;
   return result;
 }
 
@@ -575,43 +588,8 @@ macro JSToWasmWrapperHelper(
       sigTypes, Convert<intptr>(returnCount), Convert<intptr>(paramCount))
       otherwise unreachable;
 
-  let paramBuffer: &intptr;
-
-  // 10 here is an arbitrary number. The analysis of signatures of exported
-  // functions of big modules showed that most signatures have a low number of
-  // I32 parameters. We picked a cutoff point where for most signatures the
-  // pre-allocated stack slots are sufficient without making these stack slots
-  // overly big.
-  if (paramCount <= 10) {
-    // Performance optimization: we pre-allocate a stack area with 18
-    // 8-byte slots, and use this area when it is sufficient for all
-    // parameters. If the stack area is too small, we allocate a byte array
-    // below. The stack area is big enough for 10 parameters. The 10 parameters
-    // need 18 * 8 bytes because some segments of the stack area are reserved
-    // for register parameters, and there may e.g. be no FP parameters passed
-    // by register, so all 8 FP register slots would remain empty.
-    const stackSlots = %RawDownCast<RawPtr<intptr>>(
-        StackSlotPtr(144, torque_internal::SizeOf<float64>()));
-    paramBuffer = torque_internal::unsafe::NewOffHeapReference(stackSlots);
-  } else {
-    // We have to estimate the size of the byte array such that it can store
-    // all converted parameters. The size is the sum of sizes of the segments
-    // for the gp registers, fp registers, and stack slots. The sizes of
-    // the register segments are fixed, but for the size of the stack segment
-    // we have to guess the number of parameters on the stack. On ia32 it can
-    // happen that only a single parameter fits completely into a register, and
-    // all other parameters end up at least partially on the stack (e.g. for a
-    // signature with only I64 parameters). To make the calculation simpler, we
-    // just assume that all parameters are on the stack.
-    const kSlotSize: intptr = torque_internal::SizeOf<float64>();
-    const bufferSize = UniqueIntPtrConstant(kNumGPRegisterParameters) *
-            Convert<intptr>(torque_internal::SizeOf<intptr>()) +
-        UniqueIntPtrConstant(kNumFPRegisterParameters) * kSlotSize +
-        Convert<intptr>(paramCount) * kSlotSize;
-    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).values;
-    paramBuffer = torque_internal::unsafe::NewReference<intptr>(
-        slice.object, slice.offset);
-  }
+  let paramBuffer = torque_internal::unsafe::NewOffHeapReference(
+      GenericJSToWasmWrapperParamBuffer());
 
   let locationAllocator = LocationAllocatorForParams(paramBuffer);
   let hasRefParam: bool = false;
@@ -720,6 +698,7 @@ macro JSToWasmWrapperHelper(
   }
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
+  locationAllocator.CheckBufferEnd();
 
   const callTarget = functionData.internal.raw_call_target;
 
@@ -950,6 +929,7 @@ builtin JSToWasmHandleReturns(
       }
     }
   }
+  locationAllocator.CheckBufferEnd();
 
   locationAllocator = LocationAllocatorForReturns(
       wrapperBuffer + kWrapperBufferGPReturnRegister1,
@@ -1007,6 +987,7 @@ builtin JSToWasmHandleReturns(
       fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
     }
   }
+  locationAllocator.CheckBufferEnd();
 
   return resultArray;
 }

@@ -1086,6 +1086,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(LoadProtectedPointerField(
         data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
   }
+
+  TNode<RawPtrT> GenericJSToWasmWrapperParamBuffer() {
+    return Load<RawPtrT>(
+        IsolateField(IsolateFieldId::kGenericJSToWasmWrapperParamBuffer));
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

@@ -2291,6 +2291,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // {wasm_stacks_} list. This does *not* update the ActiveContinuation root and
   // the stack limit.
   void RetireWasmStack(wasm::StackMemory* stack);
+
+  // The generic wrapper operates on a byte array in the isolate data. This
+  // method makes sure that the byte array exists.
+  void EnsureGenericJSToWasmWrapperParamBufferExists();
 #else
   bool IsOnCentralStack() { return true; }
 #endif
@@ -2821,6 +2825,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
+  // The `unique_ptr` here only exists for memory management, the memory only
+  // gets accessed through the pointer in IsolateData.
+  std::unique_ptr<uint8_t[]> generic_js_to_wasm_wrapper_param_buffer_owner_;
+
 #if V8_ENABLE_DRUMBRAKE
   std::unique_ptr<wasm::WasmExecutionTimer> wasm_execution_timer_;
 #endif  // V8_ENABLE_DRUMBRAKE

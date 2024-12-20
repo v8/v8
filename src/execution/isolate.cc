@@ -151,6 +151,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -3871,6 +3872,15 @@ void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
 
 wasm::WasmOrphanedGlobalHandle* Isolate::NewWasmOrphanedGlobalHandle() {
   return wasm::WasmEngine::NewOrphanedGlobalHandle(&wasm_orphaned_handle_);
+}
+
+void Isolate::EnsureGenericJSToWasmWrapperParamBufferExists() {
+  if (generic_js_to_wasm_wrapper_param_buffer_owner_) return;
+
+  generic_js_to_wasm_wrapper_param_buffer_owner_ = std::make_unique<uint8_t[]>(
+      wasm::kGenericJSToWasmWrapperParamBufferMaxSize);
+  isolate_data_.generic_js_to_wasm_wrapper_param_buffer_ =
+      generic_js_to_wasm_wrapper_param_buffer_owner_.get();
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

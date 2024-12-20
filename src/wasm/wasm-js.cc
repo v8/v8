@@ -2263,6 +2263,7 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     wrapper =
         i::DirectHandle<i::Code>(data->wrapper_code(i_isolate), i_isolate);
   } else {
+    i_isolate->EnsureGenericJSToWasmWrapperParamBufferExists();
     wrapper = BUILTIN_CODE(i_isolate, WasmPromising);
   }
 

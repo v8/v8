@@ -155,6 +155,8 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
+  IF_WASM(V, GenericJSToWasmWrapperParamBuffer, kSystemPointerSize,            \
+          generic_js_to_wasm_wrapper_param_buffer)                             \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -508,6 +510,10 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
+
+#if V8_ENABLE_WEBASSEMBLY
+  uint8_t* generic_js_to_wasm_wrapper_param_buffer_ = nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.
