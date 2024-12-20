@@ -3293,7 +3293,7 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
     // Check that the parent suspender is active.
     Label parent_inactive;
     Register state = tmp2;
-    __ Move(state, state_loc);
+    __ LoadTaggedSignedField(state, state_loc, r0);
     __ SmiUntag(state);
     __ JumpIfEqual(state, WasmSuspenderObject::kActive, &parent_inactive);
     __ Trap();
@@ -3631,8 +3631,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Check the suspender state.
   Label suspender_is_suspended;
   DEFINE_REG(state);
-  __ LoadU64(state,
-             FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset), r0);
+  __ LoadTaggedSignedField(
+      state, FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset), r0);
   __ SmiUntag(state);
   __ JumpIfEqual(state, WasmSuspenderObject::kSuspended,
                  &suspender_is_suspended);
