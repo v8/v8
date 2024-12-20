@@ -307,12 +307,14 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
       return Changed(node);
     }
     case ContextSidePropertyCell::kMutableInt32: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          concrete, access.index(), property, broker());
       Node* mutable_heap_number;
       if (auto concrete_heap_number =
               concrete.get(broker(), static_cast<int>(access.index()))) {
-        DCHECK(concrete_heap_number->IsHeapNumber());
+        if (!concrete_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return NoChange();
+        }
         mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
             concrete_heap_number->AsHeapNumber(), broker());
       } else {
@@ -321,6 +323,8 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
                 AccessBuilder::ForContextSlot(access.index())),
             jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
       Node* int32_load = effect = jsgraph_->graph()->NewNode(
           jsgraph_->simplified()->LoadField(AccessBuilder::ForHeapInt32Value()),
           mutable_heap_number, effect, control);
@@ -328,12 +332,14 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
       return Changed(node);
     }
     case ContextSidePropertyCell::kMutableHeapNumber: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          concrete, access.index(), property, broker());
       Node* mutable_heap_number;
       if (auto concrete_heap_number =
               concrete.get(broker(), static_cast<int>(access.index()))) {
-        DCHECK(concrete_heap_number->IsHeapNumber());
+        if (!concrete_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return NoChange();
+        }
         mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
             concrete_heap_number->AsHeapNumber(), broker());
       } else {
@@ -342,6 +348,8 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
                 AccessBuilder::ForContextSlot(access.index())),
             jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
       Node* double_load = effect =
           jsgraph_->graph()->NewNode(jsgraph_->simplified()->LoadField(
                                          AccessBuilder::ForHeapNumberValue()),
@@ -474,12 +482,14 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
       return Changed(node);
     }
     case ContextSidePropertyCell::kMutableInt32: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          concrete, access.index(), property, broker());
       Node* mutable_heap_number;
       if (auto concrete_heap_number =
               concrete.get(broker(), static_cast<int>(access.index()))) {
-        DCHECK(concrete_heap_number->IsHeapNumber());
+        if (!concrete_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return NoChange();
+        }
         mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
             concrete_heap_number->AsHeapNumber(), broker());
       } else {
@@ -488,6 +498,8 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
                 AccessBuilder::ForContextSlot(access.index())),
             jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
       Node* input_number =
           access_builder.BuildCheckNumberFitsInt32(value, &effect, control);
       Node* double_store = jsgraph()->graph()->NewNode(
@@ -498,12 +510,14 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
       return Changed(node);
     }
     case ContextSidePropertyCell::kMutableHeapNumber: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          concrete, access.index(), property, broker());
       Node* mutable_heap_number;
       if (auto concrete_heap_number =
               concrete.get(broker(), static_cast<int>(access.index()))) {
-        DCHECK(concrete_heap_number->IsHeapNumber());
+        if (!concrete_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return NoChange();
+        }
         mutable_heap_number = jsgraph_->ConstantMutableHeapNumber(
             concrete_heap_number->AsHeapNumber(), broker());
       } else {
@@ -512,6 +526,8 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
                 AccessBuilder::ForContextSlot(access.index())),
             jsgraph_->ConstantNoHole(concrete, broker()), effect, control);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          concrete, access.index(), property, broker());
       Node* input_number =
           access_builder.BuildCheckNumber(value, &effect, control);
       Node* double_store = jsgraph()->graph()->NewNode(

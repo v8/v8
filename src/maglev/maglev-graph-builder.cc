@@ -3106,31 +3106,44 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
       return value;
     }
     case ContextSidePropertyCell::kMutableInt32:
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context, index, property, broker());
       if (auto mutable_heap_number = context.get(broker(), index)) {
-        DCHECK(mutable_heap_number->IsHeapNumber());
+        if (!mutable_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          break;
+        }
+        broker()->dependencies()->DependOnScriptContextSlotProperty(
+            context, index, property, broker());
         return AddNewNode<LoadInt32>(
             {GetConstant(*mutable_heap_number)},
             static_cast<int>(offsetof(HeapNumber, value_)));
       }
-      return AddNewNode<LoadHeapInt32>({context_node}, offset);
-    case ContextSidePropertyCell::kMutableHeapNumber:
       broker()->dependencies()->DependOnScriptContextSlotProperty(
           context, index, property, broker());
+      return AddNewNode<LoadHeapInt32>({context_node}, offset);
+    case ContextSidePropertyCell::kMutableHeapNumber:
       if (auto mutable_heap_number = context.get(broker(), index)) {
-        DCHECK(mutable_heap_number->IsHeapNumber());
+        if (!mutable_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          break;
+        }
+        broker()->dependencies()->DependOnScriptContextSlotProperty(
+            context, index, property, broker());
         return AddNewNode<LoadFloat64>(
             {GetConstant(*mutable_heap_number)},
             static_cast<int>(offsetof(HeapNumber, value_)));
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          context, index, property, broker());
       return AddNewNode<LoadDoubleField>({context_node}, offset);
     case ContextSidePropertyCell::kOther:
-      return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
-                                                                 offset);
+      break;
     default:
       UNREACHABLE();
   }
+  return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
+                                                             offset);
 }
 
 ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
@@ -3230,29 +3243,37 @@ ReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
       break;
     case ContextSidePropertyCell::kMutableInt32:
       EnsureInt32(value, true);
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context_ref, index, property, broker());
       if (auto mutable_heap_number = context_ref.get(broker(), index)) {
-        DCHECK(mutable_heap_number->IsHeapNumber());
+        if (!mutable_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return ReduceResult::Fail();
+        }
         *store = AddNewNode<StoreInt32>(
             {GetConstant(*mutable_heap_number), value},
             static_cast<int>(offsetof(HeapNumber, value_)));
       } else {
         *store = AddNewNode<StoreHeapInt32>({context, value}, offset);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          context_ref, index, property, broker());
       break;
     case ContextSidePropertyCell::kMutableHeapNumber:
       BuildCheckNumber(value);
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context_ref, index, property, broker());
       if (auto mutable_heap_number = context_ref.get(broker(), index)) {
-        DCHECK(mutable_heap_number->IsHeapNumber());
+        if (!mutable_heap_number->IsHeapNumber()) {
+          // TODO(victorgomes): In case the tag is out of date by now we could
+          // retry this reduction.
+          return ReduceResult::Fail();
+        }
         *store = AddNewNode<StoreFloat64>(
             {GetConstant(*mutable_heap_number), value},
             static_cast<int>(offsetof(HeapNumber, value_)));
       } else {
         *store = AddNewNode<StoreDoubleField>({context, value}, offset);
       }
+      broker()->dependencies()->DependOnScriptContextSlotProperty(
+          context_ref, index, property, broker());
       break;
     case ContextSidePropertyCell::kOther:
       *store = BuildStoreTaggedField(context, value, offset,
