@@ -8791,7 +8791,6 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeApply(
         broker()->GetFeedbackForCall(current_speculation_feedback_);
     DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
     const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-    compiler::OptionalHeapObjectRef maybe_receiver;
     if (call_feedback.call_feedback_content() ==
         CallFeedbackContent::kReceiver) {
       maybe_receiver = call_feedback.target();
