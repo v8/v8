@@ -99,6 +99,12 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   trusted_pointer_compression_cage_ =
       TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
   sandbox_ = sandbox;
+
+  code_pointer_table()->Initialize();
+
+#ifdef V8_ENABLE_LEAPTIERING
+  js_dispatch_table()->Initialize();
+#endif  // V8_ENABLE_LEAPTIERING
 }
 #elif defined(V8_COMPRESS_POINTERS)
 void IsolateGroup::Initialize(bool process_wide) {
@@ -114,11 +120,17 @@ void IsolateGroup::Initialize(bool process_wide) {
   page_allocator_ = reservation_.page_allocator();
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ = &reservation_;
+#ifdef V8_ENABLE_LEAPTIERING
+  js_dispatch_table()->Initialize();
+#endif  // V8_ENABLE_LEAPTIERING
 }
 #else   // !V8_COMPRESS_POINTERS
 void IsolateGroup::Initialize(bool process_wide) {
   process_wide_ = process_wide;
   page_allocator_ = GetPlatformPageAllocator();
+#ifdef V8_ENABLE_LEAPTIERING
+  js_dispatch_table()->Initialize();
+#endif  // V8_ENABLE_LEAPTIERING
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -149,14 +161,6 @@ void IsolateGroup::InitializeOncePerProcess() {
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup::set_current(group);
 #endif
-
-#ifdef V8_ENABLE_SANDBOX
-  group->code_pointer_table()->Initialize();
-#endif
-
-#ifdef V8_ENABLE_LEAPTIERING
-  group->js_dispatch_table()->Initialize();
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void IsolateGroup::Release() {
