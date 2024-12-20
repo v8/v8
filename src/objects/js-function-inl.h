@@ -335,6 +335,8 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
     case TieringBuiltin::kStartTurbofanOptimizeJob:
       if (mode == ConcurrencyMode::kConcurrent) return CodeKind::TURBOFAN_JS;
       break;
+    case TieringBuiltin::kMarkLazyDeoptimized:
+    case TieringBuiltin::kMarkReoptimizeLazyDeoptimized:
     case TieringBuiltin::kFunctionLogNextExecution:
       break;
   }

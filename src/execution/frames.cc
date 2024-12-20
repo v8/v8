@@ -3225,7 +3225,8 @@ int OptimizedJSFrame::LookupExceptionHandlerInTable(
       if (optimized_exception_handler != HandlerTable::kLazyDeopt) {
         return optimized_exception_handler;
       }
-      Deoptimizer::DeoptimizeFunction(function(), code);
+      Deoptimizer::DeoptimizeFunction(
+          function(), LazyDeoptimizeReason::kExceptionCaught, code);
     }
     DCHECK(code->marked_for_deoptimization());
     pc_offset = FindReturnPCForTrampoline(code, pc_offset);

@@ -98,6 +98,7 @@ class Deoptimizer : public Malloced {
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
   static void DeoptimizeFunction(Tagged<JSFunction> function,
+                                 LazyDeoptimizeReason reason,
                                  Tagged<Code> code = {});
 
   // Deoptimize all code in the given isolate.
@@ -168,7 +169,7 @@ class Deoptimizer : public Malloced {
 
   // Tracing.
   static void TraceMarkForDeoptimization(Isolate* isolate, Tagged<Code> code,
-                                         const char* reason);
+                                         LazyDeoptimizeReason reason);
   static void TraceEvictFromOptimizedCodeCache(Isolate* isolate,
                                                Tagged<SharedFunctionInfo> sfi,
                                                const char* reason);

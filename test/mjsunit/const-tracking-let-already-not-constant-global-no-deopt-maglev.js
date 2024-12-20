@@ -44,5 +44,4 @@ write(1);
 // Now it depends on Sminess of the context slot.
 assertOptimized(write);
 
-assertUnoptimized(read);
 assertEquals(1, read());
