@@ -372,8 +372,8 @@ struct LocationAllocator {
         this.object, offset);
   }
 
-  macro CheckBufferEnd(): void {
-    check(this.paramBufferEnd == 0 || this.nextStack < this.paramBufferEnd);
+  macro CheckBufferOverflow(): void {
+    check(this.paramBufferEnd == 0 || this.nextStack <= this.paramBufferEnd);
   }
 
   object: HeapObject|TaggedZeroPattern;
@@ -698,7 +698,7 @@ macro JSToWasmWrapperHelper(
   }
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
-  locationAllocator.CheckBufferEnd();
+  locationAllocator.CheckBufferOverflow();
 
   const callTarget = functionData.internal.raw_call_target;
 
@@ -929,7 +929,7 @@ builtin JSToWasmHandleReturns(
       }
     }
   }
-  locationAllocator.CheckBufferEnd();
+  locationAllocator.CheckBufferOverflow();
 
   locationAllocator = LocationAllocatorForReturns(
       wrapperBuffer + kWrapperBufferGPReturnRegister1,
@@ -987,7 +987,7 @@ builtin JSToWasmHandleReturns(
       fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
     }
   }
-  locationAllocator.CheckBufferEnd();
+  locationAllocator.CheckBufferOverflow();
 
   return resultArray;
 }

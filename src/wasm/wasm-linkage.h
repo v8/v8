@@ -155,10 +155,10 @@ static_assert(kWasmImplicitArgRegister ==
 // may only use a single type for all parameters, in which case some parameter
 // registers will remain empty. Thus the buffer size is the maximum number of
 // parameters + the parameter registers that may remain empty.
+// TODO(ahaas): Figure out a lower number if possible.
 constexpr size_t kGenericJSToWasmWrapperParamBufferMaxSize =
-    (wasm::kV8MaxWasmFunctionParams +
-     std::max(arraysize(wasm::kGpParamRegisters),
-              arraysize(wasm::kFpParamRegisters))) *
+    (wasm::kV8MaxWasmFunctionParams + arraysize(wasm::kGpParamRegisters) +
+     arraysize(wasm::kFpParamRegisters)) *
     kDoubleSize;
 
 class LinkageAllocator {

@@ -50,6 +50,7 @@ var kPageSize = 65536;
 var kSpecMaxPages = 65536;
 var kMaxVarInt32Size = 5;
 var kMaxVarInt64Size = 10;
+var kSpecMaxFunctionParams = 1_000;
 
 let kDeclNoLocals = 0;
 
