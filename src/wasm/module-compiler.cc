@@ -268,12 +268,6 @@ class CompilationUnitQueues {
     top_tier_compiled_[func_index].store(false, std::memory_order_relaxed);
   }
 
-  void AllowAnotherTopTierJobForAllFunctions() {
-    for (int i = 0; i < num_declared_functions_; i++) {
-      AllowAnotherTopTierJob(i);
-    }
-  }
-
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:
@@ -660,10 +654,26 @@ class CompilationStateImpl {
 
   void AllowAnotherTopTierJob(uint32_t func_index) {
     compilation_unit_queues_.AllowAnotherTopTierJob(func_index);
+    // Reset the stored priority; otherwise triggers might be ignored if the
+    // priority is not bumped to the next power of two.
+    TypeFeedbackStorage* feedback = &native_module_->module()->type_feedback;
+    feedback->feedback_for_function[func_index].tierup_priority = 0;
   }
 
   void AllowAnotherTopTierJobForAllFunctions() {
-    compilation_unit_queues_.AllowAnotherTopTierJobForAllFunctions();
+    const WasmModule* module = native_module_->module();
+    uint32_t fn_start = module->num_imported_functions;
+    uint32_t fn_end = fn_start + module->num_declared_functions;
+    std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_map =
+        module->type_feedback.feedback_for_function;
+    for (uint32_t i = fn_start; i < fn_end; i++) {
+      compilation_unit_queues_.AllowAnotherTopTierJob(i);
+      // Reset the stored priority; otherwise triggers might be ignored if the
+      // priority is not bumped to the next power of two.
+      if (auto it = feedback_map.find(i); it != feedback_map.end()) {
+        it->second.tierup_priority = 0;
+      }
+    }
   }
 
   bool failed() const {
