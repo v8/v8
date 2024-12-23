@@ -76,10 +76,10 @@ constexpr int kDoubleToFixedMaxChars =
 // letter 'e', a minus or a plus depending on the exponent, and a
 // three digit exponent.
 constexpr int kDoubleToPrecisionMaxChars = kMaxFractionDigits + 7;
-// Leave room in the result for appending a minus, for a period, the
-// letter 'e', a minus or a plus depending on the exponent, and a
-// three digit exponent.
-constexpr int kDoubleToExponentialMaxChars = kMaxFractionDigits + 7;
+// Leave room in the result for one digit before the period, a minus, a period,
+// the letter 'e', a minus or a plus depending on the exponent, and a three
+// digit exponent.
+constexpr int kDoubleToExponentialMaxChars = kMaxFractionDigits + 8;
 // The algorithm starts with the decimal point in the middle and writes to the
 // left for the integer part and to the right for the fractional part.
 // 1024 characters for the exponent and 52 for the mantissa either way, with
