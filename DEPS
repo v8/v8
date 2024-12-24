@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4791118db40dd754decf5452885ab744aa4636f4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8f6742f2336cb295c150bbf8449af32ddddbf1e9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '56013b77b6c0a650d00bde40e750e7c3b7c6bc3d',
   'buildtools/linux64': {
@@ -232,7 +232,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'cf6dc5d38385e4ff6faf9bf0883a67c2f511076b',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '822902749a5956bba09c7e9e451104e8a74f02c5',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '3b4a590f7fc75a77823580c4c4e19d1c7bd6da52',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'f3c355f9dd382bc2c323be2713e351a578b68c61',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e54519b09463cec3aea77a1739e02c97ca766da5',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
