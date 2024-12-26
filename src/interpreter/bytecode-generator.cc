@@ -1839,7 +1839,7 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
 
   HandlerTable::CatchPrediction outer_catch_prediction = catch_prediction();
   // When compiling a REPL script, use UNCAUGHT_ASYNC_AWAIT to preserve the
-  // exception so DevTools can inspect it.
+  // pending message so DevTools can inspect it.
   set_catch_prediction(literal->scope()->is_repl_mode_scope()
                            ? HandlerTable::UNCAUGHT_ASYNC_AWAIT
                            : HandlerTable::ASYNC_AWAIT);
@@ -1853,8 +1853,11 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
         RegisterList args = register_allocator()->NewRegisterList(2);
         builder()
             ->MoveRegister(generator_object(), args[0])
-            .StoreAccumulatorInRegister(args[1])  // exception
-            .CallRuntime(Runtime::kInlineAsyncFunctionReject, args);
+            .StoreAccumulatorInRegister(args[1]);  // exception
+        if (!literal->scope()->is_repl_mode_scope()) {
+          builder()->LoadTheHole().SetPendingMessage();
+        }
+        builder()->CallRuntime(Runtime::kInlineAsyncFunctionReject, args);
         // TODO(358404372): Should this return have a statement position?
         // Without one it is not possible to apply a debugger breakpoint.
         BuildReturn(kNoSourcePosition);
@@ -1912,6 +1915,8 @@ void BytecodeGenerator::GenerateAsyncGeneratorFunctionBody() {
               builder()
                   ->MoveRegister(generator_object(), args[0])
                   .StoreAccumulatorInRegister(args[1])  // exception
+                  .LoadTheHole()
+                  .SetPendingMessage()
                   .CallRuntime(Runtime::kInlineAsyncGeneratorReject, args);
               execution_control()->ReturnAccumulator(kNoSourcePosition);
             },
