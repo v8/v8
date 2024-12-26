@@ -620,8 +620,11 @@ if (v8_enable_sandbox == "") {
                       v8_enable_external_code_space && target_os != "fuchsia"
 }
 if (v8_enable_leaptiering == "") {
-  v8_enable_leaptiering = v8_enable_sandbox || v8_current_cpu == "x64" ||
-                          v8_current_cpu == "arm64" ||
+  # TODO(https://crbug.com/386194917): Enabling leaptiering when
+  # "v8_current_cpu == x64" is suspected of causing failures for the
+  # "chromium/ci/Deterministic Fuchsia (dbg)" bot. Re-enable support for this
+  # once the issue(s) leading to these failures is/are resolved.
+  v8_enable_leaptiering = v8_enable_sandbox || v8_current_cpu == "arm64" ||
                           v8_current_cpu == "x86" || v8_current_cpu == "arm"
 }
 
