@@ -1190,9 +1190,18 @@ class ParserBase {
             token_after_using != Token::kOf && token_after_using != Token::kIn);
   }
   bool IfStartsWithUsingKeyword() {
-    return ((peek() == Token::kUsing && IfNextUsingKeyword(PeekAhead())) ||
-            (peek() == Token::kAwait && PeekAhead() == Token::kUsing &&
-             IfNextUsingKeyword(PeekAheadAhead())));
+    // ForDeclaration[Yield, Await, Using] : ...
+    //    [+Using] using [no LineTerminator here] ForBinding[?Yield, ?Await,
+    //    ~Pattern]
+    //    [+Using, +Await] await [no LineTerminator here] using [no
+    //    LineTerminator here] ForBinding[?Yield, +Await, ~Pattern]
+    return (
+        (peek() == Token::kUsing && !scanner()->HasLineTerminatorAfterNext() &&
+         IfNextUsingKeyword(PeekAhead())) ||
+        (peek() == Token::kAwait && !scanner()->HasLineTerminatorAfterNext() &&
+         PeekAhead() == Token::kUsing &&
+         !scanner()->HasLineTerminatorAfterNextNext() &&
+         IfNextUsingKeyword(PeekAheadAhead())));
   }
   FunctionState* AddOneSuspendPointIfBlockContainsAwaitUsing(
       Scope* scope, FunctionState* function_state) {

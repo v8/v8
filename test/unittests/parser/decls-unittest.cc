@@ -1078,6 +1078,8 @@ TEST_F(DeclsTest, TestUsing) {
                   EXPECT_ERROR);
     context.Check("{for(using {x} = {x:5}; x < 10 ; i++) {\n console.log(x);}}",
                   EXPECT_ERROR);
+    context.Check("{for(using\n x = 0; x < 10 ; x++) {\n console.log(x);}) {}}",
+                  EXPECT_ERROR);
     context.Check("{var using; \n using = 42;}", EXPECT_RESULT,
                   Number::New(isolate(), 42));
   }
@@ -1102,6 +1104,18 @@ TEST_F(DeclsTest, TestAwaitUsing) {
         EXPECT_ERROR);
     context.Check(
         "async function f() {for(await using {x} = {x:5}; x < 10 ; i++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using \n x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using \n x = 0; x < 10 ; x++) {\n "
         "console.log(x);}} \n f();",
         EXPECT_ERROR);
     context.Check(
