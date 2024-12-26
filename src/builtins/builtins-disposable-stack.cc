@@ -115,8 +115,7 @@ BUILTIN(DisposableStackPrototypeDispose) {
       JSDisposableStackBase::DisposeResources(
           isolate, disposable_stack, {},
           DisposableStackResourcesType::kAllSync));
-
-  return *result;
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(DisposableStackPrototypeGetDisposed) {
