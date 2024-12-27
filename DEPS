@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:26.20241220.3.1',
+  'fuchsia_version': 'version:26.20241227.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,7 +126,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4158c92829a8e37bdaa4a2211065352b13bd4c49',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '788f9879a56c383aae8328cb5a2b6344ea7891bf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2823e220cbd03e103d40b388974758ce46614ae2',
   'buildtools/linux64': {
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '3b4a590f7fc75a77823580c4c4e19d1c7bd6da52',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e54519b09463cec3aea77a1739e02c97ca766da5',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '7d76a231b0e29caf86e68d1df858308cd53b2a66',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
