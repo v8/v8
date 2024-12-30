@@ -109,7 +109,6 @@ class Operand {
   inline intptr_t immediate_for_heap_number_request() const {
     DCHECK(rmode() == RelocInfo::FULL_EMBEDDED_OBJECT);
     return value_.immediate;
-    ;
   }
 
   inline intptr_t immediate() const {
@@ -271,10 +270,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_constant_address_at(Address pc);
-  V8_INLINE static void set_target_address_at(
-      Address pc, Address target,
-      WritableJitAllocation* jit_allocation = nullptr,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   static Address target_address_at(Address pc, Address constant_pool);
 
@@ -297,8 +292,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       Address pc, Address constant_pool);
 
   inline Handle<HeapObject> embedded_object_handle_at(Address pc);
+
+#ifdef V8_TARGET_ARCH_RISCV64
   inline void set_embedded_object_index_referenced_from(
       Address p, EmbeddedObjectIndex index);
+#endif
 
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
@@ -467,6 +465,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
         : assem_(assem) {
+      if (margin > 0) {
+        assem_->CheckTrampolinePoolQuick(margin / kInstrSize);
+      }
       assem_->StartBlockTrampolinePool();
     }
 
@@ -486,11 +487,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     // Block Trampoline Pool and Constant Pool. Emits pools if necessary to
     // ensure that {margin} more bytes can be emitted without triggering pool
     // emission.
-    explicit BlockPoolsScope(Assembler* assem, size_t margin = 0)
-        : block_const_pool_(assem, margin), block_trampoline_pool_(assem) {}
+    explicit BlockPoolsScope(Assembler* assem, int margin = 0)
+        : block_const_pool_(assem, margin),
+          block_trampoline_pool_(assem, margin) {}
 
-    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check)
-        : block_const_pool_(assem, check), block_trampoline_pool_(assem) {}
+    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check, int margin = 0)
+        : block_const_pool_(assem, check),
+          block_trampoline_pool_(assem, margin) {}
     ~BlockPoolsScope() {}
 
    private:
@@ -607,7 +610,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   void CheckTrampolinePoolQuick(int extra_instructions = 0) {
-    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
+    DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
                  next_buffer_check_ - extra_instructions * kInstrSize);
     if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
       CheckTrampolinePool();

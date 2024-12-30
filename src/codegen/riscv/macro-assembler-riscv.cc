@@ -2702,7 +2702,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       EmbeddedObjectIndex index = AddEmbeddedObject(handle);
       if (RecordEntry(static_cast<uint64_t>(index), j.rmode()) ==
           RelocInfoStatus::kMustRecord) {
-        RecordRelocInfo(j.rmode(), immediate);
+        RecordRelocInfo(j.rmode(), index);
       }
       DEBUG_PRINTF("\t EmbeddedObjectIndex%lu\n", index);
       auipc(rd, 0);
@@ -2711,6 +2711,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
       // patched with real value in the future
       LoadWord(rd, MemOperand(rd, 1));
 #elif V8_TARGET_ARCH_RISCV32
+      RecordRelocInfo(j.rmode());
       li_constant(rd, immediate);
 #endif
       return;
@@ -4478,6 +4479,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
+        BlockPoolsScope block_pools(this, 3 * kInstrSize);
         BranchShort(&skip, neg_cond, rs, rt);
         BranchLong(L);
         bind(&skip);
@@ -4487,10 +4489,13 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted() && distance == Label::Distance::kFar) {
+    DEBUG_PRINTF("\t Branch is_trampoline_emitted %d\n",
+                 is_trampoline_emitted());
+    if (is_trampoline_emitted()) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
+        BlockPoolsScope block_pools(this, 3 * kInstrSize);
         BranchShort(&skip, neg_cond, rs, rt);
         BranchLong(L);
         bind(&skip);

@@ -1791,7 +1791,7 @@ TEST(TARGET_ADDR) {
   MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
 
   uintptr_t addr = reinterpret_cast<uintptr_t>(&buffer[0]);
-  Address res = __ target_address_at(static_cast<Address>(addr));
+  Address res = __ target_constant_address_at(static_cast<Address>(addr));
   CHECK_EQ(0x00304abfe961L, res);
 #else
   // This is the series of instructions to load 48 bit address 0x0123456789ab

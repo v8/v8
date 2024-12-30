@@ -157,13 +157,13 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
 
 Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
     Address pc, Address const_pool) {
-  DEBUG_PRINTF("compressed_embedded_object_handle_at: pc: 0x%" PRIxPTR " \t ",
+  DEBUG_PRINTF("\tcompressed_embedded_object_handle_at: pc: 0x%" PRIxPTR " \t ",
                pc);
   return GetEmbeddedObject(target_compressed_address_at(pc, const_pool));
 }
 
 Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
-  DEBUG_PRINTF("embedded_object_handle_at: pc: 0x%" PRIxPTR " \t", pc);
+  DEBUG_PRINTF("\tembedded_object_handle_at: pc: 0x%" PRIxPTR " \n", pc);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -186,24 +186,26 @@ Handle<HeapObject> Assembler::embedded_object_handle_at(Address pc) {
   return GetEmbeddedObject(
       Memory<EmbeddedObjectIndex>(pc + embedded_target_offset));
 #else
-  return Handle<HeapObject>(
-      reinterpret_cast<Address*>(uint32_constant_at(pc, kNullAddress)));
+  DCHECK(IsLui(Assembler::instr_at(pc)));
+  DCHECK(IsAddi(Assembler::instr_at(pc + kInstrSize)));
+  auto target = target_address_at(pc, kNullAddress);
+  DEBUG_PRINTF("\ttarget %d\n", target);
+  return Handle<HeapObject>(reinterpret_cast<Address*>(target));
 #endif
 }
 
+#if V8_TARGET_ARCH_RISCV64
 void Assembler::set_embedded_object_index_referenced_from(
     Address pc, EmbeddedObjectIndex data) {
-#if V8_TARGET_ARCH_RISCV64
   Instr instr1 = Assembler::instr_at(pc);
   Instr instr2 = Assembler::instr_at(pc + kInstrSize);
   DCHECK(IsAuipc(instr1));
   DCHECK(IsLd(instr2));
   int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
   Memory<EmbeddedObjectIndex>(pc + embedded_target_offset) = data;
-#else
-  set_target_value_at(pc, data);
-#endif
 }
+#endif
+
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
@@ -245,7 +247,6 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DEBUG_PRINTF("\t target_object_handle %d\n", rmode_);
   if (IsCodeTarget(rmode_)) {
     return Cast<HeapObject>(
         origin->code_target_object_handle_at(pc_, constant_pool_));

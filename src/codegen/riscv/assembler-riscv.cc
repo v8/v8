@@ -249,8 +249,12 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
         isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
+#ifdef V8_TARGET_ARCH_RISCV64
     EmbeddedObjectIndex index = AddEmbeddedObject(object);
     set_embedded_object_index_referenced_from(pc, index);
+#else
+    set_target_value_at(pc, reinterpret_cast<uintptr_t>(object.location()));
+#endif
   }
 }
 
@@ -1559,10 +1563,11 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 #endif
       int32_t Hi20 = AuipcOffset(*instr);
       int32_t Lo12 = LoadOffset(*reinterpret_cast<Instr*>(pc + 4));
-      jit_allocation->WriteUnalignedValue(
-          reinterpret_cast<Address>(pc + Hi20 + Lo12), target);
-      if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        FlushInstructionCache(pc + Hi20 + Lo12, 2 * kInstrSize);
+      if (jit_allocation) {
+        jit_allocation->WriteValue<Address>(
+            reinterpret_cast<Address>(pc + Hi20 + Lo12), target);
+      } else {
+        Memory<Address>(reinterpret_cast<Address>(pc + Hi20 + Lo12)) = target;
       }
     } else {
       DCHECK(IsJalr(*reinterpret_cast<Instr*>(pc + 4)));
@@ -1575,24 +1580,6 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);
       }
-    }
-  } else {
-    set_target_address_at(pc, target, jit_allocation, icache_flush_mode);
-  }
-}
-
-void Assembler::set_target_address_at(Address pc, Address target,
-                                      WritableJitAllocation* jit_allocation,
-                                      ICacheFlushMode icache_flush_mode) {
-  Instr instr1 = Assembler::instr_at(pc);
-  Instr instr2 = Assembler::instr_at(pc + kInstrSize);
-  if (IsAuipc(instr1)) {
-    DCHECK(IsLd(instr2));
-    int32_t embedded_target_offset = BrachlongOffset(instr1, instr2);
-    if (jit_allocation) {
-      jit_allocation->WriteValue<Address>(pc + embedded_target_offset, target);
-    } else {
-      Memory<Address>(pc + embedded_target_offset) = target;
     }
   } else {
     set_target_value_at(pc, target, jit_allocation, icache_flush_mode);
@@ -1691,7 +1678,7 @@ Address Assembler::target_constant_address_at(Address pc) {
 void Assembler::set_target_value_at(Address pc, uint64_t target,
                                     WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
-  DEBUG_PRINTF("set_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64
+  DEBUG_PRINTF("\tset_target_value_at: pc: %" PRIxPTR "\ttarget: %" PRIx64
                "\told: %" PRIx64 "\n",
                pc, target, target_address_at(pc, static_cast<Address>(0)));
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
@@ -1758,7 +1745,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
 
 #elif V8_TARGET_ARCH_RISCV32
 Address Assembler::target_constant_address_at(Address pc) {
-  DEBUG_PRINTF("target_constant_address_at: pc: %x\t", pc);
+  DEBUG_PRINTF("\ttarget_constant_address_at: pc: %x\t", pc);
   int32_t addr = target_constant32_at(pc);
   DEBUG_PRINTF("\taddr: %x\n", addr);
   return static_cast<Address>(addr);
@@ -1771,7 +1758,7 @@ Address Assembler::target_constant_address_at(Address pc) {
 void Assembler::set_target_value_at(Address pc, uint32_t target,
                                     WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
-  DEBUG_PRINTF("set_target_value_at: pc: %x\ttarget: %x\n", pc, target);
+  DEBUG_PRINTF("\tset_target_value_at: pc: %x\ttarget: %x\n", pc, target);
   set_target_constant32_at(pc, target, jit_allocation, icache_flush_mode);
 }
 #endif
