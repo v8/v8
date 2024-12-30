@@ -486,22 +486,6 @@ int Assembler::target_at(int pos, bool is_internal) {
   return instr | (imm12 & kImm12Mask);
 }
 
-[[nodiscard]] static inline Instr SetAuipcOffset(int32_t offset, Instr instr) {
-  DCHECK(Assembler::IsAuipc(instr));
-  DCHECK(is_int20(offset));
-  instr = (instr & ~kImm31_12Mask) | ((offset & kImm19_0Mask) << 12);
-  return instr;
-}
-
-[[nodiscard]] static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
-  DCHECK(Assembler::IsJalr(instr));
-  DCHECK(is_int12(offset));
-  instr &= ~kImm12Mask;
-  int32_t imm12 = offset << kImm12Shift;
-  DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
-  DCHECK_EQ(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)), offset);
-  return instr | (imm12 & kImm12Mask);
-}
 
 [[nodiscard]] static inline Instr SetJalOffset(int32_t pos, int32_t target_pos,
                                                Instr instr) {
@@ -605,10 +589,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-        instr_auipc = SetAuipcOffset(Hi20, instr_auipc);
+        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
         instr_at_put(pos, instr_auipc);
 
-        instr_I = SetJalrOffset(Lo12, instr_I);
+        instr_I = SetLo12Offset(Lo12, instr_I);
         instr_at_put(pos + 4, instr_I);
         DCHECK_EQ(offset, BrachlongOffset(Assembler::instr_at(pos),
                                           Assembler::instr_at(pos + 4)));
@@ -646,7 +630,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
 
-        instr_auipc = SetAuipcOffset(Hi20, instr_auipc);
+        instr_auipc = SetHi20Offset(Hi20, instr_auipc);
         instr_at_put(pos, instr_auipc);
 
         const int kImm31_20Mask = ((1 << 12) - 1) << 20;
@@ -824,8 +808,9 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
   CHECK(is_int32(offset + 0x800));
   int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
   int32_t Lo12 = (int32_t)offset << 20 >> 20;
-  instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc), jit_allocation);
-  instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr), jit_allocation);
+  instr_at_put(pc, SetHi20Offset(Hi20, instr_auipc), jit_allocation);
+  instr_at_put(pc + kInstrSize, SetLo12Offset(Lo12, instr_jalr),
+               jit_allocation);
   DCHECK(offset ==
          BrachlongOffset(Assembler::instr_at(pc), Assembler::instr_at(pc + 4)));
   return 2;
@@ -1698,7 +1683,7 @@ Address Assembler::target_constant_address_at(Address pc) {
 // 4-instruction sequence:
 //  lui(reg, (int32_t)high_20); // 20 high bits
 //  addi(reg, reg, low_12); // 12 following bits. total is 32 high bits in reg.
-//  slli(reg, reg, 7); // Space for next 7 bits
+//  slli(reg, reg, 8); // Space for next 7 bits
 //  ori(reg, reg, a7); // 7 bits are put in.
 //
 // Patching the address must replace all instructions, and flush the i-cache.
@@ -1725,14 +1710,13 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 8) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);   // 19 bits
   int64_t low_12 = high_31 & 0xfff;              // 12 bits
-  *p = *p & 0xfff;
-  *p = *p | ((int32_t)high_20 << 12);
-  *(p + 1) = *(p + 1) & 0xfffff;
-  *(p + 1) = *(p + 1) | ((int32_t)low_12 << 20);
-  *(p + 2) = *(p + 2) & 0xfffff;
-  *(p + 2) = *(p + 2) | (8 << 20);
-  *(p + 3) = *(p + 3) & 0xfffff;
-  *(p + 3) = *(p + 3) | ((int32_t)a8 << 20);
+  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc + 1 * kInstrSize,
+               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+  instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (8 << 20),
+               jit_allocation);
+  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)a8 << 20),
+               jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 6 * kInstrSize);
   }
@@ -1754,18 +1738,17 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   int64_t high_31 = (target >> 17) & 0x7fffffff;  // 31 bits
   int64_t high_20 = ((high_31 + 0x800) >> 12);    // 19 bits
   int64_t low_12 = high_31 & 0xfff;               // 12 bits
-  *p = *p & 0xfff;
-  *p = *p | ((int32_t)high_20 << 12);
-  *(p + 1) = *(p + 1) & 0xfffff;
-  *(p + 1) = *(p + 1) | ((int32_t)low_12 << 20);
-  *(p + 2) = *(p + 2) & 0xfffff;
-  *(p + 2) = *(p + 2) | (11 << 20);
-  *(p + 3) = *(p + 3) & 0xfffff;
-  *(p + 3) = *(p + 3) | ((int32_t)b11 << 20);
-  *(p + 4) = *(p + 4) & 0xfffff;
-  *(p + 4) = *(p + 4) | (6 << 20);
-  *(p + 5) = *(p + 5) & 0xfffff;
-  *(p + 5) = *(p + 5) | ((int32_t)a6 << 20);
+  instr_at_put(pc, (*p & 0xfff) | ((int32_t)high_20 << 12), jit_allocation);
+  instr_at_put(pc + 1 * kInstrSize,
+               (*(p + 1) & 0xfffff) | ((int32_t)low_12 << 20), jit_allocation);
+  instr_at_put(pc + 2 * kInstrSize, (*(p + 2) & 0xfffff) | (11 << 20),
+               jit_allocation);
+  instr_at_put(pc + 3 * kInstrSize, (*(p + 3) & 0xfffff) | ((int32_t)b11 << 20),
+               jit_allocation);
+  instr_at_put(pc + 4 * kInstrSize, (*(p + 4) & 0xfffff) | (6 << 20),
+               jit_allocation);
+  instr_at_put(pc + 5 * kInstrSize, (*(p + 5) & 0xfffff) | ((int32_t)a6 << 20),
+               jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 8 * kInstrSize);
   }
@@ -1947,7 +1930,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   CHECK(is_int32(distance + 0x800));
   int32_t Hi20 = (((int32_t)distance + 0x800) >> 12);
   int32_t Lo12 = (int32_t)distance << 20 >> 20;
-  assm_->instr_at_put(load_offset, SetAuipcOffset(Hi20, instr_auipc));
+  assm_->instr_at_put(load_offset, SetHi20Offset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLoadOffset(Lo12, instr_load));
 }
 

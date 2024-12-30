@@ -367,20 +367,20 @@ int32_t Assembler::target_constant32_at(Address pc) {
 void Assembler::set_target_constant32_at(Address pc, uint32_t target,
                                          WritableJitAllocation* jit_allocation,
                                          ICacheFlushMode icache_flush_mode) {
-  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
-#ifdef DEBUG
-  // Check we have the result from a li macro-instruction.
   Instruction* instr0 = Instruction::At((unsigned char*)pc);
   Instruction* instr1 = Instruction::At((unsigned char*)(pc + 1 * kInstrSize));
+#ifdef DEBUG
+  // Check we have the result from a li macro-instruction.
   DCHECK(IsLui(*reinterpret_cast<Instr*>(instr0)) &&
          IsAddi(*reinterpret_cast<Instr*>(instr1)));
 #endif
   int32_t high_20 = ((target + 0x800) >> 12);  // 20 bits
   int32_t low_12 = target & 0xfff;             // 12 bits
-  *p = *p & 0xfff;
-  *p = *p | ((int32_t)high_20 << 12);
-  *(p + 1) = *(p + 1) & 0xfffff;
-  *(p + 1) = *(p + 1) | ((int32_t)low_12 << 20);
+  instr_at_put(pc, SetHi20Offset(high_20, instr0->InstructionBits()),
+               jit_allocation);
+  instr_at_put(pc + 1 * kInstrSize,
+               SetLo12Offset(low_12, instr1->InstructionBits()),
+               jit_allocation);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 2 * kInstrSize);
   }
@@ -403,6 +403,23 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
   CHECK(IsLui(*reinterpret_cast<Instr*>(instr1)));
   CHECK(IsAddi(*reinterpret_cast<Instr*>(instr2)));
   set_target_constant32_at(pc, new_constant, jit_allocation, icache_flush_mode);
+}
+
+[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi20, Instr instr) {
+  DCHECK(Assembler::IsAuipc(instr) | Assembler::IsLui(instr));
+  DCHECK(is_int20(hi20));
+  instr = (instr & ~kImm31_12Mask) | ((hi20 & kImm19_0Mask) << 12);
+  return instr;
+}
+
+[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr) {
+  DCHECK(Assembler::IsJalr(instr) | Assembler::IsAddi(instr));
+  DCHECK(is_int12(lo12));
+  instr &= ~kImm12Mask;
+  int32_t imm12 = lo12 << kImm12Shift;
+  DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)) ||
+         Assembler::IsAddi(instr | (imm12 & kImm12Mask)));
+  return instr | (imm12 & kImm12Mask);
 }
 
 }  // namespace internal

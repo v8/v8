@@ -558,6 +558,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(Address pc, Instr instr,
                            WritableJitAllocation* jit_allocation = nullptr);
+
   Instr instr_at(int pos) {
     return *reinterpret_cast<Instr*>(buffer_start_ + pos);
   }
@@ -1014,6 +1015,9 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   RegList old_available_;
   DoubleRegList old_available_double_;
 };
+
+[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi29, Instr instr);
+[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
 
 }  // namespace internal
 }  // namespace v8
