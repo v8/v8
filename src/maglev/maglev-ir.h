@@ -5262,8 +5262,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     DCHECK_NE(offset, 0);  // Don't try to set the map through this setter.
     DCHECK_EQ(type_, kDefault);
     DCHECK(!IsSnapshot());
-    // Values set here can leak to the interpreter. Conversions should be stored
-    // in known_node_aspects/NodeInfo.
+    // Values set here can leak to the interpreter frame state. Conversions
+    // should be stored in known_node_aspects/NodeInfo.
     DCHECK(!value->properties().is_conversion());
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());

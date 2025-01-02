@@ -154,6 +154,29 @@ class V8_NODISCARD ReduceResult {
     variable = res.value();                  \
   } while (false)
 
+#define GET_VIRTUAL_OBJECT_OR_ABORT(variable, result) \
+  do {                                                \
+    ReduceResult res = (result);                      \
+    if (res.IsDoneWithAbort()) {                      \
+      return ReduceResult::DoneWithAbort();           \
+    }                                                 \
+    DCHECK(res.IsDoneWithValue());                    \
+    DCHECK(res.value()->Is<VirtualObject>());         \
+    variable = res.value()->Cast<VirtualObject>();    \
+  } while (false)
+
+#define GET_VIRTUAL_OBJECT_OR_RETURN_VOID_IF_ABORT(variable, result) \
+  do {                                                               \
+    ReduceResult res = (result);                                     \
+    if (res.IsDoneWithAbort()) {                                     \
+      MarkBytecodeDead();                                            \
+      return;                                                        \
+    }                                                                \
+    DCHECK(res.IsDoneWithValue());                                   \
+    DCHECK(res.value()->Is<VirtualObject>());                        \
+    variable = res.value()->Cast<VirtualObject>();                   \
+  } while (false)
+
 #define RETURN_VOID_IF_ABORT(result)  \
   do {                                \
     if ((result).IsDoneWithAbort()) { \
@@ -2061,8 +2084,8 @@ class MaglevGraphBuilder {
                               ConvertReceiverMode receiver_mode);
 
   ValueNode* BuildElementsArray(int length);
-  ValueNode* BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
-  ValueNode* BuildAndAllocateJSArray(
+  ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
+  ReduceResult BuildAndAllocateJSArray(
       compiler::MapRef map, ValueNode* length, ValueNode* elements,
       const compiler::SlackTrackingPrediction& slack_tracking_prediction,
       AllocationType allocation_type);
@@ -2405,8 +2428,8 @@ class MaglevGraphBuilder {
   VirtualObject* CreateDoubleFixedArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
-  VirtualObject* CreateJSArray(compiler::MapRef map, int instance_size,
-                               ValueNode* length);
+  ReduceResult CreateJSArray(compiler::MapRef map, int instance_size,
+                             ValueNode* length);
   VirtualObject* CreateJSArrayIterator(compiler::MapRef map,
                                        ValueNode* iterated_object,
                                        IterationKind kind);
