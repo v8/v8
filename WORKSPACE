@@ -40,11 +40,6 @@ local_repository(
 )
 
 bind(
-    name = "absl_optional",
-    actual = "@com_google_absl//absl/types:optional"
-)
-
-bind(
     name = "absl_btree",
     actual = "@com_google_absl//absl/container:btree"
 )
@@ -57,6 +52,11 @@ bind(
 bind(
     name = "absl_flat_hash_set",
     actual = "@com_google_absl//absl/container:flat_hash_set"
+)
+
+bind(
+    name = "absl_synchronization",
+    actual = "@com_google_absl//absl/synchronization"
 )
 
 local_repository(

@@ -98,7 +98,7 @@ def _default_args():
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
-                "_WIN32_WINNT=0x0602",  # Override bazel default to Windows 8
+                "_WIN32_WINNT=0x0A00",  # Override bazel default to Windows 10
             ],
             "//conditions:default": [],
         }),
@@ -316,7 +316,11 @@ def v8_library(
 # split the set of outputs by using OutputGroupInfo, that way we do not need to
 # run the torque generator twice.
 def _torque_files_impl(ctx):
-    v8root = "."
+    # Allow building V8 as a dependency: workspace_root points to external/v8
+    # when building V8 from a different repository and empty otherwise.
+    v8root = ctx.label.workspace_root
+    if v8root == "":
+        v8root = "."
 
     # Arguments
     args = []
@@ -495,6 +499,7 @@ def v8_mksnapshot(name, args, suffix = ""):
         suffix = suffix,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
+            "@v8//bazel/config:is_windows": "win",
             "//conditions:default": "",
         }),
     )
@@ -506,6 +511,7 @@ def v8_mksnapshot(name, args, suffix = ""):
         suffix = suffix,
         target_os = select({
             "@v8//bazel/config:is_macos": "mac",
+            "@v8//bazel/config:is_windows": "win",
             "//conditions:default": "",
         }),
     )

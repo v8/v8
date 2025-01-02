@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
@@ -525,7 +525,7 @@ v8_config(
             "UNICODE",
             "_UNICODE",
             "_CRT_RAND_S",
-            "_WIN32_WINNT=0x0602",
+            "_WIN32_WINNT=0x0A00",
         ],
     }) + select({
         ":is_v8_enable_pointer_compression": [
@@ -822,6 +822,7 @@ filegroup(
         "src/base/platform/mutex.h",
         "src/base/platform/platform.cc",
         "src/base/platform/platform.h",
+        "src/base/platform/platform-posix.h",  # Always included by src/execution/isolate.h
         "src/base/platform/semaphore.cc",
         "src/base/platform/semaphore.h",
         "src/base/platform/time.cc",
@@ -866,7 +867,6 @@ filegroup(
     ] + select({
         "@v8//bazel/config:is_posix": [
             "src/base/platform/platform-posix.cc",
-            "src/base/platform/platform-posix.h",
             "src/base/platform/platform-posix-time.cc",
             "src/base/platform/platform-posix-time.h",
         ],
@@ -889,6 +889,7 @@ filegroup(
         "@v8//bazel/config:is_windows": [
             "src/base/debug/stack_trace_win.cc",
             "src/base/platform/platform-win32.cc",
+            "src/base/platform/platform-win32.h",
             "src/base/win32-headers.h",
         ],
     }),
@@ -2757,18 +2758,17 @@ filegroup(
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
+        "@v8//bazel/config:is_windows": [
+            "src/trap-handler/handler-inside-win.cc",
+            "src/trap-handler/handler-inside-win.h",
+            "src/trap-handler/handler-outside-win.cc",
+            "include/v8-wasm-trap-handler-win.h",
+        ],
         "//conditions:default": [],
     }) + select({
         "@v8//bazel/config:v8_arm64_simulator": [
             "src/trap-handler/handler-outside-simulator.cc",
             "src/trap-handler/trap-handler-simulator.h",
-        ],
-        "//conditions:default": [],
-    }) + select({
-        "@v8//bazel/config:is_windows": [
-            "src/trap-handler/handler-inside-win.cc",
-            "src/trap-handler/handler-inside-win.h",
-            "src/trap-handler/handler-outside-win.cc",
         ],
         "//conditions:default": [],
     }) + select({
@@ -4298,6 +4298,10 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
+    deps = select({
+        "@v8//bazel/config:is_macos": ["//external:absl_synchronization"],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
@@ -4324,7 +4328,6 @@ cc_library(
     deps = [
         ":torque_base_headers",
         ":v8_libbase",
-        "//external:absl_optional",
     ],
 )
 
@@ -4449,7 +4452,6 @@ v8_binary(
     srcs = [
         "src/regexp/gen-regexp-special-case.cc",
         "src/regexp/special-case.h",
-        ":v8_libbase_files",
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
@@ -4461,7 +4463,7 @@ v8_binary(
         "UNISTR_FROM_CHAR_EXPLICIT=",
     ],
     deps = [
-        "//external:absl_optional",
+        ":v8_libbase",
         "//external:icu",
     ],
 )
