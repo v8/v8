@@ -24,9 +24,7 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
-  UNREACHABLE();
-}
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   const Address start = reinterpret_cast<Address>(simd128_registers_);

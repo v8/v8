@@ -239,6 +239,12 @@ class BaselineAssembler {
   inline void LoadFeedbackCell(Register output);
   inline void AssertFeedbackCell(Register object);
 
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // If CET shadow stack is enabled, reserves a few bytes as NOP that can be
+  // patched later.
+  inline void MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
   inline static void EmitReturn(MacroAssembler* masm);
 
   MacroAssembler* masm() { return masm_; }

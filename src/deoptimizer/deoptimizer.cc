@@ -370,7 +370,7 @@ class ActivationsFinder : public ThreadVisitor {
             Address new_pc = code->instruction_start() + trampoline_pc;
             if (v8_flags.cet_compatible) {
               Address pc = *it.frame()->pc_address();
-              Deoptimizer::PatchJumpToTrampoline(pc, new_pc);
+              Deoptimizer::PatchToJump(pc, new_pc);
             } else {
               // Replace the current pc on the stack with the trampoline.
               // TODO(v8:10026): avoid replacing a signed pointer.
@@ -846,6 +846,11 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
                                              Tagged<Code> code,
                                              LazyDeoptimizeReason reason) {
+  // `DiscardBaselineCodeVisitor` can discard baseline code for debug purpose,
+  // and it may use `MarkForDeoptimization` for interpreting the new stack
+  // frame as an interpreter frame, but it does not have deoptimization data.
+  if (code->kind() == CodeKind::BASELINE) return;
+
   DCHECK(code->uses_deoptimization_data());
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 

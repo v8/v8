@@ -615,7 +615,7 @@ Label* BaselineCompiler::BuildForwardJumpLabel() {
   return EnsureLabel(target_offset);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(V8_ENABLE_CET_SHADOW_STACK)
 // Allowlist to mark builtin calls during which it is impossible that the
 // sparkplug frame would have to be deoptimized. Either because they don't
 // execute any user code, or because they would anyway replace the current
@@ -635,7 +635,7 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
       return true;
   }
 }
-#endif  // DEBUG
+#endif  // DEBUG || V8_ENABLE_CET_SHADOW_STACK
 
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::CallBuiltin(Args... args) {
@@ -648,6 +648,11 @@ void BaselineCompiler::CallBuiltin(Args... args) {
   ASM_CODE_COMMENT(&masm_);
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ CallBuiltin(kBuiltin);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (BuiltinMayDeopt(kBuiltin)) {
+    __ MaybeEmitPlaceHolderForDeopt();
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 template <Builtin kBuiltin, typename... Args>
@@ -668,6 +673,9 @@ void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  __ MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 // Returns into kInterpreterAccumulatorRegister

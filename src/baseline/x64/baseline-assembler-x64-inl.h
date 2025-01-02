@@ -540,6 +540,14 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   __ Switch(scope.AcquireScratch(), reg, case_value_base, labels, num_labels);
 }
 
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+void BaselineAssembler::MaybeEmitPlaceHolderForDeopt() {
+  if (v8_flags.cet_compatible) {
+    __ Nop(Assembler::kIntraSegmentJmpInstrSize);
+  }
+}
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 #undef __
 #define __ basm.
 

@@ -38,7 +38,7 @@ const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 #endif
 
 // static
-void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
   if (!Assembler::IsNop(pc)) {
     // The place holder could be already patched.
     DCHECK(Assembler::IsJmpRel(pc));
@@ -46,6 +46,9 @@ void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
   }
 
   RwxMemoryWriteScope rwx_write_scope("Patch jump to deopt trampoline");
+  intptr_t displacement =
+      new_pc - (pc + MacroAssembler::kIntraSegmentJmpInstrSize);
+  CHECK(is_int32(displacement));
   // We'll overwrite only one instruction of 5-bytes. Give enough
   // space not to try to grow the buffer.
   constexpr int kSize = 32;

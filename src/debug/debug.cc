@@ -1701,9 +1701,19 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
     for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
          it.Advance()) {
       if (!deopt_all && it.frame()->function()->shared() != shared_) continue;
-      if (it.frame()->type() == StackFrame::BASELINE) {
-        BaselineFrame* frame = BaselineFrame::cast(it.frame());
-        int bytecode_offset = frame->GetBytecodeOffset();
+      if (it.frame()->type() != StackFrame::BASELINE &&
+          it.frame()->type() != StackFrame::INTERPRETED) {
+        continue;
+      }
+
+      Tagged<Code> code = it.frame()->LookupCode();
+      // We need to check CodeKind rather than StackFrame type here since
+      // previous iterations might already patched this baseline code,
+      // but we need to update remaining baseline stack frames as well.
+      if (code->kind() == CodeKind::BASELINE) {
+        UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
+        int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
+            frame->pc(), frame->GetBytecodeArray());
         Address* pc_addr = frame->pc_address();
         Address advance;
         if (bytecode_offset == kFunctionEntryBytecodeOffset) {
@@ -1713,7 +1723,14 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
           advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
                         ->instruction_start();
         }
-        PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
+        if (v8_flags.cet_compatible) {
+          Deoptimizer::PatchToJump(*pc_addr, advance);
+          frame->LookupCode()->SetMarkedForDeoptimization(
+              isolate, LazyDeoptimizeReason::kDebugger);
+        } else {
+          PointerAuthentication::ReplacePC(pc_addr, advance,
+                                           kSystemPointerSize);
+        }
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);
       }

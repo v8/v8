@@ -15,9 +15,7 @@ const int Deoptimizer::kLazyDeoptExitSize = 5;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchJumpToTrampoline(Address pc, Address new_pc) {
-  UNREACHABLE();
-}
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return base::ReadUnalignedValue<Float32>(
