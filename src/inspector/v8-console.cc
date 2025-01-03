@@ -455,8 +455,31 @@ void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
                           const v8::debug::ConsoleContext& consoleContext) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-               "V8Console::TimeStamp");
+#ifdef V8_USE_PERFETTO
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeStamp",
+              "data", ([&](perfetto::TracedValue context) {
+                static const char* kNames[] = {"name",  "start",      "end",
+                                               "track", "trackGroup", "color"};
+                auto dict = std::move(context).WriteDictionary();
+                for (int i = 0; i < info.Length() &&
+                                i < static_cast<int>(std::size(kNames));
+                     ++i) {
+                  auto name = kNames[i];
+                  auto value = info[i];
+                  if (value->IsNumber()) {
+                    dict.Add(perfetto::StaticString(name),
+                             value.As<v8::Number>()->Value());
+                  } else if (value->IsString()) {
+                    dict.Add(perfetto::StaticString(name),
+                             toProtocolString(m_inspector->isolate(),
+                                              value.As<v8::String>())
+                                 .utf8());
+                  } else {
+                    dict.Add(perfetto::StaticString(name), "");
+                  }
+                }
+              }));
+#endif  // V8_USE_PERFETTO
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
   m_inspector->client()->consoleTimeStamp(m_inspector->isolate(), label);
