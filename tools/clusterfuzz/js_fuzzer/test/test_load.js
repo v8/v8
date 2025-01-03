@@ -37,6 +37,11 @@ describe('V8 dependencies', () => {
         'mjsunit/test_load_self.js',
         'mjsunit/test_load_self_expected.js');
   });
+  it('loads mjsunit dependencies also from another corpus', () => {
+    testLoad(
+        'load/fuzzilli_scenario/fuzzilli/fuzzdir-1/corpus/program_x.js',
+        'load/fuzzilli_scenario/test_load_expected.js');
+  });
 });
 
 describe('Chakra dependencies', () => {

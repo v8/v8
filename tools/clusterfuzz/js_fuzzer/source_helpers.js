@@ -25,6 +25,9 @@ const V8_BUILTIN_PREFIX = '__V8Builtin';
 const V8_REPLACE_BUILTIN_REGEXP = new RegExp(
     V8_BUILTIN_PREFIX + '(\\w+)\\(', 'g');
 
+const V8_MJSUNIT_REL = fsPath.join('test', 'mjsunit');
+const V8_MJSUNIT_HARNESS_REL = fsPath.join(V8_MJSUNIT_REL, 'mjsunit.js');
+
 const BABYLON_OPTIONS = {
     sourceType: 'script',
     allowReturnOutsideFunction: true,
@@ -159,11 +162,25 @@ function resolveLoads(originalFilePath, ast) {
       }
 
       let loadValue = path.node.arguments[0].extra.rawValue;
-      // Normalize Windows path separators.
-      loadValue = loadValue.replace(/\\/g, fsPath.sep);
 
       // Remove load call.
       path.remove();
+
+      // Normalize Windows path separators.
+      loadValue = loadValue.replace(/\\/g, fsPath.sep);
+
+      // Ignore the mjsunit harness file as we already include an altered
+      // version for fuzzing.
+      if (loadValue == V8_MJSUNIT_HARNESS_REL) {
+        return;
+      }
+
+      // Locate mjsunit dependencies relative to the V8 corpus. Like that we
+      // resolve to a valid file even if the test file is from fuzzilli or
+      // crash tests.
+      if (loadValue.startsWith(V8_MJSUNIT_REL)) {
+        loadValue = fsPath.join('v8', loadValue);
+      }
 
       const resolvedPath = _findDependentCodePath(
           loadValue, fsPath.dirname(originalFilePath), !isChakraLoad);

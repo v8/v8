@@ -17,7 +17,7 @@ const sourceHelpers = require('../source_helpers.js');
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
 
-const HEADER = `// Copyright 2020 the V8 project authors. All rights reserved.
+const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,7 +55,14 @@ function loadTestData(relPath) {
 function assertExpectedResult(expectedPath, result) {
   const absPath = path.join(BASE_DIR, expectedPath);
   if (process.env.GENERATE) {
-    fs.writeFileSync(absPath, HEADER + result.trim() + '\n');
+    let header = HEADER;
+    if (fs.existsSync(absPath)) {
+      // Keep the old copyright header if the file already exists.
+      const previous = fs.readFileSync(absPath, 'utf-8').trim().split('\n');
+      previous.splice(3);
+      header = previous.join('\n') + '\n\n';
+    }
+    fs.writeFileSync(absPath, header + result.trim() + '\n');
     return;
   }
 
