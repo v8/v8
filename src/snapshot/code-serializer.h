@@ -153,6 +153,7 @@ class SerializedCodeData : public SerializedData {
   base::Vector<const uint8_t> Payload() const;
 
   static uint32_t SourceHash(DirectHandle<String> source,
+                             DirectHandle<FixedArray> wrapped_arguments,
                              ScriptOriginOptions origin_options);
 
  private:
