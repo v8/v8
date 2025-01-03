@@ -439,11 +439,6 @@ function loadFlags(data) {
   return result;
 }
 
-// Convenience helper to load sources with absolute paths.
-function loadSourceAbs(baseDir, absPath) {
-  return loadSource(baseDir, fsPath.relative(baseDir, absPath));
-}
-
 const dependencyCache = new Map();
 
 function loadDependency(baseDir, relPath) {
@@ -487,6 +482,5 @@ module.exports = {
   loadDependencyAbs: loadDependencyAbs,
   loadResource: loadResource,
   loadSource: loadSource,
-  loadSourceAbs: loadSourceAbs,
   ParsedSource: ParsedSource,
 }
