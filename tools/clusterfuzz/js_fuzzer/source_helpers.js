@@ -126,14 +126,6 @@ function _findPath(path, caseSensitive=true) {
 }
 
 function _findDependentCodePath(filePath, baseDirectory, caseSensitive=true) {
-  const fullPath = fsPath.join(baseDirectory, filePath);
-
-  const realPath = _findPath(fullPath, caseSensitive)
-  if (realPath) {
-    // Check base directory of current file.
-    return realPath;
-  }
-
   while (fsPath.dirname(baseDirectory) != baseDirectory) {
     // Walk up the directory tree.
     const testPath = fsPath.join(baseDirectory, filePath);

@@ -6,9 +6,11 @@
  * @fileoverview Corpus
  */
 
-const program = require('commander');
+
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const program = require('commander');
 
 const exceptions = require('./exceptions.js');
 const random = require('./random.js');
@@ -37,6 +39,8 @@ function* walkDirectory(directory, filter) {
 class Corpus {
   // Input corpus.
   constructor(inputDir, corpusName, extraStrict=false) {
+    assert(path.dirname(inputDir) != inputDir,
+           `Require an absolute, non-root path to corpus. Got ${inputDir}`)
     this.inputDir = inputDir;
     this.extraStrict = extraStrict;
 
