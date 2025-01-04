@@ -88,7 +88,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:26.20241227.3.1',
+  'fuchsia_version': 'version:26.20250103.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f46b6520935dacdd81e487cf2e66eed6b9989e03',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f29898e8c7a80a79b946da404db0b7470fe524b0',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f2081cfeaca8480a8607bdb96facf0a2529fce69',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7a4845bae0905502ffae946f63b6e9597a39bec3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,7 +232,7 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '5700c339249fd99180d9834c9cc0256e7e1cc6b9',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'e09c171f24d555f17bca2c87d2bf63b5565eed4c',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
@@ -302,13 +302,13 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '80194f087251d7ad235ffbf4c602786208bdb863',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'a3f93e508225f83b441cada4b852da8f7d4e7c55',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '83dfa1f5bfce32d5f75695542468e37ead8163b8',
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '60b7db20ace1cb750f8e9e06e7e9c7c6585ace42',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '648f22cdb94d07f0906f808d7fbfe88cb6fc2342',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
