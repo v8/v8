@@ -163,7 +163,7 @@ String16 String16::concat(T... args) {
 
 }  // namespace v8_inspector
 
-#if !defined(__APPLE__) || defined(_LIBCPP_VERSION)
+#if !(defined(__APPLE__) && defined(__clang__)) || defined(_LIBCPP_VERSION)
 
 namespace std {
 template <>
