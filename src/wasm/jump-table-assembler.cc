@@ -292,7 +292,11 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   uint16_t func_index_low = func_index & 0xffff;
   uint16_t func_index_high = func_index >> 16;
 
+  // TODO(sroettger): This bti instruction is a temporary fix for crashes that
+  // we observed in the wild. We can probably avoid this again if we change the
+  // callee to jump to the far jump table instead.
   const uint32_t inst[kLazyCompileTableSlotSize / 4] = {
+      0xd50324df,  // bti.jc
       0x52800008,  // mov  w8, func_index_low
       0x72a00008,  // movk w8, func_index_high, LSL#0x10
       0x14000000,  // b lazy_compile_target
@@ -300,12 +304,13 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   static_assert(kWasmCompileLazyFuncIndexRegister == x8);
 
   int64_t target_offset = MacroAssembler::CalculateTargetOffset(
-      lazy_compile_target, RelocInfo::NO_INFO, pc_ + 2 * kInstrSize);
+      lazy_compile_target, RelocInfo::NO_INFO, pc_ + 3 * kInstrSize);
   DCHECK(MacroAssembler::IsNearCallOffset(target_offset));
 
-  emit<uint32_t>(inst[0] | Assembler::ImmMoveWide(func_index_low));
-  emit<uint32_t>(inst[1] | Assembler::ImmMoveWide(func_index_high));
-  emit<uint32_t>(inst[2] | Assembler::ImmUncondBranch(
+  emit<uint32_t>(inst[0]);
+  emit<uint32_t>(inst[1] | Assembler::ImmMoveWide(func_index_low));
+  emit<uint32_t>(inst[2] | Assembler::ImmMoveWide(func_index_high));
+  emit<uint32_t>(inst[3] | Assembler::ImmUncondBranch(
                                base::checked_cast<int32_t>(target_offset)));
 }
 
