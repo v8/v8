@@ -258,6 +258,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 
 RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
   ClearThreadInWasmScope flag_scope(isolate);
+  CHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
   WasmFrame* frame = frame_finder.frame();
