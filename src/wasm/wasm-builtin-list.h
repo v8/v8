@@ -154,7 +154,8 @@ namespace v8::internal::wasm {
   V(WasmAllocateZeroedFixedArray)                \
   V(WasmSuspend)                                 \
   V(WasmToJsWrapperInvalidSig)                   \
-  V(WasmTrap)
+  V(WasmTrap)                                    \
+  V(WasmTrapHandlerThrowTrap)
 
 #define WASM_BUILTIN_LIST(V, VTRAP)            \
   WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(V, VTRAP) \
