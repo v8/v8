@@ -815,14 +815,17 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource(
 uint32_t SerializedCodeData::SourceHash(
     DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
     ScriptOriginOptions origin_options) {
-  const uint32_t source_length = source->length();
-  const uint32_t has_wrapped_arguments = !wrapped_arguments.is_null();
+  using LengthField = base::BitField<uint32_t, 0, 29>;
+  static_assert(String::kMaxLength <= LengthField::kMax,
+                "String length must fit into a LengthField");
+  using HasWrappedArgumentsField = LengthField::Next<bool, 1>;
+  using IsModuleField = HasWrappedArgumentsField::Next<bool, 1>;
 
-  static constexpr uint32_t kModuleFlagMask = (1 << 31);
-  const uint32_t is_module = origin_options.IsModule() ? kModuleFlagMask : 0;
-  DCHECK_EQ(0, source_length & kModuleFlagMask);
-
-  return source_length | is_module | has_wrapped_arguments << 1;
+  uint32_t hash = 0;
+  hash = LengthField::update(hash, source->length());
+  hash = HasWrappedArgumentsField::update(hash, !wrapped_arguments.is_null());
+  hash = IsModuleField::update(hash, origin_options.IsModule());
+  return hash;
 }
 
 // Return ScriptData object and relinquish ownership over it to the caller.
