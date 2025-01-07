@@ -17,6 +17,8 @@ const sourceHelpers = require('../source_helpers.js');
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
 
+const TEST_CORPUS = new sourceHelpers.BaseCorpus(BASE_DIR);
+
 const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -49,7 +51,7 @@ function deterministicRandom(sandbox) {
 }
 
 function loadTestData(relPath) {
-  return sourceHelpers.loadSource(BASE_DIR, relPath);
+  return sourceHelpers.loadSource(TEST_CORPUS, relPath);
 }
 
 function assertExpectedResult(expectedPath, result) {
@@ -75,6 +77,7 @@ function assertExpectedResult(expectedPath, result) {
 module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
+  TEST_CORPUS: TEST_CORPUS,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,
   deterministicRandom: deterministicRandom,

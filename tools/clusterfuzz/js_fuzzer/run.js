@@ -14,7 +14,6 @@ const path = require('path');
 
 const program = require('commander');
 
-const corpus = require('./corpus.js');
 const differentialScriptMutator = require('./differential_script_mutator.js');
 const random = require('./random.js');
 const runner = require('./runner.js');
@@ -97,8 +96,9 @@ function main() {
     const absPath = path.resolve(program.mutate);
     const baseDir = path.dirname(absPath);
     const fileName = path.basename(absPath);
+    const corpus = new sourceHelpers.BaseCorpus(baseDir);
     const input = sourceHelpers.loadSource(
-        baseDir, fileName, program.extra_strict);
+        corpus, fileName, program.extra_strict);
     const mutated = mutator.mutateMultiple([input]);
     console.log(mutated.code);
     return;

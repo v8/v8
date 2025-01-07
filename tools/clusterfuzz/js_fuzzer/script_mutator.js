@@ -91,7 +91,7 @@ class ScriptMutator {
     if (path.basename(mjsunitPath) == 'mjsunit') {
       mjsunitPath = path.join(mjsunitPath, 'mjsunit.js');
       dependencies.set('mjsunit', sourceHelpers.loadDependencyAbs(
-          input.baseDir, mjsunitPath));
+          input.corpus, mjsunitPath));
       return;
     }
 
@@ -120,7 +120,7 @@ class ScriptMutator {
     for (let i = shellJsPaths.length - 1; i >= 0; i--) {
       if (!dependencies.has(shellJsPaths[i])) {
         const dependency = sourceHelpers.loadDependencyAbs(
-            input.baseDir, shellJsPaths[i]);
+            input.corpus, shellJsPaths[i]);
         dependencies.set(shellJsPaths[i], dependency);
       }
     }

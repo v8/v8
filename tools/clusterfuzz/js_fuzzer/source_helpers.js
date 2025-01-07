@@ -6,6 +6,7 @@
  * @fileoverview Source loader.
  */
 
+const assert = require('assert');
 const fs = require('fs');
 const fsPath = require('path');
 
@@ -222,9 +223,19 @@ function maybeUseStict(code, useStrict) {
   return code;
 }
 
+class BaseCorpus {
+  constructor(inputDir) {
+    assert(fsPath.dirname(inputDir) != inputDir,
+           `Require an absolute, non-root path to corpus. Got ${inputDir}`)
+    this.inputDir = inputDir;
+  }
+}
+
+const BASE_CORPUS = new BaseCorpus(__dirname);
+
 class Source {
-  constructor(baseDir, relPath, flags, dependentPaths) {
-    this.baseDir = baseDir;
+  constructor(corpus, relPath, flags, dependentPaths) {
+    this.corpus = corpus;
     this.relPath = relPath;
     this.flags = flags;
     this.dependentPaths = dependentPaths;
@@ -232,7 +243,7 @@ class Source {
   }
 
   get absPath() {
-    return fsPath.join(this.baseDir, this.relPath);
+    return fsPath.join(this.corpus.inputDir, this.relPath);
   }
 
   /**
@@ -278,7 +289,7 @@ class Source {
       visitedDependencies.add(absPath);
 
       // Recursively load dependencies.
-      const dependency = loadDependencyAbs(this.baseDir, absPath);
+      const dependency = loadDependencyAbs(this.corpus, absPath);
       dependency.loadDependencies(dependencies, visitedDependencies);
 
       // Add the dependency.
@@ -291,8 +302,8 @@ class Source {
  * Represents sources whose AST can be manipulated.
  */
 class ParsedSource extends Source {
-  constructor(ast, baseDir, relPath, flags, dependentPaths) {
-    super(baseDir, relPath, flags, dependentPaths);
+  constructor(ast, corpus, relPath, flags, dependentPaths) {
+    super(corpus, relPath, flags, dependentPaths);
     this.ast = ast;
   }
 
@@ -318,7 +329,7 @@ class ParsedSource extends Source {
  */
 class CachedSource extends Source {
   constructor(source) {
-    super(source.baseDir, source.relPath, source.flags, source.dependentPaths);
+    super(source.corpus, source.relPath, source.flags, source.dependentPaths);
     this.use_strict = source.isStrict();
     this.code = source.generateNoStrict();
   }
@@ -339,8 +350,8 @@ class CachedSource extends Source {
  * natives, as well as removing load expressions and adding the paths-to-load
  * as meta data.
  */
-function loadSource(baseDir, relPath, parseStrict=false) {
-  const absPath = fsPath.resolve(fsPath.join(baseDir, relPath));
+function loadSource(corpus, relPath, parseStrict=false) {
+  const absPath = fsPath.resolve(fsPath.join(corpus.inputDir, relPath));
   const data = fs.readFileSync(absPath, 'utf-8');
 
   if (guessType(data) !== SCRIPT) {
@@ -357,7 +368,7 @@ function loadSource(baseDir, relPath, parseStrict=false) {
   const flags = loadFlags(data);
   const dependentPaths = resolveLoads(absPath, ast);
 
-  return new ParsedSource(ast, baseDir, relPath, flags, dependentPaths);
+  return new ParsedSource(ast, corpus, relPath, flags, dependentPaths);
 }
 
 function guessType(data) {
@@ -441,24 +452,24 @@ function loadFlags(data) {
 
 const dependencyCache = new Map();
 
-function loadDependency(baseDir, relPath) {
-  const absPath = fsPath.join(baseDir, relPath);
+function loadDependency(corpus, relPath) {
+  const absPath = fsPath.join(corpus.inputDir, relPath);
   let dependency = dependencyCache.get(absPath);
   if (!dependency) {
-    const source = loadSource(baseDir, relPath);
+    const source = loadSource(corpus, relPath);
     dependency = new CachedSource(source);
     dependencyCache.set(absPath, dependency);
   }
   return dependency;
 }
 
-function loadDependencyAbs(baseDir, absPath) {
-  return loadDependency(baseDir, fsPath.relative(baseDir, absPath));
+function loadDependencyAbs(corpus, absPath) {
+  return loadDependency(corpus, fsPath.relative(corpus.inputDir, absPath));
 }
 
 // Convenience helper to load a file from the resources directory.
 function loadResource(fileName) {
-  return loadDependency(__dirname, fsPath.join('resources', fileName));
+  return loadDependency(BASE_CORPUS, fsPath.join('resources', fileName));
 }
 
 function generateCode(source, dependencies=[]) {
@@ -477,7 +488,9 @@ function generateCode(source, dependencies=[]) {
 module.exports = {
   BABYLON_OPTIONS: BABYLON_OPTIONS,
   BABYLON_REPLACE_VAR_OPTIONS: BABYLON_REPLACE_VAR_OPTIONS,
+  BASE_CORPUS: BASE_CORPUS,
   annotateWithComment: annotateWithComment,
+  BaseCorpus: BaseCorpus,
   generateCode: generateCode,
   loadDependencyAbs: loadDependencyAbs,
   loadResource: loadResource,

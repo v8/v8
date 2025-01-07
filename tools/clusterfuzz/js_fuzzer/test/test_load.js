@@ -59,7 +59,7 @@ describe('JSTest dependencies', () => {
 
   it('test', () => {
     const fakeStubs = sourceHelpers.loadSource(
-        helpers.BASE_DIR, 'JSTests/fake_stub.js');
+        helpers.TEST_CORPUS, 'JSTests/fake_stub.js');
     sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => fakeStubs);
     testLoad('JSTests/load.js', 'JSTests/load_expected.js');
   });

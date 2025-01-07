@@ -41,7 +41,7 @@ function main() {
     for (const relPath of curCorpus.relFiles()) {
       let source;
       try {
-        source = sourceHelpers.loadSource(inputDir, relPath);
+        source = sourceHelpers.loadSource(curCorpus, relPath);
       } catch (e) {
         console.log(e);
         continue;

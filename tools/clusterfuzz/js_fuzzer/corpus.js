@@ -7,7 +7,6 @@
  */
 
 
-const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const program = require('commander');
@@ -36,12 +35,10 @@ function* walkDirectory(directory, filter) {
   }
 }
 
-class Corpus {
+class Corpus extends sourceHelpers.BaseCorpus {
   // Input corpus.
   constructor(inputDir, corpusName, extraStrict=false) {
-    assert(path.dirname(inputDir) != inputDir,
-           `Require an absolute, non-root path to corpus. Got ${inputDir}`)
-    this.inputDir = inputDir;
+    super(inputDir);
     this.extraStrict = extraStrict;
 
     // Filter for permitted JS files.
@@ -103,7 +100,7 @@ class Corpus {
   loadTestcase(relPath, strict, label) {
     const start = Date.now();
     try {
-      const source = sourceHelpers.loadSource(this.inputDir, relPath, strict);
+      const source = sourceHelpers.loadSource(this, relPath, strict);
       if (program.verbose) {
         const duration = Date.now() - start;
         console.log(`Parsing ${relPath} ${label} took ${duration} ms.`);
