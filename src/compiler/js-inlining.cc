@@ -254,6 +254,7 @@ FrameState JSInliner::CreateArtificialFrameState(
     Node* context, Node* callee) {
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
+  CHECK_LE(parameter_count_with_receiver, kMaxUInt16);
   const FrameStateFunctionInfo* state_info =
       common()->CreateFrameStateFunctionInfo(frame_state_type,
                                              parameter_count_with_receiver, 0,
