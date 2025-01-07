@@ -271,9 +271,9 @@ class SmallVector {
 
   bool is_big() const { return begin_ != inline_storage_begin(); }
 
-  T* inline_storage_begin() { return reinterpret_cast<T*>(&inline_storage_); }
+  T* inline_storage_begin() { return reinterpret_cast<T*>(inline_storage_); }
   const T* inline_storage_begin() const {
-    return reinterpret_cast<const T*>(&inline_storage_);
+    return reinterpret_cast<const T*>(inline_storage_);
   }
 
   V8_NO_UNIQUE_ADDRESS Allocator allocator_;
@@ -281,8 +281,7 @@ class SmallVector {
   T* begin_ = inline_storage_begin();
   T* end_ = begin_;
   T* end_of_storage_ = begin_ + kInlineSize;
-  typename std::aligned_storage<sizeof(T) * kInlineSize, alignof(T)>::type
-      inline_storage_;
+  alignas(T) char inline_storage_[sizeof(T) * kInlineSize];
 };
 
 }  // namespace base

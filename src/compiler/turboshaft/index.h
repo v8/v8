@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_INDEX_H_
 #define V8_COMPILER_TURBOSHAFT_INDEX_H_
 
+#include <stdint.h>
+
 #include <cstddef>
 #include <optional>
 #include <type_traits>
@@ -23,8 +25,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-// Operations are stored in possibly muliple sequential storage slots.
-using OperationStorageSlot = std::aligned_storage_t<8, 8>;
+// Operations are stored in possibly multiple sequential storage slots.
+using OperationStorageSlot = uint64_t;
 // Operations occupy at least 2 slots, therefore we assign one id per two slots.
 constexpr size_t kSlotsPerId = 2;
 
