@@ -37,7 +37,7 @@ function main() {
 
   const inputDir = path.resolve(program.input_dir);
   for (const corpusName of program.args) {
-    const curCorpus = new corpus.Corpus(inputDir, corpusName);
+    const curCorpus = corpus.create(inputDir, corpusName);
     for (const relPath of curCorpus.relFiles()) {
       let source;
       try {

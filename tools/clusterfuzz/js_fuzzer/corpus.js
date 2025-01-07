@@ -136,7 +136,38 @@ class Corpus extends sourceHelpers.BaseCorpus {
   }
 }
 
+class V8Corpus extends Corpus {
+  loadFlags(data) {
+    const result = [];
+    let count = 0;
+    for (const line of data.split('\n')) {
+      if (count++ > 40) {
+        // No need to process the whole file. Flags are always added after the
+        // copyright header.
+        break;
+      }
+      const match = line.match(/\/\/ Flags:\s*(.*)\s*/);
+      if (!match) {
+        continue;
+      }
+      for (const flag of exceptions.filterFlags(match[1].split(/\s+/))) {
+        result.push(flag);
+      }
+    }
+    return result;
+  }
+}
+
+const CORPUS_CLASSES = {
+  'v8': V8Corpus,
+};
+
+function create(inputDir, corpusName, extraStrict=false) {
+  const cls = CORPUS_CLASSES[corpusName] || Corpus;
+  return new cls(inputDir, corpusName, extraStrict);
+}
+
 module.exports = {
-  Corpus: Corpus,
+  create: create,
   walkDirectory: walkDirectory,
 }

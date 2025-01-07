@@ -229,6 +229,13 @@ class BaseCorpus {
            `Require an absolute, non-root path to corpus. Got ${inputDir}`)
     this.inputDir = inputDir;
   }
+
+  /**
+   * Load flags from meta data specific to a particular test case.
+   */
+  loadFlags(data) {
+    return [];
+  }
 }
 
 const BASE_CORPUS = new BaseCorpus(__dirname);
@@ -365,7 +372,7 @@ function loadSource(corpus, relPath, parseStrict=false) {
   cleanAsserts(ast);
   annotateWithOriginalPath(ast, relPath);
 
-  const flags = loadFlags(data);
+  const flags = corpus.loadFlags(data);
   const dependentPaths = resolveLoads(absPath, ast);
 
   return new ParsedSource(ast, corpus, relPath, flags, dependentPaths);
@@ -426,28 +433,6 @@ function annotateWithComment(ast, comment) {
  */
 function annotateWithOriginalPath(ast, relPath) {
   annotateWithComment(ast, ' Original: ' + relPath);
-}
-
-// TODO(machenbach): Move this into the V8 corpus. Other test suites don't
-// use this flag logic.
-function loadFlags(data) {
-  const result = [];
-  let count = 0;
-  for (const line of data.split('\n')) {
-    if (count++ > 40) {
-      // No need to process the whole file. Flags are always added after the
-      // copyright header.
-      break;
-    }
-    const match = line.match(/\/\/ Flags:\s*(.*)\s*/);
-    if (!match) {
-      continue;
-    }
-    for (const flag of exceptions.filterFlags(match[1].split(/\s+/))) {
-      result.push(flag);
-    }
-  }
-  return result;
 }
 
 const dependencyCache = new Map();

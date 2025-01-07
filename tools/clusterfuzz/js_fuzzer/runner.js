@@ -75,11 +75,11 @@ class RandomCorpusRunner extends Runner {
     this.numFiles = numFiles;
     this.maxTestInputs = maxTestInputs;
     this.corpora = {
-      'v8': new corpus.Corpus(inputDir, 'v8'),
-      'chakra': new corpus.Corpus(inputDir, 'chakra'),
-      'spidermonkey': new corpus.Corpus(inputDir, 'spidermonkey'),
-      'jsc': new corpus.Corpus(inputDir, 'WebKit/JSTests'),
-      'crash': new corpus.Corpus(inputDir, 'CrashTests'),
+      'v8': corpus.create(inputDir, 'v8'),
+      'chakra': corpus.create(inputDir, 'chakra'),
+      'spidermonkey': corpus.create(inputDir, 'spidermonkey'),
+      'jsc': corpus.create(inputDir, 'WebKit/JSTests'),
+      'crash': corpus.create(inputDir, 'CrashTests'),
     };
   }
 
@@ -106,7 +106,7 @@ class RandomCorpusRunner extends Runner {
 class SingleCorpusRunner extends Runner {
   constructor(inputDir, corpusName, extraStrict) {
     super();
-    this.corpus = new corpus.Corpus(
+    this.corpus = corpus.create(
       path.resolve(inputDir), corpusName, extraStrict);
   }
 

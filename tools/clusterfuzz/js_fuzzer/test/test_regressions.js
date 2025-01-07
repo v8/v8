@@ -24,7 +24,7 @@ const sandbox = sinon.createSandbox();
 const SYNTAX_ERROR_RE = /.*SyntaxError.*/
 
 function createFuzzTest(fake_db, settings, inputFiles) {
-  const sources = inputFiles.map(input => helpers.loadTestData(input));
+  const sources = inputFiles.map(input => helpers.loadV8TestData(input));
 
   const mutator = new scriptMutator.ScriptMutator(settings, fake_db);
   const result = mutator.mutateMultiple(sources);
@@ -117,8 +117,8 @@ describe('Regression tests', () => {
     const {file, flags} = createFuzzTest(
         'test_data/regress/empty_db',
         this.settings,
-        ['regress/contradictions/input1.js',
-         'regress/contradictions/input2.js']);
+        ['v8/regress/contradictions/input1.js',
+         'v8/regress/contradictions/input2.js']);
     assert.deepEqual(['--flag1'], flags);
   });
 });

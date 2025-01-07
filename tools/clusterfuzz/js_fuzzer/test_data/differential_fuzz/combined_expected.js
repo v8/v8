@@ -23,9 +23,9 @@ try {
   print("Caught: " + __caught);
 } catch (e) {}
 
-print("v8-foozzie source: differential_fuzz/input1.js");
+print("v8-foozzie source: v8/differential_fuzz/input1.js");
 
-// Original: differential_fuzz/input1.js
+// Original: v8/differential_fuzz/input1.js
 try {
   var __v_0 = 0;
 } catch (e) {}
@@ -43,9 +43,9 @@ try {
   __prettyPrint(__v_0);
 } catch (e) {}
 
-print("v8-foozzie source: differential_fuzz/input2.js");
+print("v8-foozzie source: v8/differential_fuzz/input2.js");
 
-// Original: differential_fuzz/input2.js
+// Original: v8/differential_fuzz/input2.js
 let __v_1 = 1;
 
 /* DifferentialFuzzMutator: Print variables and exceptions from section */

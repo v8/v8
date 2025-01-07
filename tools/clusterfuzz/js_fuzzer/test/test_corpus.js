@@ -20,7 +20,7 @@ function testSoftSkipped(count, softSkipped, paths) {
   sandbox.stub(exceptions, 'getSoftSkipped').callsFake(() => {
     return softSkipped;
   });
-  const mjsunit = new corpus.Corpus('test_data', 'mjsunit_softskipped');
+  const mjsunit = corpus.create('test_data', 'mjsunit_softskipped');
   const cases = mjsunit.getRandomTestcasePaths(count);
   assert.deepEqual(paths, cases);
 }
@@ -96,7 +96,7 @@ describe('Loading corpus', () => {
     ];
     sandbox.stub(exceptions, 'getGeneratedSoftSkipped').callsFake(
         () => { return new Set(generatedSoftSkipped); });
-    const mjsunit = new corpus.Corpus('test_data' , 'mjsunit_softskipped');
+    const mjsunit = corpus.create('test_data' , 'mjsunit_softskipped');
     assert.deepEqual(
         ['mjsunit_softskipped/object-literal.js',
          'mjsunit_softskipped/regress/binaryen-123.js'],

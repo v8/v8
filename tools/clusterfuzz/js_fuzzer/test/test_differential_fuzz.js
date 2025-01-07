@@ -105,10 +105,10 @@ describe('Differential fuzzing', () => {
 
     // Load input files.
     const files = [
-      'differential_fuzz/input1.js',
-      'differential_fuzz/input2.js',
+      'v8/differential_fuzz/input1.js',
+      'v8/differential_fuzz/input2.js',
     ];
-    const sources = files.map(helpers.loadTestData);
+    const sources = files.map(helpers.loadV8TestData);
 
     // Apply top-level fuzzing, with all probabilistic configs switched off.
     this.settings['DIFF_FUZZ_EXTRA_PRINT'] = 0.0;
