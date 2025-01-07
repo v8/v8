@@ -112,28 +112,14 @@ class V8_NODISCARD ReduceResult {
     }                            \
   } while (false)
 
-#define RETURN_VOID_IF_DONE(result) \
-  do {                              \
-    ReduceResult res = (result);    \
-    if (res.IsDone()) {             \
-      if (res.IsDoneWithAbort()) {  \
-        MarkBytecodeDead();         \
-        return;                     \
-      }                             \
-      return;                       \
-    }                               \
-  } while (false)
-
 #define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
   do {                                                      \
     ReduceResult res = (result);                            \
     if (res.IsDone()) {                                     \
-      if (res.IsDoneWithAbort()) {                          \
-        MarkBytecodeDead();                                 \
-      } else if (res.IsDoneWithValue()) {                   \
+      if (res.IsDoneWithValue()) {                          \
         value_processor(res.value());                       \
       }                                                     \
-      return;                                               \
+      return res;                                           \
     }                                                       \
   } while (false)
 
@@ -165,34 +151,6 @@ class V8_NODISCARD ReduceResult {
     variable = res.value()->Cast<VirtualObject>();    \
   } while (false)
 
-#define GET_VIRTUAL_OBJECT_OR_RETURN_VOID_IF_ABORT(variable, result) \
-  do {                                                               \
-    ReduceResult res = (result);                                     \
-    if (res.IsDoneWithAbort()) {                                     \
-      MarkBytecodeDead();                                            \
-      return;                                                        \
-    }                                                                \
-    DCHECK(res.IsDoneWithValue());                                   \
-    DCHECK(res.value()->Is<VirtualObject>());                        \
-    variable = res.value()->Cast<VirtualObject>();                   \
-  } while (false)
-
-#define RETURN_VOID_IF_ABORT(result)  \
-  do {                                \
-    if ((result).IsDoneWithAbort()) { \
-      MarkBytecodeDead();             \
-      return;                         \
-    }                                 \
-  } while (false)
-
-#define RETURN_VOID_ON_ABORT(result) \
-  do {                               \
-    ReduceResult res = (result);     \
-    USE(res);                        \
-    DCHECK(res.IsDoneWithAbort());   \
-    MarkBytecodeDead();              \
-    return;                          \
-  } while (false)
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
@@ -871,26 +829,33 @@ class MaglevGraphBuilder {
     if (iterator_.current_bytecode() == interpreter::Bytecode::kJumpLoop &&
         iterator_.GetJumpTargetOffset() < entrypoint_) {
       static_assert(kLoopsMustBeEnteredThroughHeader);
-      RETURN_VOID_ON_ABORT(
-          EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit));
+      CHECK(EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit)
+                .IsDoneWithAbort());
+      MarkBytecodeDead();
+      return;
     }
 
     switch (iterator_.current_bytecode()) {
-#define BYTECODE_CASE(name, ...)       \
-  case interpreter::Bytecode::k##name: \
-    Visit##name();                     \
-    break;
+#define BYTECODE_CASE(name, ...)         \
+  case interpreter::Bytecode::k##name: { \
+    ReduceResult result = Visit##name(); \
+    CHECK(result.IsDone());              \
+    if (result.IsDoneWithAbort()) {      \
+      MarkBytecodeDead();                \
+    }                                    \
+    break;                               \
+  }
       BYTECODE_LIST(BYTECODE_CASE, BYTECODE_CASE)
 #undef BYTECODE_CASE
     }
   }
 
-#define BYTECODE_VISITOR(name, ...) void Visit##name();
+#define BYTECODE_VISITOR(name, ...) ReduceResult Visit##name();
   BYTECODE_LIST(BYTECODE_VISITOR, BYTECODE_VISITOR)
 #undef BYTECODE_VISITOR
 
 #define DECLARE_VISITOR(name, ...) \
-  void VisitIntrinsic##name(interpreter::RegisterList args);
+  ReduceResult VisitIntrinsic##name(interpreter::RegisterList args);
   INTRINSICS_LIST(DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
@@ -1266,9 +1231,9 @@ class MaglevGraphBuilder {
         GetTaggedValue(GetContext()));
   }
 
-  void BuildLoadGlobal(compiler::NameRef name,
-                       compiler::FeedbackSource& feedback_source,
-                       TypeofMode typeof_mode);
+  ReduceResult BuildLoadGlobal(compiler::NameRef name,
+                               compiler::FeedbackSource& feedback_source,
+                               TypeofMode typeof_mode);
 
   ValueNode* BuildToString(ValueNode* value, ToString::ConversionMode mode);
 
@@ -2077,11 +2042,12 @@ class MaglevGraphBuilder {
   ReduceResult ReduceCall(ValueNode* target_node, CallArguments& args,
                           const compiler::FeedbackSource& feedback_source =
                               compiler::FeedbackSource());
-  void BuildCallWithFeedback(ValueNode* target_node, CallArguments& args,
-                             const compiler::FeedbackSource& feedback_source);
-  void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
-  void BuildCallFromRegisters(int argc_count,
-                              ConvertReceiverMode receiver_mode);
+  ReduceResult BuildCallWithFeedback(
+      ValueNode* target_node, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
+  ReduceResult BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
+  ReduceResult BuildCallFromRegisters(int argc_count,
+                                      ConvertReceiverMode receiver_mode);
 
   ValueNode* BuildElementsArray(int length);
   ReduceResult BuildAndAllocateKeyValueArray(ValueNode* key, ValueNode* value);
@@ -2117,9 +2083,9 @@ class MaglevGraphBuilder {
                                   ValueNode* target, ValueNode* new_target,
                                   CallArguments& args,
                                   compiler::FeedbackSource& feedback_source);
-  void BuildConstruct(ValueNode* target, ValueNode* new_target,
-                      CallArguments& args,
-                      compiler::FeedbackSource& feedback_source);
+  ReduceResult BuildConstruct(ValueNode* target, ValueNode* new_target,
+                              CallArguments& args,
+                              compiler::FeedbackSource& feedback_source);
 
   ReduceResult TryBuildScriptContextStore(
       const compiler::GlobalAccessFeedback& global_access_feedback);
@@ -2185,7 +2151,7 @@ class MaglevGraphBuilder {
   ValueNode* BuildToBoolean(ValueNode* node);
   ValueNode* BuildLogicalNot(ValueNode* value);
   ValueNode* BuildTestUndetectable(ValueNode* value);
-  void BuildToNumberOrToNumeric(Object::Conversion mode);
+  ReduceResult BuildToNumberOrToNumeric(Object::Conversion mode);
 
   enum class TrackObjectMode { kLoad, kStore };
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
@@ -2291,7 +2257,7 @@ class MaglevGraphBuilder {
   bool TryBuildGetKeyedPropertyWithEnumeratedKey(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
-  void BuildGetKeyedProperty(
+  ReduceResult BuildGetKeyedProperty(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
 
@@ -2529,20 +2495,20 @@ class MaglevGraphBuilder {
   ReduceResult TryFoldInt32BinaryOperation(ValueNode* left, int32_t cst_right);
 
   template <Operation kOperation>
-  void BuildInt32UnaryOperationNode();
-  void BuildTruncatingInt32BitwiseNotForToNumber(
+  ReduceResult BuildInt32UnaryOperationNode();
+  ReduceResult BuildTruncatingInt32BitwiseNotForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildInt32BinaryOperationNode();
+  ReduceResult BuildInt32BinaryOperationNode();
   template <Operation kOperation>
-  void BuildInt32BinarySmiOperationNode();
+  ReduceResult BuildInt32BinarySmiOperationNode();
   template <Operation kOperation>
-  void BuildTruncatingInt32BinaryOperationNodeForToNumber(
+  ReduceResult BuildTruncatingInt32BinaryOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
+  ReduceResult BuildTruncatingInt32BinarySmiOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
 
@@ -2559,27 +2525,27 @@ class MaglevGraphBuilder {
       double cst_right);
 
   template <Operation kOperation>
-  void BuildFloat64UnaryOperationNodeForToNumber(
+  ReduceResult BuildFloat64UnaryOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildFloat64BinaryOperationNodeForToNumber(
+  ReduceResult BuildFloat64BinaryOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
   template <Operation kOperation>
-  void BuildFloat64BinarySmiOperationNodeForToNumber(
+  ReduceResult BuildFloat64BinarySmiOperationNodeForToNumber(
       NodeType allowed_input_type,
       TaggedToFloat64ConversionType conversion_type);
 
   template <Operation kOperation>
-  void VisitUnaryOperation();
+  ReduceResult VisitUnaryOperation();
   template <Operation kOperation>
-  void VisitBinaryOperation();
+  ReduceResult VisitBinaryOperation();
   template <Operation kOperation>
-  void VisitBinarySmiOperation();
+  ReduceResult VisitBinarySmiOperation();
 
   template <Operation kOperation>
-  void VisitCompareOperation();
+  ReduceResult VisitCompareOperation();
 
   using TypeOfLiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   template <typename Function>
