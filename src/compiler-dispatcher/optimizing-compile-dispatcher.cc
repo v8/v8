@@ -213,8 +213,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   }
 }
 
-bool OptimizingCompileDispatcher::InstallGeneratedBuiltins(
-    int& installed_count) {
+int OptimizingCompileDispatcher::InstallGeneratedBuiltins(int installed_count) {
   // Builtin generation needs to be deterministic, meaning heap allocations must
   // happen in a deterministic order. To ensure determinism with concurrent
   // compilation, only finalize contiguous builtins in ascending order of their
@@ -230,30 +229,15 @@ bool OptimizingCompileDispatcher::InstallGeneratedBuiltins(
               return job1->FinalizeOrder() < job2->FinalizeOrder();
             });
 
-  bool did_some_work = false;
   while (!output_queue_.empty()) {
     int current = output_queue_.front()->FinalizeOrder();
-    if (installed_count != current) {
-      // Not contiguous, need to wait for compilations to finish to be
-      // deterministic.
-      return did_some_work;
-    }
+    CHECK_EQ(installed_count, current);
     std::unique_ptr<TurbofanCompilationJob> job(output_queue_.front());
     output_queue_.pop_front();
     CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate_));
     installed_count = current + 1;
-    did_some_work = true;
   }
-  return true;
-}
-
-size_t OptimizingCompileDispatcher::ComputeOutputQueueTotalZoneSize() {
-  size_t total_size = 0;
-  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
-  for (const TurbofanCompilationJob* job : output_queue_) {
-    total_size += job->compilation_info()->zone()->allocation_size();
-  }
-  return total_size;
+  return installed_count;
 }
 
 bool OptimizingCompileDispatcher::HasJobs() {
