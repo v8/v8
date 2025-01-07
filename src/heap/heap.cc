@@ -1707,11 +1707,10 @@ void Heap::CollectGarbage(AllocationSpace space,
       tracer()->StopYoungCycleIfNeeded();
     } else {
       tracer()->StopFullCycleIfNeeded();
-      ReportIneffectiveMarkCompactIfNeeded();
     }
+    RecomputeLimits(collector, base::TimeTicks::Now());
   });
 
-  RecomputeLimits(collector, base::TimeTicks::Now());
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
       is_full_gc_during_loading_) {
     if (ShouldOptimizeForLoadTime() &&
@@ -3745,14 +3744,6 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
       consecutive_ineffective_mark_compacts_ = 0;
       return;
     }
-  }
-}
-
-void Heap::ReportIneffectiveMarkCompactIfNeeded() {
-  DCHECK_IMPLIES(!v8_flags.detect_ineffective_gcs_near_heap_limit,
-                 consecutive_ineffective_mark_compacts_ == 0);
-  if (consecutive_ineffective_mark_compacts_ ==
-      kMaxConsecutiveIneffectiveMarkCompacts) {
     if (v8_flags.heap_snapshot_on_oom) {
       isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
     }
