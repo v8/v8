@@ -194,26 +194,18 @@ MarkerBase::~MarkerBase() {
   marking_worklists_.weak_containers_worklist()->Clear();
 }
 
-class MarkerBase::IncrementalMarkingAllocationObserver final
-    : public StatsCollector::AllocationObserver {
- public:
-  static constexpr size_t kMinAllocatedBytesPerStep = 256 * kKB;
+MarkerBase::IncrementalMarkingAllocationObserver::
+    IncrementalMarkingAllocationObserver(MarkerBase& marker)
+    : marker_(marker) {}
 
-  explicit IncrementalMarkingAllocationObserver(MarkerBase& marker)
-      : marker_(marker) {}
-
-  void AllocatedObjectSizeIncreased(size_t delta) final {
-    current_allocated_size_ += delta;
-    if (current_allocated_size_ > kMinAllocatedBytesPerStep) {
-      marker_.AdvanceMarkingOnAllocation();
-      current_allocated_size_ = 0;
-    }
+void MarkerBase::IncrementalMarkingAllocationObserver::
+    AllocatedObjectSizeIncreased(size_t delta) {
+  current_allocated_size_ += delta;
+  if (current_allocated_size_ > kMinAllocatedBytesPerStep) {
+    marker_.AdvanceMarkingOnAllocation();
+    current_allocated_size_ = 0;
   }
-
- private:
-  MarkerBase& marker_;
-  size_t current_allocated_size_ = 0;
-};
+}
 
 void MarkerBase::StartMarking() {
   DCHECK(!is_marking_);

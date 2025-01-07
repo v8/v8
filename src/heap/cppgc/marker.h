@@ -20,6 +20,7 @@
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
+#include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/task-handle.h"
 
 namespace cppgc {
@@ -143,7 +144,19 @@ class V8_EXPORT_PRIVATE MarkerBase {
   }
 
  protected:
-  class IncrementalMarkingAllocationObserver;
+  class IncrementalMarkingAllocationObserver final
+      : public StatsCollector::AllocationObserver {
+   public:
+    static constexpr size_t kMinAllocatedBytesPerStep = 256 * kKB;
+
+    explicit IncrementalMarkingAllocationObserver(MarkerBase& marker);
+
+    void AllocatedObjectSizeIncreased(size_t delta) final;
+
+   private:
+    MarkerBase& marker_;
+    size_t current_allocated_size_ = 0;
+  };
 
   using IncrementalMarkingTaskHandle = SingleThreadedHandle;
 
