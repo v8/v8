@@ -613,7 +613,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         length = Smi::ToInt(length_obj);
       }
     } else if (IsJSTypedArray(holder)) {
-      length = Cast<JSTypedArray>(holder)->GetLength();
+      length = Cast<JSTypedArray>(holder)->length();
     } else {
       length = fixed_array_base->length();
     }

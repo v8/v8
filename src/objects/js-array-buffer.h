@@ -331,6 +331,9 @@ class JSTypedArray
   static constexpr size_t kMaxByteLength = JSArrayBuffer::kMaxByteLength;
   static_assert(kMaxByteLength == v8::TypedArray::kMaxByteLength);
 
+  // [length]: length of typed array in elements.
+  DECL_PRIMITIVE_GETTER(length, size_t)
+
   DECL_GETTER(base_pointer, Tagged<Object>)
   DECL_ACQUIRE_GETTER(base_pointer, Tagged<Object>)
 
@@ -358,7 +361,6 @@ class JSTypedArray
   inline bool is_on_heap(AcquireLoadTag tag) const;
 
   // Only valid to call when IsVariableLength() is true.
-  size_t GetVariableByteLengthOrOutOfBounds(bool& out_of_bounds) const;
   size_t GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const;
 
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
@@ -435,6 +437,11 @@ class JSTypedArray
   template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
+
+  DECL_PRIMITIVE_SETTER(length, size_t)
+  // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB
+  // backed.
+  inline size_t LengthUnchecked() const;
 
   DECL_GETTER(external_pointer, Address)
 

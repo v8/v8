@@ -23,7 +23,7 @@ extern runtime GrowableSharedArrayBufferByteLength(
 transitioning macro AllocateTypedArray(
     implicit context: Context)(isOnHeap: constexpr bool, map: Map,
     buffer: JSArrayBuffer, byteOffset: uintptr, byteLength: uintptr,
-    isLengthTracking: bool): JSTypedArray {
+    length: uintptr, isLengthTracking: bool): JSTypedArray {
   let elements: ByteArray;
   if constexpr (isOnHeap) {
     dcheck(!IsResizableArrayBuffer(buffer));
@@ -60,8 +60,10 @@ transitioning macro AllocateTypedArray(
     // Set the byte_length and length fields of length-tracking TAs to zero, so
     // that we won't accidentally use them and access invalid data.
     typedArray.byte_length = 0;
+    typedArray.length = 0;
   } else {
     typedArray.byte_length = byteLength;
+    typedArray.length = length;
   }
   typedArray.bit_field.is_length_tracking = isLengthTracking;
   typedArray.bit_field.is_backed_by_rab =
@@ -97,7 +99,8 @@ transitioning macro TypedArrayInitialize(
     const isOnHeap: constexpr bool = true;
     const isLengthTracking: constexpr bool = false;
     const typedArray = AllocateTypedArray(
-        isOnHeap, map, buffer, byteOffset, byteLength, isLengthTracking);
+        isOnHeap, map, buffer, byteOffset, byteLength, length,
+        isLengthTracking);
 
     if constexpr (initialize) {
       const backingStore = typedArray.data_ptr;
@@ -117,7 +120,8 @@ transitioning macro TypedArrayInitialize(
     const isOnHeap: constexpr bool = false;
     const isLengthTracking: constexpr bool = false;
     return AllocateTypedArray(
-        isOnHeap, map, buffer, byteOffset, byteLength, isLengthTracking);
+        isOnHeap, map, buffer, byteOffset, byteLength, length,
+        isLengthTracking);
   }
 }
 
@@ -311,7 +315,8 @@ transitioning macro ConstructByArrayBuffer(
 
     const isOnHeap: constexpr bool = false;
     return AllocateTypedArray(
-        isOnHeap, map, buffer, offset, newByteLength, isLengthTracking);
+        isOnHeap, map, buffer, offset, newByteLength, newLength,
+        isLengthTracking);
   } label IfInvalidAlignment(problemString: String) deferred {
     ThrowInvalidTypedArrayAlignment(map, problemString);
   } label IfInvalidLength deferred {

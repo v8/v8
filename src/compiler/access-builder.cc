@@ -547,6 +547,22 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBitField() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSTypedArrayLength() {
+  FieldAccess access = {kTaggedBase,
+                        JSTypedArray::kRawLengthOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kJSTypedArrayLengthType,
+                        MachineType::UintPtr(),
+                        kNoWriteBarrier,
+                        "JSTypedArrayLength"};
+#ifdef V8_ENABLE_SANDBOX
+  access.is_bounded_size_access = true;
+#endif
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSTypedArrayBasePointer() {
   FieldAccess access = {kTaggedBase,           JSTypedArray::kBasePointerOffset,
                         MaybeHandle<Name>(),   OptionalMapRef(),
