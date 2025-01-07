@@ -5,6 +5,8 @@
 #ifndef V8_UTILS_ALLOCATION_H_
 #define V8_UTILS_ALLOCATION_H_
 
+#include <new>
+
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
 #include "src/base/bounded-page-allocator.h"
