@@ -140,7 +140,7 @@ class V8_EXPORT String : public Name {
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  V8_DEPRECATE_SOON("Use Utf8LengthV2 instead.")
+  V8_DEPRECATED("Use Utf8LengthV2 instead.")
   int Utf8Length(Isolate* isolate) const;
 
   /**
@@ -200,15 +200,15 @@ class V8_EXPORT String : public Name {
   };
 
   // 16-bit character codes.
-  V8_DEPRECATE_SOON("Use WriteV2 instead.")
+  V8_DEPRECATED("Use WriteV2 instead.")
   int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
             int options = NO_OPTIONS) const;
   // One byte characters.
-  V8_DEPRECATE_SOON("Use WriteOneByteV2 instead.")
+  V8_DEPRECATED("Use WriteOneByteV2 instead.")
   int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
                    int length = -1, int options = NO_OPTIONS) const;
   // UTF-8 encoded characters.
-  V8_DEPRECATE_SOON("Use WriteUtf8V2 instead.")
+  V8_DEPRECATED("Use WriteUtf8V2 instead.")
   int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
                 int* nchars_ref = nullptr, int options = NO_OPTIONS) const;
 
