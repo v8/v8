@@ -255,6 +255,7 @@ FrameState JSInliner::CreateArtificialFrameState(
     Node* callee) {
   const int argument_count_with_receiver =
       argument_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
+  CHECK_LE(argument_count_with_receiver, kMaxUInt16);
   IndirectHandle<BytecodeArray> bytecode_array_handle = {};
   if (maybe_bytecode_array.has_value()) {
     bytecode_array_handle = maybe_bytecode_array->object();
