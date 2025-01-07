@@ -2583,7 +2583,7 @@ void Parser::DeclareArrowFunctionFormalParameters(
 
   AddArrowFunctionFormalParameters(parameters, expr, params_loc.end_pos);
 
-  if (parameters->arity > Code::kMaxArguments) {
+  if (parameters->arity + 1 /* receiver */ > Code::kMaxArguments) {
     ReportMessageAt(params_loc, MessageTemplate::kMalformedArrowFunParamList);
     return;
   }

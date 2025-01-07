@@ -3170,7 +3170,7 @@ void ParserBase<Impl>::ParseArguments(
     if (!Check(Token::kComma)) break;
   }
 
-  if (args->length() > Code::kMaxArguments) {
+  if (args->length() + 1 /* receiver */ > Code::kMaxArguments) {
     ReportMessage(MessageTemplate::kTooManyArguments);
     return;
   }
@@ -4387,11 +4387,6 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
 
   if (peek() != Token::kRightParen) {
     while (true) {
-      // Add one since we're going to be adding a parameter.
-      if (parameters->arity + 1 > Code::kMaxArguments) {
-        ReportMessage(MessageTemplate::kTooManyParameters);
-        return;
-      }
       parameters->has_rest = Check(Token::kEllipsis);
       ParseFormalParameter(parameters);
 
@@ -4410,6 +4405,11 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
         break;
       }
     }
+  }
+
+  if (parameters->arity + 1 /* receiver */ > Code::kMaxArguments) {
+    ReportMessage(MessageTemplate::kTooManyParameters);
+    return;
   }
 
   impl()->DeclareFormalParameters(parameters);

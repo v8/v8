@@ -457,9 +457,8 @@ class Code : public ExposedTrustedObject {
       MarkedForDeoptimizationField::kShift;
   static const int kIsTurbofannedBit = IsTurbofannedField::kShift;
 
-  // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;
-  static const int kMaxArguments = (1 << kArgumentsBits) - 2;
+  static const int kMaxArguments = (1 << kArgumentsBits) - 1;
 
  private:
   DECL_PRIMITIVE_SETTER(marked_for_deoptimization, bool)
