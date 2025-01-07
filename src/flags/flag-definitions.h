@@ -686,11 +686,10 @@ DEFINE_BOOL(script_context_mutable_heap_number, true,
 
 #if defined(V8_31BIT_SMIS_ON_64BIT_ARCH) || defined(V8_TARGET_ARCH_32_BIT)
 #define SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
-DEFINE_BOOL(script_context_mutable_heap_int32, false,
+DEFINE_BOOL(script_context_mutable_heap_int32, true,
             "Use mutable heap int32 number in script contexts")
 DEFINE_WEAK_IMPLICATION(script_context_mutable_heap_int32,
                         script_context_mutable_heap_number)
-DEFINE_WEAK_IMPLICATION(future, script_context_mutable_heap_int32)
 #else
 DEFINE_BOOL_READONLY(script_context_mutable_heap_int32, false,
                      "Use mutable heap int32 number in script contexts")
