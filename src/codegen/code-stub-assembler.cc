@@ -16547,11 +16547,12 @@ void CodeStubAssembler::StoreJSArrayBufferViewByteOffset(
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
-  TNode<UintPtrT> byte_length = LoadBoundedSizeFromObject(
-      typed_array, JSTypedArray::kRawByteLengthOffset);
-  TNode<IntPtrT> element_size =
-      ElementsKindToElementByteSize(LoadElementsKind(typed_array));
-  return Unsigned(IntPtrDiv(Signed(byte_length), element_size));
+  return LoadBoundedSizeFromObject(typed_array, JSTypedArray::kRawLengthOffset);
+}
+
+void CodeStubAssembler::StoreJSTypedArrayLength(TNode<JSTypedArray> typed_array,
+                                                TNode<UintPtrT> value) {
+  StoreBoundedSizeToObject(typed_array, JSTypedArray::kRawLengthOffset, value);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
@@ -16589,7 +16590,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   TNode<UintPtrT> byte_length = LoadVariableLengthJSArrayBufferViewByteLength(
       array, buffer, detached_or_out_of_bounds);
   TNode<IntPtrT> element_size =
-      ElementsKindToElementByteSize(LoadElementsKind(array));
+      RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
   return Unsigned(IntPtrDiv(Signed(byte_length), element_size));
 }
 
@@ -16745,7 +16746,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   TNode<UintPtrT> length =
       LoadVariableLengthJSTypedArrayLength(array, buffer, &miss);
   TNode<IntPtrT> element_size =
-      ElementsKindToElementByteSize(LoadElementsKind(array));
+      RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
   // Conversion to signed is OK since length < JSArrayBuffer::kMaxByteLength.
   TNode<IntPtrT> byte_length = IntPtrMul(Signed(length), element_size);
   result = Unsigned(byte_length);
@@ -16759,44 +16760,25 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
   return result.value();
 }
 
-TNode<IntPtrT> CodeStubAssembler::ElementsKindToElementByteSize(
+TNode<IntPtrT> CodeStubAssembler::RabGsabElementsKindToElementByteSize(
     TNode<Int32T> elements_kind) {
   TVARIABLE(IntPtrT, result);
   Label elements_8(this), elements_16(this), elements_32(this),
       elements_64(this), not_found(this), end(this);
-  int32_t elements_kinds[] = {UINT8_ELEMENTS,
-                              UINT8_CLAMPED_ELEMENTS,
-                              INT8_ELEMENTS,
-                              UINT16_ELEMENTS,
-                              INT16_ELEMENTS,
-                              FLOAT16_ELEMENTS,
-                              UINT32_ELEMENTS,
-                              INT32_ELEMENTS,
-                              FLOAT32_ELEMENTS,
-                              FLOAT64_ELEMENTS,
-                              BIGINT64_ELEMENTS,
-                              BIGUINT64_ELEMENTS,
-                              RAB_GSAB_UINT8_ELEMENTS,
-                              RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
-                              RAB_GSAB_INT8_ELEMENTS,
-                              RAB_GSAB_UINT16_ELEMENTS,
-                              RAB_GSAB_INT16_ELEMENTS,
-                              RAB_GSAB_FLOAT16_ELEMENTS,
-                              RAB_GSAB_UINT32_ELEMENTS,
-                              RAB_GSAB_INT32_ELEMENTS,
-                              RAB_GSAB_FLOAT32_ELEMENTS,
-                              RAB_GSAB_FLOAT64_ELEMENTS,
-                              RAB_GSAB_BIGINT64_ELEMENTS,
-                              RAB_GSAB_BIGUINT64_ELEMENTS};
-  Label* elements_kind_labels[] = {
-      &elements_8,  &elements_8,  &elements_8,  &elements_16, &elements_16,
-      &elements_16, &elements_32, &elements_32, &elements_32, &elements_64,
-      &elements_64, &elements_64, &elements_8,  &elements_8,  &elements_8,
-      &elements_16, &elements_16, &elements_16, &elements_32, &elements_32,
-      &elements_32, &elements_64, &elements_64, &elements_64};
+  int32_t elements_kinds[] = {
+      RAB_GSAB_UINT8_ELEMENTS,    RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+      RAB_GSAB_INT8_ELEMENTS,     RAB_GSAB_UINT16_ELEMENTS,
+      RAB_GSAB_INT16_ELEMENTS,    RAB_GSAB_FLOAT16_ELEMENTS,
+      RAB_GSAB_UINT32_ELEMENTS,   RAB_GSAB_INT32_ELEMENTS,
+      RAB_GSAB_FLOAT32_ELEMENTS,  RAB_GSAB_FLOAT64_ELEMENTS,
+      RAB_GSAB_BIGINT64_ELEMENTS, RAB_GSAB_BIGUINT64_ELEMENTS};
+  Label* elements_kind_labels[] = {&elements_8,  &elements_8,  &elements_8,
+                                   &elements_16, &elements_16, &elements_16,
+                                   &elements_32, &elements_32, &elements_32,
+                                   &elements_64, &elements_64, &elements_64};
   const size_t kTypedElementsKindCount =
       LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-      FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
+      FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
   DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
   Switch(elements_kind, &not_found, elements_kinds, elements_kind_labels,

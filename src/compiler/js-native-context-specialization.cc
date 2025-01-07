@@ -3767,8 +3767,8 @@ JSNativeContextSpecialization::
       Node* dead = jsgraph_->Dead();
       return ValueEffectControl{dead, dead, dead};
     } else {
-      length = jsgraph()->ConstantNoHole(
-          typed_array->byte_length() >> ElementsKindToShiftSize(elements_kind));
+      length =
+          jsgraph()->ConstantNoHole(static_cast<double>(typed_array->length()));
 
       DCHECK(!typed_array->is_on_heap());
       // Load the (known) data pointer for the {receiver} and set

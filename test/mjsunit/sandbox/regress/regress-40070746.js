@@ -5,8 +5,11 @@
 // Flags: --sandbox-testing
 
 const kTypedArrayType = Sandbox.getInstanceTypeIdFor("JS_TYPED_ARRAY_TYPE");
-const kTypedArrayByteLengthOffset =
-  Sandbox.getFieldOffset(kTypedArrayType, "byte_length");
+// In the future, if we remove the raw_length field (and instead use
+// raw_byte_length), we should also just change this test to corrupt
+// raw_byte_length instead.
+const kTypedArrayLengthOffset =
+  Sandbox.getFieldOffset(kTypedArrayType, "length");
 const kTypedArrayExternalPointerOffset =
   Sandbox.getFieldOffset(kTypedArrayType, "external_pointer");
 const kTypedArrayBasePointerOffset =
@@ -19,13 +22,12 @@ let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 let array = new BigInt64Array(new ArrayBuffer(8));
 let array_address = Sandbox.getAddressOf(array);
 
-let byte_length_address = array_address + kTypedArrayByteLengthOffset;
-memory.setBigUint64(byte_length_address, 0xffffffffffffffffn, true);
+let length_address = array_address + kTypedArrayLengthOffset;
+memory.setBigUint64(length_address, 0xffffffffffffffffn, true);
 let pointer_address = array_address + kTypedArrayExternalPointerOffset;
 memory.setBigUint64(pointer_address, 0xffffffffffffffffn, true);
 let offset_address = array_address + kTypedArrayBasePointerOffset;
 memory.setUint32(offset_address, 0xffffffff, true);
 
-assertEquals(array.byteLength, kMaxInSandboxBufferSize);
-assertEquals(array.length, Math.floor(kMaxInSandboxBufferSize / 8));
+assertEquals(array.length, kMaxInSandboxBufferSize);
 array[array.length - 1] = 1337n;
