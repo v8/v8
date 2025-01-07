@@ -22,6 +22,7 @@ let x = 42;
   // Deopt.
   x = 4;
   assertUnoptimized(foo);
+  // Kill potential opt jobs
   %DeoptimizeFunction(foo);
 
   // It should optimize as Smi load.
@@ -33,7 +34,6 @@ let x = 42;
   // Deopt.
   x = 4.2;
   assertUnoptimized(foo);
-  // Kill potential opt jobs
   %DeoptimizeFunction(foo);
 
   // It should optimize as Double load.
