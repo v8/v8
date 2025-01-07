@@ -233,7 +233,7 @@ class BaseCorpus {
   /**
    * Load flags from meta data specific to a particular test case.
    */
-  loadFlags(data) {
+  loadFlags(relPath, data) {
     return [];
   }
 }
@@ -372,7 +372,7 @@ function loadSource(corpus, relPath, parseStrict=false) {
   cleanAsserts(ast);
   annotateWithOriginalPath(ast, relPath);
 
-  const flags = corpus.loadFlags(data);
+  const flags = corpus.loadFlags(relPath, data);
   const dependentPaths = resolveLoads(absPath, ast);
 
   return new ParsedSource(ast, corpus, relPath, flags, dependentPaths);

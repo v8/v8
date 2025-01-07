@@ -7,6 +7,7 @@
  */
 
 
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const program = require('commander');
@@ -136,8 +137,36 @@ class Corpus extends sourceHelpers.BaseCorpus {
   }
 }
 
+class FuzzilliCorpus extends Corpus {
+  constructor(inputDir, corpusName, extraStrict=false) {
+    super(inputDir, corpusName, extraStrict);
+    this.flagMap = new Map();
+  }
+
+  loadFlags(relPath, data) {
+    // Create the settings path based on the location of the test file, e.g.
+    // .../fuzzilli/fuzzdir-1/settings.json for
+    // .../fuzzilli/fuzzdir-1/corpus/program_x.js
+    const pathComponents = relPath.split(path.sep);
+    assert(pathComponents.length > 1);
+    assert(pathComponents[0] == 'fuzzilli');
+    const settingsPath = path.join(
+        this.inputDir, pathComponents[0], pathComponents[1], 'settings.json');
+
+    // Use cached flags if already loaded.
+    let flags = this.flagMap.get(settingsPath);
+    if (flags == undefined) {
+      assert(fs.existsSync(settingsPath));
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      flags = exceptions.filterFlags(settings["processArguments"]);
+      this.flagMap.set(settingsPath, flags);
+    }
+    return flags;
+  }
+}
+
 class V8Corpus extends Corpus {
-  loadFlags(data) {
+  loadFlags(relPath, data) {
     const result = [];
     let count = 0;
     for (const line of data.split('\n')) {
@@ -159,6 +188,7 @@ class V8Corpus extends Corpus {
 }
 
 const CORPUS_CLASSES = {
+  'fuzzilli': FuzzilliCorpus,
   'v8': V8Corpus,
 };
 

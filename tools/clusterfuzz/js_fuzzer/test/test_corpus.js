@@ -11,8 +11,10 @@
 const assert = require('assert');
 const sinon = require('sinon');
 
-const exceptions = require('../exceptions.js');
 const corpus = require('../corpus.js');
+const exceptions = require('../exceptions.js');
+const helpers = require('./helpers.js');
+const sourceHelpers = require('../source_helpers.js');
 
 const sandbox = sinon.createSandbox();
 
@@ -109,5 +111,19 @@ describe('Loading corpus', () => {
          'mjsunit_softskipped/object-literal.js',
          'mjsunit_softskipped/regress/binaryen-123.js'],
         Array.from(mjsunit.relFiles()));
+  });
+});
+
+
+describe('Fuzzilli corpus', () => {
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it('loads sources with flags', () => {
+    const fuzzilli = corpus.create(helpers.BASE_DIR, 'fuzzilli');
+    const source = sourceHelpers.loadSource(
+        fuzzilli, 'fuzzilli/fuzzdir-1/corpus/program_1.js');
+    assert.deepEqual(['--flag1', '--flag2'], source.flags);
   });
 });

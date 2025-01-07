@@ -104,13 +104,19 @@ const DISALLOWED_FLAGS = [
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
     '--debug-code',
-    '--harmony',
-    '--js-staging',
-    '--wasm-staging',
+    '--disable-abortjs',
+    '--enable-slow-asserts',
     '--expose-gc',
     '--expose_gc',
-    '--icu-data-file',
-    '--random-seed',
+    '--fuzzing',
+    '--harmony',
+    '--omit-quit',
+    '--disable-in-process-stack-traces',
+    '--invoke-weak-callbacks',
+    '--verify-heap',
+
+    /^--icu-data-file.*/,
+    /^--random-seed.*/,
 
     // Disallowed due to false positives.
     '--check-handle-count',
