@@ -10,6 +10,7 @@
 #include "src/base/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/tagged-payload.h"
 #include "src/utils/allocation.h"
@@ -49,14 +50,14 @@ struct ExternalPointerTableEntry {
   // This entry must be an external pointer entry.
   // If the specified tag doesn't match the actual tag of this entry, the
   // resulting pointer will be invalid and cannot be dereferenced.
-  inline Address GetExternalPointer(ExternalPointerTag tag) const;
+  inline Address GetExternalPointer(ExternalPointerTagRange tag_range) const;
 
   // Tag and store the given external pointer in this entry.
   // This entry must be an external pointer entry.
   inline void SetExternalPointer(Address value, ExternalPointerTag tag);
 
   // Returns true if this entry contains an external pointer with the given tag.
-  inline bool HasExternalPointer(ExternalPointerTag tag) const;
+  inline bool HasExternalPointer(ExternalPointerTagRange tag_range) const;
 
   // Exchanges the external pointer stored in this entry with the provided one.
   // Returns the old external pointer. This entry must be an external pointer
@@ -106,19 +107,91 @@ struct ExternalPointerTableEntry {
  private:
   friend class ExternalPointerTable;
 
-  struct ExternalPointerTaggingScheme {
-    using TagType = ExternalPointerTag;
-    static constexpr uint64_t kMarkBit = kExternalPointerMarkBit;
-    static constexpr uint64_t kTagMask = kExternalPointerTagMask;
-    static constexpr TagType kFreeEntryTag = kExternalPointerFreeEntryTag;
-    static constexpr TagType kEvacuationEntryTag =
-        kExternalPointerEvacuationEntryTag;
-    static constexpr TagType kZappedEntryTag = kExternalPointerZappedEntryTag;
-    static constexpr bool kSupportsEvacuation = true;
-    static constexpr bool kSupportsZapping = true;
-  };
+  struct Payload {
+    Payload(Address pointer, ExternalPointerTag tag)
+        : encoded_word_(Tag(pointer, tag)) {}
 
-  using Payload = TaggedPayload<ExternalPointerTaggingScheme>;
+    static Address Tag(Address pointer, ExternalPointerTag tag) {
+      return (pointer << kExternalPointerPayloadShift) |
+             (static_cast<uint16_t>(tag) << kExternalPointerTagShift);
+    }
+
+    static bool CheckTag(Address content, ExternalPointerTagRange tag_range) {
+      // TODO(saelo): use well-known null entries per type tag instead of a
+      // generic null entry. Then this check can be removed.
+      if (ExternalPointerCanBeEmpty(tag_range) && !content) {
+        return true;
+      }
+
+      // The marking bit is stored in the LSB, so remove that by shifting.
+      uint16_t tag_bits = static_cast<uint16_t>(content) >> 1;
+      ExternalPointerTag tag = static_cast<ExternalPointerTag>(tag_bits);
+      return tag_range.Contains(tag);
+    }
+
+    Address Untag(ExternalPointerTagRange tag_range) const {
+      Address content = encoded_word_;
+      SBXCHECK(CheckTag(content, tag_range));
+      return content >> kExternalPointerPayloadShift;
+    }
+
+    Address Untag(ExternalPointerTag tag) const {
+      return Untag(ExternalPointerTagRange(tag, tag));
+    }
+
+    bool IsTaggedWithTagIn(ExternalPointerTagRange tag_range) const {
+      return CheckTag(encoded_word_, tag_range);
+    }
+
+    bool IsTaggedWith(ExternalPointerTag tag) const {
+      return IsTaggedWithTagIn(ExternalPointerTagRange(tag));
+    }
+
+    void SetMarkBit() { encoded_word_ |= kExternalPointerMarkBit; }
+
+    void ClearMarkBit() { encoded_word_ &= ~kExternalPointerMarkBit; }
+
+    bool HasMarkBitSet() const {
+      return encoded_word_ & kExternalPointerMarkBit;
+    }
+
+    uint32_t ExtractFreelistLink() const {
+      return static_cast<uint32_t>(encoded_word_ >>
+                                   kExternalPointerPayloadShift);
+    }
+
+    ExternalPointerTag ExtractTag() const {
+      return static_cast<ExternalPointerTag>(
+          static_cast<uint16_t>(encoded_word_) >> kExternalPointerTagShift);
+    }
+
+    bool ContainsFreelistLink() const {
+      return IsTaggedWith(kExternalPointerFreeEntryTag);
+    }
+
+    bool ContainsEvacuationEntry() const {
+      return IsTaggedWith(kExternalPointerEvacuationEntryTag);
+    }
+
+    Address ExtractEvacuationEntryHandleLocation() const {
+      return Untag(kExternalPointerEvacuationEntryTag);
+    }
+
+    bool ContainsPointer() const {
+      return !ContainsFreelistLink() && !ContainsEvacuationEntry();
+    }
+
+    bool operator==(Payload other) const {
+      return encoded_word_ == other.encoded_word_;
+    }
+
+    bool operator!=(Payload other) const {
+      return encoded_word_ != other.encoded_word_;
+    }
+
+   private:
+    Address encoded_word_;
+  };
 
   inline Payload GetRawPayload() {
     return payload_.load(std::memory_order_relaxed);
@@ -267,8 +340,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // field, then again converted to a external pointer field, then it will be
     // re-initialized, at which point it will obtain a new entry in the
     // external pointer table which cannot be a candidate for evacuation.
-    inline void NotifyExternalPointerFieldInvalidated(Address field_address,
-                                                      ExternalPointerTag tag);
+    inline void NotifyExternalPointerFieldInvalidated(
+        Address field_address, ExternalPointerTagRange tag_range);
 
     // Not atomic.  Mutators and concurrent marking must be paused.
     void AssertEmpty() { CHECK(segments_.empty()); }
@@ -290,7 +363,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline Address Get(ExternalPointerHandle handle,
-                     ExternalPointerTag tag) const;
+                     ExternalPointerTagRange tag_range) const;
 
   // Sets the entry referenced by the given handle.
   //

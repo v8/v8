@@ -1252,6 +1252,10 @@ void GraphAssembler::BranchWithCriticalSafetyCheck(
   BranchImpl(default_branch_semantics_, condition, if_true, if_false, hint);
 }
 
+void GraphAssembler::RuntimeAbort(AbortReason reason) {
+  AddNode(graph()->NewNode(simplified()->RuntimeAbort(reason)));
+}
+
 void GraphAssembler::ConnectUnreachableToEnd() {
   DCHECK_EQ(effect()->opcode(), IrOpcode::kUnreachable);
   Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());

@@ -245,7 +245,8 @@ int Deserializer<IsolateT>::WriteHeapPointer(
 template <typename IsolateT>
 int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
                                                  ExternalPointerSlot dest,
-                                                 Address value) {
+                                                 Address value,
+                                                 ExternalPointerTag tag) {
   DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
          !next_reference_is_protected_pointer);
 
@@ -253,7 +254,7 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
   ExternalPointerTable::ManagedResource* managed_resource = nullptr;
   ExternalPointerTable* owning_table = nullptr;
   ExternalPointerHandle original_handle = kNullExternalPointerHandle;
-  if (IsManagedExternalPointerType(dest.tag())) {
+  if (IsManagedExternalPointerType(tag)) {
     // This can currently only happen during snapshot stress mode as we cannot
     // normally serialized managed resources. In snapshot stress mode, the new
     // isolate will be destroyed and the old isolate (really, the old isolate's
@@ -272,7 +273,7 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
   }
 #endif  // V8_ENABLE_SANDBOX
 
-  dest.init(main_thread_isolate(), host, value);
+  dest.init(main_thread_isolate(), host, value, tag);
 
 #ifdef V8_ENABLE_SANDBOX
   if (managed_resource) {
@@ -1226,12 +1227,12 @@ int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
     tag = ReadExternalPointerTag();
   }
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sExternalReference [%" PRIxPTR ", %" PRIx64 "]\n", depth_, "",
-           address, tag);
+    PrintF("%*sExternalReference [%" PRIxPTR ", %i]\n", depth_, "", address,
+           tag);
   }
   return WriteExternalPointer(*slot_accessor.object(),
-                              slot_accessor.external_pointer_slot(tag),
-                              address);
+                              slot_accessor.external_pointer_slot(tag), address,
+                              tag);
 }
 
 template <typename IsolateT>
@@ -1246,12 +1247,12 @@ int Deserializer<IsolateT>::ReadRawExternalReference(
     tag = ReadExternalPointerTag();
   }
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sRawExternalReference [%" PRIxPTR ", %" PRIx64 "]\n", depth_, "",
-           address, tag);
+    PrintF("%*sRawExternalReference [%" PRIxPTR ", %i]\n", depth_, "", address,
+           tag);
   }
   return WriteExternalPointer(*slot_accessor.object(),
-                              slot_accessor.external_pointer_slot(tag),
-                              address);
+                              slot_accessor.external_pointer_slot(tag), address,
+                              tag);
 }
 
 // Find an object in the attached references and write a pointer to it to
@@ -1401,12 +1402,11 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
     tag = ReadExternalPointerTag();
   }
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sApiReference [%" PRIxPTR ", %" PRIx64 "]\n", depth_, "", address,
-           tag);
+    PrintF("%*sApiReference [%" PRIxPTR ", %i]\n", depth_, "", address, tag);
   }
   return WriteExternalPointer(*slot_accessor.object(),
-                              slot_accessor.external_pointer_slot(tag),
-                              address);
+                              slot_accessor.external_pointer_slot(tag), address,
+                              tag);
 }
 
 template <typename IsolateT>
@@ -1624,9 +1624,7 @@ Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
 
 template <typename IsolateT>
 ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
-  uint64_t shifted_tag = static_cast<uint64_t>(source_.GetUint30());
-  return static_cast<ExternalPointerTag>(shifted_tag
-                                         << kExternalPointerTagShift);
+  return static_cast<ExternalPointerTag>(source_.GetUint30());
 }
 
 template <typename IsolateT>

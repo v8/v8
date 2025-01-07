@@ -212,7 +212,7 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
     ExternalPointerSlot slot_in_segment{
         reinterpret_cast<Address>(segment_->contents.get() +
                                   SegmentOffsetOf(slot)),
-        slot.tag()};
+        slot.exact_tag()};
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being

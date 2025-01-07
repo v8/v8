@@ -46,7 +46,7 @@ V8_INLINE void InitExternalPointerField(Address host_address,
 // fields since lazily-initialized field will initially contain
 // kNullExternalPointerHandle, which is guaranteed to result in kNullAddress
 // being returned from the external pointer table.
-template <ExternalPointerTag tag>
+template <ExternalPointerTagRange tag_range>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate);
 

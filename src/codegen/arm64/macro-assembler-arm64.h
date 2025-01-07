@@ -1623,7 +1623,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if the sandbox is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
-                                ExternalPointerTag tag,
+                                ExternalPointerTagRange tag_range,
                                 Register isolate_root = Register::no_reg());
 
   // Load a trusted pointer field.

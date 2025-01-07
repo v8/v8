@@ -17,50 +17,57 @@ namespace internal {
 void ExternalPointerTableEntry::MakeExternalPointerEntry(Address value,
                                                          ExternalPointerTag tag,
                                                          bool mark_as_alive) {
-  DCHECK_EQ(0, value & kExternalPointerTagMask);
-  DCHECK(tag & kExternalPointerMarkBit);
+  // Top bits must be zero, otherwise we'd loose information when shifting.
+  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
   DCHECK_NE(tag, kExternalPointerFreeEntryTag);
   DCHECK_NE(tag, kExternalPointerEvacuationEntryTag);
 
   Payload new_payload(value, tag);
-  if (V8_LIKELY(!mark_as_alive)) {
-    new_payload.ClearMarkBit();
+  if (V8_UNLIKELY(mark_as_alive)) {
+    new_payload.SetMarkBit();
   }
   payload_.store(new_payload, std::memory_order_relaxed);
   MaybeUpdateRawPointerForLSan(value);
 }
 
 Address ExternalPointerTableEntry::GetExternalPointer(
-    ExternalPointerTag tag) const {
+    ExternalPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_relaxed);
   DCHECK(payload.ContainsPointer());
-  return payload.Untag(tag);
+  return payload.Untag(tag_range);
 }
 
 void ExternalPointerTableEntry::SetExternalPointer(Address value,
                                                    ExternalPointerTag tag) {
-  DCHECK_EQ(0, value & kExternalPointerTagMask);
-  DCHECK(tag & kExternalPointerMarkBit);
+  // Top bits must be zero, otherwise we'd loose information when shifting.
+  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
   DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
   Payload new_payload(value, tag);
+  // Writing an entry currently also marks it as alive. In the future, we might
+  // want to drop this and instead use write barriers where necessary.
+  new_payload.SetMarkBit();
   payload_.store(new_payload, std::memory_order_relaxed);
   MaybeUpdateRawPointerForLSan(value);
 }
 
 bool ExternalPointerTableEntry::HasExternalPointer(
-    ExternalPointerTag tag) const {
+    ExternalPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_relaxed);
   if (!payload.ContainsPointer()) return false;
-  return tag == kAnyExternalPointerTag || payload.IsTaggedWith(tag);
+  return payload.IsTaggedWithTagIn(tag_range);
 }
 
 Address ExternalPointerTableEntry::ExchangeExternalPointer(
     Address value, ExternalPointerTag tag) {
-  DCHECK_EQ(0, value & kExternalPointerTagMask);
+  // Top bits must be zero, otherwise we'd loose information when shifting.
+  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
   DCHECK(tag & kExternalPointerMarkBit);
 
   Payload new_payload(value, tag);
+  // Writing an entry currently also marks it as alive. In the future, we might
+  // want to drop this and instead use write barriers where necessary.
+  new_payload.SetMarkBit();
   Payload old_payload =
       payload_.exchange(new_payload, std::memory_order_relaxed);
   DCHECK(old_payload.ContainsPointer());
@@ -155,26 +162,10 @@ void ExternalPointerTableEntry::Evacuate(ExternalPointerTableEntry& dest,
 }
 
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
-                                  ExternalPointerTag tag) const {
+                                  ExternalPointerTagRange tag_range) const {
   uint32_t index = HandleToIndex(handle);
-#if defined(V8_USE_ADDRESS_SANITIZER)
-  // We rely on the tagging scheme to produce non-canonical addresses when an
-  // entry isn't tagged with the expected tag. Such "safe" crashes can then be
-  // filtered out by our sandbox crash filter. However, when ASan is active, it
-  // may perform its shadow memory access prior to the actual memory access.
-  // For a non-canonical address, this can lead to a segfault at a _canonical_
-  // address, which our crash filter can then not distinguish from a "real"
-  // crash. Therefore, in ASan builds, we perform an additional CHECK here that
-  // the entry is tagged with the expected tag. The resulting CHECK failure
-  // will then be ignored by the crash filter.
-  // This check is, however, not needed when accessing the null entry, as that
-  // is always valid (it just contains nullptr).
-  CHECK(index == 0 || at(index).HasExternalPointer(tag));
-#else
-  // Otherwise, this is just a DCHECK.
-  DCHECK(index == 0 || at(index).HasExternalPointer(tag));
-#endif
-  return at(index).GetExternalPointer(tag);
+  DCHECK(index == 0 || at(index).HasExternalPointer(tag_range));
+  return at(index).GetExternalPointer(tag_range);
 }
 
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
@@ -337,11 +328,11 @@ bool ExternalPointerTable::Contains(Space* space,
 }
 
 void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
-    Address field_address, ExternalPointerTag tag) {
+    Address field_address, ExternalPointerTagRange tag_range) {
   // We do not currently support invalidating fields containing managed
   // external pointers. If this is ever needed, we would probably need to free
   // the managed object here as we may otherwise fail to do so during sweeping.
-  DCHECK(!IsManagedExternalPointerType(tag));
+  DCHECK(!IsManagedExternalPointerType(tag_range));
 #ifdef DEBUG
   ExternalPointerHandle handle = base::AsAtomic32::Acquire_Load(
       reinterpret_cast<ExternalPointerHandle*>(field_address));

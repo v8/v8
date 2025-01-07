@@ -507,6 +507,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   void GotoIfNot(Node* condition,
                  detail::GraphAssemblerLabelForVars<Vars...>* label, Vars...);
 
+  void RuntimeAbort(AbortReason reason);
+
   bool HasActiveBlock() const {
     // This is false if the current block has been terminated (e.g. by a Goto or
     // Unreachable). In that case, a new label must be bound before we can

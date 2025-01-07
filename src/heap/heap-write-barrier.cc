@@ -142,9 +142,10 @@ void WriteBarrier::MarkingSlow(Tagged<HeapObject> host,
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   IsolateForPointerCompression isolate(marking_barrier->heap()->isolate());
 
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(slot.tag());
+  ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(slot.tag_range());
   ExternalPointerTable::Space* space =
-      isolate.GetExternalPointerTableSpaceFor(slot.tag(), host.address());
+      isolate.GetExternalPointerTableSpaceFor(slot.tag_range(), host.address());
 
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   table.Mark(space, handle, slot.address());

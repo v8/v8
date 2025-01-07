@@ -14,7 +14,8 @@ namespace internal {
 namespace {
 ExternalPointerHandle LoadExternalPointerHandle(const EmbedderDataSlot& slot) {
   Address loc = slot.address() + EmbedderDataSlot::kExternalPointerOffset;
-  return ExternalPointerSlot(loc, kAnyExternalPointerTag).Relaxed_LoadHandle();
+  return ExternalPointerSlot(loc, kAnyExternalPointerTagRange)
+      .Relaxed_LoadHandle();
 }
 void StoreTaggedWithoutBarrier(const EmbedderDataSlot& slot,
                                Tagged<Object> value) {

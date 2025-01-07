@@ -3925,8 +3925,9 @@ class ExternalPointerSlotInvalidator
     DCHECK_EQ(target_, host);
     ExternalPointerTable::Space* space =
         IsolateForSandbox(isolate_).GetExternalPointerTableSpaceFor(
-            slot.tag(), host.address());
-    space->NotifyExternalPointerFieldInvalidated(slot.address(), slot.tag());
+            slot.tag_range(), host.address());
+    space->NotifyExternalPointerFieldInvalidated(slot.address(),
+                                                 slot.tag_range());
     num_invalidated_slots++;
   }
 

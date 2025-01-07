@@ -516,12 +516,13 @@ void MacroAssembler::StoreSandboxedPointerField(Operand dst_field_operand,
 }
 
 void MacroAssembler::LoadExternalPointerField(
-    Register destination, Operand field_operand, ExternalPointerTag tag,
-    Register scratch, IsolateRootLocation isolateRootLocation) {
+    Register destination, Operand field_operand,
+    ExternalPointerTagRange tag_range, Register scratch,
+    IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(tag));
+  DCHECK(!tag_range.IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(tag_range));
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);
@@ -541,8 +542,24 @@ void MacroAssembler::LoadExternalPointerField(
   shrq(destination, Immediate(kExternalPointerIndexShift));
   static_assert(kExternalPointerTableEntrySize == 8);
   movq(destination, Operand(scratch, destination, times_8, 0));
-  movq(scratch, Immediate64(~tag));
-  andq(destination, scratch);
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range));
+
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    movq(scratch, destination);
+    andl(scratch, Immediate(kExternalPointerTagMask));
+    cmpl(scratch, Immediate(tag_range.first << kExternalPointerTagShift));
+    SbxCheck(equal, AbortReason::kExternalPointerTagMismatch);
+    shrq(destination, Immediate(kExternalPointerPayloadShift));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
 #else
   movq(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX

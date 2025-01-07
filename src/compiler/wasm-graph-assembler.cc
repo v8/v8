@@ -196,13 +196,13 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
 }
 
 Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
-    Node* handle, ExternalPointerTag tag, Node* isolate_root) {
+    Node* handle, ExternalPointerTagRange tag_range, Node* isolate_root) {
 #if V8_ENABLE_SANDBOX
   Node* index = Word32Shr(handle, Int32Constant(kExternalPointerIndexShift));
   Node* offset = ChangeUint32ToUint64(
       Word32Shl(index, Int32Constant(kExternalPointerTableEntrySizeLog2)));
   Node* table;
-  if (IsSharedExternalPointerType(tag)) {
+  if (IsSharedExternalPointerType(tag_range)) {
     Node* table_address =
         Load(MachineType::Pointer(), isolate_root,
              IsolateData::shared_external_pointer_table_offset());
@@ -213,8 +213,31 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
                  IsolateData::external_pointer_table_offset() +
                      Internals::kExternalPointerTableBasePointerOffset);
   }
-  Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
-  return WordAnd(decoded_ptr, IntPtrConstant(~tag));
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range));
+
+  Node* entry = Load(MachineType::Pointer(), table, offset);
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    Node* actual_tag = TruncateInt64ToInt32(
+        WordAnd(entry, UintPtrConstant(kExternalPointerTagMask)));
+    Node* expected_tag =
+        Int32Constant(tag_range.first << kExternalPointerTagShift);
+    Node* pointer =
+        WordShr(entry, IntPtrConstant(kExternalPointerPayloadShift));
+    auto ok = MakeLabel();
+    GotoIf(Word32Equal(actual_tag, expected_tag), &ok, BranchHint::kTrue);
+    RuntimeAbort(AbortReason::kExternalPointerTagMismatch);
+    Bind(&ok);
+    return pointer;
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
 #else
   UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
@@ -243,13 +266,13 @@ Node* WasmGraphAssembler::BuildDecodeTrustedPointer(Node* handle,
 }
 
 Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
-    Node* object, int field_offset, ExternalPointerTag tag,
+    Node* object, int field_offset, ExternalPointerTagRange tag_range,
     Node* isolate_root) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!tag_range.IsEmpty());
   Node* handle = LoadFromObject(MachineType::Uint32(), object,
                                 wasm::ObjectAccess::ToTagged(field_offset));
-  return BuildDecodeSandboxedExternalPointer(handle, tag, isolate_root);
+  return BuildDecodeSandboxedExternalPointer(handle, tag_range, isolate_root);
 #else
   return LoadFromObject(MachineType::Pointer(), object,
                         wasm::ObjectAccess::ToTagged(field_offset));

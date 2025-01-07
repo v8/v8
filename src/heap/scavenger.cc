@@ -97,8 +97,8 @@ class IterateAndScavengePromotedObjectsVisitor final
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override {
 #ifdef V8_COMPRESS_POINTERS
-    DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-    DCHECK(!IsSharedExternalPointerType(slot.tag()));
+    DCHECK(!slot.tag_range().IsEmpty());
+    DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
     // TODO(chromium:337580006): Remove when pointer compression always uses
     // EPT.
     if (!slot.HasExternalPointerHandle()) return;

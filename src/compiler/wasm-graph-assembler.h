@@ -165,14 +165,15 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* BuildDecodeSandboxedExternalPointer(Node* handle,
-                                            ExternalPointerTag tag,
+                                            ExternalPointerTagRange tag_range,
                                             Node* isolate_root);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
-                                           ExternalPointerTag tag,
+                                           ExternalPointerTagRange tag_range,
                                            Node* isolate_root);
 
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
-                                           Node* index, ExternalPointerTag tag,
+                                           Node* index,
+                                           ExternalPointerTagRange tag_range,
                                            Node* isolate_root);
 
   Node* LoadImmutableTrustedPointerFromObject(Node* object, int offset,

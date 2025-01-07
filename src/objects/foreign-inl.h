@@ -48,21 +48,21 @@ void Foreign::init_foreign_address(IsolateForSandbox isolate,
 
 Address Foreign::foreign_address_unchecked() const {
   IsolateForSandbox isolate = GetIsolateForSandbox(*this);
-  return ReadExternalPointerField<kAnyForeignTag>(kForeignAddressOffset,
-                                                  isolate);
+  return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
+      kForeignAddressOffset, isolate);
 }
 
 ExternalPointerTag Foreign::GetTag() const {
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerHandle handle =
-      RawExternalPointerField(kForeignAddressOffset, kAnyExternalPointerTag)
+      RawExternalPointerField(kForeignAddressOffset,
+                              kAnyForeignExternalPointerTagRange)
           .Relaxed_LoadHandle();
   IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   return isolate.GetExternalPointerTableTagFor(*this, handle);
 #endif  // V8_ENABLE_SANDBOX
-  // Without the sandbox the address is stored untagged; just return
-  // kAnyExternalPointerTag.
-  return kAnyExternalPointerTag;
+  // Without the sandbox the address is stored untagged.
+  return kExternalPointerNullTag;
 }
 
 }  // namespace v8::internal

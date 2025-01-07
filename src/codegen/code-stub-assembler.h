@@ -909,18 +909,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // ExternalPointerT-related functionality.
   //
 
-  TNode<RawPtrT> ExternalPointerTableAddress(ExternalPointerTag tag);
+  TNode<RawPtrT> ExternalPointerTableAddress(ExternalPointerTagRange tag_range);
 
   // Load an external pointer value from an object.
-  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               int offset,
-                                               ExternalPointerTag tag) {
-    return LoadExternalPointerFromObject(object, IntPtrConstant(offset), tag);
+  TNode<RawPtrT> LoadExternalPointerFromObject(
+      TNode<HeapObject> object, int offset, ExternalPointerTagRange tag_range) {
+    return LoadExternalPointerFromObject(object, IntPtrConstant(offset),
+                                         tag_range);
   }
 
-  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               TNode<IntPtrT> offset,
-                                               ExternalPointerTag tag);
+  TNode<RawPtrT> LoadExternalPointerFromObject(
+      TNode<HeapObject> object, TNode<IntPtrT> offset,
+      ExternalPointerTagRange tag_range);
 
   // Store external object pointer to object.
   void StoreExternalPointerToObject(TNode<HeapObject> object, int offset,

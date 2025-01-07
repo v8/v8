@@ -194,18 +194,18 @@ void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
 }
 
 void ExternalPointerSlot::init(IsolateForSandbox isolate,
-                               Tagged<HeapObject> host, Address value) {
+                               Tagged<HeapObject> host, Address value,
+                               ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-      isolate.GetExternalPointerTableSpaceFor(tag_, host.address()), value,
-      tag_);
+      isolate.GetExternalPointerTableSpaceFor(tag, host.address()), value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
   Release_StoreHandle(handle);
 #else
-  store(isolate, value);
+  store(isolate, value, tag);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -227,19 +227,22 @@ void ExternalPointerSlot::Release_StoreHandle(
 
 Address ExternalPointerSlot::load(IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  const ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  const ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(tag_range_);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
-  return table.Get(handle, tag_);
+  return table.Get(handle, tag_range_);
 #else
   return ReadMaybeUnalignedValue<Address>(address());
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value) {
+void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value,
+                                ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag_);
+  DCHECK(tag_range_.Contains(tag));
+  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   ExternalPointerHandle handle = Relaxed_LoadHandle();
-  table.Set(handle, value, tag_);
+  table.Set(handle, value, tag);
 #else
   WriteMaybeUnalignedValue<Address>(address(), value);
 #endif  // V8_ENABLE_SANDBOX

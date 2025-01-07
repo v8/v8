@@ -721,7 +721,7 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
 
 void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
-  os << "tag: " << std::hex << tag << std::dec;
+  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
   os << ']';
 }
 

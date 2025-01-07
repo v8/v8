@@ -66,6 +66,7 @@ enum class CppHeapPointerTag : uint16_t {
 // against supertypes, which cover a range of types (their subtypes).
 // Both the lower- and the upper bound are inclusive. In other words, this
 // struct represents the range [lower_bound, upper_bound].
+// TODO(saelo): reuse internal::TagRange here.
 struct CppHeapPointerTagRange {
   constexpr CppHeapPointerTagRange(CppHeapPointerTag lower,
                                    CppHeapPointerTag upper)

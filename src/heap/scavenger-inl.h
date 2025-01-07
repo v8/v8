@@ -523,8 +523,8 @@ size_t ScavengeVisitor::VisitJSApiObject(Tagged<Map> map,
 void ScavengeVisitor::VisitExternalPointer(Tagged<HeapObject> host,
                                            ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(slot.tag()));
+  DCHECK(!slot.tag_range().IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
   DCHECK(HeapLayout::InYoungGeneration(host));
 
   // If an incremental mark is in progress, there is already a whole-heap trace

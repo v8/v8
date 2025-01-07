@@ -220,12 +220,12 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+  DCHECK(!slot.tag_range().IsEmpty());
   if (slot.HasExternalPointerHandle()) {
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     ExternalPointerTable* table;
     ExternalPointerTable::Space* space;
-    if (IsSharedExternalPointerType(slot.tag())) {
+    if (IsSharedExternalPointerType(slot.tag_range())) {
       table = shared_external_pointer_table_;
       space = shared_external_pointer_space_;
     } else {

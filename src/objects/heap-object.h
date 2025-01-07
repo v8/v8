@@ -301,7 +301,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void InitExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  template <ExternalPointerTag tag>
+  template <ExternalPointerTagRange tag_range>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
   // Similar to `ReadExternalPointerField()` but uses the CppHeapPointerTable.
@@ -418,7 +418,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   inline InstructionStreamSlot RawInstructionStreamField(int byte_offset) const;
   inline ExternalPointerSlot RawExternalPointerField(
-      int byte_offset, ExternalPointerTag tag) const;
+      int byte_offset, ExternalPointerTagRange tag_range) const;
   inline CppHeapPointerSlot RawCppHeapPointerField(int byte_offset) const;
   inline IndirectPointerSlot RawIndirectPointerField(
       int byte_offset, IndirectPointerTag tag) const;

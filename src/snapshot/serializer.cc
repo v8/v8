@@ -1073,7 +1073,6 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
   DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
   DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
-  DCHECK_NE(tag, kAnyExternalPointerTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -1122,8 +1121,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     sink_->PutUint30(encoded_reference.index(), "reference index");
   }
   if (sandboxify) {
-    sink_->PutUint30(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
-                     "external pointer tag");
+    sink_->PutUint30(tag, "external pointer tag");
   }
 }
 

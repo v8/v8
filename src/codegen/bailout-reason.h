@@ -110,6 +110,8 @@ namespace internal {
     "A type assertion failed in Turboshaft-generated code")                    \
   V(kMetadataAreaStartDoesNotMatch,                                            \
     "The metadata doesn't belong to the chunk")                                \
+  V(kExternalPointerTagMismatch,                                               \
+    "Tag mismatch during external pointer access")                             \
   V(kJSSignatureMismatch, "Signature mismatch during JS function call")        \
   V(kWasmSignatureMismatch, "Signature mismatch during Wasm indirect call")    \
   V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")

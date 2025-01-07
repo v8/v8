@@ -788,7 +788,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Loads a field containing off-heap pointer and does necessary decoding
   // if sandboxed external pointers are enabled.
   void LoadExternalPointerField(Register destination, Operand field_operand,
-                                ExternalPointerTag tag, Register scratch,
+                                ExternalPointerTagRange tag_range,
+                                Register scratch,
                                 IsolateRootLocation isolateRootLocation =
                                     IsolateRootLocation::kInRootRegister);
 

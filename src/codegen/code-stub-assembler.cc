@@ -1796,8 +1796,8 @@ void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
 
 #ifdef V8_ENABLE_SANDBOX
 TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
-    ExternalPointerTag tag) {
-  if (IsSharedExternalPointerType(tag)) {
+    ExternalPointerTagRange tag_range) {
+  if (IsSharedExternalPointerType(tag_range)) {
     TNode<ExternalReference> table_address_address = ExternalConstant(
         ExternalReference::shared_external_pointer_table_address_address(
             isolate()));
@@ -1810,11 +1810,12 @@ TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
 #endif  // V8_ENABLE_SANDBOX
 
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
-    TNode<HeapObject> object, TNode<IntPtrT> offset, ExternalPointerTag tag) {
+    TNode<HeapObject> object, TNode<IntPtrT> offset,
+    ExternalPointerTagRange tag_range) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!tag_range.IsEmpty());
   TNode<RawPtrT> external_pointer_table_address =
-      ExternalPointerTableAddress(tag);
+      ExternalPointerTableAddress(tag_range);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
            UintPtrConstant(Internals::kExternalPointerTableBasePointerOffset)));
@@ -1830,9 +1831,26 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-  TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
-  entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
-  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range));
+
+  TNode<IntPtrT> entry = Load<IntPtrT>(table, table_offset);
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    TNode<Uint32T> actual_tag = UncheckedCast<Uint32T>(Word32And(
+        TruncateIntPtrToInt32(entry), Uint32Constant(kExternalPointerTagMask)));
+    TNode<Uint32T> expected_tag =
+        Uint32Constant(tag_range.first << kExternalPointerTagShift);
+    CSA_SBXCHECK(this, Word32Equal(expected_tag, actual_tag));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
+  return UncheckedCast<IntPtrT>(
+      WordShr(entry, UintPtrConstant(kExternalPointerPayloadShift)));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -1861,7 +1879,11 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
   TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
-  value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
+  value = UncheckedCast<UintPtrT>(
+      WordShl(value, UintPtrConstant(kExternalPointerPayloadShift)));
+  value = UncheckedCast<UintPtrT>(
+      WordOr(value, UintPtrConstant((tag << kExternalPointerTagShift) |
+                                    kExternalPointerMarkBit)));
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
                       value);
 #else

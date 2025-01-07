@@ -68,19 +68,19 @@ V8_INLINE void InitExternalPointerField(Address host_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-template <ExternalPointerTag tag>
+template <ExternalPointerTagRange tag_range>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            IsolateForSandbox isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
-  // Handles may be written to objects from other threads so the handle needs
-  // to be loaded atomically. We assume that the load from the table cannot
-  // be reordered before the load of the handle due to the data dependency
-  // between the two loads and therefore use relaxed memory ordering, but
-  // technically we should use memory_order_consume here.
+  // static_assert(tag != kExternalPointerNullTag); // TODO
+  //  Handles may be written to objects from other threads so the handle needs
+  //  to be loaded atomically. We assume that the load from the table cannot
+  //  be reordered before the load of the handle due to the data dependency
+  //  between the two loads and therefore use relaxed memory ordering, but
+  //  technically we should use memory_order_consume here.
   auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
   ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
-  return isolate.GetExternalPointerTableFor(tag).Get(handle, tag);
+  return isolate.GetExternalPointerTableFor(tag_range).Get(handle, tag_range);
 #else
   return ReadMaybeUnalignedValue<Address>(field_address);
 #endif  // V8_ENABLE_SANDBOX

@@ -127,7 +127,6 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_EQ(0, value & kExternalPointerTagMask);
   // When the sandbox is enabled, the external pointer handles in
   // EmbedderDataSlots are lazily initialized: initially they contain the null
   // external pointer handle (see EmbedderDataSlot::Initialize), and only once

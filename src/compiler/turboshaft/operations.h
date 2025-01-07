@@ -3504,7 +3504,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
 struct DecodeExternalPointerOp
     : FixedArityOperationT<1, DecodeExternalPointerOp> {
-  ExternalPointerTag tag;
+  ExternalPointerTagRange tag_range;
 
   // Accessing external pointers is only safe if the garbage collected pointer
   // keeping the external pointer alive is retained for the length of the
@@ -3522,14 +3522,12 @@ struct DecodeExternalPointerOp
 
   OpIndex handle() const { return input(0); }
 
-  DecodeExternalPointerOp(OpIndex handle, ExternalPointerTag tag)
-      : Base(handle), tag(tag) {}
+  DecodeExternalPointerOp(OpIndex handle, ExternalPointerTagRange tag_range)
+      : Base(handle), tag_range(tag_range) {}
 
-  void Validate(const Graph& graph) const {
-    DCHECK_NE(tag, kExternalPointerNullTag);
-  }
+  void Validate(const Graph& graph) const { DCHECK(!tag_range.IsEmpty()); }
   void PrintOptions(std::ostream& os) const;
-  auto options() const { return std::tuple{tag}; }
+  auto options() const { return std::tuple{tag_range}; }
 };
 
 struct JSStackCheckOp : OperationT<JSStackCheckOp> {
@@ -9106,6 +9104,7 @@ constexpr size_t input_count(LoadOp::Kind) { return 0; }
 constexpr size_t input_count(RegisterRepresentation) { return 0; }
 constexpr size_t input_count(MemoryRepresentation) { return 0; }
 constexpr size_t input_count(OpEffects) { return 0; }
+constexpr size_t input_count(ExternalPointerTagRange) { return 0; }
 inline size_t input_count(const ElementsTransition) { return 0; }
 inline size_t input_count(const ElementsTransitionWithMultipleSources) {
   return 0;

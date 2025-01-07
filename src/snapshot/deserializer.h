@@ -171,7 +171,8 @@ class Deserializer : public SerializerDeserializer {
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int WriteExternalPointer(Tagged<HeapObject> host,
-                                  ExternalPointerSlot dest, Address value);
+                                  ExternalPointerSlot dest, Address value,
+                                  ExternalPointerTag tag);
   inline int WriteIndirectPointer(IndirectPointerSlot dest,
                                   Tagged<HeapObject> value);
 

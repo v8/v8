@@ -949,10 +949,10 @@ void HeapObject::InitExternalPointerField(size_t offset,
                                              tag, mode);
 }
 
-template <ExternalPointerTag tag>
+template <ExternalPointerTagRange tag_range>
 Address HeapObject::ReadExternalPointerField(size_t offset,
                                              IsolateForSandbox isolate) const {
-  return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
+  return i::ReadExternalPointerField<tag_range>(field_address(offset), isolate);
 }
 
 template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
@@ -1169,8 +1169,8 @@ InstructionStreamSlot HeapObject::RawInstructionStreamField(
 }
 
 ExternalPointerSlot HeapObject::RawExternalPointerField(
-    int byte_offset, ExternalPointerTag tag) const {
-  return ExternalPointerSlot(field_address(byte_offset), tag);
+    int byte_offset, ExternalPointerTagRange tag_range) const {
+  return ExternalPointerSlot(field_address(byte_offset), tag_range);
 }
 
 CppHeapPointerSlot HeapObject::RawCppHeapPointerField(int byte_offset) const {

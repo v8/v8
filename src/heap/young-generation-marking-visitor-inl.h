@@ -107,8 +107,8 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
   // With sticky mark-bits the host object was already marked (old).
   DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
                  HeapLayout::InYoungGeneration(host));
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(slot.tag()));
+  DCHECK(!slot.tag_range().IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
 
   // TODO(chromium:337580006): Remove when pointer compression always uses
   // EPT.
