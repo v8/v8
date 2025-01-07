@@ -3299,12 +3299,13 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
     ReduceResult result =
         TrySpecializeStoreScriptContextSlot(context, index, value, &store);
     RETURN_IF_ABORT(result);
-    if (!store) {
+    if (!store && result.IsDone()) {
       // If we didn't need to emit any store, there is nothing to cache.
-      DCHECK(result.IsDone());
       return result;
     }
-  } else {
+  }
+
+  if (!store) {
     store = BuildStoreTaggedField(context, value, offset,
                                   StoreTaggedMode::kDefault);
   }
