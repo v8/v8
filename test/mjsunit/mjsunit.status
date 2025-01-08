@@ -978,6 +978,11 @@
   # BUG(v8:14215).
   'tzoffset-seoul-noi18n': [PASS, FAIL],
   'tzoffset-transition-new-york-noi18n': [PASS, FAIL],
+
+  # Maglev's Construct node should be lowered to a call to Construct_WithFeedback
+  # in the Maglev->Turboshaft graph builder, but this builtin can't currently be
+  # called from Turbofan on Arm64.
+  'turboshaft/maglev-frontend/construct-array-feedback': [SKIP],
 }],  # 'arch == arm64'
 
 ##############################################################################

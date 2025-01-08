@@ -1790,14 +1790,37 @@ class GraphBuildingNodeProcessor {
     arguments.push_back(Map(node->new_target()));
     arguments.push_back(__ Word32Constant(node->num_args()));
 
+#ifndef V8_TARGET_ARCH_ARM64
+    arguments.push_back(__ WordPtrConstant(node->feedback().index()));
+    arguments.push_back(__ HeapConstant(node->feedback().vector));
+#endif
+
     for (auto arg : node->args()) {
       arguments.push_back(Map(arg));
     }
 
     arguments.push_back(Map(node->context()));
 
-    GENERATE_AND_MAP_BUILTIN_CALL(node, Builtin::kConstruct, frame_state,
-                                  base::VectorOf(arguments), node->num_args());
+#ifndef V8_TARGET_ARCH_ARM64
+    // Construct_WithFeedback can't be called from Turbofan on Arm64, because of
+    // the stack alignment requirements: the feedback vector is dropped by
+    // Construct_WithFeedback while the other arguments are passed through to
+    // Construct. As a result, when the feedback vector is pushed on the stack,
+    // it should be padded to 16-bytes, but there is no way to express this in
+    // Turbofan.
+    // Anyways, long-term we'll want to feedback-specialize Construct in the
+    // frontend (ie, probably in Maglev), so we don't really need to adapt
+    // Turbofan to be able to call Construct_WithFeedback on Arm64.
+    static constexpr int kFeedbackVector = 1;
+    int stack_arg_count = node->num_args() + kFeedbackVector;
+    Builtin builtin = Builtin::kConstruct_WithFeedback;
+#else
+    int stack_arg_count = node->num_args();
+    Builtin builtin = Builtin::kConstruct;
+#endif
+
+    GENERATE_AND_MAP_BUILTIN_CALL(node, builtin, frame_state,
+                                  base::VectorOf(arguments), stack_arg_count);
 
     return maglev::ProcessResult::kContinue;
   }
