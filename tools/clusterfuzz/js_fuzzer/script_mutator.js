@@ -15,6 +15,7 @@ const common = require('./mutators/common.js');
 const db = require('./db.js');
 const exceptions = require('./exceptions.js');
 const random = require('./random.js');
+const runner = require('./runner.js');
 const sourceHelpers = require('./source_helpers.js');
 
 const { AddTryCatchMutator } = require('./mutators/try_catch.js');
@@ -70,6 +71,16 @@ class ScriptMutator {
     ];
     this.trycatch = new AddTryCatchMutator(settings);
     this.settings = settings;
+  }
+
+  /**
+   * Returns a runner class that decides the composition of tests from
+   * different corpora.
+   */
+  runnerClass() {
+    // Choose a setup with the Fuzzilli corpus with a 50% chance.
+    return random.choose(
+        [runner.RandomCorpusRunner, runner.RandomCorpusRunnerWithFuzzilli]);
   }
 
   _addMjsunitIfNeeded(dependencies, input) {

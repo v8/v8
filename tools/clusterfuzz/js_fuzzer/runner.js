@@ -101,6 +101,17 @@ class RandomCorpusRunner extends Runner {
 }
 
 /**
+ * Like above, including the Fuzzilli corpus.
+ */
+class RandomCorpusRunnerWithFuzzilli extends RandomCorpusRunner {
+  constructor(inputDir, primary, numFiles,
+              maxTestInputs=MAX_TEST_INPUTS_PER_TEST) {
+    super(inputDir, primary, numFiles, maxTestInputs);
+    this.corpora['fuzzilli'] = corpus.create(inputDir, 'fuzzilli');
+  }
+}
+
+/**
  * Runner that enumerates all tests from a particular corpus.
  */
 class SingleCorpusRunner extends Runner {
@@ -119,5 +130,6 @@ class SingleCorpusRunner extends Runner {
 
 module.exports = {
   RandomCorpusRunner: RandomCorpusRunner,
+  RandomCorpusRunnerWithFuzzilli: RandomCorpusRunnerWithFuzzilli,
   SingleCorpusRunner: SingleCorpusRunner,
 };

@@ -64,4 +64,27 @@ describe('Load tests', () => {
         ["chakra/chakra_test1.js"],
         inputs[1][1].map((x) => x.relPath));
   });
+
+  it('includes fuzzilli', () => {
+    sandbox.stub(Math, 'random').callsFake(() => 0.2);
+    const archivePath = path.join(helpers.BASE_DIR, 'input_archive');
+
+    // Create 2 test cases with a maximum of 2 inputs per test.
+    const testRunner = new runner.RandomCorpusRunnerWithFuzzilli(
+        archivePath, 'v8', 2, 2);
+    var inputs = Array.from(testRunner.enumerateInputs());
+
+    // Check the enumeration counter separately.
+    assert.equal(2, inputs.length);
+    assert.deepEqual([0, 1], inputs.map((x) => x[0]));
+
+    assert.deepEqual(
+        ["fuzzilli/fuzzdir-1/corpus/program_1.js",
+         "fuzzilli/fuzzdir-2/crashes/program_2.js"],
+        inputs[0][1].map((x) => x.relPath));
+    assert.deepEqual(
+        ["fuzzilli/fuzzdir-2/crashes/program_2.js",
+         "fuzzilli/fuzzdir-1/corpus/program_1.js"],
+        inputs[1][1].map((x) => x.relPath));
+  });
 });

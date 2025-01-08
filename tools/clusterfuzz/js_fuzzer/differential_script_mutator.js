@@ -93,6 +93,11 @@ class DifferentialScriptMutator extends ScriptMutator {
     this.additionalFlags = loadJSONFromBuild('v8_fuzz_flags.json');
   }
 
+  runnerClass() {
+    // TODO: Make the Fuzzilli corpus work also with differential fuzzing.
+    return runner.RandomCorpusRunner;
+  }
+
   /**
    * Performes the high-level mutation and afterwards adds flags for the
    * v8_foozzie.py harness.

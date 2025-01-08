@@ -109,7 +109,7 @@ function main() {
     testRunner = new runner.SingleCorpusRunner(
         program.input_dir, program.mutate_corpus, program.extra_strict);
   } else {
-    testRunner = new runner.RandomCorpusRunner(
+    testRunner = new mutator.runnerClass(
         program.input_dir, settings.engine, program.no_of_files);
   }
 
