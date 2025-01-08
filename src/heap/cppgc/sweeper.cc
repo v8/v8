@@ -181,13 +181,13 @@ class ThreadSafeStack {
   ThreadSafeStack() = default;
 
   void Push(T t) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+    v8::base::SpinningMutexGuard lock(&mutex_);
     vector_.push_back(std::move(t));
     is_empty_.store(false, std::memory_order_relaxed);
   }
 
   std::optional<T> Pop() {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+    v8::base::SpinningMutexGuard lock(&mutex_);
     if (vector_.empty()) {
       is_empty_.store(true, std::memory_order_relaxed);
       return std::nullopt;
@@ -200,7 +200,7 @@ class ThreadSafeStack {
 
   template <typename It>
   void Insert(It begin, It end) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+    v8::base::SpinningMutexGuard lock(&mutex_);
     vector_.insert(vector_.end(), begin, end);
     is_empty_.store(false, std::memory_order_relaxed);
   }
@@ -208,7 +208,7 @@ class ThreadSafeStack {
   bool IsEmpty() const { return is_empty_.load(std::memory_order_relaxed); }
 
  private:
-  mutable v8::base::Mutex mutex_;
+  mutable v8::base::SpinningMutex mutex_;
   std::vector<T> vector_;
   std::atomic<bool> is_empty_{true};
 };
