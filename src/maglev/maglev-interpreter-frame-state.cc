@@ -1377,6 +1377,23 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(unsigned num) {
   }
 }
 
+bool MergePointInterpreterFrameState::IsUnreachable() const {
+  DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  if (predecessor_count_ > 1) {
+    return false;
+  }
+  // This should actually only support predecessor_count == 1, but we
+  // currently don't eliminate resumable loop headers (and subsequent code
+  // until the next resume) that end up being unreachable from JumpLoop.
+  if (predecessor_count_ == 0) {
+    DCHECK(is_resumable_loop());
+    return true;
+  }
+  DCHECK_EQ(predecessor_count_, 1);
+  DCHECK_IMPLIES(is_loop(), predecessor_at(0)->control_node()->Is<JumpLoop>());
+  return is_loop();
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
