@@ -109,6 +109,7 @@ namespace compiler {
   V(Arm64S32x4UnzipRight)               \
   V(Arm64S32x4TransposeLeft)            \
   V(Arm64S32x4TransposeRight)           \
+  V(Arm64S64x2Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
   V(Arm64S16x8ZipLeft)                  \
   V(Arm64S16x8ZipRight)                 \

@@ -8290,6 +8290,13 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseRegister(input1), g.UseImmediate(offset));
     return;
   }
+  std::array<uint8_t, 2> shuffle64x2;
+  if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle, shuffle64x2.data())) {
+    Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle64x2)));
+    return;
+  }
   int index = 0;
   uint8_t from = 0;
   uint8_t to = 0;

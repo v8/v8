@@ -152,29 +152,25 @@ bool SimdShuffle::TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
 
 bool SimdShuffle::TryMatch64x2Shuffle(const uint8_t* shuffle,
                                       uint8_t* shuffle64x2) {
-  constexpr std::array<uint64_t, 2> element_patterns = {
-      0x0706050403020100,  // 0
-      0x0f0e0d0c0b0a0908   // 1
-  };
-  uint64_t low_shuffle = reinterpret_cast<const uint64_t*>(shuffle)[0];
-  uint64_t high_shuffle = reinterpret_cast<const uint64_t*>(shuffle)[1];
-#ifdef V8_TARGET_BIG_ENDIAN
-  low_shuffle = base::bits::ReverseBytes(low_shuffle);
-  high_shuffle = base::bits::ReverseBytes(high_shuffle);
-#endif
-  if (element_patterns[0] == low_shuffle) {
-    shuffle64x2[0] = 0;
-  } else if (element_patterns[1] == low_shuffle) {
-    shuffle64x2[0] = 1;
-  } else {
-    return false;
-  }
-  if (element_patterns[0] == high_shuffle) {
-    shuffle64x2[1] = 0;
-  } else if (element_patterns[1] == high_shuffle) {
-    shuffle64x2[1] = 1;
-  } else {
-    return false;
+  constexpr std::array<std::array<uint8_t, 8>, 4> element_patterns = {
+      {{0, 1, 2, 3, 4, 5, 6, 7},
+       {8, 9, 10, 11, 12, 13, 14, 15},
+       {16, 17, 18, 19, 20, 21, 22, 23},
+       {24, 25, 26, 27, 28, 29, 30, 31}}};
+
+  for (unsigned i = 0; i < 2; ++i) {
+    uint64_t element = *reinterpret_cast<const uint64_t*>(&shuffle[i * 8]);
+    for (unsigned j = 0; j < 4; ++j) {
+      uint64_t pattern =
+          *reinterpret_cast<const uint64_t*>(element_patterns[j].data());
+      if (pattern == element) {
+        shuffle64x2[i] = j;
+        break;
+      }
+      if (j == 3) {
+        return false;
+      }
+    }
   }
   return true;
 }
@@ -362,6 +358,15 @@ uint8_t SimdShuffle::PackBlend4(const uint8_t* shuffle32x4) {
   int8_t result = 0;
   for (int i = 0; i < 4; ++i) {
     result |= (shuffle32x4[i] >= 4 ? 0x3 : 0) << (i * 2);
+  }
+  return result;
+}
+
+int32_t SimdShuffle::Pack2Lanes(const std::array<uint8_t, 2>& shuffle) {
+  int32_t result = 0;
+  for (int i = 1; i >= 0; --i) {
+    result <<= 8;
+    result |= shuffle[i];
   }
   return result;
 }

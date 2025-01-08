@@ -273,6 +273,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S32x4TransposeLeft:
     case kArm64S32x4TransposeRight:
     case kArm64S32x4OneLaneSwizzle:
+    case kArm64S64x2Shuffle:
     case kArm64S32x4Shuffle:
     case kArm64S16x8ZipLeft:
     case kArm64S16x8ZipRight:

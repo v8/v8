@@ -436,6 +436,13 @@ TEST_F(SimdShuffleTest, Shuffle64x2) {
   EXPECT_EQ(shuffle64x2[0], 0);
   EXPECT_EQ(shuffle64x2[1], 1);
 
+  constexpr uint8_t shuffle_1_3[] = {8,  9,  10, 11, 12, 13, 14, 15,
+                                     24, 25, 26, 27, 28, 29, 30, 31};
+  EXPECT_TRUE(
+      SimdShuffle::TryMatch64x2Shuffle(shuffle_1_3, shuffle64x2.data()));
+  EXPECT_EQ(shuffle64x2[0], 1);
+  EXPECT_EQ(shuffle64x2[1], 3);
+
   constexpr uint8_t rev_64x2[] = {8, 9, 10, 11, 12, 13, 14, 15,
                                   0, 1, 2,  3,  4,  5,  6,  7};
   EXPECT_TRUE(SimdShuffle::TryMatch64x2Shuffle(rev_64x2, shuffle64x2.data()));
