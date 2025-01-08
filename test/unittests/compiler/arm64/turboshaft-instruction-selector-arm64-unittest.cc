@@ -2696,6 +2696,82 @@ TEST_P(TurboshaftInstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, CanonicalShuffleTest) {
+  using ShuffleMap =
+      std::unordered_map<ArchOpcode, const std::array<uint8_t, kSimd128Size>>;
+
+  ShuffleMap test_shuffles = {
+      {kArm64S8x8Reverse,
+       {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}}},
+      {kArm64S32x4Shuffle,
+       {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}}},
+      {kArm64S8x4Reverse,
+       {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}}},
+      {kArm64S32x4Reverse,
+       {{12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3}}},
+      {kArm64S32x4ZipLeft,
+       {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}}},
+      {kArm64S32x4ZipRight,
+       {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31}}},
+      {kArm64S32x4UnzipLeft,
+       {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27}}},
+      {kArm64S32x4UnzipLeft,
+       {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31}}},
+      {kArm64S32x4TransposeLeft,
+       {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}}},
+      {kArm64S32x4TransposeRight,
+       {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}}},
+      {kArm64I8x16Shuffle,
+       {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}}},
+      {kArm64S8x2Reverse,
+       {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}}},
+      {kArm64S16x8ZipLeft,
+       {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}}},
+      {kArm64S16x8ZipRight,
+       {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31}}},
+      {kArm64S16x8UnzipLeft,
+       {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29}}},
+      {kArm64S16x8UnzipRight,
+       {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31}}},
+      {kArm64S16x8TransposeLeft,
+       {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29}}},
+      {kArm64S16x8TransposeRight,
+       {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}}},
+      {kArm64I8x16Shuffle,
+       {{0, 16, 0, 16, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}}},
+      {kArm64S8x16ZipLeft,
+       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}}},
+      {kArm64S8x16ZipRight,
+       {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}}},
+      {kArm64S8x16UnzipLeft,
+       {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}}},
+      {kArm64S8x16UnzipRight,
+       {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}}},
+      {kArm64S8x16TransposeLeft,
+       {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}}},
+      {kArm64S8x16TransposeRight,
+       {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}}},
+      {kArm64S32x2Reverse,
+       {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
+      {kArm64S16x4Reverse,
+       {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9}}},
+      {kArm64S16x2Reverse,
+       {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13}}},
+  };
+
+  const MachineType type = MachineType::Simd128();
+  for (auto& pair : test_shuffles) {
+    ArchOpcode opcode = pair.first;
+    const std::array<uint8_t, kSimd128Size>& shuffle = pair.second;
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.Simd128Shuffle(m.Parameter(0), m.Parameter(1), shuffle.data()));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(opcode, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, ReverseShuffle32x4Test) {
   const MachineType type = MachineType::Simd128();
   {

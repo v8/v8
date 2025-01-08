@@ -8175,81 +8175,6 @@ VISIT_SIMD_QFMOP(F16x8Qfms)
 
 namespace {
 
-struct ShuffleEntry {
-  uint8_t shuffle[kSimd128Size];
-  ArchOpcode opcode;
-};
-
-static const ShuffleEntry arch_shuffles[] = {
-    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
-     kArm64S32x4ZipLeft},
-    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
-     kArm64S32x4ZipRight},
-    {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27},
-     kArm64S32x4UnzipLeft},
-    {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31},
-     kArm64S32x4UnzipRight},
-    {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27},
-     kArm64S32x4TransposeLeft},
-    {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 21, 22, 23, 24},
-     kArm64S32x4TransposeRight},
-    {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11},
-     kArm64S32x2Reverse},
-
-    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
-     kArm64S16x8ZipLeft},
-    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
-     kArm64S16x8ZipRight},
-    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
-     kArm64S16x8UnzipLeft},
-    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
-     kArm64S16x8UnzipRight},
-    {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29},
-     kArm64S16x8TransposeLeft},
-    {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31},
-     kArm64S16x8TransposeRight},
-    {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9},
-     kArm64S16x4Reverse},
-    {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13},
-     kArm64S16x2Reverse},
-
-    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
-     kArm64S8x16ZipLeft},
-    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
-     kArm64S8x16ZipRight},
-    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-     kArm64S8x16UnzipLeft},
-    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
-     kArm64S8x16UnzipRight},
-    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
-     kArm64S8x16TransposeLeft},
-    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
-     kArm64S8x16TransposeRight},
-    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}, kArm64S8x8Reverse},
-    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}, kArm64S8x4Reverse},
-    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
-     kArm64S8x2Reverse}};
-
-bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
-                         size_t num_entries, bool is_swizzle,
-                         ArchOpcode* opcode) {
-  uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
-  for (size_t i = 0; i < num_entries; i++) {
-    const ShuffleEntry& entry = table[i];
-    int j = 0;
-    for (; j < kSimd128Size; j++) {
-      if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
-        break;
-      }
-    }
-    if (j == kSimd128Size) {
-      *opcode = entry.opcode;
-      return true;
-    }
-  }
-  return false;
-}
-
 template <typename Adapter>
 void ArrangeShuffleTable(Arm64OperandGeneratorT<Adapter>* g,
                          typename Adapter::node_t input0,
@@ -8265,53 +8190,95 @@ void ArrangeShuffleTable(Arm64OperandGeneratorT<Adapter>* g,
   }
 }
 
+using CanonicalShuffle = wasm::SimdShuffle::CanonicalShuffle;
+std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
+    CanonicalShuffle shuffle) {
+  using CanonicalToArch = std::pair<CanonicalShuffle, ArchOpcode>;
+  constexpr static std::array<CanonicalToArch, 25> arch_shuffles = {{
+      {CanonicalShuffle::kS64x2ReverseBytes, kArm64S8x8Reverse},
+      {CanonicalShuffle::kS32x4InterleaveEven, kArm64S32x4UnzipLeft},
+      {CanonicalShuffle::kS32x4InterleaveOdd, kArm64S32x4UnzipRight},
+      {CanonicalShuffle::kS32x4InterleaveLowHalves, kArm64S32x4ZipLeft},
+      {CanonicalShuffle::kS32x4InterleaveHighHalves, kArm64S32x4ZipRight},
+      {CanonicalShuffle::kS32x4ReverseBytes, kArm64S8x4Reverse},
+      {CanonicalShuffle::kS32x4Reverse, kArm64S32x4Reverse},
+      {CanonicalShuffle::kS32x2Reverse, kArm64S32x2Reverse},
+      {CanonicalShuffle::kS32x4TransposeEven, kArm64S32x4TransposeLeft},
+      {CanonicalShuffle::kS32x4TransposeOdd, kArm64S32x4TransposeRight},
+      {CanonicalShuffle::kS16x8InterleaveEven, kArm64S16x8UnzipLeft},
+      {CanonicalShuffle::kS16x8InterleaveOdd, kArm64S16x8UnzipRight},
+      {CanonicalShuffle::kS16x8InterleaveLowHalves, kArm64S16x8ZipLeft},
+      {CanonicalShuffle::kS16x8InterleaveHighHalves, kArm64S16x8ZipRight},
+      {CanonicalShuffle::kS16x2Reverse, kArm64S16x2Reverse},
+      {CanonicalShuffle::kS16x4Reverse, kArm64S16x4Reverse},
+      {CanonicalShuffle::kS16x8ReverseBytes, kArm64S8x2Reverse},
+      {CanonicalShuffle::kS16x8TransposeEven, kArm64S16x8TransposeLeft},
+      {CanonicalShuffle::kS16x8TransposeOdd, kArm64S16x8TransposeRight},
+      {CanonicalShuffle::kS8x16InterleaveEven, kArm64S8x16UnzipLeft},
+      {CanonicalShuffle::kS8x16InterleaveOdd, kArm64S8x16UnzipRight},
+      {CanonicalShuffle::kS8x16InterleaveLowHalves, kArm64S8x16ZipLeft},
+      {CanonicalShuffle::kS8x16InterleaveHighHalves, kArm64S8x16ZipRight},
+      {CanonicalShuffle::kS8x16TransposeEven, kArm64S8x16TransposeLeft},
+      {CanonicalShuffle::kS8x16TransposeOdd, kArm64S8x16TransposeRight},
+  }};
+
+  for (auto& [canonical, arch_opcode] : arch_shuffles) {
+    if (canonical == shuffle) {
+      return arch_opcode;
+    }
+  }
+  return {};
+}
 }  // namespace
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
-  uint8_t shuffle[kSimd128Size];
+  std::array<uint8_t, kSimd128Size> shuffle;
   bool is_swizzle;
   auto view = this->simd_shuffle_view(node);
-  CanonicalizeShuffle(view, shuffle, &is_swizzle);
+  CanonicalizeShuffle(view, shuffle.data(), &is_swizzle);
   node_t input0 = view.input(0);
   node_t input1 = view.input(1);
-  uint8_t shuffle32x4[4];
   Arm64OperandGeneratorT<Adapter> g(this);
-  ArchOpcode opcode;
-  if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
-                          is_swizzle, &opcode)) {
-    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input0),
+
+  const CanonicalShuffle canonical =
+      wasm::SimdShuffle::TryMatchCanonical(shuffle);
+
+  if (auto arch_opcode = TryMapCanonicalShuffleToArch(canonical);
+      arch_opcode.has_value()) {
+    Emit(arch_opcode.value(), g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1));
     return;
   }
+
   uint8_t offset;
-  if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
+  if (wasm::SimdShuffle::TryMatchConcat(shuffle.data(), &offset)) {
     Emit(kArm64S8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1), g.UseImmediate(offset));
     return;
   }
   std::array<uint8_t, 2> shuffle64x2;
-  if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle, shuffle64x2.data())) {
+  if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffle.data(),
+                                             shuffle64x2.data())) {
     Emit(kArm64S64x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1),
          g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle64x2)));
     return;
   }
+  uint8_t shuffle32x4[4];
   int index = 0;
   uint8_t from = 0;
   uint8_t to = 0;
-  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
-    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle.data(), shuffle32x4)) {
+    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle.data(), &index)) {
       DCHECK_GT(4, index);
       Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(4), g.UseImmediate(index % 4));
-    } else if (wasm::SimdShuffle::TryMatch32x4Reverse(shuffle32x4)) {
-      Emit(kArm64S32x4Reverse, g.DefineAsRegister(node), g.UseRegister(input0));
     } else if (wasm::SimdShuffle::TryMatch32x4OneLaneSwizzle(shuffle32x4, &from,
                                                              &to)) {
       Emit(kArm64S32x4OneLaneSwizzle, g.DefineAsRegister(node),
            g.UseRegister(input0), g.TempImmediate(from), g.TempImmediate(to));
-    } else if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
+    } else if (canonical == CanonicalShuffle::kIdentity) {
       // Bypass normal shuffle code generation in this case.
       // EmitIdentity
       MarkAsUsed(input0);
@@ -8324,13 +8291,13 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
     }
     return;
   }
-  if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
+  if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle.data(), &index)) {
     DCHECK_GT(8, index);
     Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseImmediate(8), g.UseImmediate(index % 8));
     return;
   }
-  if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle, &index)) {
+  if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle.data(), &index)) {
     DCHECK_GT(16, index);
     Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseImmediate(16), g.UseImmediate(index % 16));
@@ -8340,10 +8307,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   InstructionOperand src0, src1;
   ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
   Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[4])),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[8])),
+       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[12])));
 }
 
 template <typename Adapter>

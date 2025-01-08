@@ -219,7 +219,7 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
 
-  enum CanonicalShuffle {
+  enum class CanonicalShuffle : uint8_t {
     kUnknown,
     kIdentity,
     kS64x2Even,
