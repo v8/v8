@@ -2053,12 +2053,16 @@ bool InstanceBuilder::ProcessImportedTable(
         table_object->trusted_dispatch_table(isolate_), isolate_);
     SBXCHECK_EQ(dispatch_table->table_type(),
                 module_->canonical_type(table.type));
+    SBXCHECK_GE(dispatch_table->length(), table.initial_size);
     WasmDispatchTable::AddUse(isolate_, dispatch_table, trusted_instance_data,
                               table_index);
     trusted_instance_data->dispatch_tables()->set(table_index, *dispatch_table);
     if (table_index == 0) {
       trusted_instance_data->set_dispatch_table0(*dispatch_table);
     }
+  } else {
+    // Function tables are required to have a WasmDispatchTable.
+    SBXCHECK(!IsSubtypeOf(table.type, kWasmFuncRef, module_));
   }
   return true;
 }
