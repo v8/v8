@@ -16,7 +16,7 @@ namespace internal {
 
 namespace wasm {
 class CanonicalValueType;
-using CanonicalSig = Signature<CanonicalValueType>;
+class CanonicalSig;
 }  // namespace wasm
 
 namespace compiler {

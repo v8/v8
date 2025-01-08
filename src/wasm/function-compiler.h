@@ -89,7 +89,6 @@ struct WasmCompilationResult {
   int func_index = kAnonymousFuncIndex;
   ExecutionTier result_tier = ExecutionTier::kNone;
   Kind kind = kFunction;
-  uint64_t signature_hash;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
 };

@@ -1885,8 +1885,9 @@ bool InstanceBuilder::ProcessImportedFunction(
               compiler::CompileWasmCapiCallWrapper(expected_sig);
           WasmImportWrapperCache::CacheKey key(kind, sig_index, expected_arity,
                                                kNoSuspend);
-          wasm_code = cache_scope.AddWrapper(
-              key, std::move(result), WasmCode::Kind::kWasmToCapiWrapper);
+          wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                             WasmCode::Kind::kWasmToCapiWrapper,
+                                             expected_sig->signature_hash());
         }
         // To avoid lock order inversion, code printing must happen after the
         // end of the {cache_scope}.
@@ -1923,7 +1924,8 @@ bool InstanceBuilder::ProcessImportedFunction(
         WasmImportWrapperCache::CacheKey dummy_key(kind, CanonicalTypeIndex{0},
                                                    0, kNoSuspend);
         wasm_code = cache_scope.AddWrapper(dummy_key, std::move(result),
-                                           WasmCode::Kind::kWasmToJsWrapper);
+                                           WasmCode::Kind::kWasmToJsWrapper,
+                                           expected_sig->signature_hash());
       }
       // To avoid lock order inversion, code printing must happen after the
       // end of the {cache_scope}.

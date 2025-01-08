@@ -41,6 +41,7 @@ class ErrorThrower;
 class WasmInterpreterRuntime;
 #endif  // V8_ENABLE_DRUMBRAKE
 class WellKnownImportsList;
+class TypeCanonicalizer;
 
 enum class AddressType : uint8_t { kI32, kI64 };
 
@@ -846,6 +847,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
     V8_ASSUME(index.index < num_types);
     return isorecursive_canonical_type_ids[index.index];
   }
+
+  uint64_t signature_hash(const TypeCanonicalizer*,
+                          uint32_t function_index) const;
 
   bool has_struct(ModuleTypeIndex index) const {
     return index.index < types.size() &&

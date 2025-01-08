@@ -48,8 +48,6 @@ namespace wasm {
 class CanonicalValueType;
 struct WasmModule;
 class ValueType;
-using FunctionSig = Signature<ValueType>;
-using CanonicalSig = Signature<CanonicalValueType>;
 }  // namespace wasm
 #endif
 

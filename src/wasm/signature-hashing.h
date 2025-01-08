@@ -175,6 +175,9 @@ class SignatureHasher {
   static constexpr int kTotalWidth = TaggedOnStack::kLastUsedBit + 1;
   // Make sure we can return the full result (params + results) in a uint64_t.
   static_assert(kTotalWidth * 2 <= 64);
+  // Also, we use ~uint64_t{0} as an invalid signature marker, so make sure that
+  // this can't be a valid signature.
+  static_assert(kTotalWidth * 2 < 64);
 
   // Make sure we chose the bit fields large enough.
   static_assert(arraysize(wasm::kGpParamRegisters) <=
