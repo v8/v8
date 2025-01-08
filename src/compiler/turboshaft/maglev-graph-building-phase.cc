@@ -5347,13 +5347,20 @@ class GraphBuildingNodeProcessor {
     DCHECK(loop->is_loop());
     if (!loop->has_phi()) return;
     for (maglev::Phi* maglev_phi : *loop->phis()) {
-      OpIndex phi_index = Map(maglev_phi);
+      // Note that we've already emited the backedge Goto, which means that
+      // we're currently not in a block, which means that we need to pass
+      // can_be_invalid=false to `Map`, otherwise it will think that we're
+      // currently emitting unreachable operations and return
+      // OpIndex::Invalid().
+      constexpr bool kIndexCanBeInvalid = false;
+      OpIndex phi_index = Map(maglev_phi, kIndexCanBeInvalid);
       PendingLoopPhiOp& pending_phi =
           __ output_graph().Get(phi_index).Cast<PendingLoopPhiOp>();
       __ output_graph().Replace<PhiOp>(
           phi_index,
           base::VectorOf(
-              {pending_phi.first(), Map(maglev_phi -> backedge_input())}),
+              {pending_phi.first(),
+               Map(maglev_phi -> backedge_input(), kIndexCanBeInvalid)}),
           pending_phi.rep);
     }
   }
@@ -5585,11 +5592,21 @@ class GraphBuildingNodeProcessor {
   }
 
   template <typename T>
-  V<T> Map(const maglev::Input input) {
-    return V<T>::Cast(Map(input.node()));
+  V<T> Map(const maglev::Input input, bool can_be_invalid = true) {
+    return V<T>::Cast(Map(input.node(), can_be_invalid));
   }
-  OpIndex Map(const maglev::Input input) { return Map(input.node()); }
-  OpIndex Map(const maglev::NodeBase* node) {
+  OpIndex Map(const maglev::Input input, bool can_be_invalid = true) {
+    return Map(input.node(), can_be_invalid);
+  }
+  OpIndex Map(const maglev::NodeBase* node, bool can_be_invalid = true) {
+    // If {can_be_invalid} is true (which it should be in most cases) and we're
+    // currently in unreachable code, then `OpIndex::Invalid` is returned. The
+    // only case where `can_be_invalid` is false is FixLoopPhis: this is called
+    // after having emitted the backedge Goto, which means that we are in
+    // unreachable code, but we know that the mappings should still exist.
+    if (can_be_invalid && __ generating_unreachable_operations()) {
+      return OpIndex::Invalid();
+    }
     if (V8_UNLIKELY(node == maglev_generator_context_node_)) {
       return __ GetVariable(generator_context_);
     }
@@ -5599,6 +5616,7 @@ class GraphBuildingNodeProcessor {
   Block* Map(const maglev::BasicBlock* block) { return block_mapping_[block]; }
 
   void SetMap(maglev::NodeBase* node, V<Any> idx) {
+    if (__ generating_unreachable_operations()) return;
     DCHECK(idx.valid());
     DCHECK_EQ(__ output_graph().Get(idx).outputs_rep().size(), 1);
     node_mapping_[node] = idx;
