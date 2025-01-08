@@ -39,74 +39,94 @@ namespace internal {
 
 namespace {
 
+// Tries to allocate a BackingStore given the input configuration. Either
+// returns the BackingStore or a message template that should be thrown as
+// RangeError.
+std::pair<std::unique_ptr<BackingStore>, std::optional<MessageTemplate>>
+TryAllocateBackingStore(Isolate* isolate, SharedFlag shared,
+                        ResizableFlag resizable, DirectHandle<Object> length,
+                        DirectHandle<Object> max_length,
+                        InitializedFlag initialized) {
+  DisallowJavascriptExecution no_js(isolate);
+
+  size_t byte_length;
+  size_t max_byte_length = 0;
+  std::unique_ptr<BackingStore> backing_store;
+
+  if (!TryNumberToSize(*length, &byte_length) ||
+      byte_length > JSArrayBuffer::kMaxByteLength) {
+    return {nullptr, MessageTemplate::kInvalidArrayBufferLength};
+  }
+
+  switch (resizable) {
+    case ResizableFlag::kNotResizable:
+      backing_store =
+          BackingStore::Allocate(isolate, byte_length, shared, initialized);
+      break;
+    case ResizableFlag::kResizable:
+      static_assert(JSArrayBuffer::kMaxByteLength ==
+                    JSTypedArray::kMaxByteLength);
+      if (!TryNumberToSize(*max_length, &max_byte_length) ||
+          max_byte_length > JSArrayBuffer::kMaxByteLength) {
+        return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
+      }
+      if (byte_length > max_byte_length) {
+        return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
+      }
+
+      size_t page_size, initial_pages, max_pages;
+      const auto maybe_range_error =
+          JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
+              isolate, byte_length, max_byte_length, &page_size, &initial_pages,
+              &max_pages);
+      if (maybe_range_error.has_value()) {
+        return {nullptr, maybe_range_error.value()};
+      }
+      backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+          isolate, byte_length, max_byte_length, page_size, initial_pages,
+          max_pages, WasmMemoryFlag::kNotWasm, shared);
+      break;
+  }
+
+  // Range errors bailed out earlier; only the failing allocation needs to be
+  // caught here.
+  if (!backing_store) {
+    return {nullptr, MessageTemplate::kArrayBufferAllocationFailed};
+  }
+  return {std::move(backing_store), std::nullopt};
+}
+
 Tagged<Object> ConstructBuffer(Isolate* isolate,
                                DirectHandle<JSFunction> target,
                                DirectHandle<JSReceiver> new_target,
                                DirectHandle<Object> length,
                                DirectHandle<Object> max_length,
                                InitializedFlag initialized) {
-  SharedFlag shared = *target != target->native_context()->array_buffer_fun()
-                          ? SharedFlag::kShared
-                          : SharedFlag::kNotShared;
-  ResizableFlag resizable = max_length.is_null() ? ResizableFlag::kNotResizable
-                                                 : ResizableFlag::kResizable;
+  // We first try to convert the sizes and collect any possible range errors. If
+  // no errors are observable we create the BackingStore before the
+  // JSArrayBuffer to avoid a complex dance during setup. We then always create
+  // the AB before throwing a possible error as the creation is observable.
+  const SharedFlag shared =
+      *target != target->native_context()->array_buffer_fun()
+          ? SharedFlag::kShared
+          : SharedFlag::kNotShared;
+  const ResizableFlag resizable = max_length.is_null()
+                                      ? ResizableFlag::kNotResizable
+                                      : ResizableFlag::kResizable;
+  // BackingStore allocation may GC which is not observable itself.
+  auto [backing_store, range_error] = TryAllocateBackingStore(
+      isolate, shared, resizable, length, max_length, initialized);
   DirectHandle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSObject::New(target, new_target, {}, NewJSObjectType::kAPIWrapper));
   auto array_buffer = Cast<JSArrayBuffer>(result);
-  // Ensure that all fields are initialized because BackingStore::Allocate is
-  // allowed to GC. Note that we cannot move the allocation of the ArrayBuffer
-  // after BackingStore::Allocate because of the spec.
-  array_buffer->Setup(shared, resizable, nullptr, isolate);
-
-  size_t byte_length;
-  size_t max_byte_length = 0;
-  if (!TryNumberToSize(*length, &byte_length) ||
-      byte_length > JSArrayBuffer::kMaxByteLength) {
-    // ToNumber failed.
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  const bool backing_store_creation_failed = !backing_store;
+  array_buffer->Setup(shared, resizable, std::move(backing_store), isolate);
+  if (backing_store_creation_failed) {
+    CHECK(range_error.has_value());
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewRangeError(range_error.value()));
   }
-
-  std::unique_ptr<BackingStore> backing_store;
-  if (resizable == ResizableFlag::kNotResizable) {
-    backing_store =
-        BackingStore::Allocate(isolate, byte_length, shared, initialized);
-    max_byte_length = byte_length;
-  } else {
-    static_assert(JSArrayBuffer::kMaxByteLength ==
-                  JSTypedArray::kMaxByteLength);
-    if (!TryNumberToSize(*max_length, &max_byte_length) ||
-        max_byte_length > JSArrayBuffer::kMaxByteLength) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
-    }
-    if (byte_length > max_byte_length) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
-    }
-
-    size_t page_size, initial_pages, max_pages;
-    MAYBE_RETURN(JSArrayBuffer::GetResizableBackingStorePageConfiguration(
-                     isolate, byte_length, max_byte_length, kThrowOnError,
-                     &page_size, &initial_pages, &max_pages),
-                 ReadOnlyRoots(isolate).exception());
-
-    backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
-        isolate, byte_length, max_byte_length, page_size, initial_pages,
-        max_pages, WasmMemoryFlag::kNotWasm, shared);
-  }
-  if (!backing_store) {
-    // Allocation of backing store failed.
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
-  }
-
-  array_buffer->Attach(std::move(backing_store));
-  array_buffer->set_max_byte_length(max_byte_length);
   return *array_buffer;
 }
 

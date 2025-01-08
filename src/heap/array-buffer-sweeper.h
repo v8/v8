@@ -64,8 +64,8 @@ class ArrayBufferSweeper final {
                     TreatAllYoungAsPromoted treat_all_young_as_promoted);
   void EnsureFinished();
 
-  // Track the given ArrayBufferExtension for the given JSArrayBuffer.
-  void Append(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
+  // Track the given ArrayBufferExtension.
+  void Append(ArrayBufferExtension* extension);
 
   void Resize(ArrayBufferExtension* extension, int64_t delta);
 

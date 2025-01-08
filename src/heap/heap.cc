@@ -4196,10 +4196,9 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
   UNREACHABLE();
 }
 
-void Heap::AppendArrayBufferExtension(Tagged<JSArrayBuffer> object,
-                                      ArrayBufferExtension* extension) {
+void Heap::AppendArrayBufferExtension(ArrayBufferExtension* extension) {
   // ArrayBufferSweeper is managing all counters and updating Heap counters.
-  array_buffer_sweeper_->Append(object, extension);
+  array_buffer_sweeper_->Append(extension);
 }
 
 void Heap::ResizeArrayBufferExtension(ArrayBufferExtension* extension,
