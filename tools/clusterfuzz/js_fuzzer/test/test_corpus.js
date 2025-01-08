@@ -124,6 +124,6 @@ describe('Fuzzilli corpus', () => {
     const fuzzilli = corpus.create(helpers.BASE_DIR, 'fuzzilli');
     const source = sourceHelpers.loadSource(
         fuzzilli, 'fuzzilli/fuzzdir-1/corpus/program_1.js');
-    assert.deepEqual(['--flag1', '--flag2'], source.flags);
+    assert.deepEqual(['--fuzzilli-flag1', '--fuzzilli-flag2'], source.flags);
   });
 });

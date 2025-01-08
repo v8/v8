@@ -231,6 +231,14 @@ class BaseCorpus {
   }
 
   /**
+   * If specified, sources from this corpus will use this as universal
+   * label annotating the code in differential fuzzing.
+   */
+  get diffFuzzLabel() {
+    return undefined;
+  }
+
+  /**
    * Load flags from meta data specific to a particular test case.
    */
   loadFlags(relPath, data) {
@@ -251,6 +259,13 @@ class Source {
 
   get absPath() {
     return fsPath.join(this.corpus.inputDir, this.relPath);
+  }
+
+  /**
+   * Specifies the path used to label sources in differential fuzzing.
+   */
+  get diffFuzzPath() {
+    return this.corpus.diffFuzzLabel || this.relPath;
   }
 
   /**

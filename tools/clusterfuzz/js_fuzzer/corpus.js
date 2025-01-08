@@ -143,6 +143,13 @@ class FuzzilliCorpus extends Corpus {
     this.flagMap = new Map();
   }
 
+  get diffFuzzLabel() {
+    // Sources from Fuzzilli use the same universal label for differential
+    // fuzzing because the input file path is random and volatile. It can't
+    // be used to map to particular content.
+    return "fuzzilli_source";
+  }
+
   loadFlags(relPath, data) {
     // Create the settings path based on the location of the test file, e.g.
     // .../fuzzilli/fuzzdir-1/settings.json for

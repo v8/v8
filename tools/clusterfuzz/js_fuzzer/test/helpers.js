@@ -19,6 +19,7 @@ const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
 
 const TEST_CORPUS = new sourceHelpers.BaseCorpus(BASE_DIR);
+const FUZZILLI_TEST_CORPUS = corpus.create(BASE_DIR, 'fuzzilli');
 const V8_TEST_CORPUS = corpus.create(BASE_DIR, 'v8');
 
 const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
@@ -56,6 +57,10 @@ function loadTestData(relPath) {
   return sourceHelpers.loadSource(TEST_CORPUS, relPath);
 }
 
+function loadFuzzilliTestData(relPath) {
+  return sourceHelpers.loadSource(FUZZILLI_TEST_CORPUS, relPath);
+}
+
 function loadV8TestData(relPath) {
   return sourceHelpers.loadSource(V8_TEST_CORPUS, relPath);
 }
@@ -87,6 +92,7 @@ module.exports = {
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,
   deterministicRandom: deterministicRandom,
+  loadFuzzilliTestData: loadFuzzilliTestData,
   loadTestData: loadTestData,
   loadV8TestData: loadV8TestData,
 }

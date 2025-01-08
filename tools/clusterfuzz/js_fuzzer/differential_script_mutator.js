@@ -94,8 +94,12 @@ class DifferentialScriptMutator extends ScriptMutator {
   }
 
   runnerClass() {
-    // TODO: Make the Fuzzilli corpus work also with differential fuzzing.
-    return runner.RandomCorpusRunner;
+    // Choose a setup with the Fuzzilli corpus in 1 of 3.
+    return random.choose([
+        runner.RandomCorpusRunner,
+        runner.RandomCorpusRunner,
+        runner.RandomCorpusRunnerWithFuzzilli,
+    ]);
   }
 
   /**
@@ -129,7 +133,7 @@ class DifferentialScriptMutator extends ScriptMutator {
    * differential-fuzz mutators, adding extra printing and other substitutions.
    */
   mutateInputs(inputs) {
-    inputs.forEach(input => common.setOriginalPath(input, input.relPath));
+    inputs.forEach(input => common.setOriginalPath(input, input.diffFuzzPath));
 
     const result = super.mutateInputs(inputs);
     this.differential.forEach(mutator => mutator.mutate(result));
