@@ -2697,6 +2697,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> TaggedIsCallable(TNode<Object> object);
   TNode<BoolT> IsCode(TNode<HeapObject> object);
   TNode<BoolT> TaggedIsCode(TNode<Object> object);
+  TNode<BoolT> IsThinStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsConsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(TNode<HeapObject> object);

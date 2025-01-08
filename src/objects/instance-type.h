@@ -29,7 +29,7 @@ enum StringRepresentationTag {
   kConsStringTag = 0x1,
   kExternalStringTag = 0x2,
   kSlicedStringTag = 0x3,
-  kThinStringTag = 0x5
+  kThinStringTag = 0x5,
 };
 const uint32_t kIsIndirectStringMask = 1 << 0;
 const uint32_t kIsIndirectStringTag = 1 << 0;
@@ -39,13 +39,6 @@ static_assert((kConsStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 static_assert((kSlicedStringTag & kIsIndirectStringMask) ==
               kIsIndirectStringTag);
 static_assert((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
-const uint32_t kThinStringTagBit = 1 << 2;
-// Assert that the kThinStringTagBit is only used in kThinStringTag.
-static_assert((kSeqStringTag & kThinStringTagBit) == 0);
-static_assert((kConsStringTag & kThinStringTagBit) == 0);
-static_assert((kExternalStringTag & kThinStringTagBit) == 0);
-static_assert((kSlicedStringTag & kThinStringTagBit) == 0);
-static_assert((kThinStringTag & kThinStringTagBit) == kThinStringTagBit);
 
 // For strings, bit 3 indicates whether the string consists of two-byte
 // characters or one-byte characters.

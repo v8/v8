@@ -5679,9 +5679,9 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                 instance_type, kIsNotStringMask,
                 __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap));
             // Deopt if this isn't a thin string.
-            static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
-            __ TestInt32AndJumpIfAllClear(
-                instance_type, kThinStringTagBit,
+            __ AndInt32(instance_type, kStringRepresentationMask);
+            __ CompareInt32AndJumpIf(
+                instance_type, kThinStringTag, kNotEqual,
                 __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap));
             // Load internalized string from thin string.
             __ LoadTaggedField(object, object, offsetof(ThinString, actual_));
