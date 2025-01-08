@@ -639,8 +639,7 @@ class CompilationStateImpl {
 
   void OnCompilationStopped(WasmDetectedFeatures detected);
   void SchedulePublishCompilationResults(
-      std::vector<std::unique_ptr<WasmCode>> unpublished_code,
-      CompilationTier tier);
+      std::vector<UnpublishedWasmCode> unpublished_code, CompilationTier tier);
 
   WasmDetectedFeatures detected_features() const {
     return detected_features_.load(std::memory_order_relaxed);
@@ -705,8 +704,7 @@ class CompilationStateImpl {
   // been compiled to the top tier in the meantime.
   void TriggerCachingAfterTimeout();
 
-  std::vector<WasmCode*> PublishCode(
-      base::Vector<std::unique_ptr<WasmCode>> codes);
+  std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode> codes);
 
  private:
   void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
@@ -722,7 +720,7 @@ class CompilationStateImpl {
   void TriggerCallbacks(base::EnumSet<CompilationEvent>);
 
   void PublishCompilationResults(
-      std::vector<std::unique_ptr<WasmCode>> unpublished_code);
+      std::vector<UnpublishedWasmCode> unpublished_code);
 
   NativeModule* const native_module_;
   std::weak_ptr<NativeModule> const native_module_weak_;
@@ -802,7 +800,7 @@ class CompilationStateImpl {
   struct PublishState {
     // {mutex_} protects {publish_queue_} and {publisher_running_}.
     base::SpinningMutex mutex_;
-    std::vector<std::unique_ptr<WasmCode>> publish_queue_;
+    std::vector<UnpublishedWasmCode> publish_queue_;
     bool publisher_running_ = false;
   };
   PublishState publish_state_[CompilationTier::kNumTiers];
@@ -936,7 +934,7 @@ size_t CompilationState::EstimateCurrentMemoryConsumption() const {
 }
 
 std::vector<WasmCode*> CompilationState::PublishCode(
-    base::Vector<std::unique_ptr<WasmCode>> unpublished_code) {
+    base::Vector<UnpublishedWasmCode> unpublished_code) {
   return Impl(this)->PublishCode(unpublished_code);
 }
 
@@ -2096,7 +2094,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
                 queue, tier))) {
-        std::vector<std::unique_ptr<WasmCode>> unpublished_code =
+        std::vector<UnpublishedWasmCode> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
         results_to_publish.clear();
@@ -2117,7 +2115,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       bool liftoff_finished = unit->tier() != current_tier &&
                               unit->tier() == ExecutionTier::kTurbofan;
       if (batch_full || liftoff_finished) {
-        std::vector<std::unique_ptr<WasmCode>> unpublished_code =
+        std::vector<UnpublishedWasmCode> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(results_to_publish));
         results_to_publish.clear();
@@ -4241,12 +4239,12 @@ WasmDetectedFeatures CompilationStateImpl::UpdateDetectedFeatures(
 }
 
 void CompilationStateImpl::PublishCompilationResults(
-    std::vector<std::unique_ptr<WasmCode>> unpublished_code) {
+    std::vector<UnpublishedWasmCode> unpublished_code) {
   if (unpublished_code.empty()) return;
 
 #if DEBUG
   // We don't compile import wrappers eagerly.
-  for (const auto& code : unpublished_code) {
+  for (const auto& [code, assumptions] : unpublished_code) {
     int func_index = code->index();
     DCHECK_LE(native_module_->num_imported_functions(), func_index);
     DCHECK_LT(func_index, native_module_->num_functions());
@@ -4256,7 +4254,7 @@ void CompilationStateImpl::PublishCompilationResults(
 }
 
 std::vector<WasmCode*> CompilationStateImpl::PublishCode(
-    base::Vector<std::unique_ptr<WasmCode>> code) {
+    base::Vector<UnpublishedWasmCode> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code =
       native_module_->PublishCode(std::move(code));
@@ -4270,8 +4268,7 @@ std::vector<WasmCode*> CompilationStateImpl::PublishCode(
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(
-    std::vector<std::unique_ptr<WasmCode>> unpublished_code,
-    CompilationTier tier) {
+    std::vector<UnpublishedWasmCode> unpublished_code, CompilationTier tier) {
   PublishState& state = publish_state_[tier];
   {
     base::SpinningMutexGuard guard(&state.mutex_);

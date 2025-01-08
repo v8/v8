@@ -29,6 +29,7 @@ class Counters;
 namespace wasm {
 
 class NativeModule;
+struct UnpublishedWasmCode;
 class WasmCode;
 class WasmEngine;
 class WasmError;
@@ -173,7 +174,7 @@ class V8_EXPORT_PRIVATE CompilationState {
   size_t EstimateCurrentMemoryConsumption() const;
 
   std::vector<WasmCode*> PublishCode(
-      base::Vector<std::unique_ptr<WasmCode>> unpublished_code);
+      base::Vector<UnpublishedWasmCode> unpublished_code);
 
   WasmDetectedFeatures detected_features() const;
 

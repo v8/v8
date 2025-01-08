@@ -1781,6 +1781,7 @@
 
   # Makes assumptions about tiering, which don't hold when we TF everything.
   'wasm/enter-and-leave-debug-state': [SKIP],
+  'wasm/recognize-imports': [SKIP],
 
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],
@@ -1836,8 +1837,9 @@
   'regress/wasm/regress-7785': [SKIP],
 
   # Tests that require wasm tier up.
-  'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/recognize-imports': [SKIP],
   'wasm/speculative-inlining': [SKIP],
+  'wasm/wasm-dynamic-tiering': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-334687959': [SKIP],
 

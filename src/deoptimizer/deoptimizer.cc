@@ -939,7 +939,7 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
 
   // Replace the optimized code with the unoptimized code in the
   // WasmCodeManager as a deopt was reached.
-  std::unique_ptr<wasm::WasmCode> compiled_code =
+  wasm::UnpublishedWasmCode compiled_code =
       native_module->AddCompiledCode(result);
   wasm::WasmCodeRefScope code_ref_scope;
   // TODO(mliedtke): This might unoptimize functions because they were inlined

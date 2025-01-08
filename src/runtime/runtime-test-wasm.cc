@@ -670,46 +670,79 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+// Validate a function now if not already validated. Returns false on validation
+// failure, true otherwise.
+V8_WARN_UNUSED_RESULT
+bool ValidateFunctionNowIfNeeded(Isolate* isolate,
+                                 wasm::NativeModule* native_module,
+                                 int func_index) {
+  const wasm::WasmModule* module = native_module->module();
+  if (module->function_was_validated(func_index)) return true;
+  DCHECK(v8_flags.wasm_lazy_validation);
+  Zone validation_zone(isolate->allocator(), ZONE_NAME);
+  wasm::WasmDetectedFeatures unused_detected_features;
+  const wasm::WasmFunction* func = &module->functions[func_index];
+  bool is_shared = module->type(func->sig_index).is_shared;
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  wasm::FunctionBody body{
+      func->sig, func->code.offset(), wire_bytes.begin() + func->code.offset(),
+      wire_bytes.begin() + func->code.end_offset(), is_shared};
+  if (ValidateFunctionBody(&validation_zone, native_module->enabled_features(),
+                           module, &unused_detected_features, body)
+          .failed()) {
+    return false;
+  }
+  module->set_function_validated(func_index);
+  return true;
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   DCHECK(!v8_flags.wasm_jitless);
 
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*function)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto exp_fun = Cast<WasmExportedFunction>(function);
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
-  const wasm::WasmModule* module = trusted_data->module();
+  wasm::NativeModule* native_module = trusted_data->native_module();
+  const wasm::WasmModule* module = native_module->module();
   if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
     return CrashUnlessFuzzing(isolate);
   }
-  if (!module->function_was_validated(func_index)) {
-    DCHECK(v8_flags.wasm_lazy_validation);
-    Zone validation_zone(isolate->allocator(), ZONE_NAME);
-    wasm::WasmDetectedFeatures unused_detected_features;
-    const wasm::WasmFunction* func = &module->functions[func_index];
-    bool is_shared = module->type(func->sig_index).is_shared;
-    base::Vector<const uint8_t> wire_bytes =
-        trusted_data->native_module()->wire_bytes();
-    wasm::FunctionBody body{func->sig, func->code.offset(),
-                            wire_bytes.begin() + func->code.offset(),
-                            wire_bytes.begin() + func->code.end_offset(),
-                            is_shared};
-    if (ValidateFunctionBody(&validation_zone,
-                             trusted_data->native_module()->enabled_features(),
-                             module, &unused_detected_features, body)
-            .failed()) {
-      return CrashUnlessFuzzing(isolate);
-    }
-    module->set_function_validated(func_index);
+  if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
+    return CrashUnlessFuzzing(isolate);
   }
   wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
+  DCHECK(!v8_flags.wasm_jitless);
+
+  HandleScope scope(isolate);
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  auto func_data = exp_fun->shared()->wasm_exported_function_data();
+  Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
+  int func_index = func_data->function_index();
+  wasm::NativeModule* native_module = trusted_data->native_module();
+  const wasm::WasmModule* module = native_module->module();
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  wasm::TriggerTierUp(isolate, trusted_data, func_index);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -844,14 +877,11 @@ RUNTIME_FUNCTION(Runtime_WasmLeaveDebugging) {
 
 RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*function)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto exp_fun = Cast<WasmExportedFunction>(function);
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -867,14 +897,11 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
 
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*function)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto exp_fun = Cast<WasmExportedFunction>(function);
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -889,14 +916,11 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
 
 RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*function)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto exp_fun = Cast<WasmExportedFunction>(function);
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -911,14 +935,11 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
 
 RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   HandleScope scope(isolate);
-  if (args.length() != 1 || !IsJSFunction(args[0])) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*function)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto exp_fun = Cast<WasmExportedFunction>(function);
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -984,15 +1005,12 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedCount) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
-  if (args.length() != 1) {
+  if (args.length() != 1 ||
+      !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<Object> arg = args.at(0);
-  if (!WasmExportedFunction::IsWasmExportedFunction(*arg)) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto wasm_func = Cast<WasmExportedFunction>(arg);
-  auto func_data = wasm_func->shared()->wasm_exported_function_data();
+  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  auto func_data = exp_fun->shared()->wasm_exported_function_data();
   const wasm::WasmModule* module =
       func_data->instance_data()->native_module()->module();
   uint32_t func_index = func_data->function_index();

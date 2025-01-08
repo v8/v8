@@ -271,6 +271,7 @@ class DebugInfoImpl {
     if (!result.succeeded()) FATAL("Liftoff compilation failed");
     DCHECK_EQ(generate_debug_sidetable, debug_sidetable != nullptr);
 
+    DCHECK_NULL(result.assumptions);
     WasmCode* new_code =
         native_module_->PublishCode(native_module_->AddCompiledCode(result));
 

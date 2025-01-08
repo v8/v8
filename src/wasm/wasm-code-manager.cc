@@ -1140,7 +1140,8 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
   new_code->MaybePrint();
   new_code->Validate();
 
-  return PublishCodeLocked(std::move(new_code));
+  return PublishCodeLocked(std::move(new_code),
+                           UnpublishedWasmCode::kNoAssumptions);
 }
 
 void NativeModule::InitializeJumpTableForLazyCompilation(
@@ -1379,38 +1380,31 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   return code;
 }
 
-WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code,
-                                    AssumptionsJournal* assumptions) {
+WasmCode* NativeModule::PublishCode(UnpublishedWasmCode unpublished_code) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode");
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  if (assumptions != nullptr) {
-    // Acquiring the lock is expensive, so callers should only pass non-empty
-    // assumptions journals.
-    DCHECK(!assumptions->empty());
-    // Only Turbofan makes assumptions.
-    DCHECK_EQ(ExecutionTier::kTurbofan, code->tier());
-    WellKnownImportsList& current = module_->type_feedback.well_known_imports;
-    for (auto [import_index, status] : assumptions->import_statuses()) {
-      if (current.get(import_index) != status) {
-        compilation_state_->AllowAnotherTopTierJob(code->index());
-        return nullptr;
-      }
-    }
-  }
-  return PublishCodeLocked(std::move(code));
+  return PublishCodeLocked(std::move(unpublished_code.code),
+                           unpublished_code.assumptions.get());
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
-    base::Vector<std::unique_ptr<WasmCode>> codes) {
+    base::Vector<UnpublishedWasmCode> unpublished_codes) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.PublishCode", "number", codes.size());
+               "wasm.PublishCode", "number", unpublished_codes.size());
   std::vector<WasmCode*> published_code;
-  published_code.reserve(codes.size());
+  published_code.reserve(unpublished_codes.size());
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   // The published code is put into the top-most surrounding {WasmCodeRefScope}.
-  for (auto& code : codes) {
-    published_code.push_back(PublishCodeLocked(std::move(code)));
+  for (auto& unpublished_code : unpublished_codes) {
+    WasmCode* code = PublishCodeLocked(std::move(unpublished_code.code),
+                                       unpublished_code.assumptions.get());
+    if (code == nullptr) {
+      // There were invalid assumptions in the code.
+      DCHECK_NOT_NULL(unpublished_code.assumptions);
+      continue;
+    }
+    published_code.push_back(code);
   }
   return published_code;
 }
@@ -1443,12 +1437,32 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   }
 }
 
-WasmCode* NativeModule::PublishCodeLocked(
-    std::unique_ptr<WasmCode> owned_code) {
+WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
+                                          AssumptionsJournal* assumptions) {
   allocation_mutex_.AssertHeld();
+  DCHECK_LT(owned_code->index(), num_functions());
+
+  if (assumptions != nullptr) {
+    // We should not allocate an empty set to avoid unnecessary overhead.
+    // TODO(clemensb): Fix and enable this assertion.
+    // DCHECK(!assumptions->empty());
+    // Only Turbofan makes assumptions.
+    DCHECK_EQ(ExecutionTier::kTurbofan, owned_code->tier());
+    // Assumptions are not used for imports.
+    DCHECK_GE(owned_code->index(),
+              static_cast<int>(module_->num_imported_functions));
+    WellKnownImportsList& current = module_->type_feedback.well_known_imports;
+    for (auto [import_index, status] : assumptions->import_statuses()) {
+      if (V8_UNLIKELY(current.get(import_index) != status)) {
+        compilation_state_->AllowAnotherTopTierJob(owned_code->index());
+        return nullptr;
+      }
+    }
+  }
 
   WasmCode* code = owned_code.get();
   new_owned_code_.emplace_back(std::move(owned_code));
+  DCHECK_NULL(owned_code);
 
   // Add the code to the surrounding code ref scope, so the returned pointer is
   // guaranteed to be valid.
@@ -1457,8 +1471,6 @@ WasmCode* NativeModule::PublishCodeLocked(
   if (code->index() < static_cast<int>(module_->num_imported_functions)) {
     return code;
   }
-
-  DCHECK_LT(code->index(), num_functions());
 
   code->RegisterTrapHandlerData();
 
@@ -1716,7 +1728,8 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    ExecutionTier::kNone,  // tier
                    kNotForDebugging,      // for_debugging
                    0}};                   // signature_hash
-  return PublishCodeLocked(std::move(code));
+  return PublishCodeLocked(std::move(code),
+                           UnpublishedWasmCode::kNoAssumptions);
 }
 
 void NativeModule::UpdateCodeSize(size_t size, ExecutionTier tier,
@@ -2556,18 +2569,18 @@ void NativeModule::SampleCodeSize(Counters* counters) const {
   }
 }
 
-std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
-    const WasmCompilationResult& result) {
-  std::vector<std::unique_ptr<WasmCode>> code = AddCompiledCode({&result, 1});
+UnpublishedWasmCode NativeModule::AddCompiledCode(
+    WasmCompilationResult& result) {
+  std::vector<UnpublishedWasmCode> code = AddCompiledCode({&result, 1});
   return std::move(code[0]);
 }
 
-std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
-    base::Vector<const WasmCompilationResult> results) {
+std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
+    base::Vector<WasmCompilationResult> results) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());
-  std::vector<std::unique_ptr<WasmCode>> generated_code;
+  std::vector<UnpublishedWasmCode> generated_code;
   generated_code.reserve(results.size());
 
   // First, allocate code space for all the results.
@@ -2647,14 +2660,17 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
     base::Vector<uint8_t> this_code_space = code_space.SubVector(0, code_size);
     code_space += code_size;
-    generated_code.emplace_back(AddCodeWithCodeSpace(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.ool_spill_count, result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(),
-        result.inlining_positions.as_vector(), result.deopt_data.as_vector(),
-        GetCodeKind(result), result.result_tier, result.for_debugging,
-        result.frame_has_feedback_slot, this_code_space, jump_tables));
+    generated_code.emplace_back(
+        AddCodeWithCodeSpace(
+            result.func_index, result.code_desc, result.frame_slot_count,
+            result.ool_spill_count, result.tagged_parameter_slots,
+            result.protected_instructions_data.as_vector(),
+            result.source_positions.as_vector(),
+            result.inlining_positions.as_vector(),
+            result.deopt_data.as_vector(), GetCodeKind(result),
+            result.result_tier, result.for_debugging,
+            result.frame_has_feedback_slot, this_code_space, jump_tables),
+        std::move(result.assumptions));
   }
   DCHECK_EQ(0, code_space.size());
 

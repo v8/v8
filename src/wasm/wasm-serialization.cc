@@ -1058,10 +1058,15 @@ void NativeModuleDeserializer::ReadTieringBudget(Reader* reader) {
 
 void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
   DCHECK(!batch.empty());
-  std::vector<std::unique_ptr<WasmCode>> codes;
+  std::vector<UnpublishedWasmCode> codes;
   codes.reserve(batch.size());
   for (auto& unit : batch) {
-    codes.emplace_back(std::move(unit).code);
+    // We serialized the code assumptions for well-known imports (see
+    // {WasmSerializer::import_statuses_}, so when publishing the deserialized
+    // code here we do not need to pass any assumptions.
+    codes.emplace_back(UnpublishedWasmCode{
+        std::move(unit).code, std::unique_ptr<AssumptionsJournal>{
+                                  UnpublishedWasmCode::kNoAssumptions}});
   }
   auto published_codes = native_module_->PublishCode(base::VectorOf(codes));
   for (auto* wasm_code : published_codes) {

@@ -181,9 +181,7 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
       counters, detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    AssumptionsJournal* assumptions = result.assumptions.get();
-    native_module->PublishCode(native_module->AddCompiledCode(result),
-                               assumptions->empty() ? nullptr : assumptions);
+    native_module->PublishCode(native_module->AddCompiledCode(result));
   } else {
     native_module->compilation_state()->SetError();
   }
