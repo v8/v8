@@ -621,7 +621,9 @@ enum ExternalPointerTag : uint16_t {
   kIcuPluralRulesTag,
   kIcuCollatorTag,
   kDisplayNamesInternalTag,
-  kLastForeignExternalPointerTag = kDisplayNamesInternalTag,
+  kD8WorkerTag,
+  kD8ModuleEmbedderDataTag,
+  kLastForeignExternalPointerTag = kD8ModuleEmbedderDataTag,
   kLastManagedExternalPointerTag = kLastForeignExternalPointerTag,
   // External resources whose lifetime is tied to their entry in the external
   // pointer table but which are not referenced via a Managed

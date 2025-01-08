@@ -730,7 +730,8 @@ class ModuleEmbedderData {
   };
 
  public:
-  static constexpr i::ExternalPointerTag kManagedTag = i::kGenericManagedTag;
+  static constexpr i::ExternalPointerTag kManagedTag =
+      i::kD8ModuleEmbedderDataTag;
 
   explicit ModuleEmbedderData(Isolate* isolate)
       : isolate_(isolate),
