@@ -153,50 +153,6 @@ void IncrementalStringBuilder::ChangeEncoding() {
   Extend();
 }
 
-template <typename DestChar>
-inline IncrementalStringBuilder::NoExtend<DestChar>::NoExtend(
-    Tagged<String> string, int offset, const DisallowGarbageCollection& no_gc) {
-  DCHECK(IsSeqOneByteString(string) || IsSeqTwoByteString(string));
-  if (sizeof(DestChar) == 1) {
-    start_ = reinterpret_cast<DestChar*>(
-        Cast<SeqOneByteString>(string)->GetChars(no_gc) + offset);
-  } else {
-    start_ = reinterpret_cast<DestChar*>(
-        Cast<SeqTwoByteString>(string)->GetChars(no_gc) + offset);
-  }
-  cursor_ = start_;
-#ifdef DEBUG
-  string_ = string;
-#endif
-}
-
-#ifdef DEBUG
-template <typename DestChar>
-inline IncrementalStringBuilder::NoExtend<DestChar>::~NoExtend() {
-  DestChar* end;
-  if (sizeof(DestChar) == 1) {
-    auto one_byte_string = Cast<SeqOneByteString>(string_);
-    end = reinterpret_cast<DestChar*>(one_byte_string->GetChars(no_gc_) +
-                                      one_byte_string->length());
-  } else {
-    auto two_byte_string = Cast<SeqTwoByteString>(string_);
-    end = reinterpret_cast<DestChar*>(two_byte_string->GetChars(no_gc_) +
-                                      two_byte_string->length());
-  }
-  DCHECK_LE(cursor_, end + 1);
-}
-#endif
-
-template <typename DestChar>
-inline IncrementalStringBuilder::NoExtendBuilder<DestChar>::NoExtendBuilder(
-    IncrementalStringBuilder* builder, int required_length,
-    const DisallowGarbageCollection& no_gc)
-    : NoExtend<DestChar>(*(builder->current_part()), builder->current_index_,
-                         no_gc),
-      builder_(builder) {
-  DCHECK(builder->CurrentPartCanFit(required_length));
-}
-
 V8_INLINE Factory* IncrementalStringBuilder::factory() {
   return isolate_->factory();
 }

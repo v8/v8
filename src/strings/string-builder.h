@@ -115,49 +115,6 @@ class IncrementalStringBuilder {
   // Change encoding to two-byte.
   V8_INLINE void ChangeEncoding();
 
-  template <typename DestChar>
-  class NoExtend {
-   public:
-    inline NoExtend(Tagged<String> string, int offset,
-                    const DisallowGarbageCollection& no_gc);
-
-#ifdef DEBUG
-    inline ~NoExtend();
-#endif
-
-    V8_INLINE void Append(DestChar c) { *(cursor_++) = c; }
-    V8_INLINE void AppendCString(const char* s) {
-      const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
-      while (*u != '\0') Append(*(u++));
-    }
-
-    int written() { return static_cast<int>(cursor_ - start_); }
-
-   private:
-    DestChar* start_;
-    DestChar* cursor_;
-#ifdef DEBUG
-    Tagged<String> string_;
-#endif
-    DISALLOW_GARBAGE_COLLECTION(no_gc_)
-  };
-
-  template <typename DestChar>
-  class NoExtendBuilder : public NoExtend<DestChar> {
-   public:
-    inline NoExtendBuilder(IncrementalStringBuilder* builder,
-                           int required_length,
-                           const DisallowGarbageCollection& no_gc);
-
-    ~NoExtendBuilder() {
-      builder_->current_index_ += NoExtend<DestChar>::written();
-      DCHECK(builder_->HasValidCurrentIndex());
-    }
-
-   private:
-    IncrementalStringBuilder* builder_;
-  };
-
   Isolate* isolate() { return isolate_; }
 
  private:
