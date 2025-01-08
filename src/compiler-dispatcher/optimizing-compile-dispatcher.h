@@ -93,9 +93,13 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void InstallOptimizedFunctions();
 
   // Install generated builtins in the output queue in contiguous finalization
-  // order, starting with installed_count. Returns the finalization order of the
-  // last job that was finalized.
-  int InstallGeneratedBuiltins(int installed_count);
+  // order, starting with installed_count. Returns true if any builtins were
+  // installed or if the output queue is empty, and false otherwise.
+  V8_WARN_UNUSED_RESULT bool InstallGeneratedBuiltins(int& installed_count);
+
+  // Returns the sum of allocation sizes of all jobs waiting to be finalized in
+  // the output queue. Takes the output_queue_mutex_.
+  size_t ComputeOutputQueueTotalZoneSize();
 
   inline bool IsQueueAvailable() { return input_queue_.IsAvailable(); }
 
