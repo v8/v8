@@ -105,8 +105,7 @@ class V8_NODISCARD ParkedRecursiveMutexGuard {
   base::RecursiveMutex* mutex_;
 };
 
-template <base::MutexSharedType kIsShared,
-          base::NullBehavior Behavior = base::NullBehavior::kRequireNotNull>
+template <base::MutexSharedType kIsShared>
 class V8_NODISCARD ParkedSharedMutexGuardIf final {
  public:
   ParkedSharedMutexGuardIf(LocalIsolate* local_isolate,

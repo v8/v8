@@ -41,13 +41,10 @@ V8_INLINE ParkedRecursiveMutexGuard::ParkedRecursiveMutexGuard(
   }
 }
 
-template <base::MutexSharedType kIsShared, base::NullBehavior Behavior>
-V8_INLINE
-ParkedSharedMutexGuardIf<kIsShared, Behavior>::ParkedSharedMutexGuardIf(
+template <base::MutexSharedType kIsShared>
+V8_INLINE ParkedSharedMutexGuardIf<kIsShared>::ParkedSharedMutexGuardIf(
     LocalHeap* local_heap, base::SharedMutex* mutex, bool enable_mutex) {
   DCHECK(AllowGarbageCollection::IsAllowed());
-  DCHECK_IMPLIES(Behavior == base::NullBehavior::kRequireNotNull,
-                 mutex != nullptr);
   if (!enable_mutex) return;
   mutex_ = mutex;
 

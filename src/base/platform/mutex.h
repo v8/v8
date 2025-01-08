@@ -530,17 +530,12 @@ class V8_BASE_EXPORT SharedMutex final {
 // object was created, the LockGuard is destructed and the mutex is released.
 // The LockGuard class is non-copyable.
 
-// Controls whether a LockGuard always requires a valid Mutex or will just
-// ignore it if it's nullptr.
-enum class NullBehavior { kRequireNotNull, kIgnoreIfNull };
-
-template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
+template <typename Mutex>
 class V8_NODISCARD LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
-    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
-                   mutex_ != nullptr);
-    if (has_mutex()) mutex_->Lock();
+    DCHECK_NOT_NULL(mutex_);
+    mutex_->Lock();
   }
   explicit LockGuard(Mutex& mutex) : mutex_(&mutex) {
     // `mutex_` is guaranteed to be non-null here.
@@ -549,18 +544,18 @@ class V8_NODISCARD LockGuard final {
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
   LockGuard(LockGuard&& other) V8_NOEXCEPT : mutex_(other.mutex_) {
-    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
-                   mutex_ != nullptr);
+    DCHECK_NOT_NULL(mutex_);
     other.mutex_ = nullptr;
   }
   ~LockGuard() {
-    if (has_mutex()) mutex_->Unlock();
+    if (mutex_) {
+      // mutex_ may have been moved away.
+      mutex_->Unlock();
+    }
   }
 
  private:
   Mutex* mutex_;
-
-  bool V8_INLINE has_mutex() const { return mutex_ != nullptr; }
 };
 
 using MutexGuard = LockGuard<Mutex>;
@@ -569,13 +564,12 @@ using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
 enum MutexSharedType : bool { kShared = true, kExclusive = false };
 
-template <MutexSharedType kIsShared,
-          NullBehavior Behavior = NullBehavior::kRequireNotNull>
+template <MutexSharedType kIsShared>
 class V8_NODISCARD SharedMutexGuard final {
  public:
   explicit SharedMutexGuard(SharedMutex* mutex) : mutex_(mutex) {
-    if (!has_mutex()) return;
-    if (kIsShared) {
+    DCHECK_NOT_NULL(mutex_);
+    if constexpr (kIsShared) {
       mutex_->LockShared();
     } else {
       mutex_->LockExclusive();
@@ -584,8 +578,7 @@ class V8_NODISCARD SharedMutexGuard final {
   SharedMutexGuard(const SharedMutexGuard&) = delete;
   SharedMutexGuard& operator=(const SharedMutexGuard&) = delete;
   ~SharedMutexGuard() {
-    if (!has_mutex()) return;
-    if (kIsShared) {
+    if constexpr (kIsShared) {
       mutex_->UnlockShared();
     } else {
       mutex_->UnlockExclusive();
@@ -594,26 +587,21 @@ class V8_NODISCARD SharedMutexGuard final {
 
  private:
   SharedMutex* const mutex_;
-
-  bool V8_INLINE has_mutex() const {
-    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
-                   mutex_ != nullptr);
-    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
-  }
 };
 
-template <MutexSharedType kIsShared,
-          NullBehavior Behavior = NullBehavior::kRequireNotNull>
+template <MutexSharedType kIsShared>
 class V8_NODISCARD SharedMutexGuardIf final {
  public:
   SharedMutexGuardIf(SharedMutex* mutex, bool enable_mutex) {
-    if (enable_mutex) mutex_.emplace(mutex);
+    if (enable_mutex) {
+      mutex_.emplace(mutex);
+    }
   }
   SharedMutexGuardIf(const SharedMutexGuardIf&) = delete;
   SharedMutexGuardIf& operator=(const SharedMutexGuardIf&) = delete;
 
  private:
-  std::optional<SharedMutexGuard<kIsShared, Behavior>> mutex_;
+  std::optional<SharedMutexGuard<kIsShared>> mutex_;
 };
 
 }  // namespace base
