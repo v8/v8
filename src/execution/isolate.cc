@@ -3877,8 +3877,9 @@ wasm::WasmOrphanedGlobalHandle* Isolate::NewWasmOrphanedGlobalHandle() {
 void Isolate::EnsureGenericJSToWasmWrapperParamBufferExists() {
   if (generic_js_to_wasm_wrapper_param_buffer_owner_) return;
 
-  generic_js_to_wasm_wrapper_param_buffer_owner_ = std::make_unique<uint8_t[]>(
-      wasm::kGenericJSToWasmWrapperParamBufferMaxSize);
+  generic_js_to_wasm_wrapper_param_buffer_owner_ =
+      std::make_unique_for_overwrite<uint8_t[]>(
+          wasm::kGenericJSToWasmWrapperParamBufferMaxSize);
   isolate_data_.generic_js_to_wasm_wrapper_param_buffer_ =
       generic_js_to_wasm_wrapper_param_buffer_owner_.get();
 }
