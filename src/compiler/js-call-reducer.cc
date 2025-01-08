@@ -5226,6 +5226,18 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallWithArrayLikeOrSpreadOfEmpty(
   DCHECK_EQ(static_cast<Node*>(arguments_list)->opcode(),
             IrOpcode::kJSCreateEmptyLiteralArray);
 
+  // Check that arguments_list's prototype is still an array prototype.
+  TNode<Map> map = LoadMap(TNode<HeapObject>::UncheckedCast(arguments_list));
+  TNode<HeapObject> proto = TNode<HeapObject>::UncheckedCast(
+      LoadField(AccessBuilder::ForMapPrototype(), map));
+  TNode<HeapObject> initial_array_prototype =
+      HeapConstant(broker()
+                       ->target_native_context()
+                       .initial_array_prototype(broker())
+                       .object());
+  TNode<Boolean> check = ReferenceEqual(proto, initial_array_prototype);
+  CheckIf(check, DeoptimizeReason::kWrongMap, p.feedback());
+
   // Turn the JSCallWithArrayLike or JSCallWithSpread roughly into:
   //
   //      "arguments_list array is still empty?"
