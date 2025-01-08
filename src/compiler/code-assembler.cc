@@ -167,7 +167,7 @@ CodeAssembler::BuiltinCompilationScheduler::~BuiltinCompilationScheduler() {
 void CodeAssembler::BuiltinCompilationScheduler::CompileCode(
     Isolate* isolate, std::unique_ptr<TurbofanCompilationJob> job) {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  constexpr size_t kInputZoneBatchSize = 384UL * MB;
+  constexpr size_t kInputZoneBatchSize = 128UL * MB;
 #else   // !V8_USE_ADDRESS_SANITIZER
   constexpr size_t kInputZoneBatchSize = 1536UL * MB;
 #endif  // V8_USE_ADDRESS_SANITIZER
