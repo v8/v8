@@ -44,6 +44,9 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 
 namespace {
 
+using BuiltinCompilationScheduler =
+    compiler::CodeAssembler::BuiltinCompilationScheduler;
+
 const int kBufferSize = 128 * KB;
 
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
@@ -224,7 +227,7 @@ void CompileJSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
                                      CodeAssemblerGenerator generator,
                                      CodeAssemblerInstaller installer, int argc,
                                      const char* name, int finalize_order,
-                                     int& builtins_installed_count) {
+                                     BuiltinCompilationScheduler& scheduler) {
   // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerJS` has
   // an actual use.
   USE(&BuildWithTurboshaftAssemblerJS);
@@ -233,8 +236,7 @@ void CompileJSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), argc, name,
           ProfileDataFromFile::TryRead(name), finalize_order));
-  compiler::CodeAssembler::CompileCode(isolate, std::move(job),
-                                       builtins_installed_count);
+  scheduler.CompileCode(isolate, std::move(job));
 }
 
 // Builder for builtins implemented in Turboshaft with CallStub linkage.
@@ -264,7 +266,7 @@ void CompileCSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
                                      CodeAssemblerInstaller installer,
                                      CallDescriptors::Key interface_descriptor,
                                      const char* name, int finalize_order,
-                                     int& builtins_installed_count) {
+                                     BuiltinCompilationScheduler& scheduler) {
   // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerCS` has
   // an actual use.
   USE(&BuildWithTurboshaftAssemblerCS);
@@ -273,15 +275,14 @@ void CompileCSLinkageCodeStubBuiltin(Isolate* isolate, Builtin builtin,
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), interface_descriptor, name,
           ProfileDataFromFile::TryRead(name), finalize_order));
-  compiler::CodeAssembler::CompileCode(isolate, std::move(job),
-                                       builtins_installed_count);
+  scheduler.CompileCode(isolate, std::move(job));
 }
 
 void CompileBytecodeHandler(
     Isolate* isolate, Builtin builtin, interpreter::OperandScale operand_scale,
     interpreter::Bytecode bytecode,
     compiler::Pipeline::CodeAssemblerInstaller installer, int finalize_order,
-    int& builtins_installed_count) {
+    BuiltinCompilationScheduler& scheduler) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   const char* name = Builtins::name(builtin);
   auto generator = [bytecode,
@@ -293,8 +294,7 @@ void CompileBytecodeHandler(
           isolate, builtin, generator, installer,
           BuiltinAssemblerOptions(isolate, builtin), name,
           ProfileDataFromFile::TryRead(name), finalize_order));
-  compiler::CodeAssembler::CompileCode(isolate, std::move(job),
-                                       builtins_installed_count);
+  scheduler.CompileCode(isolate, std::move(job));
 }
 
 }  // anonymous namespace
@@ -398,8 +398,8 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   };
 
   int builtins_built_without_job_count = 0;
-  int builtins_built_with_job_count = 0;
   int job_creation_order = 0;
+  BuiltinCompilationScheduler scheduler;
   Tagged<Code> code;
 
 #define BUILD_CPP_WITHOUT_JOB(Name, Argc)                    \
@@ -415,11 +415,11 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, Builtin::k##Name, code);                            \
   builtins_built_without_job_count++;
 
-#define BUILD_TFJ_WITH_JOB(Name, Argc, ...)                         \
-  CompileJSLinkageCodeStubBuiltin(                                  \
-      isolate, Builtin::k##Name, &Builtins::Generate_##Name,        \
-      install_generated_builtin, Argc, #Name, job_creation_order++, \
-      builtins_built_with_job_count);
+#define BUILD_TFJ_WITH_JOB(Name, Argc, ...)                               \
+  CompileJSLinkageCodeStubBuiltin(isolate, Builtin::k##Name,              \
+                                  &Builtins::Generate_##Name,             \
+                                  install_generated_builtin, Argc, #Name, \
+                                  job_creation_order++, scheduler);
 
 #define BUILD_TSC_WITHOUT_JOB(Name, InterfaceDescriptor)          \
   /* Return size is from the provided CallInterfaceDescriptor. */ \
@@ -435,26 +435,26 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   CompileCSLinkageCodeStubBuiltin(                                            \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name,                  \
       install_generated_builtin, CallDescriptors::InterfaceDescriptor, #Name, \
-      job_creation_order++, builtins_built_with_job_count);
+      job_creation_order++, scheduler);
 
 #define BUILD_TFS_WITH_JOB(Name, ...)                                   \
   /* Return size for generic TF builtins (stub linkage) is always 1. */ \
   CompileCSLinkageCodeStubBuiltin(                                      \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name,            \
       install_generated_builtin, CallDescriptors::Name, #Name,          \
-      job_creation_order++, builtins_built_with_job_count);
+      job_creation_order++, scheduler);
 
 #define BUILD_TFH_WITH_JOB(Name, InterfaceDescriptor)                         \
   /* Return size for IC builtins/handlers is always 1. */                     \
   CompileCSLinkageCodeStubBuiltin(                                            \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name,                  \
       install_generated_builtin, CallDescriptors::InterfaceDescriptor, #Name, \
-      job_creation_order++, builtins_built_with_job_count);
+      job_creation_order++, scheduler);
 
 #define BUILD_BCH_WITH_JOB(Name, OperandScale, Bytecode)                    \
   CompileBytecodeHandler(isolate, Builtin::k##Name, OperandScale, Bytecode, \
                          install_generated_builtin, job_creation_order++,   \
-                         builtins_built_with_job_count);
+                         scheduler);
 
 #define BUILD_ASM_WITHOUT_JOB(Name, InterfaceDescriptor)            \
   code = BuildWithMacroAssembler(isolate, Builtin::k##Name,         \
@@ -485,14 +485,9 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_ASM_WITHOUT_JOB
 #undef NOP
 
-  if (v8_flags.concurrent_builtin_generation) {
-    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-    CHECK(isolate->optimizing_compile_dispatcher()->InstallGeneratedBuiltins(
-        builtins_built_with_job_count));
-  }
-
-  CHECK_EQ(Builtins::kBuiltinCount,
-           builtins_built_without_job_count + builtins_built_with_job_count);
+  scheduler.AwaitAndFinalizeCurrentBatch(isolate);
+  CHECK_EQ(Builtins::kBuiltinCount, builtins_built_without_job_count +
+                                        scheduler.builtins_installed_count());
 
   // Add the generated builtins to the isolate.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;

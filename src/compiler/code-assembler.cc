@@ -158,14 +158,18 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-// static
-void CodeAssembler::CompileCode(Isolate* isolate,
-                                std::unique_ptr<TurbofanCompilationJob> job,
-                                int& builtins_installed_count) {
+CodeAssembler::BuiltinCompilationScheduler::~BuiltinCompilationScheduler() {
+  // Did you forget to call AwaitAndFinalizeCurrentBatch()?
+  CHECK_EQ(0, current_batch_zone_size_);
+  CHECK(main_thread_output_queue_.empty());
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::CompileCode(
+    Isolate* isolate, std::unique_ptr<TurbofanCompilationJob> job) {
 #ifdef V8_USE_ADDRESS_SANITIZER
-  constexpr size_t kTotalZoneSizeLimit = 512UL * MB;
+  constexpr size_t kInputZoneBatchSize = 384UL * MB;
 #else   // !V8_USE_ADDRESS_SANITIZER
-  constexpr size_t kTotalZoneSizeLimit = 2UL * GB;
+  constexpr size_t kInputZoneBatchSize = 1536UL * MB;
 #endif  // V8_USE_ADDRESS_SANITIZER
 
   // This must be called from the main thread.
@@ -176,44 +180,60 @@ void CodeAssembler::CompileCode(Isolate* isolate,
 
   CHECK_EQ(CompilationJob::SUCCEEDED, job->PrepareJob(isolate));
 
+  if (current_batch_zone_size_ >= kInputZoneBatchSize) {
+    AwaitAndFinalizeCurrentBatch(isolate);
+  }
+
+  QueueJob(isolate, std::move(job));
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::QueueJob(
+    Isolate* isolate, std::unique_ptr<TurbofanCompilationJob> job) {
+  current_batch_zone_size_ +=
+      job->compilation_info()->zone()->allocation_size();
   if (v8_flags.concurrent_builtin_generation) {
-    constexpr int kIterationsUntilAwait = 2;
-    constexpr int kInstallSpinCount = 8;
-
     auto* dispatcher = isolate->optimizing_compile_dispatcher();
-
-    int iterations = 0;
-    while (!dispatcher->IsQueueAvailable() ||
-           dispatcher->ComputeOutputQueueTotalZoneSize() >=
-               kTotalZoneSizeLimit) {
-      for (int i = 0; i < kInstallSpinCount; i++) {
-        if (dispatcher->InstallGeneratedBuiltins(builtins_installed_count)) {
-          // Some work was done or the output queue is already empty. See if we
-          // can enqueue the job now.
-          break;
-        }
-        // If we couldn't process the entire output queue because it's
-        // non-contiguous, keep spinning in case the compilation finishes.
-        std::this_thread::yield();
-      }
-
-      // If after going through this loop a few times there are still too many
-      // jobs enqueued or the memory pressure is still too high, wait for
-      // compilation tasks to finish.
-      if (iterations++ > kIterationsUntilAwait) {
-        dispatcher->AwaitCompileTasks();
-      }
+    // Spin until we can queue the job.
+    while (!dispatcher->IsQueueAvailable()) {
+      std::this_thread::yield();
     }
-
     dispatcher->QueueForOptimization(job.release());
   } else {
-    // If concurrent generation is disabled, generate on the main thread.
     CHECK_EQ(CompilationJob::SUCCEEDED,
              job->ExecuteJob(isolate->counters()->runtime_call_stats(),
                              isolate->main_thread_local_isolate()));
-    CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate));
-    builtins_installed_count++;
+    if (!v8_flags.turbo_profiling) {
+      main_thread_output_queue_.push_back(std::move(job));
+    } else {
+      // When profiling builtins for PGO, each builtin must be completely
+      // generated one at a time (i.e. PrepareJob, ExecuteJob, and FinalizeJob)
+      // instead of batched.
+      FinalizeJobOnMainThread(isolate, job.get());
+    }
   }
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::FinalizeJobOnMainThread(
+    Isolate* isolate, TurbofanCompilationJob* job) {
+  CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate));
+  builtins_installed_count_++;
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::AwaitAndFinalizeCurrentBatch(
+    Isolate* isolate) {
+  if (v8_flags.concurrent_builtin_generation) {
+    auto* dispatcher = isolate->optimizing_compile_dispatcher();
+    dispatcher->AwaitCompileTasks();
+    builtins_installed_count_ =
+        dispatcher->InstallGeneratedBuiltins(builtins_installed_count_);
+  } else {
+    DCHECK_IMPLIES(v8_flags.turbo_profiling, main_thread_output_queue_.empty());
+    while (!main_thread_output_queue_.empty()) {
+      FinalizeJobOnMainThread(isolate, main_thread_output_queue_.front().get());
+      main_thread_output_queue_.pop_front();
+    }
+  }
+  current_batch_zone_size_ = 0;
 }
 
 bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }

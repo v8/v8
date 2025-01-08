@@ -417,10 +417,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   CodeAssembler(const CodeAssembler&) = delete;
   CodeAssembler& operator=(const CodeAssembler&) = delete;
 
-  static void CompileCode(Isolate* isolate,
-                          std::unique_ptr<TurbofanCompilationJob> job,
-                          int& builtins_installed_count);
-
   bool Is64() const;
   bool Is32() const;
   bool IsFloat64RoundUpSupported() const;
@@ -435,6 +431,62 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsWord64PopcntSupported() const;
   bool IsWord32CtzSupported() const;
   bool IsWord64CtzSupported() const;
+
+  // A scheduler to ensure deterministic builtin compilation regardless of
+  // v8_flags.concurrent_builtin_generation.
+  //
+  // Builtin jobs are compiled in three (3) stages: PrepareJob, ExecuteJob, and
+  // FinalizeJob.
+  //
+  // PrepareJob and FinalizeJob may allocate on the heap and must run on the
+  // main thread. ExecuteJob only allocates in the job's Zone and may run on a
+  // helper thread. To ensure deterministic builds, there must be a total order
+  // of all heap allocations across all spaces. In other words, there must be a
+  // single total order of PrepareJob and FinalizeJob calls.
+  //
+  // This order is enforced by batching according to zone size. For each batch,
+  //
+  //   1. In ascending order of job->FinalizeOrder(), call PrepareJob for each
+  //      job.
+  //   2. Call ExecuteJob for each job in the batch in any order, possibly in
+  //      parallel.
+  //   3. In ascending order of job->FinalizeOrder(), call FinalizeJob for each
+  //      job.
+  //
+  // Example use:
+  //
+  // BuiltinCompilationScheduler scheduler;
+  // scheduler.CompileCode(job1);
+  // scheduler.CompileCode(job2);
+  // scheduler.AwaitAndFinalizeCurrentBatch();
+  class BuiltinCompilationScheduler {
+   public:
+    ~BuiltinCompilationScheduler();
+
+    int builtins_installed_count() const { return builtins_installed_count_; }
+
+    void CompileCode(Isolate* isolate,
+                     std::unique_ptr<TurbofanCompilationJob> job);
+
+    void AwaitAndFinalizeCurrentBatch(Isolate* isolate);
+
+   private:
+    void QueueJob(Isolate* isolate,
+                  std::unique_ptr<TurbofanCompilationJob> job);
+
+    void FinalizeJobOnMainThread(Isolate* isolate, TurbofanCompilationJob* job);
+
+    int builtins_installed_count_ = 0;
+
+    // The sum of the size of Zones of all queued jobs.
+    size_t current_batch_zone_size_ = 0;
+
+    // Only used when !v8_flags.concurrent_builtin_generation. Used to keep the
+    // allocation order identical between generating builtins concurrently and
+    // non-concurrently for reproducible builds.
+    std::deque<std::unique_ptr<TurbofanCompilationJob>>
+        main_thread_output_queue_;
+  };
 
   // Shortened aliases for use in CodeAssembler subclasses.
   using Label = CodeAssemblerLabel;
