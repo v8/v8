@@ -79,7 +79,7 @@ TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = Path("data") / "test"
 TEST_262_HARNESS_PATH = Path("data") / "harness"
-TEST_262_TOOLS_ABS_PATH = BASE_DIR / "third_party" / "test262-harness" / "src"
+TEST_262_TOOLS_ABS_PATH = TEST262_DIR / Path("data") / "tools" / "packaging"
 TEST_262_LOCAL_TESTS_PATH = Path("local-tests") / "test"
 
 sys.path.append(str(TEST_262_TOOLS_ABS_PATH))
