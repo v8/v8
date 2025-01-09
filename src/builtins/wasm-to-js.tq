@@ -155,7 +155,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
       const paramKind = paramType & kValueTypeKindBitsMask;
-      dcheck(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
+      check(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
       nextIndex++;
       hasTaggedParams = true;
     }
@@ -260,7 +260,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       }
     } else {
       const retKind = retType & kValueTypeKindBitsMask;
-      dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
+      check(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
       const trustedData = TaggedIsSmi(data.instance_data) ?
           Undefined :
           UnsafeCast<WasmTrustedInstanceData>(data.instance_data);
