@@ -166,8 +166,8 @@ namespace {
 void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
                              BuiltinsCallGraph* bcc_profiler) {
   if (n == nullptr) return;
-  IrOpcode::Value op = n->opcode();
-  if (op == IrOpcode::kCall || op == IrOpcode::kTailCall) {
+  IrOpcode::Value opcode = n->opcode();
+  if (opcode == IrOpcode::kCall || opcode == IrOpcode::kTailCall) {
     const CallDescriptor* des = CallDescriptorOf(n->op());
     if (des->kind() == CallDescriptor::kCallCodeObject) {
       Node* callee = n->InputAt(0);

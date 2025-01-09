@@ -393,32 +393,32 @@ TryMatchBaseWithScaledIndexAndDisplacement64(
     result.displacement = 0;
     if (lane_op->kind.tagged_base) result.displacement -= kHeapObjectTag;
     return result;
-  } else if (const Simd128LoadTransformOp* load_transform =
+  } else if (const Simd128LoadTransformOp* load_transform_128 =
                  op.TryCast<Simd128LoadTransformOp>()) {
-    result.base = load_transform->base();
-    DCHECK_EQ(load_transform->offset, 0);
+    result.base = load_transform_128->base();
+    DCHECK_EQ(load_transform_128->offset, 0);
 
-    if (CanBeImmediate(selector, load_transform->index())) {
+    if (CanBeImmediate(selector, load_transform_128->index())) {
       result.index = {};
       result.displacement =
-          GetImmediateIntegerValue(selector, load_transform->index());
+          GetImmediateIntegerValue(selector, load_transform_128->index());
     } else {
-      result.index = load_transform->index();
+      result.index = load_transform_128->index();
       result.displacement = 0;
     }
 
     result.scale = 0;
-    DCHECK(!load_transform->load_kind.tagged_base);
+    DCHECK(!load_transform_128->load_kind.tagged_base);
     return result;
 #if V8_ENABLE_WASM_SIMD256_REVEC
-  } else if (const Simd256LoadTransformOp* load_transform =
+  } else if (const Simd256LoadTransformOp* load_transform_256 =
                  op.TryCast<Simd256LoadTransformOp>()) {
-    result.base = load_transform->base();
-    result.index = load_transform->index();
-    DCHECK_EQ(load_transform->offset, 0);
+    result.base = load_transform_256->base();
+    result.index = load_transform_256->index();
+    DCHECK_EQ(load_transform_256->offset, 0);
     result.scale = 0;
     result.displacement = 0;
-    DCHECK(!load_transform->load_kind.tagged_base);
+    DCHECK(!load_transform_256->load_kind.tagged_base);
     return result;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -23,8 +23,7 @@ void WasmGCTypeAnalyzer::Run() {
     ProcessBlock(block);
 
     // Finish snapshot.
-    Snapshot snapshot = types_table_.Seal();
-    block_to_snapshot_[block.index()] = MaybeSnapshot(snapshot);
+    block_to_snapshot_[block.index()] = MaybeSnapshot(types_table_.Seal());
 
     // Consider re-processing for loops.
     if (const GotoOp* last = block.LastOperation(graph_).TryCast<GotoOp>()) {

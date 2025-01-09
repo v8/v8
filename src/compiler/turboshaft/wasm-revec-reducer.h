@@ -887,8 +887,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (!og_index.valid()) {
       V<Simd256> input = analyzer_.GetReducedInput(pnode);
       if (!input.valid()) {
-        V<Simd128> input = __ MapToNewGraph(unary.input());
-        og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
+        V<Simd128> input_128 = __ MapToNewGraph(unary.input());
+        og_index = __ Simd256Unary(input_128, GetSimd256UnaryKind(unary.kind));
       } else {
         og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
       }

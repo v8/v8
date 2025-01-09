@@ -278,13 +278,14 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
     }
 
     if (skip) {
-      for (int i = block->code_start(); i < block->code_end(); ++i) {
-        Instruction* instr = code->InstructionAt(i);
+      for (int instr_idx = block->code_start(); instr_idx < block->code_end();
+           ++instr_idx) {
+        Instruction* instr = code->InstructionAt(instr_idx);
         DCHECK_NE(FlagsModeField::decode(instr->opcode()), kFlags_branch);
         if (instr->arch_opcode() == kArchJmp ||
             instr->arch_opcode() == kArchRet) {
           // Overwrite a redundant jump with a nop.
-          TRACE("jt-fw nop @%d\n", i);
+          TRACE("jt-fw nop @%d\n", instr_idx);
           instr->OverwriteWithNop();
           // Eliminate all the ParallelMoves.
           for (int i = Instruction::FIRST_GAP_POSITION;

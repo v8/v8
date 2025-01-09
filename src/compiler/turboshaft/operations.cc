@@ -1951,8 +1951,8 @@ size_t CallOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [descriptor_value, callee_effects] = options();
-    return HashWithOptions(*descriptor_value, callee_effects);
+    auto [descriptor_value, effects] = options();
+    return HashWithOptions(*descriptor, effects);
   } else {
     return Base::hash_value(strategy);
   }

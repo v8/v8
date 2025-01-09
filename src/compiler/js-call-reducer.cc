@@ -6889,10 +6889,10 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
         index_matcher.IsInRange(
             0.0, static_cast<double>(JSObject::kMaxElementIndex));
     if (is_content_accessible && is_integer_in_max_range) {
-      const uint32_t index =
-          static_cast<uint32_t>(index_matcher.ResolvedValue());
       JSCallReducerAssembler a(this, node);
-      Node* subgraph = a.ReduceStringPrototypeCharAt(receiver_string, index);
+      Node* subgraph = a.ReduceStringPrototypeCharAt(
+          receiver_string,
+          static_cast<uint32_t>(index_matcher.ResolvedValue()));
       return ReplaceWithSubgraph(&a, subgraph);
     }
   }

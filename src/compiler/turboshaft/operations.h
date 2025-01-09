@@ -2619,7 +2619,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+      ZoneVector<MaybeRegisterRepresentation>&) const {
     return {};
   }
 
@@ -2935,21 +2935,21 @@ struct LoadOp : OperationT<LoadOp> {
     }
 
     constexpr Kind NotLoadEliminable() {
-      Kind kind = *this;
-      kind.load_eliminable = false;
-      return kind;
+      Kind new_kind = *this;
+      new_kind.load_eliminable = false;
+      return new_kind;
     }
 
     constexpr Kind Immutable() const {
-      Kind kind(*this);
-      kind.is_immutable = true;
-      return kind;
+      Kind new_kind(*this);
+      new_kind.is_immutable = true;
+      return new_kind;
     }
 
     constexpr Kind Atomic() const {
-      Kind kind(*this);
-      kind.is_atomic = true;
-      return kind;
+      Kind new_kind(*this);
+      new_kind.is_atomic = true;
+      return new_kind;
     }
 
     bool operator==(const Kind& other) const {

@@ -82,7 +82,7 @@ class WasmInJSInliningReducer : public Next {
                LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
                compiler::kNoWriteBarrier);
 
-      V<Any> result =
+      result =
           Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
 
       __ Store(thread_in_wasm_flag_address, __ Word32Constant(0),

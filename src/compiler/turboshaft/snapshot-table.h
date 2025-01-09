@@ -368,9 +368,9 @@ struct SnapshotTable<Value, KeyData>::SnapshotData {
     }
     return self;
   }
-  void Seal(size_t log_end) {
+  void Seal(size_t end) {
     DCHECK_WITH_MSG(!IsSealed(), "A Snapshot can only be sealed once");
-    this->log_end = log_end;
+    this->log_end = end;
   }
 
   bool IsSealed() const { return log_end != kInvalidOffset; }

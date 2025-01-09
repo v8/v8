@@ -80,12 +80,12 @@ struct FrameStateData {
 
     void AddRestLength() { instructions_.push_back(Instr::kRestLength); }
 
-    const FrameStateData* AllocateFrameStateData(
-        const FrameStateInfo& frame_state_info, Zone* zone) {
-      return zone->New<FrameStateData>(FrameStateData{
-          frame_state_info, zone->CloneVector(base::VectorOf(instructions_)),
-          zone->CloneVector(base::VectorOf(machine_types_)),
-          zone->CloneVector(base::VectorOf(int_operands_))});
+    const FrameStateData* AllocateFrameStateData(const FrameStateInfo& info,
+                                                 Zone* zone) {
+      return zone->New<FrameStateData>(
+          FrameStateData{info, zone->CloneVector(base::VectorOf(instructions_)),
+                         zone->CloneVector(base::VectorOf(machine_types_)),
+                         zone->CloneVector(base::VectorOf(int_operands_))});
     }
 
     base::Vector<const OpIndex> Inputs() { return base::VectorOf(inputs_); }

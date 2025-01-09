@@ -74,9 +74,10 @@ Node* LinearScheduler::GetEarlySchedulePosition(Node* node) {
         if (NodeProperties::IsControl(input)) {
           input_early_schedule_position = input;
         } else {
-          auto it = early_schedule_position_.find(input);
-          if (it != early_schedule_position_.end())
-            input_early_schedule_position = it->second;
+          auto early_pos_it = early_schedule_position_.find(input);
+          if (early_pos_it != early_schedule_position_.end()) {
+            input_early_schedule_position = early_pos_it->second;
+          }
         }
         if (input_early_schedule_position != nullptr) {
           if (top.early_schedule_position == nullptr ||

@@ -1424,13 +1424,15 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   bool IsCommutative(node_t node) const {
     const turboshaft::Operation& op = graph_->Get(node);
-    if (const auto binop = op.TryCast<turboshaft::WordBinopOp>()) {
-      return turboshaft::WordBinopOp::IsCommutative(binop->kind);
-    } else if (const auto binop =
+    if (const auto word_binop = op.TryCast<turboshaft::WordBinopOp>()) {
+      return turboshaft::WordBinopOp::IsCommutative(word_binop->kind);
+    } else if (const auto overflow_binop =
                    op.TryCast<turboshaft::OverflowCheckedBinopOp>()) {
-      return turboshaft::OverflowCheckedBinopOp::IsCommutative(binop->kind);
-    } else if (const auto binop = op.TryCast<turboshaft::FloatBinopOp>()) {
-      return turboshaft::FloatBinopOp::IsCommutative(binop->kind);
+      return turboshaft::OverflowCheckedBinopOp::IsCommutative(
+          overflow_binop->kind);
+    } else if (const auto float_binop =
+                   op.TryCast<turboshaft::FloatBinopOp>()) {
+      return turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
     } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
       return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
     }

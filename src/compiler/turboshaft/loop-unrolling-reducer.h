@@ -571,8 +571,8 @@ void LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
     // We remove the stack check of all iterations but the last one.
     TRACE("> Emitting iteration " << i);
     bool is_last_iteration = i == unroll_count - 2;
-    ScopedModification<bool> skip_stack_checks(&skip_next_stack_check_,
-                                               !is_last_iteration);
+    ScopedModification<bool> inner_skip_stack_checks(&skip_next_stack_check_,
+                                                     !is_last_iteration);
 
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
     if (StopUnrollingIfUnreachable(output_graph_header)) {

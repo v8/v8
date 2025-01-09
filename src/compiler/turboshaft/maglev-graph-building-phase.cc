@@ -2286,7 +2286,7 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
   void CheckMaps(V<Object> receiver_input, V<FrameState> frame_state,
-                 OptionalV<Map> map, const FeedbackSource& feedback,
+                 OptionalV<Map> object_map, const FeedbackSource& feedback,
                  const compiler::ZoneRefSet<Map>& maps, bool check_heap_object,
                  CheckMapsFlags flags) {
     Label<> done(this);
@@ -2314,8 +2314,8 @@ class GraphBuildingNodeProcessor {
     }
 #endif  // DEBUG
 
-    __ CheckMaps(V<HeapObject>::Cast(receiver_input), frame_state, map, maps,
-                 flags, feedback);
+    __ CheckMaps(V<HeapObject>::Cast(receiver_input), frame_state, object_map,
+                 maps, flags, feedback);
 
     if (done.has_incoming_jump()) {
       GOTO(done);

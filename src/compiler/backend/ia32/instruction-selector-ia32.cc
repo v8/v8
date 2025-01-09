@@ -3123,7 +3123,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(node_t node) {
     // TODO(ahaas): Introduce an enum for {scale} instead of an integer.
     // {scale = 0} means *1 in the generated code.
     int scale = 0;
-    AddressingMode mode = g.GenerateMemoryOperandInputs(
+    mode = g.GenerateMemoryOperandInputs(
         index, scale, base, this->valid(projection0) ? 0 : 4,
         kPositiveDisplacement, inputs, &input_count);
     InstructionCode code = opcode | AddressingModeField::encode(mode);

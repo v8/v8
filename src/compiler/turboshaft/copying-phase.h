@@ -361,7 +361,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       // predecessor, we check the index of the input corresponding to the old
       // predecessor, and we put it next in {new_inputs}.
       new_inputs.clear();
-      int predecessor_index = predecessor_count - 1;
+      predecessor_index = predecessor_count - 1;
       for (new_pred = Asm().current_block()->LastPredecessor();
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->OriginForBlockEnd();

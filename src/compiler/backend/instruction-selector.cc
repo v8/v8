@@ -726,19 +726,22 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
     }
   } else if (const turboshaft::TaggedBitcastOp* bitcast =
                  op.TryCast<turboshaft::Opmask::kTaggedBitcastSmi>()) {
-    const turboshaft::Operation& input = g->Get(bitcast->input());
+    const turboshaft::Operation& bitcast_input = g->Get(bitcast->input());
     if (const turboshaft::ConstantOp* cst =
-            input.TryCast<turboshaft::Opmask::kWord32Constant>()) {
+            bitcast_input.TryCast<turboshaft::Opmask::kWord32Constant>()) {
       if constexpr (Is64()) {
         return g->UseImmediate64(cst->word32());
       } else {
         return g->UseImmediate(cst->word32());
       }
-    } else if (Is64() && input.Is<turboshaft::Opmask::kWord64Constant>()) {
+    } else if (Is64() &&
+               bitcast_input.Is<turboshaft::Opmask::kWord64Constant>()) {
       if (rep == MachineRepresentation::kWord32) {
-        return g->UseImmediate(input.Cast<turboshaft::ConstantOp>().word32());
+        return g->UseImmediate(
+            bitcast_input.Cast<turboshaft::ConstantOp>().word32());
       } else {
-        return g->UseImmediate64(input.Cast<turboshaft::ConstantOp>().word64());
+        return g->UseImmediate64(
+            bitcast_input.Cast<turboshaft::ConstantOp>().word64());
       }
     }
   }
@@ -1529,13 +1532,13 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
       } else {
         for (Edge const edge : ((node_t)call)->use_edges()) {
           if (!NodeProperties::IsValueEdge(edge)) continue;
-          Node* node = edge.from();
-          DCHECK_EQ(IrOpcode::kProjection, node->opcode());
-          size_t const index = ProjectionIndexOf(node->op());
+          Node* from = edge.from();
+          DCHECK_EQ(IrOpcode::kProjection, from->opcode());
+          size_t const index = ProjectionIndexOf(from->op());
 
           DCHECK_LT(index, buffer->output_nodes.size());
           DCHECK(!buffer->output_nodes[index].node);
-          buffer->output_nodes[index].node = node;
+          buffer->output_nodes[index].node = from;
         }
       }
       frame_->EnsureReturnSlots(

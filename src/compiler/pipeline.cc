@@ -3392,7 +3392,7 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     BuildWasmWrapper(&turboshaft_data, &allocator, turboshaft_data.graph(), sig,
                      wrapper_info);
     CodeTracer* code_tracer = nullptr;
-    if (info.trace_turbo_graph()) {
+    if (info.trace_turbo_json() || info.trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
       // because it may not yet be initialized then and doing so from the
       // background thread is not threadsafe.
@@ -3437,10 +3437,6 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
                                    call_descriptor, wrapper_info.code_kind);
       DCHECK(result.succeeded());
 
-      CodeTracer* code_tracer = nullptr;
-      if (info.trace_turbo_json() || info.trace_turbo_graph()) {
-        code_tracer = turboshaft_data.GetCodeTracer();
-      }
       TraceFinishWrapperCompilation(info, code_tracer, result,
                                     turboshaft_data.code_generator());
       return result;
@@ -3449,10 +3445,6 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
           pipeline.code_generator(), call_descriptor, wrapper_info.code_kind);
       DCHECK(result.succeeded());
 
-      CodeTracer* code_tracer = nullptr;
-      if (info.trace_turbo_json() || info.trace_turbo_graph()) {
-        code_tracer = data.GetCodeTracer();
-      }
       TraceFinishWrapperCompilation(info, code_tracer, result,
                                     pipeline.code_generator());
       return result;
@@ -3846,7 +3838,7 @@ MaybeHandle<Code> Pipeline::GenerateTurboshaftCodeForTesting(
               << "\", \"source\":\"\",\n\"phases\":[";
     }
     {
-      UnparkedScopeIfNeeded scope(data->broker());
+      UnparkedScopeIfNeeded unparked_scope(data->broker());
       AllowHandleDereference allow_deref;
 
       TurboJsonFile json_of(data->info(), std::ios_base::app);
