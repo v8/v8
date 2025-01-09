@@ -163,7 +163,7 @@ class FrameDescription {
   void SetPc(intptr_t pc);
 
   intptr_t GetFp() const { return fp_; }
-  void SetFp(intptr_t fp) { fp_ = fp; }
+  void SetFp(intptr_t frame_pointer) { fp_ = frame_pointer; }
 
   intptr_t GetConstantPool() const { return constant_pool_; }
   void SetConstantPool(intptr_t constant_pool) {

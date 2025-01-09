@@ -309,7 +309,7 @@ size_t IsolateLoadScriptData::CurrentEventId() const {
 base::LazyMutex isolates_mutex = LAZY_MUTEX_INITIALIZER;
 base::LazyInstance<IsolateMapType>::type isolate_map =
     LAZY_INSTANCE_INITIALIZER;
-base::LazyInstance<FilterDataType>::type etw_filter_payload =
+base::LazyInstance<FilterDataType>::type etw_filter_payload_glob =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace ETWJITInterface

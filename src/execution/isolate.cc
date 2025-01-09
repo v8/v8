@@ -3833,7 +3833,7 @@ void Isolate::UpdateCentralStackInfo() {
   // may contain cpp heap pointers.
   while (!IsUndefined(current)) {
     auto cont = Cast<WasmContinuationObject>(current);
-    auto* wasm_stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
+    wasm_stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
     // On x64 and arm64 we don't need to record the stack segments for
     // conservative stack scanning. We switch to the central stack for foreign
     // calls, so secondary stacks only contain wasm frames which use the precise
@@ -5331,7 +5331,7 @@ void Isolate::VerifyStaticRoots() {
   // If this check fails either re-arrange allocations in the read-only heap
   // such that the static map range is restored (consult static-roots.h for a
   // sorted list of addresses) or remove the offending entry from the list.
-  for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
+  for (idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = roots_table().slot(idx).load(this);
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
@@ -6857,9 +6857,10 @@ void Isolate::OnPromiseThen(DirectHandle<JSPromise> promise) {
   if (!HasAsyncEventDelegate()) return;
   Maybe<debug::DebugAsyncActionType> action_type =
       Nothing<debug::DebugAsyncActionType>();
-  for (JavaScriptStackFrameIterator it(this); !it.done(); it.Advance()) {
+  for (JavaScriptStackFrameIterator frame_it(this); !frame_it.done();
+       frame_it.Advance()) {
     std::vector<Handle<SharedFunctionInfo>> infos;
-    it.frame()->GetFunctions(&infos);
+    frame_it.frame()->GetFunctions(&infos);
     for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
       DirectHandle<SharedFunctionInfo> info = *it;
       if (info->HasBuiltinId()) {

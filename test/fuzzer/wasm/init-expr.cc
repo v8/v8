@@ -62,11 +62,11 @@ Handle<Object> GetExport(Isolate* isolate,
   return desc.value();
 }
 
-void CheckEquivalent(const WasmValue& lhs, const WasmValue& rhs,
+void CheckEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
                      const WasmModule& module) {
   DisallowGarbageCollection no_gc;
   // Stack of elements to be checked.
-  std::vector<std::pair<WasmValue, WasmValue>> cmp = {{lhs, rhs}};
+  std::vector<std::pair<WasmValue, WasmValue>> cmp = {{init_lhs, init_rhs}};
   using TaggedT = decltype(Tagged<Object>().ptr());
   // Map of lhs objects we have already seen to their rhs object on the first
   // visit. This is needed to ensure a reasonable runtime for the check.

@@ -445,11 +445,11 @@ template <typename Dictionary>
 struct EnumIndexComparator {
   explicit EnumIndexComparator(Tagged<Dictionary> dict) : dict(dict) {}
   bool operator()(Tagged_t a, Tagged_t b) {
-    PropertyDetails da(dict->DetailsAt(
+    PropertyDetails details_a(dict->DetailsAt(
         InternalIndex(Tagged<Smi>(static_cast<Address>(a)).value())));
-    PropertyDetails db(dict->DetailsAt(
+    PropertyDetails details_b(dict->DetailsAt(
         InternalIndex(Tagged<Smi>(static_cast<Address>(b)).value())));
-    return da.dictionary_index() < db.dictionary_index();
+    return details_a.dictionary_index() < details_b.dictionary_index();
   }
   Tagged<Dictionary> dict;
 };

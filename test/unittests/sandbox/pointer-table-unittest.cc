@@ -40,7 +40,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
     uint32_t num_entries = space->freelist_length();
     DirectHandle<FixedArray> array = iso->factory()->NewFixedArray(num_entries);
     {
-      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
+      v8::HandleScope inner_scope(reinterpret_cast<v8::Isolate*>(iso));
       for (uint32_t i = 0; i < num_entries; i++) {
         DirectHandle<JSObject> obj =
             iso->factory()->NewExternal(external_1, AllocationType::kOld);
@@ -51,7 +51,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
     }
 
     {
-      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
+      v8::HandleScope inner_scope(reinterpret_cast<v8::Isolate*>(iso));
 
       // Allocate one additional external poiner table entry, which should now
       // end up on a new segment.

@@ -2078,7 +2078,7 @@ void BaselineCompiler::VisitJumpLoop() {
 
     __ Bind(&osr);
     Label do_osr;
-    int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    weight = bytecode_->length() * v8_flags.osr_to_tierup;
     __ Push(maybe_target_code);
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);

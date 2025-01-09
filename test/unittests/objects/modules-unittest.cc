@@ -270,9 +270,9 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
   // gmock-support.h, we could use IsInt32 to replace
   // this.
   {
-    Local<Value> result = RunJS("Object.expando");
-    CHECK(result->IsInt32());
-    CHECK_EQ(42, result->Int32Value(context()).FromJust());
+    Local<Value> res = RunJS("Object.expando");
+    CHECK(res->IsInt32());
+    CHECK_EQ(42, res->Int32Value(context()).FromJust());
   }
   CHECK(!try_catch.HasCaught());
   i::v8_flags.harmony_import_attributes = prev_import_attributes;
@@ -407,9 +407,9 @@ TEST_F(ModuleTest, ModuleEvaluation) {
   // gmock-support.h, we could use IsInt32 to replace
   // this.
   {
-    Local<Value> result = RunJS("Object.expando");
-    CHECK(result->IsInt32());
-    CHECK_EQ(10, result->Int32Value(context()).FromJust());
+    Local<Value> res = RunJS("Object.expando");
+    CHECK(res->IsInt32());
+    CHECK_EQ(10, res->Int32Value(context()).FromJust());
   }
   CHECK(!try_catch.HasCaught());
 }
@@ -443,9 +443,9 @@ TEST_F(ModuleTest, ModuleEvaluationError1) {
     // gmock-support.h, we could use IsInt32 to replace
     // this.
     {
-      Local<Value> result = RunJS("Object.x");
-      CHECK(result->IsInt32());
-      CHECK_EQ(1, result->Int32Value(context()).FromJust());
+      Local<Value> res = RunJS("Object.x");
+      CHECK(res->IsInt32());
+      CHECK_EQ(1, res->Int32Value(context()).FromJust());
     }
     // With top level await, we do not throw and errored evaluation returns
     // a rejected promise with the exception.
@@ -465,9 +465,9 @@ TEST_F(ModuleTest, ModuleEvaluationError1) {
     // gmock-support.h, we could use IsInt32 to replace
     // this.
     {
-      Local<Value> result = RunJS("Object.x");
-      CHECK(result->IsInt32());
-      CHECK_EQ(1, result->Int32Value(context()).FromJust());
+      Local<Value> res = RunJS("Object.x");
+      CHECK(res->IsInt32());
+      CHECK_EQ(1, res->Int32Value(context()).FromJust());
     }
 
     // With top level await, we do not throw and errored evaluation returns

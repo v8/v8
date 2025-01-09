@@ -488,10 +488,10 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
-  HandleScope scope(i_isolate);
+  HandleScope handle_scope(i_isolate);
 
   // Build a small module with an indirect call.
-  ZoneBuffer buffer(&zone);
+  ZoneBuffer zone_buffer(&zone);
   {
     WasmModuleBuilder builder{&zone};
     TestSignatures sigs;
@@ -517,7 +517,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
         table_id, 0, f->func_index(),
         WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
     // Write the final module into {buffer}.
-    builder.WriteTo(&buffer);
+    builder.WriteTo(&zone_buffer);
   }
 
   // Compile the module and serialize it.
@@ -539,7 +539,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
       DirectHandle<WasmModuleObject> module_object =
           GetWasmEngine()
               ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
-                            &thrower, base::OwnedCopyOf(buffer))
+                            &thrower, base::OwnedCopyOf(zone_buffer))
               .ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
 
@@ -620,8 +620,8 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
         DeserializeNativeModule(CcTest::i_isolate(),
                                 base::VectorOf(serialized_module.buffer.get(),
                                                serialized_module.size),
-                                base::VectorOf(buffer), CompileTimeImports{},
-                                kNoSourceUrl)
+                                base::VectorOf(zone_buffer),
+                                CompileTimeImports{}, kNoSourceUrl)
             .ToHandleChecked();
 
     // Check that the signature ID got canonicalized to index 1.
@@ -673,7 +673,7 @@ TEST(SerializeDetectedFeatures) {
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
-  HandleScope scope(i_isolate);
+  HandleScope handle_scope(i_isolate);
 
   // Build a small module with a tail call.
   ZoneBuffer buffer(&zone);

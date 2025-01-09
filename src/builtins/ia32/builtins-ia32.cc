@@ -1975,7 +1975,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // Push the baseline code return address now, as if it had been pushed by
       // the call to this builtin.
       __ PushReturnAddressFrom(return_address, scratch);
-      FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      FrameScope manual_frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(kJavaScriptCallNewTargetRegister);
       __ SmiTag(frame_size);
@@ -2477,10 +2477,10 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   __ movd(xmm0, esi);  // Spill the context.
 
-  Register scratch = esi;
-
   // Check if new.target has a [[Construct]] internal method.
   if (mode == CallOrConstructMode::kConstruct) {
+    Register scratch = esi;
+
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(edx, &new_target_not_constructor, Label::kNear);
     __ mov(scratch, FieldOperand(edx, HeapObject::kMapOffset));

@@ -432,7 +432,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
   SealCurrentObjects();
-  HandleScope scope(isolate());
+  HandleScope handle_scope(isolate());
 
   // Create a young object and age it one generation inside the new space.
   DirectHandle<FixedArray> arr = factory->NewFixedArray(1);

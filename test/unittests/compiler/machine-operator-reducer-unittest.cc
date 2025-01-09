@@ -2662,8 +2662,6 @@ TEST_F(MachineOperatorReducerTest,
 
   TRACED_FOREACH(uint64_t, k1, kUint64Values) {
     TRACED_FOREACH(uint64_t, k2, kUint64Values) {
-      uint64_t k1 = 0;
-      uint64_t k2 = 18446744073709551615u;
       Node* node = graph()->NewNode(
           machine()->Uint64LessThanOrEqual(),
           graph()->NewNode(machine()->Int64Add(), p0, Int64Constant(k1)),

@@ -1597,12 +1597,14 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [
-      "-Wunreachable-code",
+    cflags += [ "-Wunreachable-code" ]
 
-      # TODO(v8:12245): Fix shadowing instances and remove.
-      "-Wno-shadow",
-    ]
+    if (v8_current_cpu != "x64" && v8_current_cpu != "ia32") {
+      # On arm/arm64, `pc` and `sp` are register names but are also very often
+      # used as function parameters, causing shadowing. So, we only enable
+      # -Wshadow on x64 and ia32.
+      cflags += [ "-Wno-shadow" ]
+    }
 
     # TODO(fuchsia:127411): Re-enable once FIDL bindings are compatible.
     if (!is_fuchsia) {

@@ -94,20 +94,21 @@ int CallSiteInfo::GetLineNumber(DirectHandle<CallSiteInfo> info) {
 }
 
 // static
-int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> info) {
-  Isolate* isolate = info->GetIsolate();
-  int position = GetSourcePosition(info);
+int CallSiteInfo::GetColumnNumber(DirectHandle<CallSiteInfo> callsite_info) {
+  Isolate* isolate = callsite_info->GetIsolate();
+  int position = GetSourcePosition(callsite_info);
 #if V8_ENABLE_WEBASSEMBLY
-  if (info->IsWasm() && !info->IsAsmJsWasm()) {
+  if (callsite_info->IsWasm() && !callsite_info->IsAsmJsWasm()) {
     return position + 1;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<Script> script;
-  if (GetScript(isolate, info).ToHandle(&script)) {
-    Script::PositionInfo info;
-    Script::GetPositionInfo(script, position, &info);
-    int column_number = info.column + 1;
-    if (script->HasSourceURLComment() && info.line == script->line_offset()) {
+  if (GetScript(isolate, callsite_info).ToHandle(&script)) {
+    Script::PositionInfo position_info;
+    Script::GetPositionInfo(script, position, &position_info);
+    int column_number = position_info.column + 1;
+    if (script->HasSourceURLComment() &&
+        position_info.line == script->line_offset()) {
       column_number -= script->column_offset();
     }
     return column_number;

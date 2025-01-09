@@ -75,9 +75,9 @@ void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
       for (const void* const* current =
                reinterpret_cast<const void* const*>(fake_frame_begin);
            current < fake_frame_end; ++current) {
-        const void* address = *current;
-        if (address == nullptr) continue;
-        visitor->VisitPointer(address);
+        const void* address_curr = *current;
+        if (address_curr == nullptr) continue;
+        visitor->VisitPointer(address_curr);
       }
     }
   }
@@ -105,9 +105,9 @@ void IteratePointersInUnsafeStackIfNecessary(StackVisitor* visitor,
   for (const void* const* current =
            reinterpret_cast<const void* const*>(segment.unsafe_stack_top);
        current < segment.unsafe_stack_start; ++current) {
-    const void* address = *current;
-    if (address == nullptr) continue;
-    visitor->VisitPointer(address);
+    const void* address_curr = *current;
+    if (address_curr == nullptr) continue;
+    visitor->VisitPointer(address_curr);
   }
 #endif  // V8_USE_SAFE_STACK
 }

@@ -1442,16 +1442,19 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
 
   bool needs_double_alignment = flags & AllocationFlag::kDoubleAlignment;
 
-  Label next(this);
-  GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
+  {
+    Label next(this);
+    GotoIf(IsRegularHeapObjectSize(size_in_bytes), &next);
 
-  TNode<Smi> runtime_flags = SmiConstant(
-      Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
-  result = CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
-                       SmiTag(size_in_bytes), runtime_flags);
-  Goto(&out);
+    TNode<Smi> runtime_flags = SmiConstant(
+        Smi::FromInt(AllocateDoubleAlignFlag::encode(needs_double_alignment)));
+    result =
+        CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                    SmiTag(size_in_bytes), runtime_flags);
+    Goto(&out);
 
-  BIND(&next);
+    BIND(&next);
+  }
 
   TVARIABLE(IntPtrT, adjusted_size, size_in_bytes);
 
@@ -14588,9 +14591,9 @@ TNode<Boolean> CodeStubAssembler::RelationalComparison(
 
             BIND(&if_right_receiver);
             {
-              Builtin builtin =
-                  Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint::kNumber);
-              var_right = CallBuiltin(builtin, context(), right);
+              var_right = CallBuiltin(
+                  Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint::kNumber),
+                  context(), right);
               Goto(&loop);
             }
           }

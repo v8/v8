@@ -51,14 +51,14 @@ void MaybeSetHandlerNow(Isolate* isolate) {
   // Iterating read-only heap before sealed might not be safe.
   if (has_active_etw_tracing_session_or_custom_filter &&
       !EtwIsolateOperations::Instance()->HeapReadOnlySpaceWritable(isolate)) {
-    if (etw_filter_payload.Pointer()->empty()) {
+    if (etw_filter_payload_glob.Pointer()->empty()) {
       DCHECK(v8_flags.enable_etw_stack_walking);
       IsolateLoadScriptData::EnableLog(
           isolate, 0, std::weak_ptr<EtwIsolateCaptureStateMonitor>(),
           kJitCodeEventDefault);
     } else {
       IsolateLoadScriptData::EnableLogWithFilterData(
-          isolate, 0, *etw_filter_payload.Pointer(),
+          isolate, 0, *etw_filter_payload_glob.Pointer(),
           std::weak_ptr<EtwIsolateCaptureStateMonitor>(), kJitCodeEventDefault);
     }
   }
@@ -127,7 +127,7 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
     options |= kJitCodeEventEnumExisting;
   }
 
-  FilterDataType* etw_filter = etw_filter_payload.Pointer();
+  FilterDataType* etw_filter = etw_filter_payload_glob.Pointer();
 
   if (!is_etw_enabled_now) {
     // Disable the current tracing session.

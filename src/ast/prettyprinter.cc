@@ -1218,7 +1218,7 @@ void AstPrinter::VisitConditionalChain(ConditionalChain* node) {
   PrintIndentedVisit("CONDITION", node->condition_at(0));
   PrintIndentedVisit("THEN", node->then_expression_at(0));
   for (size_t i = 1; i < node->conditional_chain_length(); ++i) {
-    IndentedScope indent(this, "ELSE IF", node->condition_position_at(i));
+    IndentedScope inner_indent(this, "ELSE IF", node->condition_position_at(i));
     PrintIndentedVisit("CONDITION", node->condition_at(i));
     PrintIndentedVisit("THEN", node->then_expression_at(i));
   }

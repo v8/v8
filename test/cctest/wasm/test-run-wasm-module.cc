@@ -308,9 +308,9 @@ TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
     constexpr int kFuncIndex = 0;
     WasmCodeRefScope code_ref_scope;
     while (true) {
-      auto* code = native_module->GetCode(kFuncIndex);
-      if (!code) continue;
-      CHECK_EQ(ExecutionTier::kTurbofan, code->tier());
+      auto* function_code = native_module->GetCode(kFuncIndex);
+      if (!function_code) continue;
+      CHECK_EQ(ExecutionTier::kTurbofan, function_code->tier());
       break;
     }
     CHECK(compilation_state->baseline_compilation_finished());

@@ -90,7 +90,7 @@ extern base::LazyInstance<IsolateMapType>::type isolate_map;
 
 using FilterDataType = std::string;
 // Used when Isolates are created during an ETW tracing session.
-extern base::LazyInstance<FilterDataType>::type etw_filter_payload;
+extern base::LazyInstance<FilterDataType>::type etw_filter_payload_glob;
 
 }  // namespace ETWJITInterface
 }  // namespace internal

@@ -1761,12 +1761,12 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<JSReceiver> splitter;
   {
     constexpr int argc = 2;
-    std::array<DirectHandle<Object>, argc> args = {recv, new_flags};
+    std::array<DirectHandle<Object>, argc> ctor_args = {recv, new_flags};
 
     Handle<Object> splitter_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, splitter_obj,
-        Execution::New(isolate, ctor, base::VectorOf(args)));
+        Execution::New(isolate, ctor, base::VectorOf(ctor_args)));
 
     splitter = Cast<JSReceiver>(splitter_obj);
   }
@@ -2021,16 +2021,16 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
             isolate, NewRangeError(MessageTemplate::kTooManyArguments));
       }
 
-      DirectHandleVector<Object> args(isolate, argc);
+      DirectHandleVector<Object> call_args(isolate, argc);
 
       int cursor = 0;
       for (uint32_t j = 0; j < captures_length; j++) {
-        args[cursor++] = captures[j];
+        call_args[cursor++] = captures[j];
       }
 
-      args[cursor++] = direct_handle(Smi::FromInt(position), isolate);
-      args[cursor++] = string;
-      if (has_named_captures) args[cursor++] = groups_obj;
+      call_args[cursor++] = direct_handle(Smi::FromInt(position), isolate);
+      call_args[cursor++] = string;
+      if (has_named_captures) call_args[cursor++] = groups_obj;
 
       DCHECK_EQ(cursor, argc);
 
@@ -2038,7 +2038,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement_obj,
           Execution::Call(isolate, replace_obj, factory->undefined_value(),
-                          base::VectorOf(args)));
+                          base::VectorOf(call_args)));
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, replacement, Object::ToString(isolate, replacement_obj));

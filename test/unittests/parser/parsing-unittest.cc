@@ -10180,7 +10180,7 @@ TEST_F(ParsingTest, DestructuringAssignmentNegativeTests) {
   {
     i::FlagScope<bool> f(&v8_flags.js_source_phase_imports, true);
     // clang-format off
-    const char* data[] = {
+    const char* statement_data[] = {
       "{ import.source }",
       "{ x: import.source }",
       "{ x: import.source = 1 }",
@@ -10188,7 +10188,7 @@ TEST_F(ParsingTest, DestructuringAssignmentNegativeTests) {
       "[import.source = 1]",
       nullptr};
     // clang-format on
-    RunParserSyncTest(context_data, data, kError);
+    RunParserSyncTest(context_data, statement_data, kError);
   }
 
   const char* empty_context_data[][2] = {

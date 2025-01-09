@@ -268,8 +268,8 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
       WasmOpcode opcode = GetOpcode();
       current_opcode_ = opcode;  // Some immediates need to know this.
       StringBuilder immediates;
-      uint32_t length = PrintImmediatesAndGetLength(immediates);
-      PrintHexBytes(out, length, pc_, 4);
+      uint32_t opcode_length = PrintImmediatesAndGetLength(immediates);
+      PrintHexBytes(out, opcode_length, pc_, 4);
       if (opcode == kExprEnd) {
         out << " // end";
         if (label_stack_.size() > 0) {
@@ -289,7 +289,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
         label_stack_.emplace_back(out.line_number(), out.length(),
                                   label_occurrence_index_++);
       }
-      pc_ += length;
+      pc_ += opcode_length;
       out.NextLine(pc_offset());
     }
 
@@ -847,11 +847,12 @@ class FormatConverter {
          << kind << std::endl;
     for (auto sig_use : sig_uses_vector) {
       uint32_t sig_index = sig_use.first;
-      uint32_t uses = sig_use.second;
+      uint32_t use_count = sig_use.second;
 
       const FunctionSig* sig = module->signature(ModuleTypeIndex{sig_index});
 
-      out_ << uses << " " << kind << " use the signature " << *sig << std::endl;
+      out_ << use_count << " " << kind << " use the signature " << *sig
+           << std::endl;
     }
   }
 

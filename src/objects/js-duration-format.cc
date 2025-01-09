@@ -23,12 +23,15 @@
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "unicode/dtfmtsym.h"
 #include "unicode/listformatter.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"
 #include "unicode/ulistformatter.h"
 #include "unicode/unumberformatter.h"
+#pragma GCC diagnostic pop
 
 namespace v8 {
 namespace internal {

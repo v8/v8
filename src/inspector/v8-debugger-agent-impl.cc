@@ -2320,11 +2320,13 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
     bytecode.insert(bytecode.begin(), span.data(), span.data() + span.size());
   }
 #endif
-  CachedScript cachedScript{script->scriptId(), script->source(0),
-                            std::move(bytecode)};
-  m_cachedScriptSize += cachedScript.size();
-  m_cachedScripts.push_back(std::move(cachedScript));
-  m_scripts.erase(script->scriptId());
+  {
+    CachedScript cachedScript{script->scriptId(), script->source(0),
+                              std::move(bytecode)};
+    m_cachedScriptSize += cachedScript.size();
+    m_cachedScripts.push_back(std::move(cachedScript));
+    m_scripts.erase(script->scriptId());
+  }
 
   while (m_cachedScriptSize > m_maxScriptCacheSize) {
     const CachedScript& cachedScript = m_cachedScripts.front();

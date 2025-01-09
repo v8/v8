@@ -1330,12 +1330,12 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   } else {  // 13. Else,
     // a. Perform ? module.ExecuteModule().
     MaybeDirectHandle<Object> exception;
-    Handle<Object> result;
-    if (!ExecuteModule(isolate, module, &exception).ToHandle(&result)) {
+    Handle<Object> maybe_result;
+    if (!ExecuteModule(isolate, module, &exception).ToHandle(&maybe_result)) {
       if (!isolate->is_execution_terminating()) {
         isolate->Throw(*exception.ToHandleChecked());
       }
-      return result;
+      return maybe_result;
     }
   }
 

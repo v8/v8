@@ -1778,21 +1778,18 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     }
 
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-    TNode<HeapObject> maybe_feedback_vector =
-        LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index,
-                   mode);
+    UpdateFeedback(var_type_feedback.value(),
+                   LoadFeedbackVectorOrUndefinedIfJitless(), slot_index, mode);
     SetAccumulator(result);
     Dispatch();
 
     BIND(&if_exception);
     {
-      TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-      TNode<HeapObject> maybe_feedback_vector =
-          LoadFeedbackVectorOrUndefinedIfJitless();
-      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                     slot_index, mode);
+      slot_index = BytecodeOperandIdx(1);
+      UpdateFeedback(var_type_feedback.value(),
+                     LoadFeedbackVectorOrUndefinedIfJitless(), slot_index,
+                     mode);
       CallRuntime(Runtime::kReThrow, context, var_exception.value());
       Unreachable();
     }

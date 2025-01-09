@@ -1293,14 +1293,15 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Finally, allocate the wasm-null object.
   {
-    Tagged<HeapObject> obj;
-    CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly).To(&obj));
+    Tagged<HeapObject> wasm_null_obj;
+    CHECK(AllocateRaw(WasmNull::kSize, AllocationType::kReadOnly)
+              .To(&wasm_null_obj));
     // No need to initialize the payload since it's either empty or unmapped.
     CHECK_IMPLIES(!(V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL),
                   WasmNull::kSize == sizeof(Tagged_t));
-    obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
-                                  SKIP_WRITE_BARRIER);
-    set_wasm_null(Cast<WasmNull>(obj));
+    wasm_null_obj->set_map_after_allocation(isolate(), roots.wasm_null_map(),
+                                            SKIP_WRITE_BARRIER);
+    set_wasm_null(Cast<WasmNull>(wasm_null_obj));
     if (V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL) {
       CHECK_EQ(read_only_space_->top() % kLargestPossibleOSPageSize, 0);
     }

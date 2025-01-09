@@ -424,12 +424,13 @@ V8_INLINE V8_CLANG_NO_SANITIZE("alignment") bool SimdMemEqual(const Char* lhs,
   }
 
   // count: [33, ...]
-  const auto lhs0 = vld1q_u8(lhs);
-  const auto rhs0 = vld1q_u8(rhs);
-  const auto xored = veorq_u8(lhs0, rhs0);
-  if (static_cast<bool>(
-          vgetq_lane_u64(vreinterpretq_u64_u8(vpmaxq_u8(xored, xored)), 0)))
+  const auto first_lhs0 = vld1q_u8(lhs);
+  const auto first_rhs0 = vld1q_u8(rhs);
+  const auto first_xored = veorq_u8(first_lhs0, first_rhs0);
+  if (static_cast<bool>(vgetq_lane_u64(
+          vreinterpretq_u64_u8(vpmaxq_u8(first_xored, first_xored)), 0))) {
     return false;
+  }
   for (size_t i = count % sizeof(uint8x16_t); i < count;
        i += sizeof(uint8x16_t)) {
     const auto lhs0 = vld1q_u8(lhs + i);

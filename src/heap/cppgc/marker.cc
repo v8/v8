@@ -423,7 +423,7 @@ void MarkerBase::ProcessWeakness() {
 
   {
     // First, process weak container callbacks.
-    StatsCollector::EnabledScope stats_scope(
+    StatsCollector::EnabledScope inner_stats_scope(
         heap().stats_collector(),
         StatsCollector::kWeakContainerCallbacksProcessing);
     MarkingWorklists::WeakCallbackItem item;
@@ -435,7 +435,7 @@ void MarkerBase::ProcessWeakness() {
   }
   {
     // Then, process custom weak callbacks.
-    StatsCollector::EnabledScope stats_scope(
+    StatsCollector::EnabledScope inner_stats_scope(
         heap().stats_collector(), StatsCollector::kCustomCallbacksProcessing);
     MarkingWorklists::WeakCallbackItem item;
     MarkingWorklists::WeakCustomCallbackWorklist::Local& custom_callbacks =
@@ -489,7 +489,7 @@ void MarkerBase::VisitLocalRoots(StackState stack_state) {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (config_.collection_type == CollectionType::kMinor) {
-    StatsCollector::EnabledScope stats_scope(
+    StatsCollector::EnabledScope inner_stats_scope(
         heap().stats_collector(), StatsCollector::kMarkVisitRememberedSets);
     heap().remembered_set().Visit(visitor(), conservative_visitor(),
                                   mutator_marking_state_);

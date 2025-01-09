@@ -286,9 +286,9 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
 
   const char* cache_type;
 
-  DirectHandle<NativeContext> native_context;
-  if (TryCast<NativeContext>(context, &native_context)) {
-    result = eval_global_.Lookup(source, outer_info, native_context,
+  DirectHandle<NativeContext> maybe_native_context;
+  if (TryCast<NativeContext>(context, &maybe_native_context)) {
+    result = eval_global_.Lookup(source, outer_info, maybe_native_context,
                                  language_mode, position);
     cache_type = "eval-global";
 
@@ -332,9 +332,9 @@ void CompilationCache::PutEval(Handle<String> source,
 
   const char* cache_type;
   HandleScope scope(isolate());
-  DirectHandle<NativeContext> native_context;
-  if (TryCast<NativeContext>(context, &native_context)) {
-    eval_global_.Put(source, outer_info, function_info, native_context,
+  DirectHandle<NativeContext> maybe_native_context;
+  if (TryCast<NativeContext>(context, &maybe_native_context)) {
+    eval_global_.Put(source, outer_info, function_info, maybe_native_context,
                      feedback_cell, position);
     cache_type = "eval-global";
   } else {

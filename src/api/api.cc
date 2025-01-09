@@ -423,9 +423,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
             start <= end_of_accessible_region_ - kChunkSize) {
           // Can shrink the accessible region.
           i::Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
-          size_t size =
+          size_t size_to_decommit =
               end_of_accessible_region_ - new_end_of_accessible_region;
-          if (!vas->DecommitPages(new_end_of_accessible_region, size)) {
+          if (!vas->DecommitPages(new_end_of_accessible_region,
+                                  size_to_decommit)) {
             i::V8::FatalProcessOutOfMemory(
                 nullptr, "ArrayBufferAllocator::BackendAllocator()");
           }

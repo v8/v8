@@ -944,7 +944,7 @@ using BackgroundMergeTest = TestWithNativeContext;
 TEST_F(BackgroundMergeTest, GCDuringMerge) {
   v8_flags.verify_code_merge = true;
 
-  HandleScope scope(isolate());
+  HandleScope handle_scope(isolate());
   const char* source =
       // f is compiled eagerly thanks to the IIFE hack.
       "f = (function f(x) {"

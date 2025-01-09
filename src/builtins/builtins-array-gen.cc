@@ -2227,11 +2227,10 @@ TF_BUILTIN(CreateObjectFromSlowBoilerplateHelper,
     TNode<FixedArrayBase> elements = LoadElements(object);
     GotoIf(IsEmptyFixedArray(elements), &done_with_elements);
 
-    TNode<Int32T> elements_kind = LoadElementsKind(object);
     // Object elements are never COW and never SMI_ELEMENTS etc.
     CloneElementsOfFixedArray(elements, LoadFixedArrayBaseLength(elements),
-                              elements_kind, current_allocation_site, context,
-                              &done_with_elements, &bailout);
+                              LoadElementsKind(object), current_allocation_site,
+                              context, &done_with_elements, &bailout);
     BIND(&done_with_elements);
   }
 

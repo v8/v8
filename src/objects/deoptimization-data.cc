@@ -389,11 +389,11 @@ void DeoptimizationFrameTranslation::PrintFrameTranslation(
   DisallowGarbageCollection gc_oh_noes;
 
   DeoptimizationFrameTranslation::Iterator iterator(this, index);
-  TranslationOpcode opcode = iterator.NextOpcode();
-  DCHECK(TranslationOpcodeIsBegin(opcode));
-  os << opcode << " ";
+  TranslationOpcode first_opcode = iterator.NextOpcode();
+  DCHECK(TranslationOpcodeIsBegin(first_opcode));
+  os << first_opcode << " ";
   DeoptimizationFrameTranslationPrintSingleOpcode(
-      os, opcode, iterator, protected_literal_array, literal_array);
+      os, first_opcode, iterator, protected_literal_array, literal_array);
   while (iterator.HasNextOpcode()) {
     TranslationOpcode opcode = iterator.NextOpcode();
     if (TranslationOpcodeIsBegin(opcode)) {

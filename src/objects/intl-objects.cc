@@ -33,6 +33,8 @@
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/strings/string-case.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "unicode/basictz.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
@@ -51,6 +53,7 @@
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/uvernum.h"  // U_ICU_VERSION_MAJOR_NUM
+#pragma GCC diagnostic pop
 
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.

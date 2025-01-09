@@ -6704,7 +6704,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   BytecodeLabel super_ctor_call_done;
 
   if (spread_position == Call::kHasNonFinalSpread) {
-    RegisterAllocationScope register_scope(this);
+    RegisterAllocationScope inner_register_scope(this);
     RegisterList construct_args(constructor_then_instance);
     const Register& constructor = constructor_then_instance;
 
@@ -6724,7 +6724,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // Now pass that array to %reflect_construct.
     builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, construct_args);
   } else {
-    RegisterAllocationScope register_scope(this);
+    RegisterAllocationScope inner_register_scope(this);
     RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
     VisitArguments(args, &args_regs);
 

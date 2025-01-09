@@ -13689,20 +13689,20 @@ MaybeHandle<JSTemporalPlainDate> PlainMonthDayOrYearMonthToPlainDate(
       receiver_field_names->length() + input_field_names->length());
   Handle<StringSet> added = StringSet::New(isolate);
   for (int i = 0; i < receiver_field_names->length(); i++) {
-    Handle<Object> item(receiver_field_names->get(i), isolate);
-    DCHECK(IsString(*item));
-    auto string = Cast<String>(item);
+    Handle<Object> field(receiver_field_names->get(i), isolate);
+    DCHECK(IsString(*field));
+    auto string = Cast<String>(field);
     if (!added->Has(isolate, string)) {
-      merged_field_names->set(added->NumberOfElements(), *item);
+      merged_field_names->set(added->NumberOfElements(), *field);
       added = StringSet::Add(isolate, added, string);
     }
   }
   for (int i = 0; i < input_field_names->length(); i++) {
-    Handle<Object> item(input_field_names->get(i), isolate);
-    DCHECK(IsString(*item));
-    auto string = Cast<String>(item);
+    Handle<Object> field(input_field_names->get(i), isolate);
+    DCHECK(IsString(*field));
+    auto string = Cast<String>(field);
     if (!added->Has(isolate, string)) {
-      merged_field_names->set(added->NumberOfElements(), *item);
+      merged_field_names->set(added->NumberOfElements(), *field);
       added = StringSet::Add(isolate, added, string);
     }
   }

@@ -745,10 +745,10 @@ void JSFunction::InitializeFeedbackCell(
     if (v8_flags.baseline_batch_compilation) {
       isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
-      IsCompiledScope is_compiled_scope(
+      IsCompiledScope is_compiled_inner_scope(
           function->shared()->is_compiled_scope(isolate));
       Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
-                                &is_compiled_scope);
+                                &is_compiled_inner_scope);
     }
   }
 #endif  // V8_ENABLE_SPARKPLUG

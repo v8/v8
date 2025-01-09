@@ -619,8 +619,8 @@ class ConsoleImpl : public debug::ConsoleDelegate {
 
 TEST_F(ThreadTerminationTest, TerminateConsole) {
   i::v8_flags.allow_natives_syntax = true;
-  ConsoleImpl console;
-  debug::SetConsoleDelegate(isolate(), &console);
+  ConsoleImpl console_impl;
+  debug::SetConsoleDelegate(isolate(), &console_impl);
   HandleScope scope(isolate());
   Local<ObjectTemplate> global = CreateGlobalTemplate(
       isolate(), TerminateCurrentThread, DoLoopCancelTerminate);
@@ -628,7 +628,7 @@ TEST_F(ThreadTerminationTest, TerminateConsole) {
   Context::Scope context_scope(context);
   {
     // setup console global.
-    HandleScope scope(isolate());
+    HandleScope inner_scope(isolate());
     Local<String> name = String::NewFromUtf8Literal(
         isolate(), "console", NewStringType::kInternalized);
     Local<Value> console =
@@ -683,14 +683,14 @@ TEST_F(ThreadTerminationTest, TerminationClearArrayJoinStack) {
     EXPECT_THAT(RunJS("a[0] = 1; Join();"), testing::IsString("1"));
   }
   {
-    ConsoleImpl console;
-    debug::SetConsoleDelegate(isolate(), &console);
-    HandleScope scope(isolate());
+    ConsoleImpl console_impl;
+    debug::SetConsoleDelegate(isolate(), &console_impl);
+    HandleScope middle_scope(isolate());
     Local<Context> context = Context::New(isolate(), nullptr, global_template);
     Context::Scope context_scope(context);
     {
       // setup console global.
-      HandleScope scope(isolate());
+      HandleScope inner_scope(isolate());
       Local<String> name = String::NewFromUtf8Literal(
           isolate(), "console", NewStringType::kInternalized);
       Local<Value> console = context->GetExtrasBindingObject()

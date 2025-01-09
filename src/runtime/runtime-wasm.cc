@@ -170,7 +170,7 @@ Tagged<Object> ThrowWasmSuspendError(Isolate* isolate,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  SealHandleScope scope(isolate);
+  SealHandleScope seal_handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> value = args[0];
   if (IsWasmFuncRef(value)) {
@@ -179,7 +179,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
     Tagged<JSFunction> external;
     if (internal->try_get_external(&external)) return external;
     // Slow path:
-    HandleScope scope(isolate);
+    HandleScope handle_scope(isolate);
     return *WasmInternalFunction::GetOrCreateExternal(
         direct_handle(internal, isolate));
   }

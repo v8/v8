@@ -201,9 +201,9 @@ MaybeHandle<Context> NewScriptContext(
       native_context->script_context_table(), isolate);
 
   // Find name clashes.
-  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
-    Handle<String> name(it->name(), isolate);
-    VariableMode mode = scope_info->ContextLocalMode(it->index());
+  for (auto name_it : ScopeInfo::IterateLocalNames(scope_info)) {
+    Handle<String> name(name_it->name(), isolate);
+    VariableMode mode = scope_info->ContextLocalMode(name_it->index());
     VariableLookupResult lookup;
     if (script_context->Lookup(name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
@@ -228,9 +228,10 @@ MaybeHandle<Context> NewScriptContext(
     }
 
     if (IsLexicalVariableMode(mode)) {
-      LookupIterator it(isolate, global_object, name, global_object,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+      LookupIterator lookup_it(isolate, global_object, name, global_object,
+                               LookupIterator::OWN_SKIP_INTERCEPTOR);
+      Maybe<PropertyAttributes> maybe =
+          JSReceiver::GetPropertyAttributes(&lookup_it);
       // Can't fail since the we looking up own properties on the global object
       // skipping interceptors.
       CHECK(!maybe.IsNothing());

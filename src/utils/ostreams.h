@@ -173,8 +173,8 @@ struct PrintIteratorRange {
     endBracket = "";
     return *this;
   }
-  PrintIteratorRange& WithSeparator(const char* separator) {
-    this->separator = separator;
+  PrintIteratorRange& WithSeparator(const char* new_separator) {
+    this->separator = new_separator;
     return *this;
   }
 };

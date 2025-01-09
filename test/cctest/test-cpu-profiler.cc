@@ -4039,7 +4039,7 @@ void ValidateEmbedderState(v8::CpuProfile* profile,
 TEST(EmbedderContextIsolation) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext execution_env;
-  i::HandleScope scope(CcTest::i_isolate());
+  i::HandleScope handle_scope(CcTest::i_isolate());
 
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 

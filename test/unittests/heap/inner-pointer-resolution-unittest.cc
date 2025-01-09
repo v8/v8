@@ -599,7 +599,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 
   {
     PtrComprCageBase cage_base{isolate()};
-    HandleScope scope(isolate());
+    HandleScope handle_scope(isolate());
 
     // Allocate two objects, large enough that they fall in two different young
     // generation pages. Keep weak references to these objects.

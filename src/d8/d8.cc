@@ -5930,13 +5930,13 @@ bool ProcessMessages(
     // isolate. We execute all background tasks after running one foreground
     // task.
     if (i::v8_flags.verify_predictable) {
-      TryCatch try_catch(isolate);
-      try_catch.SetVerbose(true);
+      TryCatch inner_try_catch(isolate);
+      inner_try_catch.SetVerbose(true);
       while (v8::platform::PumpMessageLoop(
           g_default_platform, kProcessGlobalPredictablePlatformWorkerTaskQueue,
           platform::MessageLoopBehavior::kDoNotWait)) {
         ran_a_task = true;
-        if (try_catch.HasCaught()) return false;
+        if (inner_try_catch.HasCaught()) return false;
         if (isolate->IsExecutionTerminating()) return true;
       }
     }

@@ -4056,11 +4056,11 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     DCHECK(!interceptor->non_masking());
     // TODO(ishell, 348688196): why is it known that it shouldn't throw?
     Maybe<ShouldThrow> should_throw = Just(kDontThrow);
-    PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                   *receiver, should_throw);
+    PropertyCallbackArguments callback_args(isolate, interceptor->data(),
+                                            *receiver, *receiver, should_throw);
 
     v8::Intercepted intercepted =
-        args.CallNamedSetter(interceptor, name, value);
+        callback_args.CallNamedSetter(interceptor, name, value);
     // Stores initiated by StoreICs don't care about the exact result of
     // the store operation returned by the callback as long as it doesn't
     // throw an exception.
@@ -4068,7 +4068,8 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
     InterceptorResult result;
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        args.GetBooleanReturnValue(intercepted, "Setter", ignore_return_value));
+        callback_args.GetBooleanReturnValue(intercepted, "Setter",
+                                            ignore_return_value));
 
     switch (result) {
       case InterceptorResult::kFalse:

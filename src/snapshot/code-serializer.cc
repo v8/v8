@@ -678,23 +678,23 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK(isolate->factory()->script_list()->Contains(
         MakeWeak(result->script())));
   } else {
-    DirectHandle<Script> script(Cast<Script>(result->script()), isolate);
+    DirectHandle<Script> result_script(Cast<Script>(result->script()), isolate);
     // Fix up the source on the script. This should be the only deserialized
     // script, and the off-thread deserializer should have set its source to the
     // empty string. In debug mode the code cache does contain the original
     // source.
     DCHECK_EQ(data.scripts.size(), 1);
-    DCHECK_EQ(*script, *data.scripts[0]);
+    DCHECK_EQ(*result_script, *data.scripts[0]);
 #ifdef DEBUG
-    if (!Cast<String>(script->source())->Equals(*source)) {
+    if (!Cast<String>(result_script->source())->Equals(*source)) {
       isolate->PushStackTraceAndDie(
-          reinterpret_cast<void*>(script->source().ptr()),
+          reinterpret_cast<void*>(result_script->source().ptr()),
           reinterpret_cast<void*>(source->ptr()));
     }
 #else
-    CHECK_EQ(script->source(), ReadOnlyRoots(isolate).empty_string());
+    CHECK_EQ(result_script->source(), ReadOnlyRoots(isolate).empty_string());
 #endif
-    Script::SetSource(isolate, script, source);
+    Script::SetSource(isolate, result_script, source);
 
     // Fix up the script list to include the newly deserialized script.
     Handle<WeakArrayList> list = isolate->factory()->script_list();

@@ -2035,11 +2035,11 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
 #endif  // !V8_ENABLE_LEAPTIERING
   for (int i = 0; i < feedback_vector->length(); ++i) {
     Tagged<MaybeObject> maybe_entry = *(feedback_vector->slots_start() + i);
-    Tagged<HeapObject> entry;
-    if (maybe_entry.GetHeapObjectIfStrong(&entry) &&
-        (entry->map(isolate())->instance_type() == WEAK_FIXED_ARRAY_TYPE ||
-         IsFixedArrayExact(entry))) {
-      TagObject(entry, "(feedback)", HeapEntry::kCode);
+    Tagged<HeapObject> entry_obj;
+    if (maybe_entry.GetHeapObjectIfStrong(&entry_obj) &&
+        (entry_obj->map(isolate())->instance_type() == WEAK_FIXED_ARRAY_TYPE ||
+         IsFixedArrayExact(entry_obj))) {
+      TagObject(entry_obj, "(feedback)", HeapEntry::kCode);
     }
   }
 }

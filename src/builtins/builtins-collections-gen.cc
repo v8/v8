@@ -152,11 +152,10 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       // the iteator and execute iterator closing protocol. It might be
       // non-trivial in case "return" callback is added somewhere in the
       // iterator's prototype chain.
-      TNode<NativeContext> native_context = LoadNativeContext(context);
       TNode<IntPtrT> next_index =
           IntPtrAdd(var_index.value(), IntPtrConstant(1));
       var_iterator_object = CreateArrayIterator(
-          native_context, UncheckedCast<JSArray>(initial_entries),
+          LoadNativeContext(context), UncheckedCast<JSArray>(initial_entries),
           IterationKind::kValues, SmiTag(next_index));
       Goto(&if_exception);
     }

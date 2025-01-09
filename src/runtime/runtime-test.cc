@@ -1055,11 +1055,12 @@ RUNTIME_FUNCTION(Runtime_ForceFlush) {
   }
 
   // Don't flush functions that are active on the stack.
-  for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
+  for (JavaScriptStackFrameIterator frame_it(isolate); !frame_it.done();
+       frame_it.Advance()) {
     std::vector<Tagged<SharedFunctionInfo>> infos;
-    it.frame()->GetFunctions(&infos);
-    for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
-      if ((*it) == sfi) return CrashUnlessFuzzing(isolate);
+    frame_it.frame()->GetFunctions(&infos);
+    for (auto infos_it = infos.rbegin(); infos_it != infos.rend(); ++infos_it) {
+      if ((*infos_it) == sfi) return CrashUnlessFuzzing(isolate);
     }
   }
 

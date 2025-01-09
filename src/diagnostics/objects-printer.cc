@@ -3730,19 +3730,11 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
 }
 
 void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
-  static constexpr uint64_t kUint64AllBitsSet =
-      static_cast<uint64_t>(int64_t{-1});
-  // Min/max integer values representable by 52 bits of mantissa and 1 sign bit.
-  static constexpr int64_t kMinSafeInteger =
-      static_cast<int64_t>(kUint64AllBitsSet << 53);
-  static constexpr int64_t kMaxSafeInteger = -(kMinSafeInteger + 1);
-
   double val = value();
   if (i::IsMinusZero(val)) {
     os << "-0.0";
-  } else if (val == DoubleToInteger(val) &&
-             val >= static_cast<double>(kMinSafeInteger) &&
-             val <= static_cast<double>(kMaxSafeInteger)) {
+  } else if (val == DoubleToInteger(val) && val >= kMinSafeInteger &&
+             val <= kMaxSafeInteger) {
     // Print integer HeapNumbers in safe integer range with max precision: as
     // 9007199254740991.0 instead of 9.0072e+15
     int64_t i = static_cast<int64_t>(val);
@@ -4296,7 +4288,7 @@ V8_EXPORT_PRIVATE extern std::vector<
 _v8_internal_Expand_StackTrace(i::Isolate* isolate) {
   std::vector<_v8_internal_debugonly::StackTraceDebugDetails> stack;
   i::DisallowGarbageCollection no_gc;
-  int i = 0;
+  int frame_index = 0;
 
   for (i::StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     i::CommonFrame* frame = i::CommonFrame::cast(it.frame());
@@ -4317,7 +4309,7 @@ _v8_internal_Expand_StackTrace(i::Isolate* isolate) {
     i::StringStream::ClearMentionedObjectCache(isolate);
     i::HeapStringAllocator allocator;
     i::StringStream accumulator(&allocator);
-    frame->Print(&accumulator, i::StackFrame::OVERVIEW, i++);
+    frame->Print(&accumulator, i::StackFrame::OVERVIEW, frame_index++);
     std::unique_ptr<char[]> overview = accumulator.ToCString();
     details.summary = overview.get();
     stack.push_back(std::move(details));

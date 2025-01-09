@@ -1219,10 +1219,11 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       DCHECK(IsDefineKeyedOwnInLiteral());
       TNode<Smi> flags =
           SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
-      TNode<TaggedIndex> slot =
+      TNode<TaggedIndex> invalid_slot =
           TaggedIndexConstant(FeedbackSlot::Invalid().ToInt());
       TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context,
-                      receiver, key, value, flags, UndefinedConstant(), slot);
+                      receiver, key, value, flags, UndefinedConstant(),
+                      invalid_slot);
     }
   }
 }

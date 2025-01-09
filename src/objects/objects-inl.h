@@ -996,7 +996,7 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
   ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
   if (handle == kNullExternalPointerHandle) {
     // Field has not been initialized yet.
-    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+    handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
     base::AsAtomic32::Release_Store(location, handle);
     // In this case, we're adding a reference from an existing object to a new

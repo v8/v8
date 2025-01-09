@@ -265,11 +265,12 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   DirectHandle<JSReceiver> new_;
   {
     constexpr int argc = 1;
-    std::array<DirectHandle<Object>, argc> args = {new_len_obj};
+    std::array<DirectHandle<Object>, argc> ctor_args = {new_len_obj};
 
     DirectHandle<Object> new_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, new_obj, Execution::New(isolate, ctor, base::VectorOf(args)));
+        isolate, new_obj,
+        Execution::New(isolate, ctor, base::VectorOf(ctor_args)));
 
     new_ = Cast<JSReceiver>(new_obj);
   }

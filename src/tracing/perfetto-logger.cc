@@ -130,8 +130,8 @@ class IsolateRegistry {
     for (const auto& [isolate, listener] : isolates_) {
       isolate->RequestInterrupt(
           [](v8::Isolate*, void* data) {
-            PerfettoLogger* listener = reinterpret_cast<PerfettoLogger*>(data);
-            listener->LogExistingCode();
+            PerfettoLogger* logger = reinterpret_cast<PerfettoLogger*>(data);
+            logger->LogExistingCode();
           },
           listener.get());
     }

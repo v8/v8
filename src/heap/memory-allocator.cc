@@ -588,16 +588,18 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
   // obtain below is not necessarily a valid chunk.
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   // Check if it corresponds to a known normal or large page.
-  if (auto it = normal_pages_.find(chunk); it != normal_pages_.end()) {
+  if (auto normal_page_it = normal_pages_.find(chunk);
+      normal_page_it != normal_pages_.end()) {
     // The chunk is a normal page.
     // auto* normal_page = PageMetadata::cast(chunk);
-    DCHECK_LE((*it)->address(), addr);
+    DCHECK_LE((*normal_page_it)->address(), addr);
     if (chunk->Metadata()->Contains(addr)) return chunk;
-  } else if (auto it = large_pages_.upper_bound(chunk);
-             it != large_pages_.begin()) {
+  } else if (auto large_page_it = large_pages_.upper_bound(chunk);
+             large_page_it != large_pages_.begin()) {
     // The chunk could be inside a large page.
-    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->address());
-    auto* large_page_chunk = *std::next(it, -1);
+    DCHECK_IMPLIES(large_page_it != large_pages_.end(),
+                   addr < (*large_page_it)->address());
+    auto* large_page_chunk = *std::next(large_page_it, -1);
     DCHECK_NOT_NULL(large_page_chunk);
     DCHECK_LE(large_page_chunk->address(), addr);
     if (large_page_chunk->Metadata()->Contains(addr)) return large_page_chunk;

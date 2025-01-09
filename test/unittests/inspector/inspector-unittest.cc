@@ -299,7 +299,7 @@ TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
   CHECK(console);
 
   {
-    v8::HandleScope handle_scope(isolate);
+    v8::HandleScope inner_handle_scope(isolate);
     v8::MaybeLocal<v8::Value> result = TryRunJS(isolate, NewString(R"(
       globalThis['task'] = console.createTask('Task');
     )"));

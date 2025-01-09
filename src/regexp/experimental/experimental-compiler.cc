@@ -749,11 +749,11 @@ class CompileVisitor : private RegExpVisitor {
     if (negated) {
       // The complement of a disjoint, non-adjacent (i.e. `Canonicalize`d)
       // union of k intervals is a union of at most k + 1 intervals.
-      ZoneList<CharacterRange>* negated =
+      ZoneList<CharacterRange>* negated_ranges =
           zone_->New<ZoneList<CharacterRange>>(ranges->length() + 1, zone_);
-      CharacterRange::Negate(ranges, negated, zone_);
-      DCHECK_LE(negated->length(), ranges->length() + 1);
-      ranges = negated;
+      CharacterRange::Negate(ranges, negated_ranges, zone_);
+      DCHECK_LE(negated_ranges->length(), ranges->length() + 1);
+      ranges = negated_ranges;
     }
 
     if (ranges->length() == 0) {

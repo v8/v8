@@ -2689,12 +2689,12 @@ void Scope::AllocateScopeInfosRecursively(
       scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
                                            scope_infos_to_reuse);
     } else {
-      auto it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
-      if (it != scope_infos_to_reuse.end()) {
-        scope->scope_info_ = it->second;
+      auto scope_it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
+      if (scope_it != scope_infos_to_reuse.end()) {
+        scope->scope_info_ = scope_it->second;
 #ifdef DEBUG
         // Consume the scope info
-        it->second = {};
+        scope_it->second = {};
 #endif
       }
     }
@@ -2753,10 +2753,10 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 
 // static
 template <typename IsolateT>
-void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
+void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                                           DirectHandle<Script> script,
                                           IsolateT* isolate) {
-  DeclarationScope* scope = info->literal()->scope();
+  DeclarationScope* scope = parse_info->literal()->scope();
 
   // No one else should have allocated a scope info for this scope yet.
   DCHECK(scope->scope_info_.is_null());
@@ -2774,15 +2774,16 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
   Tagged<WeakFixedArray> infos = script->infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
   if (infos->length() != 0) {
-    Tagged<SharedFunctionInfo> sfi = *info->literal()->shared_function_info();
-    Tagged<ScopeInfo> outer = sfi->HasOuterScopeInfo()
-                                  ? sfi->GetOuterScopeInfo()
+    Tagged<SharedFunctionInfo> parse_info_sfi =
+        *parse_info->literal()->shared_function_info();
+    Tagged<ScopeInfo> outer = parse_info_sfi->HasOuterScopeInfo()
+                                  ? parse_info_sfi->GetOuterScopeInfo()
                                   : Tagged<ScopeInfo>();
     // Look at all inner functions whether they have scope infos that we should
     // reuse. Also look at the compiled function itself, and reuse its function
     // scope info if it exists.
-    for (int i = info->literal()->function_literal_id();
-         i <= info->max_info_id(); ++i) {
+    for (int i = parse_info->literal()->function_literal_id();
+         i <= parse_info->max_info_id(); ++i) {
       Tagged<MaybeObject> maybe_info = infos->get(i);
       if (maybe_info.IsWeak()) {
         Tagged<Object> info = maybe_info.GetHeapObjectAssumeWeak();
@@ -2834,8 +2835,10 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
 
   // Ensuring that the outer script scope has a scope info avoids having
   // special case for native contexts vs other contexts.
-  if (info->script_scope() && info->script_scope()->scope_info_.is_null()) {
-    info->script_scope()->scope_info_ = isolate->factory()->empty_scope_info();
+  if (parse_info->script_scope() &&
+      parse_info->script_scope()->scope_info_.is_null()) {
+    parse_info->script_scope()->scope_info_ =
+        isolate->factory()->empty_scope_info();
   }
 }
 

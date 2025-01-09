@@ -6577,7 +6577,7 @@ v8::Intercepted Regress42204611_Definer(
 THREADED_TEST(Regress42204611) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;
   Local<v8::External> calls_ext = v8::External::New(CcTest::isolate(), &calls);

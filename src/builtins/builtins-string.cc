@@ -297,9 +297,9 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
         // to.
-        int char_length = mapping->get(current, 0, chars);
-        if (char_length == 0) char_length = 1;
-        current_length += char_length;
+        int char_len = mapping->get(current, 0, chars);
+        if (char_len == 0) char_len = 1;
+        current_length += char_len;
         if (current_length > String::kMaxLength) {
           AllowGarbageCollection allocate_error_and_return;
           THROW_NEW_ERROR_RETURN_FAILURE(isolate,

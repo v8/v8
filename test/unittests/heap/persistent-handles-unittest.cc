@@ -218,7 +218,7 @@ TEST_F(PersistentHandlesTest, DereferencePersistentHandleFailsWhenDisallowed) {
   std::unique_ptr<PersistentHandles> phs = isolate()->NewPersistentHandles();
   IndirectHandle<HeapNumber> ph;
   {
-    HandleScope handle_scope(isolate());
+    HandleScope inner_handle_scope(isolate());
     Handle<HeapNumber> number = isolate()->factory()->NewHeapNumber(42.0);
     ph = phs->NewHandle(number);
   }

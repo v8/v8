@@ -2283,10 +2283,11 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
   //   * All constant pool SFI entries point to an SFI referring to the old
   //     script (i.e. references were updated correctly).
   std::unordered_map<int, Tagged<ScopeInfo>> scope_infos;
-  for (int i = 0; i < script->infos()->length(); i++) {
+  for (int info_idx = 0; info_idx < script->infos()->length(); info_idx++) {
     Tagged<ScopeInfo> scope_info;
-    if (!script->infos()->get(i).IsWeak()) continue;
-    Tagged<HeapObject> info = script->infos()->get(i).GetHeapObjectAssumeWeak();
+    if (!script->infos()->get(info_idx).IsWeak()) continue;
+    Tagged<HeapObject> info =
+        script->infos()->get(info_idx).GetHeapObjectAssumeWeak();
     if (Is<SharedFunctionInfo>(info)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(info);
       CHECK_EQ(sfi->script(), *script);
@@ -2294,8 +2295,9 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
       if (sfi->HasBytecodeArray()) {
         Tagged<BytecodeArray> bytecode = sfi->GetBytecodeArray(isolate);
         Tagged<TrustedFixedArray> constant_pool = bytecode->constant_pool();
-        for (int i = 0; i < constant_pool->length(); ++i) {
-          Tagged<Object> entry = constant_pool->get(i);
+        for (int constant_idx = 0; constant_idx < constant_pool->length();
+             ++constant_idx) {
+          Tagged<Object> entry = constant_pool->get(constant_idx);
           if (Is<SharedFunctionInfo>(entry)) {
             Tagged<SharedFunctionInfo> inner_sfi =
                 Cast<SharedFunctionInfo>(entry);

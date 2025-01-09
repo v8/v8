@@ -145,8 +145,8 @@ class InjectedScript::ProtocolPromiseHandler {
     if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
             .IsEmpty()) {
       // Re-initialize after returning from JS.
-      Response response = scope.initialize();
-      if (!response.IsSuccess()) return;
+      Response new_response = scope.initialize();
+      if (!new_response.IsSuccess()) return;
       EvaluateCallback::sendFailure(callback, scope.injectedScript(),
                                     Response::InternalError());
     }

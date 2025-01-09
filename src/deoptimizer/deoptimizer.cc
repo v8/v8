@@ -1026,9 +1026,8 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // just sign it as if there weren't any parameter stack slots.
   // When building up the next frame we can check and "move" the caller PC by
   // signing it again with the correct stack pointer.
-  Address signed_pc = PointerAuthentication::SignAndCheckPC(
-      isolate(), pc, output_frame->GetTop());
-  output_frame->SetPc(signed_pc);
+  output_frame->SetPc(PointerAuthentication::SignAndCheckPC(
+      isolate(), pc, output_frame->GetTop()));
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   if (v8_flags.cet_compatible) {
     if (is_topmost) {
@@ -1052,12 +1051,11 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
     // The previous frame's PC is stored at a different stack slot, so we need
     // to re-sign the PC for the new context (stack pointer).
     FrameDescription* previous_frame = output_[frame_index - 1];
-    Address pc = previous_frame->GetPc();
     Address old_context = previous_frame->GetTop();
     Address new_context =
         old_context - parameter_stack_slots * kSystemPointerSize;
     Address signed_pc = PointerAuthentication::MoveSignedPC(
-        isolate(), pc, new_context, old_context);
+        isolate(), previous_frame->GetPc(), new_context, old_context);
     previous_frame->SetPc(signed_pc);
   }
 

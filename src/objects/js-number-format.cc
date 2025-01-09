@@ -19,6 +19,8 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "src/strings/char-predicates-inl.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "unicode/currunit.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"
@@ -28,6 +30,7 @@
 #include "unicode/uloc.h"
 #include "unicode/unumberformatter.h"
 #include "unicode/uvernum.h"  // for U_ICU_VERSION_MAJOR_NUM
+#pragma GCC diagnostic pop
 
 namespace v8 {
 namespace internal {
@@ -1552,7 +1555,6 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         // in two bytes string.
         // ICU accepts UTF8 string, so if the source is two-byte encoded,
         // copy into a UTF8 string via ToCString.
-        int32_t length = static_cast<int32_t>(string->length());
         formatted = number_format.formatDecimal(
             {string->ToCString().get(), length}, status);
       }

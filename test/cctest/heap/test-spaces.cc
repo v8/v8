@@ -176,7 +176,8 @@ TEST(MutablePageMetadata) {
     // in this case.
     CodeRange* code_range =
         IsolateGroup::current()->EnsureCodeRange(code_range_size);
-    base::BoundedPageAllocator* page_allocator = code_range->page_allocator();
+    base::BoundedPageAllocator* bounded_page_allocator =
+        code_range->page_allocator();
 #else
     // With CodeRange.
     bool jitless = isolate->jitless();
@@ -206,14 +207,14 @@ TEST(MutablePageMetadata) {
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::GetAlignmentForAllocation(),
         page_initialization_mode, page_freeing_mode);
-    base::BoundedPageAllocator* page_allocator = &code_page_allocator;
+    base::BoundedPageAllocator* bounded_page_allocator = &code_page_allocator;
 #endif
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, EXECUTABLE,
-                      PageSize::kLarge, heap->code_lo_space());
+    VerifyMemoryChunk(isolate, heap, bounded_page_allocator, area_size,
+                      EXECUTABLE, PageSize::kLarge, heap->code_lo_space());
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, NOT_EXECUTABLE,
-                      PageSize::kLarge, heap->lo_space());
+    VerifyMemoryChunk(isolate, heap, bounded_page_allocator, area_size,
+                      NOT_EXECUTABLE, PageSize::kLarge, heap->lo_space());
   }
 }
 

@@ -143,13 +143,13 @@ TEST_F(StrongRootAllocatorTest, ListNotRetained) {
   Global<v8::FixedArray> weak;
 
   StrongRootAllocator<Address> allocator(heap());
-  std::list<Address, StrongRootAllocator<Address>> l(allocator);
+  std::list<Address, StrongRootAllocator<Address>> list(allocator);
 
   {
     v8::HandleScope scope(v8_isolate());
     DirectHandle<FixedArray> h =
         factory()->NewFixedArray(10, AllocationType::kOld);
-    l.push_back(h->ptr());
+    list.push_back(h->ptr());
     Local<v8::FixedArray> l = Utils::FixedArrayToLocal(h);
     weak.Reset(v8_isolate(), l);
     weak.SetWeak();

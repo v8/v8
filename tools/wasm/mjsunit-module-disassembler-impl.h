@@ -1478,8 +1478,8 @@ class MjsunitModuleDis {
       out_ << "[";
       uint32_t num_bytes = static_cast<uint32_t>(data.size());
       if (num_bytes > 0) out_ << uint32_t{data[0]};
-      for (uint32_t i = 1; i < num_bytes; i++) {
-        out_ << ", " << uint32_t{data[i]};
+      for (uint32_t j = 1; j < num_bytes; j++) {
+        out_ << ", " << uint32_t{data[j]};
       }
       out_ << "]";
       if (segment.shared) out_ << ", true";

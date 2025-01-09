@@ -582,10 +582,10 @@ void TieringManager::OnInterruptTick(DirectHandle<JSFunction> function,
     if (v8_flags.baseline_batch_compilation) {
       isolate_->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
-      IsCompiledScope is_compiled_scope(
+      IsCompiledScope inner_is_compiled_scope(
           function->shared()->is_compiled_scope(isolate_));
       Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
-                                &is_compiled_scope);
+                                &inner_is_compiled_scope);
     }
 #else
     UNREACHABLE();

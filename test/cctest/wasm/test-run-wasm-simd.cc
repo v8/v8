@@ -5261,9 +5261,9 @@ void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
     BUILD_LOADSPLAT(WASM_LOCAL_GET, 0)
 
     // Load splats load sizeof(T) bytes.
-    for (uint32_t offset = kWasmPageSize - (sizeof(T) - 1);
-         offset < kWasmPageSize; ++offset) {
-      CHECK_TRAP(r.Call(offset));
+    for (uint32_t load_offset = kWasmPageSize - (sizeof(T) - 1);
+         load_offset < kWasmPageSize; ++load_offset) {
+      CHECK_TRAP(r.Call(load_offset));
     }
   }
 #undef BUILD_RUN
@@ -5348,9 +5348,9 @@ void RunLoadExtendRevecTest(WasmOpcode op) {
     BUILD_LOADEXTEND(WASM_LOCAL_GET, 0)
 
     // Load extends load 8 bytes, so should trap from -7.
-    for (uint32_t offset = kWasmPageSize - 7; offset < kWasmPageSize;
-         ++offset) {
-      CHECK_TRAP(r.Call(offset));
+    for (uint32_t load_offset = kWasmPageSize - 7; load_offset < kWasmPageSize;
+         ++load_offset) {
+      CHECK_TRAP(r.Call(load_offset));
     }
   }
 }

@@ -44,7 +44,7 @@ class SharedHeapNoClientsTest : public TestJSSharedMemoryWithPlatform {
 };
 
 namespace {
-const int kNumIterations = 2000;
+const int kDefaultNumIterations = 2000;
 
 template <typename Callback>
 void SetupClientIsolateAndRunCallback(Callback callback) {
@@ -67,7 +67,7 @@ class SharedOldSpaceAllocationThread final : public ParkingThread {
         [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
           HandleScope scope(i_client_isolate);
 
-          for (int i = 0; i < kNumIterations; i++) {
+          for (int i = 0; i < kDefaultNumIterations; i++) {
             i_client_isolate->factory()->NewFixedArray(
                 10, AllocationType::kSharedOld);
           }
@@ -156,7 +156,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
           const int kNumIterations = 50;
 
           for (int i = 0; i < kNumIterations; i++) {
-            HandleScope scope(i_client_isolate);
+            HandleScope inner_scope(i_client_isolate);
             DirectHandle<FixedArray> fixed_array =
                 i_client_isolate->factory()->NewFixedArray(
                     kMaxRegularHeapObjectSize / kTaggedSize,
@@ -205,7 +205,7 @@ class SharedTrustedLargeObjectSpaceAllocationThread final
           constexpr int kNumIterations = 50;
 
           for (int i = 0; i < kNumIterations; i++) {
-            HandleScope scope(i_client_isolate);
+            HandleScope inner_scope(i_client_isolate);
             DirectHandle<TrustedByteArray> fixed_array =
                 i_client_isolate->factory()->NewTrustedByteArray(
                     kMaxRegularHeapObjectSize, AllocationType::kSharedTrusted);
@@ -372,7 +372,7 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
         [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
           HandleScope scope(i_client_isolate);
 
-          for (int i = 0; i < kNumIterations; i++) {
+          for (int i = 0; i < kDefaultNumIterations; i++) {
             i_client_isolate->factory()->NewContextlessMap(
                 NATIVE_CONTEXT_TYPE, kVariableSizeSentinel,
                 TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
@@ -418,7 +418,7 @@ void AllocateInSharedHeap(int iterations = 100) {
         i_client_isolate->factory()->NewFixedArray(kKeptAliveInHeap,
                                                    AllocationType::kYoung);
 
-    for (int i = 0; i < kNumIterations * iterations; i++) {
+    for (int i = 0; i < kDefaultNumIterations * iterations; i++) {
       HandleScope scope(i_client_isolate);
       Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
           100, AllocationType::kSharedOld);

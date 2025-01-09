@@ -161,17 +161,17 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   return function;
 }
 
-Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
+Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> target_function,
                                             Zone* zone, uint32_t flags) {
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<SharedFunctionInfo> shared(target_function->shared(), isolate);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
-        Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
+        Compiler::Compile(isolate, target_function, Compiler::CLEAR_EXCEPTION,
                           &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
 
-  OptimizedCompilationInfo info(zone, isolate, shared, function,
+  OptimizedCompilationInfo info(zone, isolate, shared, target_function,
                                 CodeKind::TURBOFAN_JS);
 
   if (flags & ~OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
@@ -180,13 +180,14 @@ Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, target_function,
+                                   &is_compiled_scope);
 
   DirectHandle<Code> code =
       compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
           .ToHandleChecked();
-  function->UpdateOptimizedCode(isolate, *code);
-  return function;
+  target_function->UpdateOptimizedCode(isolate, *code);
+  return target_function;
 }
 }  // namespace compiler
 }  // namespace internal

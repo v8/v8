@@ -2026,18 +2026,19 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // when the property does not exist. The "existing property" case is
       // covered above by LookupOnLookupStartObject bit handling of the smi
       // handler.
-      Label slow(this);
+      Label slow_runtime_call(this);
       TNode<Map> receiver_map = LoadMap(CAST(p->receiver()));
       InvalidateValidityCellIfPrototype(receiver_map);
 
       TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(p->receiver())));
       TNode<Name> name = CAST(p->name());
-      AddToDictionary<PropertyDictionary>(properties, name, p->value(), &slow);
+      AddToDictionary<PropertyDictionary>(properties, name, p->value(),
+                                          &slow_runtime_call);
       UpdateMayHaveInterestingProperty(properties, name);
       Return(p->value());
 
-      BIND(&slow);
+      BIND(&slow_runtime_call);
       TailCallRuntime(Runtime::kAddDictionaryProperty, p->context(),
                       p->receiver(), p->name(), p->value());
     }
