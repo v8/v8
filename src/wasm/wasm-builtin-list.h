@@ -146,6 +146,7 @@ namespace v8::internal::wasm {
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \
+  V(WasmTrapHandlerThrowTrap)                                                  \
   IF_SHADOW_STACK(V, AdaptShadowStackForDeopt)
 
 namespace detail {
