@@ -4249,7 +4249,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                               WasmTableObject::kCurrentLengthOffset);
     V<WordPtr> index_wordptr =
         TableAddressToUintPtrOrOOBTrap(imm.table->address_type, index.op);
-    DCHECK_GE(kSmiMaxValue, v8_flags.wasm_max_table_size.value());
+    DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
     V<Word32> in_bounds = __ UintPtrLessThan(
         index_wordptr, __ ChangeUint32ToUintPtr(__ UntagSmi(size_smi)));
     __ TrapIfNot(in_bounds, TrapId::kTrapTableOutOfBounds);
@@ -4375,7 +4375,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     bool extract_shared_data = !shared_ && imm.table->shared;
-    DCHECK_GE(kSmiMaxValue, v8_flags.wasm_max_table_size.value());
+    DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
     V<Word32> call_result = __ UntagSmi(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableGrow>(
             decoder, {__ NumberConstant(imm.index), delta_wordptr,

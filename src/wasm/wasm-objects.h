@@ -903,7 +903,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> New(
       Isolate* isolate, int length, wasm::CanonicalValueType table_type);
   static V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> Grow(
-      Isolate*, Handle<WasmDispatchTable>, int new_length);
+      Isolate*, Handle<WasmDispatchTable>, uint32_t new_length);
 
   DECL_PRINTER(WasmDispatchTable)
   DECL_VERIFIER(WasmDispatchTable)

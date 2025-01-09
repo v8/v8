@@ -107,6 +107,7 @@ inline uint64_t max_mem64_bytes() {
   return uint64_t{max_mem64_pages()} * kWasmPageSize;
 }
 
+V8_EXPORT_PRIVATE uint32_t max_table_size();
 V8_EXPORT_PRIVATE uint32_t max_table_init_entries();
 V8_EXPORT_PRIVATE size_t max_module_size();
 

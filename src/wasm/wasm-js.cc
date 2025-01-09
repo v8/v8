@@ -2605,7 +2605,7 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   static_assert(i::wasm::kV8MaxWasmTableSize <= i::kMaxUInt32);
-  int old_size = grow_by > i::wasm::kV8MaxWasmTableSize
+  int old_size = grow_by > i::wasm::max_table_size()
                      ? -1
                      : i::WasmTableObject::Grow(i_isolate, receiver,
                                                 static_cast<uint32_t>(grow_by),

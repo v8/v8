@@ -793,9 +793,8 @@ class ModuleDecoderImpl : public Decoder {
           // is oob. We will instead fail when growing at runtime.
           uint64_t kNoMaximum = kMaxUInt64;
           consume_resizable_limits(
-              "table", "elements", v8_flags.wasm_max_table_size,
-              &table->initial_size, table->has_maximum_size, kNoMaximum,
-              &table->maximum_size,
+              "table", "elements", wasm::max_table_size(), &table->initial_size,
+              table->has_maximum_size, kNoMaximum, &table->maximum_size,
               table->is_table64() ? k64BitLimits : k32BitLimits);
           break;
         }
@@ -959,9 +958,8 @@ class ModuleDecoderImpl : public Decoder {
       // oob. We will instead fail when growing at runtime.
       uint64_t kNoMaximum = kMaxUInt64;
       consume_resizable_limits(
-          "table", "elements", v8_flags.wasm_max_table_size,
-          &table->initial_size, table->has_maximum_size, kNoMaximum,
-          &table->maximum_size,
+          "table", "elements", wasm::max_table_size(), &table->initial_size,
+          table->has_maximum_size, kNoMaximum, &table->maximum_size,
           table->is_table64() ? k64BitLimits : k32BitLimits);
 
       if (has_initializer) {
@@ -1175,7 +1173,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeElementSection() {
     uint32_t segment_count =
-        consume_count("segment count", v8_flags.wasm_max_table_size);
+        consume_count("segment count", wasm::max_table_size());
 
     for (uint32_t i = 0; i < segment_count; ++i) {
       if (tracer_) tracer_->ElementOffset(pc_offset());

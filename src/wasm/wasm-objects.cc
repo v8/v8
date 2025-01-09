@@ -199,7 +199,7 @@ Handle<WasmTableObject> WasmTableObject::New(
     DirectHandle<Object> initial_value, wasm::AddressType address_type) {
   CHECK(type.is_object_reference());
 
-  DCHECK_LE(initial, v8_flags.wasm_max_table_size);
+  DCHECK_LE(initial, wasm::max_table_size());
   DirectHandle<FixedArray> entries = isolate->factory()->NewFixedArray(initial);
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     entries->set(i, *initial_value);
@@ -259,7 +259,7 @@ int WasmTableObject::Grow(Isolate* isolate, DirectHandle<WasmTableObject> table,
 
   // Check if growing by {count} is valid.
   static_assert(wasm::kV8MaxWasmTableSize <= kMaxUInt32);
-  uint64_t static_max_size = v8_flags.wasm_max_table_size;
+  uint64_t static_max_size = wasm::max_table_size();
   uint32_t max_size = static_cast<uint32_t>(std::min(
       static_max_size, table->maximum_length_u64().value_or(static_max_size)));
   DCHECK_LE(old_size, max_size);
@@ -2362,13 +2362,23 @@ Handle<WasmDispatchTable> WasmDispatchTable::New(
 
 // static
 Handle<WasmDispatchTable> WasmDispatchTable::Grow(
-    Isolate* isolate, Handle<WasmDispatchTable> old_table, int new_length) {
-  int old_length = old_table->length();
-  // This method should only be called if we actually grow.
-  DCHECK_LT(old_length, new_length);
+    Isolate* isolate, Handle<WasmDispatchTable> old_table,
+    uint32_t new_length) {
+  uint32_t old_length = old_table->length();
+  // This method should only be called if we actually grow. For sandbox
+  // purposes we also want to ensure tables can never shrink below their
+  // static minimum size.
+  SBXCHECK_LT(old_length, new_length);
 
-  int old_capacity = old_table->capacity();
-  if (new_length < old_table->capacity()) {
+  uint32_t old_capacity = old_table->capacity();
+  // Catch possible corruption. {new_length} is computed from untrusted data.
+  SBXCHECK_LE(new_length, wasm::max_table_size());
+  // {old_length} and {old_capacity} are read from trusted space, so we trust
+  // them. The DCHECKs give fuzzers a chance to catch potential bugs.
+  DCHECK_LE(old_length, wasm::max_table_size());
+  DCHECK_LE(old_capacity, wasm::max_table_size());
+
+  if (new_length < old_capacity) {
     RELEASE_WRITE_INT32_FIELD(*old_table, kLengthOffset, new_length);
     // All fields within the old capacity are already cleared (see below).
     return old_table;
@@ -2376,13 +2386,15 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
 
   // Grow table exponentially to guarantee amortized constant allocation and gc
   // time.
-  int max_grow = WasmDispatchTable::kMaxLength - old_length;
-  int min_grow = new_length - old_capacity;
+  uint32_t limit =
+      std::min<uint32_t>(WasmDispatchTable::kMaxLength, wasm::max_table_size());
+  uint32_t max_grow = limit - old_length;
+  uint32_t min_grow = new_length - old_capacity;
   CHECK_LE(min_grow, max_grow);
   // Grow by old capacity, and at least by 8. Clamp to min_grow and max_grow.
-  int exponential_grow = std::max(old_capacity, 8);
-  int grow = std::clamp(exponential_grow, min_grow, max_grow);
-  int new_capacity = old_capacity + grow;
+  uint32_t exponential_grow = std::max(old_capacity, 8u);
+  uint32_t grow = std::clamp(exponential_grow, min_grow, max_grow);
+  uint32_t new_capacity = old_capacity + grow;
   Handle<WasmDispatchTable> new_table =
       WasmDispatchTable::New(isolate, new_capacity, old_table->table_type());
 
@@ -2390,7 +2402,7 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   // Writing non-atomically is fine here because this is a freshly allocated
   // object.
   new_table->WriteField<int>(kLengthOffset, new_length);
-  for (int i = 0; i < old_length; ++i) {
+  for (uint32_t i = 0; i < old_length; ++i) {
     WasmCodePointer call_target = old_table->target(i);
     // Update any stored call origins, so that future compiled wrappers
     // get installed into the new dispatch table.

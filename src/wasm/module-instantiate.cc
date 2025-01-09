@@ -2930,8 +2930,7 @@ void InstanceBuilder::LoadTableSegments(
       uint64_t dest_offset_64 = to_value(result).to_u64();
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset, so we always fail the bounds check below.
-      DCHECK_GT(std::numeric_limits<size_t>::max(),
-                v8_flags.wasm_max_table_size);
+      DCHECK_GT(std::numeric_limits<size_t>::max(), wasm::max_table_size());
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
