@@ -164,3 +164,131 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let instance = builder.instantiate();
   instance.exports.main();
 })();
+
+(function testMem64Simd() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 1, false);
+  let INDEX = 0;
+  let OFFSET = 0x40;
+
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI64Const(INDEX),
+      ...wasmI64Const(0x0fedcba978654321n),
+      kExprI64StoreMem, 0, OFFSET,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load8Splat, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x2121212121212121n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+          kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load16Splat, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x4321432143214321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load32Splat, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x7865432178654321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load64Splat, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x0fedcba978654321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load8x8U, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x000f00ed00cb00a9n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load8x8S, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x000fffedffcbffa9n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load16x4U, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x00000fed0000cba9n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load16x4S, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x00000fedffffcba9n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load32x2U, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 1,
+      ...wasmI64Const(0x0000000000fedcba9n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load32x2S, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 0,
+      ...wasmI64Const(0x00000000078654321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load32Zero, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 0,
+      ...wasmI64Const(0x00000000078654321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd,
+
+      ...wasmI64Const(INDEX),
+      kSimdPrefix, kExprS128Load64Zero, 0, OFFSET,
+      kSimdPrefix, kExprI64x2ExtractLane, 0,
+      ...wasmI64Const(0x0fedcba978654321n),
+      kExprI64Ne,
+      kExprIf, kWasmVoid,
+        kExprUnreachable,
+      kExprEnd
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  instance.exports.main();
+})();

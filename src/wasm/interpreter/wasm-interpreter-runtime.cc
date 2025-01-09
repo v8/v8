@@ -244,7 +244,7 @@ V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
 
 V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
     Isolate* isolate, Handle<Tuple2> interpreter_object) {
-  Handle<Object> handle(
+  DirectHandle<Object> handle(
       WasmInterpreterObject::get_interpreter_handle(*interpreter_object),
       isolate);
   if (IsUndefined(*handle, isolate)) {
@@ -439,7 +439,7 @@ void WasmInterpreterRuntime::TableInit(const uint8_t*& current_code,
   auto table =
       handle(Cast<WasmTableObject>(trusted_data->tables()->get(table_index)),
              isolate_);
-  if (IsSubtypeOf(table->type(), kWasmFuncRef, module_)) {
+  if (IsSubtypeOf(table->type(module_), kWasmFuncRef, module_)) {
     PurgeIndirectCallCache(table_index);
   }
 
@@ -466,7 +466,7 @@ void WasmInterpreterRuntime::TableCopy(const uint8_t*& current_code,
   auto table_dst = handle(
       Cast<WasmTableObject>(trusted_data->tables()->get(dst_table_index)),
       isolate_);
-  if (IsSubtypeOf(table_dst->type(), kWasmFuncRef, module_)) {
+  if (IsSubtypeOf(table_dst->type(module_), kWasmFuncRef, module_)) {
     PurgeIndirectCallCache(dst_table_index);
   }
 
@@ -1347,6 +1347,8 @@ void WasmInterpreterRuntime::StoreRefResultsIntoRefStack(
       case kRefNull:
         StoreWasmRef(ref_stack_fp_offset++, base::ReadUnalignedValue<WasmRef>(
                                                 reinterpret_cast<Address>(sp)));
+        base::WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(sp),
+                                            kSlotsZapValue);
         sp += sizeof(WasmRef);
         break;
       default:
@@ -1358,7 +1360,7 @@ void WasmInterpreterRuntime::StoreRefResultsIntoRefStack(
 void WasmInterpreterRuntime::ExecuteImportedFunction(
     const uint8_t*& code, uint32_t func_index, uint32_t current_stack_size,
     uint32_t ref_stack_fp_offset, uint32_t slot_offset,
-    uint32_t return_slot_offset) {
+    uint32_t return_slot_offset, bool is_tail_call) {
   WasmInterpreterThread* thread = this->thread();
   DCHECK_NOT_NULL(thread);
 
@@ -1398,6 +1400,10 @@ void WasmInterpreterRuntime::ExecuteImportedFunction(
       RedirectCodeToUnwindHandler(code);
     }
   }
+
+  if (is_tail_call) {
+    RedirectCodeToUnwindHandler(code);
+  }
 }
 
 inline DISABLE_CFI_ICALL void CallThroughDispatchTable(
@@ -1405,6 +1411,24 @@ inline DISABLE_CFI_ICALL void CallThroughDispatchTable(
     int64_t r0, double fp0) {
   kInstructionTable[ReadFnId(code) & kInstructionTableMask](
       code, sp, wasm_runtime, r0, fp0);
+}
+
+void WasmInterpreterRuntime::InitializeRefLocalsRefs(
+    const WasmBytecode* target_function) {
+  if (V8_UNLIKELY(target_function->ref_locals_count() > 0)) {
+    uint32_t ref_stack_index =
+        target_function->ref_rets_count() + target_function->ref_args_count();
+    for (uint32_t i = 0; i < target_function->locals_count(); i++) {
+      ValueType local_type = target_function->local_type(i);
+      if (local_type == kWasmExternRef || local_type == kWasmNullExternRef) {
+        StoreWasmRef(ref_stack_index++,
+                     WasmRef(isolate_->factory()->null_value()));
+      } else if (local_type.is_reference()) {
+        StoreWasmRef(ref_stack_index++,
+                     WasmRef(isolate_->factory()->wasm_null()));
+      }
+    }
+  }
 }
 
 // Sets up the current interpreter stack frame to start executing a new function
@@ -1423,6 +1447,7 @@ void WasmInterpreterRuntime::PrepareTailCall(const uint8_t*& code,
   // Update the current (caller) frame setting current_bytecode_ to the initial
   // instruction of the callee.
   current_frame_.current_function_ = target_function;
+  current_frame_.DisposeCaughtExceptionsArray(isolate_);
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   current_frame_.current_stack_start_locals_ =
@@ -1470,16 +1495,7 @@ void WasmInterpreterRuntime::PrepareTailCall(const uint8_t*& code,
     uint32_t ref_array_length =
         current_frame_.ref_array_current_sp_ + ref_slots_count;
     current_thread_->EnsureRefStackSpace(ref_array_length);
-
-    // Initialize locals of ref types.
-    if (V8_UNLIKELY(target_function->ref_locals_count() > 0)) {
-      uint32_t ref_stack_index =
-          target_function->ref_rets_count() + target_function->ref_args_count();
-      for (uint32_t i = 0; i < target_function->ref_locals_count(); i++) {
-        StoreWasmRef(ref_stack_index++,
-                     WasmRef(isolate_->factory()->null_value()));
-      }
-    }
+    InitializeRefLocalsRefs(target_function);
   }
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -1590,22 +1606,7 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
     uint32_t ref_array_length =
         current_frame_.ref_array_current_sp_ + ref_slots_count;
     current_thread_->EnsureRefStackSpace(ref_array_length);
-
-    // Initialize locals of ref types.
-    if (V8_UNLIKELY(target_function->ref_locals_count() > 0)) {
-      uint32_t ref_stack_index =
-          target_function->ref_rets_count() + target_function->ref_args_count();
-      for (uint32_t i = 0; i < target_function->locals_count(); i++) {
-        ValueType local_type = target_function->local_type(i);
-        if (local_type == kWasmExternRef || local_type == kWasmNullExternRef) {
-          StoreWasmRef(ref_stack_index++,
-                       WasmRef(isolate_->factory()->null_value()));
-        } else if (local_type.is_reference()) {
-          StoreWasmRef(ref_stack_index++,
-                       WasmRef(isolate_->factory()->wasm_null()));
-        }
-      }
-    }
+    InitializeRefLocalsRefs(target_function);
   }
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -1905,9 +1906,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
             isolate_, frame_pointer, target_instance, entry.function_index(),
             fp);
         if (success) {
-          StoreRefResultsIntoRefStack(
-              fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-              indirect_call.signature);
+          StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset,
+                                      indirect_call.signature);
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
           // Update shadow stack
@@ -1945,9 +1945,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
           current_code, module_, object_implicit_arg, indirect_call.signature,
           sp + slot_offset / kSlotSize, slot_offset);
       if (result == ExternalCallResult::EXTERNAL_RETURNED) {
-        StoreRefResultsIntoRefStack(
-            fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-            indirect_call.signature);
+        StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset,
+                                    indirect_call.signature);
       } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
         AllowHeapAllocation allow_gc;
 
@@ -1960,6 +1959,12 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
           thread->Run();
         }
       }
+    }
+
+    if (is_tail_call) {
+      // For tail calls to external functions, we need to unwind the callee
+      // frame.
+      RedirectCodeToUnwindHandler(current_code);
     }
   }
 }
@@ -2013,11 +2018,9 @@ void WasmInterpreterRuntime::ExecuteCallRef(
       signature);
   ExternalCallResult result =
       CallExternalJSFunction(current_code, module_, func_ref, signature,
-                             sp + slot_offset / kSlotSize, slot_offset);
+                             sp + slot_offset / kSlotSize, return_slot_offset);
   if (result == ExternalCallResult::EXTERNAL_RETURNED) {
-    StoreRefResultsIntoRefStack(
-        fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-        signature);
+    StoreRefResultsIntoRefStack(fp, ref_stack_fp_offset, signature);
   } else {  // ExternalCallResult::EXTERNAL_EXCEPTION
     AllowHeapAllocation allow_gc;
 
@@ -2029,6 +2032,10 @@ void WasmInterpreterRuntime::ExecuteCallRef(
     } else {
       thread->Run();
     }
+  }
+
+  if (is_tail_call) {
+    RedirectCodeToUnwindHandler(current_code);
   }
 }
 
@@ -2226,7 +2233,7 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(Isolate* isolate,
 ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
     const uint8_t*& current_code, const WasmModule* module,
     Handle<Object> object_ref, const FunctionSig* sig, uint32_t* sp,
-    uint32_t current_stack_slot) {
+    uint32_t return_slot_offset) {
   // TODO(paolosev@microsoft.com) Cache IsJSCompatibleSignature result?
   if (!IsJSCompatibleSignature(
           reinterpret_cast<const wasm::CanonicalSig*>(sig))) {
@@ -2362,7 +2369,6 @@ ExternalCallResult WasmInterpreterRuntime::CallExternalJSFunction(
   }
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
-  uint32_t return_slot_offset = 0;
   if (v8_flags.trace_drumbrake_execution && shadow_stack_ != nullptr) {
     for (size_t i = 0; i < sig->parameter_count(); i++) {
       TracePop();

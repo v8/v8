@@ -2368,3 +2368,321 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(instance.exports.main(42n), [42n, 42n, 42n]);
   }
 })();
+
+(function TestCallRefWithMultipleRefResults() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
+  const funcTypeId = builder.addType(kSig_xy_v);
+
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprRefNull, array_type_index,
+      kExprCallFunction, 2,
+      kExprDrop])
+    .exportAs("main");
+
+  let f1 = builder.addFunction("func2", kSig_xy_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index])
+    .exportFunc();;
+
+  builder.addFunction("func1", kSig_v_v)
+    .addBody([
+      kExprRefFunc, f1.index,
+      kExprCallRef, funcTypeId,
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0,
+      kExprDrop]);
+
+  let instance = builder.instantiate({});
+  instance.exports.main();
+})();
+
+(function TestIndirectCallToDifferentInstanceWithMultipleRefResults() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_v);
+
+  let table = new WebAssembly.Table({
+    initial: 10, maximum: 10, element: 'anyfunc',
+  });
+  builder.addImportedTable('o', 'table');
+
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprRefNull, array_type_index,
+      kExprCallFunction, 2,
+      kExprDrop])
+    .exportAs("main");
+
+  builder.addFunction("func2", kSig_xy_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index])
+    .exportAs("func2");
+
+  builder.addFunction("func1", kSig_v_v)
+    .addBody([
+      kExprI32Const, 0,
+      kExprCallIndirect, sig_index, kTableZero,
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0,
+      kExprDrop]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      table: table,
+    }
+  });
+  table.set(0, instance2.exports.func2);
+
+  let instance1 = builder.instantiate({
+    o: {
+      table: table,
+    }
+  });
+
+  instance1.exports.main();
+})();
+
+(function TestIndirectCallToJSFunctionWithMultipleRefResults() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_v);
+
+  let table = new WebAssembly.Table({
+    initial: 10, maximum: 10, element: 'anyfunc',
+  });
+  builder.addImportedTable('o', 'table');
+
+  // Function 0
+  builder.addImport("o", "fn", kSig_xy_v);
+  builder.addExport("fn", 0);
+
+  // Function 1
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      kExprRefNull, array_type_index,
+      kExprCallFunction, 3,
+      kExprDrop])
+    .exportAs("main");
+
+  // Function 2
+  builder.addFunction("func2", kSig_xy_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index])
+    .exportAs("func2");
+
+  // Function 3
+  builder.addFunction("func1", kSig_v_v)
+    .addBody([
+      kExprI32Const, 0,
+      kExprCallIndirect, sig_index, kTableZero,
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0,
+      kExprDrop]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      table: table,
+      fn: () => { return instance2.exports.func2(); },
+    }
+  });
+  table.set(0, instance2.exports.fn);
+
+  let instance1 = builder.instantiate({
+    o: {
+      table: table,
+      fn: () => {},
+    }
+  });
+
+  instance1.exports.main();
+})();
+
+(function testWasmExceptionCaughtAfterTailCall() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  let except = builder.addTag(kSig_v_v);
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprTry, kWasmVoid,
+        kExprThrow, except,
+      kExprCatchAll,
+      kExprEnd,
+      kExprReturnCall, 1,
+    ])
+    .exportAs("main");
+
+  // Function 1
+  builder.addFunction("func1", kSig_i_v)
+    .addBody([
+      kExprTry, kWasmVoid,
+        kExprTry, kWasmVoid,
+          kExprTry, kWasmVoid,
+            kExprThrow, except,
+          kExprCatch, except,
+          kExprEnd,
+        kExprEnd,
+      kExprEnd,
+      kExprI32Const, 3,
+    ]);
+
+  let instance = builder.instantiate({});
+
+  let result = instance.exports.main();
+  assertEquals(3, result);
+})();
+
+(function TestCodeUnreachableAfterTailCalls() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_array_v = makeSig([], [wasmRefType(array_type_index)]);
+  let sig_array_index = builder.addType(kSig_array_v);
+  let kSig_struct_v = makeSig([], [wasmRefType(struct_type_index)]);
+  let sig_struct_index = builder.addType(kSig_struct_v);
+
+  builder.addImport("o", "imported_func", kSig_array_v);
+  builder.addExport("imported_func", 0);
+
+  let table = new WebAssembly.Table({
+    initial: 3, maximum: 3, element: 'anyfunc',
+  });
+  builder.addImportedTable('o', 'table');
+
+  let f3 = builder.addFunction("create_array", kSig_array_v)
+    .addBody([
+      ...wasmI32Const(1),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+    ])
+    .exportAs("create_array");
+
+  builder.addFunction("test_return_callref", makeSig([], [wasmRefType(kSig_array_v)]))
+    .addBody([
+      kExprBlock, sig_struct_index,
+        kExprRefFunc, f3.index,
+        kExprReturnCallRef, sig_array_index,
+      kExprEnd,
+      kExprUnreachable,
+   ])
+    .exportAs("test_return_callref");
+
+  builder.addFunction("test_return_call_imported", makeSig([], [wasmRefType(kSig_array_v)]))
+    .addBody([
+      kExprBlock, sig_struct_index,
+        kExprReturnCall, 0,  // Tail call imported_func.
+      kExprEnd,
+      kExprUnreachable,
+    ])
+    .exportAs("test_return_call_imported");
+
+  builder.addFunction("test_return_call_indirect_wasm_same_instance", makeSig([], [wasmRefType(kSig_array_v)]))
+    .addBody([
+      kExprBlock, sig_struct_index,
+        kExprI32Const, 0,
+        kExprReturnCallIndirect, sig_array_index, kTableZero,
+      kExprEnd,
+      kExprUnreachable,
+    ])
+    .exportAs("test_return_call_indirect_wasm_same_instance");
+
+  builder.addFunction("test_return_call_indirect_wasm_different_instance", makeSig([], [wasmRefType(kSig_array_v)]))
+    .addBody([
+      kExprBlock, sig_struct_index,
+        kExprI32Const, 2,
+        kExprReturnCallIndirect, sig_array_index, kTableZero,
+      kExprEnd,
+      kExprUnreachable,
+    ])
+    .exportAs("test_return_call_indirect_wasm_different_instance");
+
+  builder.addFunction("test_return_call_indirect_js", makeSig([], [wasmRefType(kSig_array_v)]))
+    .addBody([
+      kExprBlock, sig_struct_index,
+        kExprI32Const, 1,
+        kExprReturnCallIndirect, sig_array_index, kTableZero,
+      kExprEnd,
+      kExprUnreachable,
+    ])
+    .exportAs("test_return_call_indirect_js");
+
+  let instance1 = null;
+  instance1 = builder.instantiate({
+    o: {
+      table: table,
+      imported_func: function () {
+        return instance1.exports.create_array();
+      }
+    }
+  });
+
+  let instance2 = null;
+  instance2 = builder.instantiate({
+    o: {
+      table: table,
+      imported_func: function () {
+        return instance2.exports.create_array();
+      }
+    }
+  });
+  table.set(0, instance1.exports.create_array); // Wasm function, same module.
+  table.set(1, instance1.exports.imported_func); // JS function.
+  table.set(2, instance2.exports.create_array); // Wasm function, other module.
+
+  instance1.exports.test_return_callref();
+  instance1.exports.test_return_call_imported();
+  instance1.exports.test_return_call_indirect_wasm_same_instance();
+  instance1.exports.test_return_call_indirect_wasm_different_instance();
+  instance1.exports.test_return_call_indirect_js();
+})();
+
+(function testRefLocalsWithTailCall() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  let array_index1 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  let array_index2 = builder.addArray(kWasmI16, true, kNoSuperType, false);
+
+  builder.addFunction("main", kSig_i_i)
+    .addLocals(wasmRefNullType(array_index1), 2)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kWasmVoid,
+        kExprLocalGet, 0,
+        kExprReturn,
+      kExprEnd,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprRefCastNull, array_index2,
+      ...wasmI32Const(1),
+      kExprReturnCall, 0,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate({});
+  assertEquals(1, instance.exports.main(0));
+})();

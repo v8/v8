@@ -683,7 +683,7 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            904
+                            816
 #else   // V8_ENABLE_DRUMBRAKE
                             792
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -762,7 +762,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            904
+                            816
 #else   // V8_ENABLE_DRUMBRAKE
                             792
 #endif  // V8_ENABLE_DRUMBRAKE

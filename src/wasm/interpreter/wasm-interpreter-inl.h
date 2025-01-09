@@ -96,7 +96,7 @@ inline void WasmInterpreter::BeginExecution(WasmInterpreterThread* thread,
                                             uint8_t* interpreter_fp) {
   codemap_.GetCode(function_index);
   wasm_runtime_->BeginExecution(thread, function_index, frame_pointer,
-                                interpreter_fp, 0);
+                                interpreter_fp, thread->NextRefStackOffset());
 }
 
 inline WasmValue WasmInterpreter::GetReturnValue(int index) const {

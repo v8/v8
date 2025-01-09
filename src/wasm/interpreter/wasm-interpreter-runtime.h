@@ -121,7 +121,8 @@ class WasmInterpreterRuntime {
                                uint32_t current_stack_size,
                                uint32_t ref_stack_fp_offset,
                                uint32_t slot_offset,
-                               uint32_t return_slot_offset);
+                               uint32_t return_slot_offset,
+                               bool is_tail_call = false);
 
   void PrepareTailCall(const uint8_t*& code, uint32_t func_index,
                        uint32_t current_stack_size,
@@ -236,7 +237,7 @@ class WasmInterpreterRuntime {
                                             Handle<Object> object_ref,
                                             const FunctionSig* sig,
                                             uint32_t* sp,
-                                            uint32_t current_stack_slot);
+                                            uint32_t return_slot_offset);
 
   inline Address EffectiveAddress(uint64_t index) const;
 
@@ -259,6 +260,8 @@ class WasmInterpreterRuntime {
                                   const FunctionSig* sig);
   void StoreRefResultsIntoRefStack(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                    const FunctionSig* sig);
+
+  void InitializeRefLocalsRefs(const WasmBytecode* target_function);
 
   WasmInterpreterThread::ExceptionHandlingResult HandleException(
       uint32_t* sp, const uint8_t*& current_code);

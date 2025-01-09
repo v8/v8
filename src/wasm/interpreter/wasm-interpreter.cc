@@ -1314,9 +1314,9 @@ class Handlers : public HandlersBase {
   static auto constexpr s2s_I64LoadMem_Idx64 =
       s2s_LoadMem<int64_t, int64_t, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_F32LoadMem_Idx64 =
-      s2s_LoadMem<float, uint64_t, uint64_t, memory_offset64_t>;
+      s2s_LoadMem<float, float, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_F64LoadMem_Idx64 =
-      s2s_LoadMem<double, uint64_t, uint64_t, memory_offset64_t>;
+      s2s_LoadMem<double, double, uint64_t, memory_offset64_t>;
 
   // LoadMem_LocalSet
   template <typename T, typename U = T, typename MemIdx = uint32_t,
@@ -3050,7 +3050,8 @@ class Handlers : public HandlersBase {
                                           ref_stack_fp_offset);
 
     wasm_runtime->ExecuteImportedFunction(code, function_index, stack_pos, 0, 0,
-                                          return_slot_offset);
+                                          return_slot_offset, true);
+
     NextOp();
   }
 
@@ -4220,13 +4221,14 @@ class Handlers : public HandlersBase {
   //////////////////////////////////////////////////////////////////////////////
   // Atomics operators
 
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
   INSTRUCTION_HANDLER_FUNC s2s_AtomicNotify(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     int32_t val = pop<int32_t>(sp, code, wasm_runtime);
 
-    uint64_t offset = Read<memory_offset32_t>(code);
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t offset = Read<MemOffsetT>(code);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
     const uint32_t align_mask = sizeof(int32_t) - 1;
@@ -4246,15 +4248,18 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
+  static auto constexpr s2s_AtomicNotify_Idx64 =
+      s2s_AtomicNotify<uint64_t, memory_offset64_t>;
 
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
   INSTRUCTION_HANDLER_FUNC s2s_I32AtomicWait(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     int64_t timeout = pop<int64_t>(sp, code, wasm_runtime);
     int32_t val = pop<int32_t>(sp, code, wasm_runtime);
 
-    uint64_t offset = Read<memory_offset32_t>(code);
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t offset = Read<MemOffsetT>(code);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
     const uint32_t align_mask = sizeof(int32_t) - 1;
@@ -4278,15 +4283,18 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
+  static auto constexpr s2s_I32AtomicWait_Idx64 =
+      s2s_I32AtomicWait<uint64_t, memory_offset64_t>;
 
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
   INSTRUCTION_HANDLER_FUNC s2s_I64AtomicWait(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     int64_t timeout = pop<int64_t>(sp, code, wasm_runtime);
     int64_t val = pop<int64_t>(sp, code, wasm_runtime);
 
-    uint64_t offset = Read<memory_offset32_t>(code);
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t offset = Read<MemOffsetT>(code);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
     const uint32_t align_mask = sizeof(int64_t) - 1;
@@ -4310,6 +4318,8 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
+  static auto constexpr s2s_I64AtomicWait_Idx64 =
+      s2s_I64AtomicWait<uint64_t, memory_offset64_t>;
 
   INSTRUCTION_HANDLER_FUNC s2s_AtomicFence(const uint8_t* code, uint32_t* sp,
                                            WasmInterpreterRuntime* wasm_runtime,
@@ -4483,7 +4493,7 @@ class Handlers : public HandlersBase {
   V(I64AtomicLoad32U, Uint32, uint32_t, I32, uint64_t, I64)
 
 #define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)             \
-  template <typename MemIdx = uint32_t, typename MemOffsetT>                   \
+  template <typename MemIdx, typename MemOffsetT>                              \
   INSTRUCTION_HANDLER_FUNC s2s_##name##I(const uint8_t* code, uint32_t* sp,    \
                                          WasmInterpreterRuntime* wasm_runtime, \
                                          int64_t r0, double fp0) {             \
@@ -5265,14 +5275,15 @@ class Handlers : public HandlersBase {
   QFM_CASE(F64x2Qfms, f64x2, float64x2, 2, -)
 #undef QFM_CASE
 
-  template <typename s_type, typename load_type>
+  template <typename s_type, typename load_type, typename MemIdx,
+            typename MemOffsetT>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadSplat(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
-    uint64_t offset = Read<memory_offset32_t>(code);
+    uint64_t offset = Read<MemOffsetT>(code);
 
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
     if (V8_UNLIKELY(
@@ -5294,24 +5305,33 @@ class Handlers : public HandlersBase {
     NextOp();
   }
   static auto constexpr s2s_SimdS128Load8Splat =
-      s2s_DoSimdLoadSplat<int8x16, int8_t>;
+      s2s_DoSimdLoadSplat<int8x16, int8_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load8Splat_Idx64 =
+      s2s_DoSimdLoadSplat<int8x16, int8_t, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load16Splat =
-      s2s_DoSimdLoadSplat<int16x8, int16_t>;
+      s2s_DoSimdLoadSplat<int16x8, int16_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load16Splat_Idx64 =
+      s2s_DoSimdLoadSplat<int16x8, int16_t, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load32Splat =
-      s2s_DoSimdLoadSplat<int32x4, int32_t>;
+      s2s_DoSimdLoadSplat<int32x4, int32_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load32Splat_Idx64 =
+      s2s_DoSimdLoadSplat<int32x4, int32_t, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load64Splat =
-      s2s_DoSimdLoadSplat<int64x2, int64_t>;
+      s2s_DoSimdLoadSplat<int64x2, int64_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load64Splat_Idx64 =
+      s2s_DoSimdLoadSplat<int64x2, int64_t, uint64_t, memory_offset64_t>;
 
-  template <typename s_type, typename wide_type, typename narrow_type>
+  template <typename s_type, typename wide_type, typename narrow_type,
+            typename MemIdx, typename MemOffsetT>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadExtend(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     static_assert(sizeof(wide_type) == sizeof(narrow_type) * 2,
                   "size mismatch for wide and narrow types");
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
-    uint64_t offset = Read<memory_offset32_t>(code);
+    uint64_t offset = Read<MemOffsetT>(code);
 
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
     // Load 8 bytes and sign/zero extend to 16 bytes.
@@ -5337,26 +5357,51 @@ class Handlers : public HandlersBase {
     NextOp();
   }
   static auto constexpr s2s_SimdS128Load8x8S =
-      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t>;
+      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load8x8S_Idx64 =
+      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint32_t,
+                           memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load8x8U =
-      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t>;
+      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load8x8U_Idx64 =
+      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint32_t,
+                           memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load16x4S =
-      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t>;
+      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load16x4S_Idx64 =
+      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint32_t,
+                           memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load16x4U =
-      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t>;
+      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load16x4U_Idx64 =
+      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint32_t,
+                           memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load32x2S =
-      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t>;
+      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load32x2S_Idx64 =
+      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint32_t,
+                           memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load32x2U =
-      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t>;
+      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint32_t,
+                           memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load32x2U_Idx64 =
+      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint32_t,
+                           memory_offset32_t>;
 
-  template <typename s_type, typename load_type>
+  template <typename s_type, typename load_type, typename MemIdx,
+            typename MemOffsetT>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadZeroExtend(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
-    uint64_t offset = Read<uint64_t>(code);
+    uint64_t offset = Read<MemOffsetT>(code);
 
-    uint64_t index = pop<uint32_t>(sp, code, wasm_runtime);
+    uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
     // Load a single 32-bit or 64-bit element into the lowest bits of a v128
@@ -5383,9 +5428,13 @@ class Handlers : public HandlersBase {
     NextOp();
   }
   static auto constexpr s2s_SimdS128Load32Zero =
-      s2s_DoSimdLoadZeroExtend<int32x4, uint32_t>;
+      s2s_DoSimdLoadZeroExtend<int32x4, uint32_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load32Zero_Idx64 =
+      s2s_DoSimdLoadZeroExtend<int32x4, uint32_t, uint64_t, memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load64Zero =
-      s2s_DoSimdLoadZeroExtend<int64x2, uint64_t>;
+      s2s_DoSimdLoadZeroExtend<int64x2, uint64_t, uint32_t, memory_offset32_t>;
+  static auto constexpr s2s_SimdS128Load64Zero_Idx64 =
+      s2s_DoSimdLoadZeroExtend<int64x2, uint64_t, uint64_t, memory_offset64_t>;
 
   template <typename s_type, typename memory_type, typename MemIdx = uint32_t,
             typename MemOffsetT = memory_offset32_t>
@@ -11942,28 +11991,31 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     } break;
 
     case kExprAtomicNotify:
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, s2s_AtomicNotify_Idx64,
+                                       is_memory64_, instr.pc);
       I32Pop();  // val
       EmitMemoryOffset(instr.optional.offset);
-      I32Pop();  // memory index
+      MemIndexPop();  // memory index
       I32Push();
       break;
 
     case kExprI32AtomicWait:
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_I32AtomicWait, instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(
+          s2s_I32AtomicWait, s2s_I32AtomicWait_Idx64, is_memory64_, instr.pc);
       I64Pop();  // timeout
       I32Pop();  // val
       EmitMemoryOffset(instr.optional.offset);
-      I32Pop();  // memory index
+      MemIndexPop();  // memory index
       I32Push();
       break;
 
     case kExprI64AtomicWait:
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_I64AtomicWait, instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(
+          s2s_I64AtomicWait, s2s_I64AtomicWait_Idx64, is_memory64_, instr.pc);
       I64Pop();  // timeout
       I64Pop();  // val
       EmitMemoryOffset(instr.optional.offset);
-      I32Pop();  // memory index
+      MemIndexPop();  // memory index
       I32Push();
       break;
 
@@ -12551,13 +12603,14 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       QFM_CASE(F64x2Qfms, f64x2, float64x2, 2, -)
 #undef QFM_CASE
 
-#define LOAD_SPLAT_CASE(op)                                 \
-  case kExprS128##op: {                                     \
-    EMIT_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                \
-    I32Pop();                                               \
-    S128Push();                                             \
-    return RegMode::kNoReg;                                 \
+#define LOAD_SPLAT_CASE(op)                                                  \
+  case kExprS128##op: {                                                      \
+    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
+        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
+    EmitMemoryOffset(instr.optional.offset);                                 \
+    MemIndexPop();                                                           \
+    S128Push();                                                              \
+    return RegMode::kNoReg;                                                  \
   }
       LOAD_SPLAT_CASE(Load8Splat)
       LOAD_SPLAT_CASE(Load16Splat)
@@ -12565,13 +12618,14 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_SPLAT_CASE(Load64Splat)
 #undef LOAD_SPLAT_CASE
 
-#define LOAD_EXTEND_CASE(op)                                \
-  case kExprS128##op: {                                     \
-    EMIT_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                \
-    I32Pop();                                               \
-    S128Push();                                             \
-    return RegMode::kNoReg;                                 \
+#define LOAD_EXTEND_CASE(op)                                                 \
+  case kExprS128##op: {                                                      \
+    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
+        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
+    EmitMemoryOffset(instr.optional.offset);                                 \
+    MemIndexPop();                                                           \
+    S128Push();                                                              \
+    return RegMode::kNoReg;                                                  \
   }
       LOAD_EXTEND_CASE(Load8x8S)
       LOAD_EXTEND_CASE(Load8x8U)
@@ -12581,13 +12635,14 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_EXTEND_CASE(Load32x2U)
 #undef LOAD_EXTEND_CASE
 
-#define LOAD_ZERO_EXTEND_CASE(op, load_type)                \
-  case kExprS128##op: {                                     \
-    EMIT_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                \
-    I32Pop();                                               \
-    S128Push();                                             \
-    return RegMode::kNoReg;                                 \
+#define LOAD_ZERO_EXTEND_CASE(op, load_type)                                 \
+  case kExprS128##op: {                                                      \
+    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
+        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
+    EmitMemoryOffset(instr.optional.offset);                                 \
+    MemIndexPop();                                                           \
+    S128Push();                                                              \
+    return RegMode::kNoReg;                                                  \
   }
       LOAD_ZERO_EXTEND_CASE(Load32Zero, I32)
       LOAD_ZERO_EXTEND_CASE(Load64Zero, I64)
@@ -12734,57 +12789,73 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
   } else if (curr_instr.orig == kExprI32LoadMem &&
              next_instr.orig == kExprI32StoreMem) {
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_I32LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_I32LoadStoreMem,
+                                       s2s_I32LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);  // load_offset
-      I32Pop();                                      // load_index
+      MemIndexPop();                                 // load_index
     } else {
-      EMIT_INSTR_HANDLER_WITH_PC(r2s_I32LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_I32LoadStoreMem,
+                                       r2s_I32LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);  // load_offset
     }
     EmitMemoryOffset(next_instr.optional.offset);  // store_offset
-    I32Pop();                                      // store_index
+    MemIndexPop();                                 // store_index
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprI64LoadMem &&
              next_instr.orig == kExprI64StoreMem) {
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_I64LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_I64LoadStoreMem,
+                                       s2s_I64LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
-      I32Pop();
+      MemIndexPop();
     } else {
-      EMIT_INSTR_HANDLER_WITH_PC(r2s_I64LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_I64LoadStoreMem,
+                                       r2s_I64LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
     }
     EmitMemoryOffset(next_instr.optional.offset);
-    I32Pop();
+    MemIndexPop();
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprF32LoadMem &&
              next_instr.orig == kExprF32StoreMem) {
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_F32LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_F32LoadStoreMem,
+                                       s2s_F32LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
-      I32Pop();
+      MemIndexPop();
     } else {
-      EMIT_INSTR_HANDLER_WITH_PC(r2s_F32LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_F32LoadStoreMem,
+                                       r2s_F32LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
     }
     EmitMemoryOffset(next_instr.optional.offset);
-    I32Pop();
+    MemIndexPop();
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprF64LoadMem &&
              next_instr.orig == kExprF64StoreMem) {
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_INSTR_HANDLER_WITH_PC(s2s_F64LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_F64LoadStoreMem,
+                                       s2s_F64LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
-      I32Pop();
+      MemIndexPop();
     } else {
-      EMIT_INSTR_HANDLER_WITH_PC(r2s_F64LoadStoreMem, curr_instr.pc);
+      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_F64LoadStoreMem,
+                                       r2s_F64LoadStoreMem_Idx64, is_memory64_,
+                                       curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.offset);
     }
     EmitMemoryOffset(next_instr.optional.offset);
-    I32Pop();
+    MemIndexPop();
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig >= kExprI32Const &&

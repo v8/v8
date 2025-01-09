@@ -533,6 +533,8 @@
   'regress/wasm/regress-329130358': [SKIP],
   'regress/wasm/regress-336358915*': [SKIP],
   'regress/wasm/regress-362539773': [SKIP],
+  'regress/wasm/regress-382547695': [SKIP],
+  'regress/wasm/regress-384974501': [SKIP],
   'wasm/call-ref': [SKIP],
   'wasm/exceptions-type-reflection': [SKIP],
   'wasm/externref-table': [SKIP],
@@ -542,6 +544,9 @@
   'wasm/ref-cast-js-function': [SKIP],
   'wasm/type-reflection*': [SKIP],
   'wasm/wasm-to-js-tierup': [SKIP],
+
+  # --experimental-wasm-memory-control
+  'wasm/memory-control': [SKIP],
 
   # --experimental-wasm-exnref
   'regress/wasm/regress-14689': [SKIP],
@@ -720,10 +725,10 @@
   'regress/wasm/regress-354324155*': [SKIP],
   'regress/wasm/regress-360044696': [SKIP],
   'regress/wasm/regress-360052650': [SKIP],
+  'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-361369297': [SKIP],
   'regress/wasm/regress-361611472': [SKIP],
   'regress/wasm/regress-368241691': [SKIP],
-  'regress/wasm/regress-373702823': [SKIP],
   'regress/wasm/regress-crbug-1507751': [SKIP],
   'wasm/bit-shift-right': [SKIP],
   'wasm/bounds-check-turbofan': [SKIP],

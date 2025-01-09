@@ -836,8 +836,11 @@
   V(s2s_Catch)                                  \
   /* Atomics */                                 \
   V(s2s_AtomicNotify)                           \
+  V(s2s_AtomicNotify_Idx64)                     \
   V(s2s_I32AtomicWait)                          \
+  V(s2s_I32AtomicWait_Idx64)                    \
   V(s2s_I64AtomicWait)                          \
+  V(s2s_I64AtomicWait_Idx64)                    \
   V(s2s_AtomicFence)                            \
   V(s2s_I32AtomicAdd)                           \
   V(s2s_I32AtomicAdd_Idx64)                     \
@@ -1200,17 +1203,29 @@
   V(s2s_SimdF64x2Qfma)                          \
   V(s2s_SimdF64x2Qfms)                          \
   V(s2s_SimdS128Load8Splat)                     \
+  V(s2s_SimdS128Load8Splat_Idx64)               \
   V(s2s_SimdS128Load16Splat)                    \
+  V(s2s_SimdS128Load16Splat_Idx64)              \
   V(s2s_SimdS128Load32Splat)                    \
+  V(s2s_SimdS128Load32Splat_Idx64)              \
   V(s2s_SimdS128Load64Splat)                    \
+  V(s2s_SimdS128Load64Splat_Idx64)              \
   V(s2s_SimdS128Load8x8S)                       \
+  V(s2s_SimdS128Load8x8S_Idx64)                 \
   V(s2s_SimdS128Load8x8U)                       \
+  V(s2s_SimdS128Load8x8U_Idx64)                 \
   V(s2s_SimdS128Load16x4S)                      \
+  V(s2s_SimdS128Load16x4S_Idx64)                \
   V(s2s_SimdS128Load16x4U)                      \
+  V(s2s_SimdS128Load16x4U_Idx64)                \
   V(s2s_SimdS128Load32x2S)                      \
+  V(s2s_SimdS128Load32x2S_Idx64)                \
   V(s2s_SimdS128Load32x2U)                      \
+  V(s2s_SimdS128Load32x2U_Idx64)                \
   V(s2s_SimdS128Load32Zero)                     \
+  V(s2s_SimdS128Load32Zero_Idx64)               \
   V(s2s_SimdS128Load64Zero)                     \
+  V(s2s_SimdS128Load64Zero_Idx64)               \
   V(s2s_SimdS128Load8Lane)                      \
   V(s2s_SimdS128Load8Lane_Idx64)                \
   V(s2s_SimdS128Load16Lane)                     \

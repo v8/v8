@@ -1105,7 +1105,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // ...       ...                           | Tagged
   // ...       JS arg n-1                    | objects
   // ...       (padding if num args is odd)  |
-  // ...       context                       |
+  // fp-0x60   context                       |
   // fp-0x58   callable                      v
   // -------------------------------------------
   // fp-0x50   current_param_offset/current_result_offset
@@ -1118,7 +1118,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // fp-0x28   return_count
   //
   // fp-0x20   packed_array
-  // fp-0x18   GC_SP (not used)
+  // fp-0x18   GC_SP (not used on arm64)
   //
   // fp-0x10   GCScanSlotLimit
   // fp-0x08   Marker(StackFrame::WASM_TO_JS)
@@ -1143,19 +1143,19 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
       kValueTypesArrayStartOffset - kSystemPointerSize;
   // Reuse this slot when iterating over return values.
   constexpr int kCurrentResultOffset = kCurrentParamOffset;
+  constexpr int kCallableOffset = kCurrentParamOffset - kSystemPointerSize;
+  constexpr int kContextOffset = kCallableOffset - kSystemPointerSize;
   constexpr int kNumSpillSlots =
       (WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset -
        kCurrentParamOffset) /
       kSystemPointerSize;
   static_assert((kNumSpillSlots % 2) == 0);  // 16-bytes aligned.
 
-  constexpr int kCallableOffset = kCurrentParamOffset - kSystemPointerSize;
-
   __ Sub(sp, sp, Immediate(kNumSpillSlots * kSystemPointerSize));
 
   __ Str(packed_args, MemOperand(fp, kPackedArrayOffset));
 
-  // Not used
+  // Not used on arm64.
   __ Str(xzr, MemOperand(fp, WasmToJSInterpreterFrameConstants::kGCSPOffset));
 
   __ Str(xzr,
@@ -1216,7 +1216,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
                     WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset));
 
   // Store callable and context.
-  __ Push(callable, context);
+  __ Push(callable, cp);
   __ Add(array_size, param_count, Immediate(1));
   // Ensure that the array is 16-bytes aligned.
   __ Add(scratch, array_size, Immediate(1));
@@ -1511,8 +1511,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Call(BUILTIN_CODE(masm->isolate(), Call_ReceiverIsAny),
           RelocInfo::CODE_TARGET);
 
-  // After the call sp points to the saved context.
-  __ Ldr(cp, MemOperand(sp, 0));
+  __ Ldr(cp, MemOperand(fp, kContextOffset));
 
   // The JS function returns its result in register x0.
   Register return_reg = kReturnRegister0;
