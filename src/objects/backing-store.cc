@@ -386,6 +386,9 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   // Wasm pages must be a multiple of the allocation page size.
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
   DCHECK_LE(initial_pages, maximum_pages);
+  DCHECK_LE(maximum_pages, wasm_memory == WasmMemoryFlag::kWasmMemory32
+                               ? wasm::kV8MaxWasmMemory32Pages
+                               : wasm::kV8MaxWasmMemory64Pages);
 
   DCHECK(wasm_memory == WasmMemoryFlag::kWasmMemory32 ||
          wasm_memory == WasmMemoryFlag::kWasmMemory64);

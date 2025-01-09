@@ -162,7 +162,7 @@ struct WasmMemory {
 
 inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
   const uintptr_t platform_max_pages =
-      memory->is_memory64() ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+      memory->is_memory64() ? wasm::max_mem64_pages() : wasm::max_mem32_pages();
   memory->min_memory_size = static_cast<uintptr_t>(std::min<uint64_t>(
                                 platform_max_pages, memory->initial_pages)) *
                             kWasmPageSize;
@@ -179,7 +179,6 @@ inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
     // Asm.js modules can't use trap handling.
     memory->bounds_checks = kExplicitBoundsChecks;
   } else if (memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling) {
-    // Memory64 currently always requires explicit bounds checks.
     memory->bounds_checks = kExplicitBoundsChecks;
   } else if (trap_handler::IsTrapHandlerEnabled()) {
     if constexpr (kSystemPointerSize == 4) UNREACHABLE();
