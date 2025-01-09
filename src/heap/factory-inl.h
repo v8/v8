@@ -157,7 +157,7 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
 void Factory::NumberToStringCacheSet(DirectHandle<Object> number, int hash,
                                      DirectHandle<String> js_string) {
   if (!IsUndefined(number_string_cache()->get(hash * 2), isolate()) &&
-      !v8_flags.optimize_for_size) {
+      !isolate()->MemorySaverModeEnabled()) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
       DirectHandle<FixedArray> new_cache =

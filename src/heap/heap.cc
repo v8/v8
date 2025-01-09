@@ -3768,9 +3768,9 @@ bool Heap::HasHighFragmentation() {
 
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size() / 8;
-  return v8_flags.optimize_for_size ||
-         isolate()->priority() == v8::Isolate::Priority::kBestEffort ||
-         HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
+  return isolate()->priority() == v8::Isolate::Priority::kBestEffort ||
+         isolate()->MemorySaverModeEnabled() || HighMemoryPressure() ||
+         !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
 class ActivateMemoryReducerTask : public CancelableTask {

@@ -737,6 +737,12 @@ DEFINE_MAYBE_BOOL(
     "Forces battery saver mode on or off, disregarding any dynamic signals. "
     "Battery saver tries to conserve overal cpu cycles spent.")
 
+DEFINE_MAYBE_BOOL(
+    memory_saver_mode,
+    "Forces memory saver mode on or off, disregarding any dynamic signals. "
+    "Memory saver tries to keep memory footprint low at the expense of extra "
+    "cpu cycles.")
+
 // Flags to experiment with the new efficiency mode
 DEFINE_BOOL(efficiency_mode_for_tiering_heuristics, true,
             "Use efficiency mode in tiering heuristics.")

@@ -876,7 +876,7 @@ void GlobalHandles::PostGarbageCollectionProcessing(
   if (second_pass_callbacks_.empty()) return;
 
   const bool synchronous_second_pass =
-      v8_flags.optimize_for_size || v8_flags.predictable ||
+      isolate_->MemorySaverModeEnabled() || v8_flags.predictable ||
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |

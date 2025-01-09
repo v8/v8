@@ -2090,6 +2090,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return V8_UNLIKELY(battery_saver_mode_enabled_);
   }
 
+  bool MemorySaverModeEnabled() {
+    if (v8_flags.optimize_for_size) {
+      return true;
+    }
+    if (V8_UNLIKELY(v8_flags.memory_saver_mode.value().has_value())) {
+      return *v8_flags.memory_saver_mode.value();
+    }
+    return V8_UNLIKELY(memory_saver_mode_enabled_);
+  }
+
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -2336,6 +2346,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     battery_saver_mode_enabled_ = battery_saver_mode_enabled;
   }
 
+  void set_memory_saver_mode_enabled(bool memory_saver_mode_enabled) {
+    memory_saver_mode_enabled_ = memory_saver_mode_enabled;
+  }
+
   std::list<std::unique_ptr<detail::WaiterQueueNode>>&
   async_waiter_queue_nodes();
 
@@ -2543,6 +2557,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       debug::CoverageMode::kBestEffort};
 
   std::atomic<bool> battery_saver_mode_enabled_ = false;
+  std::atomic<bool> memory_saver_mode_enabled_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import attributes, if present, from the second argument to dynamic
