@@ -551,10 +551,12 @@ void MacroAssembler::LoadExternalPointerField(
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
     movq(scratch, destination);
-    andl(scratch, Immediate(kExternalPointerTagMask));
-    cmpl(scratch, Immediate(tag_range.first << kExternalPointerTagShift));
+    shrq(scratch, Immediate(kExternalPointerTagShift));
+    andl(scratch, Immediate(kExternalPointerShiftedTagMask));
+    cmpl(scratch, Immediate(tag_range.first));
     SbxCheck(equal, AbortReason::kExternalPointerTagMismatch);
-    shrq(destination, Immediate(kExternalPointerPayloadShift));
+    movq(scratch, Immediate64(kExternalPointerPayloadMask));
+    andq(destination, scratch);
   } else {
     // Not currently supported. Implement once needed.
     DCHECK_NE(tag_range, kAnyExternalPointerTagRange);

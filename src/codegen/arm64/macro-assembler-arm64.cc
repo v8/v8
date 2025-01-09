@@ -3922,10 +3922,11 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   Register scratch = external_table;
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
-    And(scratch, destination, Immediate(kExternalPointerTagMask));
-    Mov(destination, Operand(destination, LSR, kExternalPointerPayloadShift));
-    Cmp(scratch, Immediate(tag_range.first << kExternalPointerTagShift));
+    static_assert(kExternalPointerShiftedTagMask == 0x7f);
+    Ubfx(scratch, destination, kExternalPointerTagShift, 7);
+    Cmp(scratch, Immediate(tag_range.first));
     SbxCheck(eq, AbortReason::kExternalPointerTagMismatch);
+    And(destination, destination, Immediate(kExternalPointerPayloadMask));
   } else {
     // Not currently supported. Implement once needed.
     DCHECK_NE(tag_range, kAnyExternalPointerTagRange);

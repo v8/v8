@@ -389,7 +389,7 @@ class ReadStringVisitor : public TqObjectVisitor {
       Address tagged_data =
           GetOrFinish(ReadValue<Address>(external_pointer_table, index));
       // We don't really need to perform the type check here.
-      Address data_address = tagged_data >> kExternalPointerPayloadShift;
+      Address data_address = tagged_data & kExternalPointerPayloadMask;
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_ENABLE_SANDBOX

@@ -449,11 +449,11 @@ class MemoryOptimizationReducer : public Next {
     Block* done = __ NewBlock();
     if (tag_range.Size() == 1) {
       // The common and simple case: we expect a specific tag.
-      V<Word32> tag = __ Word32BitwiseAnd(
-          __ TruncateWord64ToWord32(pointer),
-          __ Word32Constant(uint32_t{kExternalPointerTagMask}));
-      V<Word32> expected_tag =
-          __ Word32Constant(tag_range.first << kExternalPointerTagShift);
+      V<Word64> tag_bits = __ Word64BitwiseAnd(
+          pointer, __ Word64Constant(kExternalPointerTagMask));
+      tag_bits = __ Word64ShiftRightLogical(tag_bits, kExternalPointerTagShift);
+      V<Word32> tag = __ TruncateWord64ToWord32(tag_bits);
+      V<Word32> expected_tag = __ Word32Constant(tag_range.first);
       __ GotoIf(__ Word32Equal(tag, expected_tag), done, BranchHint::kTrue);
       // TODO(saelo): it would be nicer to abort here with
       // AbortReason::kExternalPointerTagMismatch. That might require adding a
@@ -465,7 +465,7 @@ class MemoryOptimizationReducer : public Next {
       UNREACHABLE();
     }
     __ BindReachable(done);
-    return __ Word64ShiftRightLogical(pointer, kExternalPointerPayloadShift);
+    return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
 #else   // V8_ENABLE_SANDBOX
     UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX

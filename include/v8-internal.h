@@ -337,10 +337,15 @@ constexpr size_t kMaxExternalPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
-constexpr uint64_t kExternalPointerMarkBit = 1ULL;
-constexpr uint64_t kExternalPointerTagShift = 1;
-constexpr uint64_t kExternalPointerTagMask = 0xfffe;
-constexpr uint64_t kExternalPointerPayloadShift = 16;
+constexpr uint64_t kExternalPointerMarkBit = 1ULL << 48;
+constexpr uint64_t kExternalPointerTagShift = 49;
+constexpr uint64_t kExternalPointerTagMask = 0x00fe000000000000ULL;
+constexpr uint64_t kExternalPointerShiftedTagMask =
+    kExternalPointerTagMask >> kExternalPointerTagShift;
+static_assert(kExternalPointerShiftedTagMask << kExternalPointerTagShift ==
+              kExternalPointerTagMask);
+constexpr uint64_t kExternalPointerTagAndMarkbitMask = 0x00ff000000000000ULL;
+constexpr uint64_t kExternalPointerPayloadMask = 0xff00ffffffffffffULL;
 
 // A ExternalPointerHandle represents a (opaque) reference to an external
 // pointer that can be stored inside the sandbox. A ExternalPointerHandle has
@@ -630,11 +635,11 @@ enum ExternalPointerTag : uint16_t {
   kArrayBufferExtensionTag,
   kLastManagedResourceTag = kArrayBufferExtensionTag,
 
-  kExternalPointerZappedEntryTag = 0x7ffd,
-  kExternalPointerEvacuationEntryTag = 0x7ffe,
-  kExternalPointerFreeEntryTag = 0x7fff,
-  // The tags are limited to 15 bits, so the last tag is 0x7fff.
-  kLastExternalPointerTag = 0x7fff,
+  kExternalPointerZappedEntryTag = 0x7d,
+  kExternalPointerEvacuationEntryTag = 0x7e,
+  kExternalPointerFreeEntryTag = 0x7f,
+  // The tags are limited to 7 bits, so the last tag is 0x7f.
+  kLastExternalPointerTag = 0x7f,
 };
 
 using ExternalPointerTagRange = TagRange<ExternalPointerTag>;
@@ -1276,11 +1281,11 @@ class Internals {
         reinterpret_cast<std::atomic<Address>*>(&table[index]);
     Address entry = std::atomic_load_explicit(ptr, std::memory_order_relaxed);
     ExternalPointerTag actual_tag = static_cast<ExternalPointerTag>(
-        static_cast<uint16_t>(entry) >> kExternalPointerTagShift);
+        (entry & kExternalPointerTagMask) >> kExternalPointerTagShift);
     if (V8_LIKELY(tag_range.Contains(actual_tag))) {
-      entry >>= kExternalPointerPayloadShift;
+      return entry & kExternalPointerPayloadMask;
     } else {
-      entry = 0;
+      return 0;
     }
     return entry;
 #else

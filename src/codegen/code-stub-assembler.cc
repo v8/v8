@@ -1839,18 +1839,21 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   TNode<IntPtrT> entry = Load<IntPtrT>(table, table_offset);
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
-    TNode<Uint32T> actual_tag = UncheckedCast<Uint32T>(Word32And(
-        TruncateIntPtrToInt32(entry), Uint32Constant(kExternalPointerTagMask)));
-    TNode<Uint32T> expected_tag =
-        Uint32Constant(tag_range.first << kExternalPointerTagShift);
-    CSA_SBXCHECK(this, Word32Equal(expected_tag, actual_tag));
+    TNode<IntPtrT> tag_bits = UncheckedCast<IntPtrT>(
+        WordAnd(entry, UintPtrConstant(kExternalPointerTagMask)));
+    tag_bits = UncheckedCast<IntPtrT>(
+        WordShr(tag_bits, UintPtrConstant(kExternalPointerTagShift)));
+    TNode<Uint32T> tag =
+        UncheckedCast<Uint32T>(TruncateIntPtrToInt32(tag_bits));
+    TNode<Uint32T> expected_tag = Uint32Constant(tag_range.first);
+    CSA_SBXCHECK(this, Word32Equal(expected_tag, tag));
   } else {
     // Not currently supported. Implement once needed.
     DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
     UNREACHABLE();
   }
   return UncheckedCast<IntPtrT>(
-      WordShr(entry, UintPtrConstant(kExternalPointerPayloadShift)));
+      WordAnd(entry, UintPtrConstant(kExternalPointerPayloadMask)));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
 #endif  // V8_ENABLE_SANDBOX
@@ -1879,11 +1882,9 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
   TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
-  value = UncheckedCast<UintPtrT>(
-      WordShl(value, UintPtrConstant(kExternalPointerPayloadShift)));
-  value = UncheckedCast<UintPtrT>(
-      WordOr(value, UintPtrConstant((tag << kExternalPointerTagShift) |
-                                    kExternalPointerMarkBit)));
+  value = UncheckedCast<UintPtrT>(WordOr(
+      value, UintPtrConstant((uint64_t{tag} << kExternalPointerTagShift) |
+                             kExternalPointerMarkBit)));
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
                       value);
 #else

@@ -222,12 +222,11 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
   Node* entry = Load(MachineType::Pointer(), table, offset);
   if (tag_range.Size() == 1) {
     // The common and simple case: we expect exactly one tag.
-    Node* actual_tag = TruncateInt64ToInt32(
-        WordAnd(entry, UintPtrConstant(kExternalPointerTagMask)));
-    Node* expected_tag =
-        Int32Constant(tag_range.first << kExternalPointerTagShift);
-    Node* pointer =
-        WordShr(entry, IntPtrConstant(kExternalPointerPayloadShift));
+    Node* actual_tag = WordAnd(entry, UintPtrConstant(kExternalPointerTagMask));
+    actual_tag = TruncateInt64ToInt32(
+        WordShr(actual_tag, IntPtrConstant(kExternalPointerTagShift)));
+    Node* expected_tag = Int32Constant(tag_range.first);
+    Node* pointer = WordAnd(entry, IntPtrConstant(kExternalPointerPayloadMask));
     auto ok = MakeLabel();
     GotoIf(Word32Equal(actual_tag, expected_tag), &ok, BranchHint::kTrue);
     RuntimeAbort(AbortReason::kExternalPointerTagMismatch);

@@ -107,13 +107,17 @@ struct ExternalPointerTableEntry {
  private:
   friend class ExternalPointerTable;
 
+  // TODO(saelo): generalize this payload struct and reuse it for all other
+  // pointer table that use type tags. For that, we probably will have to make
+  // this more flexible, allowing shifts and masks to be applied to both the
+  // tag- and payload bits since the tables store the tag bits differently.
   struct Payload {
     Payload(Address pointer, ExternalPointerTag tag)
         : encoded_word_(Tag(pointer, tag)) {}
 
     static Address Tag(Address pointer, ExternalPointerTag tag) {
-      return (pointer << kExternalPointerPayloadShift) |
-             (static_cast<uint16_t>(tag) << kExternalPointerTagShift);
+      DCHECK_LE(tag, kLastExternalPointerTag);
+      return pointer | (static_cast<Address>(tag) << kExternalPointerTagShift);
     }
 
     static bool CheckTag(Address content, ExternalPointerTagRange tag_range) {
@@ -123,16 +127,15 @@ struct ExternalPointerTableEntry {
         return true;
       }
 
-      // The marking bit is stored in the LSB, so remove that by shifting.
-      uint16_t tag_bits = static_cast<uint16_t>(content) >> 1;
-      ExternalPointerTag tag = static_cast<ExternalPointerTag>(tag_bits);
+      ExternalPointerTag tag = static_cast<ExternalPointerTag>(
+          (content & kExternalPointerTagMask) >> kExternalPointerTagShift);
       return tag_range.Contains(tag);
     }
 
     Address Untag(ExternalPointerTagRange tag_range) const {
       Address content = encoded_word_;
       SBXCHECK(CheckTag(content, tag_range));
-      return content >> kExternalPointerPayloadShift;
+      return content & kExternalPointerPayloadMask;
     }
 
     Address Untag(ExternalPointerTag tag) const {
@@ -156,13 +159,13 @@ struct ExternalPointerTableEntry {
     }
 
     uint32_t ExtractFreelistLink() const {
-      return static_cast<uint32_t>(encoded_word_ >>
-                                   kExternalPointerPayloadShift);
+      return static_cast<uint32_t>(encoded_word_);
     }
 
     ExternalPointerTag ExtractTag() const {
       return static_cast<ExternalPointerTag>(
-          static_cast<uint16_t>(encoded_word_) >> kExternalPointerTagShift);
+          (encoded_word_ & kExternalPointerTagMask) >>
+          kExternalPointerTagShift);
     }
 
     bool ContainsFreelistLink() const {

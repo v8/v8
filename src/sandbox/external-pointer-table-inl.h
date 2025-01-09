@@ -17,8 +17,8 @@ namespace internal {
 void ExternalPointerTableEntry::MakeExternalPointerEntry(Address value,
                                                          ExternalPointerTag tag,
                                                          bool mark_as_alive) {
-  // Top bits must be zero, otherwise we'd loose information when shifting.
-  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
+  // The 2nd most significant byte must be empty as we store the tag in int.
+  DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
   DCHECK_NE(tag, kExternalPointerFreeEntryTag);
   DCHECK_NE(tag, kExternalPointerEvacuationEntryTag);
 
@@ -39,8 +39,8 @@ Address ExternalPointerTableEntry::GetExternalPointer(
 
 void ExternalPointerTableEntry::SetExternalPointer(Address value,
                                                    ExternalPointerTag tag) {
-  // Top bits must be zero, otherwise we'd loose information when shifting.
-  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
+  // The 2nd most significant byte must be empty as we store the tag in int.
+  DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
   DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
   Payload new_payload(value, tag);
@@ -60,9 +60,8 @@ bool ExternalPointerTableEntry::HasExternalPointer(
 
 Address ExternalPointerTableEntry::ExchangeExternalPointer(
     Address value, ExternalPointerTag tag) {
-  // Top bits must be zero, otherwise we'd loose information when shifting.
-  DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kExternalPointerPayloadShift));
-  DCHECK(tag & kExternalPointerMarkBit);
+  // The 2nd most significant byte must be empty as we store the tag in int.
+  DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
 
   Payload new_payload(value, tag);
   // Writing an entry currently also marks it as alive. In the future, we might
