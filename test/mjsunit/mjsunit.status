@@ -2371,8 +2371,8 @@
 
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall.
-['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+# for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turboshaft_maglev_frontend)', {
   # Maglev deopts on non-int division, even if the result is truncated after.
   'shift-for-integer-div': [FAIL],
   # Maglev deopts on negative zero for int32, even if truncated afterward.
@@ -2430,14 +2430,101 @@
   # worth it.
   'regress/regress-map-invalidation-2': [FAIL],
   'turboshaft/extras-cped': [SKIP],
-}], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+}], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turboshaft_maglev_frontend)
 
-['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)) and (arch != arm)', {
+['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turboshaft_maglev_frontend)) and (arch != arm)', {
   # Maglev doesn't suppress BigInt size errors on truncation.
   # On Arm that works, since we always _and_ the shift amount first.
   'compiler/bigint-shift-left': [FAIL],
   'compiler/bigint-multiply-truncate': [FAIL],
-}], # (variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan))' and (arch != arm)
+}], # (variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turboshaft_maglev_frontend))' and (arch != arm)
+
+['variant == turboshaft_maglev_frontend', {
+  # Because of frontend lowerings being different in Maglev and Turbofan, some
+  # unit tests don't pass when using Maglev as a frontend for Turboshaft.
+
+  # Const tracking let is different in Turbofan and Maglev.
+  'const-tracking-let-*': [SKIP],
+
+  # Maglev doesn't silent holey NaNs if it hasn't seen any, unlike Turbofan.
+  'getters-on-elements': [SKIP],
+
+  # Maglev deopts more aggressively on insufficient feedback.
+  'array-literal-transitions': [SKIP],
+  'sealed-array-reduce': [SKIP],
+  'frozen-array-reduce': [SKIP],
+  'non-extensible-array-reduce': [SKIP],
+
+  # Maglev doesn't inline String.prototype.includes.
+  'optimized-string-includes': [SKIP],
+
+  # Maglev doesn't optimize string wrapper addition.
+  'string-wrapper-add-1': [SKIP],
+  'string-wrapper-add-2': [SKIP],
+
+  # Maglev doesn't specialize == on mixed objects/smi/oddballs inputs.
+  'compiler/abstract-equal-undetectable': [SKIP],
+  'compiler/abstract-equal-oddball': [SKIP],
+  'compiler/abstract-equal-receiver': [SKIP],
+
+  # Maglev doesn't specialize much when it comes to BigInt operations.
+  'compiler/bigint-bitwise-*': [SKIP],
+  'compiler/bigint-asuintn': [SKIP],
+  'compiler/bigint-compare': [SKIP],
+  'compiler/bigint-divide': [SKIP],
+  'compiler/bigint-modulus': [SKIP],
+  'compiler/bigint-asintn': [SKIP],
+  'compiler/bigint-equal': [SKIP],
+  'compiler/bigint-add-no-deopt-loop': [SKIP],
+  'compiler/bigint-multiply': [SKIP],
+  'compiler/bigint64-mul-no-deopt-loop': [SKIP],
+  'compiler/bigint64-add-no-deopt-loop': [SKIP],
+  'compiler/bigint64-sub-no-deopt-loop': [SKIP],
+  'compiler/bigint64-div-no-deopt-loop': [SKIP],
+  'compiler/bigint64-array': [SKIP],
+  'compiler/bigint-shift-right': [SKIP],
+  'compiler/bigint64-mod-no-deopt-loop': [SKIP],
+  'regress/regress-1212583': [SKIP],
+  'regress/regress-1371935': [SKIP],
+  'regress/regress-9441': [SKIP],
+
+  # Maglev doesn't inline some Dataview accessors.
+  'compiler/dataview-detached': [SKIP],
+  'compiler/dataview-deopt': [SKIP],
+  'compiler/dataview-get': [SKIP],
+  'compiler/dataview-set': [SKIP],
+
+  # Maglev doesn't lower CallWithSpread.
+  'compiler/regress-385386138': [SKIP],
+
+  # Various missing lowerings/specializations in Maglev.
+  'compiler/deopt-pretenure': [SKIP],
+  'compiler/opt-higher-order-functions': [SKIP],
+  'compiler/constant-fold-cow-array': [SKIP],
+  'compiler/promise-resolve-stable-maps': [SKIP],
+  'compiler/array-multiple-receiver-maps': [SKIP],
+  'compiler/string-charAt': [SKIP],
+  'compiler/strict-equal-receiver': [SKIP],
+  'compiler/string-endswith': [SKIP],
+  'compiler/string-from-code-point': [SKIP],
+  'compiler/regress-9945-1': [SKIP],
+  'es6/iterator-eager-deopt': [SKIP],
+  'compiler/typedarray-resizablearraybuffer': [SKIP],
+  'optimized-filter': [SKIP],
+  'optimized-map': [SKIP],
+  'compiler/bound-functions-serialize': [SKIP],
+
+  # --maglev-inline-api-calls is currently not supported by the translation.
+  'regress/regress-crbug-1496606': [SKIP],
+
+}], # variant == turboshaft_maglev_frontend
+
+['(variant == turboshaft_maglev_frontend) and (arch == arm64)', {
+  # Turboshaft cannot call Construct_WithFeedback, which is required to make
+  # this test  pass with Maglev as a frontend (Turbofan does other lowering
+  # that don't require calling Construct_WithFeedback).
+  'array-constructor-feedback': [SKIP],
+}], # (variant == turboshaft_maglev_frontend) and (arch == arm64)
 
 ##############################################################################
 ['clang_coverage and mode == debug', {

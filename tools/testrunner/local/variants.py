@@ -44,6 +44,11 @@ ALL_VARIANT_FLAGS = {
         "--no-wasm-generic-wrapper",
         "--no-liftoff",
     ]],
+    # Turboshaft with Maglev as a frontend
+    "turboshaft_maglev_frontend": [[
+        "--turboshaft",
+        "--turboshaft-from-maglev",
+    ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     # This combines two orthogonal variants always_sparkplug and

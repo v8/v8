@@ -150,7 +150,7 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
-    DCHECK(!v8_flags.turboshaft_from_maglev);
+    DCHECK(!v8_flags.turboshaft_from_maglev || IsBuiltinPipeline());
     if (std::optional<BailoutReason> bailout =
             Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
       info()->AbortOptimization(*bailout);
@@ -593,6 +593,10 @@ class Pipeline {
   }
 
  private:
+#ifdef DEBUG
+  virtual bool IsBuiltinPipeline() const { return false; }
+#endif
+
   PipelineData* data_;
 };
 
@@ -601,6 +605,10 @@ class BuiltinPipeline : public Pipeline {
   explicit BuiltinPipeline(PipelineData* data) : Pipeline(data) {}
 
   void OptimizeBuiltin();
+
+#ifdef DEBUG
+  bool IsBuiltinPipeline() const override { return true; }
+#endif
 };
 
 }  // namespace v8::internal::compiler::turboshaft

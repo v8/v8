@@ -435,6 +435,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
@@ -602,6 +603,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -726,6 +728,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Code serializer.
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
@@ -1083,6 +1086,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -1100,6 +1104,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -1117,6 +1122,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -1428,6 +1434,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1535,6 +1542,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -2011,6 +2019,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -2029,6 +2038,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -2047,6 +2057,7 @@
       {'name': 'v8testing', 'variant': 'maglev_future'},
       {'name': 'v8testing', 'variant': 'stress_maglev'},
       {'name': 'v8testing', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       {'name': 'v8testing', 'variant': 'minor_ms'},
       {'name': 'v8testing', 'variant': 'stress_pinning_scavenger'},
     ],
@@ -2194,6 +2205,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 6},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -2245,6 +2257,7 @@
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'turboshaft_maglev_frontend'},
       # Armv8-a.
       {
         'name': 'mozilla',

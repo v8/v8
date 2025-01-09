@@ -3738,16 +3738,21 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   {
     LocalIsolateScope local_isolate_scope(data.broker(), info,
                                           isolate->main_thread_local_isolate());
-    if (!pipeline.CreateGraph(&linkage)) return {};
-    // We selectively Unpark inside OptimizeTurbofanGraph.
-    if (!pipeline.OptimizeTurbofanGraph(&linkage)) return {};
-
-    // We convert the turbofan graph to turboshaft.
     turboshaft_data.InitializeBrokerAndDependencies(data.broker_ptr(),
                                                     data.dependencies());
-    if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage)) {
-      data.EndPhaseKind();
-      return {};
+
+    if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
+      if (!turboshaft_pipeline.CreateGraphWithMaglev(&linkage)) return {};
+    } else {
+      if (!pipeline.CreateGraph(&linkage)) return {};
+      // We selectively Unpark inside OptimizeTurbofanGraph.
+      if (!pipeline.OptimizeTurbofanGraph(&linkage)) return {};
+
+      // We convert the turbofan graph to turboshaft.
+      if (!turboshaft_pipeline.CreateGraphFromTurbofan(&data, &linkage)) {
+        data.EndPhaseKind();
+        return {};
+      }
     }
 
     if (!turboshaft_pipeline.OptimizeTurboshaftGraph(&linkage)) {
