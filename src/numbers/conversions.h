@@ -72,10 +72,9 @@ constexpr int kDoubleToFixedMaxDigitsBeforePoint = 21;
 // Leave room in the result for appending a minus and a period.
 constexpr int kDoubleToFixedMaxChars =
     kDoubleToFixedMaxDigitsBeforePoint + kMaxFractionDigits + 2;
-// Leave room in the result for appending a minus, for a period, the
-// letter 'e', a minus or a plus depending on the exponent, and a
-// three digit exponent.
-constexpr int kDoubleToPrecisionMaxChars = kMaxFractionDigits + 7;
+// Leave room in the result for appending a minus, for a period, up to 5 zeros
+// padding after the period and a zero in front of the period.
+constexpr int kDoubleToPrecisionMaxChars = kMaxFractionDigits + 8;
 // Leave room in the result for one digit before the period, a minus, a period,
 // the letter 'e', a minus or a plus depending on the exponent, and a three
 // digit exponent.

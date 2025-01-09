@@ -1196,10 +1196,6 @@ std::string_view DoubleToPrecisionStringView(double value, int p,
                                              exponent, negative, p, buffer);
   } else {
     // Use fixed notation.
-    //
-    // Leave room in the result for appending a minus, a period and in
-    // the case where decimal_point is not positive for a zero in
-    // front of the period.
     SimpleStringBuilder builder(buffer.begin(), buffer.length());
     if (negative) builder.AddCharacter('-');
     if (decimal_point <= 0) {
