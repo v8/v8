@@ -50,6 +50,10 @@ describe('Differential fuzzing', () => {
     // Fake fuzzer being called with --input_dir flag.
     this.oldInputDir = program.input_dir;
     program.input_dir = helpers.BASE_DIR;
+
+    // Make remaining places deterministic that don't use global settings, e.g.
+    // try-catch skip behavior.
+    helpers.deterministicRandom(sandbox);
   });
 
   afterEach(() => {
