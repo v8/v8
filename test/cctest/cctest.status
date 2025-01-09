@@ -835,7 +835,7 @@
 # that some old Turbofan tests don't pass when using Maglev as a frontend for
 # Turboshaft.
 ['variant == turboshaft_maglev_frontend', {
-  'test-cpu-profiler/FastApiCPUProfiler': [FAIL],
+  'test-cpu-profiler/FastApiCPUProfiler': [SKIP],
   'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
 }],
 

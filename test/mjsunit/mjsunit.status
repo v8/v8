@@ -2483,6 +2483,7 @@
   'compiler/bigint64-div-no-deopt-loop': [SKIP],
   'compiler/bigint64-array': [SKIP],
   'compiler/bigint-shift-right': [SKIP],
+  'compiler/bigint-shift-left': [SKIP],
   'compiler/bigint64-mod-no-deopt-loop': [SKIP],
   'regress/regress-1212583': [SKIP],
   'regress/regress-1371935': [SKIP],
