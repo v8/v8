@@ -13231,7 +13231,7 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
     merge_states_[target]->MergeDead(*compilation_unit_);
     // If this merge is the last one which kills a loop merge, remove that
     // merge state.
-    if (merge_states_[target]->is_unreachable_loop()) {
+    if (merge_states_[target]->is_unmerged_unreachable_loop()) {
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "! Killing loop merge state at @" << target << std::endl;
       }
@@ -13254,7 +13254,7 @@ void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
     DCHECK_EQ(merge_states_[target]->predecessor_count(),
               predecessor_count(target));
     if (is_loop_effect_tracking_enabled() &&
-        !merge_states_[target]->is_unreachable_loop()) {
+        !merge_states_[target]->is_unmerged_unreachable_loop()) {
       EndLoopEffects(target);
     }
     merge_states_[target]->MergeDeadLoop(*compilation_unit_);

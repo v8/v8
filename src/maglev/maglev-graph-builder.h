@@ -777,8 +777,7 @@ class MaglevGraphBuilder {
           return;
         }
         ProcessMergePointAtExceptionHandlerStart(offset);
-      } else if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
-                 merge_state->is_unreachable_loop()) {
+      } else if (merge_state->is_unmerged_unreachable_loop()) {
         // We encoutered a loop header that is only reachable by the JumpLoop
         // back-edge, but the bytecode_analysis didn't notice upfront. This can
         // e.g. be a loop that is entered on a dead fall-through.

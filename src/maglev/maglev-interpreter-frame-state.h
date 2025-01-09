@@ -941,11 +941,11 @@ class MergePointInterpreterFrameState {
     return is_loop() && predecessors_so_far_ < predecessor_count_;
   }
 
-  bool is_unreachable_loop() const {
+  bool is_unmerged_unreachable_loop() const {
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
-    return is_loop() && !is_resumable_loop() && predecessor_count_ == 1 &&
-           predecessors_so_far_ == 0;
+    return is_unmerged_loop() && !is_resumable_loop() &&
+           predecessor_count_ == 1 && predecessors_so_far_ == 0;
   }
 
   bool IsUnreachable() const;

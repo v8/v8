@@ -167,30 +167,6 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   return node->live_range().end >= target->first_id();
 }
 
-// TODO(dmercadier): this function should never clear any registers, since dead
-// registers should always have been cleared:
-//  - Nodes without uses have their output registers cleared right after their
-//    allocation by `FreeRegistersUsedBy(node)`.
-//  - Once the last use of a Node has been processed, its register is freed (by
-//    UpdateUse, called from Assigned***Input, called by AssignInputs).
-// Thus, this function should DCHECK that all of the registers are live at
-// target, rather than clearing the ones that aren't.
-template <typename RegisterT>
-void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT>& registers,
-                                   ConditionalControlNode* control_node,
-                                   BasicBlock* target) {
-  RegListBase<RegisterT> list = registers.used();
-  while (list != registers.empty()) {
-    RegisterT reg = list.PopFirst();
-    ValueNode* node = registers.GetValue(reg);
-    if (!IsLiveAtTarget(node, control_node, target)) {
-      registers.FreeRegistersUsedBy(node);
-      // Update the registers we're visiting to avoid revisiting this node.
-      list.clear(registers.free());
-    }
-  }
-}
-
 bool IsDeadNodeToSkip(Node* node) {
   if (!node->Is<ValueNode>()) return false;
   ValueNode* value = node->Cast<ValueNode>();
@@ -578,6 +554,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       general_registers_.clear_blocked();
       double_registers_.clear_blocked();
     }
+    DCHECK(AllUsedRegistersLiveAt(block));
     VerifyRegisterState();
 
     node_it_ = block->nodes().begin();
@@ -971,6 +948,38 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
   }
 }
 
+#ifdef DEBUG
+
+bool StraightForwardRegisterAllocator::AllUsedRegistersLiveAt(
+    ConditionalControlNode* control_node, BasicBlock* target) {
+  auto ForAllRegisters = [&](const auto& registers) {
+    for (auto reg : registers.used()) {
+      if (!IsLiveAtTarget(registers.GetValue(reg), control_node, target)) {
+        return false;
+      }
+    }
+    return true;
+  };
+  return ForAllRegisters(general_registers_) &&
+         ForAllRegisters(double_registers_);
+}
+
+bool StraightForwardRegisterAllocator::AllUsedRegistersLiveAt(
+    BasicBlock* target) {
+  auto ForAllRegisters = [&](const auto& registers) {
+    for (auto reg : registers.used()) {
+      if (registers.GetValue(reg)->live_range().end < target->first_id()) {
+        return false;
+      }
+    }
+    return true;
+  };
+  return ForAllRegisters(general_registers_) &&
+         ForAllRegisters(double_registers_);
+}
+
+#endif  // DEBUG
+
 void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
     ConditionalControlNode* control_node, BasicBlock* target) {
   DCHECK(!target->has_phi());
@@ -983,12 +992,8 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
     return InitializeEmptyBlockRegisterValues(control_node, target);
   }
 
-  // Clear dead fall-through registers.
   DCHECK_EQ(control_node->id() + 1, target->first_id());
-  ClearDeadFallthroughRegisters<Register>(general_registers_, control_node,
-                                          target);
-  ClearDeadFallthroughRegisters<DoubleRegister>(double_registers_, control_node,
-                                                target);
+  DCHECK(AllUsedRegistersLiveAt(control_node, target));
 }
 
 void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
@@ -1810,9 +1815,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     DCHECK(!registers.is_blocked(reg));
     DropRegisterValue(registers, reg);
   }
-#ifdef DEBUG
   DCHECK(!registers.free().has(reg));
-#endif
   registers.unblock(reg);
   registers.SetValue(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
@@ -2016,18 +2019,6 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
   AssignArbitraryTemporaries(double_registers_, node);
 }
 
-namespace {
-template <typename RegisterT>
-void ClearRegisterState(RegisterFrameState<RegisterT>& registers) {
-  while (!registers.used().is_empty()) {
-    RegisterT reg = registers.used().first();
-    ValueNode* node = registers.GetValue(reg);
-    registers.FreeRegistersUsedBy(node);
-    DCHECK(!registers.used().has(reg));
-  }
-}
-}  // namespace
-
 template <typename Function>
 void StraightForwardRegisterAllocator::ForEachMergePointRegisterState(
     MergePointRegisterState& merge_point_state, Function&& f) {
@@ -2042,6 +2033,15 @@ void StraightForwardRegisterAllocator::ForEachMergePointRegisterState(
 }
 
 void StraightForwardRegisterAllocator::ClearRegisterValues() {
+  auto ClearRegisterState = [&](auto& registers) {
+    while (!registers.used().is_empty()) {
+      auto reg = registers.used().first();
+      ValueNode* node = registers.GetValue(reg);
+      registers.FreeRegistersUsedBy(node);
+      DCHECK(!registers.used().has(reg));
+    }
+  };
+
   ClearRegisterState(general_registers_);
   ClearRegisterState(double_registers_);
 
