@@ -103,9 +103,9 @@ struct assert_field_size {
 // readability up.
 #ifdef V8_CODE_COMMENTS
 #define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
-#define SCOPED_CODE_COMMENT(str)                                   \
-  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str, \
-                                                       SourceLocation{})
+#define SCOPED_CODE_COMMENT(str)                                \
+  AssemblerBase::CodeComment CONCAT(scoped_comment_, __LINE__)( \
+      &asm_, str, SourceLocation{})
 #else
 #define CODE_COMMENT(str) ((void)0)
 #define SCOPED_CODE_COMMENT(str) ((void)0)
@@ -4416,8 +4416,8 @@ class LiftoffCompiler {
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
+      LiftoffRegList pinned_inner{dst};
+      CheckS128Nan(dst, pinned_inner, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
   }
@@ -4440,8 +4440,8 @@ class LiftoffCompiler {
           ext_ref());
     }
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned{dst};
-      CheckS128Nan(dst, pinned, result_lane_kind);
+      LiftoffRegList pinned_inner{dst};
+      CheckS128Nan(dst, pinned_inner, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
   }

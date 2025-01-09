@@ -43,7 +43,6 @@ ValueOrError EvaluateConstantExpression(
                        ValueType::RefNull(expr.repr()), module);
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
-      const WasmModule* module = trusted_instance_data->module();
       bool function_is_shared =
           module->type(module->functions[index].sig_index).is_shared;
       Handle<WasmFuncRef> value = WasmTrustedInstanceData::GetOrCreateFuncRef(
@@ -69,7 +68,6 @@ ValueOrError EvaluateConstantExpression(
       constexpr bool kIsShared = false;
       FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
       WasmDetectedFeatures detected;
-      const WasmModule* module = trusted_instance_data->module();
       ValueOrError result;
       {
         // We need a scope for the decoder because its destructor resets some

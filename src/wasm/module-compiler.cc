@@ -1614,12 +1614,12 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         if (old_feedback.is_megamorphic()) {
           fm.set_megamorphic();
         }
-        for (int i = 0; i < old_feedback.num_cases(); ++i) {
-          int old_target_function_index = old_feedback.function_index(i);
+        for (int j = 0; j < old_feedback.num_cases(); ++j) {
+          int old_target_function_index = old_feedback.function_index(j);
           // If the new feedback already contains the target, we do not touch
           // the call count.
           if (!fm.HasTargetCached(old_target_function_index)) {
-            fm.AddCall(old_target_function_index, old_feedback.call_count(i));
+            fm.AddCall(old_target_function_index, old_feedback.call_count(j));
             // There shouldn't be any imported functions in there as they can't
             // be inlined. If this DCHECK is invalidated,
             // has_non_inlineable_targets_ would need to be updated here to

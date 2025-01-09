@@ -713,9 +713,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           const StructType* struct_type = type.struct_type;
           buffer->write_u8(kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
-          for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-            WriteValueType(buffer, struct_type->field(i));
-            buffer->write_u8(struct_type->mutability(i) ? 1 : 0);
+          for (uint32_t j = 0; j < struct_type->field_count(); j++) {
+            WriteValueType(buffer, struct_type->field(j));
+            buffer->write_u8(struct_type->mutability(j) ? 1 : 0);
           }
           break;
         }

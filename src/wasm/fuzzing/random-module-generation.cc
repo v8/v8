@@ -4789,9 +4789,6 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, &function_range);
-    const FunctionSig* sig = f->signature();
-    base::Vector<const ValueType> return_types(sig->returns().begin(),
-                                               sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
     if (i == 0) {
       // For the inner-most inlinee, emit the deopt point (e.g. a call_ref).
@@ -4818,9 +4815,6 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, &function_range);
-    const FunctionSig* sig = f->signature();
-    base::Vector<const ValueType> return_types(sig->returns().begin(),
-                                               sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
     // Store the call target
     f->EmitWithU32V(kExprLocalGet, 0);
@@ -4852,10 +4846,10 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, &function_range);
     const FunctionSig* sig = f->signature();
-    base::Vector<const ValueType> return_types(sig->returns().begin(),
-                                               sig->return_count());
+    base::Vector<const ValueType> target_return_types(sig->returns().begin(),
+                                                      sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
-    gen_body.Generate(return_types, &function_range);
+    gen_body.Generate(target_return_types, &function_range);
 
     f->Emit(kExprEnd);
     auto buffer = zone->AllocateVector<char>(32);

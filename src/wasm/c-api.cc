@@ -1333,10 +1333,10 @@ WASM_EXPORT auto Module::serialize() const -> vec<byte_t> {
     // modifies the {NativeModule} concurrently. In this case, the serialized
     // module just contains the wire bytes.
     buffer = vec<byte_t>::make_uninitialized(size_size + binary_size);
-    byte_t* ptr = buffer.get();
-    i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&ptr),
+    byte_t* pointer = buffer.get();
+    i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&pointer),
                                    binary_size);
-    std::memcpy(ptr, wire_bytes.begin(), binary_size);
+    std::memcpy(pointer, wire_bytes.begin(), binary_size);
   }
   return buffer;
 }
@@ -2050,7 +2050,6 @@ WASM_EXPORT auto Global::get() const -> Val {
       // TODO(14034): Handle types other than funcref and externref if needed.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
-      v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
       if (IsWasmFuncRef(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(i::direct_handle(

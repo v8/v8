@@ -1836,7 +1836,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
                                    V<WordPtr> offset, DataViewOp op_type) {
     Label<WordPtr> done_label(&asm_);
-    Label<> rab_ltgsab_label(&asm_);
     Label<> type_error_label(&asm_);
 
     GOTO_IF(UNLIKELY(__ IsSmi(dataview)), type_error_label);
@@ -1845,21 +1844,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     //  - non-resizable ArrayBuffers, length-tracking and non-length-tracking
     //  - non-growable SharedArrayBuffers, length-tracking and non-length-tr.
     //  - growable SharedArrayBuffers, non-length-tracking
-    GOTO_IF_NOT(
-        LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE)),
-        rab_ltgsab_label);
-    if (op_type != DataViewOp::kByteLength) {
-      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+    IF (LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE))) {
+      if (op_type != DataViewOp::kByteLength) {
+        DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+      }
+      DataViewDetachedBufferCheck(decoder, dataview, op_type);
+      V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
+          dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
+      GOTO(done_label, view_byte_length);
     }
-    DataViewDetachedBufferCheck(decoder, dataview, op_type);
-    V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
-        dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
-    GOTO(done_label, view_byte_length);
 
     // Case 2):
     // - resizable ArrayBuffers, length-tracking and non-length-tracking
     // - growable SharedArrayBuffers, length-tracking
-    BIND(rab_ltgsab_label);
     GOTO_IF_NOT(LIKELY(__ HasInstanceType(
                     dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE)),
                 type_error_label);
@@ -2839,11 +2836,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // as the last "target check" already uses a `DeoptIfNot` node.
           Deopt(decoder, frame_state);
         } else {
-          auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
-              decoder, index_wordptr, imm);
+          auto [call_target, call_implicit_arg] =
+              BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr,
+                                                    imm);
           SmallZoneVector<Value, 4> indirect_returns(return_count,
                                                      decoder->zone_);
-          BuildWasmCall(decoder, imm.sig, target, implicit_arg, args,
+          BuildWasmCall(decoder, imm.sig, call_target, call_implicit_arg, args,
                         indirect_returns.data(),
                         compiler::kWasmIndirectFunction);
           for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
@@ -3680,7 +3678,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                       MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(
         __ LoadFixedArrayElement(instance_tags, imm.index));
-    TSBlock* if_catch = __ NewBlock();
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
@@ -3729,6 +3726,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // exception.
       values[0].op = caught_exception;
     } else {
+      TSBlock* if_catch = __ NewBlock();
       __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
                 if_catch, if_no_catch);
       __ Bind(if_catch);
@@ -3814,7 +3812,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                       MemoryRepresentation::TaggedPointer());
     auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
         instance_tags, catch_case.maybe_tag.tag_imm.index));
-    TSBlock* if_catch = __ NewBlock();
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
@@ -3869,6 +3866,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // exception.
       values[0].op = caught_exception;
     } else {
+      TSBlock* if_catch = __ NewBlock();
       __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
                 if_catch, if_no_catch);
       __ Bind(if_catch);

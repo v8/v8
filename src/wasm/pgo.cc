@@ -111,13 +111,13 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
   CHECK_LE(num_entries, module->num_declared_functions);
   for (uint32_t missing_entries = num_entries; missing_entries > 0;
        --missing_entries) {
-    FunctionTypeFeedback feedback;
+    FunctionTypeFeedback function_feedback;
     uint32_t function_index = decoder.consume_u32v("function index");
     // Deserialize {feedback_vector}.
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
-    feedback.feedback_vector.resize(feedback_vector_size);
-    for (CallSiteFeedback& feedback : feedback.feedback_vector) {
+    function_feedback.feedback_vector.resize(feedback_vector_size);
+    for (CallSiteFeedback& feedback : function_feedback.feedback_vector) {
       int num_cases = decoder.consume_i32v("num cases");
       if (num_cases == 0) continue;  // no feedback
       if (num_cases == 1) {          // monomorphic
@@ -137,23 +137,24 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
     }
     // Deserialize {call_targets}.
     uint32_t num_call_targets = decoder.consume_u32v("num call targets");
-    feedback.call_targets =
+    function_feedback.call_targets =
         base::OwnedVector<uint32_t>::NewForOverwrite(num_call_targets);
-    for (uint32_t& call_target : feedback.call_targets) {
+    for (uint32_t& call_target : function_feedback.call_targets) {
       call_target = decoder.consume_u32v("call target");
     }
 
     // Finally, insert the new feedback into the map. Overwrite existing
     // feedback, but check for consistency.
-    auto [feedback_it, is_new] =
-        feedback_for_function.emplace(function_index, std::move(feedback));
+    auto [feedback_it, is_new] = feedback_for_function.emplace(
+        function_index, std::move(function_feedback));
     if (!is_new) {
       FunctionTypeFeedback& old_feedback = feedback_it->second;
       CHECK(old_feedback.feedback_vector.empty() ||
             old_feedback.feedback_vector.size() == feedback_vector_size);
       CHECK_EQ(old_feedback.call_targets.as_vector(),
-               feedback.call_targets.as_vector());
-      std::swap(old_feedback.feedback_vector, feedback.feedback_vector);
+               function_feedback.call_targets.as_vector());
+      std::swap(old_feedback.feedback_vector,
+                function_feedback.feedback_vector);
     }
   }
 }

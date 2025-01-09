@@ -1095,8 +1095,8 @@ class WasmGraphBuildingInterface {
       ssa_env_->control = success_control;
       Value* returns_direct =
           decoder->zone()->AllocateArray<Value>(sig->return_count());
-      for (size_t i = 0; i < sig->return_count(); i++) {
-        returns_direct[i].type = returns[i].type;
+      for (size_t j = 0; j < sig->return_count(); j++) {
+        returns_direct[j].type = returns[j].type;
       }
       DoCall(decoder,
              CallInfo::CallDirect(expected_function_index,

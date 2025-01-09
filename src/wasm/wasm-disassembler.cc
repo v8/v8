@@ -1027,7 +1027,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
         WasmEnabledFeatures::All(), wire_bytes_.module_bytes(),
         ModuleOrigin::kWasmOrigin, &unused_detected_features);
     decoder.consume_bytes(elem.elements_wire_bytes_offset);
-    for (size_t i = 0; i < elem.element_count; i++) {
+    for (size_t j = 0; j < elem.element_count; j++) {
       ConstantExpression entry = decoder.consume_element_segment_entry(
           const_cast<WasmModule*>(module_), elem);
       PrintInitExpression(entry, elem.type);

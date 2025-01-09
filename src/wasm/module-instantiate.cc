@@ -765,13 +765,14 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (!data->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
-    uint32_t func_index = static_cast<uint32_t>(data->function_index());
-    if (func_index >= data->instance_data()->module()->num_imported_functions) {
+    uint32_t function_index = static_cast<uint32_t>(data->function_index());
+    if (function_index >=
+        data->instance_data()->module()->num_imported_functions) {
       return ImportCallKind::kWasmToWasm;
     }
     // Resolve the shortcut to the underlying callable and continue.
     ImportedFunctionEntry entry(handle(data->instance_data(), isolate),
-                                func_index);
+                                function_index);
     suspend_ = Cast<WasmImportData>(entry.implicit_arg())->suspend();
     SetCallable(isolate, entry.callable());
   }
@@ -1315,10 +1316,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                    static_cast<int>(module_->types.size()))
              : Handle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
-    bool shared = module_->types[index].is_shared;
+    bool type_is_shared = module_->types[index].is_shared;
     CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
-                     shared ? shared_trusted_data : trusted_data,
-                     instance_object, shared ? shared_maps : non_shared_maps);
+                     type_is_shared ? shared_trusted_data : trusted_data,
+                     instance_object,
+                     type_is_shared ? shared_maps : non_shared_maps);
   }
   trusted_data->set_managed_object_maps(*non_shared_maps);
   if (shared) shared_trusted_data->set_managed_object_maps(*shared_maps);

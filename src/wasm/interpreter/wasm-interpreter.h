@@ -1260,8 +1260,8 @@ class WasmEHData {
           delegate_try_index(-1),
           end_instruction_code_offset(0) {}
 
-    void SetDelegated(BlockIndex delegate_try_index) {
-      this->delegate_try_index = delegate_try_index;
+    void SetDelegated(BlockIndex delegate_try_idx) {
+      this->delegate_try_index = delegate_try_idx;
     }
     bool IsTryDelegate() const { return delegate_try_index >= 0; }
 

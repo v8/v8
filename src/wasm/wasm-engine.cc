@@ -1511,18 +1511,18 @@ void WasmEngine::DisableCodeLogging(NativeModule* native_module) {
 void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
   // Under the mutex, get the vector of wasm code to log. Then log and decrement
   // the ref count without holding the mutex.
-  std::unordered_map<int, IsolateInfo::CodeToLogPerScript> code_to_log;
+  std::unordered_map<int, IsolateInfo::CodeToLogPerScript> code_to_log_map;
   {
     base::SpinningMutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
-    code_to_log.swap(isolates_[isolate]->code_to_log);
+    code_to_log_map.swap(isolates_[isolate]->code_to_log);
   }
 
   // Check again whether we still need to log code.
   bool should_log = WasmCode::ShouldBeLogged(isolate);
 
   TRACE_EVENT0("v8.wasm", "wasm.LogCode");
-  for (auto& [script_id, code_to_log] : code_to_log) {
+  for (auto& [script_id, code_to_log] : code_to_log_map) {
     for (WasmCode* code : code_to_log.code) {
       if (should_log) {
         const char* source_url = code_to_log.source_url.get();

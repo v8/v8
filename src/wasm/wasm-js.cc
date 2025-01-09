@@ -2143,10 +2143,8 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
           i::Tagged<i::WasmTrustedInstanceData> wtid =
               tag_object->trusted_data(i_isolate);
           const i::wasm::WasmModule* module = wtid->module();
-          i::wasm::CanonicalTypeIndex index =
-              module->canonical_type_id(type.ref_index());
-          canonical_type =
-              i::wasm::CanonicalValueType::FromIndex(type.kind(), index);
+          canonical_type = i::wasm::CanonicalValueType::FromIndex(
+              type.kind(), module->canonical_type_id(type.ref_index()));
         } else {
           canonical_type = i::wasm::CanonicalValueType{type};
         }
