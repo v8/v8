@@ -919,9 +919,9 @@ class MaglevCodeGeneratingNodeProcessor {
           continue;
         }
         Input& input = phi->input(state.block()->predecessor_id());
-        ValueNode* node = input.node();
+        ValueNode* input_node = input.node();
         compiler::InstructionOperand source = input.operand();
-        compiler::AllocatedOperand target =
+        compiler::AllocatedOperand target_operand =
             compiler::AllocatedOperand::cast(phi->result().operand());
         if (v8_flags.code_comments) {
           std::stringstream ss;
@@ -931,16 +931,18 @@ class MaglevCodeGeneratingNodeProcessor {
         }
         if (phi->use_double_register()) {
           DCHECK(!phi->decompresses_tagged_result());
-          double_register_moves.RecordMove(node, source, target, false);
+          double_register_moves.RecordMove(input_node, source, target_operand,
+                                           false);
         } else {
-          register_moves.RecordMove(node, source, target,
+          register_moves.RecordMove(input_node, source, target_operand,
                                     kDoesNotNeedDecompression);
         }
-        if (target.IsAnyRegister()) {
+        if (target_operand.IsAnyRegister()) {
           if (phi->use_double_register()) {
-            double_registers_set_by_phis.set(target.GetDoubleRegister());
+            double_registers_set_by_phis.set(
+                target_operand.GetDoubleRegister());
           } else {
-            registers_set_by_phis.set(target.GetRegister());
+            registers_set_by_phis.set(target_operand.GetRegister());
           }
         }
       }
@@ -1642,8 +1644,8 @@ class MaglevFrameTranslationBuilder {
     }
 
     // Context
-    ValueNode* value = checkpoint_state->context(compilation_unit);
-    BuildDeoptFrameSingleValue(value, input_location, virtual_objects);
+    ValueNode* context_value = checkpoint_state->context(compilation_unit);
+    BuildDeoptFrameSingleValue(context_value, input_location, virtual_objects);
 
     // Locals
     {

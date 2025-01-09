@@ -4032,7 +4032,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
     compiler::FeedbackSource feedback_source{feedback(), slot};
     return BuildLoadGlobal(name, feedback_source, TypeofMode::kNotInside);
   } else {
-    ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+    ValueNode* name_node = GetConstant(name);
     ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
     ValueNode* depth =
         GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
@@ -4040,10 +4040,10 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
     if (parent_) {
       ValueNode* vector = GetConstant(feedback());
       result = BuildCallBuiltin<Builtin::kLookupGlobalIC>(
-          {name, depth, slot, vector});
+          {name_node, depth, slot, vector});
     } else {
       result = BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
-          {name, depth, slot});
+          {name_node, depth, slot});
     }
     SetAccumulator(result);
     return ReduceResult::Done();
@@ -4772,9 +4772,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
 #ifdef DEBUG
     // Double check that, for every possible map, it's one of the maps we'd
     // want to check.
-    for (compiler::MapRef map :
+    for (compiler::MapRef possible_map :
          known_node_aspects().TryGetInfoFor(object)->possible_maps()) {
-      DCHECK_NE(std::find(maps.begin(), maps.end(), map), maps.end());
+      DCHECK_NE(std::find(maps.begin(), maps.end(), possible_map), maps.end());
     }
 #endif
     return ReduceResult::Done();
@@ -9439,12 +9439,12 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceNumberParseInt(
     return GetRootConstant(RootIndex::kNanValue);
   }
   if (args.count() != 1) {
-    if (RootConstant* c = args[1]->TryCast<RootConstant>()) {
-      if (c->index() != RootIndex::kUndefinedValue) {
+    if (RootConstant* root_cst = args[1]->TryCast<RootConstant>()) {
+      if (root_cst->index() != RootIndex::kUndefinedValue) {
         return {};
       }
-    } else if (SmiConstant* c = args[1]->TryCast<SmiConstant>()) {
-      if (c->value().value() != 10 && c->value().value() != 0) {
+    } else if (SmiConstant* smi_cst = args[1]->TryCast<SmiConstant>()) {
+      if (smi_cst->value().value() != 10 && smi_cst->value().value() != 0) {
         return {};
       }
     } else {
@@ -10414,15 +10414,15 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
   // If the implementation here becomes more complex, we could probably
   // deduplicate the code for FastCreateClosure and CreateClosure by using
   // templates or giving them a shared base class.
-  if (FastCreateClosure* create_closure =
+  if (FastCreateClosure* fast_create_closure =
           target_node->TryCast<FastCreateClosure>()) {
     MaybeReduceResult result = TryReduceCallForNewClosure(
-        create_closure, create_closure->context().node(),
+        fast_create_closure, fast_create_closure->context().node(),
 #ifdef V8_ENABLE_LEAPTIERING
-        create_closure->feedback_cell().dispatch_handle(),
+        fast_create_closure->feedback_cell().dispatch_handle(),
 #endif
-        create_closure->shared_function_info(),
-        create_closure->feedback_cell().feedback_vector(broker()), args,
+        fast_create_closure->shared_function_info(),
+        fast_create_closure->feedback_cell().feedback_vector(broker()), args,
         feedback_source);
     RETURN_IF_DONE(result);
   } else if (CreateClosure* create_closure =

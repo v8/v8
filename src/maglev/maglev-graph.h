@@ -193,10 +193,10 @@ class Graph final : public ZoneObject {
       compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
           load->input(0).node(), load->offset(), broker);
       if (cur.has_value()) res = cur;
-    } else if (auto load =
+    } else if (auto load_script =
                    context->TryCast<LoadTaggedFieldForScriptContextSlot>()) {
       compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
-          load->input(0).node(), load->offset(), broker);
+          load_script->input(0).node(), load_script->offset(), broker);
       if (cur.has_value()) res = cur;
     } else if (context->Is<InitialValue>()) {
       // We should only fail to keep track of initial contexts originating from

@@ -108,17 +108,17 @@ void DeepForVirtualObject(VirtualObject* vobject,
         UNREACHABLE();
       case Opcode::kInlinedAllocation: {
         InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-        VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-        CHECK_NOT_NULL(vobject);
+        VirtualObject* inner_vobject = virtual_objects.FindAllocatedWith(alloc);
+        CHECK_NOT_NULL(inner_vobject);
         // Check if it has escaped.
         if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
           input_location++;  // Reserved for the inlined allocation.
-          DeepForVirtualObject<mode>(vobject, input_location, virtual_objects,
-                                     f);
+          DeepForVirtualObject<mode>(inner_vobject, input_location,
+                                     virtual_objects, f);
         } else {
           f(alloc, input_location);
           input_location +=
-              vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+              inner_vobject->InputLocationSizeNeeded(virtual_objects) + 1;
         }
         break;
       }

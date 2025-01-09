@@ -6733,7 +6733,6 @@ void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
   MemOperand operand =
       __ TypedArrayElementOperand(data_pointer, index, element_size);
   if constexpr (std::is_same_v<ValueReg, Register>) {
-    int element_size = ElementsKindToByteSize(kind);
     __ StoreField(operand, value, element_size);
   } else {
 #ifdef DEBUG
