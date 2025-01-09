@@ -3264,6 +3264,9 @@ wasm::WasmCompilationResult WrapperCompilationResult(
   result.result_tier = wasm::ExecutionTier::kTurbofan;
   if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
     result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+    result.signature_hash = call_descriptor->signature_hash();
+  } else if (kind == CodeKind::WASM_TO_CAPI_FUNCTION) {
+    result.signature_hash = call_descriptor->signature_hash();
   }
   return result;
 }

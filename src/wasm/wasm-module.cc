@@ -216,18 +216,6 @@ WasmModule::WasmModule(ModuleOrigin origin)
     : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
       origin(origin) {}
 
-uint64_t WasmModule::signature_hash(const TypeCanonicalizer* type_canonicalizer,
-                                    uint32_t function_index) const {
-  if (function_index >= functions.size()) {
-    return kInvalidWasmSignatureHash;
-  }
-
-  CanonicalTypeIndex canonical_type_id =
-      canonical_sig_id(functions[function_index].sig_index);
-  return type_canonicalizer->LookupFunctionSignature(canonical_type_id)
-      ->signature_hash();
-}
-
 bool IsWasmCodegenAllowed(Isolate* isolate,
                           DirectHandle<NativeContext> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a

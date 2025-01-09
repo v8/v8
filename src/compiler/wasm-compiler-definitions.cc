@@ -71,7 +71,8 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
   CallDescriptor::Kind descriptor_kind;
-  uint64_t signature_hash = kInvalidWasmSignatureHash;
+
+  uint64_t signature_hash = wasm::SignatureHasher::Hash(fsig);
 
   switch (call_kind) {
     case kWasmFunction:
@@ -79,7 +80,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
       break;
     case kWasmIndirectFunction:
       descriptor_kind = CallDescriptor::kCallWasmFunctionIndirect;
-      signature_hash = wasm::SignatureHasher::Hash(fsig);
       break;
     case kWasmImportWrapper:
       descriptor_kind = CallDescriptor::kCallWasmImportWrapper;

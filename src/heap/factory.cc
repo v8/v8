@@ -1810,8 +1810,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   DirectHandle<TrustedManaged<WasmJSFunctionData::OffheapData>> offheap_data =
       TrustedManaged<WasmJSFunctionData::OffheapData>::From(
           isolate(), kOffheapDataSizeEstimate,
-          std::make_shared<WasmJSFunctionData::OffheapData>(
-              sig->signature_hash()));
+          std::make_shared<WasmJSFunctionData::OffheapData>());
 
   DirectHandle<WasmInternalFunction> internal =
       NewWasmInternalFunction(import_data, -1);

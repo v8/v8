@@ -32,6 +32,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -566,9 +567,7 @@ void WasmTableObject::UpdateDispatchTable(
   }
   if (target_instance_data->dispatch_table_for_imports()->IsAWrapper(
           func->func_index)) {
-    uint64_t signature_hash = wasm::GetTypeCanonicalizer()
-                                  ->LookupFunctionSignature(sig_id)
-                                  ->signature_hash();
+    uint64_t signature_hash = wasm::SignatureHasher::Hash(func->sig);
     dispatch_table->SetForWrapper(
         entry_index, *implicit_arg,
         wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
@@ -638,7 +637,6 @@ void WasmTableObject::UpdateDispatchTable(
     const wasm::CanonicalSig* sig =
         wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
             sig_id);
-    signature_hash = sig->signature_hash();
     wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_id,
                                       wasm::WellKnownImport::kUninstantiated);
     wasm::ImportCallKind kind = resolved.kind();
@@ -654,7 +652,7 @@ void WasmTableObject::UpdateDispatchTable(
     wasm_code = cache->MaybeGet(kind, sig_id, expected_arity, suspend);
     if (wasm_code) {
       call_target = wasm_code->instruction_start();
-      DCHECK_EQ(sig->signature_hash(), wasm_code->signature_hash());
+      signature_hash = wasm_code->signature_hash();
     } else {
       // We still don't have a compiled wrapper. Allocate a new import_data
       // so we can store the proper call_origin for later wrapper tier-up.
@@ -665,6 +663,7 @@ void WasmTableObject::UpdateDispatchTable(
       import_data = isolate->factory()->NewWasmImportData(
           callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
       import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
+      signature_hash = wasm::SignatureHasher::Hash(sig);
     }
   }
 
@@ -705,8 +704,7 @@ void WasmTableObject::UpdateDispatchTable(
       wasm::WasmImportWrapperCache::CacheKey key(kind, sig_index, param_count,
                                                  wasm::kNoSuspend);
       wasm_code = cache_scope.AddWrapper(
-          key, std::move(result), wasm::WasmCode::Kind::kWasmToCapiWrapper,
-          sig->signature_hash());
+          key, std::move(result), wasm::WasmCode::Kind::kWasmToCapiWrapper);
     }
     // To avoid lock order inversion, code printing must happen after the
     // end of the {cache_scope}.
@@ -1343,8 +1341,9 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
       instance_data_->dispatch_table_for_imports(), index_);
   DisallowGarbageCollection no_gc;
 
+  uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
   instance_data_->dispatch_table_for_imports()->SetForWrapper(
-      index_, *import_data, wrapper_entry, sig_id, sig->signature_hash(),
+      index_, *import_data, wrapper_entry, sig_id, signature_hash,
 #if V8_ENABLE_DRUMBRAKE
       WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -1373,14 +1372,14 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
   DCHECK_EQ(v8_flags.wasm_jitless, wasm_to_js_wrapper == nullptr);
-  DCHECK_IMPLIES(wasm_to_js_wrapper != nullptr,
-                 wasm_to_js_wrapper->signature_hash() == sig->signature_hash());
-
+  uint64_t signature_hash = wasm_to_js_wrapper
+                                ? wasm_to_js_wrapper->signature_hash()
+                                : wasm::SignatureHasher::Hash(sig);
   dispatch_table->SetForWrapper(
       index_, *import_data,
       v8_flags.wasm_jitless ? Address{}
                             : wasm_to_js_wrapper->instruction_start(),
-      sig_id, sig->signature_hash(),
+      sig_id, signature_hash,
 #if V8_ENABLE_DRUMBRAKE
       WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -2894,15 +2893,19 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   if (!wasm::IsJSCompatibleSignature(canonical_sig)) {
     Address builtin_entry =
         Builtins::EntryOf(Builtin::kWasmToJsWrapperInvalidSig, isolate);
+    uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
     WasmCodePointer wrapper_code_pointer =
-        function_data->offheap_data()->set_generic_wrapper(builtin_entry);
+        function_data->offheap_data()->set_generic_wrapper(builtin_entry,
+                                                           signature_hash);
     internal_function->set_call_target(wrapper_code_pointer);
 #if V8_ENABLE_DRUMBRAKE
   } else if (v8_flags.wasm_jitless) {
     Address builtin_entry =
         Builtins::EntryOf(Builtin::kGenericWasmToJSInterpreterWrapper, isolate);
+    uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
     WasmCodePointer wrapper_code_pointer =
-        function_data->offheap_data()->set_generic_wrapper(builtin_entry);
+        function_data->offheap_data()->set_generic_wrapper(builtin_entry,
+                                                           signature_hash);
     internal_function->set_call_target(wrapper_code_pointer);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else {
@@ -2935,8 +2938,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     } else if (UseGenericWasmToJSWrapper(kind, canonical_sig, suspend)) {
       Address code_entry =
           Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
-      code_pointer =
-          function_data->offheap_data()->set_generic_wrapper(code_entry);
+
+      uint64_t signature_hash = wasm::SignatureHasher::Hash(sig);
+      code_pointer = function_data->offheap_data()->set_generic_wrapper(
+          code_entry, signature_hash);
     } else {
       // Initialize the import wrapper cache if that hasn't happened yet.
       cache->LazyInitialize(isolate);
@@ -2976,7 +2981,6 @@ WasmCodePointer WasmJSFunctionData::OffheapData::set_compiled_wrapper(
   DCHECK_NULL(wrapper_);  // We shouldn't overwrite existing wrappers.
   wrapper_ = wrapper;
   wrapper->IncRef();
-  DCHECK_EQ(wrapper->signature_hash(), signature_hash_);
   if (wrapper_code_pointer_ == wasm::kInvalidWasmCodePointer) {
     wrapper_code_pointer_ =
         wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
@@ -2990,11 +2994,11 @@ WasmCodePointer WasmJSFunctionData::OffheapData::set_compiled_wrapper(
 }
 
 WasmCodePointer WasmJSFunctionData::OffheapData::set_generic_wrapper(
-    Address code_entry) {
+    Address code_entry, uint64_t signature_hash) {
   DCHECK_EQ(wrapper_code_pointer_, wasm::kInvalidWasmCodePointer);
   wrapper_code_pointer_ =
       wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
-          code_entry, signature_hash_);
+          code_entry, signature_hash);
   return wrapper_code_pointer_;
 }
 

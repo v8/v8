@@ -76,6 +76,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   WasmCompilationResult result;
+  result.signature_hash = SignatureHasher::Hash(func->sig);
   int declared_index = declared_function_index(env->module, func_index_);
 
   switch (tier_) {

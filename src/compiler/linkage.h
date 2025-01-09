@@ -112,8 +112,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
                  const RegList allocatable_registers = {},
-                 size_t return_slot_count = 0,
-                 uint64_t signature_hash = kInvalidWasmSignatureHash)
+                 size_t return_slot_count = 0, uint64_t signature_hash = -1)
       : kind_(kind),
         tag_(tag),
         target_type_(target_type),
@@ -131,7 +130,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         signature_hash_(signature_hash) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     if (kind == Kind::kCallWasmFunctionIndirect) {
-      CHECK_NE(signature_hash, kInvalidWasmSignatureHash);
+      CHECK_NE(signature_hash, -1);
     }
 #endif
   }
@@ -145,7 +144,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns the entrypoint tag for this call.
   CodeEntrypointTag tag() const { return tag_; }
 
-  uint64_t signature_hash() const;
+  uint64_t signature_hash() const { return signature_hash_; }
 
   // Returns the entrypoint tag for this call, shifted to the right by
   // kCodeEntrypointTagShift so that it fits into a 32-bit immediate.

@@ -8406,11 +8406,7 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
-    bool needs_indirect_call = imm.index < env_->module->num_imported_functions;
-    auto call_descriptor = compiler::GetWasmCallDescriptor(
-        zone_, imm.sig,
-        needs_indirect_call ? compiler::kWasmIndirectFunction
-                            : compiler::kWasmFunction);
+    auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
     // One slot would be enough for call_direct, but would make index
@@ -8420,7 +8416,7 @@ class LiftoffCompiler {
       encountered_call_instructions_.push_back(imm.index);
     }
 
-    if (needs_indirect_call) {
+    if (imm.index < env_->module->num_imported_functions) {
       // A direct call to an imported function.
       FUZZER_HEAVY_INSTRUCTION;
       LiftoffRegList pinned;
@@ -9471,6 +9467,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.for_debugging = compiler_options.for_debugging;
   result.frame_has_feedback_slot = v8_flags.wasm_inlining;
   result.liftoff_frame_descriptions = compiler->ReleaseFrameDescriptions();
+  result.signature_hash = lowered_call_desc->signature_hash();
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }

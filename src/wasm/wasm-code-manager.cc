@@ -38,6 +38,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/pgo.h"
+#include "src/wasm/signature-hashing.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-builtin-list.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
@@ -1176,10 +1177,12 @@ void NativeModule::InitializeJumpTableForLazyCompilation(
   WasmCodePointerTable::WriteScope write_scope(
       "Initialize WasmCodePointerTable");
   DCHECK_LE(num_wasm_functions, code_pointer_handles_size_);
-  TypeCanonicalizer* type_canonicalizer = GetTypeCanonicalizer();
   for (uint32_t i = 0; i < num_wasm_functions; i++) {
-    uint64_t signature_hash = module_->signature_hash(
-        type_canonicalizer, module_->num_imported_functions + i);
+    uint64_t signature_hash =
+        module_->num_imported_functions + i < module_->functions.size()
+            ? SignatureHasher::Hash(
+                  module_->functions[module_->num_imported_functions + i].sig)
+            : -1;
     code_pointer_table->SetEntrypointWithWriteScope(
         code_pointer_handles_[i],
         code_space_data.jump_table->instruction_start() +
@@ -1209,7 +1212,7 @@ void NativeModule::UseLazyStubLocked(uint32_t func_index) {
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
   uint64_t signature_hash =
-      module_->signature_hash(GetTypeCanonicalizer(), func_index);
+      SignatureHasher::Hash(module_->functions[func_index].sig);
   PatchJumpTablesLocked(slot_index, lazy_compile_target, jump_table_target,
                         signature_hash);
 }
@@ -1347,7 +1350,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   if (tier == ExecutionTier::kLiftoff) reloc_info = {};
 
   uint64_t signature_hash =
-      module_->signature_hash(GetTypeCanonicalizer(), index);
+      SignatureHasher::Hash(module_->functions[index].sig);
 
   std::unique_ptr<WasmCode> code{new WasmCode{this,
                                               index,
@@ -1589,7 +1592,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
   UpdateCodeSize(instructions.size(), tier, kNotForDebugging);
 
   uint64_t signature_hash =
-      module_->signature_hash(GetTypeCanonicalizer(), index);
+      SignatureHasher::Hash(module_->functions[index].sig);
 
   return std::unique_ptr<WasmCode>{new WasmCode{this,
                                                 index,
