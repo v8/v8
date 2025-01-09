@@ -152,7 +152,7 @@ class Int64LoweringReducer : public Next {
                            base::Vector<const OpIndex> arguments,
                            const TSCallDescriptor* descriptor) {
     const bool is_tail_call = true;
-    OpIndex frame_state = OpIndex::Invalid();
+    OptionalV<FrameState> frame_state = OptionalV<FrameState>::Nullopt();
     return LowerCall(callee, frame_state, arguments, descriptor,
                      OpEffects().CanCallAnything(), is_tail_call);
   }

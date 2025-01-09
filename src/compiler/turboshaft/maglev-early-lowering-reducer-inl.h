@@ -70,7 +70,7 @@ class MaglevEarlyLoweringReducer : public Next {
   }
 
   V<InternalizedString> CheckedInternalizedString(
-      V<Object> object, OpIndex frame_state, bool check_smi,
+      V<Object> object, V<FrameState> frame_state, bool check_smi,
       const FeedbackSource& feedback) {
     if (check_smi) {
       __ DeoptimizeIf(__ IsSmi(object), frame_state, DeoptimizeReason::kSmi,

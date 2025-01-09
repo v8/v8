@@ -3692,8 +3692,8 @@ class TurboshaftAssemblerOpInterface
         isolate, context, {object});
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
-      Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<
         typename BuiltinCallDescriptor::FastNewFunctionContextFunction>(
@@ -3701,8 +3701,8 @@ class TurboshaftAssemblerOpInterface
         lazy_deopt_on_throw);
   }
   V<Context> CallBuiltin_FastNewFunctionContextEval(
-      Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
+      Isolate* isolate, V<turboshaft::FrameState> frame_state,
+      V<Context> context, V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
     return CallBuiltin<
         typename BuiltinCallDescriptor::FastNewFunctionContextEval>(

@@ -1317,7 +1317,7 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
-      OpIndex frame_state_idx = OpIndex::Invalid();
+      OptionalV<FrameState> frame_state_idx = OptionalV<FrameState>::Nullopt();
       if (call_descriptor->NeedsFrameState()) {
         compiler::FrameState frame_state{
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};

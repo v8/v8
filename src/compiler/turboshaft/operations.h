@@ -1516,11 +1516,11 @@ struct ToNumberOrNumericOp : FixedArityOperationT<3, ToNumberOrNumericOp> {
   }
 
   V<Object> input() const { return Base::input<Object>(0); }
-  OpIndex frame_state() const { return Base::input(1); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(1); }
   V<Context> context() const { return Base::input<Context>(2); }
 
-  ToNumberOrNumericOp(V<Object> input, OpIndex frame_state, V<Context> context,
-                      Object::Conversion kind,
+  ToNumberOrNumericOp(V<Object> input, V<FrameState> frame_state,
+                      V<Context> context, Object::Conversion kind,
                       LazyDeoptOnThrow lazy_deopt_on_throw)
       : Base(input, frame_state, context),
         kind(kind),
@@ -6637,10 +6637,10 @@ struct SpeculativeNumberBinopOp
 
   OpIndex left() const { return Base::input(0); }
   OpIndex right() const { return Base::input(1); }
-  OpIndex frame_state() const { return Base::input(2); }
+  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
 
-  SpeculativeNumberBinopOp(OpIndex left, OpIndex right, OpIndex frame_state,
-                           Kind kind)
+  SpeculativeNumberBinopOp(OpIndex left, OpIndex right,
+                           V<FrameState> frame_state, Kind kind)
       : Base(left, right, frame_state), kind(kind) {}
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
