@@ -163,6 +163,12 @@ void ConservativeStackVisitorBase<
     VisitConservativelyIfPointer(address, code_cage_base_);
 #endif  // V8_EXTERNAL_CODE_SPACE
   }
+#ifdef V8_ENABLE_SANDBOX
+  if (TrustedSpaceCompressionScheme::GetPtrComprCageBaseAddress(address) ==
+      trusted_cage_base_.address()) {
+    VisitConservativelyIfPointer(address, trusted_cage_base_);
+  }
+#endif  // V8_ENABLE_SANDBOX
 #else   // !V8_COMPRESS_POINTERS
   VisitConservativelyIfPointer(address, cage_base_);
 #endif  // V8_COMPRESS_POINTERS
