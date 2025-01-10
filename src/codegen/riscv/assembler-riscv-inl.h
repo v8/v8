@@ -407,14 +407,14 @@ void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
 }
 
 [[nodiscard]] static inline Instr SetHi20Offset(int32_t hi20, Instr instr) {
-  DCHECK(Assembler::IsAuipc(instr) | Assembler::IsLui(instr));
+  DCHECK(Assembler::IsAuipc(instr) || Assembler::IsLui(instr));
   DCHECK(is_int20(hi20));
   instr = (instr & ~kImm31_12Mask) | ((hi20 & kImm19_0Mask) << 12);
   return instr;
 }
 
 [[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr) {
-  DCHECK(Assembler::IsJalr(instr) | Assembler::IsAddi(instr));
+  DCHECK(Assembler::IsJalr(instr) || Assembler::IsAddi(instr));
   DCHECK(is_int12(lo12));
   instr &= ~kImm12Mask;
   int32_t imm12 = lo12 << kImm12Shift;
