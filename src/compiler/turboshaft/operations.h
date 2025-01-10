@@ -1749,13 +1749,13 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex left_low() const { return input(0); }
-  OpIndex left_high() const { return input(1); }
-  OpIndex right_low() const { return input(2); }
-  OpIndex right_high() const { return input(3); }
+  V<Word32> left_low() const { return input<Word32>(0); }
+  V<Word32> left_high() const { return input<Word32>(1); }
+  V<Word32> right_low() const { return input<Word32>(2); }
+  V<Word32> right_high() const { return input<Word32>(3); }
 
-  Word32PairBinopOp(OpIndex left_low, OpIndex left_high, OpIndex right_low,
-                    OpIndex right_high, Kind kind)
+  Word32PairBinopOp(V<Word32> left_low, V<Word32> left_high,
+                    V<Word32> right_low, V<Word32> right_high, Kind kind)
       : Base(left_low, left_high, right_low, right_high), kind(kind) {}
 
   auto options() const { return std::tuple{kind}; }

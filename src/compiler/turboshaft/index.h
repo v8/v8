@@ -545,6 +545,7 @@ using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
 using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32>;
 using AnyOrNone = UntaggedUnion<Any, None>;
+using Word32Pair = Tuple<Word32, Word32>;
 
 template <typename T>
 concept IsUntagged =
