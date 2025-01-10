@@ -283,11 +283,6 @@ class ScavengerCollector {
 
   void SweepArrayBufferExtensions();
 
-  void IterateStackAndScavenge(
-      RootScavengeVisitor* root_scavenge_visitor,
-      std::vector<std::unique_ptr<Scavenger>>* scavengers,
-      Scavenger& main_thread_scavenger);
-
   size_t FetchAndResetConcurrencyEstimate() {
     const size_t estimate =
         estimate_concurrency_.exchange(0, std::memory_order_relaxed);

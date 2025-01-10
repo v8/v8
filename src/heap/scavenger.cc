@@ -722,9 +722,6 @@ void ScavengerCollector::CollectGarbage() {
           {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
            SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
            SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
-      if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
-        options.Add(SkipRoot::kStack);
-      }
       RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
       heap_->IterateRoots(&root_scavenge_visitor, options);
@@ -746,17 +743,6 @@ void ScavengerCollector::CollectGarbage() {
       V8::GetCurrentPlatform()
           ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
           ->Join();
-      DCHECK(copied_list.IsEmpty());
-      DCHECK(pinned_list.IsEmpty());
-      DCHECK(promoted_list.IsEmpty());
-    }
-
-    if (V8_UNLIKELY(v8_flags.scavenge_separate_stack_scanning)) {
-      {
-        RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
-        IterateStackAndScavenge(&root_scavenge_visitor, &scavengers,
-                                main_thread_scavenger);
-      }
       DCHECK(copied_list.IsEmpty());
       DCHECK(pinned_list.IsEmpty());
       DCHECK(promoted_list.IsEmpty());
@@ -881,37 +867,6 @@ void ScavengerCollector::CollectGarbage() {
       break;
     case Heap::ResizeNewSpaceMode::kNone:
       break;
-  }
-}
-
-void ScavengerCollector::IterateStackAndScavenge(
-    RootScavengeVisitor* root_scavenge_visitor,
-    std::vector<std::unique_ptr<Scavenger>>* scavengers,
-    Scavenger& main_thread_scavenger) {
-  // Scan the stack, scavenge the newly discovered objects, and report
-  // the survival statistics before and after the stack scanning.
-  // This code is not intended for production.
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_STACK_ROOTS);
-  const auto sum_survived_bytes = [](size_t count, auto& scavenger) {
-    return count + scavenger->bytes_copied() + scavenger->bytes_promoted();
-  };
-  const size_t survived_bytes_before = std::accumulate(
-      scavengers->begin(), scavengers->end(), 0, sum_survived_bytes);
-  heap_->IterateStackRoots(root_scavenge_visitor);
-  main_thread_scavenger.Process();
-  const size_t survived_bytes_after = std::accumulate(
-      scavengers->begin(), scavengers->end(), 0, sum_survived_bytes);
-  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-               "V8.GCScavengerStackScanning", "survived_bytes_before",
-               survived_bytes_before, "survived_bytes_after",
-               survived_bytes_after);
-  if (v8_flags.trace_gc_verbose && !v8_flags.trace_gc_ignore_scavenger) {
-    isolate_->PrintWithTimestamp(
-        "Scavenge stack scanning: survived_before=%4zuKB, "
-        "survived_after=%4zuKB delta=%.1f%%\n",
-        survived_bytes_before / KB, survived_bytes_after / KB,
-        (survived_bytes_after - survived_bytes_before) * 100.0 /
-            survived_bytes_after);
   }
 }
 
