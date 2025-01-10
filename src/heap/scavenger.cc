@@ -436,6 +436,8 @@ class YoungGenerationConservativeStackVisitor
   }
 
  private:
+  static constexpr bool kOnlyVisitMainV8Cage [[maybe_unused]] = true;
+
   static bool FilterPage(const MemoryChunk* chunk) {
     return chunk->IsFromPage();
   }

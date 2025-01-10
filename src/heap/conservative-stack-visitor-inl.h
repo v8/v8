@@ -128,6 +128,9 @@ void ConservativeStackVisitorBase<ConcreteVisitor>::VisitPointer(
   V8HeapCompressionScheme::ProcessIntermediatePointers(
       cage_base_, address,
       [this](Address ptr) { VisitConservativelyIfPointer(ptr, cage_base_); });
+  if constexpr (ConcreteVisitor::kOnlyVisitMainV8Cage) {
+    return;
+  }
 #ifdef V8_EXTERNAL_CODE_SPACE
   ExternalCodeCompressionScheme::ProcessIntermediatePointers(
       code_cage_base_, address, [this](Address ptr) {
@@ -152,6 +155,8 @@ void ConservativeStackVisitorBase<
   if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address) ==
       cage_base_.address()) {
     VisitConservativelyIfPointer(address, cage_base_);
+  } else if constexpr (ConcreteVisitor::kOnlyVisitMainV8Cage) {
+    return;
 #ifdef V8_EXTERNAL_CODE_SPACE
   } else if (code_address_region_.contains(address)) {
     VisitConservativelyIfPointer(address, code_cage_base_);

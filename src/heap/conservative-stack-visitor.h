@@ -27,6 +27,8 @@ class RootVisitor;
 //    object should be handled by conservative stack scanning.
 // 4) HandleObjectFound(Tagged<HeapObject>, size_t) - Callback whenever
 //    FindBasePtr finds a new object.
+// 5) OnlyScanMainV8Heap() - returns true if the visitor does not handle the
+// external code and trusted spaces.
 template <typename ConcreteVisitor>
 class V8_EXPORT_PRIVATE ConservativeStackVisitorBase
     : public ::heap::base::StackVisitor {
@@ -78,6 +80,8 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitor
       : ConservativeStackVisitorBase(isolate, root_visitor) {}
 
  private:
+  static constexpr bool kOnlyVisitMainV8Cage = false;
+
   static bool FilterPage(const MemoryChunk* chunk) {
     return v8_flags.sticky_mark_bits || !chunk->IsFromPage();
   }
