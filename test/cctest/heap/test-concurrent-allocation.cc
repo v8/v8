@@ -303,6 +303,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
 };
 
 UNINITIALIZED_TEST(ConcurrentAllocationInLargeSpace) {
+  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
   v8_flags.max_old_space_size = 32;
   v8_flags.stress_concurrent_allocation = false;
 
