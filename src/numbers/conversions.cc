@@ -1228,9 +1228,14 @@ std::string_view DoubleToPrecisionStringView(double value, int p,
 
 std::string_view DoubleToRadixStringView(double value, int radix,
                                          base::Vector<char> buffer) {
-  DCHECK(radix >= 2 && radix <= 36);
-  DCHECK(std::isfinite(value));
+  // We don't expect to see zero here (callers should handle it).
   DCHECK_NE(0.0, value);
+
+  // Certain invalid inputs will cause this function to corrupt memory (write
+  // out-of-bounds of the given buffer), so defend against that with CHECKs.
+  CHECK(radix >= 2 && radix <= 36);
+  CHECK(std::isfinite(value));
+
   // Character array used for conversion.
   static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
