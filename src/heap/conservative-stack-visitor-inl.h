@@ -123,7 +123,6 @@ template <typename ConcreteVisitor>
 void ConservativeStackVisitorBase<ConcreteVisitor>::VisitPointer(
     const void* pointer) {
   auto address = reinterpret_cast<Address>(const_cast<void*>(pointer));
-  VisitConservativelyIfPointer(address);
 #ifdef V8_COMPRESS_POINTERS
   V8HeapCompressionScheme::ProcessIntermediatePointers(
       cage_base_, address,
@@ -143,6 +142,8 @@ void ConservativeStackVisitorBase<ConcreteVisitor>::VisitPointer(
         VisitConservativelyIfPointer(ptr, trusted_cage_base_);
       });
 #endif  // V8_ENABLE_SANDBOX
+#else   // !V8_COMPRESS_POINTERS
+  VisitConservativelyIfPointer(address);
 #endif  // V8_COMPRESS_POINTERS
 }
 
