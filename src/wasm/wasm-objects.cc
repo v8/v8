@@ -641,9 +641,12 @@ void WasmTableObject::UpdateDispatchTable(
                                       wasm::WellKnownImport::kUninstantiated);
     wasm::ImportCallKind kind = resolved.kind();
     callable = resolved.callable();  // Update to ultimate target.
-    DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
+    // Note: it is possible that kind == kLinkError here; e.g. that happens when
+    // the WasmJSFunction wraps another function that doesn't have the same
+    // signature. We don't need to check for that case: it's safe to do the
+    // cache lookup below, it just won't find a code object.
     int expected_arity = static_cast<int>(sig->parameter_count());
-    if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
+    if (kind == wasm::ImportCallKind::kJSFunctionArityMismatch) {
       expected_arity = Cast<JSFunction>(callable)
                            ->shared()
                            ->internal_formal_parameter_count_without_receiver();
