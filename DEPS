@@ -126,9 +126,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '03ff285e13356633bd28ea1187e74b0e0c113441',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b2b443d269837bf40801b15b7ad899e46d899387',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'dc741883264b58654396d30d5b8d077d4d7d758f',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '59f9fbaa493364e33c1317ef45f380a4c94729bd',
   'buildtools/linux64': {
     'packages': [
       {
@@ -232,11 +232,11 @@ deps = {
     'condition': "checkout_centipede_deps",
   },
   'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  '803062a053a86cff4ef1ffac90d12a82885688f3',
+    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'e4b6d4f754ba9ec2f1b40a4a091d3f6ad01ea084',
     'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8491e07230d983b9eb55cdfbf075f0a9d4fb5d28',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c4c972c5f0bebc45d077172aa42d7ba98f3abbbb',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -282,7 +282,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + '70e24aa9499f5563bb13ec9d0b8490ec2bf09510',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4bbf80823cbf667488b41ab45bf6d1b15580e977',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '504ea69cf7e9947be54f808a09b7b08988e84b5f',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -308,7 +308,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '3e0b858659dfabd41541be937159c46ac9395dd5',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '44258fc58f1db70b223625a1dbc9c1ceea184ecf',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -492,7 +492,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b763971bcaa3e4c50a344035837a1dd60d7e6753',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a1ea7f2d05a5a306a1ccaa2d2b8593ed7b21a892',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fc64227b60f7887c09283f873eb18b087eb6f0c2',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
