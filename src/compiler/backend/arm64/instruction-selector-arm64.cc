@@ -8194,7 +8194,9 @@ using CanonicalShuffle = wasm::SimdShuffle::CanonicalShuffle;
 std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
     CanonicalShuffle shuffle) {
   using CanonicalToArch = std::pair<CanonicalShuffle, ArchOpcode>;
-  constexpr static std::array<CanonicalToArch, 25> arch_shuffles = {{
+  constexpr static auto arch_shuffles = std::to_array<CanonicalToArch>({
+      {CanonicalShuffle::kS64x2Even, kArm64S64x2UnzipLeft},
+      {CanonicalShuffle::kS64x2Odd, kArm64S64x2UnzipRight},
       {CanonicalShuffle::kS64x2ReverseBytes, kArm64S8x8Reverse},
       {CanonicalShuffle::kS32x4InterleaveEven, kArm64S32x4UnzipLeft},
       {CanonicalShuffle::kS32x4InterleaveOdd, kArm64S32x4UnzipRight},
@@ -8220,7 +8222,7 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
       {CanonicalShuffle::kS8x16InterleaveHighHalves, kArm64S8x16ZipRight},
       {CanonicalShuffle::kS8x16TransposeEven, kArm64S8x16TransposeLeft},
       {CanonicalShuffle::kS8x16TransposeOdd, kArm64S8x16TransposeRight},
-  }};
+  });
 
   for (auto& [canonical, arch_opcode] : arch_shuffles) {
     if (canonical == shuffle) {

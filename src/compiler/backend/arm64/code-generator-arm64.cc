@@ -3163,6 +3163,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+      SIMD_BINOP_CASE(kArm64S64x2UnzipLeft, Uzp1, 2D);
+      SIMD_BINOP_CASE(kArm64S64x2UnzipRight, Uzp2, 2D);
       SIMD_BINOP_CASE(kArm64S32x4ZipLeft, Zip1, 4S);
       SIMD_BINOP_CASE(kArm64S32x4ZipRight, Zip2, 4S);
       SIMD_BINOP_CASE(kArm64S32x4UnzipLeft, Uzp1, 4S);
