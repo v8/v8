@@ -27,7 +27,6 @@ vars = {
   'checkout_fuchsia_boot_images': "terminal.x64",
   'checkout_fuchsia_product_bundles': '"{checkout_fuchsia_boot_images}" != ""',
 
-  'checkout_centipede_deps': False,
   'checkout_instrumented_libraries': False,
   'checkout_ittapi': False,
 
@@ -46,7 +45,6 @@ vars = {
   'checkout_v8_builtins_pgo_profiles': False,
 
   'android_url': 'https://android.googlesource.com',
-  'boringssl_url': 'https://boringssl.googlesource.com',
   'chromium_url': 'https://chromium.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
@@ -226,14 +224,6 @@ deps = {
     ],
     'condition': 'checkout_android',
     'dep_type': 'cipd',
-  },
-  'third_party/boringssl': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/boringssl.git' + '@' + 'ec7942a871259187ad4f1de041487f064f497496',
-    'condition': "checkout_centipede_deps",
-  },
-  'third_party/boringssl/src': {
-    'url': Var('boringssl_url') + '/boringssl.git' + '@' +  'e4b6d4f754ba9ec2f1b40a4a091d3f6ad01ea084',
-    'condition': "checkout_centipede_deps",
   },
   'third_party/catapult': {
     'url': Var('chromium_url') + '/catapult.git' + '@' + 'c4c972c5f0bebc45d077172aa42d7ba98f3abbbb',
