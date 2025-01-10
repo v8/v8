@@ -1188,15 +1188,19 @@ class BodyGen {
     bool is_valid() const { return type != kWasmVoid; }
   };
 
-  Var GetRandomLocal(DataRange* data) {
-    uint32_t num_params =
-        static_cast<uint32_t>(builder_->signature()->parameter_count());
-    uint32_t num_locals = static_cast<uint32_t>(locals_.size());
-    if (num_params + num_locals == 0) return {};
-    uint32_t index = data->get<uint8_t>() % (num_params + num_locals);
-    ValueType type = index < num_params ? builder_->signature()->GetParam(index)
-                                        : locals_[index - num_params];
-    return {index, type};
+  Var GetRandomLocal(DataRange* data, ValueType type = kWasmTop) {
+    const size_t locals_count = all_locals_count();
+    if (locals_count == 0) return {};
+    uint32_t start_index = data->get<uint8_t>() % locals_count;
+    uint32_t index = start_index;
+    // TODO(14034): Ideally we would check for subtyping here over type
+    // equality, but we don't have a module.
+    while (type != kWasmTop && local_type(index) != type &&
+           local_type(index).AsNullable() != type) {
+      index = (index + 1) % locals_count;
+      if (index == start_index) return {};
+    }
+    return {index, local_type(index)};
   }
 
   constexpr static bool is_convertible_kind(ValueKind kind) {
@@ -1232,6 +1236,42 @@ class BodyGen {
   template <ValueKind wanted_kind>
   void tee_local(DataRange* data) {
     local_op<wanted_kind>(data, kExprLocalTee);
+  }
+
+  // Shifts the assigned values of some locals towards the start_local.
+  // Assuming 4 locals with index 0-3 of the same type and start_local with
+  // index 0, this emits e.g.:
+  //   local.set 0 (local.get 1)
+  //   local.set 1 (local.get 2)
+  //   local.set 2 (local.get 3)
+  // If this is executed in a loop, the value in local 3 will eventually end up
+  // in local 0, but only after multiple iterations of the loop.
+  void shift_locals_to(DataRange* data, Var start_local) {
+    const uint32_t max_shift = data->get<uint8_t>() % 8 + 2;
+    const auto [start_index, type] = start_local;
+    const size_t locals_count = all_locals_count();
+    uint32_t previous_index = start_index;
+    uint32_t index = start_index;
+    for (uint32_t i = 0; i < max_shift; ++i) {
+      do {
+        index = (index + 1) % locals_count;
+      } while (local_type(index) != type);
+      // Never emit more than one shift over all same-typed locals.
+      // (In many cases we might end up with only one local with the same type.)
+      if (index == start_index) break;
+      builder_->EmitGetLocal(index);
+      builder_->EmitSetLocal(previous_index);
+      previous_index = index;
+    }
+  }
+
+  void shift_locals(DataRange* data) {
+    const Var local = GetRandomLocal(data);
+    if (local.type == kWasmVoid ||
+        (local.type.is_non_nullable() && !locals_initialized_)) {
+      return;
+    }
+    shift_locals_to(data, local);
   }
 
   template <size_t num_bytes>
@@ -1348,16 +1388,14 @@ class BodyGen {
   }
 
   bool get_local_ref(HeapType type, DataRange* data, Nullability nullable) {
-    Var local = GetRandomLocal(data);
-    // TODO(14034): Ideally we would check for subtyping here over type
-    // equality, but we don't have a module.
-    if (local.is_valid() && local.type.is_object_reference() &&
-        local.type.heap_type() == type &&
-        (local.type.is_nullable()
-             ? nullable == kNullable  // We check for nullability-subtyping
-             : locals_initialized_    // If the local is not nullable, we cannot
-                                      // use it during locals initialization
-         )) {
+    Var local = GetRandomLocal(data, ValueType::RefMaybeNull(type, nullable));
+    if (local.is_valid() && (local.type.is_nullable() || locals_initialized_)) {
+      // With a small chance don't only get the local but first "shift" local
+      // values around. This creates more interesting patterns for the typed
+      // optimizations.
+      if (data->get<uint8_t>() % 8 == 1) {
+        shift_locals_to(data, local);
+      }
       builder_->EmitWithU32V(kExprLocalGet, local.index);
       return true;
     }
@@ -2304,6 +2342,18 @@ class BodyGen {
     return builder_->builder()->NumImportedFunctions();
   }
 
+  // Returns the number of locals including parameters.
+  size_t all_locals_count() const {
+    return builder_->signature()->parameter_count() + locals_.size();
+  }
+
+  // Returns the type of the local with the given index.
+  ValueType local_type(uint32_t index) const {
+    size_t num_params = builder_->signature()->parameter_count();
+    return index < num_params ? builder_->signature()->GetParam(index)
+                              : locals_[index - num_params];
+  }
+
   // Generator functions.
   // Implementation detail: We define non-template Generate*TYPE*() functions
   // instead of templatized Generate<TYPE>(). This is because we cannot define
@@ -2362,6 +2412,8 @@ class BodyGen {
                     &BodyGen::set_global,        //
                     &BodyGen::throw_or_rethrow,  //
                     &BodyGen::try_block<kVoid>,  //
+
+                    &BodyGen::shift_locals,  //
 
                     &BodyGen::table_set,   //
                     &BodyGen::table_fill,  //
