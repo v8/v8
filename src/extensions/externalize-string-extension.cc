@@ -194,9 +194,12 @@ void ExternalizeStringExtension::CreateExternalizableString(
 
   // Special handling for ConsStrings, as the ConsString -> ExternalString
   // migration is special for GC (Tagged pointers to Untagged pointers).
-  // Skip if the ConsString is flat (second is empty), as we won't be guaranteed
-  // a string in old space in that case.
-  if (IsConsString(*string, isolate) && !string->IsFlat()) {
+  // Skip if the ConsString is flat, as we won't be guaranteed a string in old
+  // space in that case. Note that this is also true for non-canonicalized
+  // ConsStrings that TurboFan might create (the first part is empty), so we
+  // explicitly check for that case as well.
+  if (IsConsString(*string, isolate) && !string->IsFlat() &&
+      Cast<ConsString>(string)->first()->length() != 0) {
     DirectHandle<String> result;
     if (CopyConsStringToOld(isolate, Cast<ConsString>(string))
             .ToHandle(&result)) {
