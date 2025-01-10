@@ -2519,6 +2519,7 @@
   'optimized-filter': [SKIP],
   'optimized-map': [SKIP],
   'compiler/bound-functions-serialize': [SKIP],
+  'field-type-tracking': [SKIP],
 
   # --maglev-inline-api-calls is currently not supported by the translation.
   'regress/regress-crbug-1496606': [SKIP],
