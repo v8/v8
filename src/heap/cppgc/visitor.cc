@@ -91,7 +91,6 @@ void ConservativeTracingVisitor::TryTracePointerConservatively(
 void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
     const void* address) {
   auto pointer = reinterpret_cast<Address>(const_cast<void*>(address));
-  TryTracePointerConservatively(pointer);
 #if defined(CPPGC_POINTER_COMPRESSION)
   auto try_trace = [this](Address ptr) {
     if (ptr > reinterpret_cast<Address>(SentinelPointer::kSentinelValue))
@@ -119,6 +118,8 @@ void ConservativeTracingVisitor::TraceConservativelyIfNeeded(
                             (sizeof(uint32_t) * CHAR_BIT)) |
       base);
   try_trace(intermediate_decompressed_high);
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+  TryTracePointerConservatively(pointer);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 }
 
