@@ -86,7 +86,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:26.20250103.4.1',
+  'fuchsia_version': 'version:26.20250110.4.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0e118f3848e1aef7051cae1ac36eb9b3deb66945',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7b5248c3ed21a404ef5a1943d9c0a2d7b0a69eb2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '59f9fbaa493364e33c1317ef45f380a4c94729bd',
   'buildtools/linux64': {
@@ -298,7 +298,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '44258fc58f1db70b223625a1dbc9c1ceea184ecf',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'cf32ae379c8968df8be7b8b9b1d69115402bccc4',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -482,7 +482,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b763971bcaa3e4c50a344035837a1dd60d7e6753',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '65ef34162c758287f1f63d73f2c7eb864df462c1',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '145ae97377dc97a0c5a9ce7ab5709f3492757475',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
