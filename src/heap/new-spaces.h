@@ -463,6 +463,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   const SemiSpace& to_space() const { return to_space_; }
 
   bool ShouldBePromoted(Address address) const;
+  // Used for conservative stack scanning to determine if a page with pinned
+  // objects should remain in new space or move to old space.
+  bool ShouldPageBePromoted(Address address) const;
 
   void EvacuatePrologue();
 

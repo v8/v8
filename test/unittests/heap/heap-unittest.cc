@@ -788,21 +788,15 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
 
   CHECK(HeapLayout::InYoungGeneration(*number));
 
-  for (int i = 0; i < 10; i++) {
-    InvokeMinorGC();
-    CHECK(HeapLayout::InYoungGeneration(*number));
-    CHECK_EQ(number_address, number->address());
-  }
+  InvokeMinorGC();
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
 
-  // `number` is already in the intermediate generation. A stackless GC should
+  // `number` is already in the intermediate generation. Another GC should
   // now move it to old gen.
-  {
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        isolate()->heap());
-    InvokeMinorGC();
-  }
+  InvokeMinorGC();
   CHECK(!HeapLayout::InYoungGeneration(*number));
-  CHECK_NE(number_address, number->address());
+  CHECK_EQ(number_address, number->address());
 }
 
 TEST_F(HeapTest, PinningScavengerObjectWithSelfReference) {
