@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turboshaft-from-maglev --allow-natives-syntax
+// Flags: --turbolev --allow-natives-syntax
 // Flags: --turbofan --no-always-turbofan
 
 function test() {

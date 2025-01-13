@@ -809,7 +809,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
                                                    data_.dependencies());
   turboshaft::Pipeline turboshaft_pipeline(&turboshaft_data_);
 
-  if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
+  if (V8_UNLIKELY(v8_flags.turbolev)) {
     if (!turboshaft_pipeline.CreateGraphWithMaglev(linkage_)) {
       return AbortOptimization(BailoutReason::kGraphBuildingFailed);
     }
@@ -2509,7 +2509,7 @@ void PipelineImpl::InitializeHeapBroker() {
 }
 
 bool PipelineImpl::CreateGraph(Linkage* linkage) {
-  DCHECK(!v8_flags.turboshaft_from_maglev);
+  DCHECK(!v8_flags.turbolev);
   TFPipelineData* data = this->data_;
   UnparkedScopeIfNeeded unparked_scope(data->broker());
 
@@ -2543,7 +2543,7 @@ bool PipelineImpl::CreateGraph(Linkage* linkage) {
 }
 
 bool PipelineImpl::OptimizeTurbofanGraph(Linkage* linkage) {
-  DCHECK(!v8_flags.turboshaft_from_maglev);
+  DCHECK(!v8_flags.turbolev);
   TFPipelineData* data = this->data_;
 
   data->BeginPhaseKind("V8.TFLowering");
@@ -3736,7 +3736,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     turboshaft_data.InitializeBrokerAndDependencies(data.broker_ptr(),
                                                     data.dependencies());
 
-    if (V8_UNLIKELY(v8_flags.turboshaft_from_maglev)) {
+    if (V8_UNLIKELY(v8_flags.turbolev)) {
       if (!turboshaft_pipeline.CreateGraphWithMaglev(&linkage)) return {};
     } else {
       if (!pipeline.CreateGraph(&linkage)) return {};

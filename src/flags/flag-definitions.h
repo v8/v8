@@ -1494,10 +1494,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
 DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, true,
             "run instruction selection on Turboshaft IR directly for wasm, on "
             "architectures where we are staging the feature")
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
-                            "build the Turboshaft graph from Maglev")
+DEFINE_EXPERIMENTAL_FEATURE(turbolev, "use Maglev as a frontend for Turboshaft")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
-DEFINE_NEG_IMPLICATION(turboshaft_from_maglev, maglev_inline_api_calls)
+DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 
 DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)

@@ -150,7 +150,7 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
-    DCHECK(!v8_flags.turboshaft_from_maglev || IsBuiltinPipeline());
+    DCHECK(!v8_flags.turbolev || IsBuiltinPipeline());
     if (std::optional<BailoutReason> bailout =
             Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
       info()->AbortOptimization(*bailout);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboshaft --turboshaft-from-maglev
+// Flags: --allow-natives-syntax --turboshaft --turbolev
 
 function __f_0(__v_2, __v_3) {
   return __v_2 + __v_3;
