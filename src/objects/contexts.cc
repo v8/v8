@@ -523,7 +523,7 @@ Context::GetScriptContextSideProperty(size_t index) const {
 namespace {
 std::optional<int32_t> DoubleFitsInInt32(double value) {
   constexpr double int32_min = std::numeric_limits<int32_t>::min();
-  constexpr double int32_max = std::numeric_limits<int32_t>::min();
+  constexpr double int32_max = std::numeric_limits<int32_t>::max();
   // Check -0.0 first.
   if (value == 0.0 && std::signbit(value)) return {};
   double trunc_value = std::trunc(value);
