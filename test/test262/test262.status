@@ -1292,6 +1292,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
 
+  # May OOM fatally
+  'staging/sm/regress/regress-610026': [SKIP],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
