@@ -1321,12 +1321,16 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
 
+  // Reset the OSR urgency. If we enter a function OSR should not be triggered.
+  // If we are in fact in a loop we should avoid triggering this compilation
+  // request on every iteration and thereby skipping other interrupts.
+  function->feedback_vector()->reset_osr_urgency();
+
   // Clear the optimization marker on the function so that we don't try to
   // re-optimize.
   if (!IsOSR(osr_offset)) {
     function->ResetTieringRequests(isolate);
     // Always reset the OSR urgency to ensure we reset it on function entry.
-    function->feedback_vector()->reset_osr_urgency();
     int invocation_count =
         function->feedback_vector()->invocation_count(kRelaxedLoad);
     if (!(V8_UNLIKELY(v8_flags.testing_d8_test_runner ||
@@ -1348,11 +1352,6 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) {
-    // Reset the OSR urgency to avoid triggering this compilation request on
-    // every iteration and thereby skipping other interrupts.
-    if (IsOSR(osr_offset)) {
-      function->feedback_vector()->reset_osr_urgency();
-    }
     return {};
   }
 
@@ -1367,13 +1366,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
     Handle<Code> cached_code;
     if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
             .ToHandle(&cached_code)) {
-      if (IsOSR(osr_offset)) {
-        if (!function->osr_tiering_in_progress()) {
-          function->feedback_vector()->reset_osr_urgency();
-        }
-      } else {
-        DCHECK_LE(cached_code->kind(), code_kind);
-      }
+      DCHECK_IMPLIES(!IsOSR(osr_offset), cached_code->kind() <= code_kind);
       return cached_code;
     }
 
@@ -1382,7 +1375,6 @@ MaybeHandle<Code> GetOrCompileOptimized(
       if (function->osr_tiering_in_progress()) {
         return {};
       }
-      function->feedback_vector()->reset_osr_urgency();
     }
   }
 
