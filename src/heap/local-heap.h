@@ -8,6 +8,10 @@
 #include <atomic>
 #include <memory>
 
+#if V8_OS_DARWIN
+#include "pthread.h"
+#endif
+
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
@@ -228,6 +232,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename Callback>
   V8_INLINE void ExecuteBackgroundThreadWhileParked(Callback callback);
 
+#if V8_OS_DARWIN
+  pthread_t thread_handle() { return thread_handle_; }
+#endif
+
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
   using SafepointRequestedBit = ParkedBit::Next<bool, 1>;
@@ -369,6 +377,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool is_main_thread_;
 
   AtomicThreadState state_;
+
+#if V8_OS_DARWIN
+  pthread_t thread_handle_;
+#endif
 
   bool allocation_failed_;
   int nested_parked_scopes_;

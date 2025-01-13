@@ -6,6 +6,7 @@
 #define V8_HEAP_SAFEPOINT_H_
 
 #include <optional>
+#include <vector>
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -46,6 +47,15 @@ class IsolateSafepoint final {
   V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
  private:
+  struct RunningLocalHeap {
+    LocalHeap* local_heap;
+#if V8_OS_DARWIN
+    pthread_override_t qos_override;
+#endif
+  };
+
+  using RunningLocalHeaps = base::SmallVector<RunningLocalHeap, 4>;
+
   class Barrier {
     base::Mutex mutex_;
     base::ConditionVariable cv_resume_;
@@ -61,7 +71,8 @@ class IsolateSafepoint final {
 
     void Arm();
     void Disarm();
-    void WaitUntilRunningThreadsInSafepoint(size_t running);
+    void WaitUntilRunningThreadsInSafepoint(
+        const IsolateSafepoint::RunningLocalHeaps& running_threads);
 
     void WaitInSafepoint();
     void WaitInUnpark();
@@ -100,7 +111,9 @@ class IsolateSafepoint final {
 
   void LockMutex(LocalHeap* local_heap);
 
-  size_t SetSafepointRequestedFlags(IncludeMainThread include_main_thread);
+  void SetSafepointRequestedFlags(
+      IncludeMainThread include_main_thread,
+      IsolateSafepoint::RunningLocalHeaps& running_local_heaps);
   void ClearSafepointRequestedFlags(IncludeMainThread include_main_thread);
 
   template <typename Callback>
@@ -152,6 +165,7 @@ class IsolateSafepoint final {
   friend class Isolate;
   friend class IsolateSafepointScope;
   friend class LocalHeap;
+  friend class PerClientSafepointData;
 };
 
 class V8_NODISCARD IsolateSafepointScope {

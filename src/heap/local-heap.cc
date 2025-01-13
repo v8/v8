@@ -54,6 +54,9 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       ptr_compr_cage_access_scope_(heap->isolate()),
       is_main_thread_(kind == ThreadKind::kMain),
       state_(ThreadState::Parked()),
+#if V8_OS_DARWIN
+      thread_handle_(pthread_self()),
+#endif
       allocation_failed_(false),
       nested_parked_scopes_(0),
       prev_(nullptr),
