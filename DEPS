@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fd65288d4a1445bfff1f54185a166cc6c4818427',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a912cd245b093ea57a187ca66665ca98090a82fd',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -298,7 +298,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'b9f74ba96d2f3a088e6a38fc1f3331e1aa62b637',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '597b2e8c42ef95d1996a3d3713cddac269c68b50',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
