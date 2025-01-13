@@ -571,18 +571,16 @@ class TreatConservativelyVisitor final : public RootVisitor {
   double stressing_threshold_;
 };
 
-size_t SweepQuarantinedPage(
+void SweepQuarantinedPage(
     Heap* heap, MemoryChunk* chunk,
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes) {
   Address start = chunk->Metadata()->area_start();
   std::sort(pinned_objects_and_sizes.begin(), pinned_objects_and_sizes.end());
-  size_t quarantined_objects_size = 0;
   for (const auto& [object, size] : pinned_objects_and_sizes) {
     DCHECK_LE(start, object);
     if (start != object) {
       heap->CreateFillerObjectAt(start, static_cast<int>(object - start));
     }
-    quarantined_objects_size += size;
     start = object + size;
   }
   Address end = chunk->Metadata()->area_end();
@@ -592,8 +590,6 @@ size_t SweepQuarantinedPage(
   DCHECK(static_cast<MutablePageMetadata*>(chunk->Metadata())
              ->marking_bitmap()
              ->IsClean());
-  DCHECK_LT(0, quarantined_objects_size);
-  return quarantined_objects_size;
 }
 
 void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
@@ -601,6 +597,7 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
   std::unordered_map<MemoryChunk*, std::vector<std::pair<Address, size_t>>,
                      base::hash<const MemoryChunk*>>
       pages_with_pinned_objects;
+  size_t quarantined_objects_size = 0;
   // Restore the maps of quarantined objects. We use the iteration over
   // quarantined objects to split them based on pages. This will be used below
   // for sweeping the quarantined pages (since there are no markbits).
@@ -613,27 +610,19 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
     pages_with_pinned_objects[MemoryChunk::FromHeapObject(
                                   Cast<HeapObject>(object))]
         .emplace_back(object_address, object_size);
+    quarantined_objects_size += object_size;
   }
   DCHECK_EQ(0, new_space.QuarantinedPageCount());
   // Sweep quarantined pages to make them iterable.
-  size_t quarantined_objects_size = 0;
   for (auto it : pages_with_pinned_objects) {
     MemoryChunk* chunk = it.first;
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes =
         it.second;
     DCHECK(chunk->IsFromPage());
-    const size_t quarantined_objects_size_on_page =
-        SweepQuarantinedPage(new_space.heap(), chunk, pinned_objects_and_sizes);
-    if (new_space.ShouldPageBePromoted(chunk->address())) {
-      new_space.PromotePageToOldSpace(
-          static_cast<PageMetadata*>(chunk->Metadata()));
-      DCHECK(!chunk->InYoungGeneration());
-    } else {
-      quarantined_objects_size += quarantined_objects_size_on_page;
-      new_space.MoveQuarantinedPage(chunk);
-      DCHECK(!chunk->IsFromPage());
-      DCHECK(chunk->IsToPage());
-    }
+    SweepQuarantinedPage(new_space.heap(), chunk, pinned_objects_and_sizes);
+    new_space.MoveQuarantinedPage(chunk);
+    DCHECK(!chunk->IsFromPage());
+    DCHECK(chunk->IsToPage());
   }
   new_space.SetQuarantinedSize(quarantined_objects_size);
 }
@@ -988,7 +977,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
 
   if (IsJSArrayBufferMap(map)) {
     DCHECK(!MemoryChunk::FromHeapObject(target)->IsLargePage());
-    GCSafeCast<JSArrayBuffer>(target, heap_)->YoungMarkExtensionPromoted();
+    Cast<JSArrayBuffer>(target)->YoungMarkExtensionPromoted();
   }
 }
 
@@ -1246,14 +1235,8 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
 
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
-  int object_size = object->SizeFromMap(map);
-  if (heap_->semi_space_new_space()->ShouldPageBePromoted(object->address())) {
-    local_promoted_list_.Push({object, map, object_size});
-    promoted_size_ += object_size;
-  } else {
-    local_pinned_list_.Push(ObjectAndMap(object, map));
-    copied_size_ += object_size;
-  }
+  local_pinned_list_.Push(ObjectAndMap(object, map));
+  copied_size_ += object->SizeFromMap(map);
 }
 
 void Scavenger::VisitPinnedObjects() {

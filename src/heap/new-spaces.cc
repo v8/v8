@@ -686,22 +686,6 @@ bool SemiSpaceNewSpace::ShouldBePromoted(Address address) const {
   return IsAddressBelowAgeMarkForSpace(from_space_, address);
 }
 
-bool SemiSpaceNewSpace::ShouldPageBePromoted(Address address) const {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
-  Address current_age_mark = from_space_.age_mark();
-  if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
-    return false;
-  }
-  // If the page contains the current age mark, it contains both objects in the
-  // interemediate generation (that could be promoted to old space) and new
-  // objects (that should remain in new space). When pinning an intermediate
-  // generation object on this page, we don't yet know whether or not the page
-  // will also contain pinned new objects (that will prevent us from promoting
-  // the page). Thus, we conservatively keep the page in new space. Pinned
-  // objects on it will either die or be promoted in the next GC cycle.
-  return !chunk->Metadata()->ContainsLimit(current_age_mark);
-}
-
 #if DEBUG
 bool SemiSpaceNewSpace::IsAllocationBelowAgeMark(Address address) const {
   return IsAddressBelowAgeMarkForSpace(to_space_, address);
