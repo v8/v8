@@ -598,8 +598,20 @@ void IncrementalMarking::UpdateExternalPointerTableAfterScavenge() {
         DCHECK_LT(old_handle_location, object.address() + object_size);
 #endif  // DEBUG
 
+        if (!HeapLayout::InYoungGeneration(moved_object)) {
+          // If the object was promoted, it's external pointers were evacuated
+          // into the old EPT by IterateAndScavengePromotedObjectsVisitor.
+          // Ignore this evacuation entry.
+          return kNullAddress;
+        }
+
         const ptrdiff_t handle_offset = old_handle_location - base;
-        return moved_object.address() + handle_offset;
+        const Address result = moved_object.address() + handle_offset;
+        // Check that the migrated and the original handles are the same.
+        DCHECK_EQ(
+            *reinterpret_cast<ExternalPointerHandle*>(old_handle_location),
+            *reinterpret_cast<ExternalPointerHandle*>(result));
+        return result;
       });
 #endif  // V8_COMPRESS_POINTERS
 }
