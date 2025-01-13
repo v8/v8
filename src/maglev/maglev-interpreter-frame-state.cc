@@ -1377,21 +1377,25 @@ void MergePointInterpreterFrameState::ReducePhiPredecessorCount(unsigned num) {
   }
 }
 
-bool MergePointInterpreterFrameState::IsUnreachable() const {
+bool MergePointInterpreterFrameState::IsUnreachableByForwardEdge() const {
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
-  if (predecessor_count_ > 1) {
-    return false;
+  DCHECK_IMPLIES(
+      is_loop(),
+      predecessor_at(predecessor_count_ - 1)->control_node()->Is<JumpLoop>());
+  switch (predecessor_count_) {
+    case 0:
+      // This happens after the back-edge of a resumable loop died at which
+      // point we mark it non-looping.
+      DCHECK(!is_loop());
+      return true;
+    case 1:
+      // Only resumable loops can be reachable by back-edge only. Others we
+      // prune in the front-end.
+      DCHECK_EQ(is_loop(), is_resumable_loop());
+      return is_loop();
+    default:
+      return false;
   }
-  // This should actually only support predecessor_count == 1, but we
-  // currently don't eliminate resumable loop headers (and subsequent code
-  // until the next resume) that end up being unreachable from JumpLoop.
-  if (predecessor_count_ == 0) {
-    DCHECK(is_resumable_loop());
-    return true;
-  }
-  DCHECK_EQ(predecessor_count_, 1);
-  DCHECK_IMPLIES(is_loop(), predecessor_at(0)->control_node()->Is<JumpLoop>());
-  return is_loop();
 }
 
 }  // namespace maglev

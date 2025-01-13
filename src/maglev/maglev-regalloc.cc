@@ -384,12 +384,11 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
 
     // Restore mergepoint state.
     if (block->has_state()) {
-      if (block->state()->is_exception_handler()) {
-        // Exceptions start from a blank state of register values.
-        ClearRegisterValues();
-      } else if (block->state()->IsUnreachable()) {
-        // Loops that are only reachable through JumpLoop start from a blank
-        // state of register values.
+      if (block->state()->is_exception_handler() ||
+          block->state()->IsUnreachableByForwardEdge()) {
+        // Exceptions and loops only reachable from a JumpLoop (i.e., resumable
+        // loops with no fall-through edge) start with a blank state of register
+        // values.
         ClearRegisterValues();
       } else {
         InitializeRegisterValues(block->state()->register_state());

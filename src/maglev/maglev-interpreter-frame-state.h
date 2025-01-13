@@ -857,6 +857,12 @@ class MergePointInterpreterFrameState {
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
 
+  void clear_is_loop() {
+    bitfield_ =
+        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
+    bitfield_ = kIsResumableLoopBit::update(bitfield_, false);
+  }
+
   // Merges a dead loop framestate (e.g. one where the block containing the
   // JumpLoop has been early terminated with a deopt).
   void MergeDeadLoop(const MaglevCompilationUnit& compilation_unit) {
@@ -865,8 +871,7 @@ class MergePointInterpreterFrameState {
     DCHECK(is_unmerged_loop());
     MergeDead(compilation_unit);
     // This means that this is no longer a loop.
-    bitfield_ =
-        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
+    clear_is_loop();
   }
 
   // Returns and clears the known node aspects on this state. Expects to only
@@ -948,13 +953,15 @@ class MergePointInterpreterFrameState {
            predecessor_count_ == 1 && predecessors_so_far_ == 0;
   }
 
-  bool IsUnreachable() const;
+  bool IsUnreachableByForwardEdge() const;
 
   BasicBlockType basic_block_type() const {
     return kBasicBlockTypeBits::decode(bitfield_);
   }
   bool is_resumable_loop() const {
-    return kIsResumableLoopBit::decode(bitfield_);
+    bool res = kIsResumableLoopBit::decode(bitfield_);
+    DCHECK_IMPLIES(res, is_loop());
+    return res;
   }
   bool is_loop_with_peeled_iteration() const {
     return kIsLoopWithPeeledIterationBit::decode(bitfield_);
