@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6cbd7a824340c50ef1aa5cdddf94e14114ade41f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fd65288d4a1445bfff1f54185a166cc6c4818427',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
