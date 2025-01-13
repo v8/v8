@@ -73,6 +73,8 @@
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (v8_flags.whenflag) statement;
 
+#define DEFINE_REQUIREMENT(statement) CHECK(statement);
+
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
   changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
                                 &v8_flags.thenflag, #thenflag, value, false);
@@ -142,6 +144,10 @@
 
 #ifndef DEFINE_DISABLE_FLAG_IMPLICATION
 #define DEFINE_DISABLE_FLAG_IMPLICATION(whenflag, thenflag)
+#endif
+
+#ifndef DEFINE_REQUIREMENT
+#define DEFINE_REQUIREMENT(statement)
 #endif
 
 #ifndef DEBUG_BOOL
@@ -857,6 +863,7 @@ DEFINE_UINT(minor_ms_max_page_age, 4,
 DEFINE_UINT(minor_ms_max_new_space_capacity_mb, 72,
             "max new space capacity in MBs when using MinorMS. When pointer "
             "compression is disabled, twice the capacity is used.")
+DEFINE_REQUIREMENT(v8_flags.minor_ms_max_new_space_capacity_mb > 0)
 
 #if defined(ANDROID)
 #define DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB 8
@@ -867,6 +874,7 @@ DEFINE_UINT(scavenger_max_new_space_capacity_mb,
             DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB,
             "max new space capacity in MBs when using Scavenger. When pointer "
             "compression is disabled, twice the capacity is used.")
+DEFINE_REQUIREMENT(v8_flags.scavenger_max_new_space_capacity_mb > 0)
 #undef DEFAULT_SCAVENGER_MAX_NEW_SPACE_CAPACITY_MB
 
 DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
@@ -3448,6 +3456,7 @@ DEFINE_IMPLICATION(gdbjit, log)
 #undef DEFINE_DISABLE_FLAG_IMPLICATION
 #undef DEFINE_WEAK_VALUE_IMPLICATION
 #undef DEFINE_GENERIC_IMPLICATION
+#undef DEFINE_REQUIREMENT
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
