@@ -22,56 +22,94 @@ namespace compiler {
 class V8_EXPORT_PRIVATE AccessBuilder final
     : public NON_EXPORTED_BASE(AllStatic) {
  public:
+  // Template method for field access with type safety.
+  template <typename T, typename Object>
+  static FieldAccess ForField(int offset, WriteBarrierKind write_barrier = kFullWriteBarrier) {
+    FieldAccess access;
+    access.offset = offset;
+    access.machine_type = MachineType::TypeFor<T>();
+    access.write_barrier_kind = write_barrier;
+    return access;
+  }
+
   // ===========================================================================
   // Access to external values (based on external references).
 
   // Provides access to an IntPtr field identified by an external reference.
-  static FieldAccess ForExternalIntPtr();
+  static FieldAccess ForExternalIntPtr() {
+    return ForField<intptr_t, ExternalReference>(ExternalReference::kIntPtrOffset);
+  }
 
   // ===========================================================================
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
-  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier);
+  static FieldAccess ForMap(WriteBarrierKind write_barrier = kMapWriteBarrier) {
+    return ForField<Map, HeapObject>(HeapObject::kMapOffset, write_barrier);
+  }
 
   // Provides access to HeapNumber::value() field.
-  static FieldAccess ForHeapNumberValue();
-  static FieldAccess ForHeapInt32Value();
-  static FieldAccess ForHeapInt32UpperValue();
+  static FieldAccess ForHeapNumberValue() {
+    return ForField<double, HeapNumber>(HeapNumber::kValueOffset);
+  }
+  static FieldAccess ForHeapInt32Value() {
+    return ForField<int32_t, HeapNumber>(HeapNumber::kValueOffset);
+  }
+  static FieldAccess ForHeapInt32UpperValue() {
+    return ForField<int32_t, HeapNumber>(HeapNumber::kValueOffset + sizeof(int32_t));
+  }
 
   // Provides access to HeapNumber::value() and Oddball::to_number_raw() fields.
   // This is the same as ForHeapNumberValue, except it documents (and static
   // asserts) that both inputs are valid.
-  static FieldAccess ForHeapNumberOrOddballOrHoleValue();
+  static FieldAccess ForHeapNumberOrOddballOrHoleValue() {
+    return ForField<double, HeapNumber>(HeapNumber::kValueOffset);
+  }
 
   // Provides access to BigInt's bit field.
-  static FieldAccess ForBigIntBitfield();
+  static FieldAccess ForBigIntBitfield() {
+    return ForField<uint64_t, BigInt>(BigInt::kBitfieldOffset);
+  }
 
 #ifdef BIGINT_NEEDS_PADDING
   // Provides access to BigInt's 32 bit padding that is placed after the
   // bitfield on 64 bit architectures without pointer compression.
-  static FieldAccess ForBigIntOptionalPadding();
+  static FieldAccess ForBigIntOptionalPadding() {
+    return ForField<uint32_t, BigInt>(BigInt::kOptionalPaddingOffset);
+  }
 #endif
 
   // Provides access to BigInt's least significant digit on 64 bit
   // architectures. Do not use this on 32 bit architectures.
-  static FieldAccess ForBigIntLeastSignificantDigit64();
+  static FieldAccess ForBigIntLeastSignificantDigit64() {
+    return ForField<uint64_t, BigInt>(BigInt::kLeastSignificantDigit64Offset);
+  }
 
   // Provides access to JSObject::properties() field.
-  static FieldAccess ForJSObjectPropertiesOrHash();
+  static FieldAccess ForJSObjectPropertiesOrHash() {
+    return ForField<HeapObject, JSObject>(JSObject::kPropertiesOrHashOffset);
+  }
 
   // Provides access to JSObject::properties() field for known pointers.
-  static FieldAccess ForJSObjectPropertiesOrHashKnownPointer();
+  static FieldAccess ForJSObjectPropertiesOrHashKnownPointer() {
+    return ForField<HeapObject, JSObject>(JSObject::kPropertiesOrHashOffset);
+  }
 
   // Provides access to JSObject::elements() field.
-  static FieldAccess ForJSObjectElements();
+  static FieldAccess ForJSObjectElements() {
+    return ForField<HeapObject, JSObject>(JSObject::kElementsOffset);
+  }
 
   // Provides access to JSObject inobject property fields.
   static FieldAccess ForJSObjectInObjectProperty(
       MapRef map, int index,
-      MachineType machine_type = MachineType::AnyTagged());
+      MachineType machine_type = MachineType::AnyTagged()) {
+    return ForField<HeapObject, JSObject>(map.GetInObjectPropertyOffset(index), kFullWriteBarrier);
+  }
   static FieldAccess ForJSObjectOffset(
-      int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
+      int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier) {
+    return ForField<HeapObject, JSObject>(offset, write_barrier_kind);
+  }
 
   // Provides access to JSCollecton::table() field.
   static FieldAccess ForJSCollectionTable();
