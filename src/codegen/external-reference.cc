@@ -680,6 +680,20 @@ ExternalReference ExternalReference::wasm_code_pointer_table() {
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+namespace {
+void* allocate_buffer_impl(size_t size) {
+  void* result = new uint8_t[size];
+  CHECK_NOT_NULL(result);
+  return result;
+}
+
+void deallocate_buffer_impl(uint8_t buffer[]) { delete[] buffer; }
+}  // namespace
+
+FUNCTION_REFERENCE(allocate_buffer, allocate_buffer_impl)
+
+FUNCTION_REFERENCE(deallocate_buffer, deallocate_buffer_impl)
+
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);
   WriteUnalignedValue(data, base::ieee754::acos(input));

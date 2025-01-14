@@ -101,7 +101,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   const inParams = torque_internal::unsafe::NewOffHeapReference(
       %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
-  let locationAllocator = LocationAllocatorForParams(inParams);
+  let locationAllocator = LocationAllocatorForParams(inParams, 0);
 
   let paramIt = paramTypes.Iterator();
 

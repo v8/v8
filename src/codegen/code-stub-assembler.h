@@ -1087,10 +1087,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
   }
 
-  TNode<RawPtrT> GenericJSToWasmWrapperParamBuffer() {
-    return Load<RawPtrT>(
-        IsolateField(IsolateFieldId::kGenericJSToWasmWrapperParamBuffer));
-  }
+  // Dynamically allocates a buffer of size `size` in C++.
+  TNode<RawPtrT> AllocateBuffer(TNode<IntPtrT> size);
+
+  // Deallocates dynamically allocated memory in C++.
+  void DeallocateBuffer(TNode<RawPtrT> buffer);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

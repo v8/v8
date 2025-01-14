@@ -13120,6 +13120,20 @@ TorqueStructInt64AsInt32Pair CodeStubAssembler::BigIntToRawBytes(
   BigIntToRawBytes(value, &var_low, &var_high);
   return {var_low.value(), var_high.value()};
 }
+
+TNode<RawPtrT> CodeStubAssembler::AllocateBuffer(TNode<IntPtrT> size) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::allocate_buffer());
+  return UncheckedCast<RawPtrT>(
+      CallCFunction(function, MachineType::UintPtr(),
+                    std::make_pair(MachineType::IntPtr(), size)));
+}
+
+void CodeStubAssembler::DeallocateBuffer(TNode<RawPtrT> buffer) {
+  TNode<ExternalReference> function =
+      ExternalConstant(ExternalReference::deallocate_buffer());
+  CallCFunction(function, {}, std::make_pair(MachineType::UintPtr(), buffer));
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
