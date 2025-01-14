@@ -10713,6 +10713,10 @@ void Isolate::LowMemoryNotification() {
 
 int Isolate::ContextDisposedNotification(bool dependant_context) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (V8_UNLIKELY(i::v8_flags.trace_context_disposal)) {
+    i_isolate->PrintWithTimestamp("[context-disposal] Disposing %s context\n",
+                                  dependant_context ? "nested" : "top-level");
+  }
 #if V8_ENABLE_WEBASSEMBLY
   if (!dependant_context) {
     if (!i_isolate->context().is_null()) {
@@ -10726,8 +10730,15 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   i_isolate->AbortConcurrentOptimization(i::BlockingBehavior::kDontBlock);
-  // TODO(ahaas): move other non-heap activity out of the heap call.
   return i_isolate->heap()->NotifyContextDisposed(dependant_context);
+}
+
+void Isolate::ContextDisposedNotification(ContextDependants dependants) {
+  // TODO(mlippautz): Replace implementation with the old version of
+  // ContextDisposedNotification() that still has a return parameter.
+  START_ALLOW_USE_DEPRECATED()
+  ContextDisposedNotification(dependants == ContextDependants::kSomeDependants);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 void Isolate::IsolateInForegroundNotification() {

@@ -175,6 +175,18 @@ class V8_EXPORT ResourceConstraints {
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
+ * Signal for dependants of contexts. Useful for
+ * `ContextDisposedNotification()` to implement different strategies.
+ */
+enum class ContextDependants {
+  /** Context has no dependants. These are usually top-level contexts. */
+  kNoDependants,
+  /** Context has some dependants, i.e., it may depend on other contexts. This
+     is usually the case for inner contexts.  */
+  kSomeDependants
+};
+
+/**
  * Indicator for the stack state.
  */
 using StackState = cppgc::EmbedderStackState;
@@ -1506,7 +1518,17 @@ class V8_EXPORT Isolate {
    * The optional parameter |dependant_context| specifies whether the disposed
    * context was depending on state from other contexts or not.
    */
+  V8_DEPRECATE_SOON("Use version that passes ContextDependants.")
   int ContextDisposedNotification(bool dependant_context = true);
+
+  /**
+   * Optional notification that a context has been disposed. V8 uses these
+   * notifications to guide heuristics on e.g. GC or compilers.
+   *
+   * \param dependants A signal on whether this context possibly had any
+   *     dependants.
+   */
+  void ContextDisposedNotification(ContextDependants dependants);
 
   /**
    * Optional notification that the isolate switched to the foreground.

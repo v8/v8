@@ -13758,21 +13758,24 @@ TEST(DontLeakGlobalObjects) {
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
     }
-    CcTest::isolate()->ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
       v8_compile("Date")->Run(context.local()).ToLocalChecked();
     }
-    CcTest::isolate()->ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
       v8_compile("/aaa/")->Run(context.local()).ToLocalChecked();
     }
-    CcTest::isolate()->ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
@@ -13781,7 +13784,8 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run(context.local()).ToLocalChecked();
     }
-    CcTest::isolate()->ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
     CheckSurvivingGlobalObjectsCount(0);
   }
 }
@@ -17607,7 +17611,7 @@ TEST(Regress528) {
     CompileRun(source_simple);
     context->Exit();
   }
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_simple);
@@ -17629,7 +17633,7 @@ TEST(Regress528) {
     CompileRun(source_eval);
     context->Exit();
   }
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_eval);
@@ -17656,7 +17660,7 @@ TEST(Regress528) {
     CHECK_EQ(1, message->GetLineNumber(context).FromJust());
     context->Exit();
   }
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_exception);
@@ -17667,7 +17671,7 @@ TEST(Regress528) {
   CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
 }
 
 
@@ -30345,7 +30349,7 @@ TEST(WasmAbortStreamingAfterContextDisposal) {
 
     wasm_streaming =
         i::wasm::StartStreamingForTesting(i_isolate, std::move(resolver));
-    isolate->ContextDisposedNotification(false);
+    isolate->ContextDisposedNotification(v8::ContextDependants::kNoDependants);
   }
 
   wasm_streaming->Abort({});

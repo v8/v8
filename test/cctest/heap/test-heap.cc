@@ -2443,7 +2443,8 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
     ctx1p.Reset();
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -2504,7 +2505,8 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -2563,7 +2565,8 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -2626,7 +2629,8 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -3716,7 +3720,8 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
   CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 
   // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification(
+      v8::ContextDependants::kSomeDependants);
   heap::SimulateIncrementalMarking(CcTest::heap());
   heap::InvokeMajorGC(CcTest::heap());
 

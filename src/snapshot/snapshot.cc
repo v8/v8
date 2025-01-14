@@ -848,7 +848,7 @@ v8::StartupData WarmUpSnapshotDataBlobInternal(
   }
   {
     v8::HandleScope handle_scope(isolate);
-    isolate->ContextDisposedNotification(false);
+    isolate->ContextDisposedNotification(v8::ContextDependants::kNoDependants);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     snapshot_creator.SetDefaultContext(context);
   }

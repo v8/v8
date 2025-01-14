@@ -1847,11 +1847,6 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
 };
 
 int Heap::NotifyContextDisposed(bool has_dependent_context) {
-  if (V8_UNLIKELY(v8_flags.trace_context_disposal)) {
-    isolate()->PrintWithTimestamp(
-        "[context-disposal] Disposing %s context\n",
-        has_dependent_context ? "nested" : "top-level");
-  }
   if (!has_dependent_context) {
     tracer()->ResetSurvivalEvents();
     ResetOldGenerationAndGlobalAllocationLimit();
@@ -1863,7 +1858,6 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     DCHECK_NOT_NULL(new_space());
     IdleTaskOnContextDispose::TryPostJob(this);
   }
-  isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
     RemoveDirtyFinalizationRegistriesOnContext(isolate()->raw_native_context());
     isolate()->raw_native_context()->set_retained_maps(

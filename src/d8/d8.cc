@@ -2320,7 +2320,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   data->realms_[index].Reset();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
 }
 
 // Realm.create() creates a new realm with a distinct security token
@@ -5894,7 +5894,8 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
 
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all
