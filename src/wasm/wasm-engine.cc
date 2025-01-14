@@ -142,6 +142,11 @@ void WasmEngine::FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start) {
   }
 }
 
+size_t WasmEngine::NativeModuleCount() const {
+  base::SpinningMutexGuard guard(&mutex_);
+  return native_modules_.size();
+}
+
 // A task to log a set of {WasmCode} objects in an isolate. It does not own any
 // data itself, since it is owned by the platform, so lifetime is not really
 // bound to the wasm engine.

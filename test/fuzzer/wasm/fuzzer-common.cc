@@ -377,15 +377,13 @@ void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone) {
 
   // Make sure that there are no NativeModules left referencing the canonical
   // types. Collecting NativeModules can require two rounds of GC.
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 2 && GetWasmEngine()->NativeModuleCount() != 0; i++) {
     // We need to invoke GC without stack, otherwise the native module may
     // survive.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         i_isolate->heap());
-    if (GetWasmEngine()->NativeModuleCount() != 0) {
-      isolate->RequestGarbageCollectionForTesting(
-          v8::Isolate::kFullGarbageCollection);
-    }
+    isolate->RequestGarbageCollectionForTesting(
+        v8::Isolate::kFullGarbageCollection);
   }
   GetTypeCanonicalizer()->EmptyStorageForTesting();
   TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
