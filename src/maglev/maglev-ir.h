@@ -310,6 +310,7 @@ class ExceptionHandlerInfo;
   V(CheckMapsWithMigration)                   \
   V(CheckDetectableCallable)                  \
   V(CheckNotHole)                             \
+  V(CheckHoleyFloat64NotHole)                 \
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
@@ -9333,6 +9334,24 @@ class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   Input& object_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckHoleyFloat64NotHole
+    : public FixedInputNodeT<1, CheckHoleyFloat64NotHole> {
+  using Base = FixedInputNodeT<1, CheckHoleyFloat64NotHole>;
+
+ public:
+  explicit CheckHoleyFloat64NotHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& float64_input() { return input(0); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);

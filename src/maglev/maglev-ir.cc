@@ -110,7 +110,7 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 #define CASE(op)                                                          \
   case Opcode::k##op: {                                                   \
     DCHECK_EQ(old_input_count, StaticInputCount(static_cast<op*>(this))); \
-    DCHECK_EQ(sizeof(op), old_sizeof);                                    \
+    DCHECK_LE(sizeof(op), old_sizeof);                                    \
     break;                                                                \
   }
     NODE_BASE_LIST(CASE)
@@ -3567,6 +3567,19 @@ void CheckNotHole::GenerateCode(MaglevAssembler* masm,
   __ CompareRootAndEmitEagerDeoptIf(ToRegister(object_input()),
                                     RootIndex::kTheHoleValue, kEqual,
                                     DeoptimizeReason::kHole, this);
+}
+
+void CheckHoleyFloat64NotHole::SetValueLocationConstraints() {
+  UseRegister(float64_input());
+  set_temporaries_needed(1);
+}
+void CheckHoleyFloat64NotHole::GenerateCode(MaglevAssembler* masm,
+                                            const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  __ JumpIfHoleNan(ToDoubleRegister(float64_input()), scratch,
+                   __ GetDeoptLabel(this, DeoptimizeReason::kHole),
+                   Label::kFar);
 }
 
 void ConvertHoleToUndefined::SetValueLocationConstraints() {
