@@ -54,110 +54,29 @@
 namespace v8 {
 namespace internal {
 
-// This class caches page live bytes during concurrent marking. This
-// avoids costly CAS operations on MutablePageMetadata::live_byte_count_ for
-// each traced object.
-//
-// Page live bytes are cached in a fixed-size hash map. In the case of
-// collisions the existing entry is simply written back to
-// MutablePageMetadata::live_byte_count_ with a CAS. Afterwards it can be
-// replaced with the new entry.
-class MemoryChunkLiveBytesMap {
- public:
-  MemoryChunkLiveBytesMap() = default;
-
-  MemoryChunkLiveBytesMap(const MemoryChunkLiveBytesMap&) = delete;
-  MemoryChunkLiveBytesMap& operator=(const MemoryChunkLiveBytesMap&) = delete;
-
-  void Increment(MutablePageMetadata* page, intptr_t live);
-  void FlushAndClear();
-  void Erase(MutablePageMetadata* page);
-
-#if DEBUG
-  void AssertEmpty();
-#endif  // DEBUG
-
- private:
-  struct Entry {
-    MutablePageMetadata* page;
-    intptr_t live_bytes;
-  };
-
-  static constexpr size_t kTableSize = 32;
-
-  Entry& lookup_entry(MutablePageMetadata* page) {
-    size_t hash = std::hash<MutablePageMetadata*>{}(page);
-    static_assert(base::bits::IsPowerOfTwo(kTableSize));
-    return map_[hash % kTableSize];
-  }
-
-  std::array<Entry, kTableSize> map_ = {};
+struct MemoryChunkData final {
+  intptr_t live_bytes = 0;
+  std::unique_ptr<TypedSlots> typed_slots;
 };
 
-void MemoryChunkLiveBytesMap::Increment(MutablePageMetadata* page,
-                                        intptr_t bytes) {
-  Entry& entry = lookup_entry(page);
-  if (entry.page == page) {
-    entry.live_bytes += bytes;
-  } else if (entry.page == nullptr) {
-    entry.page = page;
-    entry.live_bytes = bytes;
-  } else {
-    // Write back the existing entry.
-    entry.page->IncrementLiveBytesAtomically(entry.live_bytes);
-    // Now just replace it with the new entry.
-    entry.page = page;
-    entry.live_bytes = bytes;
-  }
-}
-
-void MemoryChunkLiveBytesMap::Erase(MutablePageMetadata* page) {
-  Entry& entry = lookup_entry(page);
-  if (entry.page == page) {
-    entry.page = nullptr;
-    entry.live_bytes = 0;
-  }
-}
-
-void MemoryChunkLiveBytesMap::FlushAndClear() {
-  for (auto& entry : map_) {
-    if (entry.page) {
-      entry.page->IncrementLiveBytesAtomically(entry.live_bytes);
-      entry.page = nullptr;
-      entry.live_bytes = 0;
-    }
-  }
-}
-
-#if DEBUG
-void MemoryChunkLiveBytesMap::AssertEmpty() {
-  for (auto& entry : map_) {
-    DCHECK_NULL(entry.page);
-    DCHECK_EQ(entry.live_bytes, 0);
-  }
-}
-#endif  // DEBUG
-
-using MemoryChunkTypedSlotsMap =
-    ::heap::base::CachedUnorderedMap<MutablePageMetadata*,
-                                     std::unique_ptr<TypedSlots>>;
+using MemoryChunkDataMap =
+    ::heap::base::CachedUnorderedMap<MutablePageMetadata*, MemoryChunkData>;
 
 class ConcurrentMarkingVisitor final
     : public FullMarkingVisitorBase<ConcurrentMarkingVisitor> {
  public:
-  ConcurrentMarkingVisitor(
-      MarkingWorklists::Local* local_marking_worklists,
-      WeakObjects::Local* local_weak_objects, Heap* heap,
-      unsigned mark_compact_epoch, base::EnumSet<CodeFlushMode> code_flush_mode,
-      bool should_keep_ages_unchanged, uint16_t code_flushing_increase,
-      MemoryChunkLiveBytesMap* memory_chunk_live_bytes_map,
-      MemoryChunkTypedSlotsMap* memory_chunk_typed_slots_map)
+  ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
+                           unsigned mark_compact_epoch,
+                           base::EnumSet<CodeFlushMode> code_flush_mode,
+                           bool should_keep_ages_unchanged,
+                           uint16_t code_flushing_increase,
+                           MemoryChunkDataMap* memory_chunk_data)
       : FullMarkingVisitorBase(local_marking_worklists, local_weak_objects,
                                heap, mark_compact_epoch, code_flush_mode,
                                should_keep_ages_unchanged,
                                code_flushing_increase),
-        memory_chunk_live_bytes_map_(memory_chunk_live_bytes_map),
-        memory_chunk_typed_slots_map_(memory_chunk_typed_slots_map) {}
+        memory_chunk_data_(memory_chunk_data) {}
 
   using FullMarkingVisitorBase<
       ConcurrentMarkingVisitor>::VisitMapPointerIfNeeded;
@@ -189,7 +108,7 @@ class ConcurrentMarkingVisitor final
   void IncrementLiveBytesCached(MutablePageMetadata* chunk, intptr_t by) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(by, kObjectAlignment8GbHeap));
-    memory_chunk_live_bytes_map_->Increment(chunk, by);
+    (*memory_chunk_data_)[chunk].live_bytes += by;
   }
 
  private:
@@ -202,25 +121,21 @@ class ConcurrentMarkingVisitor final
     MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
 
-    auto& typed_slots = (*memory_chunk_typed_slots_map_)[info.page_metadata];
-
-    if (!typed_slots) {
-      typed_slots.reset(new TypedSlots());
+    MemoryChunkData& data = (*memory_chunk_data_)[info.page_metadata];
+    if (!data.typed_slots) {
+      data.typed_slots.reset(new TypedSlots());
     }
-
-    typed_slots->Insert(info.slot_type, info.offset);
+    data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
-  MemoryChunkLiveBytesMap* memory_chunk_live_bytes_map_;
-  MemoryChunkTypedSlotsMap* memory_chunk_typed_slots_map_;
+  MemoryChunkDataMap* memory_chunk_data_;
 
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor>;
 };
 
 struct ConcurrentMarking::TaskState {
   size_t marked_bytes = 0;
-  MemoryChunkLiveBytesMap memory_chunk_live_bytes_map;
-  MemoryChunkTypedSlotsMap memory_chunk_typed_slots_map;
+  MemoryChunkDataMap memory_chunk_data;
   NativeContextStats native_context_stats;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
       PretenuringHandler::kInitialFeedbackCapacity};
@@ -364,9 +279,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   ConcurrentMarkingVisitor visitor(
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
       code_flush_mode, should_keep_ages_unchanged,
-      heap_->tracer()->CodeFlushingIncrease(),
-      &task_state->memory_chunk_live_bytes_map,
-      &task_state->memory_chunk_typed_slots_map);
+      heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
   NativeContextInferrer native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;
@@ -621,6 +534,10 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         "Minor task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
   }
+
+  DCHECK(task_state->memory_chunk_data.empty());
+  DCHECK(task_state->native_context_stats.Empty());
+  DCHECK_EQ(0, task_state->marked_bytes);
 }
 
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
@@ -676,41 +593,19 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
-#if DEBUG
-  if (garbage_collector_.has_value()) {
-    // Concurrent marking resumes. In this case the used collectors need to
-    // match.
-    DCHECK_EQ(*garbage_collector_, garbage_collector);
-  } else {
-    // If a new concurrent marking cycle starts, TaskState should not contain
-    // any data.
-    for (auto& task_state : task_state_) {
-      task_state->memory_chunk_live_bytes_map.AssertEmpty();
-      DCHECK(task_state->memory_chunk_typed_slots_map.empty());
-      DCHECK(task_state->native_context_stats.Empty());
-      DCHECK(task_state->local_pretenuring_feedback.empty());
-      DCHECK_EQ(0, task_state->marked_bytes);
-    }
-    DCHECK_EQ(0, total_marked_bytes_.load());
-  }
-
-  if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
-    // The full GC never makes use of local_pretenuring_feedback. It needs to be
-    // empty even if resuming concurrent marking.
-    for (auto& task_state : task_state_) {
-      DCHECK(task_state->local_pretenuring_feedback.empty());
-    }
-  }
-
-  if (minor_marking_state_) {
-    // Minor marking state can only be alive if the concurrent marker was
-    // previously paused.
-    DCHECK(garbage_collector_.has_value());
-    DCHECK_EQ(*garbage_collector_, GarbageCollector::MINOR_MARK_SWEEPER);
-    DCHECK_EQ(garbage_collector, GarbageCollector::MINOR_MARK_SWEEPER);
-  }
-#endif  // DEBUG
-
+  // Marking state can only be alive if the concurrent marker was previously
+  // stopped.
+  DCHECK_IMPLIES(
+      minor_marking_state_,
+      garbage_collector_.has_value() &&
+          (*garbage_collector_ == garbage_collector) &&
+          (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER));
+  DCHECK_IMPLIES(
+      !garbage_collector_.has_value() ||
+          *garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
+      std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
+        return task_state->local_pretenuring_feedback.empty();
+      }));
   garbage_collector_ = garbage_collector;
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
     heap_->mark_compact_collector()->local_marking_worklists()->Publish();
@@ -818,11 +713,6 @@ void ConcurrentMarking::Join() {
   minor_marking_state_.reset();
 }
 
-void ConcurrentMarking::JoinJobForTesting() {
-  if (!job_handle_ || !job_handle_->IsValid()) return;
-  job_handle_->Join();
-}
-
 bool ConcurrentMarking::Pause() {
   DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return false;
@@ -864,23 +754,31 @@ void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
 
 void ConcurrentMarking::FlushMemoryChunkData() {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  for (auto& task_state : task_state_) {
-    task_state->memory_chunk_live_bytes_map.FlushAndClear();
-    for (auto&& [page, typed_slots] :
-         task_state->memory_chunk_typed_slots_map) {
-      RememberedSet<OLD_TO_OLD>::MergeTyped(page, std::move(typed_slots));
+  for (size_t i = 1; i < task_state_.size(); i++) {
+    MemoryChunkDataMap& memory_chunk_data = task_state_[i]->memory_chunk_data;
+    for (auto& pair : memory_chunk_data) {
+      // ClearLiveness sets the live bytes to zero.
+      // Pages with zero live bytes might be already unmapped.
+      MutablePageMetadata* memory_chunk = pair.first;
+      MemoryChunkData& data = pair.second;
+      if (data.live_bytes) {
+        memory_chunk->IncrementLiveBytesAtomically(data.live_bytes);
+      }
+      if (data.typed_slots) {
+        RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
+                                              std::move(data.typed_slots));
+      }
     }
-    task_state->memory_chunk_typed_slots_map.clear();
-    task_state->marked_bytes = 0;
+    memory_chunk_data.clear();
+    task_state_[i]->marked_bytes = 0;
   }
   total_marked_bytes_ = 0;
 }
 
 void ConcurrentMarking::ClearMemoryChunkData(MutablePageMetadata* chunk) {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  for (auto& task_state : task_state_) {
-    task_state->memory_chunk_live_bytes_map.Erase(chunk);
-    DCHECK(!task_state->memory_chunk_typed_slots_map.contains(chunk));
+  for (size_t i = 1; i < task_state_.size(); i++) {
+    task_state_[i]->memory_chunk_data.erase(chunk);
   }
 }
 
