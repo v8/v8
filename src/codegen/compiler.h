@@ -465,10 +465,8 @@ class OptimizedCompilationJob : public CompilationJob {
 // Thin wrapper to split off Turbofan-specific parts.
 class TurbofanCompilationJob : public OptimizedCompilationJob {
  public:
-  TurbofanCompilationJob(OptimizedCompilationInfo* compilation_info,
-                         State initial_state)
-      : OptimizedCompilationJob("Turbofan", initial_state),
-        compilation_info_(compilation_info) {}
+  V8_EXPORT_PRIVATE TurbofanCompilationJob(
+      OptimizedCompilationInfo* compilation_info, State initial_state);
 
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
@@ -495,6 +493,7 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
 
  private:
   OptimizedCompilationInfo* const compilation_info_;
+  uint64_t trace_id_;
 };
 
 class FinalizeUnoptimizedCompilationData {

@@ -508,6 +508,24 @@ void OptimizedCompilationJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
+namespace {
+uint64_t GetNextTraceId() {
+  // Define a global counter for optimized compile trace ids, which
+  // counts in the top 32 bits of a uint64_t. This will be mixed into
+  // the TurbofanCompilationJob `this` pointer, which hopefully will
+  // make the ids unique enough even when the job memory is reused
+  // for future jobs.
+  static std::atomic_uint32_t kNextTraceId = 0xfa5701d0;
+  return static_cast<uint64_t>(kNextTraceId++) << 32;
+}
+}  // namespace
+
+TurbofanCompilationJob::TurbofanCompilationJob(
+    OptimizedCompilationInfo* compilation_info, State initial_state)
+    : OptimizedCompilationJob("Turbofan", initial_state),
+      compilation_info_(compilation_info),
+      trace_id_(GetNextTraceId() ^ reinterpret_cast<uintptr_t>(this)) {}
+
 CompilationJob::Status TurbofanCompilationJob::RetryOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());
@@ -629,8 +647,7 @@ uint64_t TurbofanCompilationJob::trace_id() const {
   // Xor together the this pointer and the optimization id, to try to make the
   // id more unique on platforms where just the `this` pointer is likely to be
   // reused.
-  return reinterpret_cast<uint64_t>(this) ^
-         compilation_info_->optimization_id();
+  return trace_id_;
 }
 
 // ----------------------------------------------------------------------------
@@ -4344,6 +4361,9 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(
 // static
 void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
                                              TurbofanCompilationJob* job) {
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                         "V8.OptimizeConcurrentDispose", job->trace_id(),
+                         TRACE_EVENT_FLAG_FLOW_IN);
   DirectHandle<JSFunction> function = job->compilation_info()->closure();
   function->SetTieringInProgress(false, job->compilation_info()->osr_offset());
 }
@@ -4358,7 +4378,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
   TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                          "V8.OptimizeConcurrentFinalize", job->trace_id(),
-                         TRACE_EVENT_FLAG_FLOW_IN);
+                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
   DirectHandle<JSFunction> function = compilation_info->closure();
   DirectHandle<SharedFunctionInfo> shared = compilation_info->shared_info();
