@@ -803,13 +803,23 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     CheckNumber* node, Phi* phi, int input_index,
     const ProcessingState* state) {
-  if (phi->value_representation() != ValueRepresentation::kTagged) {
-    // The phi was untagged, so we know that it's a number. We thus remove this
-    // CheckNumber from the graph.
-    return ProcessResult::kRemove;
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kFloat64:
+      // The phi was untagged to a Int32 or Float64, so we know that it's a
+      // number. We thus remove this CheckNumber from the graph.
+      return ProcessResult::kRemove;
+    case ValueRepresentation::kHoleyFloat64:
+      // We need to check that the phi is not the hole nan.
+      node->OverwriteWith<CheckHoleyFloat64NotHole>();
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kTagged:
+      // {phi} wasn't untagged, so we don't need to do anything.
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+      UNREACHABLE();
   }
-  return UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index,
-                            state);
 }
 
 // If the input of a StoreTaggedFieldNoWriteBarrier was a Phi that got
