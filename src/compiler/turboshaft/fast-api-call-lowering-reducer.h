@@ -60,10 +60,12 @@ class FastApiCallLoweringReducer : public Next {
 
       for (int i = 0; i < c_arg_count; ++i) {
         CTypeInfo type = c_signature->ArgumentInfo(i);
+        START_ALLOW_USE_DEPRECATED()
         MachineType machine_type =
             type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
                 ? MachineType::TypeForCType(type)
                 : MachineType::AnyTagged();
+        END_ALLOW_USE_DEPRECATED()
         builder.AddParam(machine_type);
       }
 
@@ -147,6 +149,7 @@ class FastApiCallLoweringReducer : public Next {
 
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
                                 Label<>& handle_error) {
+    START_ALLOW_USE_DEPRECATED()
     switch (arg_type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kScalar: {
         uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
@@ -263,6 +266,7 @@ class FastApiCallLoweringReducer : public Next {
         UNREACHABLE();
       }
     }
+    END_ALLOW_USE_DEPRECATED()
   }
 
   OpIndex ClampFastCallArgument(V<Float64> argument,

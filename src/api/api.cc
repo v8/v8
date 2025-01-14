@@ -12521,9 +12521,8 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<int32_t>::Build().GetId(),
                                     int32_t>(Local<Array> src, int32_t* dst,
                                              uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<
-      CTypeInfo(CTypeInfo::Type::kInt32, CTypeInfo::SequenceType::kIsSequence)
-          .GetId(),
-      int32_t>(src, dst, max_length);
+      CTypeInfo(CTypeInfo::Type::kInt32).GetId(), int32_t>(src, dst,
+                                                           max_length);
 }
 
 template <>
@@ -12532,9 +12531,8 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<uint32_t>::Build().GetId(),
                                     uint32_t>(Local<Array> src, uint32_t* dst,
                                               uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<
-      CTypeInfo(CTypeInfo::Type::kUint32, CTypeInfo::SequenceType::kIsSequence)
-          .GetId(),
-      uint32_t>(src, dst, max_length);
+      CTypeInfo(CTypeInfo::Type::kUint32).GetId(), uint32_t>(src, dst,
+                                                             max_length);
 }
 
 template <>
@@ -12543,9 +12541,8 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<float>::Build().GetId(),
                                     float>(Local<Array> src, float* dst,
                                            uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<
-      CTypeInfo(CTypeInfo::Type::kFloat32, CTypeInfo::SequenceType::kIsSequence)
-          .GetId(),
-      float>(src, dst, max_length);
+      CTypeInfo(CTypeInfo::Type::kFloat32).GetId(), float>(src, dst,
+                                                           max_length);
 }
 
 template <>
@@ -12554,9 +12551,8 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
                                     double>(Local<Array> src, double* dst,
                                             uint32_t max_length) {
   return CopyAndConvertArrayToCppBuffer<
-      CTypeInfo(CTypeInfo::Type::kFloat64, CTypeInfo::SequenceType::kIsSequence)
-          .GetId(),
-      double>(src, dst, max_length);
+      CTypeInfo(CTypeInfo::Type::kFloat64).GetId(), double>(src, dst,
+                                                            max_length);
 }
 
 }  // namespace v8

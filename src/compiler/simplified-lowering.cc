@@ -1956,6 +1956,7 @@ class RepresentationSelector {
   UseInfo UseInfoForFastApiCallArgument(CTypeInfo type,
                                         CFunctionInfo::Int64Representation repr,
                                         FeedbackSource const& feedback) {
+    START_ALLOW_USE_DEPRECATED()
     switch (type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kScalar: {
         uint8_t flags = uint8_t(type.GetFlags());
@@ -2010,6 +2011,7 @@ class RepresentationSelector {
         UNREACHABLE();  // TODO(mslekova): Implement array buffers.
       }
     }
+    END_ALLOW_USE_DEPRECATED()
   }
 
   static constexpr int kInitialArgumentsCount = 10;
