@@ -31,7 +31,7 @@ TEST(ConcurrentMarkingMarkedBytes) {
   // Ensure that objects are published to the global marking worklist such that
   // the concurrent markers can pick it up.
   heap->mark_compact_collector()->local_marking_worklists()->Publish();
-  heap->concurrent_marking()->Join();
+  heap->concurrent_marking()->JoinJobForTesting();
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }
 

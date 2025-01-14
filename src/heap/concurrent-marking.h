@@ -59,6 +59,10 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   // Waits for scheduled job to complete.
   void Join();
+
+  // Joins scheduled job for testing.
+  void JoinJobForTesting();
+
   // Preempts ongoing job ASAP. Returns true if concurrent marking was in
   // progress, false otherwise.
   bool Pause();
