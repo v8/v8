@@ -298,7 +298,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1e95b102f113ded38974cf06a65fe0457b6004b',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '597b2e8c42ef95d1996a3d3713cddac269c68b50',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '823412c5308b47b24c91e3adfb6a84494c46946e',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -460,7 +460,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '24764a1d9c2fce1e9816ffae691f00353ade330d',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '4596ae745605e4166c4d0919d4208a9426cdc3a4',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '7938ad35f63a558bf94755cd33d40e79442a5930',
   'third_party/re2/src':
@@ -482,7 +482,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5634698162b2182c350e4cb360a0f4dd7706afec',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '145ae97377dc97a0c5a9ce7ab5709f3492757475',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '860e334a8072b597763907abe23db28004eec27c',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
