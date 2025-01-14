@@ -503,6 +503,18 @@ bool IsTheHoleAt(Tagged<FixedDoubleArray> array, int index) {
   return array->is_the_hole(index);
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+template <class T>
+bool IsUndefinedAt(Tagged<T> array, int index) {
+  return false;
+}
+
+template <>
+bool IsUndefinedAt(Tagged<FixedDoubleArray> array, int index) {
+  return array->is_undefined(index);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 template <class T>
 double GetScalarElement(Tagged<T> array, int index) {
   if (IsTheHoleAt(array, index)) {
@@ -517,15 +529,13 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
   Tagged<T> array = Cast<T>(object);
   if (length == 0) return;
   int previous_index = 0;
-  double previous_value = GetScalarElement(array, 0);
-  double value = 0.0;
+  uint64_t previous_representation = array->get_representation(0);
+  uint64_t representation = 0;
   int i;
   for (i = 1; i <= length; i++) {
-    if (i < length) value = GetScalarElement(array, i);
-    bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
-    if (i != length && (previous_value == value || values_are_nan) &&
-        IsTheHoleAt(array, i - 1) == IsTheHoleAt(array, i)) {
-      continue;
+    if (i < length) {
+      representation = array->get_representation(i);
+      if (previous_representation == representation) continue;
     }
     os << "\n";
     std::stringstream ss;
@@ -536,11 +546,15 @@ void DoPrintElements(std::ostream& os, Tagged<Object> object, int length) {
     os << std::setw(12) << ss.str() << ": ";
     if (print_the_hole && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    } else if (IsUndefinedAt(array, i - 1)) {
+      os << "undefined";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     } else {
-      os << previous_value;
+      os << GetScalarElement(array, i - 1);
     }
     previous_index = i;
-    previous_value = value;
+    previous_representation = representation;
   }
 }
 

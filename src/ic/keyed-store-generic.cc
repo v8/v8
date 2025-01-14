@@ -9,6 +9,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/objects/contexts.h"
@@ -493,8 +494,24 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       TNode<NativeContext> native_context = LoadNativeContext(context);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      GotoIf(IsHeapNumber(CAST(value)), &transition_to_double);
+      GotoIfNot(IsUndefined(value), &transition_to_object);
+      TryRewriteElements(receiver, receiver_map, elements, native_context,
+                         PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, slow);
+      // Reload migrated elements.
+      TNode<FixedArrayBase> double_elements = LoadElements(receiver);
+      TNode<IntPtrT> double_offset =
+          ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
+      // Make sure we do not store signalling NaNs into double arrays.
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, double_elements,
+                          double_offset, Uint64Constant(kUndefinedNanInt64));
+      MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+#else
       Branch(IsHeapNumber(CAST(value)), &transition_to_double,
              &transition_to_object);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
       BIND(&transition_to_double);
       {
         // If we're adding holes at the end, always transition to a holey
@@ -562,8 +579,12 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      TNode<Float64T> double_value =
-          TryTaggedToFloat64(value, &non_number_value);
+      Label undefined_value(this);
+      TNode<Float64T> double_value = TryTaggedToFloat64(value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                        &undefined_value,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                        &non_number_value);
 
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
@@ -575,6 +596,22 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, elements, offset,
                           double_value);
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+
+      // Convert undefined to double value.
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      BIND(&undefined_value);
+      // FIXME(nicohartmann): Unify with above.
+
+      // If we're about to introduce holes, ensure holey elements.
+      if (update_length == kBumpLengthWithGap) {
+        TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
+                            PACKED_DOUBLE_ELEMENTS, slow);
+      }
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                          Uint64Constant(kUndefinedNanInt64));
+      // double_value);
+      MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
       BIND(&non_number_value);
     }

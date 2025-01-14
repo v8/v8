@@ -478,7 +478,7 @@ transitioning javascript builtin MathHypot(
         oneArgIsNaN = true;
       } else {
         const absValue = Float64Abs(value);
-        absValues.values[i] = Convert<float64_or_hole>(absValue);
+        absValues.values[i] = Convert<float64_or_undefined_or_hole>(absValue);
         if (absValue > max) {
           max = absValue;
         }

@@ -739,7 +739,12 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
 ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
                                          PtrComprCageBase cage_base) {
   if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
-  if (IsNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  if (IsHeapNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (IsUndefined(obj, GetReadOnlyRoots())) {
+    return HOLEY_DOUBLE_ELEMENTS;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   return PACKED_ELEMENTS;
 }
 

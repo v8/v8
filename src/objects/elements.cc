@@ -3130,6 +3130,12 @@ class FastDoubleElementsAccessor
 
   static inline void SetImpl(Tagged<FixedArrayBase> backing_store,
                              InternalIndex entry, Tagged<Object> value) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if (IsUndefined(value)) {
+      Cast<FixedDoubleArray>(backing_store)->set_undefined(entry.as_int());
+      return;
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     Cast<FixedDoubleArray>(backing_store)
         ->set(entry.as_int(), Object::NumberValue(value));
   }

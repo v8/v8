@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
@@ -1006,7 +1007,16 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   }
 
   BIND(rebox_double);
-  exit_point->Return(AllocateHeapNumberWithValue(var_double_value->value()));
+  {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label if_not_undefined(this);
+    GotoIfNot(IsDoubleUndefined(var_double_value->value()), &if_not_undefined);
+    exit_point->Return(UndefinedConstant());
+
+    BIND(&if_not_undefined);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    exit_point->Return(AllocateHeapNumberWithValue(var_double_value->value()));
+  }
 }
 
 void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
@@ -2203,7 +2213,11 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
     CSA_DCHECK(this, Word32Equal(field_representation,
                                  Int32Constant(Representation::kDouble)));
     Comment("double field checks");
-    TNode<Float64T> double_value = TryTaggedToFloat64(value, miss);
+    TNode<Float64T> double_value = TryTaggedToFloat64(value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                      nullptr,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                      miss);
     CheckDescriptorConsidersNumbersMutable(handler_word, holder, miss);
 
     Comment("store double field");
@@ -2537,13 +2551,25 @@ void AccessorAssembler::EmitElementLoad(
     BIND(&if_fast_holey_double);
     {
       Comment("holey double elements");
-      TNode<Float64T> value =
-          LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole);
       if (access_mode == LoadAccessMode::kHas) {
+        LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole,
+                                    MachineType::None());
         exit_point->Return(TrueConstant());
       } else {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        Label if_undefined(this);
+        TNode<Float64T> value = LoadFixedDoubleArrayElementWithUndefinedCheck(
+            CAST(elements), intptr_index, &if_undefined, if_hole);
         *var_double_value = value;
         Goto(rebox_double);
+
+        BIND(&if_undefined);
+        exit_point->Return(UndefinedConstant());
+#else
+        *var_double_value =
+            LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole);
+        Goto(rebox_double);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       }
     }
   }
@@ -2804,6 +2830,9 @@ void AccessorAssembler::GenericElementLoad(
                   &direct_exit);
 
   BIND(&rebox_double);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  GotoIf(IsDoubleUndefined(var_double_value.value()), &return_undefined);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   Return(AllocateHeapNumberWithValue(var_double_value.value()));
 
   BIND(&if_oob);

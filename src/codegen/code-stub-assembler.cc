@@ -3280,6 +3280,23 @@ TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+TNode<Float64T>
+CodeStubAssembler::LoadFixedDoubleArrayElementWithUndefinedCheck(
+    TNode<FixedDoubleArray> object, TNode<IntPtrT> index, Label* if_undefined,
+    Label* if_hole, MachineType machine_type) {
+  int32_t header_size = OFFSET_OF_DATA_START(FixedDoubleArray) - kHeapObjectTag;
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, HOLEY_DOUBLE_ELEMENTS, header_size);
+  CSA_DCHECK(this,
+             IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(object),
+                              OFFSET_OF_DATA_START(FixedDoubleArray),
+                              HOLEY_DOUBLE_ELEMENTS));
+  return LoadDoubleWithUndefinedAndHoleCheck(object, offset, if_undefined,
+                                             if_hole, machine_type);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
     TNode<FixedArrayBase> elements, TNode<IntPtrT> index,
     TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole) {
@@ -3329,9 +3346,23 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   BIND(&if_holey_double);
   {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label if_undefined(this);
+    TNode<Float64T> float_value = LoadFixedDoubleArrayElementWithUndefinedCheck(
+        CAST(elements), index, &if_undefined, if_hole);
+    var_result = AllocateHeapNumberWithValue(float_value);
+    Goto(&done);
+
+    BIND(&if_undefined);
+    {
+      var_result = UndefinedConstant();
+      Goto(&done);
+    }
+#else
     var_result = AllocateHeapNumberWithValue(
         LoadFixedDoubleArrayElement(CAST(elements), index, if_hole));
     Goto(&done);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 
   BIND(&if_dictionary);
@@ -3361,6 +3392,28 @@ TNode<BoolT> CodeStubAssembler::IsDoubleHole(TNode<Object> base,
   }
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Object> base,
+                                                  TNode<IntPtrT> offset) {
+  // TODO(ishell): Compare only the upper part for the hole once the
+  // compiler is able to fold addition of already complex |offset| with
+  // |kIeeeDoubleExponentWordOffset| into one addressing mode.
+  if (Is64()) {
+    TNode<Uint64T> element = Load<Uint64T>(base, offset);
+    return Word64Equal(element, Int64Constant(kUndefinedNanInt64));
+  } else {
+    TNode<Uint32T> element_upper = Load<Uint32T>(
+        base, IntPtrAdd(offset, IntPtrConstant(kIeeeDoubleExponentWordOffset)));
+    return Word32Equal(element_upper, Int32Constant(kUndefinedNanUpper32));
+  }
+}
+
+TNode<BoolT> CodeStubAssembler::IsDoubleUndefined(TNode<Float64T> value) {
+  TNode<Int64T> bits = BitcastFloat64ToInt64(value);
+  return Word64Equal(bits, Int64Constant(kUndefinedNanInt64));
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     TNode<Object> base, TNode<IntPtrT> offset, Label* if_hole,
     MachineType machine_type) {
@@ -3370,9 +3423,30 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
   if (machine_type.IsNone()) {
     // This means the actual value is not needed.
     return TNode<Float64T>();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  } else {
+    CSA_DCHECK(this, Word32BinaryNot(IsDoubleUndefined(base, offset)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
   return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+TNode<Float64T> CodeStubAssembler::LoadDoubleWithUndefinedAndHoleCheck(
+    TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
+    Label* if_hole, MachineType machine_type) {
+  DCHECK_NOT_NULL(if_undefined);
+  if (if_hole) {
+    GotoIf(IsDoubleHole(base, offset), if_hole);
+  }
+  GotoIf(IsDoubleUndefined(base, offset), if_undefined);
+  if (machine_type.IsNone()) {
+    // This means the actual value is not needed.
+    return TNode<Float64T>();
+  }
+  return UncheckedCast<Float64T>(Load(machine_type, base, offset));
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
   return CAST(LoadContextElement(context, Context::SCOPE_INFO_INDEX));
@@ -3717,6 +3791,9 @@ void CodeStubAssembler::StoreObjectByteNoWriteBarrier(TNode<HeapObject> object,
 
 void CodeStubAssembler::StoreHeapNumberValue(TNode<HeapNumber> object,
                                              TNode<Float64T> value) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  CSA_DCHECK(this, Word32Equal(Int32Constant(0), IsDoubleUndefined(value)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   StoreObjectFieldNoWriteBarrier(object, offsetof(HeapNumber, value_), value);
 }
 
@@ -5615,6 +5692,7 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
     StoreNoWriteBarrier(MachineRepresentation::kWord64, object, offset,
                         double_hole);
   } else {
+    static_assert(kHoleNanLower32 == kHoleNanUpper32);
     StoreNoWriteBarrier(MachineRepresentation::kWord32, object, offset,
                         double_hole);
     StoreNoWriteBarrier(MachineRepresentation::kWord32, object,
@@ -5622,6 +5700,29 @@ void CodeStubAssembler::StoreDoubleHole(TNode<HeapObject> object,
                         double_hole);
   }
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void CodeStubAssembler::StoreDoubleUndefined(TNode<HeapObject> object,
+                                             TNode<IntPtrT> offset) {
+  TNode<UintPtrT> double_undefined =
+      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kUndefinedNanInt64))
+             : ReinterpretCast<UintPtrT>(Int32Constant(kUndefinedNanLower32));
+  // TODO(danno): When we have a Float32/Float64 wrapper class that
+  // preserves double bits during manipulation, remove this code/change
+  // this to an indexed Float64 store.
+  if (Is64()) {
+    StoreNoWriteBarrier(MachineRepresentation::kWord64, object, offset,
+                        double_undefined);
+  } else {
+    static_assert(kUndefinedNanLower32 == kUndefinedNanUpper32);
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, object, offset,
+                        double_undefined);
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, object,
+                        IntPtrAdd(offset, IntPtrConstant(kInt32Size)),
+                        double_undefined);
+  }
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                                   TNode<IntPtrT> index) {
@@ -5634,6 +5735,20 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                               PACKED_DOUBLE_ELEMENTS));
   StoreDoubleHole(array, offset);
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void CodeStubAssembler::StoreFixedDoubleArrayUndefined(
+    TNode<FixedDoubleArray> array, TNode<IntPtrT> index) {
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS,
+                             OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
+  CSA_DCHECK(this,
+             IsOffsetInBounds(offset, LoadAndUntagFixedArrayBaseLength(array),
+                              OFFSET_OF_DATA_START(FixedDoubleArray),
+                              PACKED_DOUBLE_ELEMENTS));
+  StoreDoubleUndefined(array, offset);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
                                                   TNode<FixedArray> array,
@@ -6161,9 +6276,29 @@ TNode<Object> CodeStubAssembler::LoadElementAndPrepareForStore(
   CSA_DCHECK(this, IsFixedArrayWithKind(array, from_kind));
   DCHECK(!IsDoubleElementsKind(to_kind));
   if (IsDoubleElementsKind(from_kind)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label if_undefined(this);
+    Label done(this);
+    TVARIABLE(Object, result);
+
+    TNode<Float64T> value = LoadDoubleWithUndefinedAndHoleCheck(
+        array, offset, &if_undefined, if_hole, MachineType::Float64());
+    result = AllocateHeapNumberWithValue(value);
+    Goto(&done);
+
+    BIND(&if_undefined);
+    {
+      result = UndefinedConstant();
+      Goto(&done);
+    }
+
+    BIND(&done);
+    return result.value();
+#else
     TNode<Float64T> value =
         LoadDoubleWithHoleCheck(array, offset, if_hole, MachineType::Float64());
     return AllocateHeapNumberWithValue(value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   } else {
     TNode<Object> value = Load<Object>(array, offset);
     if (if_hole) {
@@ -6341,10 +6476,19 @@ TNode<IntPtrT> CodeStubAssembler::TryTaggedToInt32AsIntPtr(
 }
 
 TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
-    TNode<Object> value, Label* if_valueisnotnumber) {
+    TNode<Object> value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label* if_valueisundefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label* if_valueisnotnumber) {
   return Select<Float64T>(
       TaggedIsSmi(value), [&]() { return SmiToFloat64(CAST(value)); },
       [&]() {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        if (if_valueisundefined) {
+          GotoIf(IsUndefined(value), if_valueisundefined);
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         GotoIfNot(IsHeapNumber(CAST(value)), if_valueisnotnumber);
         return LoadHeapNumberValue(CAST(value));
       });
@@ -6366,7 +6510,11 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
 
     // Convert {value} to Float64 if it is a number and convert it to a number
     // otherwise.
-    var_result = TryTaggedToFloat64(value, &if_valueisnotnumber);
+    var_result = TryTaggedToFloat64(value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                    nullptr,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                    &if_valueisnotnumber);
     Goto(&done_loop);
 
     BIND(&if_valueisnotnumber);
@@ -13444,7 +13592,23 @@ void CodeStubAssembler::EmitElementStore(
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Label float_done(this), is_undefined(this);
+    TVARIABLE(Float64T, float_var);
+    float_var = TryTaggedToFloat64(value, &is_undefined, bailout);
+    Goto(&float_done);
+
+    BIND(&is_undefined);
+    {
+      float_var = Float64Constant(UndefinedNan());
+      Goto(&float_done);
+    }
+
+    BIND(&float_done);
+    float_value = float_var.value();
+#else
     float_value = TryTaggedToFloat64(value, bailout);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 
   TNode<Smi> smi_length = Select<Smi>(

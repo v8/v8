@@ -188,9 +188,16 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
     Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    Tagged<Undefined> undefined = GetReadOnlyRoots().undefined_value();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     for (uint32_t i = 0; i < count; ++i, ++objects) {
       Tagged<Object> current = *objects;
-      if (current == the_hole) {
+      if (current == the_hole
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+          || current == undefined
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      ) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
       } else if (!IsSmi(current)) {

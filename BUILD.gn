@@ -466,6 +466,9 @@ declare_args() {
   # Use the experimental TSA-based definition for some builtins.
   v8_enable_experimental_tsa_builtins = false
 
+  # Use the experimental encoding of undefined in double values.
+  v8_enable_experimental_undefined_double = false
+
   v8_dcheck_always_on = dcheck_always_on
 
   # Remote builds require an explicit dependency on icudat, but
@@ -1389,6 +1392,9 @@ config("features") {
   }
   if (v8_enable_experimental_tsa_builtins) {
     defines += [ "V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS" ]
+  }
+  if (v8_enable_experimental_undefined_double) {
+    defines += [ "V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE" ]
   }
   if (v8_enable_leaptiering) {
     defines += [ "V8_ENABLE_LEAPTIERING" ]

@@ -47,9 +47,14 @@ LoadJoinElement<array::FastDoubleElements>(
   const array: JSArray = UnsafeCast<JSArray>(receiver);
   const fixedDoubleArray: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(array.elements);
-  const element: float64 =
-      fixedDoubleArray.values[k].Value() otherwise return kEmptyString;
-  return AllocateHeapNumberWithValue(element);
+  try {
+    const element: float64 =
+        fixedDoubleArray.values[k].Value() otherwise IfUndefined,
+                   return kEmptyString;
+    return AllocateHeapNumberWithValue(element);
+  } label IfUndefined {
+    return Undefined;
+  }
 }
 
 builtin LoadJoinTypedElement<T : type extends ElementsKind>(

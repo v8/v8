@@ -30,7 +30,7 @@ extern class ProtectedFixedArray extends TrustedObject {
 
 @cppObjectLayoutDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
-  values[length]: float64_or_hole;
+  values[length]: float64_or_undefined_or_hole;
 }
 
 @cppObjectLayoutDefinition
@@ -121,9 +121,11 @@ extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, Smi, float64): void;
 extern operator '.values[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
+@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  extern macro StoreFixedDoubleArrayUndefined(FixedDoubleArray, intptr): void;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
     a: FixedDoubleArray, i: Smi, v: Number): void {
-  a.values[i] = Convert<float64_or_hole>(Convert<float64>(v));
+  a.values[i] = Convert<float64_or_undefined_or_hole>(Convert<float64>(v));
 }
 operator '[]=' macro StoreFixedArrayDirect(
     a: FixedArray, i: Smi, v: Object): void {
@@ -176,7 +178,7 @@ macro ExtractFixedDoubleArray(
   // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedDoubleArray(
       capacity,
-      IteratorSequence<float64_or_hole>(
+      IteratorSequence<float64_or_undefined_or_hole>(
           (&source.values).Iterator(first, first + count),
           ConstantIterator(kDoubleHole)));
 }

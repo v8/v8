@@ -549,6 +549,10 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
                                      Isolate* isolate) {
   if (array->is_the_hole(index)) {
     return isolate->factory()->the_hole_value();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  } else if (array->is_undefined(index)) {
+    return isolate->factory()->undefined_value();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   } else {
     return isolate->factory()->NewNumber(array->get_scalar(index));
   }
@@ -556,11 +560,26 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
 
 void FixedDoubleArray::set(int index, double value) {
   if (std::isnan(value)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    DCHECK(!IsUndefinedNan(value));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     value = std::numeric_limits<double>::quiet_NaN();
   }
   values()[index].set_value(value);
   DCHECK(!is_the_hole(index));
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void FixedDoubleArray::set_undefined(int index) {
+  values()[index].set_value(UndefinedNan());
+  DCHECK(!is_the_hole(index));
+  DCHECK(is_undefined(index));
+}
+
+bool FixedDoubleArray::is_undefined(int index) {
+  return get_representation(index) == kUndefinedNanInt64;
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
   set_the_hole(index);

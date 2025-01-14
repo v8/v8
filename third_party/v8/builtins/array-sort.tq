@@ -278,8 +278,11 @@ Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
   try {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-    const value = elements.values[index].Value() otherwise IfHole;
+    const value = elements.values[index].Value() otherwise IfUndefined, IfHole;
     return AllocateHeapNumberWithValue(value);
+  } label IfUndefined {
+    dcheck(kEnableExperimentalUndefinedDouble);
+    return Undefined;
   } label IfHole {
     return TheHole;
   }
@@ -312,9 +315,17 @@ Store<FastDoubleElements>(
     context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
   const object = UnsafeCast<JSObject>(sortState.receiver);
   const elements = UnsafeCast<FixedDoubleArray>(object.elements);
-  const heapVal = UnsafeCast<HeapNumber>(value);
-  const val = Convert<float64>(heapVal);
-  StoreFixedDoubleArrayElement(elements, index, val);
+  try {
+    const heapVal = Cast<HeapNumber>(value) otherwise IfUndefined;
+    const val = Convert<float64>(heapVal);
+    StoreFixedDoubleArrayElement(elements, index, val);
+  } label IfUndefined {
+    dcheck(kEnableExperimentalUndefinedDouble);
+    @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+      dcheck(Is<Undefined>(value));
+      StoreFixedDoubleArrayUndefined(elements, SmiUntag(index));
+    }
+  }
   return kSuccess;
 }
 

@@ -351,6 +351,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE 1
 #endif
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#define V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL true
+#else
+#define V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL false
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {
@@ -1927,13 +1933,40 @@ enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR)))
 constexpr uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 constexpr uint32_t kHoleNanLower32 = 0xFFFF7FFF;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+constexpr uint32_t kUndefinedNanUpper32 = 0xFFFE7FFF;
+constexpr uint32_t kUndefinedNanLower32 = 0xFFFE7FFF;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #else
 constexpr uint32_t kHoleNanUpper32 = 0xFFF7FFFF;
 constexpr uint32_t kHoleNanLower32 = 0xFFF7FFFF;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+constexpr uint32_t kUndefinedNanUpper32 = 0xFFFFFFFF;
+constexpr uint32_t kUndefinedNanLower32 = 0xFFFFFFFF;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 #endif
 
 constexpr uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+constexpr uint64_t kUndefinedNanInt64 =
+    (static_cast<uint64_t>(kUndefinedNanUpper32) << 32) | kUndefinedNanLower32;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+// TODO(nicohartmann): Use proper constants.
+inline bool IsUndefinedNan(double d) {
+  uint64_t b;
+  std::memcpy(&b, &d, sizeof(double));
+  return b == kUndefinedNanInt64;
+}
+inline double UndefinedNan() {
+  uint64_t b = kUndefinedNanInt64;
+  double d;
+  std::memcpy(&d, &b, sizeof(double));
+  return d;
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
 constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1

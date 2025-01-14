@@ -167,8 +167,14 @@ LoadElementNoHole<FixedDoubleArray>(
     labels IfHole {
   const elements: FixedDoubleArray =
       Cast<FixedDoubleArray>(a.elements) otherwise unreachable;
-  const e: float64 = elements.values[index].Value() otherwise IfHole;
-  return AllocateHeapNumberWithValue(e);
+  try {
+    const e: float64 = elements.values[index].Value() otherwise IfUndefined,
+             IfHole;
+    return AllocateHeapNumberWithValue(e);
+  } label IfUndefined {
+    dcheck(kEnableExperimentalUndefinedDouble);
+    return Undefined;
+  }
 }
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;

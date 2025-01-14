@@ -22,6 +22,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
@@ -1553,6 +1554,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedDoubleArray> object, TNode<IntPtrT> index,
       Label* if_hole = nullptr,
       MachineType machine_type = MachineType::Float64());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<Float64T> LoadFixedDoubleArrayElementWithUndefinedCheck(
+      TNode<FixedDoubleArray> object, TNode<IntPtrT> index, Label* if_undefined,
+      Label* if_hole, MachineType machine_type = MachineType::Float64());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   // Load an array element from a FixedArray, FixedDoubleArray or a
   // NumberDictionary (depending on the |elements_kind|) and return
@@ -1576,12 +1582,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           Label* if_hole = nullptr);
 
   TNode<BoolT> IsDoubleHole(TNode<Object> base, TNode<IntPtrT> offset);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<BoolT> IsDoubleUndefined(TNode<Object> base, TNode<IntPtrT> offset);
+  TNode<BoolT> IsDoubleUndefined(TNode<Float64T> value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
   TNode<Float64T> LoadDoubleWithHoleCheck(
       TNode<Object> base, TNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<Float64T> LoadDoubleWithUndefinedAndHoleCheck(
+      TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
+      Label* if_hole, MachineType machine_type = MachineType::Float64());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   TNode<Numeric> LoadFixedTypedArrayElementAsTagged(TNode<RawPtrT> data_pointer,
                                                     TNode<UintPtrT> index,
                                                     ElementsKind elements_kind);
@@ -1892,8 +1907,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Float64T> value, CheckBounds check_bounds = CheckBounds::kAlways);
 
   void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void StoreDoubleUndefined(TNode<HeapObject> object, TNode<IntPtrT> offset);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                  TNode<IntPtrT> index);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void StoreFixedDoubleArrayUndefined(TNode<FixedDoubleArray> array,
+                                      TNode<IntPtrT> index);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
       TNode<AnyTaggedT> value,
@@ -2540,6 +2562,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> TryTaggedToInt32AsIntPtr(TNode<Object> value,
                                           Label* if_not_possible);
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                     Label* if_valueisundefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                                      Label* if_valueisnotnumber);
   TNode<Float64T> TruncateTaggedToFloat64(TNode<Context> context,
                                           TNode<Object> value);
