@@ -259,10 +259,6 @@ class FastApiCallLoweringReducer : public Next {
 
         return __ AdaptLocalArgument(argument);
       }
-        START_ALLOW_USE_DEPRECATED()
-      case CTypeInfo::SequenceType::kIsTypedArray:
-        UNREACHABLE();
-        END_ALLOW_USE_DEPRECATED()
       default: {
         UNREACHABLE();
       }

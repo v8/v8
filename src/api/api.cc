@@ -12007,10 +12007,6 @@ V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
 }
 }  // namespace api_internal
 
-void FastApiTypedArrayBase::ValidateIndex(size_t index) const {
-  DCHECK_LT(index, length_);
-}
-
 RegisterState::RegisterState()
     : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
 RegisterState::~RegisterState() = default;

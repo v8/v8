@@ -2006,11 +2006,6 @@ class RepresentationSelector {
         CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
         return UseInfo::AnyTagged();
       }
-        START_ALLOW_USE_DEPRECATED()
-      case CTypeInfo::SequenceType::kIsTypedArray: {
-        return UseInfo::AnyTagged();
-      }
-        END_ALLOW_USE_DEPRECATED()
       default: {
         UNREACHABLE();  // TODO(mslekova): Implement array buffers.
       }
