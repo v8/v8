@@ -1172,17 +1172,18 @@ class WasmJSFunctionData
   // garbage-collected.
   class OffheapData {
    public:
-    OffheapData() = default;
+    explicit OffheapData(uint64_t signature_hash)
+        : signature_hash_(signature_hash) {}
     ~OffheapData();
 
     // These functions return the CPT entry owned by this class.
     WasmCodePointer set_compiled_wrapper(wasm::WasmCode* wrapper);
-    WasmCodePointer set_generic_wrapper(Address call_target,
-                                        uint64_t signature_hash);
+    WasmCodePointer set_generic_wrapper(Address call_target);
 
    private:
     WasmCodePointer wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
     wasm::WasmCode* wrapper_{nullptr};
+    const uint64_t signature_hash_;
   };
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,

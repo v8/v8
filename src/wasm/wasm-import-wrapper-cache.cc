@@ -56,7 +56,8 @@ void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
 }
 
 WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
-    const CacheKey& key, WasmCompilationResult result, WasmCode::Kind kind) {
+    const CacheKey& key, WasmCompilationResult result, WasmCode::Kind kind,
+    uint64_t signature_hash) {
   cache_->mutex_.AssertHeld();
   // Equivalent of NativeModule::AddCode().
   const CodeDesc& desc = result.code_desc;
@@ -118,7 +119,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 kind,
                                 ExecutionTier::kNone,
                                 wasm::kNotForDebugging,
-                                result.signature_hash,
+                                signature_hash,
                                 frame_has_feedback_slot};
   // The refcount of a WasmCode is initialized to 1. For wrappers, we track
   // all refcounts explicitly, i.e. there will be a call to {IncRef()} that
@@ -164,7 +165,8 @@ WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
     if (wasm_code) return wasm_code;
 
     wasm_code = cache_scope.AddWrapper(key, std::move(result),
-                                       WasmCode::Kind::kWasmToJsWrapper);
+                                       WasmCode::Kind::kWasmToJsWrapper,
+                                       sig->signature_hash());
   }
 
   // To avoid lock order inversion, code printing must happen after the

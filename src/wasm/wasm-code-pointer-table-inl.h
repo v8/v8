@@ -46,7 +46,7 @@ Address WasmCodePointerTableEntry::GetEntrypointWithoutSignatureCheck() const {
 void WasmCodePointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   entrypoint_.store(next_entry_index, std::memory_order_relaxed);
 #ifdef V8_ENABLE_SANDBOX
-  signature_hash_ = -1;
+  signature_hash_ = kInvalidWasmSignatureHash;
 #endif
 }
 

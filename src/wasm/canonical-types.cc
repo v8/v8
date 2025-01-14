@@ -64,8 +64,10 @@ void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
     // Identical group found. Map new types to the old types's canonical
     // representatives.
     for (uint32_t i = 0; i < size; i++) {
-      module->isorecursive_canonical_type_ids[start_index + i] =
+      CanonicalTypeIndex existing_type_index =
           CanonicalTypeIndex{canonical_index.index + i};
+      module->isorecursive_canonical_type_ids[start_index + i] =
+          existing_type_index;
     }
     return;
   }

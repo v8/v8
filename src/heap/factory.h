@@ -100,7 +100,7 @@ enum Promise : int;
 struct CanonicalTypeIndex;
 class CanonicalValueType;
 class ValueType;
-using CanonicalSig = Signature<CanonicalValueType>;
+class CanonicalSig;
 struct ModuleTypeIndex;
 class StackMemory;
 }  // namespace wasm

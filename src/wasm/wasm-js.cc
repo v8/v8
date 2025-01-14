@@ -29,7 +29,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/signature-hashing.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-debug.h"

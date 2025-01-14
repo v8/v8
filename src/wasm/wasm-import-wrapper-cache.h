@@ -20,8 +20,6 @@ namespace v8::internal::wasm {
 class WasmCode;
 class WasmEngine;
 
-using FunctionSig = Signature<ValueType>;
-
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:
@@ -61,7 +59,7 @@ class WasmImportWrapperCache {
     V8_EXPORT_PRIVATE WasmCode* operator[](const CacheKey& key);
 
     WasmCode* AddWrapper(const CacheKey& key, WasmCompilationResult result,
-                         WasmCode::Kind kind);
+                         WasmCode::Kind kind, uint64_t signature_hash);
 
    private:
     WasmImportWrapperCache* const cache_;

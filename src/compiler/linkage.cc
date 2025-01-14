@@ -228,6 +228,13 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
   UNREACHABLE();
 }
 
+uint64_t CallDescriptor::signature_hash() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_EQ(kind_, kCallWasmFunctionIndirect);
+#endif
+  return signature_hash_;
+}
+
 EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
   int parameter_count = static_cast<int>(ParameterCount());
   EncodedCSignature sig(parameter_count);
@@ -338,7 +345,9 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->GetStackArgumentOrder(),   // stack order
       call_descriptor->AllocatableRegisters(),    // allocatable registers
       return_slots,                               // return slot count
-      call_descriptor->signature_hash());         // signature hash
+      call_descriptor->IsIndirectWasmFunctionCall()
+          ? call_descriptor->signature_hash()
+          : kInvalidWasmSignatureHash);  // signature hash
 }
 }  // namespace
 

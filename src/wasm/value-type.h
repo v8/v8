@@ -13,14 +13,12 @@
 
 #include "src/base/bit-field.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Signature;
 
 // Type for holding simd values, defined in simd128.h.
 class Simd128;
@@ -1171,7 +1169,26 @@ constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
   V(kS128, Simd128)
 
 using FunctionSig = Signature<ValueType>;
-using CanonicalSig = Signature<CanonicalValueType>;
+
+class CanonicalSig : public Signature<CanonicalValueType> {
+ public:
+  CanonicalSig(size_t return_count, size_t parameter_count,
+               const CanonicalValueType* reps)
+      : Signature<CanonicalValueType>(return_count, parameter_count, reps) {}
+
+  class Builder : public SignatureBuilder<CanonicalSig, CanonicalValueType> {
+   public:
+    Builder(Zone* zone, size_t return_count, size_t parameter_count)
+        : SignatureBuilder<CanonicalSig, CanonicalValueType>(zone, return_count,
+                                                             parameter_count) {}
+    CanonicalSig* Get() const;
+  };
+
+  uint64_t signature_hash() const { return signature_hash_; }
+
+ private:
+  uint64_t signature_hash_;
+};
 
 // This is the special case where comparing module-specific to canonical
 // signatures is safe: when they only contain numerical types.
