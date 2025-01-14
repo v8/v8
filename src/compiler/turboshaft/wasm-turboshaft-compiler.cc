@@ -20,7 +20,7 @@ namespace v8::internal::compiler::turboshaft {
 
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv* env, compiler::WasmCompilationData& data,
-    wasm::WasmDetectedFeatures* detected) {
+    wasm::WasmDetectedFeatures* detected, Counters* counters) {
   // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
   // instead use only Turboshaft inside `GenerateWasmCodeFromTurboshaftGraph`.
   Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -55,6 +55,13 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     delete data.assumptions;
     return {};
   }
+
+  if (counters && data.body_size() >= 100 * KB) {
+    size_t zone_bytes = mcgraph->graph()->zone()->allocation_size();
+    counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(zone_bytes));
+  }
+
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);

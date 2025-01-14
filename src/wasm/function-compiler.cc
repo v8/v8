@@ -133,8 +133,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
-        result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
-            env, data, detected);
+      result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
+          env, data, detected, counters);
       // In exceptional cases it can happen that compilation requests for
       // debugging end up being executed by Turbofan, e.g. if Liftoff bails out
       // because of unsupported features or the --wasm-tier-mask-for-testing is
