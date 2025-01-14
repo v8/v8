@@ -43,7 +43,11 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
   if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
-    set_source_positions();
+    // We might not have source positions if collection fails (e.g. because we
+    // run out of stack space).
+    if (bytecode_array_->HasSourcePositionTable()) {
+      set_source_positions();
+    }
   }
 
   SetTracingFlags(shared->PassesFilter(v8_flags.trace_turbo_filter));
