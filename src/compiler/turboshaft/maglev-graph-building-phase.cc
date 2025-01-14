@@ -2472,7 +2472,14 @@ class GraphBuildingNodeProcessor {
     __ DeoptimizeIf(RootEqual(node->object_input(), RootIndex::kTheHoleValue),
                     frame_state, DeoptimizeReason::kHole,
                     node->eager_deopt_info()->feedback_to_update());
-    SetMap(node, Map(node->object_input()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::CheckHoleyFloat64NotHole* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    __ DeoptimizeIf(__ Float64IsHole(Map(node->float64_input())), frame_state,
+                    DeoptimizeReason::kHole,
+                    node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckInt32Condition* node,
