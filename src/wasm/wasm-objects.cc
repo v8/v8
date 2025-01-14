@@ -1903,7 +1903,6 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
         Builtin::kGenericJSToWasmInterpreterWrapper);
 #endif  // V8_ENABLE_DRUMBRAKE
   } else if (CanUseGenericJsToWasmWrapper(module, sig)) {
-    isolate->EnsureGenericJSToWasmWrapperParamBufferExists();
     if (v8_flags.stress_wasm_stack_switching) {
       wrapper_code =
           isolate->builtins()->code_handle(Builtin::kWasmStressSwitch);

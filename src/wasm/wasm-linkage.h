@@ -145,22 +145,6 @@ constexpr int kWasmInstanceDataParameterIndex = 0;
 static_assert(kWasmImplicitArgRegister ==
               kGpParamRegisters[kWasmInstanceDataParameterIndex]);
 
-// The size of the buffer that is needed to store all converted parameters in
-// the generic js-to-wasm wrapper. The buffer size is the number of bytes that
-// parameters may use on the stack + the number of bytes parameters may use in
-// parameter registers. In the worst case all parameters need 8 bytes. Bigger
-// parameters are not possible because SIMD parameters cannot be passed from
-// JavaScript to WebAssembly.
-// Note that a WebAssembly function that uses the maximum number of parameters
-// may only use a single type for all parameters, in which case some parameter
-// registers will remain empty. Thus the buffer size is the maximum number of
-// parameters + the parameter registers that may remain empty.
-// TODO(ahaas): Figure out a lower number if possible.
-constexpr size_t kGenericJSToWasmWrapperParamBufferMaxSize =
-    (wasm::kV8MaxWasmFunctionParams + arraysize(wasm::kGpParamRegisters) +
-     arraysize(wasm::kFpParamRegisters)) *
-    kDoubleSize;
-
 class LinkageAllocator {
  public:
   template <size_t kNumGpRegs, size_t kNumFpRegs>
