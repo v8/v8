@@ -64,6 +64,9 @@ void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone);
 // process anyway, so this should not interfere with anything.
 void EnableExperimentalWasmFeatures(v8::Isolate* isolate);
 
+// Clear the type canonicalizer storage and re-add the dummy types.
+void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone);
+
 constexpr int kMaxFuzzerInputSize = 512;
 
 class WasmExecutionFuzzer {

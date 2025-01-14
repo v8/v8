@@ -371,6 +371,27 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       isolate);
 }
 
+void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone) {
+  v8::internal::Isolate* i_isolate =
+      reinterpret_cast<v8::internal::Isolate*>(isolate);
+
+  // Make sure that there are no NativeModules left referencing the canonical
+  // types. Collecting NativeModules can require two rounds of GC.
+  for (int i = 0; i < 2; i++) {
+    // We need to invoke GC without stack, otherwise the native module may
+    // survive.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate->heap());
+    if (GetWasmEngine()->NativeModuleCount() != 0) {
+      isolate->RequestGarbageCollectionForTesting(
+          v8::Isolate::kFullGarbageCollection);
+    }
+  }
+  GetTypeCanonicalizer()->EmptyStorageForTesting();
+  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
+  AddDummyTypesToTypeCanonicalizer(i_isolate, zone);
+}
+
 void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                                          bool require_valid) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
@@ -398,9 +419,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  GetTypeCanonicalizer()->EmptyStorageForTesting();
-  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-  AddDummyTypesToTypeCanonicalizer(i_isolate, &zone);
+  ResetTypeCanonicalizer(isolate, &zone);
 
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {

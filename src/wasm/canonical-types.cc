@@ -243,6 +243,10 @@ bool TypeCanonicalizer::IsCanonicalSubtype(ModuleTypeIndex sub_index,
 }
 
 void TypeCanonicalizer::EmptyStorageForTesting() {
+  // Any remaining native modules might reference the types we're about to
+  // clear.
+  CHECK_EQ(GetWasmEngine()->NativeModuleCount(), 0);
+
   base::SpinningMutexGuard mutex_guard(&mutex_);
   canonical_supertypes_.clear();
   canonical_groups_.clear();

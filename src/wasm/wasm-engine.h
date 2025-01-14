@@ -410,6 +410,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       WasmOrphanedGlobalHandle** pointer);
   static void FreeAllOrphanedGlobalHandles(WasmOrphanedGlobalHandle* start);
 
+  size_t NativeModuleCount() const { return native_modules_.size(); }
+
  private:
   struct CurrentGCInfo;
   struct IsolateInfo;

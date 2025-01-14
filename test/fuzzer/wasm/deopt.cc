@@ -243,9 +243,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  GetTypeCanonicalizer()->EmptyStorageForTesting();
-  TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(i_isolate);
-  AddDummyTypesToTypeCanonicalizer(i_isolate, &zone);
+  ResetTypeCanonicalizer(isolate, &zone);
 
   std::vector<std::string> callees;
   std::vector<std::string> inlinees;
