@@ -4870,6 +4870,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio() {
   DCHECK(!v8_flags.minor_ms);
   // Compute a ration such that when old gen max capacity is set to the highest
   // supported value, young gen max capacity would also be set to the max.
+  DCHECK_LT(0u, v8_flags.scavenger_max_new_space_capacity_mb);
   static size_t kMaxOldGenSizeToMaxYoungGenSizeRatio =
       V8HeapTrait::kMaxSize /
       (v8_flags.scavenger_max_new_space_capacity_mb * MB);
