@@ -303,6 +303,8 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
 namespace {
 
 bool ProcessIfAnnotation(ParseResultIterator* child_results);
+class AnnotationSet;
+bool ProcessIfAnnotation(const AnnotationSet& annotations);
 
 std::optional<ParseResult> AddGlobalDeclarations(
     ParseResultIterator* child_results) {
@@ -592,6 +594,7 @@ std::optional<ParseResult> DeprecatedMakeVoidType(
 
 std::optional<ParseResult> MakeExternalMacro(
     ParseResultIterator* child_results) {
+  bool enabled = ProcessIfAnnotation(child_results);
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<std::optional<std::string>>();
   auto external_assembler_name =
@@ -604,14 +607,18 @@ std::optional<ParseResult> MakeExternalMacro(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
 
-  Declaration* result = MakeNode<ExternalMacroDeclaration>(
-      transitioning,
-      external_assembler_name ? *external_assembler_name : "CodeStubAssembler",
-      name, operator_name, args, return_type, std::move(labels));
+  std::vector<Declaration*> result = {};
+  if (enabled) {
+    result = {MakeNode<ExternalMacroDeclaration>(
+        transitioning,
+        external_assembler_name ? *external_assembler_name
+                                : "CodeStubAssembler",
+        name, operator_name, args, return_type, std::move(labels))};
+  }
   if (!generic_parameters.empty()) {
     Error("External builtins cannot be generic.");
   }
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeIntrinsicDeclaration(
@@ -659,9 +666,81 @@ bool HasExportAnnotation(ParseResultIterator* child_results,
 }
 }  // namespace
 
+class AnnotationSet {
+ public:
+  AnnotationSet(ParseResultIterator* iter,
+                const std::set<std::string>& allowed_without_param,
+                const std::set<std::string>& allowed_with_param) {
+    auto list = iter->NextAs<std::vector<Annotation>>();
+    for (const Annotation& a : list) {
+      if (a.param.has_value()) {
+        if (allowed_with_param.find(a.name->value) ==
+            allowed_with_param.end()) {
+          const char* error_message =
+              allowed_without_param.find(a.name->value) ==
+                      allowed_without_param.end()
+                  ? " is not allowed here"
+                  : " cannot have parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        if (!map_.insert({a.name->value, {*a.param, a.name->pos}}).second) {
+          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
+        }
+      } else {
+        if (allowed_without_param.find(a.name->value) ==
+            allowed_without_param.end()) {
+          const char* error_message =
+              allowed_with_param.find(a.name->value) == allowed_with_param.end()
+                  ? " is not allowed here"
+                  : " requires a parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        if (!set_.insert(a.name->value).second) {
+          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
+        }
+      }
+    }
+  }
+
+  bool Contains(const std::string& s) const {
+    return set_.find(s) != set_.end();
+  }
+  std::optional<std::string> GetStringParam(const std::string& s) const {
+    auto it = map_.find(s);
+    if (it == map_.end()) {
+      return {};
+    }
+    if (it->second.first.is_int) {
+      Error("Annotation ", s, " requires a string parameter but has an int")
+          .Position(it->second.second);
+    }
+    return it->second.first.string_value;
+  }
+  std::optional<int32_t> GetIntParam(const std::string& s) const {
+    auto it = map_.find(s);
+    if (it == map_.end()) {
+      return {};
+    }
+    if (!it->second.first.is_int) {
+      Error("Annotation ", s, " requires an int parameter but has a string")
+          .Position(it->second.second);
+    }
+    return it->second.first.int_value;
+  }
+
+ private:
+  std::set<std::string> set_;
+  std::map<std::string, std::pair<AnnotationParameter, SourcePosition>> map_;
+};
+
 std::optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
-  bool export_to_csa = HasExportAnnotation(child_results, "macro");
+  AnnotationSet annotations(child_results, {ANNOTATION_EXPORT},
+                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  bool enabled = ProcessIfAnnotation(annotations);
+  bool export_to_csa = annotations.Contains(ANNOTATION_EXPORT);
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<std::optional<std::string>>();
   auto name = child_results->NextAs<Identifier*>();
@@ -676,22 +755,26 @@ std::optional<ParseResult> MakeTorqueMacroDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<std::optional<Statement*>>();
-  CallableDeclaration* declaration = MakeNode<TorqueMacroDeclaration>(
-      transitioning, name, operator_name, args, return_type, std::move(labels),
-      export_to_csa, body);
-  Declaration* result = declaration;
-  if (generic_parameters.empty()) {
-    if (!body) ReportError("A non-generic declaration needs a body.");
-  } else {
-    if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result = MakeNode<GenericCallableDeclaration>(std::move(generic_parameters),
-                                                  declaration);
+  std::vector<Declaration*> result = {};
+  if (enabled) {
+    CallableDeclaration* declaration = MakeNode<TorqueMacroDeclaration>(
+        transitioning, name, operator_name, args, return_type,
+        std::move(labels), export_to_csa, body);
+    result = {declaration};
+    if (generic_parameters.empty()) {
+      if (!body) ReportError("A non-generic declaration needs a body.");
+    } else {
+      if (export_to_csa) ReportError("Cannot export generics to CSA.");
+      result = {MakeNode<GenericCallableDeclaration>(
+          std::move(generic_parameters), declaration)};
+    }
   }
-  return ParseResult{result};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
+  bool enabled = ProcessIfAnnotation(child_results);
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidNamespaceConstName(name->value)) {
     NamingConventionError("Constant", name, "kUpperCamelCase");
@@ -699,8 +782,9 @@ std::optional<ParseResult> MakeConstDeclaration(
 
   auto type = child_results->NextAs<TypeExpression*>();
   auto expression = child_results->NextAs<Expression*>();
-  Declaration* result = MakeNode<ConstDeclaration>(name, type, expression);
-  return ParseResult{result};
+  std::vector<Declaration*> result = {};
+  if (enabled) result = {MakeNode<ConstDeclaration>(name, type, expression)};
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeExternConstDeclaration(
@@ -793,78 +877,7 @@ std::optional<ParseResult> MakeMethodDeclaration(
   return ParseResult{result};
 }
 
-class AnnotationSet {
- public:
-  AnnotationSet(ParseResultIterator* iter,
-                const std::set<std::string>& allowed_without_param,
-                const std::set<std::string>& allowed_with_param) {
-    auto list = iter->NextAs<std::vector<Annotation>>();
-    for (const Annotation& a : list) {
-      if (a.param.has_value()) {
-        if (allowed_with_param.find(a.name->value) ==
-            allowed_with_param.end()) {
-          const char* error_message =
-              allowed_without_param.find(a.name->value) ==
-                      allowed_without_param.end()
-                  ? " is not allowed here"
-                  : " cannot have parameter here";
-          Lint("Annotation ", a.name->value, error_message)
-              .Position(a.name->pos);
-        }
-        if (!map_.insert({a.name->value, {*a.param, a.name->pos}}).second) {
-          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
-        }
-      } else {
-        if (allowed_without_param.find(a.name->value) ==
-            allowed_without_param.end()) {
-          const char* error_message =
-              allowed_with_param.find(a.name->value) == allowed_with_param.end()
-                  ? " is not allowed here"
-                  : " requires a parameter here";
-          Lint("Annotation ", a.name->value, error_message)
-              .Position(a.name->pos);
-        }
-        if (!set_.insert(a.name->value).second) {
-          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
-        }
-      }
-    }
-  }
-
-  bool Contains(const std::string& s) const {
-    return set_.find(s) != set_.end();
-  }
-  std::optional<std::string> GetStringParam(const std::string& s) const {
-    auto it = map_.find(s);
-    if (it == map_.end()) {
-      return {};
-    }
-    if (it->second.first.is_int) {
-      Error("Annotation ", s, " requires a string parameter but has an int")
-          .Position(it->second.second);
-    }
-    return it->second.first.string_value;
-  }
-  std::optional<int32_t> GetIntParam(const std::string& s) const {
-    auto it = map_.find(s);
-    if (it == map_.end()) {
-      return {};
-    }
-    if (!it->second.first.is_int) {
-      Error("Annotation ", s, " requires an int parameter but has a string")
-          .Position(it->second.second);
-    }
-    return it->second.first.int_value;
-  }
-
- private:
-  std::set<std::string> set_;
-  std::map<std::string, std::pair<AnnotationParameter, SourcePosition>> map_;
-};
-
-bool ProcessIfAnnotation(ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results, {},
-                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+bool ProcessIfAnnotation(const AnnotationSet& annotations) {
   if (std::optional<std::string> condition =
           annotations.GetStringParam(ANNOTATION_IF)) {
     if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) return false;
@@ -874,6 +887,12 @@ bool ProcessIfAnnotation(ParseResultIterator* child_results) {
     if (BuildFlags::GetFlag(*condition, ANNOTATION_IFNOT)) return false;
   }
   return true;
+}
+
+bool ProcessIfAnnotation(ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {},
+                            {ANNOTATION_IF, ANNOTATION_IFNOT});
+  return ProcessIfAnnotation(annotations);
 }
 
 std::optional<ParseResult> YieldInt32(ParseResultIterator* child_results) {
@@ -1216,6 +1235,7 @@ std::optional<ParseResult> MakeNamespaceDeclaration(
 
 std::optional<ParseResult> MakeSpecializationDeclaration(
     ParseResultIterator* child_results) {
+  bool enabled = ProcessIfAnnotation(child_results);
   auto transitioning = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   auto generic_parameters =
@@ -1225,10 +1245,13 @@ std::optional<ParseResult> MakeSpecializationDeclaration(
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
   CheckNotDeferredStatement(body);
-  Declaration* result = MakeNode<SpecializationDeclaration>(
-      transitioning, std::move(name), std::move(generic_parameters),
-      std::move(parameters), return_type, std::move(labels), body);
-  return ParseResult{result};
+  std::vector<Declaration*> result = {};
+  if (enabled) {
+    result = {MakeNode<SpecializationDeclaration>(
+        transitioning, std::move(name), std::move(generic_parameters),
+        std::move(parameters), return_type, std::move(labels), body)};
+  }
+  return ParseResult{std::move(result)};
 }
 
 std::optional<ParseResult> MakeStructDeclaration(
@@ -2835,9 +2858,9 @@ struct TorqueGrammar : Grammar {
 
   // Result: std::vector<Declaration*>
   Symbol declaration = {
-      Rule({Token("const"), &name, Token(":"), &type, Token("="), expression,
-            Token(";")},
-           AsSingletonVector<Declaration*, MakeConstDeclaration>()),
+      Rule({annotations, Token("const"), &name, Token(":"), &type, Token("="),
+            expression, Token(";")},
+           MakeConstDeclaration),
       Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            AsSingletonVector<Declaration*, MakeExternConstDeclaration>()),
@@ -2873,14 +2896,14 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &returnType, &optionalBody},
            AsSingletonVector<Declaration*, MakeIntrinsicDeclaration>()),
-      Rule({Token("extern"), CheckIf(Token("transitioning")),
+      Rule({annotations, Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"),
             Optional<std::string>(Sequence({&identifier, Token("::")})), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &typeListMaybeVarArgs, &returnType, optionalLabelList, Token(";")},
-           AsSingletonVector<Declaration*, MakeExternalMacro>()),
+           MakeExternalMacro),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
@@ -2896,16 +2919,16 @@ struct TorqueGrammar : Grammar {
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListNoVararg, &returnType, optionalLabelList,
             &optionalBody},
-           AsSingletonVector<Declaration*, MakeTorqueMacroDeclaration>()),
+           MakeTorqueMacroDeclaration),
       Rule({annotations, CheckIf(Token("transitioning")),
             CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
             &parameterListAllowVararg, &returnType, &optionalBody},
            MakeTorqueBuiltinDeclaration),
-      Rule({CheckIf(Token("transitioning")), &name,
+      Rule({annotations, CheckIf(Token("transitioning")), &name,
             &genericSpecializationTypeList, &parameterListAllowVararg,
             &returnType, optionalLabelList, &block},
-           AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
+           MakeSpecializationDeclaration),
       Rule({Token("#include"), &externalString},
            AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>()),
       Rule({CheckIf(Token("extern")), Token("enum"), &name,
