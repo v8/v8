@@ -588,6 +588,7 @@ struct CTypeInfoTraits {};
   V(void, kVoid)                     \
   V(v8::Local<v8::Value>, kV8Value)  \
   V(v8::Local<v8::Object>, kV8Value) \
+  V(v8::Local<v8::Array>, kV8Value)  \
   V(AnyCType, kAny)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.
@@ -601,16 +602,6 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 #undef ALL_C_TYPES
 
 #undef TYPED_ARRAY_C_TYPES
-
-template <>
-struct TypeInfoHelper<v8::Local<v8::Array>> {
-  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
-
-  static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kVoid; }
-  static constexpr CTypeInfo::SequenceType SequenceType() {
-    return CTypeInfo::SequenceType::kIsSequence;
-  }
-};
 
 template <>
 struct TypeInfoHelper<FastApiCallbackOptions&> {
