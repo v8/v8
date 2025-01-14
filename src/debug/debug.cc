@@ -59,7 +59,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 
   void MoveEvent(Address from, Address to, int size) override {
     if (from == to) return;
-    base::MutexGuard guard(&mutex_);
+    base::SpinningMutexGuard guard(&mutex_);
     if (RemoveFromRegions(from, from + size)) {
       // We had the object tracked as temporary, so we will track the
       // new location as temporary, too.
@@ -165,7 +165,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   // (exclusive) address of regions. We index by end address for faster lookup.
   // Map: end address => start address
   std::map<Address, Address> regions_;
-  base::Mutex mutex_;
+  base::SpinningMutex mutex_;
 };
 
 Debug::Debug(Isolate* isolate)

@@ -855,7 +855,7 @@ class JitLogger : public CodeEventLogger {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   JitCodeEventHandler code_event_handler_;
-  base::Mutex logger_mutex_;
+  base::SpinningMutex logger_mutex_;
 };
 
 JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
@@ -943,7 +943,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
 
 void JitLogger::CodeMoveEvent(Tagged<InstructionStream> from,
                               Tagged<InstructionStream> to) {
-  base::MutexGuard guard(&logger_mutex_);
+  base::SpinningMutexGuard guard(&logger_mutex_);
 
   Tagged<Code> code;
   if (!from->TryGetCodeUnchecked(&code, kAcquireLoad)) {
@@ -964,7 +964,7 @@ void JitLogger::CodeMoveEvent(Tagged<InstructionStream> from,
 
 void JitLogger::BytecodeMoveEvent(Tagged<BytecodeArray> from,
                                   Tagged<BytecodeArray> to) {
-  base::MutexGuard guard(&logger_mutex_);
+  base::SpinningMutexGuard guard(&logger_mutex_);
 
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;

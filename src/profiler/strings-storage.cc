@@ -29,7 +29,7 @@ StringsStorage::~StringsStorage() {
 }
 
 const char* StringsStorage::GetCopy(const char* src) {
-  base::MutexGuard guard(&mutex_);
+  base::SpinningMutexGuard guard(&mutex_);
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
   if (entry->value == nullptr) {
@@ -53,7 +53,7 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
 }
 
 const char* StringsStorage::AddOrDisposeString(char* str, size_t len) {
-  base::MutexGuard guard(&mutex_);
+  base::SpinningMutexGuard guard(&mutex_);
   base::HashMap::Entry* entry = GetEntry(str, len);
   if (entry->value == nullptr) {
     // New entry added.
@@ -145,7 +145,7 @@ inline uint32_t ComputeStringHash(const char* str, size_t len) {
 }  // namespace
 
 bool StringsStorage::Release(const char* str) {
-  base::MutexGuard guard(&mutex_);
+  base::SpinningMutexGuard guard(&mutex_);
   size_t len = strlen(str);
   uint32_t hash = ComputeStringHash(str, len);
   base::HashMap::Entry* entry = names_.Lookup(const_cast<char*>(str), hash);
@@ -174,7 +174,7 @@ size_t StringsStorage::GetStringCountForTesting() const {
 }
 
 size_t StringsStorage::GetStringSize() {
-  base::MutexGuard guard(&mutex_);
+  base::SpinningMutexGuard guard(&mutex_);
   return string_size_;
 }
 
