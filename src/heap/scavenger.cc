@@ -572,28 +572,28 @@ class TreatConservativelyVisitor final : public RootVisitor {
   base::RandomNumberGenerator* const rng_;
   double stressing_threshold_;
 };
-
+template <typename FreeSpaceHandler>
 size_t SweepQuarantinedPage(
-    Heap* heap, MemoryChunk* chunk,
+    FreeSpaceHandler& free_space_handler, MemoryChunk* chunk,
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes) {
-  Address start = chunk->Metadata()->area_start();
+  MemoryChunkMetadata* metadata = chunk->Metadata();
+  Address start = metadata->area_start();
   std::sort(pinned_objects_and_sizes.begin(), pinned_objects_and_sizes.end());
   size_t quarantined_objects_size = 0;
   for (const auto& [object, size] : pinned_objects_and_sizes) {
     DCHECK_LE(start, object);
     if (start != object) {
-      heap->CreateFillerObjectAt(start, static_cast<int>(object - start));
+      free_space_handler(start, object - start);
     }
     quarantined_objects_size += size;
     start = object + size;
   }
-  Address end = chunk->Metadata()->area_end();
+  Address end = metadata->area_end();
   if (start != end) {
-    heap->CreateFillerObjectAt(start, static_cast<int>(end - start));
+    free_space_handler(start, end - start);
   }
-  DCHECK(static_cast<MutablePageMetadata*>(chunk->Metadata())
-             ->marking_bitmap()
-             ->IsClean());
+  DCHECK(
+      static_cast<MutablePageMetadata*>(metadata)->marking_bitmap()->IsClean());
   DCHECK_LT(0, quarantined_objects_size);
   return quarantined_objects_size;
 }
@@ -618,23 +618,45 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
   }
   DCHECK_EQ(0, new_space.QuarantinedPageCount());
   // Sweep quarantined pages to make them iterable.
+  Heap* const heap = new_space.heap();
+  auto create_filler = [heap](Address address, size_t size) {
+    if (heap::ShouldZapGarbage()) {
+      heap::ZapBlock(address, size, heap::ZapValue());
+    }
+    heap->CreateFillerObjectAt(address, static_cast<int>(size));
+  };
+  auto create_filler_and_add_to_freelist = [heap, create_filler](
+                                               Address address, size_t size) {
+    create_filler(address, size);
+    PageMetadata* page = PageMetadata::FromAddress(address);
+    DCHECK_EQ(OLD_SPACE, page->owner()->identity());
+    DCHECK(page->SweepingDone());
+    OldSpace* const old_space = heap->old_space();
+    FreeList* const free_list = old_space->free_list();
+    const size_t wasted = free_list->Free(
+        WritableFreeSpace::ForNonExecutableMemory(address, size),
+        kLinkCategory);
+    old_space->DecreaseAllocatedBytes(size, page);
+    free_list->increase_wasted_bytes(wasted);
+  };
   size_t quarantined_objects_size = 0;
   for (auto it : pages_with_pinned_objects) {
     MemoryChunk* chunk = it.first;
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes =
         it.second;
     DCHECK(chunk->IsFromPage());
-    const size_t quarantined_objects_size_on_page =
-        SweepQuarantinedPage(new_space.heap(), chunk, pinned_objects_and_sizes);
     if (new_space.ShouldPageBePromoted(chunk->address())) {
       new_space.PromotePageToOldSpace(
           static_cast<PageMetadata*>(chunk->Metadata()));
       DCHECK(!chunk->InYoungGeneration());
+      SweepQuarantinedPage(create_filler_and_add_to_freelist, chunk,
+                           pinned_objects_and_sizes);
     } else {
-      quarantined_objects_size += quarantined_objects_size_on_page;
       new_space.MoveQuarantinedPage(chunk);
       DCHECK(!chunk->IsFromPage());
       DCHECK(chunk->IsToPage());
+      quarantined_objects_size +=
+          SweepQuarantinedPage(create_filler, chunk, pinned_objects_and_sizes);
     }
   }
   new_space.SetQuarantinedSize(quarantined_objects_size);
