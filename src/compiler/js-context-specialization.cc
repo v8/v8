@@ -277,8 +277,11 @@ Reduction JSContextSpecialization::ReduceJSLoadScriptContext(Node* node) {
   DCHECK(concrete.object()->IsScriptContext());
   auto maybe_property =
       concrete.object()->GetScriptContextSideProperty(access.index());
-  auto property =
-      maybe_property ? maybe_property.value() : ContextSidePropertyCell::kOther;
+  if (!maybe_property) {
+    return SimplifyJSLoadScriptContext(
+        node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
+  }
+  auto property = maybe_property.value();
   switch (property) {
     case ContextSidePropertyCell::kConst: {
       OptionalObjectRef maybe_value =

@@ -3111,8 +3111,8 @@ ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
       context_node->Cast<Constant>()->ref().AsContext();
   DCHECK(context.object()->IsScriptContext());
   auto maybe_property = context.object()->GetScriptContextSideProperty(index);
-  auto property =
-      maybe_property ? maybe_property.value() : ContextSidePropertyCell::kOther;
+  if (!maybe_property) return {};
+  auto property = maybe_property.value();
   int offset = Context::OffsetOfElementAt(index);
   switch (property) {
     case ContextSidePropertyCell::kConst: {
