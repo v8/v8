@@ -9142,6 +9142,7 @@ class LiftoffCompiler {
       uint32_t adapt_shadow_stack_pc_offset = 0;
 #ifdef V8_ENABLE_CET_SHADOW_STACK
       if (v8_flags.cet_compatible) {
+        SCOPED_CODE_COMMENT("deopt entry for kAdaptShadowStackForDeopt");
         // AdaptShadowStackForDeopt is be called to build shadow stack after
         // deoptimization. Deoptimizer will directly jump to
         // `call AdaptShadowStackForDeopt`. But, in any other case, it should be

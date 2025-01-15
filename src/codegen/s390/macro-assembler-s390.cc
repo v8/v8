@@ -5142,6 +5142,7 @@ void MacroAssembler::zosStoreReturnAddressAndCall(Register target,
 #ifdef V8_ENABLE_WEBASSEMBLY
 
 void MacroAssembler::ResolveWasmCodePointer(Register target) {
+  ASM_CODE_COMMENT(this);
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();

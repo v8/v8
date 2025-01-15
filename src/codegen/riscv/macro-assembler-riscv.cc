@@ -7396,6 +7396,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 #ifdef V8_ENABLE_WEBASSEMBLY
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
+  ASM_CODE_COMMENT(this);
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();

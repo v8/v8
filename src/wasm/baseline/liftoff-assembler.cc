@@ -770,6 +770,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
                                    Register target_instance_data) {
+  ASM_CODE_COMMENT(this);
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
 
   LiftoffStackSlots stack_slots{this};

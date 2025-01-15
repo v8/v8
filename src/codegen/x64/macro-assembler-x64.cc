@@ -3345,6 +3345,7 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
+  ASM_CODE_COMMENT(this);
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   Move(kScratchRegister, global_jump_table);
