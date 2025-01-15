@@ -22,9 +22,6 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
-
-#define FASTFLOAT_ALLOWS_LEADING_PLUS
-
 #include "third_party/fast_float/src/include/fast_float/fast_float.h"
 #include "third_party/fast_float/src/include/fast_float/float_common.h"
 
@@ -709,10 +706,12 @@ double InternalStringToDouble(const Char* current, const Char* end,
   static_assert(sizeof(UC) == sizeof(Char));
   const UC* current_uc = reinterpret_cast<const UC*>(current);
   const UC* end_uc = reinterpret_cast<const UC*>(end);
-  auto ret = fast_float::from_chars(current_uc, end_uc, value,
-                                    static_cast<fast_float::chars_format>(
-                                        fast_float::chars_format::general |
-                                        fast_float::chars_format::no_infnan));
+  auto ret =
+      fast_float::from_chars(current_uc, end_uc, value,
+                             static_cast<fast_float::chars_format>(
+                                 fast_float::chars_format::general |
+                                 fast_float::chars_format::no_infnan |
+                                 fast_float::chars_format::allow_leading_plus));
   if (ret.ptr == end_uc) return value;
   if (ret.ptr > current_uc) {
     current = reinterpret_cast<const Char*>(ret.ptr);
