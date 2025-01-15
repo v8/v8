@@ -4301,7 +4301,10 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = ["//external:absl_synchronization"],
+    deps = select({
+        "@v8//bazel/config:is_macos": ["//external:absl_synchronization"],
+        "//conditions:default": [],
+    }),
 )
 
 cc_library(
