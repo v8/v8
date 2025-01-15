@@ -59,11 +59,6 @@ bind(
     actual = "@com_google_absl//absl/synchronization"
 )
 
-bind(
-    name = "absl_time",
-    actual = "@com_google_absl//absl/time"
-)
-
 local_repository(
   name = "highway",
   path = "third_party/highway/src",

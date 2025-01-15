@@ -73,6 +73,22 @@ class V8_BASE_EXPORT Mutex final {
   // Note: Instead of `DCHECK(!mutex.TryLock())` use `mutex.AssertHeld()`.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
+  // The implementation-defined native handle type.
+#if V8_OS_POSIX
+  using NativeHandle = pthread_mutex_t;
+#elif V8_OS_WIN
+  using NativeHandle = V8_SRWLOCK;
+#elif V8_OS_STARBOARD
+  using NativeHandle = SbMutex;
+#endif
+
+  NativeHandle& native_handle() {
+    return native_handle_;
+  }
+  const NativeHandle& native_handle() const {
+    return native_handle_;
+  }
+
   V8_INLINE void AssertHeld() const {
     // If this access results in a race condition being detected by TSan, this
     // means that you in fact did *not* hold the mutex.
@@ -106,7 +122,7 @@ class V8_BASE_EXPORT Mutex final {
 
   friend class ConditionVariable;
 
-  absl::Mutex native_handle_;
+  NativeHandle native_handle_;
 };
 
 /*

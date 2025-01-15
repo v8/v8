@@ -4301,7 +4301,7 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = ["//external:absl_synchronization", "//external:absl_time"],
+    deps = ["//external:absl_synchronization"],
 )
 
 cc_library(
