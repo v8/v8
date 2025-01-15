@@ -1436,7 +1436,8 @@ class MaglevFrameTranslationBuilder {
                                ValueRepresentation repr) {
     switch (repr) {
       case ValueRepresentation::kIntPtr:
-        UNREACHABLE();
+        translation_array_builder_->StoreRegister(operand.GetRegister());
+        break;
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreRegister(operand.GetRegister());
         break;
@@ -1462,7 +1463,8 @@ class MaglevFrameTranslationBuilder {
     int stack_slot = DeoptStackSlotFromStackSlot(operand);
     switch (repr) {
       case ValueRepresentation::kIntPtr:
-        UNREACHABLE();
+        translation_array_builder_->StoreStackSlot(stack_slot);
+        break;
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreStackSlot(stack_slot);
         break;

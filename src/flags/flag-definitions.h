@@ -1509,6 +1509,10 @@ DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 
+DEFINE_EXPERIMENTAL_FEATURE(
+    typed_array_length_loading,
+    "Enable specializing loading the TypedArray length in Maglev / Turbofan")
+
 #if V8_ENABLE_WEBASSEMBLY
 DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
 #endif
