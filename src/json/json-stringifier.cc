@@ -135,7 +135,7 @@ class JsonStringifier {
     }
   }
 
-  V8_INLINE bool CurrentPartCanFit(uint32_t length) {
+  V8_INLINE bool CurrentPartCanFit(size_t length) {
     return part_length_ - current_index_ > length;
   }
 
@@ -143,7 +143,7 @@ class JsonStringifier {
   // serialized without allocating a new string part. The worst case length of
   // an escaped character is 6. Shifting the remaining string length right by 3
   // is a more pessimistic estimate, but faster to calculate.
-  V8_INLINE bool EscapedLengthIfCurrentPartFits(uint32_t length) {
+  V8_INLINE bool EscapedLengthIfCurrentPartFits(size_t length) {
     if (length > kMaxPartLength) return false;
     static_assert(kMaxPartLength <= (String::kMaxLength >> 3));
     // This shift will not overflow because length is already less than the
@@ -151,7 +151,7 @@ class JsonStringifier {
     return CurrentPartCanFit(length << 3);
   }
 
-  void AppendStringByCopy(Tagged<String> string, uint32_t length,
+  void AppendStringByCopy(Tagged<String> string, size_t length,
                           const DisallowGarbageCollection& no_gc) {
     DCHECK_EQ(length, string->length());
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
@@ -188,8 +188,11 @@ class JsonStringifier {
           encoding_ == String::TWO_BYTE_ENCODING ||
           (string->IsFlat() && string->IsOneByteRepresentation());
       if (representation_ok) {
-        uint32_t length = string->length();
-        while (!CurrentPartCanFit(length + 1)) Extend();
+        size_t length = string->length();
+        while (!CurrentPartCanFit(length + 1)) {
+          Extend();
+          if (V8_UNLIKELY(overflowed_)) return;
+        }
         AppendStringByCopy(string, length, no_gc);
         return;
       }
@@ -198,7 +201,7 @@ class JsonStringifier {
   }
 
   template <typename SrcChar>
-  void AppendSubstringByCopy(const SrcChar* src, int count) {
+  void AppendSubstringByCopy(const SrcChar* src, size_t count) {
     DCHECK(CurrentPartCanFit(count + 1));
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       if (sizeof(SrcChar) == 1) {
@@ -220,8 +223,11 @@ class JsonStringifier {
   V8_NOINLINE void AppendSubstring(const SrcChar* src, size_t from, size_t to) {
     if (from == to) return;
     DCHECK_LT(from, to);
-    uint32_t count = static_cast<uint32_t>(to - from);
-    while (!CurrentPartCanFit(count + 1)) Extend();
+    size_t count = to - from;
+    while (!CurrentPartCanFit(count + 1)) {
+      Extend();
+      if (V8_UNLIKELY(overflowed_)) return;
+    }
     AppendSubstringByCopy(src + from, count);
   }
 
@@ -1502,7 +1508,7 @@ bool JsonStringifier::SerializeStringUnchecked_(
       prev_escaped_offset = i;
     }
   }
-  dest->AppendSubstring(src.data(), prev_escaped_offset + 1, src.length());
+  dest->AppendSubstring(src.data(), prev_escaped_offset + 1, src.size());
   return required_escaping;
 }
 
@@ -1514,7 +1520,7 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
-  if V8_LIKELY (EscapedLengthIfCurrentPartFits(vector.length())) {
+  if V8_LIKELY (EscapedLengthIfCurrentPartFits(vector.size())) {
     NoExtendBuilder<DestChar> no_extend(
         reinterpret_cast<DestChar*>(part_ptr_) + current_index_,
         &current_index_);
@@ -1585,7 +1591,7 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
         prev_escaped_offset = i;
       }
     }
-    AppendSubstring(vector.data(), prev_escaped_offset + 1, vector.length());
+    AppendSubstring(vector.data(), prev_escaped_offset + 1, vector.size());
   }
   if (!raw_json) Append<uint8_t, DestChar>('"');
   return required_escaping;
