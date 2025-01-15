@@ -4132,7 +4132,8 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
       ,
       etw_tracing_enabled_(false),
-      etw_trace_interpreted_frames_(v8_flags.interpreted_frames_native_stack)
+      etw_trace_interpreted_frames_(v8_flags.interpreted_frames_native_stack),
+      etw_in_rundown_(false)
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 {
   TRACE_ISOLATE(constructor);

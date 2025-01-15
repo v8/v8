@@ -37,6 +37,8 @@ constexpr uint64_t kJScriptRuntimeKeyword = 1;
 
 constexpr uint16_t kSourceLoadEventID = 41;
 constexpr uint16_t kMethodLoadEventID = 9;
+constexpr uint16_t kSourceDCStartEventID = 39;
+constexpr uint16_t kMethodDCStartEventID = 5;
 
 constexpr unsigned char kTraceLevel = TRACE_LEVEL_INFORMATION;
 

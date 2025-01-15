@@ -2377,12 +2377,18 @@ void V8FileLogger::SetEtwCodeEventHandler(uint32_t options) {
     // is quite unlikely to have both file logger and ETW tracing both enabled
     // by default.
     HandleScope scope(isolate_);
+
+    bool rundown = (options & ETWJITInterface::kEtwRundown);
+    if (rundown) isolate_->SetETWIsInRundown(true);
+
     LogBuiltins();
     LogCodeObjects();
     LogCompiledFunctions(false);
     if (isolate_->interpreted_frames_native_stack()) {
       LogInterpretedFunctions();
     }
+
+    if (rundown) isolate_->SetETWIsInRundown(false);
   }
 }
 

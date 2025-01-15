@@ -26,6 +26,7 @@
 #include "src/diagnostics/etw-isolate-capture-state-monitor-win.h"
 #include "src/diagnostics/etw-isolate-operations-win.h"
 #include "src/diagnostics/etw-jit-metadata-win.h"
+#include "src/diagnostics/etw-jit-win.h"
 #include "src/logging/log.h"
 #include "src/objects/shared-function-info.h"
 #include "src/tasks/cancelable-task.h"

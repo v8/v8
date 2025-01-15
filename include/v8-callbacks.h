@@ -129,7 +129,9 @@ struct JitCodeEvent {
 enum JitCodeEventOptions {
   kJitCodeEventDefault = 0,
   // Generate callbacks for already existent code.
-  kJitCodeEventEnumExisting = 1
+  kJitCodeEventEnumExisting = 1,
+
+  kLastJitCodeEventOption = kJitCodeEventEnumExisting
 };
 
 /**

@@ -2030,6 +2030,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsETWTracingEnabled() const { return etw_tracing_enabled_; }
   void SetETWTracingEnabled(bool enabled) { etw_tracing_enabled_ = enabled; }
 
+  bool ETWIsInRundown() const { return etw_in_rundown_; }
+  void SetETWIsInRundown(bool is_rundown) { etw_in_rundown_ = is_rundown; }
+
   void set_etw_trace_interpreted_frames() {
     etw_trace_interpreted_frames_ = true;
   }
@@ -2786,6 +2789,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   FilterETWSessionByURL2Callback filter_etw_session_by_url2_callback_ = nullptr;
   bool etw_tracing_enabled_;
   bool etw_trace_interpreted_frames_;
+  bool etw_in_rundown_;
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 
   // TODO(kenton@cloudflare.com): This mutex can be removed if

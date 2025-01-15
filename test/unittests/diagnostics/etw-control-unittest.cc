@@ -69,7 +69,8 @@ TEST_F(EtwControlTest, Enable) {
       .Times(2);
   EXPECT_CALL(etw_isolate_operations_mock,
               SetEtwCodeEventHandler(testing::Eq(isolate),
-                                     testing::Eq(kJitCodeEventEnumExisting)))
+                                     testing::Eq(kJitCodeEventEnumExisting |
+                                                 ETWJITInterface::kEtwRundown)))
       .Times(1);
   EXPECT_CALL(etw_isolate_operations_mock,
               ResetEtwCodeEventHandler(testing::Eq(isolate)))
@@ -135,7 +136,8 @@ TEST_F(EtwControlTest, EnableWithFilterData) {
       .Times(2);
   EXPECT_CALL(etw_isolate_operations_mock,
               SetEtwCodeEventHandler(testing::Eq(isolate),
-                                     testing::Eq(kJitCodeEventEnumExisting)))
+                                     testing::Eq(kJitCodeEventEnumExisting |
+                                                 ETWJITInterface::kEtwRundown)))
       .Times(1);
   EXPECT_CALL(etw_isolate_operations_mock,
               ResetEtwCodeEventHandler(testing::Eq(isolate)))
@@ -325,7 +327,8 @@ TEST_F(EtwControlTest, EnableWithCustomFilterOnly) {
       .Times(2);
   EXPECT_CALL(etw_isolate_operations_mock,
               SetEtwCodeEventHandler(testing::Eq(isolate),
-                                     testing::Eq(kJitCodeEventEnumExisting)))
+                                     testing::Eq(kJitCodeEventEnumExisting |
+                                                 ETWJITInterface::kEtwRundown)))
       .Times(1);
   EXPECT_CALL(etw_isolate_operations_mock,
               ResetEtwCodeEventHandler(testing::Eq(isolate)))

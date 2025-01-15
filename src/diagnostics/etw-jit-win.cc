@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 #include "src/diagnostics/etw-jit-win.h"
 
-#include "include/v8-callbacks.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
@@ -124,7 +123,7 @@ void WINAPI V8_EXPORT_PRIVATE ETWEnableCallback(
 
   uint32_t options = kJitCodeEventDefault;
   if (is_enabled == kEtwControlCaptureState) {
-    options |= kJitCodeEventEnumExisting;
+    options |= (kEtwRundown | kJitCodeEventEnumExisting);
   }
 
   FilterDataType* etw_filter = etw_filter_payload_glob.Pointer();
@@ -240,17 +239,33 @@ void EventHandler(const JitCodeEvent* event) {
         String::WriteToFlat(v8str_name, wstr_data, 0, v8str_name->length());
       }
 
-      constexpr static auto source_load_event_meta =
-          EventMetadata(kSourceLoadEventID, kJScriptRuntimeKeyword);
-      constexpr static auto source_load_event_fields = EventFields(
-          "SourceLoad", Field("SourceID", TlgInUINT64),
-          Field("ScriptContextID", TlgInPOINTER),
-          Field("SourceFlags", TlgInUINT32), Field("Url", TlgInUNICODESTRING));
-      LogEventData(g_v8Provider, &source_load_event_meta,
-                   &source_load_event_fields, (uint64_t)script_id,
-                   script_context,
-                   (uint32_t)0,  // SourceFlags
-                   wstr_name);
+      if (isolate->ETWIsInRundown()) {
+        constexpr static auto source_dcstart_event_meta =
+            EventMetadata(kSourceDCStartEventID, kJScriptRuntimeKeyword);
+        constexpr static auto source_dcstart_event_fields =
+            EventFields("SourceDCStart", Field("SourceID", TlgInUINT64),
+                        Field("ScriptContextID", TlgInPOINTER),
+                        Field("SourceFlags", TlgInUINT32),
+                        Field("Url", TlgInUNICODESTRING));
+        LogEventData(g_v8Provider, &source_dcstart_event_meta,
+                     &source_dcstart_event_fields, (uint64_t)script_id,
+                     script_context,
+                     (uint32_t)0,  // SourceFlags
+                     wstr_name);
+      } else {
+        constexpr static auto source_load_event_meta =
+            EventMetadata(kSourceLoadEventID, kJScriptRuntimeKeyword);
+        constexpr static auto source_load_event_fields =
+            EventFields("SourceLoad", Field("SourceID", TlgInUINT64),
+                        Field("ScriptContextID", TlgInPOINTER),
+                        Field("SourceFlags", TlgInUINT32),
+                        Field("Url", TlgInUNICODESTRING));
+        LogEventData(g_v8Provider, &source_load_event_meta,
+                     &source_load_event_fields, (uint64_t)script_id,
+                     script_context,
+                     (uint32_t)0,  // SourceFlags
+                     wstr_name);
+      }
     }
 
     Script::PositionInfo info;
@@ -297,23 +312,43 @@ void EventHandler(const JitCodeEvent* event) {
     }
   }
 
-  constexpr static auto method_load_event_meta =
-      EventMetadata(kMethodLoadEventID, kJScriptRuntimeKeyword);
-  constexpr static auto method_load_event_fields = EventFields(
-      "MethodLoad", Field("ScriptContextID", TlgInPOINTER),
-      Field("MethodStartAddress", TlgInPOINTER),
-      Field("MethodSize", TlgInUINT64), Field("MethodID", TlgInUINT32),
-      Field("MethodFlags", TlgInUINT16),
-      Field("MethodAddressRangeID", TlgInUINT16),
-      Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
-      Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
-
-  LogEventData(g_v8Provider, &method_load_event_meta, &method_load_event_fields,
-               script_context, event->code_start, (uint64_t)event->code_len,
-               (uint32_t)0,  // MethodId
-               (uint16_t)0,  // MethodFlags
-               (uint16_t)0,  // MethodAddressRangeId
-               (uint64_t)script_id, script_line, script_column, method_name);
+  if (isolate->ETWIsInRundown()) {
+    constexpr static auto method_dcstart_event_meta =
+        EventMetadata(kMethodDCStartEventID, kJScriptRuntimeKeyword);
+    constexpr static auto method_dcstart_event_fields = EventFields(
+        "MethodDCStart", Field("ScriptContextID", TlgInPOINTER),
+        Field("MethodStartAddress", TlgInPOINTER),
+        Field("MethodSize", TlgInUINT64), Field("MethodID", TlgInUINT32),
+        Field("MethodFlags", TlgInUINT16),
+        Field("MethodAddressRangeID", TlgInUINT16),
+        Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
+        Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
+    LogEventData(g_v8Provider, &method_dcstart_event_meta,
+                 &method_dcstart_event_fields, script_context,
+                 event->code_start, (uint64_t)event->code_len,
+                 (uint32_t)0,  // MethodId
+                 (uint16_t)0,  // MethodFlags
+                 (uint16_t)0,  // MethodAddressRangeId
+                 (uint64_t)script_id, script_line, script_column, method_name);
+  } else {
+    constexpr static auto method_load_event_meta =
+        EventMetadata(kMethodLoadEventID, kJScriptRuntimeKeyword);
+    constexpr static auto method_load_event_fields = EventFields(
+        "MethodLoad", Field("ScriptContextID", TlgInPOINTER),
+        Field("MethodStartAddress", TlgInPOINTER),
+        Field("MethodSize", TlgInUINT64), Field("MethodID", TlgInUINT32),
+        Field("MethodFlags", TlgInUINT16),
+        Field("MethodAddressRangeID", TlgInUINT16),
+        Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
+        Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
+    LogEventData(g_v8Provider, &method_load_event_meta,
+                 &method_load_event_fields, script_context, event->code_start,
+                 (uint64_t)event->code_len,
+                 (uint32_t)0,  // MethodId
+                 (uint16_t)0,  // MethodFlags
+                 (uint16_t)0,  // MethodAddressRangeId
+                 (uint64_t)script_id, script_line, script_column, method_name);
+  }
 }
 
 }  // namespace ETWJITInterface
