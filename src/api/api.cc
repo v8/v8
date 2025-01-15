@@ -389,6 +389,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     BackendAllocator() {
       CHECK(i::Sandbox::current()->is_initialized());
       VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
+      vas_ = vas;
       constexpr size_t max_backing_memory_size = 8ULL * i::GB;
       constexpr size_t min_backing_memory_size = 1ULL * i::GB;
       size_t backing_memory_size = max_backing_memory_size;
@@ -417,7 +418,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       region_alloc_->set_on_merge_callback([this](i::Address start,
                                                   size_t size) {
         mutex_.AssertHeld();
-        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
         i::Address end = start + size;
         if (end == region_alloc_->end() &&
             start <= end_of_accessible_region_ - kChunkSize) {
@@ -425,8 +425,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
           i::Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
           size_t size_to_decommit =
               end_of_accessible_region_ - new_end_of_accessible_region;
-          if (!vas->DecommitPages(new_end_of_accessible_region,
-                                  size_to_decommit)) {
+          if (!vas_->DecommitPages(new_end_of_accessible_region,
+                                   size_to_decommit)) {
             i::V8::FatalProcessOutOfMemory(
                 nullptr, "ArrayBufferAllocator::BackendAllocator()");
           }
@@ -436,7 +436,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
           // accessible region doesn't change.
           i::Address chunk_start = RoundUp(start, kChunkSize);
           i::Address chunk_end = RoundDown(start + size, kChunkSize);
-          if (!vas->DiscardSystemPages(chunk_start, chunk_end - chunk_start)) {
+          if (!vas_->DiscardSystemPages(chunk_start, chunk_end - chunk_start)) {
             i::V8::FatalProcessOutOfMemory(
                 nullptr, "ArrayBufferAllocator::BackendAllocator()");
           }
@@ -448,8 +448,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       // The sandbox may already have been torn down, in which case there's no
       // need to free any memory.
       if (i::Sandbox::current()->is_initialized()) {
-        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
-        vas->FreePages(region_alloc_->begin(), region_alloc_->size());
+        vas_->FreePages(region_alloc_->begin(), region_alloc_->size());
       }
     }
 
@@ -467,11 +466,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       i::Address end = region + length;
       size_t length_to_memset = length;
       if (end > end_of_accessible_region_) {
-        VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
         i::Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
         size_t size = new_end_of_accessible_region - end_of_accessible_region_;
-        if (!vas->SetPagePermissions(end_of_accessible_region_, size,
-                                     PagePermissions::kReadWrite)) {
+        if (!vas_->SetPagePermissions(end_of_accessible_region_, size,
+                                      PagePermissions::kReadWrite)) {
           if (!region_alloc_->FreeRegion(region)) {
             i::V8::FatalProcessOutOfMemory(
                 nullptr, "ArrayBufferAllocator::BackendAllocator::Allocate()");
@@ -510,6 +508,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
     std::unique_ptr<base::RegionAllocator> region_alloc_;
     size_t end_of_accessible_region_;
+    VirtualAddressSpace* vas_ = nullptr;
     base::SpinningMutex mutex_;
   };
 
