@@ -517,7 +517,7 @@ class CompilationUnitQueues {
 };
 
 size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 200);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 152);
   UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 96);
   UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 72);
   // Not including sizeof(CompilationUnitQueues) because that's included in
@@ -834,7 +834,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 456);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 408);
   size_t result = sizeof(CompilationStateImpl);
 
   {

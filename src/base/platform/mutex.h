@@ -7,12 +7,11 @@
 
 #include <optional>
 
+#include "absl/synchronization/mutex.h"
 #include "include/v8config.h"
 
 #if V8_OS_DARWIN
 #include <os/lock.h>
-
-#include "absl/synchronization/mutex.h"
 #endif
 
 #if V8_OS_POSIX
@@ -504,21 +503,7 @@ class V8_BASE_EXPORT SharedMutex final {
   bool TryLockExclusive() V8_WARN_UNUSED_RESULT;
 
  private:
-  // The implementation-defined native handle type.
-#if V8_OS_DARWIN
-  // pthread_rwlock_t is broken on MacOS when signals are being sent to the
-  // process (see https://crbug.com/v8/11399).
-  // We thus use std::shared_mutex on MacOS, which does not have this problem.
-  using NativeHandle = absl::Mutex;
-#elif V8_OS_POSIX
-  using NativeHandle = pthread_rwlock_t;
-#elif V8_OS_WIN
-  using NativeHandle = V8_SRWLOCK;
-#elif V8_OS_STARBOARD
-  using NativeHandle = starboard::RWLock;
-#endif
-
-  NativeHandle native_handle_;
+  absl::Mutex native_handle_;
 };
 
 // LockGuard
