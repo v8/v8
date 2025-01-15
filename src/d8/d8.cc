@@ -1025,7 +1025,13 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
-    if (try_catch.HasTerminated()) return true;
+    if (try_catch.HasTerminated()) {
+      // Re-request terminate execution as it's been cleared, so
+      // Shell::FinishExecution doesn't waste time draining all enqueued tasks
+      // and microtasks.
+      isolate->TerminateExecution();
+      return true;
+    }
     DCHECK(try_catch.HasCaught());
     return false;
   } else if (out_result != nullptr) {
