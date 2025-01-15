@@ -296,21 +296,24 @@ Tagged<HeapObject> Factory::AllocateRaw(int size, AllocationType allocation,
 Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
     DirectHandle<Map> map, AllocationType allocation,
     DirectHandle<AllocationSite> allocation_site) {
-  DCHECK(map->instance_type() != MAP_TYPE);
-  int size = map->instance_size();
-  if (!allocation_site.is_null()) {
-    DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
-    size += ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
-  }
+  DCHECK_NE(map->instance_type(), MAP_TYPE);
+  const auto [write_barrier_mode, should_allocate_memento] =
+      allocation == AllocationType::kYoung
+          ? std::pair{SKIP_WRITE_BARRIER, !allocation_site.is_null()}
+          : std::pair{UPDATE_WRITE_BARRIER, false};
+  DCHECK_IMPLIES(should_allocate_memento, V8_ALLOCATION_SITE_TRACKING_BOOL);
+  const int instance_size = map->instance_size();
+  const int allocation_size =
+      should_allocate_memento
+          ? instance_size +
+                ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize)
+          : instance_size;
   Tagged<HeapObject> result =
-      allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(size,
+      allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(allocation_size,
                                                                 allocation);
-  WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
-                                            ? SKIP_WRITE_BARRIER
-                                            : UPDATE_WRITE_BARRIER;
   result->set_map_after_allocation(isolate(), *map, write_barrier_mode);
-  if (!allocation_site.is_null()) {
-    int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(map->instance_size());
+  if (should_allocate_memento) {
+    const int aligned_size = ALIGN_TO_ALLOCATION_ALIGNMENT(instance_size);
     Tagged<AllocationMemento> alloc_memento = UncheckedCast<AllocationMemento>(
         Tagged<Object>(result.ptr() + aligned_size));
     InitializeAllocationMemento(alloc_memento, *allocation_site);
