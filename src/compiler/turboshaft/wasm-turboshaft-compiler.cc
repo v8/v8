@@ -47,12 +47,10 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
 
   data.source_positions =
       mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
-  data.assumptions = new wasm::AssumptionsJournal();
   auto call_descriptor = GetWasmCallDescriptor(&zone, data.func_body.sig);
 
   if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(
           &info, env, data, mcgraph, detected, call_descriptor)) {
-    delete data.assumptions;
     return {};
   }
 
@@ -65,7 +63,9 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
-  result->assumptions.reset(data.assumptions);
+  DCHECK_NULL(result->assumptions);
+  result->assumptions = std::move(data.assumptions);
+  DCHECK_IMPLIES(result->assumptions, !result->assumptions->empty());
   return std::move(*result);
 }
 

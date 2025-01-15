@@ -45,7 +45,8 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
     CompilationEnv* env, WasmDetectedFeatures* detected,
     compiler::turboshaft::Graph& graph, const FunctionBody& func_body,
-    const WireBytesStorage* wire_bytes, AssumptionsJournal* assumptions,
+    const WireBytesStorage* wire_bytes,
+    std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index);
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,

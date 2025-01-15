@@ -260,7 +260,7 @@ void WasmInliner::Finalize() {
       wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features, module(),
                          &builder, detected_, inlinee_body, &inlinee_loop_infos,
                          &dangling_exceptions, data_.node_origins,
-                         candidate.inlinee_index, data_.assumptions,
+                         candidate.inlinee_index, data_.assumptions.get(),
                          NodeProperties::IsExceptionalCall(call)
                              ? wasm::kInlinedHandledCall
                              : wasm::kInlinedNonHandledCall);

@@ -376,7 +376,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // For non-inlined functions.
   TurboshaftGraphBuildingInterface(
       Zone* zone, CompilationEnv* env, Assembler& assembler,
-      AssumptionsJournal* assumptions,
+      std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       bool shared, const WireBytesStorage* wire_bytes)
       : WasmGraphBuilderBase(zone, assembler),
@@ -400,7 +400,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // For inlined functions.
   TurboshaftGraphBuildingInterface(
       Zone* zone, CompilationEnv* env, Assembler& assembler, Mode mode,
-      InstanceCache& instance_cache, AssumptionsJournal* assumptions,
+      InstanceCache& instance_cache,
+      std::unique_ptr<AssumptionsJournal>* assumptions,
       ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
       bool shared, const WireBytesStorage* wire_bytes,
       base::Vector<OpIndex> real_parameters, TSBlock* return_block,
@@ -2614,7 +2615,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
              WellKnownImportName(imported_op));
     }
-    assumptions_->RecordAssumption(index, imported_op);
+    if (!*assumptions_) *assumptions_ = std::make_unique<AssumptionsJournal>();
+    (*assumptions_)->RecordAssumption(index, imported_op);
     returns[0].op = result;
     return true;
   }
@@ -8398,7 +8400,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   // The instance cache to use (may be owned or passed in).
   InstanceCache& instance_cache_;
 
-  AssumptionsJournal* assumptions_;
+  // Yes, a *pointer* to a `unique_ptr`. The `unique_ptr` is allocated lazily
+  // when adding the first assumption.
+  std::unique_ptr<AssumptionsJournal>* assumptions_;
   ZoneVector<WasmInliningPosition>* inlining_positions_;
   uint8_t inlining_id_ = kNoInliningId;
   ZoneVector<OpIndex> ssa_env_;
@@ -8441,7 +8445,7 @@ V8_EXPORT_PRIVATE void BuildTSGraph(
     compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
     CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
     const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
-    AssumptionsJournal* assumptions,
+    std::unique_ptr<AssumptionsJournal>* assumptions,
     ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
   DCHECK(env->module->function_was_validated(func_index));
   Zone zone(allocator, ZONE_NAME);

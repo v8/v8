@@ -1441,8 +1441,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> owned_code,
 
   if (assumptions != nullptr) {
     // We should not allocate an empty set to avoid unnecessary overhead.
-    // TODO(clemensb): Fix and enable this assertion.
-    // DCHECK(!assumptions->empty());
+    DCHECK(!assumptions->empty());
     // Only Turbofan makes assumptions.
     DCHECK_EQ(ExecutionTier::kTurbofan, owned_code->tier());
     // Assumptions are not used for imports.

@@ -140,7 +140,7 @@ struct WasmCompilationData {
   const wasm::WireBytesStorage* wire_bytes_storage;
   NodeOriginTable* node_origins{nullptr};
   std::vector<WasmLoopInfo>* loop_infos{nullptr};
-  wasm::AssumptionsJournal* assumptions{nullptr};
+  std::unique_ptr<wasm::AssumptionsJournal> assumptions{};
   SourcePositionTable* source_positions{nullptr};
   int func_index;
 };
