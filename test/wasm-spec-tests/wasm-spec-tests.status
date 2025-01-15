@@ -12,50 +12,9 @@
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
-  # TODO(https://crbug.com/378077852): Merge updated `wasm-3.0` branch into JSPI.
-  'proposals/js-promise-integration/relaxed-simd/i16x8_relaxed_q15mulr_s': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/i32x4_relaxed_trunc': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/i8x16_relaxed_swizzle': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/relaxed_dot_product': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/relaxed_laneselect': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/relaxed_madd_nmadd': [FAIL],
-  'proposals/js-promise-integration/relaxed-simd/relaxed_min_max': [FAIL],
-
-  # The function-references spec tests haven't been updated to the final
-  # binary encoding. We don't care, because the GC tests are up to date and
-  # we'll ship both proposals together.
-  'proposals/function-references/*': [SKIP],
-
-  # These break with the GC proposal (because they check that certain modules
-  # don't validate that become valid with GC). The GC proposal will update them
-  # when it is merged into the main spec repository.
-  'proposals/extended-const/data': [FAIL],
-  'proposals/multi-memory/data': [FAIL],
-
-  # These break with the GC proposal (because they check that certain modules
-  # don't validate that become valid with GC). The GC proposal will update them
-  # when it is merged into the main spec repository.
-  # With the GC proposal global.get is a constant instruction, independent on
-  # the type of the global. In the main spec repository, only global.get of
-  # imported globals are allowed.
-  'proposals/extended-const/elem': [FAIL],
-  'proposals/extended-const/global': [FAIL],
-
-  # These tests need to be rebased on the multi-memory proposal once it's
-  # merged into the main repository.
-  # "imports" tests that not more than one memory can be imported.
-  'proposals/exception-handling/imports': [FAIL],
-  # "binary" tests that the byte for encoding the memory index is a single
-  # byte (and no LEB).
-  'proposals/exception-handling/binary': [FAIL],
-  'proposals/gc/binary': [FAIL],
-
   # The test is incorrect as it exports a function with an exnref in the
   # signature, which is a runtime type error.
   'ref_null': [FAIL],
-  'proposals/exception-handling/ref_null': [FAIL],
-  'proposals/js-promise-integration/ref_null': [FAIL],
-  'proposals/memory64/ref_null': [FAIL],
 
   # TODO(clemensb/evih): Resolve https://github.com/WebAssembly/memory64/pull/103#issuecomment-2548870034
   'proposals/memory64/memory64': [FAIL],
@@ -79,33 +38,6 @@
   'float_exprs': [SKIP],
   'f32': [SKIP],
   'f64': [SKIP],
-  'f32_bitwise': [SKIP],
-  'f64_bitwise': [SKIP],
-  'proposals/reference-types/conversions':  [SKIP],
-  'proposals/bulk-memory-operations/conversions': [SKIP],
-  'proposals/js-types/f32': [SKIP],
-  'proposals/js-types/f64': [SKIP],
-  'proposals/js-types/f32_bitwise': [SKIP],
-  'proposals/js-types/f64_bitwise': [SKIP],
-  'proposals/js-types/float_exprs': [SKIP],
-  'proposals/js-types/float_misc': [SKIP],
-  'proposals/js-types/conversions': [SKIP],
-  'proposals/bulk-memory-operations/f32': [SKIP],
-  'proposals/bulk-memory-operations/f64': [SKIP],
-  'proposals/reference-types/f32': [SKIP],
-  'proposals/reference-types/f64': [SKIP],
-  'proposals/bulk-memory-operations/float_misc': [SKIP],
-  'proposals/reference-types/float_misc': [SKIP],
-  'proposals/tail-call/f32': [SKIP],
-  'proposals/tail-call/f32_bitwise': [SKIP],
-  'proposals/tail-call/f64': [SKIP],
-  'proposals/tail-call/f64_bitwise': [SKIP],
-  'proposals/tail-call/float_exprs': [SKIP],
-  'proposals/tail-call/float_misc': [SKIP],
-  'proposals/tail-call/conversions': [SKIP],
-  'proposals/gc/float_misc': [SKIP],
-  'proposals/extended-const/float_misc': [SKIP],
-  'proposals/exception-handling/float_misc': [SKIP],
 
   # MIPS64 doesn't support JSPI yet.
   'proposals/js-promise-integration/*': [SKIP],
@@ -120,13 +52,11 @@
 ['(arch == mips64el or arch == loong64) and simulator_run', {
   # These tests need larger stack size on simulator.
   'skip-stack-guard-page': '--sim-stack-size=8192',
-  'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 }],  # '(arch == mips64el or arch == loong64) and simulator_run'
 
 ['arch == riscv64', {
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',
-   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 }],  # 'arch == riscv64'
 
 
@@ -134,7 +64,6 @@
 ['arch == riscv32', {
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',
-   'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
@@ -143,34 +72,14 @@
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
   'f64': [SKIP],
-  'proposals/js-types/f32': [SKIP],
-  'proposals/js-types/f64': [SKIP],
-  'proposals/bulk-memory-operations/f32': [SKIP],
-  'proposals/bulk-memory-operations/f64': [SKIP],
-  'proposals/reference-types/f32': [SKIP],
-  'proposals/reference-types/f64': [SKIP],
-  'proposals/tail-call/f32': [SKIP],
-  'proposals/tail-call/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
   'conversions': [SKIP],
-  'proposals/js-types/conversions': [SKIP],
-  'proposals/bulk-memory-operations/conversions': [SKIP],
-  'proposals/reference-types/conversions':  [SKIP],
-  'proposals/tail-call/conversions':  [SKIP],
 }],  # 'arch == ppc64'
 
 ['arch == s390x', {
   # These tests fail because s390x float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
   'f64': [SKIP],
-  'proposals/js-types/f32': [SKIP],
-  'proposals/js-types/f64': [SKIP],
-  'proposals/bulk-memory-operations/f32': [SKIP],
-  'proposals/bulk-memory-operations/f64': [SKIP],
-  'proposals/reference-types/f32': [SKIP],
-  'proposals/reference-types/f64': [SKIP],
-  'proposals/tail-call/f32': [SKIP],
-  'proposals/tail-call/f64': [SKIP],
 }],  # 'arch == s390x'
 
 ##############################################################################
@@ -187,7 +96,6 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'linking': [SKIP],
-  'proposals/js-types/linking': [SKIP],
 
   'relaxed-simd*': [SKIP],
   'simd*': [SKIP],

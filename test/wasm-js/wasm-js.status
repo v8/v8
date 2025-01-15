@@ -22,13 +22,6 @@
   # proposal which V8 does not implement yet.
   'wpt/module/moduleSource.tentative': [FAIL],
 
-  # Limits tests are slow, and not useful to run for the proposals:
-  'proposals/extended-const/limits': [SKIP],
-  'proposals/js-types/limits': [SKIP],
-  'proposals/memory64/limits': [SKIP],
-  'proposals/multi-memory/limits': [SKIP],
-  'proposals/tail-call/limits': [SKIP],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   # TODO(14258): Switch back to [PASS, HEAVY] once wasm-js tests allow more
   # than one memory. Github issue:
@@ -39,11 +32,6 @@
   # WebAssembly.Function.type. The tests should be updated anyway since they
   # still use the old API (which works but is deprecated).
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [FAIL],
-
-  # TODO(https://crbug.com/364913810): Investigate failing exception handling tests.
-  'proposals/js-promise-integration/exception/basic.tentative': [FAIL],
-  'proposals/js-promise-integration/exception/identity.tentative': [FAIL],
-  'proposals/js-promise-integration/exception/jsTag.tentative': [FAIL],
 
   # TODO(https://crbug.com/42202693): RAB / GSAB integration.
   'wpt/memory/to-fixed-length-buffer': [FAIL],
@@ -90,7 +78,6 @@
 ['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64', {
   # Stack switching is not supported on all platforms.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
-  'proposals/js-promise-integration/js-promise-integration/rejects': [SKIP],
   'wpt/jspi/*': [SKIP]
 }],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64)
 
