@@ -8794,16 +8794,16 @@ class LiftoffCompiler {
         // builtin call itself already does.
         // All in all, let's keep it simple at first, i.e., share the maximum
         // amount of code when inlining is enabled vs. not.
-        VarState target_var(kIntPtrKind, LiftoffRegister(target), 0);
+        VarState target_var(kI32, LiftoffRegister(target), 0);
         VarState implicit_arg_var(kRef, LiftoffRegister(implicit_arg), 0);
 
         // CallIndirectIC(vector: FixedArray, vectorIndex: int32,
-        //                target: RawPtr,
+        //                target: WasmCodePointer (== uint32),
         //                implicitArg: WasmTrustedInstanceData|WasmImportData)
         //               -> <target, implicit_arg>
         CallBuiltin(Builtin::kCallIndirectIC,
                     MakeSig::Returns(kIntPtrKind, kIntPtrKind)
-                        .Params(kRef, kI32, kIntPtrKind, kRef),
+                        .Params(kRef, kI32, kI32, kRef),
                     {vector_var, index_var, target_var, implicit_arg_var},
                     decoder->position());
         target = kReturnRegister0;

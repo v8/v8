@@ -3354,7 +3354,10 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Label fail, ok;
 
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  shlq(target, Immediate(4));
+  // Check that using a 32-bit shift is valid for any valid code pointer.
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
+                (kMaxInt >> 4));
+  shll(target, Immediate(4));
 
   cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
                wasm::WasmCodePointerTable::kOffsetOfSignatureHash),
@@ -3396,7 +3399,10 @@ void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
 
   constexpr unsigned int kEntrySizeLog2 =
       std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
-  shlq(target, Immediate(kEntrySizeLog2));
+  // Check that using a 32-bit shift is valid for any valid code pointer.
+  static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
+                (kMaxInt >> kEntrySizeLog2));
+  shll(target, Immediate(kEntrySizeLog2));
 
   movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
   call(target);

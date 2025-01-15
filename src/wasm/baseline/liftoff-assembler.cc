@@ -807,14 +807,13 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   if (target && param_regs.has(LiftoffRegister(*target))) {
     // Try to find another free register.
     LiftoffRegList free_regs = kGpCacheRegList.MaskOut(param_regs);
+    static_assert(sizeof(WasmCodePointer) == kUInt32Size);
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
-      parallel_move.MoveRegister(new_target, LiftoffRegister(*target),
-                                 kIntPtrKind);
+      parallel_move.MoveRegister(new_target, LiftoffRegister(*target), kI32);
       *target = new_target.gp();
     } else {
-      stack_slots.Add(VarState(kIntPtrKind, LiftoffRegister(*target), 0),
-                      param_slots);
+      stack_slots.Add(VarState(kI32, LiftoffRegister(*target), 0), param_slots);
       param_slots++;
       *target = no_reg;
     }

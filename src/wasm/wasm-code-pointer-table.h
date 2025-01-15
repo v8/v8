@@ -80,6 +80,12 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
       offsetof(WasmCodePointerTableEntry, signature_hash_);
 #endif
 
+#ifdef V8_TARGET_ARCH_64_BIT
+  // 64-bit architectures reserve a large table upfront, hence there's a fixed
+  // maximum number of Wasm code pointers.
+  static constexpr size_t kMaxWasmCodePointers = kMaxCapacity;
+#endif
+
   using WriteScope = CFIMetadataWriteScope;
 
   // The table should be initialized exactly once before use.
