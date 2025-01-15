@@ -167,6 +167,8 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
+    BeginPhaseKind("V8.TurboshaftOptimize");
+
 #ifdef V8_ENABLE_WEBASSEMBLY
     // TODO(dlehmann,353475584): Once the Wasm-in-JS TS inlining MVP is feature-
     // complete and cleaned-up, move its reducer into the beginning of the
