@@ -49,6 +49,10 @@ class TerminatorThread : public base::Thread {
         isolate_(reinterpret_cast<Isolate*>(isolate)) {}
   void Run() override {
     semaphore->Wait();
+    // We need this because IsExecutionTerminating accesses the main pointer
+    // cage base through ReadOnlyRoots::address_at.
+    i::PtrComprCageAccessScope ptr_compr_cage_access_scope(
+        reinterpret_cast<i::Isolate*>(isolate_));
     CHECK(!isolate_->IsExecutionTerminating());
     isolate_->TerminateExecution();
   }
