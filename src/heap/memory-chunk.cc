@@ -41,18 +41,19 @@ constexpr MemoryChunk::MainThreadFlags
     MemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
 MemoryChunk::MemoryChunk(MainThreadFlags flags, MemoryChunkMetadata* metadata)
-    : main_thread_flags_(flags),
-#ifdef V8_ENABLE_SANDBOX
-      metadata_index_(MetadataTableIndex(address()))
-#else
+    : main_thread_flags_(flags)
+#ifndef V8_ENABLE_SANDBOX
+      ,
       metadata_(metadata)
 #endif
 {
 #ifdef V8_ENABLE_SANDBOX
+  auto metadata_index = MetadataTableIndex(address());
   MemoryChunkMetadata** metadata_pointer_table = MetadataTableAddress();
-  DCHECK_IMPLIES(metadata_pointer_table[metadata_index_] != nullptr,
-                 metadata_pointer_table[metadata_index_] == metadata);
-  metadata_pointer_table[metadata_index_] = metadata;
+  DCHECK_IMPLIES(metadata_pointer_table[metadata_index] != nullptr,
+                 metadata_pointer_table[metadata_index] == metadata);
+  metadata_pointer_table[metadata_index] = metadata;
+  metadata_index_ = metadata_index;
 #endif
 }
 
