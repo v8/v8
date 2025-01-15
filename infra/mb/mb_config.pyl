@@ -86,7 +86,6 @@
       'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
-      'V8 Win32 - msvc - debug builder': 'debug_x86_msvc',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN - builder': 'release_x64_asan_no_lsan',
       'V8 Win64 - builder': 'release_x64_minimal_symbols',
@@ -95,7 +94,6 @@
       'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug builder': 'debug_x64_minimal_symbols',
       'V8 Win64 - drumbrake - debug builder': 'debug_x64_drumbrake',
-      'V8 Win64 - msvc - builder': 'release_x64_msvc',
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
       'V8 Mac64 - debug builder': 'debug_x64',
@@ -330,12 +328,9 @@
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'v8_win_compile_dbg': 'debug_x86_trybot',
       'v8_win_compile_rel': 'release_x86_trybot',
-      'v8_win_msvc_light_compile_dbg': 'debug_x86_msvc',
       'v8_win64_asan_compile_rel': 'release_x64_asan_no_lsan',
-      'v8_win64_msvc_light_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_dbg': 'debug_x64_minimal_symbols',
       'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
-      'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_compile_rel': 'release_x64_trybot',
       'v8_win64_nodcheck_compile_rel': 'release_x64_minimal_symbols',
       'v8_mac_arm64_compile_rel': 'release_arm64',
@@ -614,8 +609,6 @@
       'v8_verify_heap', 'v8_verify_csa', 'fuzzilli'],
     'release_x64_gcmole': [
       'release_bot', 'x64', 'gcmole'],
-    'release_x64_msvc': [
-      'release_bot_no_reclient', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer_turboshaft_csa' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer',
       'v8_enable_turboshaft_csa'],
@@ -745,8 +738,6 @@
       'debug_bot', 'x86', 'asan', 'lsan', 'v8_enable_turboshaft_csa'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
-    'debug_x86_msvc': [
-      'debug_bot_no_reclient', 'x86', 'minimal_symbols', 'msvc'],
     'debug_x86_no_i18n': [
       'debug_bot', 'x86', 'v8_no_i18n'],
     'debug_x86_trybot': [
@@ -943,10 +934,6 @@
     'msan_no_origins': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'is_msan=true msan_track_origins=0 instrumented_libraries_release="noble"',
-    },
-
-    'msvc': {
-      'gn_args': 'is_clang=false',
     },
 
     'no_custom_libcxx': {
