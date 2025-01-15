@@ -7614,14 +7614,6 @@ TNode<BoolT> CodeStubAssembler::IsSeqOneByteStringInstanceType(
       Int32Constant(kSeqOneByteStringTag));
 }
 
-TNode<BoolT> CodeStubAssembler::IsThinStringInstanceType(
-    TNode<Int32T> instance_type) {
-  CSA_DCHECK(this, IsStringInstanceType(instance_type));
-  return Word32Equal(
-      Word32And(instance_type, Int32Constant(kStringRepresentationMask)),
-      Int32Constant(kThinStringTag));
-}
-
 TNode<BoolT> CodeStubAssembler::IsConsStringInstanceType(
     TNode<Int32T> instance_type) {
   CSA_DCHECK(this, IsStringInstanceType(instance_type));
@@ -9631,7 +9623,8 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
                    raw_hash_field, Name::HashFieldType::kIntegerIndex),
                if_bailout);
 
-        GotoIf(IsThinStringInstanceType(var_instance_type.value()),
+        static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+        GotoIf(IsSetWord32(var_instance_type.value(), kThinStringTagBit),
                &if_thinstring);
 
         // Check if the hash field encodes a forwarding index.

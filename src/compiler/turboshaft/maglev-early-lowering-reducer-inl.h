@@ -89,10 +89,9 @@ class MaglevEarlyLoweringReducer : public Next {
       // Deopt if this isn't a string.
       __ DeoptimizeIf(__ Word32BitwiseAnd(instance_type, kIsNotStringMask),
                       frame_state, DeoptimizeReason::kWrongMap, feedback);
-      V<Word32> representation_bits =
-          __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
       // Deopt if this isn't a thin string.
-      __ DeoptimizeIfNot(__ Word32Equal(representation_bits, kThinStringTag),
+      static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+      __ DeoptimizeIfNot(__ Word32BitwiseAnd(instance_type, kThinStringTagBit),
                          frame_state, DeoptimizeReason::kWrongMap, feedback);
       // Load internalized string from thin string.
       V<InternalizedString> intern_string =

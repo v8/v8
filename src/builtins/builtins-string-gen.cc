@@ -441,7 +441,8 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   TVARIABLE(String, first, left);
   TNode<Int32T> left_instance_type = LoadInstanceType(left);
   Label handle_right(this);
-  GotoIfNot(IsThinStringInstanceType(left_instance_type), &handle_right);
+  static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+  GotoIfNot(IsSetWord32(left_instance_type, kThinStringTagBit), &handle_right);
   {
     first = LoadObjectField<String>(left, offsetof(ThinString, actual_));
     Goto(&handle_right);
@@ -451,7 +452,7 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   TVARIABLE(String, second, right);
   TNode<Int32T> right_instance_type = LoadInstanceType(right);
   Label allocate(this);
-  GotoIfNot(IsThinStringInstanceType(right_instance_type), &allocate);
+  GotoIfNot(IsSetWord32(right_instance_type, kThinStringTagBit), &allocate);
   {
     second = LoadObjectField<String>(right, offsetof(ThinString, actual_));
     Goto(&allocate);
