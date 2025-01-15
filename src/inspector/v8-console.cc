@@ -9,6 +9,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "include/v8-profiler.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
@@ -554,6 +555,8 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
   TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
+  // This has to happen BEFORE the `TRACE_EVENTx` macro.
+  v8::CpuProfiler::CpuProfiler::CollectSample(isolate);
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
   {
