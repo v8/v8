@@ -515,8 +515,8 @@ uint64_t GetNextTraceId() {
   // the TurbofanCompilationJob `this` pointer, which hopefully will
   // make the ids unique enough even when the job memory is reused
   // for future jobs.
-  static std::atomic_uint32_t kNextTraceId = 0xfa5701d0;
-  return static_cast<uint64_t>(kNextTraceId++) << 32;
+  static std::atomic_uint32_t next_trace_id = 0xfa5701d0;
+  return static_cast<uint64_t>(next_trace_id++) << 32;
 }
 }  // namespace
 
