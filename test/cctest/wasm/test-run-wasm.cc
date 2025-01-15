@@ -618,12 +618,22 @@ WASM_EXEC_TEST(Float64Unops) {
 }
 
 WASM_EXEC_TEST(Float32Neg) {
-  WasmRunner<float, float> r(execution_tier);
-  r.Build({WASM_F32_NEG(WASM_LOCAL_GET(0))});
+  WasmRunner<void> r(execution_tier);
+  enum { kMemoryElemInput = 0, kMemoryElemOutput, kMemoryElemCount };
+  float* memory = r.builder().AddMemoryElems<float>(kMemoryElemCount);
+  r.Build({WASM_STORE_MEM_OFFSET(
+      MachineType::Float32(), kMemoryElemOutput * sizeof(float), WASM_ZERO,
+      WASM_F32_NEG(WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                                        kMemoryElemInput * sizeof(float),
+                                        WASM_ZERO)))});
 
   FOR_FLOAT32_INPUTS(i) {
-    CHECK_EQ(0x80000000,
-             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(r.Call(i)));
+    r.builder().WriteMemory(&memory[kMemoryElemInput], i);
+    r.Call();
+    float o = r.builder().ReadMemory(&memory[kMemoryElemOutput]);
+    constexpr uint32_t float32_sign_bit = 0x8000'0000;
+    CHECK_EQ(float32_sign_bit,
+             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(o));
   }
 }
 
@@ -3425,11 +3435,31 @@ WASM_EXEC_TEST(F64CopySign) {
 }
 
 WASM_EXEC_TEST(F32CopySign) {
-  WasmRunner<float, float, float> r(execution_tier);
-  r.Build({WASM_F32_COPYSIGN(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+  WasmRunner<void> r(execution_tier);
+  enum {
+    kMemoryElemInput1 = 0,
+    kMemoryElemInput2,
+    kMemoryElemOutput,
+    kMemoryElemCount
+  };
+  float* memory = r.builder().AddMemoryElems<float>(kMemoryElemCount);
+  r.Build({WASM_STORE_MEM_OFFSET(
+      MachineType::Float32(), kMemoryElemOutput * sizeof(float), WASM_ZERO,
+      WASM_F32_COPYSIGN(
+          WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                               kMemoryElemInput1 * sizeof(float), WASM_ZERO),
+          WASM_LOAD_MEM_OFFSET(MachineType::Float32(),
+                               kMemoryElemInput2 * sizeof(float),
+                               WASM_ZERO)))});
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CHECK_FLOAT_EQ(copysignf(i, j), r.Call(i, j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      r.builder().WriteMemory(&memory[kMemoryElemInput1], i);
+      r.builder().WriteMemory(&memory[kMemoryElemInput2], j);
+      r.Call();
+      float o = r.builder().ReadMemory(&memory[kMemoryElemOutput]);
+      CHECK_FLOAT_EQ(copysignf(i, j), o);
+    }
   }
 }
 

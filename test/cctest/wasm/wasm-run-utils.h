@@ -545,16 +545,21 @@ class WasmRunner : public WasmRunnerBase {
     MaybeDirectHandle<Object> retval =
         CallViaJS(function()->func_index, base::VectorOf(param_objs));
 
+    if constexpr (std::is_void_v<ReturnType>) {
+      return;
+    }
+
     if (retval.is_null()) {
       return static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     }
 
     DirectHandle<Object> result = retval.ToHandleChecked();
     // For int64_t and uint64_t returns we will get a BigInt.
-    if constexpr (std::is_integral_v<ReturnType> &&
-                  sizeof(ReturnType) == sizeof(int64_t)) {
-      CHECK(IsBigInt(*result));
-      return Cast<BigInt>(*result)->AsInt64();
+    if constexpr (std::is_integral_v<ReturnType>) {
+      if constexpr (sizeof(ReturnType) == sizeof(int64_t)) {
+        CHECK(IsBigInt(*result));
+        return Cast<BigInt>(*result)->AsInt64();
+      }
     }
 
     // Otherwise it must be a number (Smi or HeapNumber).
