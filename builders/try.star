@@ -292,22 +292,6 @@ try_builder(
 )
 
 try_builder(
-    name = "v8_win_msvc_light_compile_dbg",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 7200,
-    properties = {"default_targets": ["d8"]},
-)
-
-try_builder(
-    name = "v8_win64_msvc_light_compile_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"host_class": "default", "os": "Windows-10", "cpu": "x86-64"},
-    execution_timeout = 7200,
-    properties = {"default_targets": ["d8"]},
-)
-
-try_builder(
     name = "v8_flako",
     bucket = "try.triggered",
     executable = "recipe:v8/flako",

@@ -167,13 +167,6 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
-    experiment_builder_pair(
-        name = "V8 Win64 - msvc",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
-        use_remoteexec = RECLIENT.NO,
-        execution_timeout = 10800,
-    ),
 )
 
 in_category(
