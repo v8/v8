@@ -1518,6 +1518,20 @@ MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
   return context;
 }
 
+namespace {
+void RejectPromiseIfExecutionIsNotTerminating(Isolate* isolate,
+                                              Local<Context> realm,
+                                              Local<Promise::Resolver> resolver,
+                                              const TryCatch& try_catch) {
+  CHECK(try_catch.HasCaught());
+  if (isolate->IsExecutionTerminating()) {
+    Shell::ReportException(isolate, try_catch);
+  } else {
+    resolver->Reject(realm, try_catch.Exception()).ToChecked();
+  }
+}
+}  // namespace
+
 void Shell::DoHostImportModuleDynamically(void* import_data) {
   DynamicImportData* import_data_ =
       static_cast<DynamicImportData*>(import_data);
@@ -1556,8 +1570,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
     if (module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
-      CHECK(try_catch.HasCaught());
-      resolver->Reject(realm, try_catch.Exception()).ToChecked();
+      RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                               try_catch);
       return;
     }
 
@@ -1581,12 +1595,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
         } else if (!FetchModuleSource(Local<Module>(), realm, absolute_path,
                                       module_type)
                         .ToLocal(&module_source)) {
-          CHECK(try_catch.HasCaught());
-          if (isolate->IsExecutionTerminating()) {
-            Shell::ReportException(isolate, try_catch);
-          } else {
-            resolver->Reject(realm, try_catch.Exception()).ToChecked();
-          }
+          RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                                   try_catch);
           return;
         }
         Local<Promise::Resolver> module_resolver =
@@ -1606,15 +1616,10 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
         } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
                                     module_type)
                         .ToLocal(&root_module)) {
-          CHECK(try_catch.HasCaught());
-          if (isolate->IsExecutionTerminating()) {
-            Shell::ReportException(isolate, try_catch);
-          } else {
-            resolver->Reject(realm, try_catch.Exception()).ToChecked();
-          }
+          RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                                   try_catch);
           return;
         }
-
         if (root_module
                 ->InstantiateModule(realm, ResolveModuleCallback,
                                     ResolveModuleSourceCallback)
@@ -1635,11 +1640,11 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   }
 
   if (global_result_promise.IsEmpty()) {
-    DCHECK(try_catch.HasCaught());
     HandleScope handle_scope(isolate);
     Local<Context> realm = global_realm.Get(isolate);
     Local<Promise::Resolver> resolver = global_resolver.Get(isolate);
-    resolver->Reject(realm, try_catch.Exception()).ToChecked();
+    RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                             try_catch);
     return;
   }
 
@@ -1661,6 +1666,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Promise::Resolver> resolver = global_resolver.Get(isolate);
   Local<Promise> result_promise = global_result_promise.Get(isolate);
   Local<Value> namespace_or_source = global_namespace_or_source.Get(isolate);
+
+  Context::Scope context_scope(realm);
 
   Local<Array> module_resolution_data = v8::Array::New(isolate);
   module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate)).ToChecked();
