@@ -1605,10 +1605,16 @@ config("toolchain") {
   if (is_clang) {
     cflags += [ "-Wunreachable-code" ]
 
-    if ((v8_current_cpu != "x64" && v8_current_cpu != "ia32") || is_chromeos) {
+    if ((v8_current_cpu != "x64" && v8_current_cpu != "ia32") ||
+        target_os == "chromeos") {
       # On arm/arm64, `pc` and `sp` are register names but are also very often
       # used as function parameters, causing shadowing. So, we only enable
       # -Wshadow on x64 and ia32.
+      #
+      # Use target_os == "chromeos" instead of `is_chromeos` to check for
+      # ChromeOS because `generate_bytecode_builtins_list` builds using
+      # `v8_generator_toolchain`, which is the host toolchain and `is_chromeos`
+      # will be false even when building for ChromeOS.
       cflags += [ "-Wno-shadow" ]
     }
 
