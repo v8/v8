@@ -411,8 +411,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
       xorl(dst, dst);
       // The following shorter sequence for uint8 causes performance
       // regressions:
-      // xorl(dst, dst); movb(dst,
-      // Immediate(static_cast<uint32_t>(x)));
+      // xorl(dst, dst); movb(dst, Immediate(static_cast<uint32_t>(x)));
     } else if (is_uint32(x)) {
       movl(dst, Immediate(static_cast<uint32_t>(x)));
     } else if (is_int32(x)) {

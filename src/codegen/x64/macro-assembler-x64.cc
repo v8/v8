@@ -3346,27 +3346,27 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
   ASM_CODE_COMMENT(this);
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
-  Move(kScratchRegister, global_jump_table);
+  Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
 #ifdef V8_ENABLE_SANDBOX
-  Label fail, ok;
-
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
   // Check that using a 32-bit shift is valid for any valid code pointer.
   static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
                 (kMaxInt >> 4));
   shll(target, Immediate(4));
+  // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
+  addq(target, kScratchRegister);
 
-  cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
-               wasm::WasmCodePointerTable::kOffsetOfSignatureHash),
-       Immediate(static_cast<int32_t>(signature_hash)));
-  j(Condition::kNotEqual, &fail, Label::Distance::kNear);
-
-  cmpl(Operand(kScratchRegister, target, ScaleFactor::times_1,
-               wasm::WasmCodePointerTable::kOffsetOfSignatureHash + 4),
-       Immediate(static_cast<int32_t>(signature_hash >> 32)));
+  Operand signature_hash_op{target, ScaleFactor::times_1,
+                            wasm::WasmCodePointerTable::kOffsetOfSignatureHash};
+  if (is_int32(signature_hash)) {
+    // cmpq sign-extends the 32-bit immediate.
+    cmpq(signature_hash_op, Immediate(static_cast<int32_t>(signature_hash)));
+  } else {
+    Move(kScratchRegister, signature_hash);
+    cmpq(kScratchRegister, signature_hash_op);
+  }
+  Label fail, ok;
   j(Condition::kNotEqual, &fail, Label::Distance::kNear);
   jmp(&ok, Label::Distance::kNear);
 
@@ -3374,10 +3374,10 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Abort(AbortReason::kWasmSignatureMismatch);
 
   bind(&ok);
-  movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
+  movq(target, Operand{target, ScaleFactor::times_1, 0});
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
-  movq(target, Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
+  movq(target, Operand{kScratchRegister, target, ScaleFactor::times_8, 0});
 #endif
 }
 
@@ -3393,19 +3393,19 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 }
 
 void MacroAssembler::CallWasmCodePointerNoSignatureCheck(Register target) {
-  ExternalReference global_jump_table =
-      ExternalReference::wasm_code_pointer_table();
-  Move(kScratchRegister, global_jump_table);
+  Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
-  constexpr unsigned int kEntrySizeLog2 =
-      std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
+#ifdef V8_ENABLE_SANDBOX
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
   // Check that using a 32-bit shift is valid for any valid code pointer.
   static_assert(wasm::WasmCodePointerTable::kMaxWasmCodePointers <=
-                (kMaxInt >> kEntrySizeLog2));
-  shll(target, Immediate(kEntrySizeLog2));
-
-  movq(target, Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
-  call(target);
+                (kMaxInt >> 4));
+  shll(target, Immediate(4));
+  call(Operand(kScratchRegister, target, ScaleFactor::times_1, 0));
+#else
+  static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
+  call(Operand(kScratchRegister, target, ScaleFactor::times_8, 0));
+#endif
 }
 
 void MacroAssembler::LoadWasmCodePointer(Register dst, Operand src) {
