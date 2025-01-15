@@ -30,19 +30,25 @@ namespace {
 constexpr int kMaxArrays = 3;
 constexpr int kMaxStructs = 4;
 constexpr int kMaxStructFields = 4;
-constexpr int kMaxFunctions = 4;
 constexpr int kMaxGlobals = 64;
 constexpr uint32_t kMaxLocals = 32;
 constexpr int kMaxParameters = 15;
 constexpr int kMaxReturns = 15;
 constexpr int kMaxExceptions = 4;
-constexpr int kMaxTableSize = 32;
 constexpr int kMaxTables = 4;
 constexpr int kMaxMemories = 4;
 constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
 constexpr int kMaxCatchCases = 6;
+
+int MaxTableSize() {
+  return std::min(static_cast<int>(v8_flags.wasm_max_table_size.value()), 32);
+}
+
+int MaxNumOfFunctions() {
+  return std::min(static_cast<int>(v8_flags.max_wasm_functions.value()), 4);
+}
 
 struct StringImports {
   uint32_t cast;
@@ -3633,7 +3639,7 @@ class ModuleGen {
       bool has_maximum = random_byte & 2;
       static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
       uint32_t max_supported_pages =
-          mem64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+          mem64 ? max_mem64_pages() : max_mem32_pages();
       uint32_t min_pages =
           module_range_->get<uint32_t>() % (max_supported_pages + 1);
       if (has_maximum) {
@@ -3928,12 +3934,14 @@ class ModuleGen {
     static_assert(
         kMaxTables <= 8,
         "Too many tables. Use more random bits to choose their address type.");
+    const int max_table_size = MaxTableSize();
     for (int i = 0; i < num_tables; i++) {
       uint32_t min_size = i == 0
                               ? num_functions_
-                              : module_range_->get<uint8_t>() % kMaxTableSize;
+                              : module_range_->get<uint8_t>() % max_table_size;
       uint32_t max_size =
-          module_range_->get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
+          module_range_->get<uint8_t>() % (max_table_size - min_size) +
+          min_size;
       // Table 0 is always funcref. This guarantees that
       // - call_indirect has at least one funcref table to work with,
       // - we have a place to reference all functions in the program, so they
@@ -4282,8 +4290,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   DataRange functions_range = module_range.split();
   std::vector<ModuleTypeIndex> function_signatures;
 
-  static_assert(kMaxFunctions >= 1, "need min. 1 function");
-  uint8_t num_functions = 1 + (module_range.get<uint8_t>() % kMaxFunctions);
+  // At least 1 function is needed.
+  int max_num_functions = MaxNumOfFunctions();
+  CHECK_GE(max_num_functions, 1);
+  uint8_t num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
 
   // In case of WasmGC expressions:
   // Add struct and array types first so that we get a chance to generate
