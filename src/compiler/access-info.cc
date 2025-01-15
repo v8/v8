@@ -172,15 +172,6 @@ PropertyAccessInfo PropertyAccessInfo::StringWrapperLength(
 }
 
 // static
-PropertyAccessInfo PropertyAccessInfo::TypedArrayLength(Zone* zone,
-                                                        MapRef receiver_map) {
-  PropertyAccessInfo result(zone, kTypedArrayLength, {},
-                            {{receiver_map}, zone});
-  result.set_elements_kind(receiver_map.elements_kind());
-  return result;
-}
-
-// static
 PropertyAccessInfo PropertyAccessInfo::DictionaryProtoDataConstant(
     Zone* zone, MapRef receiver_map, JSObjectRef holder,
     InternalIndex dictionary_index, NameRef name) {
@@ -367,10 +358,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
       return true;
     }
-    case kTypedArrayLength:
-      DCHECK_EQ(lookup_start_object_maps_.size(), 1);
-      DCHECK_EQ(that->lookup_start_object_maps_.size(), 1);
-      return lookup_start_object_maps_[0] == that->lookup_start_object_maps_[0];
     case kModuleExport:
       return false;
   }
@@ -1093,11 +1080,6 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
                      isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringWrapperLength(zone(), map);
     }
-  }
-  if (v8_flags.typed_array_length_loading && IsJSTypedArrayMap(*map.object()) &&
-      Name::Equals(isolate(), name.object(),
-                   isolate()->factory()->length_string())) {
-    return PropertyAccessInfo::TypedArrayLength(zone(), map);
   }
   // Check for special JSObject field accessors.
   FieldIndex field_index;

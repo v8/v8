@@ -2732,8 +2732,6 @@ class MaglevGraphBuilder {
                                           ValueNode* node);
   BranchResult BuildBranchIfInt32ToBooleanTrue(BranchBuilder& builder,
                                                ValueNode* node);
-  BranchResult BuildBranchIfIntPtrToBooleanTrue(BranchBuilder& builder,
-                                                ValueNode* node);
   BranchResult BuildBranchIfFloat64ToBooleanTrue(BranchBuilder& builder,
                                                  ValueNode* node);
   BranchResult BuildBranchIfFloat64IsHole(BranchBuilder& builder,

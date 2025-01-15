@@ -975,20 +975,6 @@ ValueNode* FromUint32ToTagged(const MaglevGraphBuilder* builder,
   return tagged;
 }
 
-ValueNode* FromIntPtrToTagged(const MaglevGraphBuilder* builder,
-                              NodeType node_type, ValueNode* value,
-                              BasicBlock* predecessor) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kIntPtr);
-  DCHECK(!value->properties().is_conversion());
-
-  ValueNode* tagged = Node::New<IntPtrToNumber>(builder->zone(), {value});
-
-  predecessor->nodes().Add(tagged);
-  builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
-  return tagged;
-}
-
 ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
                                NodeType node_type, ValueNode* value,
                                BasicBlock* predecessor) {
@@ -1027,14 +1013,13 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
                              NodeType node_type, ValueNode* value,
                              BasicBlock* predecessor) {
   switch (value->properties().value_representation()) {
+    case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kTagged:
       UNREACHABLE();
     case ValueRepresentation::kInt32:
       return FromInt32ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kUint32:
       return FromUint32ToTagged(builder, node_type, value, predecessor);
-    case ValueRepresentation::kIntPtr:
-      return FromIntPtrToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kFloat64:
       return FromFloat64ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kHoleyFloat64:

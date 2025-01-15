@@ -162,16 +162,6 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
-void CheckedIntPtrToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-
-void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  // On 32-bit platforms, IntPtr is the same as Int32.
-}
-
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
