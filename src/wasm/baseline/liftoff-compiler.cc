@@ -3440,8 +3440,8 @@ class LiftoffCompiler {
         // Bounds check `index` against `max_mem_size - end_offset`, such that
         // at runtime `index + end_offset` will be < `max_mem_size`, where the
         // trap handler can handle out-of-bound accesses.
-        __ set_trap_on_oob_mem64(
-            index_ptrsize, memory->max_memory_size - end_offset, trap_label);
+        __ set_trap_on_oob_mem64(index_ptrsize, kMaxMemory64Size - end_offset,
+                                 trap_label);
       }
 #else
       CHECK(!memory->is_memory64());

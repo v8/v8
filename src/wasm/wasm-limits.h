@@ -107,6 +107,10 @@ inline uint64_t max_mem64_bytes() {
   return uint64_t{max_mem64_pages()} * kWasmPageSize;
 }
 
+// The maximum memory64 size supported by our implementation, in bytes.
+constexpr size_t kMaxMemory64Size =
+    size_t{kV8MaxWasmMemory64Pages} * kWasmPageSize;
+
 V8_EXPORT_PRIVATE uint32_t max_table_size();
 V8_EXPORT_PRIVATE uint32_t max_table_init_entries();
 V8_EXPORT_PRIVATE size_t max_module_size();

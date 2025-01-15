@@ -7081,12 +7081,13 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         enforce_bounds_check ==
             compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
       if (memory->is_memory64()) {
-        // Bounds check `index` against `max_mem_size - end_offset`, such that
-        // at runtime `index + end_offset` will be within `max_mem_size`, where
-        // the trap handler can handle out-of-bound accesses.
+        // Bounds check `index` against `kMaxMemory64Size - end_offset`, such
+        // that at runtime `index + end_offset` will be within
+        // `kMaxMemory64Size`, where the trap handler can handle out-of-bound
+        // accesses.
         V<Word32> cond = __ Uint64LessThan(
             V<Word64>::Cast(converted_index),
-            __ Word64Constant(uint64_t{memory->max_memory_size - end_offset}));
+            __ Word64Constant(uint64_t{wasm::kMaxMemory64Size - end_offset}));
         __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
       }
       return {converted_index, compiler::BoundsCheckResult::kTrapHandler};

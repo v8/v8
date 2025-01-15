@@ -3683,11 +3683,11 @@ std::pair<Node*, BoundsCheckResult> WasmGraphBuilder::BoundsCheckMem(
   if (bounds_checks == wasm::kTrapHandler &&
       enforce_check == EnforceBoundsCheck::kCanOmitBoundsCheck) {
     if (memory->is_memory64()) {
-      // Bounds check `index` against `max_mem_size - end_offset`, such that
-      // at runtime `index + end_offset` will be within `max_mem_size`, where
-      // the trap handler can handle out-of-bound accesses.
+      // Bounds check `index` against `kMaxMemory64Size - end_offset`, such that
+      // at runtime `index + end_offset` will be within `kMaxMemory64Size`,
+      // where the trap handler can handle out-of-bound accesses.
       Node* cond = gasm_->Uint64LessThan(
-          converted_index, Int64Constant(memory->max_memory_size - end_offset));
+          converted_index, Int64Constant(wasm::kMaxMemory64Size - end_offset));
       TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
     }
     return {converted_index, BoundsCheckResult::kTrapHandler};
