@@ -292,7 +292,8 @@ assertEquals("abc", instance1.exports.call_tolower("ABC"));
 
   let instance1 = new WebAssembly.Instance(module, recognizable_imports);
   let call_tolower1 = instance1.exports.call_tolower;
-  assertFalse(%IsTurboFanFunction(call_tolower1));
+  // Note: We cannot assert that `call_tolower1` is Liftoff at this point; in
+  // multi-isolate test execution, it could be tiered up already.
   assertEquals('abc', call_tolower1('ABC'));
   %WasmTriggerTierUpForTesting(call_tolower1);
 
