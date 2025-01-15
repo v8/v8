@@ -1219,21 +1219,11 @@ class MachineOptimizationReducer : public Next {
     }
     V<Word> x = high->left();
     if (low->left() != x) return {};
-    V<Word> amount, a, b;
-    uint64_t k;
-    if (matcher_.MatchWordSub(high->right(), &a, &b, rep) &&
-        matcher_.MatchIntegralWordConstant(a, rep, &k) && b == low->right() &&
-        k == rep.bit_width()) {
-      amount = b;
-    } else if (matcher_.MatchWordSub(low->right(), &a, &b, rep) &&
-               a == high->right() &&
-               matcher_.MatchIntegralWordConstant(b, rep, &k) &&
-               k == rep.bit_width()) {
-      amount = low->right();
-    } else if (uint64_t k1, k2;
-               matcher_.MatchIntegralWordConstant(high->right(), rep, &k1) &&
-               matcher_.MatchIntegralWordConstant(low->right(), rep, &k2) &&
-               k1 + k2 == rep.bit_width() && k1 >= 0 && k2 >= 0) {
+
+    if (uint64_t k1, k2;
+        matcher_.MatchIntegralWordConstant(high->right(), rep, &k1) &&
+        matcher_.MatchIntegralWordConstant(low->right(), rep, &k2) &&
+        k1 + k2 == rep.bit_width() && k1 >= 0 && k2 >= 0) {
       if (k1 == 0 || k2 == 0) {
         if (kind == WordBinopOp::Kind::kBitwiseXor) {
           return __ WordConstant(0, rep);
@@ -1243,16 +1233,27 @@ class MachineOptimizationReducer : public Next {
         }
       }
       return __ RotateRight(x, low->right(), rep);
-    } else {
-      return {};
     }
-    if (kind == WordBinopOp::Kind::kBitwiseOr) {
-      return __ RotateRight(x, amount, rep);
-    } else {
-      DCHECK_EQ(kind, WordBinopOp::Kind::kBitwiseXor);
+
+    if (kind == WordBinopOp::Kind::kBitwiseXor) {
       // Can't guarantee that rotation amount is not 0.
       return {};
     }
+    DCHECK_EQ(kind, WordBinopOp::Kind::kBitwiseOr);
+
+    V<Word> a, b;
+    uint64_t k;
+    if (matcher_.MatchWordSub(high->right(), &a, &b, rep) &&
+        matcher_.MatchIntegralWordConstant(a, rep, &k) && b == low->right() &&
+        k == rep.bit_width()) {
+      return __ RotateRight(x, b, rep);
+    } else if (matcher_.MatchWordSub(low->right(), &a, &b, rep) &&
+               matcher_.MatchIntegralWordConstant(a, rep, &k) &&
+               b == high->right() && k == rep.bit_width()) {
+      return __ RotateRight(x, low->right(), rep);
+    }
+
+    return {};
   }
 
   V<Tuple<Word, Word32>> REDUCE(OverflowCheckedBinop)(
