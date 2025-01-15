@@ -3865,15 +3865,28 @@ class Analysis : public NodeVisitor {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Just loop and continue.
 
     // First propagate all information from the continuation node.
+    // Due to the unusual visitation order, we need to manage the flags manually
+    // as if we were visiting the loop node before visiting the continuation.
+    RegExpFlags orig_flags = flags();
+
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
+    // Propagators don't access global state (including flags), so we don't need
+    // to reset them here.
     STATIC_FOR_EACH(Propagators::VisitLoopChoiceContinueNode(that));
+
+    RegExpFlags continuation_flags = flags();
 
     // Check the loop last since it may need the value of this node
     // to get a correct result.
+    set_flags(orig_flags);
     EnsureAnalyzed(that->loop_node());
     if (has_failed()) return;
+    // Propagators don't access global state (including flags), so we don't need
+    // to reset them here.
     STATIC_FOR_EACH(Propagators::VisitLoopChoiceLoopNode(that));
+
+    set_flags(continuation_flags);
   }
 
   void VisitNegativeLookaroundChoice(
