@@ -58,6 +58,8 @@ class CachedUnorderedMap final {
   typename MapT::const_iterator begin() const { return map_.begin(); }
   typename MapT::const_iterator end() const { return map_.begin(); }
 
+  bool contains(const Key& key) const { return map_.contains(key); }
+
   void clear() {
     last_key_ = nullptr;
     last_mapped_ = nullptr;
