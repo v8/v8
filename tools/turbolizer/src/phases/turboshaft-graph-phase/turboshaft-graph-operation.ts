@@ -23,6 +23,7 @@ enum Opcode {
   DeoptimizeIf = "DeoptimizeIf",
   Goto = "Goto",
   Branch = "Branch",
+  TaggedBitcast = "TaggedBitcast",
 }
 
 enum BranchHint {
@@ -193,7 +194,10 @@ abstract class CompactOperationPrinter {
 enum Constant_Kind {
   Word32 = "word32",
   Word64 = "word64",
+  Float32 = "float32",
+  Float64 = "float64",
   HeapObject = "heap object",
+  CompressedHeapObject = "compressed heap object",
   External = "external",
 }
 
@@ -217,15 +221,26 @@ class CompactOperationPrinter_Constant extends CompactOperationPrinter {
   }
 
   public IsFullyInlined(): boolean {
-    return this.kind == Constant_Kind.Word32 || this.kind == Constant_Kind.Word64;
+    switch(this.kind) {
+      case Constant_Kind.Word32:
+      case Constant_Kind.Word64:
+      case Constant_Kind.Float32:
+      case Constant_Kind.Float64:
+        return true;
+      default:
+        return false;
+    }
   }
   public override Print(id: number, input: InputPrinter): string {
     switch(this.kind) {
       case Constant_Kind.Word32:
       case Constant_Kind.Word64:
+      case Constant_Kind.Float32:
+      case Constant_Kind.Float64:
         // Those are fully inlined.
         return "";
       case Constant_Kind.HeapObject:
+      case Constant_Kind.CompressedHeapObject:
       case Constant_Kind.External:
         return `v${id} = ${escapeHTML(this.value)}`;
     }
@@ -234,7 +249,10 @@ class CompactOperationPrinter_Constant extends CompactOperationPrinter {
     switch(this.kind) {
       case Constant_Kind.Word32: return `${this.value}${this.sub("w32")}`;
       case Constant_Kind.Word64: return `${this.value}${this.sub("w64")}`;
+      case Constant_Kind.Float32: return `${this.value}${this.sub("f32")}`;
+      case Constant_Kind.Float64: return `${this.value}${this.sub("f64")}`;
       case Constant_Kind.HeapObject:
+      case Constant_Kind.CompressedHeapObject:
       case Constant_Kind.External:
         // Not inlined.
         return "";
@@ -597,6 +615,39 @@ class CompactOperationPrinter_Store extends CompactOperationPrinter {
   }
 }
 
+enum TaggedBitcastKind {
+  Smi = "Smi",
+  HeapObject = "HeapObject",
+  TagAndSmiBits = "TagAndSmiBits",
+  Any = "Any"
+}
+
+class CompactOperationPrinter_TaggedBitcast extends CompactOperationPrinter {
+  from: RegisterRepresentation;
+  to: RegisterRepresentation;
+  kind: TaggedBitcastKind;
+
+  constructor(operation: TurboshaftGraphOperation, properties: string) {
+    super(operation);
+
+    const options = this.parseOptions(properties);
+    this.from = toEnum(RegisterRepresentation, options[0]);
+    this.to = toEnum(RegisterRepresentation, options[1]);
+    this.kind = toEnum(TaggedBitcastKind, options[2]);
+  }
+
+  public override Print(id: number, input: InputPrinter): string {
+    let kind;
+    switch(this.kind) {
+      case TaggedBitcastKind.Smi: kind = "smi"; break;
+      case TaggedBitcastKind.HeapObject: kind = "ho"; break;
+      case TaggedBitcastKind.TagAndSmiBits: kind = "t+bits"; break;
+      case TaggedBitcastKind.Any: kind = "any"; break;
+    }
+    return `v${id} = bitcast&lt;${kind}${this.sub(rrString(this.to))}&gt;(${input(0)}${this.sub(rrString(this.from))})`
+  }
+}
+
 export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<TurboshaftGraphOperation>> {
   title: string;
   block: TurboshaftGraphBlock;
@@ -726,6 +777,8 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
         case Opcode.Goto:
         case Opcode.Branch:
           return new CompactOperationPrinter_Goto_Branch(this, properties);
+        case Opcode.TaggedBitcast:
+          return new CompactOperationPrinter_TaggedBitcast(this, properties);
         default:
           return null;
       }

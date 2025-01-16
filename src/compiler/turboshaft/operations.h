@@ -2458,7 +2458,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
                          to == RegisterRepresentation::Word64(),
                      Is64());
     } else {
-      // TODO(nicohartmann@): Without implicit trucation, the first case might
+      // TODO(nicohartmann@): Without implicit truncation, the first case might
       // not be correct anymore.
       DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
              (from == RegisterRepresentation::Tagged() &&
