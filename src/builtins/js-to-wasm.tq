@@ -621,10 +621,13 @@ macro JSToWasmWrapperHelper(
     // parameter for StackSlotPtr has to be constexpr. Instead we use the
     // constant `8`.
     const kMaxFPRegParams = 8;
+    // Two padding words between the different regions.
+    const kPadding = 2;
     dcheck(UniqueIntPtrConstant(kNumFPRegisterParameters) <= kMaxFPRegParams);
     dcheck(UniqueIntPtrConstant(kNumGPRegisterParameters) <= kMaxFPRegParams);
     const kSlotSize = torque_internal::SizeOf<float64>();
-    const bufferSize = (kMaxOnStackParamCount + kMaxFPRegParams) * kSlotSize;
+    const bufferSize =
+        (kMaxOnStackParamCount + kMaxFPRegParams + kPadding) * kSlotSize;
     const stackSlots =
         %RawDownCast<RawPtr<intptr>>(StackSlotPtr(bufferSize, kSlotSize));
     paramBufferSize = Convert<intptr>(bufferSize);
