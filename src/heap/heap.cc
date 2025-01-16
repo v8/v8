@@ -4526,75 +4526,22 @@ void Heap::IterateSmiRoots(RootVisitor* v) {
   v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
-// We cannot avoid stale handles to left-trimmed objects, but can only make
-// sure all handles still needed are updated. Filter out a stale pointer
-// and clear the slot to allow post processing of handles (needed because
-// the sweeper might actually free the underlying page).
-class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
- public:
-  ClearStaleLeftTrimmedPointerVisitor(Heap* heap, RootVisitor* visitor)
-      : heap_(heap),
-        visitor_(visitor)
-#if V8_COMPRESS_POINTERS
-        ,
-        cage_base_(heap->isolate())
-#endif  // V8_COMPRESS_POINTERS
-  {
-    USE(heap_);
+void ClearStaleLeftTrimmedPointerVisitor::ClearLeftTrimmedOrForward(
+    Root root, const char* description, FullObjectSlot p) {
+  if (!IsHeapObject(*p)) return;
+
+  if (IsLeftTrimmed(p)) {
+    p.store(Smi::zero());
+  } else {
+    visitor_->VisitRootPointer(root, description, p);
   }
+}
 
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) override {
-    ClearLeftTrimmedOrForward(root, description, p);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      ClearLeftTrimmedOrForward(root, description, p);
-    }
-  }
-
-  void Synchronize(VisitorSynchronization::SyncTag tag) override {
-    visitor_->Synchronize(tag);
-  }
-
-  void VisitRunningCode(FullObjectSlot code_slot,
-                        FullObjectSlot istream_or_smi_zero_slot) override {
-    // Directly forward to actualy visitor here. Code objects and instruction
-    // stream will not be left-trimmed.
-    DCHECK(!IsLeftTrimmed(code_slot));
-    DCHECK(!IsLeftTrimmed(istream_or_smi_zero_slot));
-    visitor_->VisitRunningCode(code_slot, istream_or_smi_zero_slot);
-  }
-
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to InstructionStream objects.
-  PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
- private:
-  inline void ClearLeftTrimmedOrForward(Root root, const char* description,
-                                        FullObjectSlot p) {
-    if (!IsHeapObject(*p)) return;
-
-    if (IsLeftTrimmed(p)) {
-      p.store(Smi::zero());
-    } else {
-      visitor_->VisitRootPointer(root, description, p);
-    }
-  }
-
-  inline bool IsLeftTrimmed(FullObjectSlot p) {
-    if (!IsHeapObject(*p)) return false;
-    Tagged<HeapObject> current = Cast<HeapObject>(*p);
-    if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-        IsFreeSpaceOrFiller(current, cage_base())) {
+bool ClearStaleLeftTrimmedPointerVisitor::IsLeftTrimmed(FullObjectSlot p) {
+  if (!IsHeapObject(*p)) return false;
+  Tagged<HeapObject> current = Cast<HeapObject>(*p);
+  if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
+      IsFreeSpaceOrFiller(current, cage_base())) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
       while (
@@ -4617,18 +4564,44 @@ class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
           IsFixedArrayBase(current, cage_base()));
 #endif  // DEBUG
       return true;
-    } else {
-      return false;
-    }
+  } else {
+    return false;
   }
+}
 
-  Heap* heap_;
-  RootVisitor* visitor_;
-
+ClearStaleLeftTrimmedPointerVisitor::ClearStaleLeftTrimmedPointerVisitor(
+    Heap* heap, RootVisitor* visitor)
+    : heap_(heap),
+      visitor_(visitor)
 #if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
+      ,
+      cage_base_(heap->isolate())
 #endif  // V8_COMPRESS_POINTERS
-};
+{
+  USE(heap_);
+}
+
+void ClearStaleLeftTrimmedPointerVisitor::VisitRootPointer(
+    Root root, const char* description, FullObjectSlot p) {
+  ClearLeftTrimmedOrForward(root, description, p);
+}
+
+void ClearStaleLeftTrimmedPointerVisitor::VisitRootPointers(
+    Root root, const char* description, FullObjectSlot start,
+    FullObjectSlot end) {
+  for (FullObjectSlot p = start; p < end; ++p) {
+    ClearLeftTrimmedOrForward(root, description, p);
+  }
+}
+
+void ClearStaleLeftTrimmedPointerVisitor::VisitRunningCode(
+    FullObjectSlot code_slot, FullObjectSlot istream_or_smi_zero_slot) {
+  // Directly forward to actualy visitor here. Code objects and instruction
+  // stream will not be left-trimmed.
+  DCHECK(!IsLeftTrimmed(code_slot));
+  DCHECK(!IsLeftTrimmed(istream_or_smi_zero_slot));
+  visitor_->VisitRunningCode(code_slot, istream_or_smi_zero_slot);
+}
 
 void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
                         IterateRootsMode roots_mode) {

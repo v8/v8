@@ -304,6 +304,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!i::v8_flags.incremental_marking) return;
   if (v8_flags.minor_ms) return;
   v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.scavenger_precise_pinning_objects = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
   // copy.

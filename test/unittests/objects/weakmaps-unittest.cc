@@ -217,6 +217,7 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
 TEST_F(WeakMapsTest, WeakMapScavenge) {
   if (i::v8_flags.single_generation) return;
   if (i::v8_flags.stress_incremental_marking) return;
+  v8_flags.scavenger_precise_pinning_objects = false;
   Isolate* isolate = i_isolate();
   ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();

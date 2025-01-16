@@ -11,6 +11,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
@@ -27,6 +28,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/page-metadata.h"
@@ -39,6 +41,7 @@
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils-inl.h"
@@ -479,26 +482,26 @@ class YoungGenerationConservativeStackVisitor
 
 using PinnedObjects = std::vector<std::pair<Address, MapWord>>;
 
-class ObjectPinningVisitor final : public RootVisitor {
+template <typename ConcreteVisitor>
+class ObjectPinningVisitorBase : public RootVisitor {
  public:
-  ObjectPinningVisitor(Scavenger& scavenger, PinnedObjects& pinned_objects)
+  ObjectPinningVisitorBase(Scavenger& scavenger, PinnedObjects& pinned_objects)
       : RootVisitor(), scavenger_(scavenger), pinned_objects_(pinned_objects) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
-    HandlePointer(p);
+    static_cast<ConcreteVisitor*>(this)->HandlePointer(p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot p = start; p < end; ++p) {
-      HandlePointer(p);
+      static_cast<ConcreteVisitor*>(this)->HandlePointer(p);
     }
   }
 
- private:
-  void HandlePointer(FullObjectSlot p) {
-    Tagged<HeapObject> object = Cast<HeapObject>(*p);
+ protected:
+  void HandleHeapObject(Tagged<HeapObject> object) {
     DCHECK(!HasWeakHeapObjectTag(object));
     DCHECK(!MapWord::IsPacked(object.ptr()));
     DCHECK(!HeapLayout::IsSelfForwarded(object));
@@ -529,8 +532,52 @@ class ObjectPinningVisitor final : public RootVisitor {
     scavenger_.PushPinnedObject(object, map_word.ToMap());
   }
 
+ private:
   Scavenger& scavenger_;
   PinnedObjects& pinned_objects_;
+};
+
+class ConservativeObjectPinningVisitor final
+    : public ObjectPinningVisitorBase<ConservativeObjectPinningVisitor> {
+ public:
+  ConservativeObjectPinningVisitor(Scavenger& scavenger,
+                                   PinnedObjects& pinned_objects)
+      : ObjectPinningVisitorBase<ConservativeObjectPinningVisitor>(
+            scavenger, pinned_objects) {}
+
+ private:
+  void HandlePointer(FullObjectSlot p) {
+    HandleHeapObject(Cast<HeapObject>(*p));
+  }
+
+  friend class ObjectPinningVisitorBase<ConservativeObjectPinningVisitor>;
+};
+
+class PreciseObjectPinningVisitor final
+    : public ObjectPinningVisitorBase<PreciseObjectPinningVisitor> {
+ public:
+  PreciseObjectPinningVisitor(Scavenger& scavenger,
+                              PinnedObjects& pinned_objects)
+      : ObjectPinningVisitorBase<PreciseObjectPinningVisitor>(scavenger,
+                                                              pinned_objects) {}
+
+ private:
+  void HandlePointer(FullObjectSlot p) {
+    Tagged<Object> object = *p;
+    if (!object.IsHeapObject()) {
+      return;
+    }
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+    if (!MemoryChunk::FromHeapObject(heap_object)->IsFromPage()) {
+      return;
+    }
+    if (HeapLayout::IsSelfForwarded(heap_object)) {
+      return;
+    }
+    HandleHeapObject(heap_object);
+  }
+
+  friend class ObjectPinningVisitorBase<PreciseObjectPinningVisitor>;
 };
 
 // A visitor for treating precise references conservatively (by passing them to
@@ -735,19 +782,27 @@ void ScavengerCollector::CollectGarbage() {
         // moving.
         TRACE_GC(heap_->tracer(),
                  GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
-        ObjectPinningVisitor pinning_visitor(main_thread_scavenger,
-                                             pinned_objects);
+        ConservativeObjectPinningVisitor conservative_pinning_visitor(
+            main_thread_scavenger, pinned_objects);
         // Scavenger reuses the page's marking bitmap as a temporary object
         // start bitmap. Stack scanning will incrementally build the map as it
         // searches through pages.
-        YoungGenerationConservativeStackVisitor stack_visitor(isolate_,
-                                                              &pinning_visitor);
+        YoungGenerationConservativeStackVisitor stack_visitor(
+            isolate_, &conservative_pinning_visitor);
         // Marker was already set by Heap::CollectGarbage.
         heap_->stack().IteratePointersUntilMarker(&stack_visitor);
-        if (v8_flags.stress_scavenger_pinning_objects) {
+        if (V8_UNLIKELY(v8_flags.stress_scavenger_pinning_objects)) {
           TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
           isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
         }
+      }
+      if (v8_flags.scavenger_precise_pinning_objects) {
+        PreciseObjectPinningVisitor precise_pinning_visitor(
+            main_thread_scavenger, pinned_objects);
+        ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
+            heap_, &precise_pinning_visitor);
+        heap_->IterateStackRoots(&left_trim_visitor);
+        isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
       }
 
       // Scavenger treats all weak roots except for global handles as strong.
@@ -757,6 +812,9 @@ void ScavengerCollector::CollectGarbage() {
           {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
            SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
            SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
+      if (v8_flags.scavenger_precise_pinning_objects) {
+        options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
+      }
       RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
       heap_->IterateRoots(&root_scavenge_visitor, options);

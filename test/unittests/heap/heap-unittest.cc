@@ -428,6 +428,7 @@ static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.scavenger_precise_pinning_objects = false;
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
@@ -779,6 +780,7 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   if (!v8_flags.scavenger_pinning_objects) return;
+  v8_flags.scavenger_precise_pinning_objects = false;
   ManualGCScope manual_gc_scope(isolate());
 
   DirectHandle<HeapObject> number =

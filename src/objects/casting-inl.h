@@ -30,7 +30,9 @@ bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap) {
       PtrComprCageBase(heap->isolate()->cage_base()), kRelaxedLoad);
   if ((heap->gc_state() == Heap::SCAVENGE) &&
       HeapLayout::InYoungGeneration(heap_object) &&
-      v8_flags.scavenger_pinning_objects && map_word.IsForwardingAddress() &&
+      (v8_flags.scavenger_pinning_objects ||
+       v8_flags.scavenger_precise_pinning_objects) &&
+      map_word.IsForwardingAddress() &&
       HeapLayout::IsSelfForwarded(heap_object)) {
     return true;
   }

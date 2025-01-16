@@ -498,6 +498,12 @@ DEFINE_BOOL(stress_scavenger_pinning_objects_random, false,
 DEFINE_IMPLICATION(stress_scavenger_pinning_objects_random,
                    stress_scavenger_pinning_objects)
 
+DEFINE_EXPERIMENTAL_FEATURE(scavenger_precise_pinning_objects,
+                            "Objects reachable from handles during "
+                            "scavenge will be pinned and "
+                            "won't move.")
+DEFINE_IMPLICATION(scavenger_precise_pinning_objects, separate_gc_phases)
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else
