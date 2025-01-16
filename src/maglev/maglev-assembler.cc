@@ -355,7 +355,20 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       bind(&done);
       break;
     }
-    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kIntPtr: {
+      Label done;
+      TemporaryRegisterScope temps(this);
+      Register scratch = temps.AcquireScratch();
+      Move(scratch, src);
+      SmiTagIntPtrAndJumpIfSuccess(dst, scratch, &done, Label::kNear);
+      // If smi tagging fails, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      IntPtrToDouble(builtin_input_value, scratch);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
     case ValueRepresentation::kTagged:
       UNREACHABLE();
   }

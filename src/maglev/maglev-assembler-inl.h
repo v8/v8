@@ -353,6 +353,16 @@ inline void MaglevAssembler::CompareInt32AndBranch(Register r1, Register r2,
                         if_false == next_block);
 }
 
+inline void MaglevAssembler::CompareIntPtrAndBranch(Register r1, int32_t value,
+                                                    Condition cond,
+                                                    BasicBlock* if_true,
+                                                    BasicBlock* if_false,
+                                                    BasicBlock* next_block) {
+  CompareIntPtrAndBranch(r1, value, cond, if_true->label(), Label::kFar,
+                         if_true == next_block, if_false->label(), Label::kFar,
+                         if_false == next_block);
+}
+
 inline void MaglevAssembler::Branch(Condition condition, BasicBlock* if_true,
                                     BasicBlock* if_false,
                                     BasicBlock* next_block) {
@@ -821,6 +831,24 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
   SmiTagUint32AndJumpIfFail(reg, reg, fail, distance);
 }
 
+inline void MaglevAssembler::SmiTagIntPtrAndJumpIfFail(
+    Register dst, Register src, Label* fail, Label::Distance distance) {
+  CheckIntPtrIsSmi(src, fail, distance);
+  // If the IntPtr is in the Smi range, we can treat it as Int32.
+  SmiTagInt32AndSetFlags(dst, src);
+  if (!SmiValuesAre32Bits()) {
+    Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  }
+}
+
+inline void MaglevAssembler::SmiTagIntPtrAndJumpIfSuccess(
+    Register dst, Register src, Label* success, Label::Distance distance) {
+  Label done;
+  SmiTagIntPtrAndJumpIfFail(dst, src, &done);
+  Jump(success, distance);
+  bind(&done);
+}
+
 inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
     Register dst, Register src, Label* success, Label::Distance distance) {
   Label fail;
@@ -848,6 +876,15 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
 
 inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
   UncheckedSmiTagUint32(reg, reg);
+}
+
+inline void MaglevAssembler::CheckIntPtrIsSmi(Register obj, Label* fail,
+                                              Label::Distance distance) {
+  // TODO(388844115): Optimize this per platform.
+  int32_t kSmiMaxValueInt32 = static_cast<int32_t>(Smi::kMaxValue);
+  int32_t kSmiMinValueInt32 = static_cast<int32_t>(Smi::kMinValue);
+  CompareIntPtrAndJumpIf(obj, kSmiMaxValueInt32, kGreaterThan, fail, distance);
+  CompareIntPtrAndJumpIf(obj, kSmiMinValueInt32, kLessThan, fail, distance);
 }
 
 inline void MaglevAssembler::SmiAddConstant(Register reg, int value,

@@ -322,17 +322,25 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                         Label::Distance distance = Label::kFar);
   inline void SmiTagUint32AndJumpIfFail(Register reg, Label* fail,
                                         Label::Distance distance = Label::kFar);
+  inline void SmiTagIntPtrAndJumpIfFail(Register dst, Register src, Label* fail,
+                                        Label::Distance distance = Label::kFar);
   inline void SmiTagUint32AndJumpIfSuccess(
       Register dst, Register src, Label* success,
       Label::Distance distance = Label::kFar);
   inline void SmiTagUint32AndJumpIfSuccess(
       Register reg, Label* success, Label::Distance distance = Label::kFar);
+  inline void SmiTagIntPtrAndJumpIfSuccess(
+      Register dst, Register src, Label* success,
+      Label::Distance distance = Label::kFar);
   inline void UncheckedSmiTagUint32(Register dst, Register src);
   inline void UncheckedSmiTagUint32(Register reg);
 
   // Try to smi-tag {obj}. Result is thrown away.
   inline void CheckInt32IsSmi(Register obj, Label* fail,
                               Register scratch = Register::no_reg());
+
+  inline void CheckIntPtrIsSmi(Register obj, Label* fail,
+                               Label::Distance distance = Label::kFar);
 
   // Add/Subtract a constant (not smi tagged) to a smi. Jump to {fail} if the
   // result doesn't fit.
@@ -642,6 +650,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void CompareIntPtrAndJumpIf(Register r1, Register r2, Condition cond,
                                      Label* target,
                                      Label::Distance distance = Label::kFar);
+  inline void CompareIntPtrAndJumpIf(Register r1, int32_t value, Condition cond,
+                                     Label* target,
+                                     Label::Distance distance = Label::kFar);
   inline void CompareInt32AndJumpIf(Register r1, int32_t value, Condition cond,
                                     Label* target,
                                     Label::Distance distance = Label::kFar);
@@ -663,6 +674,16 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                     bool fallthrough_when_true, Label* if_false,
                                     Label::Distance false_distance,
                                     bool fallthrough_when_false);
+  inline void CompareIntPtrAndBranch(Register r1, int32_t value, Condition cond,
+                                     BasicBlock* if_true, BasicBlock* if_false,
+                                     BasicBlock* next_block);
+  inline void CompareIntPtrAndBranch(Register r1, int32_t value, Condition cond,
+                                     Label* if_true,
+                                     Label::Distance true_distance,
+                                     bool fallthrough_when_true,
+                                     Label* if_false,
+                                     Label::Distance false_distance,
+                                     bool fallthrough_when_false);
   inline void CompareInt32AndAssert(Register r1, Register r2, Condition cond,
                                     AbortReason reason);
   inline void CompareInt32AndAssert(Register r1, int32_t value, Condition cond,
@@ -706,6 +727,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Int32ToDouble(DoubleRegister result, Register src);
   inline void Uint32ToDouble(DoubleRegister result, Register src);
   inline void SmiToDouble(DoubleRegister result, Register smi);
+  inline void IntPtrToDouble(DoubleRegister result, Register src);
 
   inline void StringLength(Register result, Register string);
 

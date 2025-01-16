@@ -229,18 +229,23 @@ class ExceptionHandlerInfo;
   V(CheckedSmiSizedInt32)                           \
   V(CheckedSmiTagInt32)                             \
   V(CheckedSmiTagUint32)                            \
+  V(CheckedSmiTagIntPtr)                            \
   V(UnsafeSmiTagInt32)                              \
   V(UnsafeSmiTagUint32)                             \
+  V(UnsafeSmiTagIntPtr)                             \
   V(CheckedSmiUntag)                                \
   V(UnsafeSmiUntag)                                 \
   V(CheckedInternalizedString)                      \
   V(CheckedObjectToIndex)                           \
   V(CheckedTruncateNumberOrOddballToInt32)          \
   V(CheckedInt32ToUint32)                           \
+  V(CheckedIntPtrToUint32)                          \
   V(UnsafeInt32ToUint32)                            \
   V(CheckedUint32ToInt32)                           \
+  V(CheckedIntPtrToInt32)                           \
   V(ChangeInt32ToFloat64)                           \
   V(ChangeUint32ToFloat64)                          \
+  V(ChangeIntPtrToFloat64)                          \
   V(CheckedTruncateFloat64ToInt32)                  \
   V(CheckedTruncateFloat64ToUint32)                 \
   V(TruncateNumberOrOddballToInt32)                 \
@@ -254,6 +259,8 @@ class ExceptionHandlerInfo;
   V(CheckedNumberToUint8Clamped)                    \
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
+  V(IntPtrToBoolean)                                \
+  V(IntPtrToNumber)                                 \
   V(Float64ToTagged)                                \
   V(Float64ToHeapNumberForField)                    \
   V(HoleyFloat64ToTagged)                           \
@@ -305,6 +312,7 @@ class ExceptionHandlerInfo;
   V(CheckDynamicValue)                        \
   V(CheckInt32IsSmi)                          \
   V(CheckUint32IsSmi)                         \
+  V(CheckIntPtrIsSmi)                         \
   V(CheckHoleyFloat64IsSmi)                   \
   V(CheckHeapObject)                          \
   V(CheckInt32Condition)                      \
@@ -372,6 +380,7 @@ class ExceptionHandlerInfo;
   V(BranchIfRootConstant)           \
   V(BranchIfToBooleanTrue)          \
   V(BranchIfInt32ToBooleanTrue)     \
+  V(BranchIfIntPtrToBooleanTrue)    \
   V(BranchIfFloat64ToBooleanTrue)   \
   V(BranchIfFloat64IsHole)          \
   V(BranchIfReferenceEqual)         \
@@ -2988,6 +2997,29 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
   using FlipBitField = NextBitField<bool, 1>;
 };
 
+class IntPtrToBoolean : public FixedInputValueNodeT<1, IntPtrToBoolean> {
+  using Base = FixedInputValueNodeT<1, IntPtrToBoolean>;
+
+ public:
+  explicit IntPtrToBoolean(uint64_t bitfield, bool flip)
+      : Base(FlipBitField::update(bitfield, flip)) {}
+
+  static constexpr Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& value() { return Node::input(0); }
+
+  constexpr bool flip() const { return FlipBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{flip()}; }
+
+ private:
+  using FlipBitField = NextBitField<bool, 1>;
+};
+
 class CheckedSmiIncrement
     : public FixedInputValueNodeT<1, CheckedSmiIncrement> {
   using Base = FixedInputValueNodeT<1, CheckedSmiIncrement>;
@@ -3260,6 +3292,23 @@ class CheckUint32IsSmi : public FixedInputNodeT<1, CheckUint32IsSmi> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckIntPtrIsSmi : public FixedInputNodeT<1, CheckIntPtrIsSmi> {
+  using Base = FixedInputNodeT<1, CheckIntPtrIsSmi>;
+
+ public:
+  explicit CheckIntPtrIsSmi(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class CheckHoleyFloat64IsSmi
     : public FixedInputNodeT<1, CheckHoleyFloat64IsSmi> {
   using Base = FixedInputNodeT<1, CheckHoleyFloat64IsSmi>;
@@ -3339,6 +3388,25 @@ class CheckedSmiTagUint32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedSmiTagIntPtr
+    : public FixedInputValueNodeT<1, CheckedSmiTagIntPtr> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiTagIntPtr>;
+
+ public:
+  explicit CheckedSmiTagIntPtr(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 // Input must guarantee to fit in a Smi.
 class UnsafeSmiTagInt32 : public FixedInputValueNodeT<1, UnsafeSmiTagInt32> {
   using Base = FixedInputValueNodeT<1, UnsafeSmiTagInt32>;
@@ -3373,6 +3441,30 @@ class UnsafeSmiTagUint32 : public FixedInputValueNodeT<1, UnsafeSmiTagUint32> {
   static constexpr OpProperties kProperties = OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input& input() { return Node::input(0); }
+
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing() {
+    // No tagged inputs.
+  }
+#endif
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+// Input must guarantee to fit in a Smi.
+class UnsafeSmiTagIntPtr : public FixedInputValueNodeT<1, UnsafeSmiTagIntPtr> {
+  using Base = FixedInputValueNodeT<1, UnsafeSmiTagIntPtr>;
+
+ public:
+  explicit UnsafeSmiTagIntPtr(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
 
   Input& input() { return Node::input(0); }
 
@@ -3629,6 +3721,26 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class IntPtrToNumber : public FixedInputValueNodeT<1, IntPtrToNumber> {
+  using Base = FixedInputValueNodeT<1, IntPtrToNumber>;
+
+ public:
+  explicit IntPtrToNumber(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   using Base = FixedInputValueNodeT<1, Float64ToTagged>;
 
@@ -3768,6 +3880,26 @@ class CheckedInt32ToUint32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedIntPtrToUint32
+    : public FixedInputValueNodeT<1, CheckedIntPtrToUint32> {
+  using Base = FixedInputValueNodeT<1, CheckedIntPtrToUint32>;
+
+ public:
+  explicit CheckedIntPtrToUint32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Uint32() |
+                                              OpProperties::ConversionNode() |
+                                              OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class UnsafeInt32ToUint32
     : public FixedInputValueNodeT<1, UnsafeInt32ToUint32> {
   using Base = FixedInputValueNodeT<1, UnsafeInt32ToUint32>;
@@ -3807,6 +3939,26 @@ class CheckedUint32ToInt32
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class CheckedIntPtrToInt32
+    : public FixedInputValueNodeT<1, CheckedIntPtrToInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedIntPtrToInt32>;
+
+ public:
+  explicit CheckedIntPtrToInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32() |
+                                              OpProperties::ConversionNode() |
+                                              OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class ChangeInt32ToFloat64
     : public FixedInputValueNodeT<1, ChangeInt32ToFloat64> {
   using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
@@ -3837,6 +3989,25 @@ class ChangeUint32ToFloat64
       OpProperties::Float64() | OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ChangeIntPtrToFloat64
+    : public FixedInputValueNodeT<1, ChangeIntPtrToFloat64> {
+  using Base = FixedInputValueNodeT<1, ChangeIntPtrToFloat64>;
+
+ public:
+  explicit ChangeIntPtrToFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
 
   Input& input() { return Node::input(0); }
 
@@ -10343,6 +10514,26 @@ class BranchIfInt32ToBooleanTrue
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfIntPtrToBooleanTrue
+    : public BranchControlNodeT<1, BranchIfIntPtrToBooleanTrue> {
+  using Base = BranchControlNodeT<1, BranchIfIntPtrToBooleanTrue>;
+
+ public:
+  explicit BranchIfIntPtrToBooleanTrue(uint64_t bitfield,
+                                       BasicBlockRef* if_true_refs,
+                                       BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kIntPtr};
 
   Input& condition_input() { return input(0); }
 

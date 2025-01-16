@@ -411,6 +411,12 @@ void FrameTranslationBuilder::StoreInt32Register(Register reg) {
   StoreRegister(opcode, reg);
 }
 
+void FrameTranslationBuilder::StoreIntPtrRegister(Register reg) {
+  auto opcode = (kSystemPointerSize == 4) ? TranslationOpcode::INT32_REGISTER
+                                          : TranslationOpcode::INT64_REGISTER;
+  StoreRegister(opcode, reg);
+}
+
 void FrameTranslationBuilder::StoreInt64Register(Register reg) {
   auto opcode = TranslationOpcode::INT64_REGISTER;
   StoreRegister(opcode, reg);
@@ -467,6 +473,12 @@ void FrameTranslationBuilder::StoreStackSlot(int index) {
 
 void FrameTranslationBuilder::StoreInt32StackSlot(int index) {
   auto opcode = TranslationOpcode::INT32_STACK_SLOT;
+  Add(opcode, SignedOperand(index));
+}
+
+void FrameTranslationBuilder::StoreIntPtrStackSlot(int index) {
+  auto opcode = (kSystemPointerSize == 4) ? TranslationOpcode::INT32_STACK_SLOT
+                                          : TranslationOpcode::INT64_STACK_SLOT;
   Add(opcode, SignedOperand(index));
 }
 

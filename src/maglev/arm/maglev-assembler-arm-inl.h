@@ -1002,6 +1002,14 @@ inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
   JumpIf(cond, target);
 }
 
+inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, int32_t value,
+                                                    Condition cond,
+                                                    Label* target,
+                                                    Label::Distance distance) {
+  cmp(r1, Operand(value));
+  JumpIf(cond, target);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
@@ -1037,6 +1045,15 @@ inline void MaglevAssembler::CompareInt32AndBranch(
     Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
     Label::Distance false_distance, bool fallthrough_when_false) {
   cmp(r1, r2);
+  Branch(cond, if_true, true_distance, fallthrough_when_true, if_false,
+         false_distance, fallthrough_when_false);
+}
+
+inline void MaglevAssembler::CompareIntPtrAndBranch(
+    Register r1, int32_t value, Condition cond, Label* if_true,
+    Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
+    Label::Distance false_distance, bool fallthrough_when_false) {
+  cmp(r1, Operand(value));
   Branch(cond, if_true, true_distance, fallthrough_when_true, if_false,
          false_distance, fallthrough_when_false);
 }
@@ -1179,6 +1196,11 @@ inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
   }
   vmov(temp_vfps, src);
   vcvt_f64_s32(result, temp_vfps);
+}
+
+inline void MaglevAssembler::IntPtrToDouble(DoubleRegister result,
+                                            Register src) {
+  return Int32ToDouble(result, src);
 }
 
 inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,

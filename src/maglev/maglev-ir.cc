@@ -1532,6 +1532,14 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   __ CheckInt32IsSmi(reg, fail);
 }
 
+void CheckIntPtrIsSmi::SetValueLocationConstraints() { UseRegister(input()); }
+void CheckIntPtrIsSmi::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  __ CheckIntPtrIsSmi(reg, fail);
+}
+
 void CheckedInt32ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -1540,6 +1548,22 @@ void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   __ CompareInt32AndJumpIf(
       ToRegister(input()), 0, kLessThan,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
+}
+
+void CheckedIntPtrToUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+
+void CheckedIntPtrToUint32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ Move(scratch, std::numeric_limits<uint32_t>::max());
+  __ CompareIntPtrAndJumpIf(
+      ToRegister(input()), scratch, kUnsignedGreaterThan,
       __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
@@ -1610,6 +1634,21 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   __ SmiTagUint32AndJumpIfFail(reg, fail);
 }
 
+void CheckedSmiTagIntPtr::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedSmiTagIntPtr::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ SmiTagIntPtrAndJumpIfFail(reg, reg, fail);
+}
+
 void UnsafeSmiTagInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
@@ -1626,6 +1665,16 @@ void UnsafeSmiTagUint32::SetValueLocationConstraints() {
 void UnsafeSmiTagUint32::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   __ UncheckedSmiTagUint32(ToRegister(input()));
+}
+
+void UnsafeSmiTagIntPtr::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeSmiTagIntPtr::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  // If the IntPtr is guaranteed to be a SMI, we can treat it as Int32.
+  __ UncheckedSmiTagInt32(ToRegister(input()));
 }
 
 void CheckedSmiIncrement::SetValueLocationConstraints() {
@@ -1922,6 +1971,15 @@ void ChangeUint32ToFloat64::SetValueLocationConstraints() {
 void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   __ Uint32ToDouble(ToDoubleRegister(result()), ToRegister(input()));
+}
+
+void ChangeIntPtrToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void ChangeIntPtrToFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  __ IntPtrToDouble(ToDoubleRegister(result()), ToRegister(input()));
 }
 
 void CheckMaps::SetValueLocationConstraints() {
@@ -2364,6 +2422,29 @@ void Int32ToBoolean::GenerateCode(MaglevAssembler* masm,
   Label is_true, end;
   __ CompareInt32AndJumpIf(ToRegister(value()), 0, kNotEqual, &is_true,
                            Label::Distance::kNear);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
+  __ jmp(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result,
+                flip() ? RootIndex::kFalseValue : RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
+void IntPtrToBoolean::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+
+void IntPtrToBoolean::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  __ CompareIntPtrAndJumpIf(ToRegister(value()), 0, kNotEqual, &is_true,
+                            Label::Distance::kNear);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, flip() ? RootIndex::kTrueValue : RootIndex::kFalseValue);
@@ -4807,6 +4888,40 @@ void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
+void IntPtrToNumber::SetValueLocationConstraints() {
+  UseRegister(input());
+#ifdef V8_TARGET_ARCH_X64
+  // We emit slightly more efficient code if result is the same as input.
+  DefineSameAsFirst(this);
+#else
+  DefineAsRegister(this);
+#endif
+}
+
+void IntPtrToNumber::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register value = ToRegister(input());
+  Register object = ToRegister(result());
+  // Unlike Int32ToNumber, object is allowed to alias value here (indeed, the
+  // code is better if it does). The difference is that IntPtr smi tagging first
+  // does a range check, and doesn't clobber `object` on failure.
+  __ SmiTagIntPtrAndJumpIfFail(
+      object, value,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, Register value,
+             ZoneLabelRef done, IntPtrToNumber* node) {
+            MaglevAssembler::TemporaryRegisterScope temps(masm);
+            DoubleRegister double_value = temps.AcquireScratchDouble();
+            __ IntPtrToDouble(double_value, value);
+            __ AllocateHeapNumber(node->register_snapshot(), object,
+                                  double_value);
+            __ Jump(*done);
+          },
+          object, value, done, this));
+  __ bind(*done);
+}
+
 void Float64ToTagged::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
@@ -7012,6 +7127,16 @@ void BranchIfInt32ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                            if_true(), if_false(), state.next_block());
 }
 
+void BranchIfIntPtrToBooleanTrue::SetValueLocationConstraints() {
+  // TODO(victorgomes): consider using any input instead.
+  UseRegister(condition_input());
+}
+void BranchIfIntPtrToBooleanTrue::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  __ CompareIntPtrAndBranch(ToRegister(condition_input()), 0, kNotEqual,
+                            if_true(), if_false(), state.next_block());
+}
+
 void BranchIfFloat64ToBooleanTrue::SetValueLocationConstraints() {
   UseRegister(condition_input());
   set_double_temporaries_needed(1);
@@ -7710,6 +7835,13 @@ void Int32Compare::PrintParams(std::ostream& os,
 
 void Int32ToBoolean::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
+  if (flip()) {
+    os << "(flipped)";
+  }
+}
+
+void IntPtrToBoolean::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
   if (flip()) {
     os << "(flipped)";
   }
