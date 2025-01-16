@@ -11,6 +11,8 @@ function foo(t) {
 %PrepareFunctionForOptimization(foo);
 a = foo(Array);
 a[0] = 3.5;
+a = foo(Array);
+a[0] = 3.5;
 b = foo(Array);
 assertTrue(%HasDoubleElements(b));
 
