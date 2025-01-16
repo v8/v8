@@ -3074,7 +3074,6 @@ DEFINE_BOOL_READONLY(enable_slow_asserts, false,
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc
 DEFINE_BOOL(print_ast, false, "print source AST")
-DEFINE_BOOL(trap_on_abort, false, "replace aborts by breakpoints")
 
 // compiler.cc
 DEFINE_BOOL(print_scopes, false, "print scopes")

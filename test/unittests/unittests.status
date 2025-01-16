@@ -344,9 +344,17 @@
 }],  # 'device_type == bullhead'
 
 ##############################################################################
-
 ['variant == stress_pinning_scavenger', {
   'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],
 }],  # variant == stress_pinning_scavenger
+
+##############################################################################
+['simulator_run', {
+  # Do not execute tests which abort the process in the simulator; the
+  # simulator will start the interactive debugger and then timeout because
+  # there is no input.
+  'MacroAssemblerTest.TestCheck': [SKIP],
+  'MacroAssemblerTest.TestHardAbort': [SKIP],
+}],  # simulator_run
 
 ]
