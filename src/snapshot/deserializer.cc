@@ -338,6 +338,9 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
   static_assert(kEmptyBackingStoreRefSentinel == 0);
   backing_stores_.push_back({});
 
+  back_refs_.reserve(2048);
+  js_dispatch_entries_.reserve(512);
+
 #ifdef DEBUG
   num_api_references_ = GetNumApiReferences(isolate);
 #endif  // DEBUG
@@ -1032,6 +1035,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadInitializeSelfIndirectPointer(data, slot_accessor);
     case kAllocateJSDispatchEntry:
       return ReadAllocateJSDispatchEntry(data, slot_accessor);
+    case kJSDispatchEntry:
+      return ReadJSDispatchEntry(data, slot_accessor);
     case kProtectedPointerPrefix:
       return ReadProtectedPointerPrefix(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
@@ -1478,30 +1483,47 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   DirectHandle<HeapObject> host = slot_accessor.object();
 
-  uint32_t entry_id = source_.GetUint30();
   uint32_t parameter_count = source_.GetUint30();
   DCHECK_LE(parameter_count, kMaxUInt16);
 
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sAllocateJSDispatchEntry [%u, %u]\n", depth_, "", entry_id,
-           parameter_count);
+    PrintF("%*sAllocateJSDispatchEntry [%u]\n", depth_, "", parameter_count);
   }
 
   DirectHandle<Code> code = Cast<Code>(ReadObject());
 
-  JSDispatchHandle handle;
-  auto it = js_dispatch_entries_map_.find(entry_id);
-  if (it != js_dispatch_entries_map_.end()) {
-    handle = it->second;
-    DCHECK_EQ(parameter_count, jdt->GetParameterCount(handle));
-    DCHECK_EQ(*code, jdt->GetCode(handle));
-  } else {
-    JSDispatchTable::Space* space =
-        isolate()->GetJSDispatchTableSpaceFor(host->address());
-    handle = jdt->AllocateAndInitializeEntry(space, parameter_count);
-    js_dispatch_entries_map_[entry_id] = handle;
-    jdt->SetCodeNoWriteBarrier(handle, *code);
+  JSDispatchTable::Space* space =
+      isolate()->GetJSDispatchTableSpaceFor(host->address());
+  JSDispatchHandle handle =
+      jdt->AllocateAndInitializeEntry(space, parameter_count);
+  js_dispatch_entries_.push_back(handle);
+  jdt->SetCodeNoWriteBarrier(handle, *code);
+  host->Relaxed_WriteField<JSDispatchHandle::underlying_type>(
+      slot_accessor.offset(), handle.value());
+  JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle);
+
+  return 1;
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadJSDispatchEntry(uint8_t data,
+                                                SlotAccessor slot_accessor) {
+#ifdef V8_ENABLE_LEAPTIERING
+  DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
+  DirectHandle<HeapObject> host = slot_accessor.object();
+  uint32_t entry_id = source_.GetUint30();
+  DCHECK_LT(entry_id, js_dispatch_entries_.size());
+
+  if (v8_flags.trace_deserialization) {
+    PrintF("%*sJSDispatchEntry [%u]\n", depth_, "", entry_id);
   }
+
+  JSDispatchHandle handle = js_dispatch_entries_[entry_id];
+  DCHECK_NE(handle, kNullJSDispatchHandle);
 
   host->Relaxed_WriteField<JSDispatchHandle::underlying_type>(
       slot_accessor.offset(), handle.value());
