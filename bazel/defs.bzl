@@ -124,6 +124,7 @@ def _default_args():
             "@v8//bazel/config:is_clang": [
                 "-Wno-invalid-offsetof",
                 "-Wno-deprecated-this-capture",
+                "-Wno-deprecated-declarations",
                 "-std=c++20",
             ],
             "@v8//bazel/config:is_gcc": [
@@ -176,7 +177,7 @@ def _default_args():
                 "Advapi32.lib",
             ],
             "@v8//bazel/config:is_macos": ["-pthread"],
-            "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
+            "//conditions:default": ["-Wl,--no-as-needed -ldl -latomic -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
             "//conditions:default": [],

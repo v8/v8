@@ -9,6 +9,7 @@ common --enable_bzlmod
 build --action_env=CC
 build --action_env=CXX
 build --action_env=PATH
+build --copt=-std=c++20
 
 # Use Clang compiler
 build:clang --action_env=BAZEL_COMPILER=clang
