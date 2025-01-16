@@ -10,6 +10,7 @@
 #include "include/v8config.h"
 #include "src/base/bounds.h"
 #include "src/common/globals.h"
+#include "src/trap-handler/trap-handler.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -296,6 +297,10 @@ class V8_EXPORT_PRIVATE Sandbox {
   size_t reservation_size_ = 0;
 
   bool initialized_ = false;
+
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  bool trap_handler_initialized_ = false;
+#endif
 
   // The virtual address subspace backing the sandbox.
   std::unique_ptr<v8::VirtualAddressSpace> address_space_;

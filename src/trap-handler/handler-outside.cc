@@ -231,11 +231,50 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
-void SetV8SandboxBaseAndSize(uintptr_t base, size_t size) {
-  TH_DCHECK(gV8SandboxBase == 0 && base != 0);
-  TH_DCHECK(gV8SandboxSize == 0 && size != 0);
-  gV8SandboxBase = base;
-  gV8SandboxSize = size;
+bool RegisterV8Sandbox(uintptr_t base, size_t size) {
+  SandboxRecordsLock lock;
+
+#ifdef DEBUG
+  for (SandboxRecord* current = gSandboxRecordsHead; current != nullptr;
+       current = current->next) {
+    TH_DCHECK(current->base != base);
+  }
+#endif
+
+  SandboxRecord* new_record =
+      reinterpret_cast<SandboxRecord*>(malloc(sizeof(SandboxRecord)));
+  if (new_record == nullptr) {
+    return false;
+  }
+
+  new_record->base = base;
+  new_record->size = size;
+  new_record->next = gSandboxRecordsHead;
+  gSandboxRecordsHead = new_record;
+  return true;
+}
+
+void UnregisterV8Sandbox(uintptr_t base, size_t size) {
+  SandboxRecordsLock lock;
+
+  SandboxRecord* current = gSandboxRecordsHead;
+  SandboxRecord* previous = nullptr;
+  while (current != nullptr) {
+    if (current->base == base) {
+      break;
+    }
+    previous = current;
+    current = current->next;
+  }
+
+  TH_CHECK(current != nullptr);
+  TH_CHECK(current->size == size);
+  if (previous) {
+    previous->next = current->next;
+  } else {
+    gSandboxRecordsHead = current->next;
+  }
+  free(current);
 }
 
 int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }

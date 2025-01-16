@@ -17,7 +17,6 @@
 #include "src/flags/flags.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/sandbox/sandboxed-pointer.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -152,7 +151,12 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
-  trap_handler::SetV8SandboxBaseAndSize(base(), size());
+  if (trap_handler::RegisterV8Sandbox(base(), size())) {
+    trap_handler_initialized_ = true;
+  } else {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Failed to allocate sandbox record for trap handling.");
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
   SandboxHardwareSupport::TryEnable(base(), size());
@@ -332,6 +336,13 @@ void Sandbox::InitializeConstants() {
 
 void Sandbox::TearDown() {
   if (initialized_) {
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+    if (trap_handler_initialized_) {
+      trap_handler::UnregisterV8Sandbox(base(), size());
+      trap_handler_initialized_ = false;
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+
     // This destroys the sub space and frees the underlying reservation.
     address_space_.reset();
     sandbox_page_allocator_.reset();
