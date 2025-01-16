@@ -4302,7 +4302,7 @@ v8_library(
     ],
     copts = ["-Wno-implicit-fallthrough"],
     deps = select({
-        "@v8//bazel/config:is_macos": ["//external:absl_synchronization"],
+        "@v8//bazel/config:is_macos": ["@abseil-cpp//absl:synchronization"],
         "//conditions:default": [],
     }),
 )
@@ -4365,10 +4365,10 @@ v8_library(
         ":lib_fast_float",
         ":lib_fp16",
         ":v8_libbase",
-        "//external:absl_btree",
-        "//external:absl_flat_hash_map",
-        "//external:absl_flat_hash_set",
-        "//external:hwy",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@highway//:hwy",
     ],
 )
 
