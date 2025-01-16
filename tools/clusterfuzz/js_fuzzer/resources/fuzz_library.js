@@ -111,6 +111,7 @@ let __callGC;
 })();
 
 // Neuter common test functions.
+try { this.fail = nop; } catch(e) { }
 try { this.failWithMessage = nop; } catch(e) { }
 try { this.triggerAssertFalse = nop; } catch(e) { }
 try { this.quit = nop; } catch(e) { }
