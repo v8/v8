@@ -35,8 +35,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
   // We need an isolate here to execute in the simulator.
   auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
 
-  ASSERT_DEATH_IF_SUPPORTED(
-      { f.Call(); }, v8_flags.debug_code ? "abort: no reason" : "");
+  ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
 TEST_F(MacroAssemblerTest, TestCheck) {
@@ -58,8 +57,7 @@ TEST_F(MacroAssemblerTest, TestCheck) {
 
   f.Call(0);
   f.Call(18);
-  ASSERT_DEATH_IF_SUPPORTED(
-      { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
+  ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, "abort: no reason");
 }
 
 #undef __

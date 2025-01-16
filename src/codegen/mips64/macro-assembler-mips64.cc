@@ -5359,14 +5359,16 @@ void MacroAssembler::Check(Condition cc, AbortReason reason, Register rs,
 }
 
 void MacroAssembler::Abort(AbortReason reason) {
-  ASM_CODE_COMMENT(this);
+  Label abort_start;
+  bind(&abort_start);
   if (v8_flags.code_comments) {
-    RecordComment("Abort message:", SourceLocation{});
-    RecordComment(GetAbortReason(reason), SourceLocation{});
+    const char* msg = GetAbortReason(reason);
+    RecordComment("Abort message: ");
+    RecordComment(msg);
   }
 
-  // Without debug code, save the code size and just trap.
-  if (!v8_flags.debug_code) {
+  // Avoid emitting call to builtin if requested.
+  if (trap_on_abort()) {
     stop();
     return;
   }
@@ -5382,9 +5384,6 @@ void MacroAssembler::Abort(AbortReason reason) {
     Call(a1);
     return;
   }
-
-  Label abort_start;
-  bind(&abort_start);
 
   Move(a0, Smi::FromInt(static_cast<int>(reason)));
 

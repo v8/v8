@@ -242,6 +242,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
         "--trace_wasm_serialization",
         "--trace_wasm_stack_switching",
         "--trace_wasm_streaming",
+        "--trap_on_abort",
     ],
     "!verify_heap": ["--verify-heap"],
     "!debug_code": ["--debug-code"],
