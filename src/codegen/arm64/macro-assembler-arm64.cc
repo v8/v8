@@ -4368,12 +4368,12 @@ void MacroAssembler::DebugBreak() { Debug("DebugBreak", 0, BREAK); }
 void MacroAssembler::Abort(AbortReason reason) {
   ASM_CODE_COMMENT(this);
   if (v8_flags.code_comments) {
-    RecordComment("Abort message:", SourceLocation{});
-    RecordComment(GetAbortReason(reason), SourceLocation{});
+    RecordComment("Abort message: ");
+    RecordComment(GetAbortReason(reason));
   }
 
-  // Without debug code, save the code size and just trap.
-  if (!v8_flags.debug_code) {
+  // Avoid emitting call to builtin if requested.
+  if (trap_on_abort()) {
     Brk(0);
     return;
   }
