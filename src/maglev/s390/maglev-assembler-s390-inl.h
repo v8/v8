@@ -1058,6 +1058,18 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   b(to_condition(cond), target);
 }
 
+inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, int32_t value,
+                                                    Condition cond,
+                                                    Label* target,
+                                                    Label::Distance distance) {
+  if (is_signed(cond)) {
+    CmpS64(r1, Operand(value));
+  } else {
+    CmpU64(r1, Operand(value));
+  }
+  b(to_condition(cond), target);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
@@ -1113,6 +1125,19 @@ inline void MaglevAssembler::CompareInt32AndBranch(
     CmpS32(r1, r2);
   } else {
     CmpU32(r1, r2);
+  }
+  Branch(to_condition(cond), if_true, true_distance, fallthrough_when_true,
+         if_false, false_distance, fallthrough_when_false);
+}
+
+inline void MaglevAssembler::CompareIntPtrAndBranch(
+    Register r1, int32_t value, Condition cond, Label* if_true,
+    Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
+    Label::Distance false_distance, bool fallthrough_when_false) {
+  if (is_signed(cond)) {
+    CmpS64(r1, Operand(value));
+  } else {
+    CmpU64(r1, Operand(value));
   }
   Branch(to_condition(cond), if_true, true_distance, fallthrough_when_true,
          if_false, false_distance, fallthrough_when_false);
@@ -1263,6 +1288,11 @@ inline void MaglevAssembler::StoreHeapInt32Value(Register value,
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
                                            Register src) {
   ConvertIntToDouble(result, src);
+}
+
+inline void MaglevAssembler::IntPtrToDouble(DoubleRegister result,
+                                            Register src) {
+  ConvertInt64ToDouble(result, src);
 }
 
 inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,

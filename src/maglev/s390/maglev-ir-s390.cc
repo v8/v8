@@ -175,6 +175,22 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
+void CheckedIntPtrToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32);
+
+  __ CmpS64(input_reg, Operand(std::numeric_limits<int32_t>::max()));
+  __ bgt(deopt);
+  __ CmpS64(input_reg, Operand(std::numeric_limits<int32_t>::min()));
+  __ blt(deopt);
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
