@@ -57,8 +57,6 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
-  bool trap_on_abort() const { return trap_on_abort_; }
-
   bool should_abort_hard() const { return hard_abort_; }
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
@@ -136,9 +134,6 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
 
   // Whether kRootRegister has been initialized.
   bool root_array_available_ = true;
-
-  // Immediately trap instead of calling {Abort} when debug code fails.
-  bool trap_on_abort_ = v8_flags.trap_on_abort;
 
   // Emit a C call to abort instead of a runtime call.
   bool hard_abort_ = false;
