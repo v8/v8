@@ -522,6 +522,7 @@ CharIt FromStringAccumulator::Parse(CharIt start, CharIt end, digit_t radix) {
   // The max supported radix is 36, and Math.log2(36) == 5.169..., so we
   // need at most 5.17 bits per char.
   static constexpr int kInlineThreshold = kStackParts * kDigitBits * 100 / 517;
+  BIGINT_H_DCHECK(end >= start);
   inline_everything_ = (end - start) <= kInlineThreshold;
 #endif
   if (!inline_everything_ && (radix & (radix - 1)) == 0) {
@@ -577,6 +578,7 @@ bool FromStringAccumulator::AddPart(digit_t multiplier, digit_t part,
       high = new_high;
     }
     stack_parts_[stack_parts_used_++] = carry + high;
+    BIGINT_H_DCHECK(stack_parts_used_ <= kStackParts);
     return true;
   }
 #else
