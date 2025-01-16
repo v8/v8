@@ -126,6 +126,7 @@ namespace internal {
     "Function has non-object prototype '%' in instanceof check")               \
   T(InvalidArgument, "invalid_argument")                                       \
   T(InvalidArgumentForTemporal, "Invalid argument for Temporal %")             \
+  T(InvalidOption, "invalid option %")                                         \
   T(InvalidInOperatorUse, "Cannot use 'in' operator to search for '%' in %")   \
   T(InvalidRawJsonValue, "Invalid value for JSON.rawJSON")                     \
   T(InvalidRegExpExecResult,                                                   \
@@ -448,6 +449,11 @@ namespace internal {
     "The requested module '%' contains conflicting star exports for name '%'") \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
+  T(Base64ExtraBits,                                                           \
+    "The base64 input terminates with non-zero padding bits.")                 \
+  T(Base64InputRemainder,                                                      \
+    "The base64 input terminates with a single "                               \
+    "character, excluding padding (=).")                                       \
   T(BigIntInvalidString, "Invalid BigInt string")                              \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
@@ -481,6 +487,8 @@ namespace internal {
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
   T(IntrinsicWithSpread, "Intrinsic calls do not support spread arguments")    \
+  T(InvalidBase64Character,                                                    \
+    "Found a character that cannot be part of a valid base64 string.")         \
   T(InvalidRestBindingPattern,                                                 \
     "`...` must be followed by an identifier in declaration contexts")         \
   T(InvalidPropertyBindingPattern, "Illegal property in declaration context")  \

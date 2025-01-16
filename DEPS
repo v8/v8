@@ -249,6 +249,8 @@ deps = {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '1e538ac2d0583511f489a9f940a0b8a4f2a2f3ab',
     'condition': 'checkout_fuchsia',
   },
+  'third_party/simdutf':
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '5a9a2134b280c1b956ad68a0643797fe26dd1c94',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -504,6 +506,7 @@ include_rules = [
   '+third_party/fp16/src/include',
   '+third_party/fuzztest',
   '+third_party/ittapi/include',
+  '+third_party/simdutf',
   '+third_party/v8/codegen',
   '+third_party/vtune',
   '+hwy/highway.h',

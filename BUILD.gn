@@ -6181,6 +6181,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_headers",
     ":v8_internal_headers",
     ":v8_maybe_icu",
+    "//third_party/simdutf:simdutf",
   ]
 
   if (v8_fuzzilli) {

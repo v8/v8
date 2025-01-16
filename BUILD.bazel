@@ -2536,6 +2536,8 @@ filegroup(
         "third_party/siphash/halfsiphash.cc",
         "third_party/siphash/halfsiphash.h",
         "third_party/utf8-decoder/utf8-decoder.h",
+        "third_party/simdutf/simdutf.cpp",
+        "third_party/simdutf/simdutf.h",
         ":cppgc_base_files",
         ":generated_bytecode_builtins_list",
         ":v8_bigint",
