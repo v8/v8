@@ -1217,7 +1217,8 @@ class V8_EXPORT Isolate {
    * Passed to |AtomicsWaitCallback| as a means of stopping an ongoing
    * `Atomics.wait` call.
    */
-  class V8_EXPORT AtomicsWaitWakeHandle {
+  class V8_DEPRECATED("AtomicsWaitWakeHandle is unused and will be removed.")
+      V8_EXPORT AtomicsWaitWakeHandle {
    public:
     /**
      * Stop this `Atomics.wait()` call and call the |AtomicsWaitCallback|
@@ -1259,12 +1260,14 @@ class V8_EXPORT Isolate {
    * This callback may schedule exceptions, *unless* |event| is equal to
    * |kTerminatedExecution|.
    */
+  START_ALLOW_USE_DEPRECATED()
   using AtomicsWaitCallback = void (*)(AtomicsWaitEvent event,
                                        Local<SharedArrayBuffer> array_buffer,
                                        size_t offset_in_bytes, int64_t value,
                                        double timeout_in_ms,
                                        AtomicsWaitWakeHandle* stop_handle,
                                        void* data);
+  END_ALLOW_USE_DEPRECATED()
 
   /**
    * Set a new |AtomicsWaitCallback|. This overrides an earlier
@@ -1272,6 +1275,7 @@ class V8_EXPORT Isolate {
    * this unsets the callback. |data| will be passed to the callback
    * as its last parameter.
    */
+  V8_DEPRECATED("SetAtomicsWaitCallback is unused and will be removed.")
   void SetAtomicsWaitCallback(AtomicsWaitCallback callback, void* data);
 
   using GetExternallyAllocatedMemoryInBytesCallback = size_t (*)();

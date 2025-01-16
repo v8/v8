@@ -6788,6 +6788,7 @@ void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
                                      size_t offset_in_bytes, int64_t value,
                                      double timeout_in_ms,
                                      AtomicsWaitWakeHandle* stop_handle) {
+  START_ALLOW_USE_DEPRECATED()
   DCHECK(array_buffer->is_shared());
   if (atomics_wait_callback_ == nullptr) return;
   HandleScope handle_scope(this);
@@ -6796,6 +6797,7 @@ void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
       timeout_in_ms,
       reinterpret_cast<v8::Isolate::AtomicsWaitWakeHandle*>(stop_handle),
       atomics_wait_callback_data_);
+  END_ALLOW_USE_DEPRECATED()
 }
 
 void Isolate::SetPromiseHook(PromiseHook hook) {

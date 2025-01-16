@@ -26923,6 +26923,8 @@ enum class AtomicsWaitCallbackAction {
 
 class StopAtomicsWaitThread;
 
+START_ALLOW_USE_DEPRECATED()
+
 struct AtomicsWaitCallbackInfo {
   v8::Isolate* isolate;
   v8::Isolate::AtomicsWaitWakeHandle* wake_handle;
@@ -27139,6 +27141,8 @@ TEST(AtomicsWaitCallback) {
       sab;)";
   AtomicsWaitCallbackCommon(isolate, CompileRun(init), 4, 4);
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace v8::internal::wasm {
