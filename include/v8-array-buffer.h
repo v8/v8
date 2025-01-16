@@ -85,18 +85,6 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   void operator delete(void* ptr) { ::operator delete(ptr); }
 
   /**
-   * Wrapper around ArrayBuffer::Allocator::Reallocate that preserves IsShared.
-   * Assumes that the backing_store was allocated by the ArrayBuffer allocator
-   * of the given isolate.
-   */
-  V8_DEPRECATED(
-      "Reallocate is unsafe, please do not use. Please allocate a new "
-      "BackingStore and copy instead.")
-  static std::unique_ptr<BackingStore> Reallocate(
-      v8::Isolate* isolate, std::unique_ptr<BackingStore> backing_store,
-      size_t byte_length);
-
-  /**
    * This callback is used only if the memory block for a BackingStore cannot be
    * allocated with an ArrayBuffer::Allocator. In such cases the destructor of
    * the BackingStore invokes the callback to free the memory block.
@@ -171,23 +159,6 @@ class V8_EXPORT ArrayBuffer : public Object {
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
-
-    /**
-     * Reallocate the memory block of size |old_length| to a memory block of
-     * size |new_length| by expanding, contracting, or copying the existing
-     * memory block. If |new_length| > |old_length|, then the new part of
-     * the memory must be initialized to zeros. Return nullptr if reallocation
-     * is not successful.
-     *
-     * The caller guarantees that the memory block was previously allocated
-     * using Allocate or AllocateUninitialized.
-     *
-     * The default implementation allocates a new block and copies data.
-     */
-    V8_DEPRECATED(
-        "Reallocate is unsafe, please do not use. Please allocate new memory "
-        "and copy instead.")
-    virtual void* Reallocate(void* data, size_t old_length, size_t new_length);
 
     /**
      * ArrayBuffer allocation mode. kNormal is a malloc/free style allocation,

@@ -1175,12 +1175,6 @@ class AlternatingArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
   void Free(void* data, size_t size) override { allocator_->Free(data, size); }
 
-  void* Reallocate(void* data, size_t old_length, size_t new_length) override {
-    START_ALLOW_USE_DEPRECATED()
-    return allocator_->Reallocate(data, old_length, new_length);
-    END_ALLOW_USE_DEPRECATED()
-  }
-
  private:
   bool allocation_fails_;
   v8::ArrayBuffer::Allocator* allocator_;

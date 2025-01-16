@@ -527,15 +527,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
 
   void Free(void* data, size_t) override { base::Free(data); }
-
-  void* Reallocate(void* data, size_t old_length, size_t new_length) override {
-    void* new_data = base::Realloc(data, new_length);
-    if (new_length > old_length) {
-      memset(reinterpret_cast<uint8_t*>(new_data) + old_length, 0,
-             new_length - old_length);
-    }
-    return new_data;
-  }
 };
 #endif  // V8_ENABLE_SANDBOX
 
@@ -4227,23 +4218,6 @@ bool v8::BackingStore::IsShared() const {
 
 bool v8::BackingStore::IsResizableByUserJavaScript() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_resizable_by_js();
-}
-
-// static
-std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
-    v8::Isolate* v8_isolate, std::unique_ptr<v8::BackingStore> backing_store,
-    size_t byte_length) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  API_RCS_SCOPE(i_isolate, ArrayBuffer, BackingStore_Reallocate);
-  Utils::ApiCheck(byte_length <= i::JSArrayBuffer::kMaxByteLength,
-                  "v8::BackingStore::Reallocate", "byte_length is too large");
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::BackingStore* i_backing_store =
-      reinterpret_cast<i::BackingStore*>(backing_store.get());
-  if (!i_backing_store->Reallocate(i_isolate, byte_length)) {
-    i::V8::FatalProcessOutOfMemory(i_isolate, "v8::BackingStore::Reallocate");
-  }
-  return backing_store;
 }
 
 // static
@@ -9085,21 +9059,6 @@ Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
                   "WebAssembly support is not enabled");
   UNREACHABLE();
 #endif
-}
-
-void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
-                                             size_t new_length) {
-  if (old_length == new_length) return data;
-  uint8_t* new_data =
-      reinterpret_cast<uint8_t*>(AllocateUninitialized(new_length));
-  if (new_data == nullptr) return nullptr;
-  size_t bytes_to_copy = std::min(old_length, new_length);
-  memcpy(new_data, data, bytes_to_copy);
-  if (new_length > bytes_to_copy) {
-    memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
-  }
-  Free(data, old_length);
-  return new_data;
 }
 
 // static
