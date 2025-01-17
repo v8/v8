@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <limits>
 #include <string>
 
