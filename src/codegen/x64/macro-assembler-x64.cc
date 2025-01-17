@@ -3356,7 +3356,7 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   // Add `target` and `kScratchRegister` early to free `kScratchRegister` again.
   addq(target, kScratchRegister);
 
-  Operand signature_hash_op{target, ScaleFactor::times_1,
+  Operand signature_hash_op{target,
                             wasm::WasmCodePointerTable::kOffsetOfSignatureHash};
   if (is_int32(signature_hash)) {
     // cmpq sign-extends the 32-bit immediate.
@@ -3373,7 +3373,7 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Abort(AbortReason::kWasmSignatureMismatch);
 
   bind(&ok);
-  movq(target, Operand{target, ScaleFactor::times_1, 0});
+  movq(target, Operand{target, 0});
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
   movq(target, Operand{kScratchRegister, target, ScaleFactor::times_8, 0});
