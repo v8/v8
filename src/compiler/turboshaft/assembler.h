@@ -5138,13 +5138,24 @@ class TurboshaftAssemblerOpInterface
     return result;                                                       \
   }
 #else
-#define REDUCE_OP(Op)                                             \
-  template <class... Args>                                        \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {         \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) { \
-      return OpIndex::Invalid();                                  \
-    }                                                             \
-    return Asm().Reduce##Op(args...);                             \
+#define REDUCE_OP(Op)                                                        \
+  template <class... Args>                                                   \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
+      return OpIndex::Invalid();                                             \
+    }                                                                        \
+    /* With an empty reducer stack, `Asm().Reduce##Op` will just create a */ \
+    /* new `Op` operation (defined in operations.h). To figure out where  */ \
+    /* this operation is lowered or optimized (if anywhere), search for   */ \
+    /* `REDUCE(<your operation>)`. Then, to know when this lowering       */ \
+    /* actually happens, search for phases that are instantiated with     */ \
+    /* that reducer. You can also look in operation.h where the opcode is */ \
+    /* declared: operations declared in                                   */ \
+    /* TURBOSHAFT_SIMPLIFIED_OPERATION_LIST are typically lowered in      */ \
+    /* machine-lowering-reducer-inl.h, and operations in                  */ \
+    /* TURBOSHAFT_MACHINE_OPERATION_LIST are typically not lowered before */ \
+    /* reaching instruction-selector.h.                                   */ \
+    return Asm().Reduce##Op(args...);                                        \
   }
 #endif
   TURBOSHAFT_OPERATION_LIST(REDUCE_OP)
