@@ -272,7 +272,8 @@ constexpr DoubleRegister
 StaticCallInterfaceDescriptor<DerivedDescriptor>::GetDoubleRegisterParameter(
     int i) {
   DCHECK(IsFloatingPoint(GetParameterType(i).representation()));
-  return DoubleRegister::from_code(DerivedDescriptor::registers()[i].code());
+  return DoubleRegister::from_code(
+      DerivedDescriptor::double_registers()[i].code());
 }
 
 // static
