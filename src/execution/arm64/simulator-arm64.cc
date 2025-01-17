@@ -476,6 +476,7 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
 using SimulatorRuntimeFPCall = double (*)(double arg1);
 using SimulatorRuntimeFPIntCall = double (*)(double arg1, int32_t arg2);
+using SimulatorRuntimeIntFPCall = int32_t (*)(double darg0);
 // Define four args for future flexibility; at the time of this writing only
 // one is ever used.
 using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
@@ -900,6 +901,21 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       CorruptAllCallerSavedCPURegisters();
 #endif
       set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::BUILTIN_INT_FP_CALL: {
+      // int f(double)
+      TraceSim("Type: BUILTIN_INT_FP_CALL\n");
+      SimulatorRuntimeIntFPCall target =
+          reinterpret_cast<SimulatorRuntimeIntFPCall>(external);
+      TraceSim("Argument: %f", dreg(0));
+      int32_t result = target(dreg(0));
+      TraceSim("Returned: %d\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_xreg(0, result);
       break;
     }
 

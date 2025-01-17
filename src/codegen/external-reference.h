@@ -546,6 +546,10 @@ class ExternalReference {
     // double f(Address tagged_ptr).
     BUILTIN_FP_POINTER_CALL,
 
+    // Builtin call that takes a double and returns an int.
+    // int f(double).
+    BUILTIN_INT_FP_CALL,
+
     // Direct call to API function callback.
     // void f(v8::FunctionCallbackInfo&)
     DIRECT_API_CALL,
