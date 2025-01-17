@@ -757,6 +757,7 @@ namespace internal {
   F(SetWasmCompileControls, 2, 1)                               \
   F(SetWasmImportedStringsEnabled, 1, 1)                        \
   F(SetWasmInstantiateControls, 0, 1)                           \
+  F(WasmArray, 0, 1)                                            \
   F(WasmCompiledExportWrappersCount, 0, 1)                      \
   F(WasmDeoptsExecutedCount, 0, 1)                              \
   F(WasmDeoptsExecutedForFunction, 1, 1)                        \
@@ -764,16 +765,15 @@ namespace internal {
   IF_V8_WASM_RANDOM_FUZZERS(F, WasmGenerateRandomModule, -1, 1) \
   F(WasmGetNumberOfInstances, 1, 1)                             \
   F(WasmLeaveDebugging, 0, 1)                                   \
+  F(WasmNull, 0, 1)                                             \
   F(WasmNumCodeSpaces, 1, 1)                                    \
+  F(WasmStruct, 0, 1)                                           \
   F(WasmSwitchToTheCentralStackCount, 0, 1)                     \
   F(WasmTierUpFunction, 1, 1)                                   \
-  F(WasmTriggerTierUpForTesting, 1, 1)                          \
   F(WasmTraceEnter, 0, 1)                                       \
   F(WasmTraceExit, 1, 1)                                        \
   F(WasmTraceMemory, 1, 1)                                      \
-  F(WasmNull, 0, 1)                                             \
-  F(WasmArray, 0, 1)                                            \
-  F(WasmStruct, 0, 1)
+  F(WasmTriggerTierUpForTesting, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \
   F(WasmTraceBeginExecution, 0, 1)                   \
