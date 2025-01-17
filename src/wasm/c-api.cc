@@ -3326,7 +3326,10 @@ WASM_API_EXTERN wasm_trap_t* wasm_func_call(const wasm_func_t* func,
                                             const wasm_val_vec_t* args,
                                             wasm_val_vec_t* results) {
   auto v8_results = adopt_val_vec(results);
-  return release_trap(func->call(adopt_val_vec(args), v8_results));
+  auto ret = release_trap(func->call(adopt_val_vec(args), v8_results));
+  *results = release_val_vec(std::move(v8_results));
+
+  return ret;
 }
 
 // Global Instances
