@@ -2668,8 +2668,10 @@ void Scope::AllocateScopeInfosRecursively(
     scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
 #ifdef DEBUG
     // Mark this ID as being used.
-    scope_infos_to_reuse[UniqueIdInScript()] = {};
-    DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
+    if (v8_flags.reuse_scope_infos) {
+      scope_infos_to_reuse[UniqueIdInScript()] = {};
+      DCHECK_EQ(UniqueIdInScript(), scope_info_->UniqueIdInScript());
+    }
 #endif
   }
 
@@ -2688,7 +2690,7 @@ void Scope::AllocateScopeInfosRecursively(
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
       scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
                                            scope_infos_to_reuse);
-    } else {
+    } else if (v8_flags.reuse_scope_infos) {
       auto scope_it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
       if (scope_it != scope_infos_to_reuse.end()) {
         scope->scope_info_ = scope_it->second;
@@ -2773,7 +2775,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
 
   Tagged<WeakFixedArray> infos = script->infos();
   std::unordered_map<int, Handle<ScopeInfo>> scope_infos_to_reuse;
-  if (infos->length() != 0) {
+  if (v8_flags.reuse_scope_infos && infos->length() != 0) {
     Tagged<SharedFunctionInfo> parse_info_sfi =
         *parse_info->literal()->shared_function_info();
     Tagged<ScopeInfo> outer = parse_info_sfi->HasOuterScopeInfo()
