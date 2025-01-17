@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "hwy/highway.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
@@ -1931,10 +1932,30 @@ class FastJsonStringifier {
 
   V8_INLINE FastJsonStringifierResult
   AppendStringChecked(Tagged<String> string);
+
   template <typename SrcChar>
+    requires(sizeof(SrcChar) == sizeof(uint8_t))
   V8_INLINE FastJsonStringifierResult
-  AppendStringChecked(Tagged<String> string, const SrcChar* chars,
-                      uint32_t length, const DisallowGarbageCollection& no_gc);
+  AppendStringChecked(const SrcChar* chars, uint32_t length,
+                      const DisallowGarbageCollection& no_gc);
+
+  template <typename SrcChar>
+    requires(sizeof(SrcChar) == sizeof(uint8_t))
+  V8_INLINE FastJsonStringifierResult AppendStringCheckedScalar(
+      const SrcChar* chars, uint32_t length, uint32_t start,
+      uint32_t uncopied_src_index, const DisallowGarbageCollection& no_gc);
+
+  template <typename SrcChar>
+    requires(sizeof(SrcChar) == sizeof(uint8_t))
+  V8_INLINE FastJsonStringifierResult
+  AppendStringCheckedSIMD(const SrcChar* chars, uint32_t length,
+                          const DisallowGarbageCollection& no_gc);
+
+  template <typename SrcChar>
+    requires(sizeof(SrcChar) == sizeof(base::uc16))
+  V8_INLINE FastJsonStringifierResult
+  AppendStringChecked(const SrcChar* chars, uint32_t length,
+                      const DisallowGarbageCollection& no_gc);
 
   static constexpr uint32_t kGlobalInterruptBudget = 200000;
   static constexpr uint32_t kArrayInterruptLength = 4000;
@@ -2092,7 +2113,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
     const uint32_t length = string->length();
     Separator(comma);
     AppendCharacter('"');
-    AppendStringChecked(string, chars, length, no_gc);
+    AppendStringChecked(chars, length, no_gc);
     AppendCharacter('"');
     AppendCharacter(':');
     return SUCCESS;
@@ -2121,7 +2142,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
       if (V8_UNLIKELY(result != SUCCESS)) return result;
     }
     AppendCharacter('"');
-    AppendStringChecked(string, chars, length, no_gc);
+    AppendStringChecked(chars, length, no_gc);
     AppendCharacter('"');
     return SUCCESS;
   }
@@ -2641,84 +2662,155 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
     Tagged<String> string) {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(string->map()->instance_type(), INTERNALIZED_ONE_BYTE_STRING_TYPE);
-  return AppendStringChecked(string,
-                             Cast<SeqOneByteString>(string)->GetChars(no_gc),
+  return AppendStringChecked(Cast<SeqOneByteString>(string)->GetChars(no_gc),
                              string->length(), no_gc);
 }
 
 template <typename Char>
 template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(uint8_t))
 FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
-    Tagged<String> string, const SrcChar* chars, uint32_t length,
+    const SrcChar* chars, uint32_t length,
     const DisallowGarbageCollection& no_gc) {
-  int escape_char_idx = -1;
+  constexpr int kUseSimdLengthThreshold = 32;
+  if (length >= kUseSimdLengthThreshold) {
+    return AppendStringCheckedSIMD(chars, length, no_gc);
+  }
+  return AppendStringCheckedScalar(chars, length, 0, 0, no_gc);
+}
+
+template <typename Char>
+template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(uint8_t))
+FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringCheckedScalar(
+    const SrcChar* chars, uint32_t length, uint32_t start,
+    uint32_t uncopied_src_index, const DisallowGarbageCollection& no_gc) {
+  for (uint32_t i = start; i < length; i++) {
+    SrcChar c = chars[i];
+    if (V8_LIKELY(DoNotEscape(c))) continue;
+    buffer_.Append(chars + uncopied_src_index, i - uncopied_src_index);
+    AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
+    uncopied_src_index = i + 1;
+  }
+  if (uncopied_src_index < length) {
+    buffer_.Append(chars + uncopied_src_index, length - uncopied_src_index);
+  }
+  return SUCCESS;
+}
+
+template <typename Char>
+template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(uint8_t))
+FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringCheckedSIMD(
+    const SrcChar* chars, uint32_t length,
+    const DisallowGarbageCollection& no_gc) {
+  namespace hw = hwy::HWY_NAMESPACE;
+
+  uint32_t uncopied_src_index = 0;  // Index of first char not copied yet.
+  const SrcChar* block = chars;
+  const SrcChar* end = chars + length;
+  hw::FixedTag<SrcChar, 16> tag;
+  static int stride = hw::Lanes(tag);
+
+  const auto mask_0x20 = hw::Set(tag, 0x20);
+  const auto mask_0x22 = hw::Set(tag, 0x22);
+  const auto mask_0x5c = hw::Set(tag, 0x5c);
+
+  for (; block + (stride - 1) < end; block += stride) {
+    const auto input = hw::LoadU(tag, block);
+    const auto has_lower_than_0x20 = input < mask_0x20;
+    const auto has_0x22 = input == mask_0x22;
+    const auto has_0x5c = input == mask_0x5c;
+    const auto result = hw::Or(hw::Or(has_lower_than_0x20, has_0x22), has_0x5c);
+
+    // No character that needs escaping found in block.
+    if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+
+    size_t index = hw::FindKnownFirstTrue(tag, result);
+    Char found_char = block[index];
+    const int char_index =
+        static_cast<int>(block - chars) + static_cast<int>(index);
+    const int copy_length = char_index - uncopied_src_index;
+    buffer_.Append(chars + uncopied_src_index, copy_length);
+    AppendCString(&JsonEscapeTable[found_char * kJsonEscapeTableEntrySize]);
+    uncopied_src_index = char_index + 1;
+    // Advance to character after the one that was found to need escaping.
+    // Subtract stride as it will be added again at the beginning of the loop.
+    block += static_cast<int>(index + 1 - stride);
+  }
+
+  // Handle remaining characters.
+  const uint32_t start_index = static_cast<uint32_t>(block - chars);
+  return AppendStringCheckedScalar(chars, length, start_index,
+                                   uncopied_src_index, no_gc);
+}
+
+template <typename Char>
+template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(base::uc16))
+FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
+    const SrcChar* chars, uint32_t length,
+    const DisallowGarbageCollection& no_gc) {
+  uint32_t uncopied_src_index = 0;  // Index of first char not copied yet.
   // TODO(pthier): Add SIMD version.
   for (uint32_t i = 0; i < length; i++) {
     SrcChar c = chars[i];
     if (V8_LIKELY(DoNotEscape(c))) continue;
-    if constexpr (!is_one_byte) {
-      if (sizeof(SrcChar) != 1 &&
-          base::IsInRange(c, static_cast<SrcChar>(0xD800),
-                          static_cast<SrcChar>(0xDFFF))) {
-        // The current character is a surrogate.
-        buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
-
-        char double_to_radix_chars[kDoubleToRadixMaxChars];
-        base::Vector<char> double_to_radix_buffer =
-            base::ArrayVector(double_to_radix_chars);
-        if (c <= 0xDBFF) {
-          // The current character is a leading surrogate.
-          if (i + 1 < length) {
-            // There is a next character.
-            SrcChar next = chars[i + 1];
-            if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
-                                static_cast<SrcChar>(0xDFFF))) {
-              // The next character is a trailing surrogate, meaning this is a
-              // surrogate pair.
-              AppendCharacter(c);
-              AppendCharacter(next);
-              i++;
-            } else {
-              // The next character is not a trailing surrogate. Thus, the
-              // current character is a lone leading surrogate.
-              AppendCStringLiteral("\\u");
-              std::string_view hex =
-                  DoubleToRadixStringView(c, 16, double_to_radix_buffer);
-              AppendString(hex);
-            }
+    if (sizeof(SrcChar) != 1 && base::IsInRange(c, static_cast<SrcChar>(0xD800),
+                                                static_cast<SrcChar>(0xDFFF))) {
+      // The current character is a surrogate.
+      buffer_.Append(chars + uncopied_src_index, i - uncopied_src_index);
+      char double_to_radix_chars[kDoubleToRadixMaxChars];
+      base::Vector<char> double_to_radix_buffer =
+          base::ArrayVector(double_to_radix_chars);
+      if (c <= 0xDBFF) {
+        // The current character is a leading surrogate.
+        if (i + 1 < length) {
+          // There is a next character.
+          SrcChar next = chars[i + 1];
+          if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
+                              static_cast<SrcChar>(0xDFFF))) {
+            // The next character is a trailing surrogate, meaning this is a
+            // surrogate pair.
+            AppendCharacter(c);
+            AppendCharacter(next);
+            i++;
           } else {
-            // There is no next character. Thus, the current character is a lone
-            // leading surrogate.
+            // The next character is not a trailing surrogate. Thus, the
+            // current character is a lone leading surrogate.
             AppendCStringLiteral("\\u");
             std::string_view hex =
                 DoubleToRadixStringView(c, 16, double_to_radix_buffer);
             AppendString(hex);
           }
         } else {
-          // The current character is a lone trailing surrogate. (If it had been
-          // preceded by a leading surrogate, we would've ended up in the other
-          // branch earlier on, and the current character would've been handled
-          // as part of the surrogate pair already.)
+          // There is no next character. Thus, the current character is a lone
+          // leading surrogate.
           AppendCStringLiteral("\\u");
           std::string_view hex =
               DoubleToRadixStringView(c, 16, double_to_radix_buffer);
           AppendString(hex);
         }
-        escape_char_idx = i;
       } else {
-        buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
-        DCHECK_LT(c, 0x60);
-        AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
-        escape_char_idx = i;
+        // The current character is a lone trailing surrogate. (If it had been
+        // preceded by a leading surrogate, we would've ended up in the other
+        // branch earlier on, and the current character would've been handled
+        // as part of the surrogate pair already.)
+        AppendCStringLiteral("\\u");
+        std::string_view hex =
+            DoubleToRadixStringView(c, 16, double_to_radix_buffer);
+        AppendString(hex);
       }
+      uncopied_src_index = i + 1;
     } else {
-      buffer_.Append(chars + escape_char_idx + 1, i - (escape_char_idx + 1));
+      buffer_.Append(chars + uncopied_src_index, i - uncopied_src_index);
+      DCHECK_LT(c, 0x60);
       AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
-      escape_char_idx = i;
+      uncopied_src_index = i + 1;
     }
   }
-  if (static_cast<uint32_t>(escape_char_idx + 1) < length) {
-    buffer_.Append(chars + escape_char_idx + 1, length - (escape_char_idx + 1));
+  if (uncopied_src_index < length) {
+    buffer_.Append(chars + uncopied_src_index, length - uncopied_src_index);
   }
   return SUCCESS;
 }
