@@ -275,6 +275,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
+    case Runtime::kWasmTraceMemory:
     case Runtime::kCheckIsOnCentralStack:
     case Runtime::kSetWasmInstantiateControls:
     case Runtime::kWasmNull:
