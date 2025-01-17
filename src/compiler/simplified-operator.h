@@ -960,6 +960,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
 
+  const Operator* TypedArrayLength(ElementsKind elements_kind);
+
   const Operator* FindOrderedHashMapEntryForInt32Key();
   const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 

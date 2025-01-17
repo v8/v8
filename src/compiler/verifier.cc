@@ -1250,6 +1250,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::StringWrapper());
       CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
+    case IrOpcode::kTypedArrayLength:
+      CheckValueInputIs(node, 0, Type::Object());
+      CheckTypeIs(node, TypeCache::Get()->kJSTypedArrayLengthType);
+      break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
       CheckValueInputIs(node, 0, Type::String());

@@ -2691,6 +2691,10 @@ Type Typer::Visitor::TypeRestLength(Node* node) {
   return TypeCache::Get()->kArgumentsLengthType;
 }
 
+Type Typer::Visitor::TypeTypedArrayLength(Node* node) {
+  return typer_->cache_->kJSTypedArrayLengthType;
+}
+
 Type Typer::Visitor::TypeNewDoubleElements(Node* node) {
   return Type::OtherInternal();
 }

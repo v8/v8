@@ -3747,6 +3747,11 @@ class RepresentationSelector {
                      MachineRepresentation::kWord32);
         return;
       }
+      case IrOpcode::kTypedArrayLength: {
+        VisitUnop<T>(node, UseInfo::AnyTagged(),
+                     MachineType::PointerRepresentation());
+        return;
+      }
       case IrOpcode::kStringSubstring: {
         ProcessInput<T>(node, 0, UseInfo::AnyTagged());
         ProcessInput<T>(node, 1, UseInfo::TruncatingWord32());

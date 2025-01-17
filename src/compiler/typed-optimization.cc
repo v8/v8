@@ -85,6 +85,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceSameValue(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kTypedArrayLength:
+      return ReduceTypedArrayLength(node);
     case IrOpcode::kTypeOf:
       return ReduceTypeOf(node);
     case IrOpcode::kToBoolean:
@@ -773,6 +775,23 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   } else if (type.Is(Type::Function())) {
     return Replace(
         jsgraph()->ConstantNoHole(broker()->function_string(), broker()));
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceTypedArrayLength(Node* node) {
+  DCHECK_EQ(IrOpcode::kTypedArrayLength, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  // Constant-fold the length of the {input} if possible.
+  HeapObjectMatcher m(input);
+  if (m.HasResolvedValue() && m.Ref(broker()).IsJSTypedArray()) {
+    JSTypedArrayRef typed_array = m.Ref(broker()).AsJSTypedArray();
+    size_t byte_length = typed_array.byte_length();
+    ElementsKind elements_kind = typed_array.elements_kind(broker());
+    CHECK(!IsRabGsabTypedArrayElementsKind(elements_kind));
+    Node* value = jsgraph()->ConstantNoHole(
+        byte_length >> ElementsKindToShiftSize(elements_kind));
+    return Replace(value);
   }
   return NoChange();
 }

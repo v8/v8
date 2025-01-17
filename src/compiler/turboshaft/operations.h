@@ -268,6 +268,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringFromCodePointAt)                      \
   V(StringIndexOf)                              \
   V(StringLength)                               \
+  V(TypedArrayLength)                           \
   V(StringSubstring)                            \
   V(NewConsString)                              \
   V(TransitionAndStoreArrayElement)             \
@@ -5508,6 +5509,33 @@ struct StringLengthOp : FixedArityOperationT<1, StringLengthOp> {
 
 
   auto options() const { return std::tuple{}; }
+};
+
+struct TypedArrayLengthOp : FixedArityOperationT<1, TypedArrayLengthOp> {
+  ElementsKind elements_kind;
+
+  static constexpr OpEffects effects =
+      // This operation is only triggered for constant-length JSTypedArrays, so
+      // it's pure.
+      OpEffects()
+          // We rely on the input being a JSTypedArray.
+          .CanDependOnChecks();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::WordPtr()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  V<JSTypedArray> typed_array() const { return Base::input<JSTypedArray>(0); }
+
+  explicit TypedArrayLengthOp(V<JSTypedArray> typed_array,
+                              ElementsKind elements_kind)
+      : Base(typed_array), elements_kind(elements_kind) {}
+
+  auto options() const { return std::tuple{elements_kind}; }
 };
 
 struct StringIndexOfOp : FixedArityOperationT<3, StringIndexOfOp> {

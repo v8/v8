@@ -1815,6 +1815,18 @@ size_t JSTypedArrayRef::length() const {
   return object()->length();
 }
 
+size_t JSTypedArrayRef::byte_length() const {
+  CHECK(!is_on_heap());
+  // Immutable after initialization (since this is not used for RAB/GSAB).
+  return object()->byte_length();
+}
+
+ElementsKind JSTypedArrayRef::elements_kind(JSHeapBroker* broker) const {
+  CHECK(!is_on_heap());
+  // Immutable after initialization.
+  return map(broker).elements_kind();
+}
+
 HeapObjectRef JSTypedArrayRef::buffer(JSHeapBroker* broker) const {
   CHECK(!is_on_heap());
   // Immutable after initialization.

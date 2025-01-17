@@ -1187,6 +1187,8 @@ class JSTypedArrayRef : public JSObjectRef {
 
   bool is_on_heap() const;
   size_t length() const;
+  size_t byte_length() const;
+  ElementsKind elements_kind(JSHeapBroker* broker) const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
 };

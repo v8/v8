@@ -3041,6 +3041,12 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   } else if (access_info.IsStringWrapperLength()) {
     value = graph()->NewNode(simplified()->StringWrapperLength(),
                              lookup_start_object);
+  } else if (access_info.IsTypedArrayLength()) {
+    const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
+    DCHECK_EQ(maps.size(), 1);
+    value = graph()->NewNode(
+        simplified()->TypedArrayLength(maps[0].elements_kind()),
+        lookup_start_object);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
            access_info.IsDictionaryProtoDataConstant());

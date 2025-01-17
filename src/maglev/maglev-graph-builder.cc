@@ -5694,6 +5694,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     }
     case compiler::PropertyAccessInfo::kTypedArrayLength: {
       DCHECK_EQ(receiver, lookup_start_object);
+      CHECK(!IsRabGsabTypedArrayElementsKind(access_info.elements_kind()));
       return BuildLoadTypedArrayLength(receiver, access_info.elements_kind());
     }
   }

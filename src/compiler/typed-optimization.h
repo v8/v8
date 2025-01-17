@@ -61,6 +61,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);
   Reduction ReduceCheckNotTaggedHole(Node* node);
+  Reduction ReduceTypedArrayLength(Node* node);
   Reduction ReduceTypeOf(Node* node);
   Reduction ReduceToBoolean(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);

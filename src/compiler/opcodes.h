@@ -546,6 +546,7 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
   V(TransitionElementsKindOrCheckMap)   \
+  V(TypedArrayLength)                   \
   V(TypeOf)                             \
   V(Unsigned32Divide)                   \
   V(VerifyType)                         \

@@ -2023,6 +2023,16 @@ const Operator* SimplifiedOperatorBuilder::RestLength(
       formal_parameter_count);         // parameter
 }
 
+const Operator* SimplifiedOperatorBuilder::TypedArrayLength(
+    ElementsKind elements_kind) {
+  return zone()->New<Operator1<ElementsKind>>(                       // --
+      IrOpcode::kTypedArrayLength,                                   // opcode
+      Operator::kNoWrite | Operator::kNoThrow | Operator::kNoDeopt,  // flags
+      "TypedArrayLength",                                            // name
+      1, 0, 0, 1, 0, 0,                                              // counts
+      elements_kind);  // parameter
+}
+
 int FormalParameterCountOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kArgumentsLength ||
          op->opcode() == IrOpcode::kRestLength);

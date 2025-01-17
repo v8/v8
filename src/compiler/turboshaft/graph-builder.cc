@@ -1777,6 +1777,11 @@ OpIndex GraphBuilder::Process(
       return __ StringLength(str);
     }
 
+    case IrOpcode::kTypedArrayLength: {
+      ElementsKind elements_kind = OpParameter<ElementsKind>(node->op());
+      return __ TypedArrayLength(Map(node->InputAt(0)), elements_kind);
+    }
+
     case IrOpcode::kStringIndexOf:
       return __ StringIndexOf(Map(node->InputAt(0)), Map(node->InputAt(1)),
                               Map(node->InputAt(2)));
