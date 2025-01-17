@@ -846,12 +846,9 @@ static Tagged<Object> CompileGlobalEval(Isolate* isolate,
   if (!Is<NativeContext>(*context) && v8_flags.reuse_scope_infos) {
     Tagged<WeakFixedArray> array = Cast<Script>(outer_info->script())->infos();
     Tagged<ScopeInfo> stored_info;
-    if (array->get(eval_scope_info_index)
-            .GetHeapObjectIfWeak(isolate, &stored_info)) {
-      CHECK_EQ(stored_info, context->scope_info());
-    } else {
-      array->set(eval_scope_info_index, MakeWeak(context->scope_info()));
-    }
+    CHECK(array->get(eval_scope_info_index)
+              .GetHeapObjectIfWeak(isolate, &stored_info));
+    CHECK_EQ(stored_info, context->scope_info());
   }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,

@@ -1414,6 +1414,7 @@ BytecodeGenerator::BytecodeGenerator(
       class_literals_(0, zone()),
       template_objects_(0, zone()),
       vars_in_hole_check_bitmap_(0, zone()),
+      eval_calls_(0, zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
@@ -1571,6 +1572,11 @@ void BytecodeGenerator::AllocateDeferredConstants(IsolateT* isolate,
             isolate, Utils::OpenDirectHandle(*info), expr->name());
     DCHECK(!shared_info.is_null());
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
+  }
+
+  for (std::pair<Call*, Scope*> call : eval_calls_) {
+    script->infos()->set(call.first->eval_scope_info_index(),
+                         MakeWeak(*call.second->scope_info()));
   }
 
   // Build object literal constant properties
@@ -6634,6 +6640,13 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       // FIXME(v8:5690): Support final spreads for eval.
       DCHECK_GE(receiver_arg_count, 0);
       builder()->MoveRegister(args[receiver_arg_count], runtime_call_args[1]);
+    }
+    Scope* scope_with_context = current_scope();
+    if (!scope_with_context->NeedsContext()) {
+      scope_with_context = scope_with_context->GetOuterScopeWithContext();
+    }
+    if (scope_with_context) {
+      eval_calls_.emplace_back(expr, scope_with_context);
     }
     builder()
         ->MoveRegister(callee, runtime_call_args[0])

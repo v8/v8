@@ -618,6 +618,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
   ZoneVector<Variable*> vars_in_hole_check_bitmap_;
+  ZoneVector<std::pair<Call*, Scope*>> eval_calls_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;
