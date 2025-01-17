@@ -6917,10 +6917,11 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
     INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
 
-#define COMPARE_AND_RETURN_NAME(name)                       \
-  case ObjectStats::FIRST_VIRTUAL_TYPE + ObjectStats::name: \
-    *object_type = #name;                                   \
-    *object_sub_type = "";                                  \
+#define COMPARE_AND_RETURN_NAME(name)                           \
+  case ObjectStats::FIRST_VIRTUAL_TYPE +                        \
+      static_cast<int>(ObjectStats::VirtualInstanceType::name): \
+    *object_type = #name;                                       \
+    *object_sub_type = "";                                      \
     return true;
     VIRTUAL_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME

@@ -1154,22 +1154,22 @@ void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
 void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
                                              ValueType expected_type) {
   switch (init.kind()) {
-    case ConstantExpression::kEmpty:
+    case ConstantExpression::Kind::kEmpty:
       break;
-    case ConstantExpression::kI32Const:
+    case ConstantExpression::Kind::kI32Const:
       out_ << " (i32.const " << init.i32_value() << ")";
       break;
-    case ConstantExpression::kRefNull:
+    case ConstantExpression::Kind::kRefNull:
       out_ << " (ref.null ";
       names_->PrintHeapType(out_, HeapType(init.repr()));
       out_ << ")";
       break;
-    case ConstantExpression::kRefFunc:
+    case ConstantExpression::Kind::kRefFunc:
       out_ << " (ref.func ";
       names_->PrintFunctionName(out_, init.index(), NamesProvider::kDevTools);
       out_ << ")";
       break;
-    case ConstantExpression::kWireBytesRef:
+    case ConstantExpression::Kind::kWireBytesRef:
       WireBytesRef ref = init.wire_bytes_ref();
       const uint8_t* start = start_ + ref.offset();
       const uint8_t* end = start_ + ref.end_offset();

@@ -3973,10 +3973,10 @@ void TestCallJumpBuiltin(CallJumpMode mode,
 
     TNode<Smi> index = m.SmiConstant(2);
 
-    if (mode == kCall) {
+    if (mode == CallJumpMode::kCall) {
       m.Return(m.CallBuiltin(Builtin::kStringRepeat, context, str, index));
     } else {
-      DCHECK_EQ(mode, kTailCall);
+      DCHECK_EQ(mode, CallJumpMode::kTailCall);
       m.TailCallBuiltin(Builtin::kStringRepeat, context, str, index);
     }
   }
@@ -3992,27 +3992,28 @@ void TestCallJumpBuiltin(CallJumpMode mode,
 }  // namespace
 
 TEST(TestCallBuiltinAbsolute) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kAbsolute);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kAbsolute);
 }
 
 TEST(TestCallBuiltinPCRelative) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kPCRelative);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kPCRelative);
 }
 
 TEST(TestCallBuiltinIndirect) {
-  TestCallJumpBuiltin(kCall, BuiltinCallJumpMode::kIndirect);
+  TestCallJumpBuiltin(CallJumpMode::kCall, BuiltinCallJumpMode::kIndirect);
 }
 
 TEST(TestTailCallBuiltinAbsolute) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kAbsolute);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall, BuiltinCallJumpMode::kAbsolute);
 }
 
 TEST(TestTailCallBuiltinPCRelative) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kPCRelative);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall,
+                      BuiltinCallJumpMode::kPCRelative);
 }
 
 TEST(TestTailCallBuiltinIndirect) {
-  TestCallJumpBuiltin(kTailCall, BuiltinCallJumpMode::kIndirect);
+  TestCallJumpBuiltin(CallJumpMode::kTailCall, BuiltinCallJumpMode::kIndirect);
 }
 
 TEST(InstructionSchedulingCallerSavedRegisters) {

@@ -2750,15 +2750,15 @@ void InstanceBuilder::SetTableInitialValues(
           isolate_);
       bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
       if (is_function_table &&
-          table.initial_value.kind() == ConstantExpression::kRefFunc) {
+          table.initial_value.kind() == ConstantExpression::Kind::kRefFunc) {
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
           SetFunctionTablePlaceholder(
               isolate_, maybe_shared_trusted_instance_data, table_object,
               entry_index, table.initial_value.index());
         }
-      } else if (is_function_table &&
-                 table.initial_value.kind() == ConstantExpression::kRefNull) {
+      } else if (is_function_table && table.initial_value.kind() ==
+                                          ConstantExpression::Kind::kRefNull) {
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
           SetFunctionTableNullEntry(isolate_, table_object, entry_index);

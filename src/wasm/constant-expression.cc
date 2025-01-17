@@ -21,7 +21,7 @@ namespace internal {
 namespace wasm {
 
 WireBytesRef ConstantExpression::wire_bytes_ref() const {
-  DCHECK_EQ(kind(), kWireBytesRef);
+  DCHECK_EQ(kind(), Kind::kWireBytesRef);
   return WireBytesRef(OffsetField::decode(bit_field_),
                       LengthField::decode(bit_field_));
 }
@@ -32,16 +32,16 @@ ValueOrError EvaluateConstantExpression(
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   switch (expr.kind()) {
-    case ConstantExpression::kEmpty:
+    case ConstantExpression::Kind::kEmpty:
       UNREACHABLE();
-    case ConstantExpression::kI32Const:
+    case ConstantExpression::Kind::kI32Const:
       return WasmValue(expr.i32_value());
-    case ConstantExpression::kRefNull:
+    case ConstantExpression::Kind::kRefNull:
       return WasmValue(expected.use_wasm_null()
                            ? Cast<Object>(isolate->factory()->wasm_null())
                            : Cast<Object>(isolate->factory()->null_value()),
                        ValueType::RefNull(expr.repr()), module);
-    case ConstantExpression::kRefFunc: {
+    case ConstantExpression::Kind::kRefFunc: {
       uint32_t index = expr.index();
       bool function_is_shared =
           module->type(module->functions[index].sig_index).is_shared;
@@ -52,7 +52,7 @@ ValueOrError EvaluateConstantExpression(
           index);
       return WasmValue(value, expected, module);
     }
-    case ConstantExpression::kWireBytesRef: {
+    case ConstantExpression::Kind::kWireBytesRef: {
       WireBytesRef ref = expr.wire_bytes_ref();
 
       base::Vector<const uint8_t> module_bytes =

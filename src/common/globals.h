@@ -2856,7 +2856,7 @@ class WasmCodePointer {
 
 constexpr uint64_t kInvalidWasmSignatureHash = ~uint64_t{0};
 
-enum CallJumpMode { kCall, kTailCall };
+enum class CallJumpMode { kCall, kTailCall };
 
 }  // namespace internal
 

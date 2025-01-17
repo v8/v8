@@ -594,7 +594,7 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreTransitionDH)                    \
   V(StoreInArrayLiteralIC_SlowStub)
 
-enum RuntimeCallCounterId {
+enum class RuntimeCallCounterId {
 #define CALL_RUNTIME_COUNTER(name) kGC_##name,
   FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
@@ -671,8 +671,9 @@ class RuntimeCallStats final {
     DCHECK(HasThreadSpecificCounterVariants(id));
     // All thread specific counters are laid out with the main thread variant
     // first followed by the background variant.
+    int idInt = static_cast<int>(id);
     return thread_type_ == kWorkerThread
-               ? static_cast<RuntimeCallCounterId>(id + 1)
+               ? static_cast<RuntimeCallCounterId>(idInt + 1)
                : id;
   }
 
