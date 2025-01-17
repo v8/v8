@@ -3342,8 +3342,9 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 
-void MacroAssembler::ResolveWasmCodePointer(Register target,
-                                            uint64_t signature_hash) {
+void MacroAssembler::CallWasmCodePointer(Register target,
+                                         uint64_t signature_hash,
+                                         CallJumpMode call_jump_mode) {
   ASM_CODE_COMMENT(this);
   Move(kScratchRegister, ExternalReference::wasm_code_pointer_table());
 
@@ -3373,21 +3374,16 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
   Abort(AbortReason::kWasmSignatureMismatch);
 
   bind(&ok);
-  movq(target, Operand{target, 0});
+  Operand target_op{target, 0};
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 8);
-  movq(target, Operand{kScratchRegister, target, ScaleFactor::times_8, 0});
+  Operand target_op{kScratchRegister, target, ScaleFactor::times_8, 0};
 #endif
-}
 
-void MacroAssembler::CallWasmCodePointer(Register target,
-                                         uint64_t signature_hash,
-                                         CallJumpMode call_jump_mode) {
-  ResolveWasmCodePointer(target, signature_hash);
   if (call_jump_mode == CallJumpMode::kTailCall) {
-    jmp(target);
+    jmp(target_op);
   } else {
-    call(target);
+    call(target_op);
   }
 }
 
