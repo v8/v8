@@ -110,6 +110,13 @@ let __callGC;
   };
 })();
 
+
+function __wrapTC(f) {
+  try {
+    return f();
+  } catch (e) {}
+}
+
 // Neuter common test functions.
 try { this.fail = nop; } catch(e) { }
 try { this.failWithMessage = nop; } catch(e) { }

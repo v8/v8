@@ -26,9 +26,7 @@ try {
 print("v8-foozzie source: v8/differential_fuzz/input1.js");
 
 // Original: v8/differential_fuzz/input1.js
-try {
-  var __v_0 = 0;
-} catch (e) {}
+var __v_0 = 0;
 
 try {
   /* DifferentialFuzzMutator: Pretty printing */
