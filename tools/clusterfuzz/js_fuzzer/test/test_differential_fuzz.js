@@ -16,6 +16,7 @@ const helpers = require('./helpers.js');
 const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
 const random = require('../random.js');
+const runner = require('../runner.js');
 
 const { DifferentialFuzzMutator, DifferentialFuzzSuppressions } = require(
     '../mutators/differential_fuzz_mutator.js');
@@ -189,5 +190,21 @@ describe('Differential fuzzing', () => {
       '--second-config-extra-flags=--fuzzilli-flag2',
     ];
     assert.deepEqual(expectedFlags, mutated.flags);
+  });
+
+  it('chooses fuzzilli runner', () => {
+    sandbox.stub(random, 'randInt').callsFake(() => 2);
+
+    const env = {
+      APP_DIR: 'test_data/differential_fuzz',
+      GENERATE: process.env.GENERATE,
+    };
+    sandbox.stub(process, 'env').value(env);
+
+    const mutator = new DifferentialScriptMutator(
+        this.settings, helpers.DB_DIR);
+
+    assert.deepEqual(
+        runner.RandomCorpusRunnerWithFuzzilli, mutator.runnerClass);
   });
 });

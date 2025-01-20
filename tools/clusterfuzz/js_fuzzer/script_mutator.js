@@ -77,9 +77,9 @@ class ScriptMutator {
    * Returns a runner class that decides the composition of tests from
    * different corpora.
    */
-  runnerClass() {
+  get runnerClass() {
     // Choose a setup with the Fuzzilli corpus with a 50% chance.
-    return random.choose(
+    return random.single(
         [runner.RandomCorpusRunner, runner.RandomCorpusRunnerWithFuzzilli]);
   }
 

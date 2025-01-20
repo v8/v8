@@ -14,6 +14,7 @@ const path = require('path');
 
 const common = require('./mutators/common.js');
 const random = require('./random.js');
+const runner = require('./runner.js');
 const sourceHelpers = require('./source_helpers.js');
 
 const { filterDifferentialFuzzFlags } = require('./exceptions.js');
@@ -93,9 +94,9 @@ class DifferentialScriptMutator extends ScriptMutator {
     this.additionalFlags = loadJSONFromBuild('v8_fuzz_flags.json');
   }
 
-  runnerClass() {
+  get runnerClass() {
     // Choose a setup with the Fuzzilli corpus in 1 of 3.
-    return random.choose([
+    return random.single([
         runner.RandomCorpusRunner,
         runner.RandomCorpusRunner,
         runner.RandomCorpusRunnerWithFuzzilli,
