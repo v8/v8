@@ -2373,6 +2373,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+  bool IsFrozen() const { return is_frozen_; }
+
+  void Freeze(bool is_frozen) {
+    is_frozen_ = is_frozen;
+    if (v8_flags.memory_reducer_respects_frozen_state && IsFrozen()) {
+      // We will either finalize an ongoing GC, or simply do a GC to reclaim
+      // any unreachable memory.
+      heap()->FinalizeIncrementalMarkingAtomically(
+          i::GarbageCollectionReason::kFrozen);
+      heap()->EnsureSweepingCompleted(
+          Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+    }
+  }
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
@@ -2869,6 +2883,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ThreadId current_thread_id_;
   int current_thread_counter_ = 0;
 #endif
+
+  bool is_frozen_ = false;
 
   friend class heap::HeapTester;
   friend class GlobalSafepoint;

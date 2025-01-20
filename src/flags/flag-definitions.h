@@ -2154,6 +2154,8 @@ DEFINE_BOOL_READONLY(verify_heap, false,
 DEFINE_BOOL(safepoint_bump_qos_class, false,
             "Bump QOS class for running threads to reach safepoint")
 #endif
+DEFINE_BOOL(memory_reducer_respects_frozen_state, false,
+            "don't schedule another GC when we are frozen")
 DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(memory_reducer_favors_memory, true,

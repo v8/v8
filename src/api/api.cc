@@ -10722,6 +10722,11 @@ void Isolate::SetIsLoading(bool is_loading) {
   i_isolate->SetIsLoading(is_loading);
 }
 
+void Isolate::Freeze(bool is_frozen) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->Freeze(is_frozen);
+}
+
 void Isolate::IncreaseHeapLimitForDebugging() {
   // No-op.
 }

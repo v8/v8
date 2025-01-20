@@ -1569,6 +1569,14 @@ class V8_EXPORT Isolate {
   void SetIsLoading(bool is_loading);
 
   /**
+   * Optional notification to tell V8 whether the embedder is currently frozen.
+   * V8 uses these notifications to guide heuristics.
+   * This is an unfinished experimental feature. Semantics and implementation
+   * may change frequently.
+   */
+  void Freeze(bool is_frozen);
+
+  /**
    * Optional notification to tell V8 the current isolate is used for debugging
    * and requires higher heap limit.
    */
