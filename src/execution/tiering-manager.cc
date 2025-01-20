@@ -208,6 +208,10 @@ int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
         case CachedTieringDecision::kNormal:
           return v8_flags.invocation_count_for_maglev * bytecode_length;
       }
+      // The enum value is coming from inside the sandbox and while the switch
+      // is exhaustive, it's not guaranteed that value is one of the declared
+      // values.
+      UNREACHABLE();
     }
     return v8_flags.invocation_count_for_maglev * bytecode_length;
   }
@@ -430,6 +434,9 @@ bool ShouldResetInterruptBudgetByICChange(
     case CachedTieringDecision::kNormal:
       return true;
   }
+  // The enum value is coming from inside the sandbox and while the switch is
+  // exhaustive, it's not guaranteed that value is one of the declared values.
+  UNREACHABLE();
 }
 
 }  // namespace
