@@ -1813,7 +1813,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 
 // Like BranchHint but for GotoIf/GotoIfNot.
-enum GotoHint : uint8_t {
+enum class GotoHint : uint8_t {
   kNone,
   kLabel,        // Jump to the given label.
   kFallthrough,  // Don't jump, fall through.
