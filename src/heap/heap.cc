@@ -5982,8 +5982,15 @@ void Heap::DetachCppHeap() {
     return;
   }
 
+  // The CppHeap may have been detached already.
+  if (!cpp_heap_) return;
+
   CppHeap::From(cpp_heap_)->DetachIsolate();
   cpp_heap_ = nullptr;
+}
+
+std::unique_ptr<v8::CppHeap> Heap::ReleaseCppHeapForTesting() {
+  return std::move(owning_cpp_heap_);
 }
 
 std::optional<StackState> Heap::overridden_stack_state() const {
@@ -6009,13 +6016,10 @@ const ::heap::base::Stack& Heap::stack() const {
 }
 
 void Heap::StartTearDown() {
-  if (owning_cpp_heap_) {
-    // Release the pointer. The non-owning pointer is still set which allows
-    // DetachCppHeap() to work properly.
-    auto* cpp_heap = owning_cpp_heap_.release();
-    DetachCppHeap();
-    // Termination will free up all managed C++ memory and invoke destructors.
-    cpp_heap->Terminate();
+  if (cpp_heap_) {
+    CppHeap::From(cpp_heap_)->DetachIsolate();
+    cpp_heap_ = nullptr;
+    owning_cpp_heap_.reset();
   }
 
   // Finish any ongoing sweeping to avoid stray background tasks still accessing

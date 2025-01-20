@@ -1190,6 +1190,16 @@ class V8_EXPORT Isolate {
   void DetachCppHeap();
 
   /**
+   * The `CppHeap` is typically owned by the isolate, and therefore gets
+   * terminated together with the isolate. However, for testing it may be more
+   * efficient to use the same `CppHeap` for multiple isolates.
+   * `ReleaseCppHeapForTesting` allows to take ownership of the `CppHeap` from
+   * the isolate so that the `CppHeap` does not terminate when the isolate
+   * terminates.
+   */
+  std::unique_ptr<CppHeap> ReleaseCppHeapForTesting();
+
+  /**
    * \returns the C++ heap managed by V8. Only available if such a heap has been
    *   attached using `AttachCppHeap()`.
    */

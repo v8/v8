@@ -9944,6 +9944,11 @@ void Isolate::DetachCppHeap() {
   i_isolate->heap()->DetachCppHeap();
 }
 
+std::unique_ptr<CppHeap> Isolate::ReleaseCppHeapForTesting() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  return i_isolate->heap()->ReleaseCppHeapForTesting();
+}
+
 CppHeap* Isolate::GetCppHeap() const {
   const i::Isolate* i_isolate = reinterpret_cast<const i::Isolate*>(this);
   return i_isolate->heap()->cpp_heap();

@@ -480,11 +480,18 @@ CppHeap::CppHeap(
 
 CppHeap::~CppHeap() {
   if (isolate_) {
+    // TODO(ahaas): Delete this code once `v8::Isolate::DetachCppHeap` has been
+    // deleted.
     isolate_->heap()->DetachCppHeap();
   }
+  Terminate();
 }
 
 void CppHeap::Terminate() {
+  // TODO(ahaas): Remove `already_terminated_` once the V8 API
+  // CppHeap::Terminate has been removed.
+  if (already_terminated_) return;
+  already_terminated_ = true;
   // Must not be attached to a heap when invoking termination GCs.
   CHECK(!isolate_);
   // Gracefully terminate the C++ heap invoking destructors.
