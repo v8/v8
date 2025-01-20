@@ -551,7 +551,7 @@ void IncrementalMarking::UpdateExternalPointerTableAfterScavenge() {
         // 1) Resolve object start from the marking bitmap. Note that it's safe
         //    since there is no black allocation for the young space (and hence
         //    no range or page marking).
-        // 2) Get a relocated object from the forwaring reference stored in the
+        // 2) Get a relocated object from the forwarding reference stored in the
         //    map.
         // 3) Compute offset from the original object start to the handle
         //    location.

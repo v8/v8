@@ -45,6 +45,7 @@ namespace internal {
   V(MarkOnAllocation)                       \
   V(MarkProcessBailOutObjects)              \
   V(MarkProcessMarkingWorklist)             \
+  V(MarkProcessRetraceWorklist)             \
   V(MarkProcessWriteBarrierWorklist)        \
   V(MarkProcessNotFullyconstructedWorklist) \
   V(MarkProcessEphemerons)                  \
@@ -73,7 +74,11 @@ namespace internal {
   V(ConcurrentSweep)                                 \
   V(ConcurrentWeakCallback)
 
-#define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V) V(ConcurrentMarkProcessEphemerons)
+#define CPPGC_FOR_ALL_CONCURRENT_SCOPES(V)            \
+  V(ConcurrentMarkProcessEphemeronWorklist)           \
+  V(ConcurrentMarkProcessMarkingWorklist)             \
+  V(ConcurrentMarkProcessNotFullyconstructedWorklist) \
+  V(ConcurrentMarkProcessWriteBarrierWorklist)
 
 // Sink for various time and memory statistics.
 class V8_EXPORT_PRIVATE StatsCollector final {

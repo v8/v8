@@ -119,8 +119,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool JoinConcurrentMarkingIfNeeded();
   void NotifyConcurrentMarkingOfWorkIfNeeded(cppgc::TaskPriority);
 
-  inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
-
   template <WriteBarrierType type>
   inline void WriteBarrierForObject(HeapObjectHeader&);
 
@@ -228,13 +226,37 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
   ConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
-void MarkerBase::WriteBarrierForInConstructionObject(HeapObjectHeader& header) {
-  mutator_marking_state_.not_fully_constructed_worklist()
-      .Push<AccessMode::kAtomic>(&header);
-}
-
 template <MarkerBase::WriteBarrierType type>
 void MarkerBase::WriteBarrierForObject(HeapObjectHeader& header) {
+  // The barrier optimizes for the bailout cases:
+  // - kDijkstra: Marked objects.
+  // - kSteele: Unmarked objects.
+  switch (type) {
+    case MarkerBase::WriteBarrierType::kDijkstra:
+      if (!header.TryMarkAtomic()) {
+        return;
+      }
+      break;
+    case MarkerBase::WriteBarrierType::kSteele:
+      if (!header.IsMarked<AccessMode::kAtomic>()) {
+        return;
+      }
+      break;
+  }
+
+  // The barrier fired. Filter out in-construction objects here. This possibly
+  // requires unmarking the object again.
+  if (V8_UNLIKELY(header.IsInConstruction<AccessMode::kNonAtomic>())) {
+    // In construction objects are traced only if they are unmarked. If marking
+    // reaches this object again when it is fully constructed, it will re-mark
+    // it and tracing it as a previously not fully constructed object would know
+    // to bail out.
+    header.Unmark<AccessMode::kAtomic>();
+    mutator_marking_state_.not_fully_constructed_worklist()
+        .Push<AccessMode::kAtomic>(&header);
+    return;
+  }
+
   switch (type) {
     case MarkerBase::WriteBarrierType::kDijkstra:
       mutator_marking_state_.write_barrier_worklist().Push(&header);

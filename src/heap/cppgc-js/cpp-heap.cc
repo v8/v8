@@ -870,12 +870,9 @@ void CppHeap::ReEnableConcurrentMarking() {
 }
 
 void CppHeap::WriteBarrier(void* object) {
-  isolate()
-      ->heap()
-      ->mark_compact_collector()
-      ->local_marking_worklists()
-      ->cpp_marking_state()
-      ->MarkAndPush(object);
+  auto& header = cppgc::internal::HeapObjectHeader::FromObject(object);
+  marker_->WriteBarrierForObject<
+      cppgc::internal::MarkerBase::WriteBarrierType::kDijkstra>(header);
 }
 
 namespace {
