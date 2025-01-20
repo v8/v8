@@ -192,17 +192,17 @@ class StandardRunnerTest(TestRunnerTest):
           infra_staging=False,
       )
 
-      self.assertEquals(len(records), 3)
-      self.assertEquals(records[0]['testId'], 'sweet/bananaflakes//stress')
-      self.assertEquals(tag_dict(records[0]['tags'])['run'], '1')
+      self.assertEqual(len(records), 3)
+      self.assertEqual(records[0]['testId'], 'sweet/bananaflakes//stress')
+      self.assertEqual(tag_dict(records[0]['tags'])['run'], '1')
       self.assertFalse(records[0]['expected'])
 
-      self.assertEquals(records[1]['testId'], 'sweet/bananaflakes//stress')
-      self.assertEquals(tag_dict(records[1]['tags'])['run'], '2')
+      self.assertEqual(records[1]['testId'], 'sweet/bananaflakes//stress')
+      self.assertEqual(tag_dict(records[1]['tags'])['run'], '2')
       self.assertTrue(records[1]['expected'])
 
-      self.assertEquals(records[2]['testId'], 'sweet/bananaflakes//default')
-      self.assertEquals(tag_dict(records[2]['tags'])['run'], '1')
+      self.assertEqual(records[2]['testId'], 'sweet/bananaflakes//default')
+      self.assertEqual(tag_dict(records[2]['tags'])['run'], '1')
       self.assertTrue(records[2]['expected'])
 
   def testFlakeWithRerunAndJSON(self):
