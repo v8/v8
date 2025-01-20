@@ -7918,11 +7918,11 @@ namespace {
 // OrderedNameDictionary::Add returns MaybeHandle, NameDictionary::Add returns
 // Handle.
 template <typename T>
-i::Handle<T> ToHandle(i::Handle<T> h) {
+i::DirectHandle<T> ToHandle(i::Handle<T> h) {
   return h;
 }
 template <typename T>
-i::Handle<T> ToHandle(i::MaybeHandle<T> h) {
+i::DirectHandle<T> ToHandle(i::MaybeHandle<T> h) {
   return h.ToHandleChecked();
 }
 
@@ -8639,9 +8639,9 @@ enum class SetAsArrayKind {
   kValues = i::JS_SET_VALUE_ITERATOR_TYPE
 };
 
-i::Handle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
-                                 i::Tagged<i::Object> table_obj, int offset,
-                                 MapAsArrayKind kind) {
+i::DirectHandle<i::JSArray> MapAsArray(i::Isolate* i_isolate,
+                                       i::Tagged<i::Object> table_obj,
+                                       int offset, MapAsArrayKind kind) {
   i::Factory* factory = i_isolate->factory();
   i::DirectHandle<i::OrderedHashMap> table(
       i::Cast<i::OrderedHashMap>(table_obj), i_isolate);
@@ -8744,9 +8744,9 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
 }
 
 namespace {
-i::Handle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
-                                 i::Tagged<i::Object> table_obj, int offset,
-                                 SetAsArrayKind kind) {
+i::DirectHandle<i::JSArray> SetAsArray(i::Isolate* i_isolate,
+                                       i::Tagged<i::Object> table_obj,
+                                       int offset, SetAsArrayKind kind) {
   i::Factory* factory = i_isolate->factory();
   i::DirectHandle<i::OrderedHashSet> table(
       i::Cast<i::OrderedHashSet>(table_obj), i_isolate);
@@ -9054,7 +9054,7 @@ Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
 #if V8_ENABLE_WEBASSEMBLY
   CHECK(i::v8_flags.experimental_wasm_memory_control);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::WasmMemoryMapDescriptor> result =
+  i::DirectHandle<i::WasmMemoryMapDescriptor> result =
       i::WasmMemoryMapDescriptor::NewFromFileDescriptor(i_isolate, fd);
   return Utils::ToLocal(result);
 #else

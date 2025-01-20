@@ -663,7 +663,7 @@ void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
   SimulatorStack::UnregisterJSStackComparableAddress(this);
 }
 
-Handle<String> Isolate::StackTraceString() {
+DirectHandle<String> Isolate::StackTraceString() {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;
     HeapStringAllocator allocator;
@@ -671,7 +671,7 @@ Handle<String> Isolate::StackTraceString() {
     StringStream accumulator(&allocator);
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
-    Handle<String> stack_trace = accumulator.ToString(this);
+    DirectHandle<String> stack_trace = accumulator.ToString(this);
     incomplete_message_ = nullptr;
     stack_trace_nesting_level_ = 0;
     return stack_trace;
@@ -825,7 +825,7 @@ MaybeHandle<JSGeneratorObject> TryGetAsyncGenerator(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-MaybeHandle<WasmSuspenderObject> TryGetWasmSuspender(
+MaybeDirectHandle<WasmSuspenderObject> TryGetWasmSuspender(
     Isolate* isolate, Tagged<HeapObject> handler) {
   // Check if the {handler} is WasmResume.
   if (IsBuiltinFunction(isolate, handler, Builtin::kWasmResume)) {
@@ -833,10 +833,10 @@ MaybeHandle<WasmSuspenderObject> TryGetWasmSuspender(
     // the JSGeneratorObject for the async function.
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(handler)->shared();
     if (shared->HasWasmResumeData()) {
-      return handle(shared->wasm_resume_data()->suspender(), isolate);
+      return direct_handle(shared->wasm_resume_data()->suspender(), isolate);
     }
   }
-  return MaybeHandle<WasmSuspenderObject>();
+  return MaybeDirectHandle<WasmSuspenderObject>();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1259,7 +1259,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
   }
 }
 
-MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
+MaybeDirectHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
   Handle<Object> current_microtask = isolate->factory()->current_microtask();
   if (IsPromiseReactionJobTask(*current_microtask)) {
     auto promise_reaction_job_task =
@@ -1281,7 +1281,8 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
         if (IsJSAsyncFunctionObject(*generator_object)) {
           auto async_function_object =
               Cast<JSAsyncFunctionObject>(generator_object);
-          Handle<JSPromise> promise(async_function_object->promise(), isolate);
+          DirectHandle<JSPromise> promise(async_function_object->promise(),
+                                          isolate);
           return promise;
         } else {
           auto async_generator_object =
@@ -1289,7 +1290,7 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
           DirectHandle<Object> queue(async_generator_object->queue(), isolate);
           if (!IsUndefined(*queue, isolate)) {
             auto async_generator_request = Cast<AsyncGeneratorRequest>(queue);
-            Handle<JSPromise> promise(
+            DirectHandle<JSPromise> promise(
                 Cast<JSPromise>(async_generator_request->promise()), isolate);
             return promise;
           }
@@ -1301,7 +1302,7 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
       if (TryGetWasmSuspender(isolate, promise_reaction_job_task->handler())
               .ToHandle(&suspender)) {
         // The {promise_reaction_job_task} belongs to a suspended Wasm stack
-        return handle(suspender->promise(), isolate);
+        return direct_handle(suspender->promise(), isolate);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1309,15 +1310,16 @@ MaybeHandle<JSPromise> TryGetCurrentTaskPromise(Isolate* isolate) {
       // yield inside an async generator) or a suspended Wasm stack,
       // but we might still be able to find an async frame if we follow
       // along the chain of promises on the {promise_reaction_job_task}.
-      Handle<HeapObject> promise_or_capability(
+      DirectHandle<HeapObject> promise_or_capability(
           promise_reaction_job_task->promise_or_capability(), isolate);
       if (IsJSPromise(*promise_or_capability)) {
-        Handle<JSPromise> promise = Cast<JSPromise>(promise_or_capability);
+        DirectHandle<JSPromise> promise =
+            Cast<JSPromise>(promise_or_capability);
         return promise;
       }
     }
   }
-  return MaybeHandle<JSPromise>();
+  return MaybeDirectHandle<JSPromise>();
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
@@ -1409,7 +1411,7 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
   return stack_trace;
 }
 
-Handle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
+DirectHandle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
     Isolate* isolate, DirectHandle<FixedArray> call_site_infos, int limit) {
   auto frames = isolate->factory()->NewFixedArray(
       std::min(limit, call_site_infos->length()));
@@ -1438,8 +1440,9 @@ Handle<StackTraceInfo> GetDetailedStackTraceFromCallSiteInfos(
 
 }  // namespace
 
-MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
-    Handle<JSObject> error_object, FrameSkipMode mode, Handle<Object> caller) {
+MaybeDirectHandle<JSObject> Isolate::CaptureAndSetErrorStack(
+    DirectHandle<JSObject> error_object, FrameSkipMode mode,
+    Handle<Object> caller) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   Handle<UnionOf<Undefined, FixedArray>> call_site_infos_or_formatted_stack =
       factory()->undefined_value();
@@ -1610,7 +1613,7 @@ class StackFrameBuilder {
 
 }  // namespace
 
-Handle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
+DirectHandle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
     int limit, StackTrace::StackTraceOptions options) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
@@ -1675,7 +1678,7 @@ class CurrentScriptStackVisitor {
     return false;
   }
 
-  MaybeHandle<Script> CurrentScript() const { return current_script_; }
+  MaybeDirectHandle<Script> CurrentScript() const { return current_script_; }
 
  private:
   MaybeHandle<Script> current_script_;
@@ -1683,22 +1686,22 @@ class CurrentScriptStackVisitor {
 
 }  // namespace
 
-Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
+DirectHandle<String> Isolate::CurrentScriptNameOrSourceURL() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
 }
 
-MaybeHandle<Script> Isolate::CurrentReferrerScript() {
+MaybeDirectHandle<Script> Isolate::CurrentReferrerScript() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptStackVisitor visitor{};
   VisitStack(this, &visitor);
   DirectHandle<Script> script;
   if (!visitor.CurrentScript().ToHandle(&script)) {
-    return MaybeHandle<Script>();
+    return MaybeDirectHandle<Script>();
   }
-  return handle(script->GetEvalOrigin(), this);
+  return direct_handle(script->GetEvalOrigin(), this);
 }
 
 bool Isolate::GetStackTraceLimit(Isolate* isolate, int* result) {
@@ -1776,7 +1779,7 @@ void Isolate::SetFailedAccessCheckCallback(
   thread_local_top()->failed_access_check_callback_ = callback;
 }
 
-MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
+MaybeDirectHandle<Object> Isolate::ReportFailedAccessCheck(
     DirectHandle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
     THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess));
@@ -2041,9 +2044,10 @@ void ReportBootstrappingException(DirectHandle<Object> exception,
 
 }  // anonymous namespace
 
-Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
+DirectHandle<JSMessageObject> Isolate::CreateMessageOrAbort(
     DirectHandle<Object> exception, MessageLocation* location) {
-  Handle<JSMessageObject> message_obj = CreateMessage(exception, location);
+  DirectHandle<JSMessageObject> message_obj =
+      CreateMessage(exception, location);
 
   // If the abort-on-uncaught-exception flag is specified, and if the
   // embedder didn't specify a custom uncaught exception callback,
@@ -4853,7 +4857,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
     UNREACHABLE();
   }
 
-  // There were no crossings of "C++ -> Api callback" bondary or they
+  // There were no crossings of "C++ -> Api callback" boundary or they
   // happened before crossing the "C++ -> JS" boundary.
   // In this case all the data about Api callback is available in the
   // topmost "JS -> Api callback" frame (ApiCallbackExitFrame or
@@ -6238,7 +6242,7 @@ void Isolate::UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(
 
   // We can have a custom @@toPrimitive on a string wrapper also if we subclass
   // String and the subclass (or one of its subclasses) defines its own
-  // @@toPrimive. Thus we invalidate the protector whenever we detect
+  // @@toPrimitive. Thus we invalidate the protector whenever we detect
   // subclassing String - it should be reasonably rare.
   if (IsStringWrapper(*object) || IsStringWrapper(*new_prototype)) {
     Protectors::InvalidateStringWrapperToPrimitive(this);
@@ -6293,13 +6297,14 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
-                                  Handle<String> name, bool private_symbol) {
+DirectHandle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
+                                        Handle<String> name,
+                                        bool private_symbol) {
   DirectHandle<String> key = factory()->InternalizeString(name);
   Handle<RegisteredSymbolTable> dictionary =
       Cast<RegisteredSymbolTable>(root_handle(dictionary_index));
   InternalIndex entry = dictionary->FindEntry(this, key);
-  Handle<Symbol> symbol;
+  DirectHandle<Symbol> symbol;
   if (entry.is_not_found()) {
     symbol =
         private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
@@ -6321,7 +6326,8 @@ Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
         UNREACHABLE();
     }
   } else {
-    symbol = Handle<Symbol>(Cast<Symbol>(dictionary->ValueAt(entry)), this);
+    symbol =
+        DirectHandle<Symbol>(Cast<Symbol>(dictionary->ValueAt(entry)), this);
   }
   return symbol;
 }
@@ -6437,7 +6443,7 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
+MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeDirectHandle<Script> maybe_referrer, Handle<Object> specifier,
     ModuleImportPhase phase,
     MaybeDirectHandle<Object> maybe_import_options_argument) {
@@ -6453,7 +6459,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   MaybeDirectHandle<String> maybe_specifier = Object::ToString(this, specifier);
   if (!maybe_specifier.ToHandle(&specifier_str)) {
     if (is_execution_terminating()) {
-      return MaybeHandle<JSPromise>();
+      return MaybeDirectHandle<JSPromise>();
     }
     DirectHandle<Object> exception(this->exception(), this);
     clear_exception();
@@ -6466,7 +6472,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   if (!GetImportAttributesFromArgument(maybe_import_options_argument)
            .ToHandle(&import_attributes_array)) {
     if (is_execution_terminating()) {
-      return MaybeHandle<JSPromise>();
+      return MaybeDirectHandle<JSPromise>();
     }
     DirectHandle<Object> exception(this->exception(), this);
     clear_exception();
@@ -6495,7 +6501,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
               v8::Utils::ToLocal(resource_name),
               v8::Utils::ToLocal(specifier_str),
               ToApiHandle<v8::FixedArray>(import_attributes_array)),
-          MaybeHandle<JSPromise>());
+          MaybeDirectHandle<JSPromise>());
       break;
     case ModuleImportPhase::kSource:
       CHECK(v8_flags.js_source_phase_imports);
@@ -6507,18 +6513,19 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
               v8::Utils::ToLocal(resource_name),
               v8::Utils::ToLocal(specifier_str), phase,
               ToApiHandle<v8::FixedArray>(import_attributes_array)),
-          MaybeHandle<JSPromise>());
+          MaybeDirectHandle<JSPromise>());
       break;
     default:
       UNREACHABLE();
   }
 
-  return v8::Utils::OpenHandle(*promise);
+  return v8::Utils::OpenDirectHandle(*promise);
 }
 
-MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
+MaybeDirectHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
     MaybeDirectHandle<Object> maybe_import_options_argument) {
-  Handle<FixedArray> import_attributes_array = factory()->empty_fixed_array();
+  DirectHandle<FixedArray> import_attributes_array =
+      factory()->empty_fixed_array();
   DirectHandle<Object> import_options_argument;
   if (!maybe_import_options_argument.ToHandle(&import_options_argument) ||
       IsUndefined(*import_options_argument)) {
@@ -6532,7 +6539,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   if (!IsJSReceiver(*import_options_argument)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectImportArgument));
-    return MaybeHandle<FixedArray>();
+    return MaybeDirectHandle<FixedArray>();
   }
 
   DirectHandle<JSReceiver> import_options_argument_receiver =
@@ -6547,7 +6554,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
              .ToHandle(&import_attributes_object)) {
       // This can happen if the property has a getter function that throws
       // an error.
-      return MaybeHandle<FixedArray>();
+      return MaybeDirectHandle<FixedArray>();
     }
   }
 
@@ -6558,7 +6565,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   if (!IsJSReceiver(*import_attributes_object)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectAttributesOption));
-    return MaybeHandle<FixedArray>();
+    return MaybeDirectHandle<FixedArray>();
   }
 
   DirectHandle<JSReceiver> import_attributes_object_receiver =
@@ -6571,7 +6578,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
            .ToHandle(&attribute_keys)) {
     // This happens if the attributes object is a Proxy whose ownKeys() or
     // getOwnPropertyDescriptor() trap throws.
-    return MaybeHandle<FixedArray>();
+    return MaybeDirectHandle<FixedArray>();
   }
 
   bool has_non_string_attribute = false;
@@ -6590,7 +6597,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
              .ToHandle(&attribute_value)) {
       // This can happen if the property has a getter function that throws
       // an error.
-      return MaybeHandle<FixedArray>();
+      return MaybeDirectHandle<FixedArray>();
     }
 
     if (!IsString(*attribute_value)) {
@@ -6606,7 +6613,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAttributesFromArgument(
   if (has_non_string_attribute) {
     this->Throw(*factory()->NewTypeError(
         MessageTemplate::kNonStringImportAttributeValue));
-    return MaybeHandle<FixedArray>();
+    return MaybeDirectHandle<FixedArray>();
   }
 
   return import_attributes_array;
@@ -6648,7 +6655,8 @@ void Isolate::SetHostCreateShadowRealmContextCallback(
   host_create_shadow_realm_context_callback_ = callback;
 }
 
-MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
+MaybeDirectHandle<NativeContext>
+Isolate::RunHostCreateShadowRealmContextCallback() {
   if (host_create_shadow_realm_context_callback_ == nullptr) {
     DirectHandle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
@@ -6661,9 +6669,9 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
   API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       this, shadow_realm_context,
       host_create_shadow_realm_context_callback_(api_context),
-      MaybeHandle<NativeContext>());
-  Handle<Context> shadow_realm_context_handle =
-      v8::Utils::OpenHandle(*shadow_realm_context);
+      MaybeDirectHandle<NativeContext>());
+  DirectHandle<Context> shadow_realm_context_handle =
+      v8::Utils::OpenDirectHandle(*shadow_realm_context);
   DCHECK(IsNativeContext(*shadow_realm_context_handle));
   shadow_realm_context_handle->set_scope_info(
       ReadOnlyRoots(this).shadow_realm_scope_info());

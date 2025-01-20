@@ -64,7 +64,7 @@ class IC {
 
   static inline bool IsHandler(Tagged<MaybeObject> object);
 
-  // Nofity the IC system that a feedback has changed.
+  // Notify the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                                 FeedbackSlot slot, const char* reason);
 
@@ -220,8 +220,8 @@ class LoadGlobalIC : public LoadIC {
                FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<Name> name,
-                                                 bool update_feedback = true);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Load(
+      Handle<Name> name, bool update_feedback = true);
 };
 
 class KeyedLoadIC : public LoadIC {
@@ -230,8 +230,8 @@ class KeyedLoadIC : public LoadIC {
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(Handle<JSAny> object,
-                                                 Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Load(Handle<JSAny> object,
+                                                       Handle<Object> key);
 
  protected:
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
@@ -294,8 +294,8 @@ class StoreGlobalIC : public StoreIC {
                 FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
-                                                  Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(Handle<Name> name,
+                                                        Handle<Object> value);
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
@@ -318,9 +318,9 @@ class KeyedStoreIC : public StoreIC {
                FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<JSAny> object,
-                                                  Handle<Object> name,
-                                                  Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(Handle<JSAny> object,
+                                                        Handle<Object> name,
+                                                        Handle<Object> value);
 
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,
@@ -328,8 +328,8 @@ class KeyedStoreIC : public StoreIC {
                           Handle<Map> new_receiver_map);
 
  private:
-  Handle<Map> ComputeTransitionedMap(Handle<Map> map,
-                                     TransitionMode transition_mode);
+  DirectHandle<Map> ComputeTransitionedMap(Handle<Map> map,
+                                           TransitionMode transition_mode);
 
   Handle<Object> StoreElementHandler(DirectHandle<Map> receiver_map,
                                      KeyedAccessStoreMode store_mode,
@@ -352,8 +352,9 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 
-  MaybeHandle<Object> Store(DirectHandle<JSArray> array, Handle<Object> index,
-                            Handle<Object> value);
+  MaybeDirectHandle<Object> Store(DirectHandle<JSArray> array,
+                                  Handle<Object> index,
+                                  DirectHandle<Object> value);
 };
 
 }  // namespace internal

@@ -215,9 +215,9 @@ class JSAtomicsMutex
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
 
-  static Handle<JSObject> CreateResultObject(Isolate* isolate,
-                                             DirectHandle<Object> value,
-                                             bool success);
+  static DirectHandle<JSObject> CreateResultObject(Isolate* isolate,
+                                                   DirectHandle<Object> value,
+                                                   bool success);
 
   // Lock the mutex, blocking if it's currently owned by another thread.
   // Returns false if the lock times out, true otherwise.
@@ -240,13 +240,13 @@ class JSAtomicsMutex
   // A wrapper for LockAsync called when an asyncWait call returns control
   // to the lockAsync callback. It calls `LockAsync` without setting all the
   // logic to run the callback, since the callback is already running.
-  static Handle<JSPromise> LockAsyncWrapperForWait(
+  static DirectHandle<JSPromise> LockAsyncWrapperForWait(
       Isolate* requester, DirectHandle<JSAtomicsMutex> mutex);
 
   // Try to take the lock and set up the promise logic to asynchronously run
   // the callback under the lock. Always returns a promise that settles when the
   // promise is unlocked or times out.
-  static MaybeHandle<JSPromise> LockOrEnqueuePromise(
+  static MaybeDirectHandle<JSPromise> LockOrEnqueuePromise(
       Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
       DirectHandle<Object> callback, std::optional<base::TimeDelta> timeout);
 
@@ -282,7 +282,7 @@ class JSAtomicsMutex
     // The isolate keeps track of WaiterQueueNodes for each mutex locked
     // asynchronously, this is so that the lock can be released in case worker
     // termination. The kAsyncLockedWaiterAsyncContextSlot slot is used to store
-    // a Foreign wrapping aroung and ExternalPointerHandle (or raw
+    // a Foreign wrapping around an ExternalPointerHandle (or raw
     // pointer when pointer compression is disabled) pointing to the
     // WaiterQueueNode so that it can be removed from the list when the lock is
     // released through the usual path.
@@ -410,7 +410,7 @@ class JSAtomicsCondition
                                         DirectHandle<JSAtomicsMutex> mutex,
                                         std::optional<base::TimeDelta> timeout);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<JSReceiver> WaitAsync(
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<JSReceiver> WaitAsync(
       Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
       DirectHandle<JSAtomicsMutex> mutex,
       std::optional<base::TimeDelta> timeout);

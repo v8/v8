@@ -58,7 +58,7 @@ class MemoryMeasurementResultBuilder final {
     AddProperty(result_, factory_->NewStringFromAsciiChecked("WebAssembly"),
                 wasm);
   }
-  Handle<JSObject> Build() {
+  DirectHandle<JSObject> Build() {
     if (detailed_) {
       int length = static_cast<int>(other_.size());
       DirectHandle<FixedArray> other = factory_->NewFixedArray(length);
@@ -81,13 +81,13 @@ class MemoryMeasurementResultBuilder final {
     AddProperty(result, factory_->jsMemoryRange_string(), range);
     return result;
   }
-  Handle<Object> NewNumber(size_t value) {
+  DirectHandle<Object> NewNumber(size_t value) {
     return factory_->NewNumberFromSize(value);
   }
   Handle<JSObject> NewJSObject() {
     return factory_->NewJSObject(isolate_->object_function());
   }
-  Handle<JSArray> NewRange(size_t lower_bound, size_t upper_bound) {
+  DirectHandle<JSArray> NewRange(size_t lower_bound, size_t upper_bound) {
     DirectHandle<Object> lower = NewNumber(lower_bound);
     DirectHandle<Object> upper = NewNumber(upper_bound);
     DirectHandle<FixedArray> elements = factory_->NewFixedArray(2);

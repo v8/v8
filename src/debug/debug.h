@@ -274,7 +274,7 @@ class V8_EXPORT_PRIVATE Debug {
   void Break(JavaScriptFrame* frame, DirectHandle<JSFunction> break_target);
 
   // Scripts handling.
-  Handle<FixedArray> GetLoadedScripts();
+  DirectHandle<FixedArray> GetLoadedScripts();
 
   // DebugInfo accessors.
   std::optional<Tagged<DebugInfo>> TryGetDebugInfo(
@@ -371,10 +371,10 @@ class V8_EXPORT_PRIVATE Debug {
       Handle<Script> script, int start_position, int end_position,
       std::vector<Handle<SharedFunctionInfo>>* candidates);
 
-  MaybeHandle<SharedFunctionInfo> GetTopLevelWithRecompile(
+  MaybeDirectHandle<SharedFunctionInfo> GetTopLevelWithRecompile(
       Handle<Script> script, bool* did_compile = nullptr);
 
-  static Handle<Object> GetSourceBreakLocations(
+  static DirectHandle<Object> GetSourceBreakLocations(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
   // Check whether this frame is just about to return.
@@ -564,7 +564,7 @@ class V8_EXPORT_PRIVATE Debug {
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points);
-  MaybeHandle<FixedArray> CheckBreakPointsForLocations(
+  MaybeDirectHandle<FixedArray> CheckBreakPointsForLocations(
       Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
       bool* has_break_points);
 
@@ -724,7 +724,7 @@ class V8_EXPORT_PRIVATE Debug {
   friend class LiveEdit;
   friend class SuppressDebug;
 
-  friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend DirectHandle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded();               // In test-debug.cc
 };
 

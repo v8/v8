@@ -804,9 +804,9 @@ Tagged<ScopeInfo> FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
 #endif
 
 // For sloppy eval we need to know the ScopeInfo the eval was compiled in and
-// re-use it when we compile the new version of the script.
-MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
-                                               DirectHandle<Script> script) {
+// reuse it when we compile the new version of the script.
+MaybeDirectHandle<ScopeInfo> DetermineOuterScopeInfo(
+    Isolate* isolate, DirectHandle<Script> script) {
   if (!script->has_eval_from_shared()) return kNullMaybeHandle;
   DCHECK_EQ(script->compilation_type(), Script::CompilationType::kEval);
   Tagged<ScopeInfo> scope_info = script->eval_from_shared()->scope_info();
@@ -819,7 +819,7 @@ MaybeHandle<ScopeInfo> DetermineOuterScopeInfo(Isolate* isolate,
       DCHECK_IMPLIES(!other_scope_info.is_null(),
                      scope_info == other_scope_info);
 #endif
-      return handle(scope_info, isolate);
+      return direct_handle(scope_info, isolate);
     } else if (!scope_info->HasOuterScopeInfo()) {
       break;
     }

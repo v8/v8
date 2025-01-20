@@ -94,7 +94,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Does this scope has class brand (for private methods)? If it's a class
   // scope, this indicates whether the class has a private brand. If it's a
-  // constructor scope, this indicates whther it needs to initialize the
+  // constructor scope, this indicates whether it needs to initialize the
   // brand.
   bool ClassScopeHasPrivateBrand() const;
 
@@ -157,8 +157,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   template <typename ScopeInfoPtr>
   class LocalNamesRange;
 
-  static inline LocalNamesRange<Handle<ScopeInfo>> IterateLocalNames(
-      Handle<ScopeInfo> scope_info);
+  static inline LocalNamesRange<DirectHandle<ScopeInfo>> IterateLocalNames(
+      DirectHandle<ScopeInfo> scope_info);
 
   static inline LocalNamesRange<Tagged<ScopeInfo>> IterateLocalNames(
       Tagged<ScopeInfo> scope_info, const DisallowGarbageCollection& no_gc);
@@ -264,13 +264,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                   MaybeDirectHandle<ScopeInfo> outer_scope);
-  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForWithScope(
+  V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope);
-  V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
+  V8_EXPORT_PRIVATE static DirectHandle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
-  static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
-  static Handle<ScopeInfo> CreateForShadowRealmNativeContext(Isolate* isolate);
-  static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
+  static DirectHandle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
+  static DirectHandle<ScopeInfo> CreateForShadowRealmNativeContext(
+      Isolate* isolate);
+  static DirectHandle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);

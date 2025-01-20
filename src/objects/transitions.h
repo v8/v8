@@ -440,7 +440,7 @@ class TransitionArray : public WeakFixedArray {
   static bool CompactPrototypeTransitionArray(Isolate* isolate,
                                               Tagged<WeakFixedArray> array);
 
-  static Handle<WeakFixedArray> GrowPrototypeTransitionArray(
+  static DirectHandle<WeakFixedArray> GrowPrototypeTransitionArray(
       DirectHandle<WeakFixedArray> array, int new_capacity, Isolate* isolate);
 
   // Compares two tuples <key, kind, attributes>, returns -1 if

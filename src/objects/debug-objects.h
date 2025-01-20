@@ -86,9 +86,9 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
                             int source_position,
                             DirectHandle<BreakPoint> break_point);
   // Get the break point objects for a source position.
-  Handle<Object> GetBreakPoints(Isolate* isolate, int source_position);
+  DirectHandle<Object> GetBreakPoints(Isolate* isolate, int source_position);
   // Find the break point info holding this break point object.
-  static Handle<Object> FindBreakPointInfo(
+  static DirectHandle<Object> FindBreakPointInfo(
       Isolate* isolate, DirectHandle<DebugInfo> debug_info,
       DirectHandle<BreakPoint> break_point);
   // Get the number of break points for this function.
@@ -164,7 +164,7 @@ class BreakPointInfo
   static bool HasBreakPoint(Isolate* isolate, DirectHandle<BreakPointInfo> info,
                             DirectHandle<BreakPoint> break_point);
   // Check if break point info has break point with this id.
-  static MaybeHandle<BreakPoint> GetBreakPointById(
+  static MaybeDirectHandle<BreakPoint> GetBreakPointById(
       Isolate* isolate, DirectHandle<BreakPointInfo> info, int breakpoint_id);
   // Get the number of break points for this code offset.
   int GetBreakPointCount(Isolate* isolate);

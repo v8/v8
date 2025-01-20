@@ -276,7 +276,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<Object> snapshot) {
   STACK_CHECK(isolate_, false);
   DCHECK(IsCallable(*reviver_));
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result,
       InternalizeJsonProperty<with_source>(holder, name, val_node, snapshot),
@@ -365,27 +365,27 @@ MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
   Factory* factory = this->factory();
   arg = factory->LookupSingleCharacterStringFromCode(*cursor_);
   int origin_source_length = original_source_->length();
-  // only provide context for strings with at least
-  // kMinOriginalSourceLengthForContext charcacters in length
+  // Only provide context for strings with at least
+  // kMinOriginalSourceLengthForContext characters in length.
   if (origin_source_length >= kMinOriginalSourceLengthForContext) {
     int substring_start = 0;
     int substring_end = origin_source_length;
     if (pos < kMaxContextCharacters) {
       message =
           MessageTemplate::kJsonParseUnexpectedTokenStartStringWithContext;
-      // Output the string followed by elipses
+      // Output the string followed by ellipses.
       substring_end = pos + kMaxContextCharacters;
     } else if (pos >= kMaxContextCharacters &&
                pos < origin_source_length - kMaxContextCharacters) {
       message =
           MessageTemplate::kJsonParseUnexpectedTokenSurroundStringWithContext;
       // Add context before and after position of bad token surrounded by
-      // elipses
+      // ellipses.
       substring_start = pos - kMaxContextCharacters;
       substring_end = pos + kMaxContextCharacters;
     } else {
       message = MessageTemplate::kJsonParseUnexpectedTokenEndStringWithContext;
-      // Add ellipses followed by some context before bad token
+      // Add ellipses followed by some context before bad token.
       substring_start = pos - kMaxContextCharacters;
     }
     arg2 =
@@ -393,7 +393,7 @@ MessageTemplate JsonParser<Char>::GetErrorMessageWithEllipses(
   } else {
     arg2 = original_source_;
     // Output the entire string without ellipses but provide the token which
-    // was unexpected
+    // was unexpected.
     message = MessageTemplate::kJsonParseUnexpectedTokenShortString;
   }
   return message;
@@ -550,8 +550,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(DirectHandle<Object> reviver) {
   return result;
 }
 
-MaybeHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
-                                            Handle<String> key);
+MaybeDirectHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
+                                                  Handle<String> key);
 
 namespace {
 template <typename Char>
@@ -723,10 +723,10 @@ class FoldedMutableHeapNumberAllocator {
 //   2. When given a property key, it looks for whether there is exactly one
 //      transition away from the current map ("ExpectedTransition").
 //      The expected key is passed as a hint to the current property key
-//      getter, for e.g. faster internalised string materialisation.
+//      getter, for e.g. faster internalized string materialization.
 //   3. Otherwise, it searches for whether there is any transition in the
 //      current map that matches the key.
-//   4. For all of the above, it checks whether the field represntation of the
+//   4. For all of the above, it checks whether the field representation of the
 //      found map matches the representation of the value. If it doesn't, it
 //      migrates the map, potentially deprecating it too.
 //   5. If there is no transition, it tries to allocate a new map transition,
@@ -792,7 +792,7 @@ class JSDataObjectBuilder {
       }
     }
 
-    Handle<FixedArrayBase> elements;
+    DirectHandle<FixedArrayBase> elements;
     if (!maybe_elements.ToHandle(&elements)) {
       elements = isolate_->factory()->empty_fixed_array();
     }
@@ -800,7 +800,7 @@ class JSDataObjectBuilder {
 
     // Slow path: define remaining named properties.
     for (; !it.Done(); it.Advance()) {
-      Handle<String> key;
+      DirectHandle<String> key;
       if (!failed_property_add_key.is_null()) {
         key = std::exchange(failed_property_add_key, {});
       } else {
@@ -1222,7 +1222,7 @@ class NamedPropertyValueIterator {
     return *this;
   }
 
-  Handle<Object> operator*() { return it_->value; }
+  DirectHandle<Object> operator*() { return it_->value; }
 
   bool operator!=(const NamedPropertyValueIterator& other) const {
     return it_ != other.it_;
@@ -1876,10 +1876,10 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                 ObjectTwoHashTable::New(isolate(), num_properties);
             for (int i = 0; i < num_properties; i++) {
               const JsonProperty& property = property_stack_[start + i];
-              Handle<Object> property_val_node =
+              DirectHandle<Object> property_val_node =
                   property_val_node_stack[start + i];
-              Handle<Object> property_snapshot = property.value;
-              Handle<String> key;
+              DirectHandle<Object> property_snapshot = property.value;
+              DirectHandle<String> key;
               if (property.string.is_index()) {
                 key = factory()->Uint32ToString(property.string.index());
               } else {

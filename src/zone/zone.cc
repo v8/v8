@@ -83,7 +83,7 @@ void Zone::Reset() {
   DeleteAll();
   allocator_->TraceZoneCreation(this);
 
-  // Un-poison the kept segment content so we can zap and re-use it.
+  // Un-poison the kept segment content so we can zap and reuse it.
   ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(keep->start()),
                               keep->capacity());
   keep->ZapContents();
@@ -137,7 +137,7 @@ void Zone::DeleteAll() {
 }
 
 void Zone::ReleaseSegment(Segment* segment) {
-  // Un-poison the segment content so we can re-use or zap it later.
+  // Un-poison the segment content so we can reuse or zap it later.
   ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
                               segment->capacity());
   allocator_->ReturnSegment(segment, supports_compression());
@@ -224,7 +224,7 @@ void ZoneSnapshot::Restore(Zone* zone) const {
     current = next;
   }
 
-  // Un-poison the trailing segment content so we can re-use or zap it later.
+  // Un-poison the trailing segment content so we can reuse or zap it later.
   if (segment_head_ != nullptr) {
     void* const start = reinterpret_cast<void*>(position_);
     DCHECK_GE(start, reinterpret_cast<void*>(current->start()));

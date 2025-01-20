@@ -1500,7 +1500,7 @@ LocationReference ImplementationVisitor::GenerateFieldReference(
 }
 
 // This is used to generate field references during initialization, where we can
-// re-use the offsets used for computing the allocation size.
+// reuse the offsets used for computing the allocation size.
 LocationReference ImplementationVisitor::GenerateFieldReferenceForInit(
     VisitResult object, const Field& field,
     const LayoutForInitialization& layout) {

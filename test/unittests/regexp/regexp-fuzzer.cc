@@ -124,11 +124,11 @@ void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
   }
 
   // Create regexp.
-  i::Handle<i::JSRegExp> regexp;
+  i::DirectHandle<i::JSRegExp> regexp;
   {
     CHECK(!i_isolate_->has_exception());
     v8::TryCatch try_catch_inner(isolate_);
-    i::MaybeHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(
+    i::MaybeDirectHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(
         i_isolate_, source, i::JSRegExp::AsJSRegExpFlags(flags),
         /*backtrack_limit*/ 1000000);
     if (!maybe_regexp.ToHandle(&regexp)) {

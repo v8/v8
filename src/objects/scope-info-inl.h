@@ -136,9 +136,9 @@ class ScopeInfo::LocalNamesRange {
 };
 
 // static
-ScopeInfo::LocalNamesRange<Handle<ScopeInfo>> ScopeInfo::IterateLocalNames(
-    Handle<ScopeInfo> scope_info) {
-  return LocalNamesRange<Handle<ScopeInfo>>(scope_info);
+ScopeInfo::LocalNamesRange<DirectHandle<ScopeInfo>>
+ScopeInfo::IterateLocalNames(DirectHandle<ScopeInfo> scope_info) {
+  return LocalNamesRange<DirectHandle<ScopeInfo>>(scope_info);
 }
 
 // static

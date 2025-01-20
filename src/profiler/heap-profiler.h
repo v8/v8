@@ -124,7 +124,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
-  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
+  DirectHandle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
 
   Isolate* isolate() const;

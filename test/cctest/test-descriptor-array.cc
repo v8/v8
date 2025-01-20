@@ -117,9 +117,9 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 // Creates function with (Map, Name) arguments. Returns Smi with the index of
 // the name value of the found descriptor (DescriptorArray::ToKeyIndex())
 // or null otherwise.
-Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
+DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (v8_flags.jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -162,9 +162,9 @@ Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
 
 // Creates function with (TransitionArray, Name) arguments. Returns transition
 // map if transition is found or null otherwise.
-Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
+DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (v8_flags.jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);

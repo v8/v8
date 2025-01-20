@@ -55,9 +55,8 @@ Handle<T> GetLexical(const char* name) {
   return Handle<T>();
 }
 
-
 template <typename T = Object>
-Handle<T> GetLexical(const std::string& name) {
+DirectHandle<T> GetLexical(const std::string& name) {
   return GetLexical<T>(name.c_str());
 }
 
@@ -67,7 +66,7 @@ static inline Handle<T> RunI(v8::Local<v8::Script> script) {
 }
 
 template <typename T>
-static inline Handle<T> CompileRunI(const char* script) {
+static inline DirectHandle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 

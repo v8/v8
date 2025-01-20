@@ -108,7 +108,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
       !unchecked_new_target.is_identical_to(target)) {
     DirectHandle<JSReceiver> new_target =
         Cast<JSReceiver>(unchecked_new_target);
-    Handle<Map> initial_map;
+    DirectHandle<Map> initial_map;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, initial_map,
         JSFunction::GetDerivedMap(isolate, target, new_target));

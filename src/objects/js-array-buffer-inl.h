@@ -368,15 +368,14 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 }
 
 // static
-MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 const char* method_name) {
+MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
+    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
-  Handle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
+  DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
     DirectHandle<String> operation =

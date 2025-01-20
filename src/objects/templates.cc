@@ -173,7 +173,7 @@ const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
 }
 
 // static
-Handle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
+DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
     Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
   DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(
       static_cast<int>(names.size()), AllocationType::kOld);
@@ -218,7 +218,7 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
 }  // namespace
 
 // static
-Handle<JSObject> DictionaryTemplateInfo::NewInstance(
+DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
     const MemorySpan<MaybeLocal<Value>>& property_values) {
@@ -297,11 +297,12 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
         isolate, context, self, TemplateInfo::CachingMode::kUnlimited);
   }
 
-  // General case: We either don't have a cached map, or it is unusuable for the
+  // General case: We either don't have a cached map, or it is unusable for the
   // values provided.
   DirectHandle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
       context, num_properties_set);
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(current_map);
+  DirectHandle<JSObject> object =
+      isolate->factory()->NewJSObjectFromMap(current_map);
   int current_property_index = 0;
   for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
     Local<Value> property_value;
@@ -328,7 +329,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
   if (V8_LIKELY(can_use_map_cache)) {
     TemplateInfo::CacheTemplateInstantiation(
         isolate, context, self, TemplateInfo::CachingMode::kUnlimited,
-        handle(object->map(), isolate));
+        direct_handle(object->map(), isolate));
   }
   return object;
 }

@@ -811,9 +811,9 @@ ObjectSlot WasmArray::ElementSlot(uint32_t index) {
 }
 
 // static
-Handle<Object> WasmArray::GetElement(Isolate* isolate,
-                                     DirectHandle<WasmArray> array,
-                                     uint32_t index) {
+DirectHandle<Object> WasmArray::GetElement(Isolate* isolate,
+                                           DirectHandle<WasmArray> array,
+                                           uint32_t index) {
   if (index >= array->length()) {
     return isolate->factory()->undefined_value();
   }

@@ -112,10 +112,9 @@ class DependentCode : public WeakArrayList {
   static void SetDependentCode(DirectHandle<HeapObject> object,
                                DirectHandle<DependentCode> dep);
 
-  static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
-                                              Handle<DependentCode> entries,
-                                              DependencyGroups groups,
-                                              DirectHandle<Code> code);
+  static DirectHandle<DependentCode> InsertWeakCode(
+      Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
+      DirectHandle<Code> code);
 
   bool MarkCodeForDeoptimization(Isolate* isolate,
                                  DependencyGroups deopt_groups);

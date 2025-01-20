@@ -1319,7 +1319,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 }
 
 // We can't intermix stack decoding and allocations because the deoptimization
-// infrastracture is not GC safe.
+// infrastructure is not GC safe.
 // Thus we build a temporary structure in malloced space.
 // The TranslatedValue objects created correspond to the static translation
 // instructions from the DeoptTranslationIterator, except for
@@ -2491,8 +2491,8 @@ TranslatedValue* TranslatedState::GetResolvedSlotAndAdvance(
   return slot;
 }
 
-Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
-                                                   int* value_index) {
+DirectHandle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
+                                                         int* value_index) {
   TranslatedValue* slot = GetResolvedSlot(frame, *value_index);
   SkipSlots(1, frame, value_index);
   return slot->GetValue();
@@ -2696,7 +2696,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           return &(frames_[i - 1]);
         }
 
-        // JavaScriptBuiltinContinuation frames that are not preceeded by
+        // JavaScriptBuiltinContinuation frames that are not preceded by
         // a arguments adapter frame are currently only used by C++ API calls
         // from TurboFan. Calls to C++ API functions from TurboFan need
         // a special marker frame state, otherwise the API call wouldn't

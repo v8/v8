@@ -170,15 +170,15 @@ void DebugInfo::SetBreakPoint(Isolate* isolate,
 }
 
 // Get the break point objects for a source position.
-Handle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
-                                         int source_position) {
+DirectHandle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
+                                               int source_position) {
   DCHECK(HasBreakInfo());
   Tagged<Object> break_point_info = GetBreakPointInfo(isolate, source_position);
   if (IsUndefined(break_point_info, isolate)) {
     return isolate->factory()->undefined_value();
   }
-  return Handle<Object>(Cast<BreakPointInfo>(break_point_info)->break_points(),
-                        isolate);
+  return DirectHandle<Object>(
+      Cast<BreakPointInfo>(break_point_info)->break_points(), isolate);
 }
 
 // Get the total number of break points.
@@ -195,13 +195,13 @@ int DebugInfo::GetBreakPointCount(Isolate* isolate) {
   return count;
 }
 
-Handle<Object> DebugInfo::FindBreakPointInfo(
+DirectHandle<Object> DebugInfo::FindBreakPointInfo(
     Isolate* isolate, DirectHandle<DebugInfo> debug_info,
     DirectHandle<BreakPoint> break_point) {
   DCHECK(debug_info->HasBreakInfo());
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (!IsUndefined(debug_info->break_points()->get(i), isolate)) {
-      Handle<BreakPointInfo> break_point_info(
+      DirectHandle<BreakPointInfo> break_point_info(
           Cast<BreakPointInfo>(debug_info->break_points()->get(i)), isolate);
       if (BreakPointInfo::HasBreakPoint(isolate, break_point_info,
                                         break_point)) {
@@ -334,19 +334,19 @@ bool BreakPointInfo::HasBreakPoint(
   return false;
 }
 
-MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
+MaybeDirectHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
     Isolate* isolate, DirectHandle<BreakPointInfo> break_point_info,
     int breakpoint_id) {
   // No break point.
   if (IsUndefined(break_point_info->break_points(), isolate)) {
-    return MaybeHandle<BreakPoint>();
+    return MaybeDirectHandle<BreakPoint>();
   }
   // Single break point.
   if (!IsFixedArray(break_point_info->break_points())) {
     Tagged<BreakPoint> breakpoint =
         Cast<BreakPoint>(break_point_info->break_points());
     if (breakpoint->id() == breakpoint_id) {
-      return handle(breakpoint, isolate);
+      return direct_handle(breakpoint, isolate);
     }
   } else {
     // Multiple break points.
@@ -355,11 +355,11 @@ MaybeHandle<BreakPoint> BreakPointInfo::GetBreakPointById(
     for (int i = 0; i < array->length(); i++) {
       Tagged<BreakPoint> breakpoint = Cast<BreakPoint>(array->get(i));
       if (breakpoint->id() == breakpoint_id) {
-        return handle(breakpoint, isolate);
+        return direct_handle(breakpoint, isolate);
       }
     }
   }
-  return MaybeHandle<BreakPoint>();
+  return MaybeDirectHandle<BreakPoint>();
 }
 
 // Get the number of break points.

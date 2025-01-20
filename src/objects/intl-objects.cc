@@ -200,9 +200,10 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 }
 
 template <typename T>
-MaybeHandle<T> New(Isolate* isolate, DirectHandle<JSFunction> constructor,
-                   DirectHandle<Object> locales, DirectHandle<Object> options,
-                   const char* method_name) {
+MaybeDirectHandle<T> New(Isolate* isolate, DirectHandle<JSFunction> constructor,
+                         DirectHandle<Object> locales,
+                         DirectHandle<Object> options,
+                         const char* method_name) {
   DirectHandle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
@@ -492,9 +493,9 @@ MaybeHandle<String> Intl::ToString(Isolate* isolate,
       reinterpret_cast<const uint16_t*>(string.getBuffer()), string.length()));
 }
 
-MaybeHandle<String> Intl::ToString(Isolate* isolate,
-                                   const icu::UnicodeString& string,
-                                   int32_t begin, int32_t end) {
+MaybeDirectHandle<String> Intl::ToString(Isolate* isolate,
+                                         const icu::UnicodeString& string,
+                                         int32_t begin, int32_t end) {
   return Intl::ToString(isolate, string.tempSubStringBetween(begin, end));
 }
 
@@ -611,7 +612,7 @@ std::set<std::string> Intl::BuildLocaleSet(
   for (const std::string& locale : icu_available_locales) {
     if (path != nullptr || validate_key != nullptr) {
       if (!ValidateResource(icu::Locale(locale.c_str()), path, validate_key)) {
-        // FIXME(chromium:1215606) Find a beter fix for nb->no fallback
+        // FIXME(chromium:1215606) Find a better fix for nb->no fallback
         if (locale != "nb") {
           continue;
         }
@@ -719,14 +720,14 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
   std::transform(locale.begin(), locale.end(), locale.begin(), ToAsciiLower);
 
   // // ECMA 402 6.2.3
-  // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
-  // language tag if it's too long (much longer than 100 chars). Even if we
-  // allocate a longer buffer, ICU will still fail if it's too long. Either
+  // TODO(jshin): uloc_{for,to}LanguageTag can fail even for a structurally
+  // valid language tag if it's too long (much longer than 100 chars). Even if
+  // we allocate a longer buffer, ICU will still fail if it's too long. Either
   // propose to Ecma 402 to put a limit on the locale length or change ICU to
   // handle long locale names better. See
   // https://unicode-org.atlassian.net/browse/ICU-13417
   UErrorCode error = U_ZERO_ERROR;
-  // uloc_forLanguageTag checks the structrual validity. If the input BCP47
+  // uloc_forLanguageTag checks the structural validity. If the input BCP47
   // language tag is parsed all the way to the end, it indicates that the input
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
@@ -893,7 +894,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
 
 // ecma402 #sup-string.prototype.tolocalelowercase
 // ecma402 #sup-string.prototype.tolocaleuppercase
-MaybeHandle<String> Intl::StringLocaleConvertCase(
+MaybeDirectHandle<String> Intl::StringLocaleConvertCase(
     Isolate* isolate, DirectHandle<String> s, bool to_upper,
     DirectHandle<Object> locales) {
   std::vector<std::string> requested_locales;
@@ -1313,7 +1314,7 @@ bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
 #endif  // DEBUG
 
 // Fast comparison is implemented for charcodes for which the L1 collation
-// weight (see kCollactionWeightsL1 above) is not 0.
+// weight (see kCollationWeightsL1 above) is not 0.
 //
 // Note it's possible to partially process strings as long as their leading
 // characters all satisfy the above criteria. In that case, and if the L3
@@ -1486,11 +1487,9 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
 }
 
 // ecma402/#sup-properties-of-the-number-prototype-object
-MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
-                                               Handle<Object> num,
-                                               DirectHandle<Object> locales,
-                                               DirectHandle<Object> options,
-                                               const char* method_name) {
+MaybeDirectHandle<String> Intl::NumberToLocaleString(
+    Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
+    DirectHandle<Object> options, const char* method_name) {
   Handle<Object> numeric_obj;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
                              Object::ToNumeric(isolate, num));
@@ -2150,8 +2149,8 @@ MaybeHandle<JSObject> SupportedLocales(
 }  // namespace
 
 // ecma-402 #sec-intl.getcanonicallocales
-MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
-                                               DirectHandle<Object> locales) {
+MaybeDirectHandle<JSArray> Intl::GetCanonicalLocales(
+    Isolate* isolate, DirectHandle<Object> locales) {
   // 1. Let ll be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_ll =
       CanonicalizeLocaleList(isolate, locales, false);
@@ -2292,8 +2291,8 @@ MaybeHandle<JSArray> AvailableUnits(Isolate* isolate) {
 }  // namespace
 
 // ecma-402 #sec-intl.supportedvaluesof
-MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
-                                             DirectHandle<Object> key_obj) {
+MaybeDirectHandle<JSArray> Intl::SupportedValuesOf(
+    Isolate* isolate, DirectHandle<Object> key_obj) {
   Factory* factory = isolate->factory();
   // 1. 1. Let key be ? ToString(key).
   DirectHandle<String> key_str;
@@ -2340,7 +2339,7 @@ MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
 }
 
 // ECMA 402 Intl.*.supportedLocalesOf
-MaybeHandle<JSObject> Intl::SupportedLocalesOf(
+MaybeDirectHandle<JSObject> Intl::SupportedLocalesOf(
     Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales,
     DirectHandle<Object> locales, DirectHandle<Object> options) {
@@ -2553,7 +2552,7 @@ std::string LookupMatcher(Isolate* isolate,
 
 // This function doesn't correspond exactly with the spec. Instead
 // we use ICU to do all the string manipulations that the spec
-// peforms.
+// performs.
 //
 // The spec uses this function to normalize values for various
 // relevant extension keys (such as disallowing "search" for
@@ -2602,9 +2601,9 @@ DirectHandle<Managed<icu::UnicodeString>> Intl::SetTextToBreakIterator(
 }
 
 // ecma262 #sec-string.prototype.normalize
-MaybeHandle<String> Intl::Normalize(Isolate* isolate,
-                                    DirectHandle<String> string,
-                                    DirectHandle<Object> form_input) {
+MaybeDirectHandle<String> Intl::Normalize(Isolate* isolate,
+                                          DirectHandle<String> string,
+                                          DirectHandle<Object> form_input) {
   const char* form_name;
   UNormalization2Mode form_mode;
   if (IsUndefined(*form_input, isolate)) {
@@ -2654,8 +2653,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate,
   uint32_t normalized_prefix_length =
       normalizer->spanQuickCheckYes(input, status);
   // Quick return if the input is already normalized.
-  if (length == normalized_prefix_length)
-    return indirect_handle(string, isolate);
+  if (length == normalized_prefix_length) return string;
   icu::UnicodeString unnormalized =
       input.tempSubString(normalized_prefix_length);
   // Read-only alias of the normalized prefix.
@@ -2819,10 +2817,10 @@ const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
 
 constexpr uint16_t kInfinityChar = 0x221e;
 
-Handle<String> Intl::NumberFieldToType(Isolate* isolate,
-                                       const NumberFormatSpan& part,
-                                       const icu::UnicodeString& text,
-                                       bool is_nan) {
+DirectHandle<String> Intl::NumberFieldToType(Isolate* isolate,
+                                             const NumberFormatSpan& part,
+                                             const icu::UnicodeString& text,
+                                             bool is_nan) {
   switch (static_cast<UNumberFormatFields>(part.field_id)) {
     case UNUM_INTEGER_FIELD:
       if (is_nan) return isolate->factory()->nan_string();
@@ -3050,7 +3048,8 @@ bool Intl::FormatRangeSourceTracker::FieldContains(int32_t field, int32_t start,
          (start_[field] <= limit) && (limit <= limit_[field]);
 }
 
-Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
+DirectHandle<String> Intl::SourceString(Isolate* isolate,
+                                        FormatRangeSource source) {
   switch (source) {
     case FormatRangeSource::kShared:
       return isolate->factory()->shared_string();
@@ -3131,7 +3130,7 @@ Handle<BigInt> MillisecondToNanosecond(Isolate* isolate, int64_t ms) {
 
 }  // namespace
 
-Handle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
+DirectHandle<Object> Intl::GetTimeZoneOffsetTransitionNanoseconds(
     Isolate* isolate, int32_t time_zone_index,
     DirectHandle<BigInt> nanosecond_epoch, Intl::Transition transition) {
   std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
@@ -3188,7 +3187,7 @@ DirectHandleVector<BigInt> Intl::GetTimeZonePossibleOffsetNanoseconds(
                                       UCAL_TZ_LOCAL_FORMER, raw_offset,
                                       dst_offset, status);
   DCHECK(U_SUCCESS(status));
-  // offset for time_ms interpretted as before a time zone
+  // offset for time_ms interpreted as before a time zone
   // transition
   int64_t offset_former = raw_offset + dst_offset;
 
@@ -3196,7 +3195,7 @@ DirectHandleVector<BigInt> Intl::GetTimeZonePossibleOffsetNanoseconds(
                                       UCAL_TZ_LOCAL_LATTER, raw_offset,
                                       dst_offset, status);
   DCHECK(U_SUCCESS(status));
-  // offset for time_ms interpretted as after a time zone
+  // offset for time_ms interpreted as after a time zone
   // transition
   int64_t offset_latter = raw_offset + dst_offset;
 

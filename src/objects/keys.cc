@@ -1303,7 +1303,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(
       Nothing<bool>());
   // 12, 13. (Assert)
   // 14. Let targetConfigurableKeys be an empty List.
-  // To save memory, we're re-using target_keys and will modify it in-place.
+  // To save memory, we're reusing target_keys and will modify it in-place.
   DirectHandle<FixedArray> target_configurable_keys = target_keys;
   // 15. Let targetNonconfigurableKeys be an empty List.
   DirectHandle<FixedArray> target_nonconfigurable_keys =

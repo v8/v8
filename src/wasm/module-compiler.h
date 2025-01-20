@@ -133,7 +133,7 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<NativeContext> context() const { return native_context_; }
+  DirectHandle<NativeContext> context() const { return native_context_; }
   v8::metrics::Recorder::ContextId context_id() const { return context_id_; }
 
  private:

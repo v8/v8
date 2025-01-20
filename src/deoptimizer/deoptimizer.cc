@@ -728,12 +728,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   }
 }
 
-Handle<JSFunction> Deoptimizer::function() const {
-  return Handle<JSFunction>(function_, isolate());
+DirectHandle<JSFunction> Deoptimizer::function() const {
+  return DirectHandle<JSFunction>(function_, isolate());
 }
 
-Handle<Code> Deoptimizer::compiled_code() const {
-  return Handle<Code>(compiled_code_, isolate());
+DirectHandle<Code> Deoptimizer::compiled_code() const {
+  return DirectHandle<Code>(compiled_code_, isolate());
 }
 
 Deoptimizer::~Deoptimizer() {

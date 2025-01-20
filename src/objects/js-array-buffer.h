@@ -406,9 +406,8 @@ class JSTypedArray
   inline void AddExternalPointerCompensationForDeserialization(
       Isolate* isolate);
 
-  static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
-                                                   Handle<Object> receiver,
-                                                   const char* method_name);
+  static inline MaybeDirectHandle<JSTypedArray> Validate(
+      Isolate* isolate, DirectHandle<Object> receiver, const char* method_name);
 
   // Dispatched behavior.
   DECL_PRINTER(JSTypedArray)

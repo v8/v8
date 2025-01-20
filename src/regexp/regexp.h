@@ -89,8 +89,8 @@ class RegExp final : public AllStatic {
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
   // Returns false if compilation fails.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Compile(
-      Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Compile(
+      Isolate* isolate, DirectHandle<JSRegExp> re, Handle<String> pattern,
       RegExpFlags flags, uint32_t backtrack_limit);
 
   // Ensures that a regexp is fully compiled and ready to be executed on a

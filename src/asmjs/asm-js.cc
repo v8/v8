@@ -332,7 +332,7 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
 }
 }  // namespace
 
-MaybeHandle<Object> AsmJs::InstantiateAsmWasm(
+MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
     Handle<JSReceiver> foreign, Handle<JSArrayBuffer> memory) {
@@ -440,7 +440,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(
 
   DirectHandle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
-  MaybeHandle<Object> single_function =
+  MaybeDirectHandle<Object> single_function =
       Object::GetProperty(isolate, instance, single_function_name);
   if (!single_function.is_null() &&
       !IsUndefined(*single_function.ToHandleChecked(), isolate)) {
@@ -452,7 +452,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(
   // then we'll have to call the "exports" getter, and be careful about
   // handling possible stack overflow exceptions.
   DCHECK(IsJSObject(instance->exports_object()));
-  return handle(instance->exports_object(), isolate);
+  return direct_handle(instance->exports_object(), isolate);
 }
 
 }  // namespace internal

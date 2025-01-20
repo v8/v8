@@ -19,7 +19,7 @@ class AllocationSiteContext {
  public:
   explicit AllocationSiteContext(Isolate* isolate) { isolate_ = isolate; }
 
-  Handle<AllocationSite> top() { return top_; }
+  DirectHandle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }
 
   bool ShouldCreateMemento(DirectHandle<JSObject> object) { return false; }

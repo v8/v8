@@ -129,12 +129,12 @@ static void PrepareStep(i::StepAction step_action) {
 namespace v8 {
 namespace internal {
 
-Handle<FixedArray> GetDebuggedFunctions() {
+DirectHandle<FixedArray> GetDebuggedFunctions() {
   i::Isolate* isolate = CcTest::i_isolate();
   DebugInfoCollection* infos = &isolate->debug()->debug_infos_;
 
   int count = static_cast<int>(infos->Size());
-  Handle<FixedArray> debugged_functions =
+  DirectHandle<FixedArray> debugged_functions =
       CcTest::i_isolate()->factory()->NewFixedArray(count);
 
   int i = 0;
@@ -1891,9 +1891,8 @@ TEST(DebuggerStatementBreakpoint) {
     CheckDebuggerUnloaded();
 }
 
-
 // Test that the conditional breakpoints work event if code generation from
-// strings is prohibited in the debugee context.
+// strings is prohibited in the debuggee context.
 TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -6153,7 +6152,7 @@ TEST(NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
   {
     // We want to reject in a way that would trigger a breakpoint if it were
     // not silenced (as in TerminateOnResumeAtUnhandledRejectionCppImpl), but
-    // that would also requre that there is at least one JavaScript frame
+    // that would also require that there is at least one JavaScript frame
     // on the stack.
     v8::Local<v8::Function> func =
         v8::Function::New(env.local(), SilentRejectPromiseThroughCpp,

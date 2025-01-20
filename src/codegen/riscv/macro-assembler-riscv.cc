@@ -128,7 +128,7 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
-  // The feedback vector is no longer used, so re-use it as a scratch
+  // The feedback vector is no longer used, so reuse it as a scratch
   // register.
   __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, a1);
 

@@ -242,7 +242,7 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 }
 
 }  // namespace
-MaybeHandle<JSDurationFormat> JSDurationFormat::New(
+MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options) {
   Factory* factory = isolate->factory();
@@ -253,7 +253,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, requested_locales,
       Intl::CanonicalizeLocaleList(isolate, locales),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // 4. Let options be ? GetOptionsObject(options).
   DirectHandle<JSReceiver> options;
@@ -265,7 +265,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   Intl::MatcherOption matcher;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, matcher, Intl::GetLocaleMatcher(isolate, options, method_name),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // 6. Let numberingSystem be ? GetOption(options, "numberingSystem", "string",
   // undefined, undefined).
@@ -282,7 +282,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
       isolate, get,
       Intl::GetNumberingSystem(isolate, options, method_name,
                                &numbering_system_str),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]:
   // numberingSystem }.
@@ -295,7 +295,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
       isolate, r,
       Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // 10. Let locale be r.[[locale]].
   icu::Locale r_locale = r.icu_locale;
@@ -329,7 +329,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
           {"long", "short", "narrow", "digital"},
           {Style::kLong, Style::kShort, Style::kNarrow, Style::kDigital},
           Style::kShort),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
@@ -371,7 +371,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
           isolate, Unit::unit, #property, #property "Display", options, style, \
           strings, enums, JSDurationFormat::FieldStyle::digital_base,          \
           prev_style),                                                         \
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   // #table-durationformat
   // Table 3: Internal slots and property names of DurationFormat instances
@@ -440,7 +440,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
       isolate, fractional_digits,
       GetNumberOption(isolate, options, factory->fractionalDigits_string(), 0,
                       9, kUndefinedFractionalDigits),
-      Handle<JSDurationFormat>());
+      DirectHandle<JSDurationFormat>());
 
   icu::number::LocalizedNumberFormatter fmt =
       icu::number::UnlocalizedNumberFormatter()
@@ -458,7 +458,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
               std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 
   // 19. Return durationFormat.
-  Handle<JSDurationFormat> duration_format =
+  DirectHandle<JSDurationFormat> duration_format =
       Cast<JSDurationFormat>(factory->NewFastOrSlowJSObjectFromMap(map));
   duration_format->set_style_flags(0);
   duration_format->set_display_flags(0);
@@ -496,7 +496,8 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
 
 namespace {
 
-Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
+DirectHandle<String> StyleToString(Isolate* isolate,
+                                   JSDurationFormat::Style style) {
   switch (style) {
     case JSDurationFormat::Style::kLong:
       return isolate->factory()->long_string();
@@ -512,8 +513,8 @@ Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
   SBXCHECK(false);
 }
 
-Handle<String> StyleToString(Isolate* isolate,
-                             JSDurationFormat::FieldStyle style) {
+DirectHandle<String> StyleToString(Isolate* isolate,
+                                   JSDurationFormat::FieldStyle style) {
   switch (style) {
     case JSDurationFormat::FieldStyle::kLong:
       return isolate->factory()->long_string();
@@ -538,8 +539,8 @@ Handle<String> StyleToString(Isolate* isolate,
   SBXCHECK(false);
 }
 
-Handle<String> DisplayToString(Isolate* isolate,
-                               JSDurationFormat::Display display) {
+DirectHandle<String> DisplayToString(Isolate* isolate,
+                                     JSDurationFormat::Display display) {
   switch (display) {
     case JSDurationFormat::Display::kAuto:
       return isolate->factory()->auto_string();
@@ -553,10 +554,11 @@ Handle<String> DisplayToString(Isolate* isolate,
 
 }  // namespace
 
-Handle<JSObject> JSDurationFormat::ResolvedOptions(
+DirectHandle<JSObject> JSDurationFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDurationFormat> format) {
   Factory* factory = isolate->factory();
-  Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> options =
+      factory->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale = factory->NewStringFromAsciiChecked(
       Intl::ToLanguageTag(*format->icu_locale()->raw()).FromJust().c_str());
@@ -577,7 +579,7 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
       isolate, created,                                                 \
       JSReceiver::CreateDataProperty(isolate, options, factory->s(), f, \
                                      Just(kDontThrow)),                 \
-      Handle<JSObject>());                                              \
+      DirectHandle<JSObject>());                                        \
   CHECK(created);
 #define OUTPUT_STYLE_PROPERTY(p) \
   OUTPUT_PROPERTY(p##_string, StyleToString(isolate, format->p##_style()))
@@ -1044,7 +1046,7 @@ template <typename T, bool Details,
           MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
                                    const std::vector<std::vector<Part>>*,
                                    JSDurationFormat::Separator)>
-MaybeHandle<T> FormatCommon(Isolate* isolate, Handle<JSDurationFormat> df,
+MaybeHandle<T> FormatCommon(Isolate* isolate, DirectHandle<JSDurationFormat> df,
                             Handle<Object> duration, const char* method_name) {
   // 1. Let df be this value.
   // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
@@ -1119,16 +1121,17 @@ MaybeHandle<JSArray> FormattedListToJSArray(
   return array;
 }
 
-MaybeHandle<String> JSDurationFormat::Format(Isolate* isolate,
-                                             Handle<JSDurationFormat> df,
-                                             Handle<Object> duration) {
+MaybeDirectHandle<String> JSDurationFormat::Format(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    Handle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.format";
   return FormatCommon<String, false, FormattedToString>(isolate, df, duration,
                                                         method_name);
 }
 
-MaybeHandle<JSArray> JSDurationFormat::FormatToParts(
-    Isolate* isolate, Handle<JSDurationFormat> df, Handle<Object> duration) {
+MaybeDirectHandle<JSArray> JSDurationFormat::FormatToParts(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    Handle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.formatToParts";
   return FormatCommon<JSArray, true, FormattedListToJSArray>(
       isolate, df, duration, method_name);

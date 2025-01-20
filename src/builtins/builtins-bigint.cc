@@ -48,7 +48,7 @@ BUILTIN(BigIntAsUintN) {
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  Handle<BigInt> bigint;
+  DirectHandle<BigInt> bigint;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
@@ -66,7 +66,7 @@ BUILTIN(BigIntAsIntN) {
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  Handle<BigInt> bigint;
+  DirectHandle<BigInt> bigint;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
@@ -135,7 +135,7 @@ BUILTIN(BigIntPrototypeToLocaleString) {
       isolate,
       Intl::NumberToLocaleString(isolate, x, args.atOrUndefined(isolate, 1),
                                  args.atOrUndefined(isolate, 2), method_name));
-  // Fallbacks to old toString implemention if no V8_INTL_SUPPORT
+  // Fallbacks to old toString implementation if no V8_INTL_SUPPORT.
 #endif  // V8_INTL_SUPPORT
   Handle<Object> radix = isolate->factory()->undefined_value();
   return BigIntToStringImpl(args.receiver(), radix, isolate, method_name);

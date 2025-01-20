@@ -352,7 +352,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   Handle<Context> context(isolate->context()->declaration_context(), isolate);
 
   // For debug-evaluate we always use sloppy eval, in which case context could
-  // also be a module context. As module contexts re-use the extension slot
+  // also be a module context. As module contexts reuse the extension slot
   // we need to check for this.
   const bool is_debug_evaluate_in_module =
       isolate->context()->IsDebugEvaluateContext() &&
@@ -523,12 +523,12 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
 }
 
 template <typename T>
-Handle<JSObject> NewSloppyArguments(Isolate* isolate,
-                                    DirectHandle<JSFunction> callee,
-                                    T parameters, int argument_count) {
+DirectHandle<JSObject> NewSloppyArguments(Isolate* isolate,
+                                          DirectHandle<JSFunction> callee,
+                                          T parameters, int argument_count) {
   CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   DCHECK(callee->shared()->has_simple_parameters());
-  Handle<JSObject> result =
+  DirectHandle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
 
   // Allocate the elements if needed.
@@ -790,9 +790,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
 namespace {
 
-MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
-                                   ShouldThrow should_throw,
-                                   Handle<Object>* receiver_return = nullptr) {
+MaybeDirectHandle<Object> LoadLookupSlot(
+    Isolate* isolate, Handle<String> name, ShouldThrow should_throw,
+    Handle<Object>* receiver_return = nullptr) {
   int index;
   PropertyAttributes attributes;
   InitializationFlag flag;
@@ -800,7 +800,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   Handle<Context> context(isolate->context(), isolate);
   Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
                                           &attributes, &flag, &mode);
-  if (isolate->has_exception()) return MaybeHandle<Object>();
+  if (isolate->has_exception()) return MaybeDirectHandle<Object>();
 
   if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -814,7 +814,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Handle<Object> value = handle(holder_context->get(index), isolate);
+    DirectHandle<Object> value =
+        direct_handle(holder_context->get(index), isolate);
     // Check for uninitialized bindings.
     if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
@@ -824,9 +825,9 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     if (receiver_return) *receiver_return = receiver;
     if (v8_flags.script_context_mutable_heap_number &&
         holder_context->IsScriptContext()) {
-      return handle(*Context::LoadScriptContextElement(holder_context, index,
-                                                       value, isolate),
-                    isolate);
+      return direct_handle(*Context::LoadScriptContextElement(
+                               holder_context, index, value, isolate),
+                           isolate);
     }
     return value;
   }
@@ -837,7 +838,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   if (!holder.is_null()) {
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
-    Handle<Object> value;
+    DirectHandle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::GetProperty(isolate, Cast<JSAny>(holder), name));
@@ -916,9 +917,9 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
 
 namespace {
 
-MaybeHandle<Object> StoreLookupSlot(
+MaybeDirectHandle<Object> StoreLookupSlot(
     Isolate* isolate, Handle<Context> context, Handle<String> name,
-    Handle<Object> value, LanguageMode language_mode,
+    DirectHandle<Object> value, LanguageMode language_mode,
     ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
   int index;
   PropertyAttributes attributes;
@@ -930,7 +931,7 @@ MaybeHandle<Object> StoreLookupSlot(
                       &flag, &mode, &is_sloppy_function_name);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_exception()) return MaybeHandle<Object>();
+    if (isolate->has_exception()) return MaybeDirectHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
     if ((attributes & READ_ONLY) == 0) {
       SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
@@ -993,7 +994,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> name = args.at<String>(0);
-  Handle<Object> value = args.at(1);
+  DirectHandle<Object> value = args.at(1);
   Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -1004,7 +1005,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> name = args.at<String>(0);
-  Handle<Object> value = args.at(1);
+  DirectHandle<Object> value = args.at(1);
   Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -1017,7 +1018,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<String> name = args.at<String>(0);
-  Handle<Object> value = args.at(1);
+  DirectHandle<Object> value = args.at(1);
   const ContextLookupFlags lookup_flags =
       static_cast<ContextLookupFlags>(DONT_FOLLOW_CHAINS);
   Handle<Context> declaration_context(isolate->context()->declaration_context(),

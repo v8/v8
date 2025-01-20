@@ -290,7 +290,7 @@ class CompiledReplacement {
             // Otherwise, replace the text through the following '>' with
             // ? ToString(capture).
             // For duplicated capture group names we don't know which of them
-            // matches at this point in time, so we create a seperate
+            // matches at this point in time, so we create a separate
             // replacement for each possible match. When applying the
             // replacement unmatched groups will be skipped.
 
@@ -601,15 +601,15 @@ StringReplaceGlobalAtomRegExpWithString(
   int subject_pos = 0;
   int result_pos = 0;
 
-  MaybeHandle<SeqString> maybe_res;
+  MaybeDirectHandle<SeqString> maybe_res;
   if (ResultSeqString::kHasOneByteEncoding) {
     maybe_res = isolate->factory()->NewRawOneByteString(result_len);
   } else {
     maybe_res = isolate->factory()->NewRawTwoByteString(result_len);
   }
-  Handle<SeqString> untyped_res;
+  DirectHandle<SeqString> untyped_res;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
-  Handle<ResultSeqString> result = Cast<ResultSeqString>(untyped_res);
+  DirectHandle<ResultSeqString> result = Cast<ResultSeqString>(untyped_res);
 
   DisallowGarbageCollection no_gc;
   for (int index : *indices) {
@@ -766,7 +766,7 @@ StringReplaceGlobalRegExpWithEmptyString(
   int new_length = subject_length - (end - start);
   if (new_length == 0) return ReadOnlyRoots(isolate).empty_string();
 
-  Handle<ResultSeqString> answer;
+  DirectHandle<ResultSeqString> answer;
   if (ResultSeqString::kHasOneByteEncoding) {
     answer = Cast<ResultSeqString>(
         isolate->factory()->NewRawOneByteString(new_length).ToHandleChecked());
@@ -1204,10 +1204,11 @@ class VectorBackedMatch : public String::Match {
 // may contain direct handles and they cannot be stored off-stack.
 template <typename FunctionType,
           typename = std::enable_if_t<std::is_function_v<Tagged<Object>(int)>>>
-Handle<JSObject> ConstructNamedCaptureGroupsObject(
+DirectHandle<JSObject> ConstructNamedCaptureGroupsObject(
     Isolate* isolate, DirectHandle<FixedArray> capture_map,
     const FunctionType& f_get_capture) {
-  Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> groups =
+      isolate->factory()->NewJSObjectWithNullProto();
 
   const int named_capture_count = capture_map->length() >> 1;
   for (int i = 0; i < named_capture_count; i++) {
@@ -1340,7 +1341,8 @@ static Tagged<Object> SearchRegExpMultiple(
 
         // has_capture can only be true for IrRegExp.
         Tagged<IrRegExpData> re_data = Cast<IrRegExpData>(*regexp_data);
-        Handle<Object> maybe_capture_map(re_data->capture_name_map(), isolate);
+        DirectHandle<Object> maybe_capture_map(re_data->capture_name_map(),
+                                               isolate);
         const bool has_named_captures = IsFixedArray(*maybe_capture_map);
 
         const int argc =
@@ -1369,7 +1371,8 @@ static Tagged<Object> SearchRegExpMultiple(
         elements->set(cursor++, *subject);
 
         if (has_named_captures) {
-          Handle<FixedArray> capture_map = Cast<FixedArray>(maybe_capture_map);
+          DirectHandle<FixedArray> capture_map =
+              Cast<FixedArray>(maybe_capture_map);
           DirectHandle<JSObject> groups = ConstructNamedCaptureGroupsObject(
               isolate, capture_map, [=](int ix) { return elements->get(ix); });
           elements->set(cursor++, *groups);
@@ -1426,7 +1429,7 @@ static Tagged<Object> SearchRegExpMultiple(
 
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
 // doesn't properly call the underlying exec method.
-V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
     Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> string,
     Handle<String> replace) {
   // Functional fast-paths are dispatched directly by replace builtin.
@@ -1493,7 +1496,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     builder.AppendString(
         factory->NewSubString(string, end_index, string->length()));
-    return indirect_handle(builder.Finish(), isolate);
+    return builder.Finish();
   } else {
     // Global regexp search, string replace.
     DCHECK(global);
@@ -1518,21 +1521,21 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
         Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
                 isolate, string, regexp, data, last_match_info);
-        return handle(Cast<String>(result), isolate);
+        return direct_handle(Cast<String>(result), isolate);
       } else {
         Tagged<Object> result =
             StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
                 isolate, string, regexp, data, last_match_info);
-        return handle(Cast<String>(result), isolate);
+        return direct_handle(Cast<String>(result), isolate);
       }
     }
 
     Tagged<Object> result = StringReplaceGlobalRegExpWithString(
         isolate, string, regexp, data, replace, last_match_info);
     if (IsString(result)) {
-      return handle(Cast<String>(result), isolate);
+      return direct_handle(Cast<String>(result), isolate);
     } else {
-      return MaybeHandle<String>();
+      return MaybeDirectHandle<String>();
     }
   }
 
@@ -1694,9 +1697,9 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
 
 namespace {
 
-V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
-                                                   Handle<Object> object,
-                                                   uint32_t* out) {
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> ToUint32(Isolate* isolate,
+                                                         Handle<Object> object,
+                                                         uint32_t* out) {
   if (IsUndefined(*object, isolate)) {
     *out = kMaxUInt32;
     return object;
@@ -1709,9 +1712,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
   return object;
 }
 
-Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
-                                       Handle<FixedArray> elems,
-                                       int num_elems) {
+DirectHandle<JSArray> NewJSArrayWithElements(Isolate* isolate,
+                                             Handle<FixedArray> elems,
+                                             int num_elems) {
   return isolate->factory()->NewJSArrayWithElements(
       FixedArray::RightTrimOrEmpty(isolate, elems, num_elems));
 }
@@ -1731,7 +1734,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> regexp_fun = isolate->regexp_function();
+  DirectHandle<JSFunction> regexp_fun = isolate->regexp_function();
   DirectHandle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor, Object::SpeciesConstructor(isolate, recv, regexp_fun));

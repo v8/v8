@@ -4597,7 +4597,7 @@ void ClearStaleLeftTrimmedPointerVisitor::VisitRootPointers(
 
 void ClearStaleLeftTrimmedPointerVisitor::VisitRunningCode(
     FullObjectSlot code_slot, FullObjectSlot istream_or_smi_zero_slot) {
-  // Directly forward to actually visitor here. Code objects and instruction
+  // Directly forward to actual visitor here. Code objects and instruction
   // stream will not be left-trimmed.
   DCHECK(!IsLeftTrimmed(code_slot));
   DCHECK(!IsLeftTrimmed(istream_or_smi_zero_slot));
@@ -6819,10 +6819,11 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
   // ProcessWeakListRoots.
 }
 
-MaybeHandle<JSFinalizationRegistry> Heap::DequeueDirtyJSFinalizationRegistry() {
+MaybeDirectHandle<JSFinalizationRegistry>
+Heap::DequeueDirtyJSFinalizationRegistry() {
   // Take a FinalizationRegistry from the head of the dirty list for fairness.
   if (HasDirtyJSFinalizationRegistries()) {
-    Handle<JSFinalizationRegistry> head(
+    DirectHandle<JSFinalizationRegistry> head(
         Cast<JSFinalizationRegistry>(dirty_js_finalization_registries_list()),
         isolate());
     set_dirty_js_finalization_registries_list(head->next_dirty());

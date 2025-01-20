@@ -261,9 +261,9 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
   DirectHandle<Object> value;
 
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
-  if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
-                            inlined_frame_index_, Utils::OpenHandle(*source),
-                            throw_on_side_effect)
+  if (!DebugEvaluate::Local(
+           isolate_, iterator_.frame()->id(), inlined_frame_index_,
+           Utils::OpenDirectHandle(*source), throw_on_side_effect)
            .ToHandle(&value)) {
     return v8::MaybeLocal<v8::Value>();
   }

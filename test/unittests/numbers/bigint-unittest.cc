@@ -22,7 +22,7 @@ void Compare(DirectHandle<BigInt> x, double value, ComparisonResult expected) {
   CHECK_EQ(expected, BigInt::CompareToDouble(x, value));
 }
 
-Handle<BigInt> NewFromInt(Isolate* isolate, int value) {
+DirectHandle<BigInt> NewFromInt(Isolate* isolate, int value) {
   DirectHandle<Smi> smi_value(Smi::FromInt(value), isolate);
   return BigInt::FromNumber(isolate, smi_value).ToHandleChecked();
 }

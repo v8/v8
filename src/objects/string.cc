@@ -814,7 +814,7 @@ void String::WriteToFlat(Tagged<String> source, SinkCharT* sink, uint32_t start,
         Tagged<ConsString> cons_string = Cast<ConsString>(source);
         Tagged<String> first = cons_string->first();
         uint32_t boundary = first->length();
-        // Here we explicity use signed ints as the values can become negative.
+        // Here we explicitly use signed ints as the values can become negative.
         // The sum of {first_length} and {second_length} is always {length},
         // but the values can become negative, in which case no characters of
         // the respective string are needed.
@@ -1495,9 +1495,10 @@ int String::IndexOf(Isolate* isolate, DirectHandle<String> receiver,
                                         start_index);
 }
 
-MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
-                                            Handle<String> replacement,
-                                            uint32_t start_index) {
+MaybeDirectHandle<String> String::GetSubstitution(Isolate* isolate,
+                                                  Match* match,
+                                                  Handle<String> replacement,
+                                                  uint32_t start_index) {
   Factory* factory = isolate->factory();
 
   const int replacement_length = replacement->length();
@@ -1523,7 +1524,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
     const int peek_ix = next_dollar_ix + 1;
     if (peek_ix >= replacement_length) {
       builder.AppendCharacter('$');
-      return indirect_handle(builder.Finish(), isolate);
+      return builder.Finish();
     }
 
     int continue_from_ix = -1;
@@ -1639,7 +1640,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         builder.AppendString(factory->NewSubString(
             replacement, continue_from_ix, replacement_length));
       }
-      return indirect_handle(builder.Finish(), isolate);
+      return builder.Finish();
     }
 
     // Append substring between the previous and the next $ character.

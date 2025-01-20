@@ -36,9 +36,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static MaybeHandle<JSRegExp> Initialize(
       Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
-  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                          Handle<String> source,
-                                          Handle<String> flags_string);
+  static MaybeDirectHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
+                                                Handle<String> source,
+                                                Handle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
@@ -353,7 +353,7 @@ class JSRegExpResultIndices
     : public TorqueGeneratedJSRegExpResultIndices<JSRegExpResultIndices,
                                                   JSArray> {
  public:
-  static Handle<JSRegExpResultIndices> BuildIndices(
+  static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
       Handle<Object> maybe_names);
 

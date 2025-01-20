@@ -46,7 +46,7 @@ BUILTIN(GlobalEncodeURI) {
   RETURN_RESULT_OR_FAILURE(isolate, Uri::EncodeUri(isolate, uri));
 }
 
-// ES6 section 18.2.6.5 encodeURIComponenet (uriComponent)
+// ES6 section 18.2.6.5 encodeURIComponent (uriComponent)
 BUILTIN(GlobalEncodeURIComponent) {
   HandleScope scope(isolate);
   DirectHandle<String> uri_component;
@@ -94,7 +94,7 @@ BUILTIN(GlobalEval) {
   // Run embedder pre-checks before executing eval. If the argument is a
   // non-String (or other object the embedder doesn't know to handle), then
   // return it directly.
-  MaybeHandle<String> source;
+  MaybeDirectHandle<String> source;
   bool unhandled_object;
   std::tie(source, unhandled_object) =
       Compiler::ValidateDynamicCompilationSource(

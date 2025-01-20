@@ -52,7 +52,7 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
     DirectHandle<Context> script_context, bool ignore_duplicates,
     int script_context_index) {
   ReadOnlyRoots roots(isolate);
-  Handle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
+  DirectHandle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   int local_count = scope_info->ContextLocalCount();
   names_table = names_table->EnsureCapacity(isolate, names_table, local_count);
 
@@ -769,9 +769,9 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
       "Code generation from strings disallowed for this context");
 }
 
-Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
+DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
   Isolate* isolate = GetIsolate();
-  Handle<Object> result(error_message_for_wasm_code_gen(), isolate);
+  DirectHandle<Object> result(error_message_for_wasm_code_gen(), isolate);
   if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Wasm code generation disallowed by embedder");
@@ -905,16 +905,16 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
   }
   if (failed) {
     DCHECK(isolate->has_exception());
-    Handle<Object> exception(isolate->exception(), isolate);
+    DirectHandle<Object> exception(isolate->exception(), isolate);
 
     MessageLocation* no_location = nullptr;
-    Handle<JSMessageObject> message =
+    DirectHandle<JSMessageObject> message =
         isolate->CreateMessageOrAbort(exception, no_location);
     MessageHandler::ReportMessage(isolate, no_location, message);
 
     isolate->clear_exception();
   }
 }
-#endif
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 
 }  // namespace v8::internal

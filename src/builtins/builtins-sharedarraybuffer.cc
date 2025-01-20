@@ -47,11 +47,11 @@ BUILTIN(AtomicsIsLockFree) {
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
-V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
   if (IsJSTypedArray(*object)) {
-    Handle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
+    DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(

@@ -342,7 +342,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   HandleScope scope(isolate);
   DirectHandle<Object> maybe_prototype = args.at(0);
   DirectHandle<Object> properties = args.at(1);
-  Handle<JSObject> obj;
+  DirectHandle<JSObject> obj;
   // 1. If Type(O) is neither Object nor Null, throw a TypeError exception.
   DirectHandle<JSPrototype> prototype;
   if (!TryCast(maybe_prototype, &prototype)) {
@@ -1471,9 +1471,8 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
 }
 }  // namespace
 
-MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
-                                              DirectHandle<JSReceiver> receiver,
-                                              Handle<String> desc) {
+MaybeDirectHandle<Object> Runtime::GetPrivateMember(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver, Handle<String> desc) {
   PrivateMember result;
   MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
       isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
@@ -1501,10 +1500,9 @@ MaybeHandle<Object> Runtime::GetPrivateMember(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> Runtime::SetPrivateMember(Isolate* isolate,
-                                              DirectHandle<JSReceiver> receiver,
-                                              Handle<String> desc,
-                                              DirectHandle<Object> value) {
+MaybeDirectHandle<Object> Runtime::SetPrivateMember(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver, Handle<String> desc,
+    DirectHandle<Object> value) {
   PrivateMember result;
   MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
       isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
@@ -1599,7 +1597,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   return *pair;
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableAllocate) {
   HandleScope scope(isolate);
@@ -1609,7 +1607,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableAllocate) {
                                                      AllocationType::kYoung);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
   HandleScope scope(isolate);
@@ -1623,7 +1621,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableAdd) {
   return *SwissNameDictionary::Add(isolate, table, key, value, details);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
   HandleScope scope(isolate);
@@ -1636,7 +1634,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
                           : SwissNameDictionary::kNotFoundSentinel);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
   HandleScope scope(isolate);
@@ -1652,7 +1650,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
   HandleScope scope(isolate);
@@ -1662,7 +1660,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableDelete) {
   return *SwissNameDictionary::DeleteEntry(isolate, table, index);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
   HandleScope scope(isolate);
@@ -1672,7 +1670,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableEquals) {
   return Smi::FromInt(table->EqualsForTesting(other));
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
   HandleScope scope(isolate);
@@ -1681,7 +1679,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableElementsCount) {
   return Smi::FromInt(table->NumberOfElements());
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
   HandleScope scope(isolate);
@@ -1691,7 +1689,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableKeyAt) {
   return table->KeyAt(index);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
   HandleScope scope(isolate);
@@ -1701,7 +1699,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableValueAt) {
   return table->ValueAt(index);
 }
 
-// TODO(v8:11330) This is only here while the CSA/Torque implementaton of
+// TODO(v8:11330) This is only here while the CSA/Torque implementation of
 // SwissNameDictionary is work in progress.
 RUNTIME_FUNCTION(Runtime_SwissTableDetailsAt) {
   HandleScope scope(isolate);

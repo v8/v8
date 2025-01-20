@@ -158,7 +158,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
   return GetEmbeddedObject(target_compressed_address_at(pc, const_pool));
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsRelativeCodeTarget(rmode_) || IsCodeTarget(rmode_) ||
          IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_) || IsRelativeCodeTarget(rmode_)) {
@@ -167,7 +167,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);
     }
-    return Handle<HeapObject>(reinterpret_cast<Address*>(
+    return IndirectHandle<HeapObject>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   }
 }

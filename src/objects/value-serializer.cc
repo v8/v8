@@ -1385,7 +1385,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
       value |= static_cast<T>(byte & 0x7F) << shift; \
     }                                                \
   }
-  // Manually unroll the loop to achieve the best measured peformance.
+  // Manually unroll the loop to achieve the best measured performance.
   // This is ~15% faster than ReadVarintLoop.
   ITERATION_SHIFTED(0);
   ITERATION_SHIFTED(7);
@@ -1520,14 +1520,14 @@ void ValueDeserializer::TransferArrayBuffer(
   }
 }
 
-MaybeHandle<Object> ValueDeserializer::ReadObjectWrapper() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObjectWrapper() {
   // We had a bug which produced invalid version 13 data (see
   // crbug.com/1284506). This compatibility mode tries to first read the data
   // normally, and if it fails, and the version is 13, tries to read the broken
   // format.
   const uint8_t* original_position = position_;
   suppress_deserialization_errors_ = true;
-  MaybeHandle<Object> result = ReadObject();
+  MaybeDirectHandle<Object> result = ReadObject();
 
   // The deserialization code doesn't throw errors for invalid data. It throws
   // errors for stack overflows, though, and in that case we won't retry.
@@ -2660,7 +2660,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
   return Just(true);
 }
 
-MaybeHandle<Object>
+MaybeDirectHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
   DCHECK_EQ(version_, 0u);
   HandleScope scope(isolate_);
@@ -2681,7 +2681,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             stack.size() / 2 < num_properties) {
           isolate_->Throw(*isolate_->factory()->NewError(
               MessageTemplate::kDataCloneDeserializationError));
-          return MaybeHandle<Object>();
+          return MaybeDirectHandle<Object>();
         }
 
         size_t begin_properties =
@@ -2693,7 +2693,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
                  isolate_, js_object, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
           ThrowDeserializationExceptionIfNonePending(isolate_);
-          return MaybeHandle<Object>();
+          return MaybeDirectHandle<Object>();
         }
 
         stack.resize(begin_properties);
@@ -2711,7 +2711,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
             stack.size() / 2 < num_properties) {
           isolate_->Throw(*isolate_->factory()->NewError(
               MessageTemplate::kDataCloneDeserializationError));
-          return MaybeHandle<Object>();
+          return MaybeDirectHandle<Object>();
         }
 
         Handle<JSArray> js_array =
@@ -2724,7 +2724,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
                  isolate_, js_array, &stack[begin_properties], num_properties)
                  .FromMaybe(false)) {
           ThrowDeserializationExceptionIfNonePending(isolate_);
-          return MaybeHandle<Object>();
+          return MaybeDirectHandle<Object>();
         }
 
         stack.resize(begin_properties);
@@ -2735,10 +2735,11 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
         // This was already broken in Chromium, and apparently wasn't missed.
         isolate_->Throw(*isolate_->factory()->NewError(
             MessageTemplate::kDataCloneDeserializationError));
-        return MaybeHandle<Object>();
+        return MaybeDirectHandle<Object>();
       }
       default:
-        if (!ReadObject().ToHandle(&new_object)) return MaybeHandle<Object>();
+        if (!ReadObject().ToHandle(&new_object))
+          return MaybeDirectHandle<Object>();
         break;
     }
     stack.push_back(new_object);
@@ -2755,7 +2756,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
   if (stack.size() != 1) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
   return scope.CloseAndEscape(stack[0]);
 }

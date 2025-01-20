@@ -156,7 +156,7 @@ class Expectations {
     elements_kind_ = elements_kind;
   }
 
-  Handle<FieldType> GetFieldType(int index) {
+  DirectHandle<FieldType> GetFieldType(int index) {
     CHECK(index < MAX_PROPERTIES);
     CHECK_EQ(PropertyLocation::kField, locations_[index]);
     return Cast<FieldType>(values_[index]);
@@ -416,10 +416,10 @@ class Expectations {
     return Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
   }
 
-  Handle<Map> AddAccessorConstant(Handle<Map> map,
-                                  PropertyAttributes attributes,
-                                  Handle<Object> getter,
-                                  Handle<Object> setter) {
+  DirectHandle<Map> AddAccessorConstant(DirectHandle<Map> map,
+                                        PropertyAttributes attributes,
+                                        Handle<Object> getter,
+                                        Handle<Object> setter) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, getter, setter);
@@ -444,9 +444,9 @@ class Expectations {
     return map;
   }
 
-  Handle<Map> TransitionToAccessorConstant(Handle<Map> map,
-                                           PropertyAttributes attributes,
-                                           DirectHandle<AccessorPair> pair) {
+  DirectHandle<Map> TransitionToAccessorConstant(
+      DirectHandle<Map> map, PropertyAttributes attributes,
+      DirectHandle<AccessorPair> pair) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, pair);
@@ -1370,7 +1370,7 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
 // Checks that given |map| is deprecated and that it updates to given |new_map|
 // which in turn should match expectations.
 struct CheckDeprecated {
-  void Check(Isolate* isolate, Handle<Map> map, DirectHandle<Map> new_map,
+  void Check(Isolate* isolate, DirectHandle<Map> map, DirectHandle<Map> new_map,
              const Expectations& expectations) {
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
@@ -1388,7 +1388,7 @@ struct CheckDeprecated {
 // Checks that given |map| is NOT deprecated, equals to given |new_map| and
 // matches expectations.
 struct CheckSameMap {
-  void Check(Isolate* isolate, Handle<Map> map, DirectHandle<Map> new_map,
+  void Check(Isolate* isolate, DirectHandle<Map> map, DirectHandle<Map> new_map,
              const Expectations& expectations) {
     // |map| was not reconfigured, therefore it should stay stable.
     CHECK(map->is_stable());
@@ -1472,7 +1472,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK(expectations.Check(*map));
 
   // Create branch to |map1|.
-  Handle<Map> map1 = map;
+  DirectHandle<Map> map1 = map;
   Expectations expectations1 = expectations;
   for (int i = kSplitProp; i < kCustomPropIndex; i++) {
     map1 = expectations1.AddDataField(map1, NONE, constness, representation,
@@ -1508,7 +1508,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
+  DirectHandle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
       isolate, map2, InternalIndex(kSplitProp), PropertyKind::kData, NONE,
       PropertyConstness::kConst);
 
@@ -3011,7 +3011,8 @@ struct TransitionToDataFieldOperator {
         heap_type_(heap_type),
         value_(value) {}
 
-  Handle<Map> DoTransition(Expectations* expectations, DirectHandle<Map> map) {
+  DirectHandle<Map> DoTransition(Expectations* expectations,
+                                 DirectHandle<Map> map) {
     return expectations->TransitionToDataField(
         map, attributes_, constness_, representation_, heap_type_, value_);
   }
@@ -3026,7 +3027,8 @@ struct TransitionToDataConstantOperator {
                                    PropertyAttributes attributes = NONE)
       : attributes_(attributes), value_(value) {}
 
-  Handle<Map> DoTransition(Expectations* expectations, DirectHandle<Map> map) {
+  DirectHandle<Map> DoTransition(Expectations* expectations,
+                                 DirectHandle<Map> map) {
     return expectations->TransitionToDataConstant(map, attributes_, value_);
   }
 };
@@ -3040,7 +3042,8 @@ struct TransitionToAccessorConstantOperator {
                                        PropertyAttributes attributes = NONE)
       : attributes_(attributes), pair_(pair) {}
 
-  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+  DirectHandle<Map> DoTransition(Expectations* expectations,
+                                 DirectHandle<Map> map) {
     return expectations->TransitionToAccessorConstant(map, attributes_, pair_);
   }
 };
@@ -3061,8 +3064,8 @@ struct ReconfigureAsDataPropertyOperator {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
-                           Handle<Map> map) {
+  DirectHandle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
+                                 Handle<Map> map) {
     expectations->SetDataField(descriptor_.as_int(),
                                PropertyConstness::kMutable, representation_,
                                heap_type_);
@@ -3081,8 +3084,8 @@ struct ReconfigureAsAccessorPropertyOperator {
                                         PropertyAttributes attributes = NONE)
       : descriptor_(descriptor), attributes_(attributes) {}
 
-  Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
-                           Handle<Map> map) {
+  DirectHandle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
+                                 Handle<Map> map) {
     expectations->SetAccessorField(descriptor_.as_int());
     return MapUpdater::ReconfigureExistingProperty(
         isolate, map, descriptor_, PropertyKind::kAccessor, attributes_,
@@ -3108,8 +3111,8 @@ struct FieldGeneralizationChecker {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  void Check(Isolate* isolate, Expectations* expectations, Handle<Map> map1,
-             DirectHandle<Map> map2) {
+  void Check(Isolate* isolate, Expectations* expectations,
+             DirectHandle<Map> map1, DirectHandle<Map> map2) {
     CHECK(!map2->is_deprecated());
 
     CHECK(map1->is_deprecated());
@@ -3173,8 +3176,8 @@ static void TestTransitionTo(TransitionOp1* transition_op1,
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kPropCount - 1; i++) {
     map = expectations.AddDataField(map, NONE, PropertyConstness::kMutable,
                                     Representation::Smi(), any_type);
@@ -3182,11 +3185,11 @@ static void TestTransitionTo(TransitionOp1* transition_op1,
   CHECK(expectations.Check(*map));
 
   Expectations expectations1 = expectations;
-  Handle<Map> map1 = transition_op1->DoTransition(&expectations1, map);
+  DirectHandle<Map> map1 = transition_op1->DoTransition(&expectations1, map);
   CHECK(expectations1.Check(*map1));
 
   Expectations expectations2 = expectations;
-  Handle<Map> map2 = transition_op2->DoTransition(&expectations2, map);
+  DirectHandle<Map> map2 = transition_op2->DoTransition(&expectations2, map);
 
   // Let the test customization do the check.
   checker->Check(isolate, &expectations2, map1, map2);
@@ -3325,8 +3328,9 @@ TEST(HoleyHeapNumber) {
 namespace {
 
 template <class... Args>
-MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
-                         Args... args) {
+MaybeDirectHandle<Object> Call(Isolate* isolate,
+                               DirectHandle<JSFunction> function,
+                               Args... args) {
   DirectHandle<Object> arguments[] = {args...};
   return Execution::Call(isolate, function,
                          isolate->factory()->undefined_value(),
@@ -3341,7 +3345,7 @@ void TestStoreToConstantField(const char* store_func_source,
   Isolate* isolate = CcTest::i_isolate();
   CompileRun(store_func_source);
 
-  Handle<JSFunction> store_func = GetGlobal<JSFunction>("store");
+  DirectHandle<JSFunction> store_func = GetGlobal<JSFunction>("store");
 
   DirectHandle<Map> initial_map = Map::Create(isolate, 4);
 

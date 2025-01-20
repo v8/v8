@@ -85,9 +85,9 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
+  return Cast<HeapObject>(ReadUnalignedValue<IndirectHandle<Object>>(pc_));
 }
 
 JSDispatchHandle RelocInfo::js_dispatch_handle() {

@@ -29,9 +29,10 @@ namespace interpreter {
 
 class InterpreterTest : public WithContextMixin<TestWithIsolateAndZone> {
  public:
-  Handle<Object> RunBytecode(Handle<BytecodeArray> bytecode_array,
-                             MaybeHandle<FeedbackMetadata> feedback_metadata =
-                                 MaybeHandle<FeedbackMetadata>()) {
+  DirectHandle<Object> RunBytecode(
+      Handle<BytecodeArray> bytecode_array,
+      MaybeHandle<FeedbackMetadata> feedback_metadata =
+          MaybeHandle<FeedbackMetadata>()) {
     InterpreterTester tester(i_isolate(), bytecode_array, feedback_metadata);
     auto callable = tester.GetCallable<>();
     return callable().ToHandleChecked();
@@ -571,7 +572,7 @@ TEST_F(InterpreterTest, InterpreterParameter8) {
   using H = Handle<Object>;
   auto callable = tester.GetCallableWithReceiver<H, H, H, H, H, H, H>();
 
-  Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(1), i_isolate());
+  DirectHandle<Smi> arg1 = DirectHandle<Smi>(Smi::FromInt(1), i_isolate());
   Handle<Smi> arg2 = Handle<Smi>(Smi::FromInt(2), i_isolate());
   Handle<Smi> arg3 = Handle<Smi>(Smi::FromInt(3), i_isolate());
   Handle<Smi> arg4 = Handle<Smi>(Smi::FromInt(4), i_isolate());
@@ -974,7 +975,8 @@ TEST_F(InterpreterTest, InterpreterParameter1Assign) {
   auto callable = tester.GetCallableWithReceiver<>();
 
   DirectHandle<Object> return_val =
-      callable(Handle<Smi>(Smi::FromInt(3), i_isolate())).ToHandleChecked();
+      callable(DirectHandle<Smi>(Smi::FromInt(3), i_isolate()))
+          .ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(5));
 }
 
@@ -1091,7 +1093,7 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
 
-  Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
@@ -1101,19 +1103,19 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to polymorphic IC.
-  Handle<JSAny> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   return_val = callable(object2).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(456));
 
   // Test transition to megamorphic IC.
-  Handle<JSAny> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<JSAny> object4 =
+  DirectHandle<JSAny> object4 =
       InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<JSAny> object5 =
+  DirectHandle<JSAny> object5 =
       InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   return_val = callable(object5).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(789));
@@ -1142,7 +1144,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
 
-  Handle<JSAny> object = InterpreterTester::NewObject("({ key : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ key : 123 })");
   // Test IC miss.
   DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
@@ -1152,7 +1154,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to megamorphic IC.
-  Handle<JSAny> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ key : 789, val2 : 123 })");
   return_val = callable(object3).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(789));
@@ -1181,7 +1183,7 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
 
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   DirectHandle<Object> result;
   callable(object).ToHandleChecked();
@@ -1196,7 +1198,7 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to polymorphic IC.
-  Handle<JSAny> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object2, name->string())
@@ -1204,13 +1206,13 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<JSAny> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<JSAny> object4 =
+  DirectHandle<JSAny> object4 =
       InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<JSAny> object5 =
+  DirectHandle<JSAny> object5 =
       InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   callable(object5).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object5, name->string())
@@ -1243,7 +1245,7 @@ TEST_F(InterpreterTest, InterpreterSetKeyedProperty) {
 
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   DirectHandle<Object> result;
   callable(object).ToHandleChecked();
@@ -1258,7 +1260,7 @@ TEST_F(InterpreterTest, InterpreterSetKeyedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<JSAny> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object2, name->string())
@@ -1301,7 +1303,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<JSAny> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { this.func = function() { return 0x265; }})()");
     DirectHandle<Object> return_val = callable(object).ToHandleChecked();
     CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(0x265));
@@ -1327,7 +1329,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<JSAny> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() {"
         "  this.val = 1234;"
         "  this.func = function() { return this.val; };"
@@ -1365,7 +1367,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<JSAny> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.func = function(a, b) { return a - b; }"
         "})()");
@@ -1418,7 +1420,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<JSAny> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.prefix = \"prefix_\";"
         "  this.func = function(a, b, c, d, e, f, g, h, i, j) {"
@@ -1643,7 +1645,7 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
   builder.LoadLiteral(Smi::zero());
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 16-bit constant pool entries. Make sure to use doubles so that
-  // the jump can't re-use an integer.
+  // the jump can't reuse an integer.
   for (int i = 1; i <= 65536; i++) {
     builder.LoadLiteral(i + 0.5);
   }

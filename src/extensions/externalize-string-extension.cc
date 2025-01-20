@@ -144,8 +144,8 @@ void ExternalizeStringExtension::Externalize(
 
 namespace {
 
-MaybeHandle<String> CopyConsStringToOld(Isolate* isolate,
-                                        DirectHandle<ConsString> string) {
+MaybeDirectHandle<String> CopyConsStringToOld(Isolate* isolate,
+                                              DirectHandle<ConsString> string) {
   return isolate->factory()->NewConsString(handle(string->first(), isolate),
                                            handle(string->second(), isolate),
                                            AllocationType::kOld);

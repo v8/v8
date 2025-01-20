@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Check that we can traverse very deep stacks of ConsStrings using
-// StringCharacterStram.  Check that Get(int) works on very deep stacks
+// StringCharacterStream.  Check that Get(int) works on very deep stacks
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
@@ -663,7 +663,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     HandleScope inner_scope(isolate);
     AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
     // Build flat version of cons string.
-    Handle<String> flat_string = build(i, &data);
+    DirectHandle<String> flat_string = build(i, &data);
     ConsStringStats flat_string_stats;
     AccumulateStats(flat_string, &flat_string_stats);
     // Flatten string.
@@ -690,8 +690,8 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
 
 static const int kCharacterStreamNonRandomCases = 8;
 
-static Handle<String> BuildEdgeCaseConsString(int test_case,
-                                              ConsStringGenerationData* data) {
+static DirectHandle<String> BuildEdgeCaseConsString(
+    int test_case, ConsStringGenerationData* data) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   data->Reset();
@@ -835,8 +835,8 @@ static void InitializeGenerationData(int test_case,
       0.03 * static_cast<double>(test_case % kEmptyLeaves);
 }
 
-static Handle<String> BuildRandomConsString(int test_case,
-                                            ConsStringGenerationData* data) {
+static DirectHandle<String> BuildRandomConsString(
+    int test_case, ConsStringGenerationData* data) {
   InitializeGenerationData(test_case, data);
   return ConstructRandomString(data, 200);
 }
@@ -1939,7 +1939,7 @@ TEST(InternalizeExternalString) {
   DirectHandle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(!external->is_uncached());
 
-  // Internalize succesfully, without a copy.
+  // Internalize successfully, without a copy.
   DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
@@ -1964,7 +1964,7 @@ TEST(InternalizeExternalStringTwoByte) {
   DirectHandle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(!external->is_uncached());
 
-  // Internalize succesfully, without a copy.
+  // Internalize successfully, without a copy.
   DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(IsInternalizedString(*string));
   CHECK(string.equals(internal));
@@ -2005,7 +2005,7 @@ TEST(InternalizeExternalStringUncachedWithCopy) {
   Handle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(external->is_uncached());
 
-  // Internalize succesfully, with a copy.
+  // Internalize successfully, with a copy.
   DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(!IsInternalizedString(*external));
   CHECK(IsInternalizedString(*internal));
@@ -2048,7 +2048,7 @@ TEST(InternalizeExternalStringUncachedWithCopyTwoByte) {
   Handle<ExternalString> external = Cast<ExternalString>(string);
   CHECK(external->is_uncached());
 
-  // Internalize succesfully, with a copy.
+  // Internalize successfully, with a copy.
   CHECK(!IsInternalizedString(*external));
   DirectHandle<String> internal = factory->InternalizeString(external);
   CHECK(!IsInternalizedString(*external));

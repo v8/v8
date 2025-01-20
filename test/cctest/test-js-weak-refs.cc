@@ -16,7 +16,7 @@ namespace internal {
 
 namespace {
 
-Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
+DirectHandle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
     Isolate* isolate) {
   Factory* factory = isolate->factory();
   DirectHandle<String> finalization_registry_name =
@@ -62,11 +62,11 @@ Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
   return weak_ref;
 }
 
-Handle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
+DirectHandle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
   Factory* factory = isolate->factory();
   DirectHandle<String> key_string =
       factory->NewStringFromStaticChars("key_string");
-  Handle<JSObject> key =
+  DirectHandle<JSObject> key =
       isolate->factory()->NewJSObject(isolate->object_function());
   JSObject::AddProperty(isolate, key, key_string,
                         factory->NewStringFromAsciiChecked(key_prop_value),
@@ -95,7 +95,7 @@ Handle<WeakCell> FinalizationRegistryRegister(
   return weak_cell;
 }
 
-Handle<WeakCell> FinalizationRegistryRegister(
+DirectHandle<WeakCell> FinalizationRegistryRegister(
     DirectHandle<JSFinalizationRegistry> finalization_registry,
     DirectHandle<JSObject> target, Isolate* isolate) {
   DirectHandle<Object> undefined =

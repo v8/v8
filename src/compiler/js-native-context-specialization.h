@@ -268,8 +268,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
-  Handle<JSGlobalObject> global_object() const { return global_object_; }
-  Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
+  DirectHandle<JSGlobalObject> global_object() const { return global_object_; }
+  DirectHandle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
   NativeContextRef native_context() const {
     return broker()->target_native_context();
   }

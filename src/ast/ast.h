@@ -306,7 +306,7 @@ class FailureExpression : public Expression {
 // statement.
 //
 // Since we don't want to track a list of labels for all kinds of statements, we
-// only declare switchs, loops, and blocks as BreakableStatements.  This means
+// only declare switches, loops, and blocks as BreakableStatements.  This means
 // that we implement breaks targeting other statement forms as breaks targeting
 // a substatement thereof. For instance, in "foo: if (b) { f(); break foo; }" we
 // pretend that foo is the label of the inner block. That's okay because one
@@ -837,7 +837,7 @@ class TryCatchStatement final : public TryStatement {
   //
   // For scripts in repl mode there is exactly one catch block with
   // UNCAUGHT_ASYNC_AWAIT prediction. This catch block needs to preserve
-  // the exception so it can be re-used later by the inspector.
+  // the exception so it can be reused later by the inspector.
   inline bool ShouldClearException(
       HandlerTable::CatchPrediction outer_catch_prediction) const {
     if (catch_prediction_ == HandlerTable::UNCAUGHT_ASYNC_AWAIT) {
@@ -1099,7 +1099,7 @@ class MaterializedLiteral : public Expression {
 // Node for capturing a regexp literal.
 class RegExpLiteral final : public MaterializedLiteral {
  public:
-  Handle<String> pattern() const { return pattern_->string(); }
+  DirectHandle<String> pattern() const { return pattern_->string(); }
   const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
@@ -1154,8 +1154,8 @@ class LiteralBoilerplateBuilder {
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
   template <typename IsolateT>
-  static Handle<Object> GetBoilerplateValue(Expression* expression,
-                                            IsolateT* isolate);
+  static DirectHandle<Object> GetBoilerplateValue(Expression* expression,
+                                                  IsolateT* isolate);
 
   bool is_shallow() const { return depth() == kShallow; }
   bool needs_initial_allocation_site() const {
@@ -1498,7 +1498,7 @@ class VariableProxy final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return !is_new_target(); }
 
-  Handle<String> name() const { return raw_name()->string(); }
+  DirectHandle<String> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
     return is_resolved() ? var_->raw_name() : raw_name_;
   }
@@ -1653,7 +1653,7 @@ enum AssignType {
   PRIVATE_GETTER_ONLY,   // obj.#key: #key only has a getter defined
   PRIVATE_SETTER_ONLY,   // obj.#key: #key only has a setter defined
   PRIVATE_GETTER_AND_SETTER,  // obj.#key: #key has both accessors defined
-  PRIVATE_DEBUG_DYNAMIC,      // obj.#key: #key is private that requries dynamic
+  PRIVATE_DEBUG_DYNAMIC,      // obj.#key: #key is private that requires dynamic
                               // lookup in debug-evaluate.
 };
 
@@ -2765,7 +2765,7 @@ class ClassLiteral final : public Expression {
 
 class NativeFunctionLiteral final : public Expression {
  public:
-  Handle<String> name() const { return name_->string(); }
+  DirectHandle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   v8::Extension* extension() const { return extension_; }
 

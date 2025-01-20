@@ -206,7 +206,8 @@ Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
 }
 
 // static
-Handle<String> CallSiteInfo::GetScriptHash(DirectHandle<CallSiteInfo> info) {
+DirectHandle<String> CallSiteInfo::GetScriptHash(
+    DirectHandle<CallSiteInfo> info) {
   DirectHandle<Script> script;
   Isolate* isolate = info->GetIsolate();
   if (!GetScript(isolate, info).ToHandle(&script)) {
@@ -329,7 +330,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
 }
 
 // static
-Handle<String> CallSiteInfo::GetFunctionDebugName(
+DirectHandle<String> CallSiteInfo::GetFunctionDebugName(
     DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
@@ -345,7 +346,7 @@ Handle<String> CallSiteInfo::GetFunctionDebugName(
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<JSFunction> function(Cast<JSFunction>(info->function()),
                                     isolate);
-  Handle<String> name = JSFunction::GetDebugName(function);
+  DirectHandle<String> name = JSFunction::GetDebugName(function);
   if (name->length() == 0 && info->IsEval()) {
     name = isolate->factory()->eval_string();
   }
@@ -448,7 +449,8 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
 }  // namespace
 
 // static
-Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
+DirectHandle<Object> CallSiteInfo::GetMethodName(
+    DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   DirectHandle<Object> receiver_or_instance(info->receiver_or_instance(),
                                             isolate);
@@ -510,11 +512,12 @@ Handle<Object> CallSiteInfo::GetMethodName(DirectHandle<CallSiteInfo> info) {
     }
   }
 
-  return handle(InferMethodName(isolate, *receiver, *function), isolate);
+  return direct_handle(InferMethodName(isolate, *receiver, *function), isolate);
 }
 
 // static
-Handle<Object> CallSiteInfo::GetTypeName(DirectHandle<CallSiteInfo> info) {
+DirectHandle<Object> CallSiteInfo::GetTypeName(
+    DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (!info->IsMethodCall()) {
     return isolate->factory()->null_value();
@@ -528,7 +531,7 @@ Handle<Object> CallSiteInfo::GetTypeName(DirectHandle<CallSiteInfo> info) {
   }
   if (IsJSFunction(*receiver)) {
     DirectHandle<JSFunction> function = Cast<JSFunction>(receiver);
-    Handle<String> class_name = JSFunction::GetDebugName(function);
+    DirectHandle<String> class_name = JSFunction::GetDebugName(function);
     if (class_name->length() != 0) {
       return class_name;
     }
@@ -548,11 +551,11 @@ Tagged<WasmInstanceObject> CallSiteInfo::GetWasmInstance() const {
 }
 
 // static
-Handle<Object> CallSiteInfo::GetWasmModuleName(
+DirectHandle<Object> CallSiteInfo::GetWasmModuleName(
     DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (info->IsWasm()) {
-    Handle<String> name;
+    DirectHandle<String> name;
     auto module_object =
         direct_handle(info->GetWasmInstance()->module_object(), isolate);
     if (WasmModuleObject::GetModuleNameOrNull(isolate, module_object)
@@ -672,10 +675,10 @@ Tagged<SharedFunctionInfo> CallSiteInfo::GetSharedFunctionInfo() const {
 }
 
 // static
-MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
-                                            DirectHandle<CallSiteInfo> info) {
+MaybeDirectHandle<Script> CallSiteInfo::GetScript(
+    Isolate* isolate, DirectHandle<CallSiteInfo> info) {
   if (auto script = info->GetScript()) {
-    return handle(*script, isolate);
+    return direct_handle(*script, isolate);
   }
   return kNullMaybeHandle;
 }
@@ -889,11 +892,11 @@ void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
   SerializeJSStackFrame(isolate, frame, builder);
 }
 
-MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
-                                          DirectHandle<CallSiteInfo> frame) {
+MaybeDirectHandle<String> SerializeCallSiteInfo(
+    Isolate* isolate, DirectHandle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
   SerializeCallSiteInfo(isolate, frame, &builder);
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 }  // namespace v8::internal

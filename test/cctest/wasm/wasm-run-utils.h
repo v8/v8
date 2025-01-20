@@ -232,10 +232,10 @@ class TestingModuleBuilder {
   }
 
   Isolate* isolate() const { return isolate_; }
-  Handle<WasmInstanceObject> instance_object() const {
+  DirectHandle<WasmInstanceObject> instance_object() const {
     return instance_object_;
   }
-  Handle<WasmTrustedInstanceData> trusted_instance_data() const {
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data() const {
     return trusted_instance_data_;
   }
   WasmCode* GetFunctionCode(uint32_t index) const {
@@ -434,7 +434,7 @@ class WasmRunnerBase : public InitializedHandleScope {
     }
   }
 
-  MaybeHandle<Object> CallViaJS(
+  MaybeDirectHandle<Object> CallViaJS(
       uint32_t function_index,
       base::Vector<const DirectHandle<Object>> parameters) {
     Isolate* isolate = main_isolate();
@@ -511,7 +511,7 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   template <typename T>
-  Handle<Object> MakeParam(T t) {
+  DirectHandle<Object> MakeParam(T t) {
     Factory* factory = builder_.isolate()->factory();
     if constexpr (std::is_integral_v<T> && std::is_signed_v<T> &&
                   sizeof(T) <= sizeof(int)) {

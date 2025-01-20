@@ -208,7 +208,7 @@ void MovableReferences::RelocateInteriorReferences(Address from, Address to,
   while (offset < size) {
     if (!interior_it->second) {
       // Update the interior reference value, so that when the object the slot
-      // is pointing to is moved, it can re-use this value.
+      // is pointing to is moved, it can reuse this value.
       Address reference = to + offset;
       interior_it->second = reference;
 

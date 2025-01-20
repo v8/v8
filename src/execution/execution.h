@@ -64,14 +64,14 @@ class Execution final : public AllStatic {
       MaybeDirectHandle<Object>* exception_out);
   // Same as Execute::TryCall but for scripts which need an explicit
   // host-defined options object. See Execution:CallScript
-  V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCallScript(
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<Object> TryCallScript(
       Isolate* isolate, DirectHandle<JSFunction> script_function,
       DirectHandle<Object> receiver,
       DirectHandle<FixedArray> host_defined_options);
 
   // Convenience method for performing RunMicrotasks
-  static MaybeHandle<Object> TryRunMicrotasks(Isolate* isolate,
-                                              MicrotaskQueue* microtask_queue);
+  static MaybeDirectHandle<Object> TryRunMicrotasks(
+      Isolate* isolate, MicrotaskQueue* microtask_queue);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Call a Wasm function identified by {wasm_call_target} through the

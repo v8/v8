@@ -80,7 +80,7 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
   }
 }
 
-Handle<DependentCode> DependentCode::InsertWeakCode(
+DirectHandle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
     DirectHandle<Code> code) {
   if (entries->length() == entries->capacity()) {

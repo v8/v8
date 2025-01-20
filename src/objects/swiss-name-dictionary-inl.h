@@ -546,7 +546,7 @@ int SwissNameDictionary::AddInternal(Tagged<Name> key, Tagged<Object> value,
 
   uint32_t hash = key->hash();
 
-  // For now we don't re-use deleted buckets (due to enumeration table
+  // For now we don't reuse deleted buckets (due to enumeration table
   // complications), which is why we only look for empty buckets here, not
   // deleted ones.
   int target = FindFirstEmpty(hash);
