@@ -431,6 +431,7 @@ const char* MessageFormatter::TemplateString(MessageTemplate index) {
     case MessageTemplate::kMessageCount:
       UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeHandle<String> MessageFormatter::TryFormat(
