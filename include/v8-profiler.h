@@ -418,8 +418,10 @@ class V8_EXPORT CpuProfiler {
    * Synchronously collect current stack sample in all profilers attached to
    * the |isolate|. The call does not affect number of ticks recorded for
    * the current top node.
+   * |trace_id| is an optional identifier set to the collected sample.
+   * this is useful to associate the sample with a trace event.
    */
-  static void CollectSample(Isolate* isolate);
+  static void CollectSample(Isolate* isolate, const uint64_t trace_id = 0);
 
   /**
    * Disposes the CPU profiler object.

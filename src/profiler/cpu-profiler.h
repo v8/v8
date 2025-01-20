@@ -180,7 +180,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into the tick sample events buffer.
-  void AddCurrentStack(bool update_stats = false);
+  void AddCurrentStack(bool update_stats = false, const uint64_t trace_id = 0);
   void AddDeoptStack(Address from, int fp_to_sp_delta);
   // Add a sample into the tick sample events buffer. Used for testing.
   void AddSample(TickSample sample);
@@ -339,7 +339,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   CpuProfiler(const CpuProfiler&) = delete;
   CpuProfiler& operator=(const CpuProfiler&) = delete;
 
-  static void CollectSample(Isolate* isolate);
+  static void CollectSample(Isolate* isolate, uint64_t trace_id = 0);
   static size_t GetAllProfilersMemorySize(Isolate* isolate);
 
   using ProfilingMode = v8::CpuProfilingMode;
@@ -351,7 +351,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
-  void CollectSample();
+  void CollectSample(const uint64_t trace_id = 0);
   size_t GetEstimatedMemoryUsage() const;
   CpuProfilingResult StartProfiling(
       CpuProfilingOptions options = {},

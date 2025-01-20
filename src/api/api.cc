@@ -11488,8 +11488,12 @@ void* CpuProfilingOptions::raw_filter_context() const {
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
 
 // static
-void CpuProfiler::CollectSample(Isolate* v8_isolate) {
-  i::CpuProfiler::CollectSample(reinterpret_cast<i::Isolate*>(v8_isolate));
+// |trace_id| is an optional identifier stored in the sample record used
+// to associate the sample with a trace event. Defaults to
+// 0, which means no identifier has been set.
+void CpuProfiler::CollectSample(Isolate* v8_isolate, const uint64_t trace_id) {
+  i::CpuProfiler::CollectSample(reinterpret_cast<i::Isolate*>(v8_isolate),
+                                trace_id);
 }
 
 void CpuProfiler::SetSamplingInterval(int us) {

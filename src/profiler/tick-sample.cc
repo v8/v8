@@ -166,7 +166,8 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    RecordCEntryFrame record_c_entry_frame,
                                    bool update_stats,
                                    bool use_simulator_reg_state,
-                                   base::TimeDelta sampling_interval) {
+                                   base::TimeDelta sampling_interval,
+                                   const uint64_t trace_id) {
   update_stats_ = update_stats;
   SampleInfo info;
   RegisterState regs = reg_state;
@@ -207,6 +208,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     tos = nullptr;
   }
   sampling_interval_ = sampling_interval;
+  trace_id_ = trace_id;
   timestamp = base::TimeTicks::Now();
 }
 

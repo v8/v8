@@ -160,7 +160,8 @@ void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
-void ProfilerEventsProcessor::AddCurrentStack(bool update_stats) {
+void ProfilerEventsProcessor::AddCurrentStack(bool update_stats,
+                                              const uint64_t trace_id) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   StackFrameIterator it(isolate_, isolate_->thread_local_top(),
@@ -172,7 +173,7 @@ void ProfilerEventsProcessor::AddCurrentStack(bool update_stats) {
     regs.pc = reinterpret_cast<void*>(frame->pc());
   }
   record.sample.Init(isolate_, regs, TickSample::kSkipCEntryFrame, update_stats,
-                     false);
+                     false, base::TimeDelta(), trace_id);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -477,11 +478,11 @@ class CpuProfilersManager {
     UNREACHABLE();
   }
 
-  void CallCollectSample(Isolate* isolate) {
+  void CallCollectSample(Isolate* isolate, const uint64_t trace_id) {
     base::SpinningMutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
-      it->second->CollectSample();
+      it->second->CollectSample(trace_id);
     }
   }
 
@@ -592,13 +593,16 @@ void CpuProfiler::AdjustSamplingInterval() {
 }
 
 // static
-void CpuProfiler::CollectSample(Isolate* isolate) {
-  GetProfilersManager()->CallCollectSample(isolate);
+// |trace_id| is an optional identifier stored in the sample record used
+// to associate the sample with a trace event. Defaults to 0, which
+// means no identifier has been set.
+void CpuProfiler::CollectSample(Isolate* isolate, const uint64_t trace_id) {
+  GetProfilersManager()->CallCollectSample(isolate, trace_id);
 }
 
-void CpuProfiler::CollectSample() {
+void CpuProfiler::CollectSample(const uint64_t trace_id) {
   if (processor_) {
-    processor_->AddCurrentStack();
+    processor_->AddCurrentStack(false, trace_id);
   }
 }
 
