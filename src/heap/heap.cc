@@ -118,6 +118,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/strings/string-hasher.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tasks/cancelable-task.h"
@@ -901,14 +902,12 @@ class Heap::AllocationTrackerForDebugging final
   void UpdateAllocationsHash(uint32_t value) {
     const uint16_t c1 = static_cast<uint16_t>(value);
     const uint16_t c2 = static_cast<uint16_t>(value >> 16);
-    raw_allocations_hash_ =
-        StringHasher::AddCharacterCore(raw_allocations_hash_, c1);
-    raw_allocations_hash_ =
-        StringHasher::AddCharacterCore(raw_allocations_hash_, c2);
+    raw_allocations_hash_.AddCharacter(c1);
+    raw_allocations_hash_.AddCharacter(c2);
   }
 
   void PrintAllocationsHash() {
-    uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
+    uint32_t hash = raw_allocations_hash_.Finalize();
     PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
            allocations_count_.load(std::memory_order_relaxed), hash);
   }
@@ -919,7 +918,7 @@ class Heap::AllocationTrackerForDebugging final
   // allocations.
   std::atomic<size_t> allocations_count_{0};
   // Running hash over allocations performed.
-  uint32_t raw_allocations_hash_ = 0;
+  RunningStringHasher raw_allocations_hash_{0};
 };
 
 void Heap::AddHeapObjectAllocationTracker(
