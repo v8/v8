@@ -10329,7 +10329,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap->FreeMainThreadLinearAllocationAreas();
 
   // The order of acquiring memory statistics is important here. We query in
-  // this order because of concurrent allocation: 1) used memory 2) comitted
+  // this order because of concurrent allocation: 1) used memory 2) committed
   // physical memory 3) committed memory. Therefore the condition used <=
   // committed physical <= committed should hold.
   heap_statistics->used_global_handles_size_ = heap->UsedGlobalHandlesSize();

@@ -1061,7 +1061,7 @@ class Heap final {
   // manually.
   // If the object contains external pointer slots, then these need to be
   // invalidated as well if a GC marker may have observed them previously. To
-  // do this, pass HasExernalPointerSlots::kYes.
+  // do this, pass HasExternalPointerSlots::kYes.
   void NotifyObjectLayoutChange(
       Tagged<HeapObject> object, const DisallowGarbageCollection&,
       InvalidateRecordedSlots invalidate_recorded_slots,
@@ -1358,7 +1358,7 @@ class Heap final {
   // Returns the amount of wasted bytes in non-new spaces.
   V8_EXPORT_PRIVATE size_t OldGenerationWastedBytes() const;
 
-  // Returns the amount of bytes in non-new spaces not availalbe for allocation,
+  // Returns the amount of bytes in non-new spaces not available for allocation,
   // including bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t OldGenerationConsumedBytes() const;
 
@@ -1369,7 +1369,7 @@ class Heap final {
   // Returns the amount of wasted bytes in new spaces.
   V8_EXPORT_PRIVATE size_t YoungGenerationWastedBytes() const;
 
-  // Returns the amount of bytes in new space not availalbe for allocation,
+  // Returns the amount of bytes in new space not available for allocation,
   // including bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t YoungGenerationConsumedBytes() const;
 
@@ -1382,7 +1382,7 @@ class Heap final {
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;
 
-  // Returns the global amount of bytes not availalbe for allocation, including
+  // Returns the global amount of bytes not available for allocation, including
   // bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t GlobalConsumedBytes() const;
 

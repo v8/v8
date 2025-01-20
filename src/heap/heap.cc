@@ -288,7 +288,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
 size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   size_t max_size = V8HeapTrait::kMaxSize;
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
-  // memory at least 16GB. The theshold is set to 15GB to accomodate for some
+  // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
 #ifdef V8_HOST_ARCH_64_BIT
   if ((physical_memory / GB) >= 15) {
@@ -4596,7 +4596,7 @@ void ClearStaleLeftTrimmedPointerVisitor::VisitRootPointers(
 
 void ClearStaleLeftTrimmedPointerVisitor::VisitRunningCode(
     FullObjectSlot code_slot, FullObjectSlot istream_or_smi_zero_slot) {
-  // Directly forward to actualy visitor here. Code objects and instruction
+  // Directly forward to actually visitor here. Code objects and instruction
   // stream will not be left-trimmed.
   DCHECK(!IsLeftTrimmed(code_slot));
   DCHECK(!IsLeftTrimmed(istream_or_smi_zero_slot));
