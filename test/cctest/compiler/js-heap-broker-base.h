@@ -17,23 +17,28 @@ class CanonicalHandles {
             isolate->heap(), ZoneAllocationPolicy(zone))) {}
 
   template <typename T>
-  Handle<T> Create(Tagged<T> object) {
+  IndirectHandle<T> Create(Tagged<T> object) {
     CHECK_NOT_NULL(canonical_handles_);
     auto find_result = canonical_handles_->FindOrInsert(object);
     if (!find_result.already_exists) {
       *find_result.entry = IndirectHandle<T>(object, isolate_).location();
     }
-    return Handle<T>(*find_result.entry);
+    return IndirectHandle<T>(*find_result.entry);
   }
 
   template <typename T>
-  Handle<T> Create(T object) {
+  IndirectHandle<T> Create(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return Create(Tagged<T>(object));
   }
 
   template <typename T>
-  Handle<T> Create(Handle<T> handle) {
+  IndirectHandle<T> Create(IndirectHandle<T> handle) {
+    return Create(*handle);
+  }
+
+  template <typename T>
+  IndirectHandle<T> Create(DirectHandle<T> handle) {
     return Create(*handle);
   }
 
@@ -78,16 +83,20 @@ class JSHeapBrokerTestBase {
   JSHeapBroker* broker() { return &broker_; }
 
   template <typename T>
-  Handle<T> CanonicalHandle(Tagged<T> object) {
+  IndirectHandle<T> CanonicalHandle(Tagged<T> object) {
     return broker()->CanonicalPersistentHandle(object);
   }
   template <typename T>
-  Handle<T> CanonicalHandle(T object) {
+  IndirectHandle<T> CanonicalHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return CanonicalHandle(Tagged<T>(object));
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Handle<T> handle) {
+  IndirectHandle<T> CanonicalHandle(IndirectHandle<T> handle) {
+    return CanonicalHandle(*handle);
+  }
+  template <typename T>
+  IndirectHandle<T> CanonicalHandle(DirectHandle<T> handle) {
     return CanonicalHandle(*handle);
   }
 

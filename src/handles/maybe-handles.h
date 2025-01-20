@@ -100,11 +100,11 @@ class MaybeHandle final {
 #endif
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline MaybeHandle<To> UncheckedCast(MaybeHandle<From> value);
+  friend inline MaybeIndirectHandle<To> UncheckedCast(MaybeHandle<From> value);
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle);
+std::ostream& operator<<(std::ostream& os, MaybeIndirectHandle<T> handle);
 
 // A handle which contains a potentially weak pointer. Keeps it alive (strongly)
 // while the MaybeObjectHandle is alive.
@@ -125,7 +125,7 @@ class MaybeObjectHandle {
 
   inline Tagged<MaybeObject> operator*() const;
   inline Tagged<MaybeObject> operator->() const;
-  inline Handle<Object> object() const;
+  inline IndirectHandle<Object> object() const;
 
   inline bool is_identical_to(const MaybeObjectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
@@ -301,6 +301,9 @@ class MaybeDirectHandle {
 };
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, MaybeDirectHandle<T> handle);
 
 class MaybeObjectDirectHandle {
  public:

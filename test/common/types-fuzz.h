@@ -240,16 +240,20 @@ class Types {
   JSHeapBroker* js_heap_broker() { return &js_heap_broker_; }
 
   template <typename T>
-  Handle<T> CanonicalHandle(Tagged<T> object) {
+  IndirectHandle<T> CanonicalHandle(Tagged<T> object) {
     return js_heap_broker_.CanonicalPersistentHandle(object);
   }
   template <typename T>
-  Handle<T> CanonicalHandle(T object) {
+  IndirectHandle<T> CanonicalHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return CanonicalHandle(Tagged<T>(object));
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Handle<T> handle) {
+  IndirectHandle<T> CanonicalHandle(IndirectHandle<T> handle) {
+    return CanonicalHandle(*handle);
+  }
+  template <typename T>
+  IndirectHandle<T> CanonicalHandle(DirectHandle<T> handle) {
     return CanonicalHandle(*handle);
   }
 

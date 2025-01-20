@@ -46,7 +46,7 @@ Handle<T> Handle<T>::New(Tagged<T> object, Isolate* isolate) {
 }
 
 template <typename T, typename U>
-inline bool Is(Handle<U> value) {
+inline bool Is(IndirectHandle<U> value) {
   return value.is_null() || Is<T>(*value);
 }
 template <typename To, typename From>
@@ -67,40 +67,40 @@ Handle<T>::Handle(Tagged<T> object, LocalHeap* local_heap)
     : HandleBase(object.ptr(), local_heap) {}
 
 template <typename T>
-V8_INLINE Handle<T> handle(Tagged<T> object, Isolate* isolate) {
+V8_INLINE IndirectHandle<T> handle(Tagged<T> object, Isolate* isolate) {
   return Handle<T>(object, isolate);
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(Tagged<T> object, LocalIsolate* isolate) {
+V8_INLINE IndirectHandle<T> handle(Tagged<T> object, LocalIsolate* isolate) {
   return Handle<T>(object, isolate);
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(Tagged<T> object, LocalHeap* local_heap) {
+V8_INLINE IndirectHandle<T> handle(Tagged<T> object, LocalHeap* local_heap) {
   return Handle<T>(object, local_heap);
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(T object, Isolate* isolate) {
+V8_INLINE IndirectHandle<T> handle(T object, Isolate* isolate) {
   static_assert(kTaggedCanConvertToRawObjects);
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(T object, LocalIsolate* isolate) {
+V8_INLINE IndirectHandle<T> handle(T object, LocalIsolate* isolate) {
   static_assert(kTaggedCanConvertToRawObjects);
   return handle(Tagged<T>(object), isolate);
 }
 
 template <typename T>
-V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
+V8_INLINE IndirectHandle<T> handle(T object, LocalHeap* local_heap) {
   static_assert(kTaggedCanConvertToRawObjects);
   return handle(Tagged<T>(object), local_heap);
 }
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
+inline std::ostream& operator<<(std::ostream& os, IndirectHandle<T> handle) {
   return os << Brief(*handle);
 }
 

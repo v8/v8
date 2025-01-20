@@ -69,15 +69,16 @@ bool RootsTable::IsRootHandle(IndirectHandle<T> handle,
   return IsRootHandleLocation(handle_location, index);
 }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                            \
-  Handle<Type> RootsTable::name() {                                     \
-    return Handle<Type>(handle_at(RootIndex::k##CamelName).location()); \
+#define ROOT_ACCESSOR(Type, name, CamelName)            \
+  IndirectHandle<Type> RootsTable::name() {             \
+    return IndirectHandle<Type>(                        \
+        handle_at(RootIndex::k##CamelName).location()); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-Handle<Object> RootsTable::handle_at(RootIndex index) {
-  return Handle<Object>(&(*this)[index]);
+IndirectHandle<Object> RootsTable::handle_at(RootIndex index) {
+  return IndirectHandle<Object>(&(*this)[index]);
 }
 
 ReadOnlyRoots GetReadOnlyRoots() {

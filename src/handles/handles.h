@@ -236,11 +236,11 @@ class Handle final : public HandleBase {
   friend class MaybeHandle;
   // Casts are allowed to access location_.
   template <typename To, typename From>
-  friend inline Handle<To> UncheckedCast(Handle<From> value);
+  friend inline IndirectHandle<To> UncheckedCast(IndirectHandle<From> value);
 };
 
 template <typename T>
-std::ostream& operator<<(std::ostream& os, Handle<T> handle);
+std::ostream& operator<<(std::ostream& os, IndirectHandle<T> handle);
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.

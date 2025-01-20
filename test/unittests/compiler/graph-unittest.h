@@ -71,16 +71,20 @@ class GraphTest : public TestWithNativeContextAndZone {
   NodeOriginTable* node_origins() { return &data_->node_origins_; }
   JSHeapBroker* broker() { return &data_->broker_; }
   template <typename T>
-  Handle<T> CanonicalHandle(T object) {
+  IndirectHandle<T> CanonicalHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return CanonicalHandle(Tagged<T>(object));
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Tagged<T> object) {
+  IndirectHandle<T> CanonicalHandle(Tagged<T> object) {
     return broker()->CanonicalPersistentHandle(object);
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Handle<T> handle) {
+  IndirectHandle<T> CanonicalHandle(IndirectHandle<T> handle) {
+    return CanonicalHandle(*handle);
+  }
+  template <typename T>
+  IndirectHandle<T> CanonicalHandle(DirectHandle<T> handle) {
     return CanonicalHandle(*handle);
   }
   TickCounter* tick_counter() { return &data_->tick_counter_; }

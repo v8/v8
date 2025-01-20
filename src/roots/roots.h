@@ -578,11 +578,12 @@ class RootsTable {
   // handle otherwise.
   IndirectHandle<HeapNumber> FindHeapNumber(double value);
 
-#define ROOT_ACCESSOR(Type, name, CamelName) V8_INLINE Handle<Type> name();
+#define ROOT_ACCESSOR(Type, name, CamelName) \
+  V8_INLINE IndirectHandle<Type> name();
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  V8_INLINE Handle<Object> handle_at(RootIndex root_index);
+  V8_INLINE IndirectHandle<Object> handle_at(RootIndex root_index);
 
   Address const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
@@ -727,7 +728,7 @@ class ReadOnlyRoots {
   V8_INLINE Address address_at(RootIndex root_index) const;
   V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
 
-  // Check if a slot is initialized yet. Should only be neccessary for code
+  // Check if a slot is initialized yet. Should only be necessary for code
   // running during snapshot creation.
   V8_INLINE bool is_initialized(RootIndex root_index) const;
 

@@ -4445,8 +4445,8 @@ TEST(TwoPassPhantomCallbacks) {
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
     i::heap::InvokeMajorGC(CcTest::heap());
+    EmptyMessageQueues(isolate);
   }
-  EmptyMessageQueues(isolate);
 }
 
 
@@ -4469,8 +4469,8 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
     i::heap::InvokeMajorGC(CcTest::heap());
+    EmptyMessageQueues(isolate);
   }
-  EmptyMessageQueues(isolate);
 }
 
 // The string creation API methods forbid executing JS code while they are
@@ -11389,7 +11389,7 @@ THREADED_TEST(CrossEval) {
   try_catch.Reset();
 
   // Check that global variables in the other environment are visible
-  // when evaluting code.
+  // when evaluating code.
   CHECK(other->Global()
             ->Set(other.local(), v8_str("bis"), v8_num(1234))
             .FromJust());
@@ -13953,8 +13953,8 @@ TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
     i::heap::InvokeMajorGC(CcTest::heap());
+    EmptyMessageQueues(isolate);
   }
-  EmptyMessageQueues(isolate);
 }
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
@@ -18379,7 +18379,7 @@ TEST(ContainsOnlyOneByte) {
     // Base assumptions.
     string = cons_strings[i];
     CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
-    // Test left and right concatentation.
+    // Test left and right concatenation.
     string = String::Concat(isolate, two_byte, cons_strings[i]);
     CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
     string = String::Concat(isolate, cons_strings[i], two_byte);
@@ -22453,7 +22453,7 @@ TEST(EventLogging) {
         i::NestedTimedHistogramScope scope3(&histogram);
         CHECK_EQ(++count, event_count);
         i::PauseNestedTimedHistogramScope scope4(&histogram);
-        // The outer timer scope is just paused, no event is emited yet.
+        // The outer timer scope is just paused, no event is emitted yet.
         CHECK_EQ(count, event_count);
         {
           CHECK_EQ(count, event_count);
@@ -22473,7 +22473,7 @@ TEST(EventLogging) {
       CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
       CHECK_EQ(++count, event_count);
       i::PauseNestedTimedHistogramScope scope6(&histogram);
-      // The outer timer scope is just paused, no event is emited yet.
+      // The outer timer scope is just paused, no event is emitted yet.
       CHECK_EQ(count, event_count);
       {
         i::PauseNestedTimedHistogramScope scope7(&histogram);
@@ -24483,7 +24483,7 @@ TEST(SyntheticModuleSetExports) {
       module->SetSyntheticModuleExport(isolate, foo_string, bar_string);
   CHECK(set_export_result.FromJust());
 
-  // After setting the export the Cell should still have the same idenitity.
+  // After setting the export the Cell should still have the same identity.
   CHECK_EQ(exports->Lookup(v8::Utils::OpenDirectHandle(*foo_string)),
            *foo_cell);
 
@@ -26382,7 +26382,7 @@ TEST(CorrectEnteredContext) {
 }
 
 // For testing only, the host-defined options are provided entirely by the host
-// and have an abritrary length. Use this constant here for testing that we get
+// and have an arbitrary length. Use this constant here for testing that we get
 // the correct value during the tests.
 const int kCustomHostDefinedOptionsLengthForTesting = 7;
 

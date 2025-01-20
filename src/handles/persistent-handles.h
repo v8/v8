@@ -41,7 +41,12 @@ class PersistentHandles {
   }
 
   template <typename T>
-  IndirectHandle<T> NewHandle(Handle<T> obj) {
+  IndirectHandle<T> NewHandle(IndirectHandle<T> obj) {
+    return NewHandle(*obj);
+  }
+
+  template <typename T>
+  IndirectHandle<T> NewHandle(DirectHandle<T> obj) {
     return NewHandle(*obj);
   }
 
