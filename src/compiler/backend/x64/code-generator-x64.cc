@@ -6596,6 +6596,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S16x8Blend: {
+      CpuFeatureScope scope(masm(), SSE4_1);
       ASSEMBLE_SIMD_IMM_SHUFFLE(pblendw, i.InputUint8(2));
       break;
     }
