@@ -208,6 +208,22 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
+void CheckedIntPtrToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  __ MacroAssembler::Branch(__ GetDeoptLabel(this, DeoptimizeReason::kNotInt32),
+                            gt, input_reg,
+                            Operand(std::numeric_limits<int32_t>::max()));
+  __ MacroAssembler::Branch(__ GetDeoptLabel(this, DeoptimizeReason::kNotInt32),
+                            lt, input_reg,
+                            Operand(std::numeric_limits<int32_t>::min()));
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -900,7 +916,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   Register params_size = a6;
 
   // Compute the size of the actual parameters + receiver (in bytes).
-  // TODO(leszeks): Consider making this an input into Return to re-use the
+  // TODO(leszeks): Consider making this an input into Return to reuse the
   // incoming argc's register (if it's still valid).
   __ LoadWord(actual_params_size,
               MemOperand(fp, StandardFrameConstants::kArgCOffset));

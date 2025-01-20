@@ -1329,7 +1329,7 @@ inline void MaglevAssembler::CompareFloat64AndJumpIf(
     MacroAssembler::Branch(target, not_equal, cmp, Operand(zero_reg), distance);
   } else {
     // Case for conditions connected with overflow should be checked,
-    // and, maybe, removed in future (FPUCondition does not implement oveflow
+    // and, maybe, removed in future (FPUCondition does not implement overflow
     // cases)
     fclass_d(scratch, src1);
     fclass_d(scratch2, src2);
@@ -1462,9 +1462,7 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
   ZoneLabelRef is_hole = ZoneLabelRef::UnsafeFromLabelPointer(target);
   ZoneLabelRef is_not_hole(this);
   MaglevAssembler::TemporaryRegisterScope temps(this);
-  Register scratch2 = temps.AcquireScratch();
 
-  feq_d(scratch2, value, value);  // 0 if value is NaN
   Label* deferred_code = MakeDeferredCode(
       [](MaglevAssembler* masm, DoubleRegister value, Register scratch,
          ZoneLabelRef is_hole, ZoneLabelRef is_not_hole) {
@@ -1473,6 +1471,8 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
         masm->MacroAssembler::Branch(*is_not_hole);
       },
       value, scratch, is_hole, is_not_hole);
+  Register scratch2 = temps.AcquireScratch();
+  feq_d(scratch2, value, value);  // 0 if value is NaN
   MacroAssembler::Branch(deferred_code, equal, scratch2, Operand(zero_reg));
   bind(*is_not_hole);
 }
@@ -1535,10 +1535,60 @@ inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
   MacroAssembler::Branch(target, cond, r1w, Operand(r2w), distance);
 }
 
+inline void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, int32_t value,
+                                                    Condition cond,
+                                                    Label* target,
+                                                    Label::Distance distance) {
+  MacroAssembler::Branch(target, cond, r1, Operand(value), distance);
+}
+
 void MaglevAssembler::CompareIntPtrAndJumpIf(Register r1, Register r2,
                                              Condition cond, Label* target,
                                              Label::Distance distance) {
   MacroAssembler::Branch(target, cond, r1, Operand(r2), distance);
+}
+
+inline void MaglevAssembler::CompareIntPtrAndBranch(
+    Register r1, int32_t value, Condition cond, Label* if_true,
+    Label::Distance true_distance, bool fallthrough_when_true, Label* if_false,
+    Label::Distance false_distance, bool fallthrough_when_false) {
+  // expect only specific conditions
+  switch (cond) {
+    case eq:
+    case ne:
+    case greater:
+    case greater_equal:
+    case less:
+    case less_equal:
+    case Ugreater:
+    case Ugreater_equal:
+    case Uless:
+    case Uless_equal:
+      break;  // expected
+    case cc_always:
+    default:
+      UNREACHABLE();  // not expected
+  }
+
+  MaglevAssembler::TemporaryRegisterScope temps(this);
+  Register lhs = temps.AcquireScratch();
+  if (fallthrough_when_false) {
+    if (fallthrough_when_true) {
+      // If both paths are a fallthrough, do nothing.
+      DCHECK_EQ(if_true, if_false);
+      return;
+    }
+    // Jump over the false block if true, otherwise fall through into it.
+    MacroAssembler::Branch(if_true, cond, lhs, Operand(value), true_distance);
+  } else {
+    // Jump to the false block if true.
+    MacroAssembler::Branch(if_false, NegateCondition(cond), lhs, Operand(value),
+                           false_distance);
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      MacroAssembler::Branch(if_true, true_distance);
+    }
+  }
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
@@ -1882,6 +1932,11 @@ inline void MaglevAssembler::StoreHeapInt32Value(Register value,
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
                                            Register src) {
   Cvt_d_w(result, src);
+}
+
+inline void MaglevAssembler::IntPtrToDouble(DoubleRegister result,
+                                            Register src) {
+  fcvt_d_l(result, src);
 }
 
 inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
