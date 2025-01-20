@@ -89,6 +89,19 @@ describe('Loading corpus', () => {
          'mjsunit_softskipped/permitted.js']);
   });
 
+  it('keeps soft-skipped paths', () => {
+    sandbox.stub(Math, 'random').callsFake(() => 0.9);
+    sandbox.stub(exceptions, 'getSoftSkippedPaths').callsFake(() => {
+      return [/not_/];
+    });
+    const crashtests = corpus.create('test_data', 'crashtests_softskipped');
+    const cases = crashtests.getRandomTestcasePaths(2);
+    assert.deepEqual(
+        ['crashtests_softskipped/test.js',
+         'crashtests_softskipped/not_great.js'],
+        cases);
+  });
+
   it('caches relative paths', () => {
     sandbox.stub(Math, 'random').callsFake(() => 0);
     sandbox.stub(exceptions, 'getSoftSkipped').callsFake(

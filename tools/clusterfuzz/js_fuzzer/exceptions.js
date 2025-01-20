@@ -83,12 +83,18 @@ const SOFT_SKIPPED_FILES = [
     // Tests slow to parse.
     // CrashTests:
     /^jquery.*\.js/,
+    /^js-test-pre\.js/,
     // Spidermonkey:
     'regress-308085.js',
     'regress-74474-002.js',
     'regress-74474-003.js',
     // V8:
     'object-literal.js',
+];
+
+// Used with a lower probability if paths match.
+const SOFT_SKIPPED_PATHS = [
+    /webgl/,
 ];
 
 // Flags that lead to false positives or that are already passed by default.
@@ -125,7 +131,7 @@ const DISALLOWED_FLAGS = [
     '--expose-natives-as',
     '--expose-trigger-failure',
     '--mock-arraybuffer-allocator',
-    'natives',  // Used in conjuction with --expose-natives-as.
+    'natives',  // Used in conjunction with --expose-natives-as.
     /^--trace-path.*/,
 ];
 
@@ -217,6 +223,11 @@ function getSoftSkipped() {
 }
 
 // For testing.
+function getSoftSkippedPaths() {
+  return SOFT_SKIPPED_PATHS;
+}
+
+// For testing.
 function getGeneratedSoftSkipped() {
   return generatedSoftSkipped;
 }
@@ -227,6 +238,10 @@ function getGeneratedSloppy() {
 }
 
 function isTestSoftSkippedAbs(absPath) {
+  if (_findMatch(this.getSoftSkippedPaths(), absPath)) {
+    return true;
+  }
+
   const basename = path.basename(absPath);
   if (_findMatch(this.getSoftSkipped(), basename)) {
     return true;
@@ -281,6 +296,7 @@ module.exports = {
   getGeneratedSoftSkipped: getGeneratedSoftSkipped,
   getGeneratedSloppy: getGeneratedSloppy,
   getSoftSkipped: getSoftSkipped,
+  getSoftSkippedPaths: getSoftSkippedPaths,
   isTestSkippedAbs: isTestSkippedAbs,
   isTestSkippedRel: isTestSkippedRel,
   isTestSoftSkippedAbs: isTestSoftSkippedAbs,
