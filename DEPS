@@ -517,6 +517,7 @@ include_rules = [
   '+absl/container/btree_map.h',
   '+absl/status',
   '+absl/synchronization/mutex.h',
+  '+absl/time/time.h',
   # Some abseil features are explicitly banned.
   '-absl/types/any.h', # Requires RTTI.
   '-absl/types/flags', # Requires RTTI.

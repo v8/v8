@@ -747,7 +747,7 @@ void WasmEngine::AsyncInstantiate(
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
   ErrorThrower thrower(isolate, "WebAssembly.instantiate()");
   TRACE_EVENT0("v8.wasm", "wasm.AsyncInstantiate");
-  // Instantiate a TryCatch so that caught exceptions won't progagate out.
+  // Instantiate a TryCatch so that caught exceptions won't propagate out.
   // They will still be set as exceptions on the isolate.
   // TODO(clemensb): Avoid TryCatch, use Execution::TryCall internally to invoke
   // start function and report thrown exception explicitly via out argument.
@@ -2012,7 +2012,7 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 728);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 656);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
