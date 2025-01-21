@@ -384,25 +384,33 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 
 void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
   os << reinterpret_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
-  if (rmode_ == DEOPT_SCRIPT_OFFSET || rmode_ == DEOPT_INLINING_ID) {
-    os << "  (" << data() << ")";
-  } else if (rmode_ == DEOPT_REASON) {
-    os << "  ("
-       << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_)) << ")";
-  } else if (rmode_ == FULL_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object(isolate)) << ")";
-  } else if (rmode_ == COMPRESSED_EMBEDDED_OBJECT) {
-    os << "  (" << Brief(target_object(isolate)) << " compressed)";
-  } else if (rmode_ == EXTERNAL_REFERENCE) {
-    if (isolate) {
-      ExternalReferenceEncoder ref_encoder(isolate);
-      os << " ("
-         << ref_encoder.NameOfAddress(isolate, target_external_reference())
-         << ") ";
-    }
-    os << " (" << reinterpret_cast<const void*>(target_external_reference())
-       << ")";
-  } else if (rmode_ == JS_DISPATCH_HANDLE) {
+  switch (rmode_) {
+    case DEOPT_SCRIPT_OFFSET:
+    case DEOPT_INLINING_ID:
+      os << "  (" << data() << ")";
+      break;
+    case DEOPT_REASON:
+      os << "  ("
+         << DeoptimizeReasonToString(static_cast<DeoptimizeReason>(data_))
+         << ")";
+      break;
+    case FULL_EMBEDDED_OBJECT:
+      os << "  (" << Brief(target_object(isolate)) << ")";
+      break;
+    case COMPRESSED_EMBEDDED_OBJECT:
+      os << "  (" << Brief(target_object(isolate)) << " compressed)";
+      break;
+    case EXTERNAL_REFERENCE:
+      if (isolate) {
+        ExternalReferenceEncoder ref_encoder(isolate);
+        os << " ("
+           << ref_encoder.NameOfAddress(isolate, target_external_reference())
+           << ") ";
+      }
+      os << " (" << reinterpret_cast<const void*>(target_external_reference())
+         << ")";
+      break;
+    case JS_DISPATCH_HANDLE: {
 #ifdef V8_ENABLE_LEAPTIERING
     Tagged<Code> target_code =
         IsolateGroup::current()->js_dispatch_table()->GetCode(
@@ -411,32 +419,37 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     if (Builtins::IsBuiltin(target_code)) {
       os << " " << Builtins::name(target_code->builtin_id());
     }
-    os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
+    os << ")  (" << js_dispatch_handle() << ")";
 #else
     UNREACHABLE();
 #endif
-  } else if (IsCodeTargetMode(rmode_)) {
-    const Address code_target = target_address();
-    Tagged<Code> target_code = Code::FromTargetAddress(code_target);
-    os << " (" << CodeKindToString(target_code->kind());
-    if (Builtins::IsBuiltin(target_code)) {
-      os << " " << Builtins::name(target_code->builtin_id());
+    break;
     }
-    os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
-  } else if (IsConstPool(rmode_)) {
-    os << " (size " << static_cast<int>(data_) << ")";
-  } else if (IsWasmStubCall(rmode_)) {
-    os << "  (";
-    Address addr = target_address();
-    if (isolate != nullptr) {
-      Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, addr);
-      os << (Builtins::IsBuiltinId(builtin) ? Builtins::name(builtin)
-                                            : "<UNRECOGNIZED>")
-         << ")  (";
-    }
-    os << reinterpret_cast<const void*>(addr) << ")";
+    default:
+      if (IsCodeTargetMode(rmode_)) {
+        const Address code_target = target_address();
+        Tagged<Code> target_code = Code::FromTargetAddress(code_target);
+        os << " (" << CodeKindToString(target_code->kind());
+        if (Builtins::IsBuiltin(target_code)) {
+          os << " " << Builtins::name(target_code->builtin_id());
+        }
+        os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
+      } else if (IsConstPool(rmode_)) {
+        os << " (size " << static_cast<int>(data_) << ")";
+      } else if (IsWasmStubCall(rmode_)) {
+        os << "  (";
+        Address addr = target_address();
+        if (isolate != nullptr) {
+          Builtin builtin =
+              OffHeapInstructionStream::TryLookupCode(isolate, addr);
+          os << (Builtins::IsBuiltinId(builtin) ? Builtins::name(builtin)
+                                                : "<UNRECOGNIZED>")
+             << ")  (";
+        }
+        os << reinterpret_cast<const void*>(addr) << ")";
+      }
+      break;
   }
-
   os << "\n";
 }
 #endif  // ENABLE_DISASSEMBLER
