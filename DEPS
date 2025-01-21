@@ -81,7 +81,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:0721be7440a7c67f8369fcce1ca01932638641bb',
+  'siso_version': 'git_revision:6e20453c920920cade25e28fc443472eb22ddb41',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '48a0a74df4aa75e223898dd562da4ae4bb9df456',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '07bda45dd17c3a0a90ae00971e040b0c4c6e24a8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a660247d3c14a172b74b8e832ba1066b30183c97',
   'buildtools/linux64': {
@@ -226,7 +226,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b15611f18b506cf9dbc03e9bf87dbc8df549ccce',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '16be26db22faeaee46b61481cf81f4f7f466ed9b',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -460,7 +460,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'e8dc2c9287a4ac7af34fae91296ae0ad3df61050',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'ca4bb39630f60c66c27bc42a5a88ef0566de4d40',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'a4e44a8e44108e417730f9345808dbe1944917a0',
   'third_party/re2/src':
