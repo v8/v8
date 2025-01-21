@@ -143,6 +143,11 @@ enum class IsolateFieldId : uint8_t;
   V(get_date_field_function, "JSDate::GetField")                               \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
   V(gsab_byte_length, "GsabByteLength")                                        \
+  V(ieee754_fp64_to_fp16_raw_bits, "ieee754_fp64_to_fp16_raw_bits")            \
+  V(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,                     \
+    "ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch")                   \
+  V(ieee754_fp16_raw_bits_to_fp32_raw_bits,                                    \
+    "ieee754_fp16_raw_bits_to_fp32_raw_bits")                                  \
   V(ieee754_acos_function, "base::ieee754::acos")                              \
   V(ieee754_acosh_function, "base::ieee754::acosh")                            \
   V(ieee754_asin_function, "base::ieee754::asin")                              \

@@ -2416,6 +2416,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pextrw(i.OutputRegister(), tmp_dst, static_cast<uint8_t>(0));
       break;
     }
+    case kSSEFloat16RawBitsToFloat64: {
+      XMMRegister tmp_dst = i.TempDoubleRegister(0);
+
+      __ Movq(tmp_dst, i.InputRegister(0));
+      __ Cvtph2pd(i.OutputDoubleRegister(), tmp_dst);
+      break;
+    }
     case kSSEFloat64ToFloat32:
       ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;

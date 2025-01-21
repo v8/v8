@@ -534,6 +534,7 @@ struct v_traits<Tuple<Ts...>> {
 
 using Word = UntaggedUnion<Word32, Word64>;
 using Float = UntaggedUnion<Float32, Float64>;
+using Float64OrWord32 = UntaggedUnion<Float64, Word32>;
 using Untagged = UntaggedUnion<Word, Float>;
 using BooleanOrNullOrUndefined = UnionOf<Boolean, Null, Undefined>;
 using NumberOrString = UnionOf<Number, String>;

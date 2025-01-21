@@ -745,6 +745,14 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
+    case Kind::kJSFloat16ChangeWithBitcast:
+      if (op.from == FloatRepresentation::Word32() &&
+          op.to == WordRepresentation::Float64()) {
+        o = machine.ChangeFloat16RawBitsToFloat64().placeholder();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case Kind::kSignedToFloat:
       if (op.from == WordRepresentation::Word32() &&
           op.to == FloatRepresentation::Float64()) {

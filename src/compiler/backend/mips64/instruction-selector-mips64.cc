@@ -1906,6 +1906,12 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat16RawBitsToFloat64(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(
     node_t node) {
   Mips64OperandGeneratorT<Adapter> g(this);

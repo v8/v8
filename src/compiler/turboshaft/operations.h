@@ -276,6 +276,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionElementsKindOrCheckMap)           \
   V(DebugPrint)                                 \
   V(CheckTurboshaftTypeOf)                      \
+  V(Float16Change)                              \
   V(Word32SignHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
@@ -1292,37 +1293,38 @@ struct FixedArityOperationT : OperationT<Derived> {
   }
 };
 
-#define SUPPORTED_OPERATIONS_LIST(V)                              \
-  V(float32_round_down, Float32RoundDown)                         \
-  V(float64_round_down, Float64RoundDown)                         \
-  V(float32_round_up, Float32RoundUp)                             \
-  V(float64_round_up, Float64RoundUp)                             \
-  V(float32_round_to_zero, Float32RoundTruncate)                  \
-  V(float64_round_to_zero, Float64RoundTruncate)                  \
-  V(float32_round_ties_even, Float32RoundTiesEven)                \
-  V(float64_round_ties_even, Float64RoundTiesEven)                \
-  V(float64_round_ties_away, Float64RoundTiesAway)                \
-  V(int32_div_is_safe, Int32DivIsSafe)                            \
-  V(uint32_div_is_safe, Uint32DivIsSafe)                          \
-  V(word32_shift_is_safe, Word32ShiftIsSafe)                      \
-  V(word32_ctz, Word32Ctz)                                        \
-  V(word64_ctz, Word64Ctz)                                        \
-  V(word64_ctz_lowerable, Word64CtzLowerable)                     \
-  V(word32_popcnt, Word32Popcnt)                                  \
-  V(word64_popcnt, Word64Popcnt)                                  \
-  V(word32_reverse_bits, Word32ReverseBits)                       \
-  V(word64_reverse_bits, Word64ReverseBits)                       \
-  V(float32_select, Float32Select)                                \
-  V(float64_select, Float64Select)                                \
-  V(int32_abs_with_overflow, Int32AbsWithOverflow)                \
-  V(int64_abs_with_overflow, Int64AbsWithOverflow)                \
-  V(word32_rol, Word32Rol)                                        \
-  V(word64_rol, Word64Rol)                                        \
-  V(word64_rol_lowerable, Word64RolLowerable)                     \
-  V(sat_conversion_is_safe, SatConversionIsSafe)                  \
-  V(word32_select, Word32Select)                                  \
-  V(word64_select, Word64Select)                                  \
-  V(float64_to_float16_raw_bits, TruncateFloat64ToFloat16RawBits) \
+#define SUPPORTED_OPERATIONS_LIST(V)                       \
+  V(float32_round_down, Float32RoundDown)                  \
+  V(float64_round_down, Float64RoundDown)                  \
+  V(float32_round_up, Float32RoundUp)                      \
+  V(float64_round_up, Float64RoundUp)                      \
+  V(float32_round_to_zero, Float32RoundTruncate)           \
+  V(float64_round_to_zero, Float64RoundTruncate)           \
+  V(float32_round_ties_even, Float32RoundTiesEven)         \
+  V(float64_round_ties_even, Float64RoundTiesEven)         \
+  V(float64_round_ties_away, Float64RoundTiesAway)         \
+  V(int32_div_is_safe, Int32DivIsSafe)                     \
+  V(uint32_div_is_safe, Uint32DivIsSafe)                   \
+  V(word32_shift_is_safe, Word32ShiftIsSafe)               \
+  V(word32_ctz, Word32Ctz)                                 \
+  V(word64_ctz, Word64Ctz)                                 \
+  V(word64_ctz_lowerable, Word64CtzLowerable)              \
+  V(word32_popcnt, Word32Popcnt)                           \
+  V(word64_popcnt, Word64Popcnt)                           \
+  V(word32_reverse_bits, Word32ReverseBits)                \
+  V(word64_reverse_bits, Word64ReverseBits)                \
+  V(float32_select, Float32Select)                         \
+  V(float64_select, Float64Select)                         \
+  V(int32_abs_with_overflow, Int32AbsWithOverflow)         \
+  V(int64_abs_with_overflow, Int64AbsWithOverflow)         \
+  V(word32_rol, Word32Rol)                                 \
+  V(word64_rol, Word64Rol)                                 \
+  V(word64_rol_lowerable, Word64RolLowerable)              \
+  V(sat_conversion_is_safe, SatConversionIsSafe)           \
+  V(word32_select, Word32Select)                           \
+  V(word64_select, Word64Select)                           \
+  V(float64_to_float16_raw_bits, Float16RawBitsConversion) \
+  V(float16_raw_bits_to_float64, Float16RawBitsConversion) \
   V(float16, Float16)
 
 class V8_EXPORT_PRIVATE SupportedOperations {
@@ -2143,6 +2145,9 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     // convert float64 to float16, then bitcast word32. Used for storing into
     // Float16Array and Math.fround16.
     kJSFloat16TruncateWithBitcast,
+    // bitcast word32 to float16 and convert to float64. Used for loading from
+    // Float16Array and Math.fround16.
+    kJSFloat16ChangeWithBitcast,
     // convert (un)signed integer to floating-point value
     kSignedToFloat,
     kUnsignedToFloat,
@@ -2198,6 +2203,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       case Kind::kJSFloatTruncate:
         return false;
       case Kind::kJSFloat16TruncateWithBitcast:
+      case Kind::kJSFloat16ChangeWithBitcast:
         return false;
       case Kind::kSignedToFloat:
         if (from == RegisterRepresentation::Word32() &&
@@ -5768,6 +5774,7 @@ inline constexpr RegisterRepresentation RegisterRepresentationForArrayType(
     case kExternalUint16Array:
     case kExternalInt32Array:
     case kExternalUint32Array:
+    case kExternalFloat16Array:
       return RegisterRepresentation::Word32();
     case kExternalFloat32Array:
       return RegisterRepresentation::Float32();
@@ -5776,8 +5783,6 @@ inline constexpr RegisterRepresentation RegisterRepresentationForArrayType(
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       return RegisterRepresentation::Word64();
-    case kExternalFloat16Array:
-      UNIMPLEMENTED();
   }
 }
 
@@ -6303,6 +6308,32 @@ struct SameValueOp : FixedArityOperationT<2, SameValueOp> {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            SameValueOp::Mode mode);
+
+struct Float16ChangeOp : FixedArityOperationT<1, Float16ChangeOp> {
+  static constexpr OpEffects effects = OpEffects();
+
+  enum Kind : uint8_t { kToFloat64, kToFloat16 };
+  Kind kind;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return kind == kToFloat16 ? RepVector<RegisterRepresentation::Word32()>()
+                              : RepVector<RegisterRepresentation::Float64()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return kind == kToFloat16
+               ? MaybeRepVector<MaybeRegisterRepresentation::Float64()>()
+               : MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+  }
+
+  Float16ChangeOp(V<Float64OrWord32> input, Kind kind)
+      : Base(input), kind(kind) {}
+
+  V<Float64OrWord32> input() const { return Base::input<Float64OrWord32>(0); }
+
+  auto options() const { return std::tuple{kind}; }
+};
 
 struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
   static constexpr OpEffects effects = OpEffects();

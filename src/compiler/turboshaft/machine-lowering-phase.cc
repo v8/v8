@@ -7,6 +7,7 @@
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/dataview-lowering-reducer.h"
 #include "src/compiler/turboshaft/fast-api-call-lowering-reducer.h"
+#include "src/compiler/turboshaft/float16-lowering-reducer.h"
 #include "src/compiler/turboshaft/js-generic-lowering-reducer.h"
 #include "src/compiler/turboshaft/machine-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
@@ -26,7 +27,7 @@ void MachineLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   CopyingPhase<StringEscapeAnalysisReducer, JSGenericLoweringReducer,
                DataViewLoweringReducer, MachineLoweringReducer,
                FastApiCallLoweringReducer, VariableReducer,
-               SelectLoweringReducer,
+               SelectLoweringReducer, Float16LoweringReducer,
                MachineOptimizationReducer>::Run(data, temp_zone);
 }
 

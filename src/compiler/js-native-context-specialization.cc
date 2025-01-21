@@ -2267,18 +2267,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
-  // Do not optimize Float16 typed arrays, since they are not yet supported by
-  // the rest of the compiler.
-  // TODO(v8:14012): We could lower further here and emit LoadTypedElement (like
-  // we do for other typed arrays). However, given the lack of hardware support
-  // for Float16 operations, it's not clear whether optimizing further would be
-  // really useful.
-  for (const ElementAccessInfo& access_info : access_infos) {
-    if (IsFloat16TypedArrayElementsKind(access_info.elements_kind())) {
-      return NoChange();
-    }
-  }
-
   // For holey stores or growing stores, we need to check that the prototype
   // chain contains no setters for elements, and we need to guard those checks
   // via code dependencies on the relevant prototype maps.
@@ -3887,7 +3875,6 @@ JSNativeContextSpecialization::
   // Access the actual element.
   ExternalArrayType external_array_type =
       GetArrayTypeFromElementsKind(elements_kind);
-  DCHECK_NE(external_array_type, ExternalArrayType::kExternalFloat16Array);
   switch (keyed_mode.access_mode()) {
     case AccessMode::kLoad: {
       // Check if we can return undefined for out-of-bounds loads.
@@ -3941,6 +3928,11 @@ JSNativeContextSpecialization::
             simplified()->LoadTypedElement(external_array_type),
             buffer_or_receiver, base_pointer, external_pointer, index, effect,
             control);
+
+        if (external_array_type == kExternalFloat16Array) {
+          value =
+              graph()->NewNode(simplified()->Float16RawBitsToNumber(), value);
+        }
       }
       break;
     }
@@ -3970,6 +3962,8 @@ JSNativeContextSpecialization::
       // might want to change that at some point.
       if (external_array_type == kExternalUint8ClampedArray) {
         value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
+      } else if (external_array_type == kExternalFloat16Array) {
+        value = graph()->NewNode(simplified()->NumberToFloat16RawBits(), value);
       }
 
       if (situation == kHandleOOB_SmiAndRangeCheckComputed) {

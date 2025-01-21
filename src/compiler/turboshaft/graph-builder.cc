@@ -664,8 +664,6 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(RoundUint64ToFloat32, ChangeUint64ToFloat32)
       UNARY_CASE(RoundUint64ToFloat64, ChangeUint64ToFloat64)
       UNARY_CASE(TruncateFloat64ToFloat32, TruncateFloat64ToFloat32)
-      UNARY_CASE(TruncateFloat64ToFloat16RawBits,
-                 TruncateFloat64ToFloat16RawBits)
       UNARY_CASE(TruncateFloat64ToUint32,
                  TruncateFloat64ToUint32OverflowUndefined)
       UNARY_CASE(TruncateFloat64ToWord32, JSTruncateFloat64ToWord32)
@@ -680,6 +678,12 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Float64ExtractLowWord32, Float64ExtractLowWord32)
       UNARY_CASE(Float64ExtractHighWord32, Float64ExtractHighWord32)
 #undef UNARY_CASE
+    case IrOpcode::kTruncateFloat64ToFloat16RawBits:
+      return __ Float16Change(Map(node->InputAt(0)),
+                              Float16ChangeOp::Kind::kToFloat16);
+    case IrOpcode::kChangeFloat16RawBitsToFloat64:
+      return __ Float16Change(Map(node->InputAt(0)),
+                              Float16ChangeOp::Kind::kToFloat64);
     case IrOpcode::kTruncateInt64ToInt32:
       return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
     case IrOpcode::kTruncateFloat32ToInt32:

@@ -99,7 +99,7 @@ MachineRepresentation MachineRepresentationFromArrayType(
     case kExternalBigUint64Array:
       return MachineRepresentation::kWord64;
     case kExternalFloat16Array:
-      UNIMPLEMENTED();
+      return MachineRepresentation::kWord16;
   }
   UNREACHABLE();
 }
@@ -3462,6 +3462,20 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kNumberToFloat16RawBits: {
+        VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
+                     MachineRepresentation::kWord16);
+
+        if (lower<T>()) lowering->DoNumberToFloat16RawBits(node);
+        return;
+      }
+      case IrOpcode::kFloat16RawBitsToNumber: {
+        VisitUnop<T>(node, UseInfo::TruncatingFloat16RawBits(),
+                     MachineRepresentation::kFloat64);
+
+        if (lower<T>()) lowering->DoFloat16RawBitsToNumber(node);
+        return;
+      }
       case IrOpcode::kIntegral32OrMinusZeroToBigInt: {
         VisitUnop<T>(node, UseInfo::Word64(kIdentifyZeros),
                      MachineRepresentation::kWord64);
@@ -5659,6 +5673,14 @@ void SimplifiedLowering::DoIntegerToUint8Clamped(Node* node) {
           max));
   node->AppendInput(graph()->zone(), min);
   ChangeOp(node, common()->Select(MachineRepresentation::kFloat64));
+}
+
+void SimplifiedLowering::DoNumberToFloat16RawBits(Node* node) {
+  ChangeOp(node, machine()->TruncateFloat64ToFloat16RawBits().placeholder());
+}
+
+void SimplifiedLowering::DoFloat16RawBitsToNumber(Node* node) {
+  ChangeOp(node, machine()->ChangeFloat16RawBitsToFloat64().placeholder());
 }
 
 void SimplifiedLowering::DoNumberToUint8Clamped(Node* node) {

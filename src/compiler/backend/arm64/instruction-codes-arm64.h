@@ -352,6 +352,7 @@ namespace compiler {
   V(Arm64Float32ToFloat64)                           \
   V(Arm64Float64ToFloat32)                           \
   V(Arm64Float64ToFloat16RawBits)                    \
+  V(Arm64Float16RawBitsToFloat64)                    \
   V(Arm64Float32ToInt32)                             \
   V(Arm64Float64ToInt32)                             \
   V(Arm64Float32ToUint32)                            \

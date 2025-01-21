@@ -4309,6 +4309,17 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat16RawBitsToFloat64(
+    node_t node) {
+  Arm64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kArm64Float16RawBitsToFloat64, arraysize(outputs), outputs,
+       arraysize(inputs), inputs, arraysize(temps), temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToUint64(
     node_t node) {
   Arm64OperandGeneratorT<Adapter> g(this);
@@ -8505,7 +8516,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
                MachineOperatorBuilder::kLoadStorePairs;
   if (CpuFeatures::IsSupported(FP16)) {
     flags |= MachineOperatorBuilder::kFloat16 |
-             MachineOperatorBuilder::kTruncateFloat64ToFloat16RawBits;
+             MachineOperatorBuilder::kFloat16RawBitsConversion;
   }
   return flags;
 }

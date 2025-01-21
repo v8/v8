@@ -42,6 +42,7 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-search.h"
 #include "src/strings/unicode-inl.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-external-refs.h"
@@ -452,6 +453,32 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     static_assert(IsValidExternalReferenceType<decltype(&Target)>::value); \
     return ExternalReference(Redirect(FUNCTION_ADDR(Target), Type));       \
   }
+
+uint32_t fp64_to_fp16_raw_bits(double input) { return DoubleToFloat16(input); }
+
+// Since floating point parameters and return value are not supported
+// for C-linkage functions on 32bit architectures, we should use raw bits.
+uint32_t fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch(uint32_t hi,
+                                                       uint32_t lo) {
+  uint64_t input = static_cast<uint64_t>(hi) << 32 | lo;
+  return DoubleToFloat16(std::bit_cast<double, uint64_t>(input));
+}
+
+// Since floating point parameters and return value are not supported
+// for C-linkage functions on 32bit architectures, we should use raw bits.
+uint32_t fp16_raw_bits_ieee_to_fp32_raw_bits(uint32_t input) {
+  float value = fp16_ieee_to_fp32_value(input);
+  return std::bit_cast<uint32_t, float>(value);
+}
+
+FUNCTION_REFERENCE(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,
+                   fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch)
+
+FUNCTION_REFERENCE_WITH_TYPE(ieee754_fp64_to_fp16_raw_bits,
+                             fp64_to_fp16_raw_bits, BUILTIN_INT_FP_CALL)
+
+FUNCTION_REFERENCE(ieee754_fp16_raw_bits_to_fp32_raw_bits,
+                   fp16_raw_bits_ieee_to_fp32_raw_bits)
 
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)

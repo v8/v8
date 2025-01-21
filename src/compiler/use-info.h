@@ -234,6 +234,12 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kFloat64,
                    Truncation::OddballAndBigIntToNumber(identify_zeros));
   }
+  static UseInfo TruncatingFloat16RawBits(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kFloat16,
+                   Truncation::OddballAndBigIntToNumber(identify_zeros));
+  }
+
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
   }

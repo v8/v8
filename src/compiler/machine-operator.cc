@@ -905,8 +905,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(Word32Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Word64Select, Operator::kNoProperties, 3, 0, 1)         \
   V(Float32Select, Operator::kNoProperties, 3, 0, 1)        \
-  V(Float64Select, Operator::kNoProperties, 3, 0, 1)        \
-  V(TruncateFloat64ToFloat16RawBits, Operator::kNoProperties, 1, 0, 1)
+  V(Float64Select, Operator::kNoProperties, 3, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -1264,6 +1263,19 @@ struct MachineOperatorGlobalCache {
   };
   SetOverflowToMinTruncateFloat64ToInt64Operator
       kSetOverflowToMinTruncateFloat64ToInt64;
+  struct TruncateFloat64ToFloat16RawBitsOperator final : public Operator {
+    TruncateFloat64ToFloat16RawBitsOperator()
+        : Operator(IrOpcode::kTruncateFloat64ToFloat16RawBits, Operator::kPure,
+                   "TruncateFloat64ToFloat16RawBits", 1, 0, 0, 1, 0, 0) {}
+  };
+
+  TruncateFloat64ToFloat16RawBitsOperator kTruncateFloat64ToFloat16RawBits;
+  struct ChangeFloat16RawBitsToFloat64 final : public Operator {
+    ChangeFloat16RawBitsToFloat64()
+        : Operator(IrOpcode::kChangeFloat16RawBitsToFloat64, Operator::kPure,
+                   "ChangeFloat16RawBitsToFloat64", 1, 0, 0, 1, 0, 0) {}
+  };
+  ChangeFloat16RawBitsToFloat64 kChangeFloat16RawBitsToFloat64;
   PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
 
@@ -1923,6 +1935,19 @@ const Operator* MachineOperatorBuilder::TruncateFloat32ToInt32(
   }
 PURE_OPTIONAL_OP_LIST(PURE)
 #undef PURE
+
+// Following operators can't be in PURE_OPTIONAL_OP_LIST
+// because they're both controlled by the same kFloat16RawBitsConversion flag,
+// so the getters generated from PURE_OPTIONAL_OP_LIST would fail.
+const OptionalOperator
+MachineOperatorBuilder::TruncateFloat64ToFloat16RawBits() {
+  return OptionalOperator(flags_ & kFloat16RawBitsConversion,
+                          &cache_.kTruncateFloat64ToFloat16RawBits);
+}
+const OptionalOperator MachineOperatorBuilder::ChangeFloat16RawBitsToFloat64() {
+  return OptionalOperator(flags_ & kFloat16RawBitsConversion,
+                          &cache_.kChangeFloat16RawBitsToFloat64);
+}
 
 #define OVERFLOW_OP(Name, properties) \
   const Operator* MachineOperatorBuilder::Name() { return &cache_.k##Name; }

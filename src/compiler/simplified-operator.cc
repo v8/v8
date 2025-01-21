@@ -842,6 +842,8 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                 \
   V(NumberToString, Operator::kNoProperties, 1, 0)                \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)                \
+  V(NumberToFloat16RawBits, Operator::kNoProperties, 1, 0)        \
+  V(Float16RawBitsToNumber, Operator::kNoProperties, 1, 0)        \
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)          \
   V(Integral32OrMinusZeroToBigInt, Operator::kNoProperties, 1, 0) \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)              \

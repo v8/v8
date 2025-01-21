@@ -2242,6 +2242,12 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
   UNIMPLEMENTED();
 }
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat16RawBitsToFloat64(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
 // static
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {

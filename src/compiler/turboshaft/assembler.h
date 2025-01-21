@@ -2477,8 +2477,6 @@ class TurboshaftAssemblerOpInterface
                 Float64)
   DECL_CHANGE_V(TruncateFloat64ToFloat32, kFloatConversion, kNoAssumption,
                 Float64, Float32)
-  DECL_CHANGE_V(TruncateFloat64ToFloat16RawBits, kJSFloat16TruncateWithBitcast,
-                kNoAssumption, Float64, Word32)
   DECL_CHANGE_V(ChangeFloat32ToFloat64, kFloatConversion, kNoAssumption,
                 Float32, Float64)
   DECL_CHANGE_V(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,
@@ -4625,6 +4623,11 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableLoadStackArgument(base, index);
   }
 
+  V<Float64OrWord32> Float16Change(V<Float64OrWord32> input,
+                                   Float16ChangeOp::Kind op) {
+    return ReduceIfReachableFloat16Change(input, op);
+  }
+
   void StoreTypedElement(OpIndex buffer, V<Object> base, V<WordPtr> external,
                          V<WordPtr> index, OpIndex value,
                          ExternalArrayType array_type) {
@@ -4682,6 +4685,18 @@ class TurboshaftAssemblerOpInterface
                                      V<turboshaft::FrameState> frame_state) {
     ReduceIfReachableCheckEqualsInternalizedString(expected, value,
                                                    frame_state);
+  }
+
+  V<Word32> TruncateFloat64ToFloat16RawBits(V<Float64> input) {
+    return V<Word32>::Cast(__ ReduceChange(
+        input, ChangeOp::Kind::kJSFloat16TruncateWithBitcast,
+        ChangeOp::Assumption::kNoAssumption, V<Float64>::rep, V<Word32>::rep));
+  }
+
+  V<Float64> ChangeFloat16RawBitsToFloat64(V<Word32> input) {
+    return V<Float64>::Cast(__ ReduceChange(
+        input, ChangeOp::Kind::kJSFloat16ChangeWithBitcast,
+        ChangeOp::Assumption::kNoAssumption, V<Word32>::rep, V<Float64>::rep));
   }
 
   V<Object> LoadMessage(V<WordPtr> offset) {

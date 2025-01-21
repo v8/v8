@@ -4892,6 +4892,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           DCHECK_EQ(Rep::Float64(), change.from);
           DCHECK_EQ(Rep::Word32(), change.to);
           return VisitTruncateFloat64ToFloat16RawBits(node);
+        case ChangeOp::Kind::kJSFloat16ChangeWithBitcast:
+          DCHECK_EQ(Rep::Word32(), change.from);
+          DCHECK_EQ(Rep::Float64(), change.to);
+          return VisitChangeFloat16RawBitsToFloat64(node);
         case ChangeOp::Kind::kSignedToFloat:
           if (change.from == Rep::Word32()) {
             if (change.to == Rep::Float32()) {
@@ -5940,7 +5944,6 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return VisitSetStackPointer(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
-
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_JS_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(UNREACHABLE_CASE)

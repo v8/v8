@@ -363,6 +363,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "FloatConversion";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
+    case ChangeOp::Kind::kJSFloat16ChangeWithBitcast:
+      return os << "JSFloat16ChangeWithBitcast";
     case ChangeOp::Kind::kJSFloat16TruncateWithBitcast:
       return os << "JSFloat16TruncateWithBitcast";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:

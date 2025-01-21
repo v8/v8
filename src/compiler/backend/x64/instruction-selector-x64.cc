@@ -3832,6 +3832,15 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat16RawBitsToFloat64(
+    node_t node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kSSEFloat16RawBitsToFloat64, g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
   // We rely on the fact that TruncateInt64ToInt32 zero extends the
   // value (see ZeroExtendsWord32ToWord64). So all code paths here
@@ -7778,7 +7787,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(F16C)) {
     flags |= MachineOperatorBuilder::kFloat16;
     if (CpuFeatures::IsSupported(AVX)) {
-      flags |= MachineOperatorBuilder::kTruncateFloat64ToFloat16RawBits;
+      flags |= MachineOperatorBuilder::kFloat16RawBitsConversion;
     }
   }
   return flags;

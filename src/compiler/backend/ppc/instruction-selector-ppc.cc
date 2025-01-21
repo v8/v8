@@ -2123,6 +2123,12 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat16RawBits(
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitChangeFloat16RawBitsToFloat64(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(node_t node) {
     VisitRR(this, kPPC_DoubleToUint64, node);
 }
