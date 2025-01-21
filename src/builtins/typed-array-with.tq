@@ -50,6 +50,8 @@ transitioning javascript builtin TypedArrayPrototypeWith(
 
     // Steps 11-12's copy loop implemented by memmove.
     const info = GetTypedArrayElementsInfo(copy);
+    // Since the receiver was not too big, the new typed array cannot be too
+    // big, so the error case is unreachable.
     const countBytes: uintptr =
         info.CalculateByteLength(fastCopyableLength) otherwise unreachable;
     // TypedArrayCreateSameType always use built-in constructors, and so cannot

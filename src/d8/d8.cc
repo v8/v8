@@ -223,7 +223,7 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
 class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
  public:
   explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
-      : space_left_(allocation_limit) {}
+      : limit_(allocation_limit), space_left_(allocation_limit) {}
 
  protected:
   void* Allocate(size_t length) override {
@@ -247,7 +247,10 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
     return MockArrayBufferAllocator::Free(data, length);
   }
 
+  size_t MaxAllocationSize() const override { return limit_; }
+
  private:
+  size_t limit_;
   std::atomic<size_t> space_left_;
 };
 

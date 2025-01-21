@@ -128,6 +128,10 @@
   # OOM flakes in isolates tests because too many largish heaps are created.
   'asm/asm-heap': [PASS, NO_VARIANTS, ['isolates', SKIP]],
 
+  # This test runs in an isolate with a custom array buffer allocator.
+  # We don't want to run it in random isolates.
+  'array-buffer-limit': [PASS, NO_VARIANTS, ['isolates', SKIP]],
+
   # Slow tests.
   'array-functions-prototype-misc': [PASS, SLOW],
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],

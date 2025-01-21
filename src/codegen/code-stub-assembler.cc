@@ -272,6 +272,12 @@ TNode<Smi> CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Context::kNoContext);
 }
 
+TNode<UintPtrT> CodeStubAssembler::ArrayBufferMaxByteLength() {
+  TNode<ExternalReference> address = ExternalConstant(
+      ExternalReference::array_buffer_max_allocation_address(isolate()));
+  return Load<UintPtrT>(address);
+}
+
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
   TNode<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type> \
       CodeStubAssembler::name##Constant() {                                    \

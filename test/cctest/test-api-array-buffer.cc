@@ -134,6 +134,162 @@ THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
   CHECK(maybe_ab_2.IsEmpty());
 }
 
+// Limits the max size of each allocation, but doesn't limit the
+// total allocation size.
+class RestrictedAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit RestrictedAllocator(size_t limit) : limit_(limit) {}
+  ~RestrictedAllocator() { delete underlying_allocator_; }
+
+  void* Allocate(size_t length) override {
+    return underlying_allocator_->Allocate(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    return underlying_allocator_->AllocateUninitialized(length);
+  }
+
+  void Free(void* data, size_t length) override {
+    underlying_allocator_->Free(data, length);
+  }
+
+  size_t MaxAllocationSize() const override { return limit_; }
+
+ private:
+  size_t limit_;
+  v8::ArrayBuffer::Allocator* underlying_allocator_ =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+};
+
+TEST(ArrayBuffer_MaxSize) {
+  RestrictedAllocator allocator(32768);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+
+  {
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    int gc_count = heap->gc_count();
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+
+    // OK size.
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab =
+        v8::ArrayBuffer::MaybeNew(isolate, 32768);
+    CHECK(!maybe_ab.IsEmpty());
+
+    // OK size.
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab2 =
+        v8::ArrayBuffer::MaybeNew(isolate, 32768);
+    CHECK(!maybe_ab2.IsEmpty());
+
+    // Too big.
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab3 =
+        v8::ArrayBuffer::MaybeNew(isolate, 32769);
+    CHECK(maybe_ab3.IsEmpty());
+
+    // The large allocations should be rejected without running a GC first.
+    CHECK_EQ(gc_count, heap->gc_count());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+// Limits the total allocated size of array buffer backings.
+class TotalAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  explicit TotalAllocator(size_t limit) : limit_(limit), remaining_(limit) {}
+  ~TotalAllocator() { delete underlying_allocator_; }
+
+  void* Allocate(size_t length) override {
+    if (length > remaining_) return nullptr;
+    void* result = underlying_allocator_->Allocate(length);
+    remaining_ -= length;
+    return result;
+  }
+  void* AllocateUninitialized(size_t length) override {
+    if (length > remaining_) return nullptr;
+    void* result = underlying_allocator_->AllocateUninitialized(length);
+    remaining_ -= length;
+    return result;
+  }
+  void Free(void* data, size_t length) override {
+    remaining_ += length;
+    underlying_allocator_->Free(data, length);
+  }
+
+  size_t MaxAllocationSize() const override { return limit_; }
+
+ private:
+  size_t limit_;
+  size_t remaining_;
+  v8::ArrayBuffer::Allocator* underlying_allocator_ =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+};
+
+TEST(ArrayBuffer_TotalSize) {
+  TotalAllocator allocator(32768);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = &allocator;
+
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+
+  {
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    int gc_count = heap->gc_count();
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+
+    // Too big.
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab =
+        v8::ArrayBuffer::MaybeNew(isolate, 32769);
+    CHECK(maybe_ab.IsEmpty());
+
+    // Take half size.
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab2 =
+        v8::ArrayBuffer::MaybeNew(isolate, 16384);
+    CHECK(!maybe_ab2.IsEmpty());
+
+    // The large allocations should be rejected without running a GC first.
+    CHECK_EQ(gc_count, heap->gc_count());
+
+    {
+      v8::HandleScope inner_scope(isolate);
+
+      // Take second half size.
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab3 =
+          v8::ArrayBuffer::MaybeNew(isolate, 16384);
+      CHECK(!maybe_ab3.IsEmpty());
+
+      // Fails because of total size
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab4 =
+          v8::ArrayBuffer::MaybeNew(isolate, 16384);
+      CHECK(maybe_ab4.IsEmpty());
+    }
+
+    // We exit the inner scope and the last array buffer can be GCed.
+    // Take second half size again
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab5 =
+        v8::ArrayBuffer::MaybeNew(isolate, 16384);
+    CHECK(!maybe_ab5.IsEmpty());
+
+    // The last allocation can't be done without a GC.
+    CHECK_LT(gc_count, heap->gc_count());
+
+    // Fails because of total size
+    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab6 =
+        v8::ArrayBuffer::MaybeNew(isolate, 16384);
+    CHECK(maybe_ab6.IsEmpty());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+}
+
 THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

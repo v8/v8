@@ -907,6 +907,8 @@ transitioning macro ToPrimitiveDefault(
   }
 }
 
+extern macro ArrayBufferMaxByteLength(): uintptr;
+
 extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
     Context, JSObject, Smi): void;

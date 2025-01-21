@@ -1933,6 +1933,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return array_buffer_allocator_shared_;
   }
 
+  size_t* array_buffer_max_size_address() {
+    if (array_buffer_max_size_ == 0) {
+      array_buffer_max_size_ = array_buffer_allocator_->MaxAllocationSize();
+    }
+    return &array_buffer_max_size_;
+  }
+
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
   CancelableTaskManager* cancelable_task_manager() {
@@ -2767,6 +2774,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
   std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
+  size_t array_buffer_max_size_ = 0;
 
   FutexWaitListNode futex_wait_list_node_;
 

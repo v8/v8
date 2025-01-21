@@ -55,6 +55,13 @@ const kTestConfigs = [
   [Int8Array, num_elems => new Int8Array(makeWasmMemory(num_elems)), 16*GB]
 ] : []);
 
+function isOom(e) {
+  return (e instanceof RangeError) &&
+          (e.message.includes('Out of memory') ||
+           e.message.includes('could not allocate memory') ||
+           e.message.includes('Array buffer allocation failed'));
+}
+
 function ignoreOOM(fn) {
   try {
     return fn();
@@ -62,12 +69,8 @@ function ignoreOOM(fn) {
     // Uncomment the next line in local debugging to ensure that the tests
     // actually run.
     //throw e;
-    const is_oom = (e instanceof RangeError) &&
-        (e.message.includes('Out of memory') ||
-         e.message.includes('could not allocate memory') ||
-         e.message.includes('Array buffer allocation failed'));
-    if (!is_oom) throw e;
-    return undefined;
+    if (isOom(e)) return undefined;
+    throw e;
   }
 }
 

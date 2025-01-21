@@ -210,5 +210,11 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   return accessor->CopyElements(source, target, length, offset);
 }
 
+RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
+  HandleScope shs(isolate);
+  size_t heap_max = isolate->array_buffer_allocator()->MaxAllocationSize();
+  return *isolate->factory()->NewNumber(heap_max);
+}
+
 }  // namespace internal
 }  // namespace v8

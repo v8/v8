@@ -9151,6 +9151,11 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
     BackingStoreInitializationMode initialization_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   API_RCS_SCOPE(i_isolate, ArrayBuffer, MaybeNew);
+  size_t max = i_isolate->array_buffer_allocator()->MaxAllocationSize();
+  DCHECK(max <= ArrayBuffer::kMaxByteLength);
+  if (byte_length > max) {
+    return MaybeLocal<ArrayBuffer>();
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::MaybeDirectHandle<i::JSArrayBuffer> result =
       i_isolate->factory()->NewJSArrayBufferAndBackingStore(

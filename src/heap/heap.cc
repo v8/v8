@@ -3074,6 +3074,11 @@ Tagged<HeapObject> Heap::AlignWithFillerBackground(
 
 void* Heap::AllocateExternalBackingStore(
     const std::function<void*(size_t)>& allocate, size_t byte_length) {
+  size_t max = isolate()->array_buffer_allocator()->MaxAllocationSize();
+  DCHECK(max <= JSArrayBuffer::kMaxByteLength);
+  if (byte_length > max) {
+    return nullptr;
+  }
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();

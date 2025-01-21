@@ -1924,11 +1924,6 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   return isolate->heap()->ToBoolean(true);
 }
 
-RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
-  HandleScope shs(isolate);
-  return *isolate->factory()->NewNumber(JSArrayBuffer::kMaxByteLength);
-}
-
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   // TODO(353928347): This function is not currently exposed to fuzzers.
   // Investigate if it should be.

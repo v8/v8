@@ -53,8 +53,12 @@ TryAllocateBackingStore(Isolate* isolate, SharedFlag shared,
   size_t max_byte_length = 0;
   std::unique_ptr<BackingStore> backing_store;
 
+  size_t max_allocatable =
+      isolate->array_buffer_allocator()->MaxAllocationSize();
+  DCHECK(max_allocatable <= JSArrayBuffer::kMaxByteLength);
+  static_assert(JSArrayBuffer::kMaxByteLength == JSTypedArray::kMaxByteLength);
   if (!TryNumberToSize(*length, &byte_length) ||
-      byte_length > JSArrayBuffer::kMaxByteLength) {
+      byte_length > max_allocatable) {
     return {nullptr, MessageTemplate::kInvalidArrayBufferLength};
   }
 
@@ -64,10 +68,8 @@ TryAllocateBackingStore(Isolate* isolate, SharedFlag shared,
           BackingStore::Allocate(isolate, byte_length, shared, initialized);
       break;
     case ResizableFlag::kResizable:
-      static_assert(JSArrayBuffer::kMaxByteLength ==
-                    JSTypedArray::kMaxByteLength);
       if (!TryNumberToSize(*max_length, &max_byte_length) ||
-          max_byte_length > JSArrayBuffer::kMaxByteLength) {
+          max_byte_length > max_allocatable) {
         return {nullptr, MessageTemplate::kInvalidArrayBufferMaxLength};
       }
       if (byte_length > max_byte_length) {
@@ -537,6 +539,9 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
                                    DirectHandle<Object> new_length,
                                    PreserveResizability preserve_resizability,
                                    const char* method_name) {
+  size_t max_allocatable =
+      isolate->array_buffer_allocator()->MaxAllocationSize();
+  DCHECK(max_allocatable <= JSArrayBuffer::kMaxByteLength);
   // 2. If IsSharedArrayBuffer(arrayBuffer) is true, throw a TypeError
   // exception.
   CHECK_SHARED(false, array_buffer, method_name);
@@ -557,7 +562,7 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
           isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
     }
     if (!TryNumberToSize(*number_new_byte_length, &new_byte_length) ||
-        new_byte_length > JSArrayBuffer::kMaxByteLength) {
+        new_byte_length > max_allocatable) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
           NewRangeError(

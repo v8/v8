@@ -161,6 +161,15 @@ class V8_EXPORT ArrayBuffer : public Object {
     virtual void Free(void* data, size_t length) = 0;
 
     /**
+     * Returns a size_t that determines the largest ArrayBuffer that can be
+     * allocated.  Override if your Allocator is more restrictive than the
+     * default.  Will only be called once, and the value returned will be
+     * cached.
+     * Should not return a value that is larger than kMaxByteLength.
+     */
+    virtual size_t MaxAllocationSize() const { return kMaxByteLength; }
+
+    /**
      * ArrayBuffer allocation mode. kNormal is a malloc/free style allocation,
      * while kReservation is for larger allocations with the ability to set
      * access permissions.
@@ -338,9 +347,21 @@ class V8_EXPORT ArrayBuffer : public Object {
       V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT;
   static constexpr int kEmbedderFieldCount = kInternalFieldCount;
 
+#if V8_ENABLE_SANDBOX
+  static constexpr size_t kMaxByteLength =
+      internal::kMaxSafeBufferSizeForSandbox;
+#elif V8_HOST_ARCH_32_BIT
+  static constexpr size_t kMaxByteLength = std::numeric_limits<int>::max();
+#else
+  // The maximum safe integer (2^53 - 1).
+  static constexpr size_t kMaxByteLength =
+      static_cast<size_t>((uint64_t{1} << 53) - 1);
+#endif
+
  private:
   ArrayBuffer();
   static void CheckCast(Value* obj);
+  friend class TypedArray;
 };
 
 #ifndef V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT
