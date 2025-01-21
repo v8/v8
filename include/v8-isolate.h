@@ -1227,8 +1227,16 @@ class V8_EXPORT Isolate {
    * Passed to |AtomicsWaitCallback| as a means of stopping an ongoing
    * `Atomics.wait` call.
    */
+#if !defined(__clang__) && defined(V8_CC_GNU)
+  // We cannot mix the usage of [[deprecated]] syntax with the __ attribute __
+  // syntax (from V8_EXPORT) due to a gcc bug:
+  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69585
+  class __attribute__((
+      deprecated("AtomicsWaitWakeHandle is unused and will be removed.")))
+#else
   class V8_DEPRECATED("AtomicsWaitWakeHandle is unused and will be removed.")
-      V8_EXPORT AtomicsWaitWakeHandle {
+#endif
+  V8_EXPORT AtomicsWaitWakeHandle {
    public:
     /**
      * Stop this `Atomics.wait()` call and call the |AtomicsWaitCallback|
