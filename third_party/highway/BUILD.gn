@@ -24,6 +24,11 @@ config("libhwy_external_config") {
     # https://github.com/google/highway/issues/2406
     defines += [ "TOOLCHAIN_MISS_ASM_HWCAP_H" ]
   }
+  if (target_cpu == "s390x") {
+    # z13 relies only on emulation.
+    # Start using `-march=z14 -mzvector` once ready.
+    defines += [ "HWY_BROKEN_EMU128=0" ]
+  }
 }
 
 source_set("libhwy") {
