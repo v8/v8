@@ -3484,7 +3484,8 @@ base::OwnedVector<uint8_t> SerializeInliningPositions(
 bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
     WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-    wasm::WasmDetectedFeatures* detected, CallDescriptor* call_descriptor) {
+    wasm::WasmDetectedFeatures* detected, CallDescriptor* call_descriptor,
+    Counters* counters) {
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
   base::TimeTicks start_time;
@@ -3696,6 +3697,12 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
                    << compilation_data.body_size() << " codesize " << codesize
                    << " name " << data.info()->GetDebugName().get()
                    << std::endl;
+  }
+
+  if (counters && compilation_data.body_size() >= 100 * KB) {
+    size_t zone_bytes = zone_stats.GetMaxAllocatedBytes();
+    counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(std::min(size_t{kMaxInt}, zone_bytes)));
   }
 
   DCHECK(result->succeeded());

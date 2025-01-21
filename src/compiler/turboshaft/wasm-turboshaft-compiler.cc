@@ -50,14 +50,8 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
   auto call_descriptor = GetWasmCallDescriptor(&zone, data.func_body.sig);
 
   if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(
-          &info, env, data, mcgraph, detected, call_descriptor)) {
+          &info, env, data, mcgraph, detected, call_descriptor, counters)) {
     return {};
-  }
-
-  if (counters && data.body_size() >= 100 * KB) {
-    size_t zone_bytes = mcgraph->graph()->zone()->allocation_size();
-    counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
-        static_cast<int>(zone_bytes));
   }
 
   auto result = info.ReleaseWasmCompilationResult();
