@@ -104,7 +104,7 @@ let __callGC;
 (function() {
   let countGC = 0;
   __callGC = function() {
-    if (countGC++ < 50) {
+    if (countGC++ < 20) {
       gc();
     }
   };
