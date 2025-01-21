@@ -507,6 +507,9 @@ Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
     case JSDurationFormat::Style::kDigital:
       return isolate->factory()->digital_string();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 Handle<String> StyleToString(Isolate* isolate,
@@ -530,6 +533,9 @@ Handle<String> StyleToString(Isolate* isolate,
     case JSDurationFormat::FieldStyle::kUndefined:
       UNREACHABLE();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 Handle<String> DisplayToString(Isolate* isolate,
@@ -540,6 +546,9 @@ Handle<String> DisplayToString(Isolate* isolate,
     case JSDurationFormat::Display::kAlways:
       return isolate->factory()->always_string();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 }  // namespace
@@ -632,6 +641,9 @@ UNumberUnitWidth ToUNumberUnitWidth(JSDurationFormat::FieldStyle style) {
     default:
       UNREACHABLE();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 struct Part {
