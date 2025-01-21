@@ -375,8 +375,8 @@ void Assembler::set_target_constant32_at(Address pc, uint32_t target,
   DCHECK(IsLui(*reinterpret_cast<Instr*>(instr0)) &&
          IsAddi(*reinterpret_cast<Instr*>(instr1)));
 #endif
-  int32_t high_20 = ((target + 0x800) >> 12);  // 20 bits
-  int32_t low_12 = target & 0xfff;             // 12 bits
+  int32_t high_20 = (((int32_t)target + 0x800) >> 12);  // 20 bits
+  int32_t low_12 = (int32_t)target << 20 >> 20;         // 12 bits
   instr_at_put(pc, SetHi20Offset(high_20, instr0->InstructionBits()),
                jit_allocation);
   instr_at_put(pc + 1 * kInstrSize,
