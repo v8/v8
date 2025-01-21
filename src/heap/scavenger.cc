@@ -709,6 +709,11 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
   new_space.SetQuarantinedSize(quarantined_objects_size);
 }
 
+void IterateRootsForPrecisePinning(Heap* heap, RootVisitor* visitor) {
+  heap->IterateStackRoots(visitor);
+  heap->isolate()->handle_scope_implementer()->Iterate(visitor);
+}
+
 }  // namespace
 
 void ScavengerCollector::CollectGarbage() {
@@ -793,7 +798,7 @@ void ScavengerCollector::CollectGarbage() {
         heap_->stack().IteratePointersUntilMarker(&stack_visitor);
         if (V8_UNLIKELY(v8_flags.stress_scavenger_pinning_objects)) {
           TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
-          isolate_->handle_scope_implementer()->Iterate(&handles_visitor);
+          IterateRootsForPrecisePinning(heap_, &handles_visitor);
         }
       }
       if (v8_flags.scavenger_precise_pinning_objects) {
@@ -801,8 +806,7 @@ void ScavengerCollector::CollectGarbage() {
             main_thread_scavenger, pinned_objects);
         ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
             heap_, &precise_pinning_visitor);
-        heap_->IterateStackRoots(&left_trim_visitor);
-        isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
+        IterateRootsForPrecisePinning(heap_, &left_trim_visitor);
       }
 
       // Scavenger treats all weak roots except for global handles as strong.

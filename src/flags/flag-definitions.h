@@ -491,6 +491,9 @@ DEFINE_BOOL(stress_scavenger_pinning_objects, false,
             "Treat some precise refernces as conservative references to stress "
             "test object pinning in Scavenger")
 DEFINE_IMPLICATION(stress_scavenger_pinning_objects, scavenger_pinning_objects)
+DEFINE_NEG_IMPLICATION(stress_scavenger_pinning_objects, minor_gc_task)
+DEFINE_VALUE_IMPLICATION(stress_scavenger_pinning_objects,
+                         scavenger_max_new_space_capacity_mb, 1u)
 DEFINE_BOOL(stress_scavenger_pinning_objects_random, false,
             "Enables random stressing of object pinning in Scavenger, such "
             "that each GC would randomly pick a subset of the precise "
