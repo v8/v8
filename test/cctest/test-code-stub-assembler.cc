@@ -2113,7 +2113,7 @@ TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
   return m.HeapConstantNoHole(Cast<HeapObject>(value));
 }
 
-// Buids a CSA function that calls |target| function with given arguments
+// Builds a CSA function that calls |target| function with given arguments
 // |number_of_iterations| times and checks that the stack pointer values before
 // the calls and after the calls are the same.
 // Then this new function is called multiple times.

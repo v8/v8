@@ -599,7 +599,7 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #endif
 
 #ifdef V8_COMPRESS_POINTERS_8GB
-// To support 8GB heaps, all alocations are aligned to at least 8 bytes.
+// To support 8GB heaps, all allocations are aligned to at least 8 bytes.
 #define V8_COMPRESS_POINTERS_8GB_BOOL true
 #else
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
@@ -1808,7 +1808,7 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // as a generated code segment.
 #define CODE_POINTER_PADDING(value) (CODE_POINTER_ALIGN(value) - (value))
 
-// DOUBLE_POINTER_ALIGN returns the value algined for double pointers.
+// DOUBLE_POINTER_ALIGN returns the value aligned for double pointers.
 #define DOUBLE_POINTER_ALIGN(value) \
   (((value) + ::i::kDoubleAlignmentMask) & ~::i::kDoubleAlignmentMask)
 

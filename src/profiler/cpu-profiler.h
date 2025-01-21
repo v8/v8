@@ -312,7 +312,7 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
 //
 // Sampling is done using posix signals (except on Windows). The profiling
 // thread sends a signal to the main thread, based on a timer. The signal
-// handler can interrupt the main thread between any abitrary instructions.
+// handler can interrupt the main thread between any arbitrary instructions.
 // This means we are very careful about reading stack values during the signal
 // handler as we could be in the middle of an operation that is modifying the
 // stack.
@@ -394,7 +394,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void EnableLogging();
   void DisableLogging();
 
-  // Computes a sampling interval sufficient to accomodate attached profiles.
+  // Computes a sampling interval sufficient to accommodate attached profiles.
   base::TimeDelta ComputeSamplingInterval();
   // Dynamically updates the sampler to use a sampling interval sufficient for
   // child profiles.

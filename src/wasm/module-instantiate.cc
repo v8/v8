@@ -233,7 +233,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
   // C functions only have one return value.
   if (expected_sig->return_count() > 1) {
     // Here and below, we log when the function we call is declared as an Api
-    // function but we cannot optimize the call, which might be unxepected. In
+    // function but we cannot optimize the call, which might be unexpected. In
     // that case we use the "slow" path making a normal Wasm->JS call and
     // calling the "slow" callback specified in FunctionTemplate::New().
     log_imported_function_mismatch(0, "too many return values");
@@ -978,7 +978,7 @@ class InstanceBuilder {
       Handle<WasmTrustedInstanceData> shared_trusted_instance_data);
 
   // Creates new tags. Note that some tags might already exist if they were
-  // imported, those tags will be re-used.
+  // imported, those tags will be reused.
   void InitializeTags(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data);
 };
@@ -1902,7 +1902,7 @@ bool InstanceBuilder::ProcessImportedFunction(
             wasm_code->reloc_info().length());
       }
 
-      // We re-use the SetCompiledWasmToJs infrastructure because it passes the
+      // We reuse the SetCompiledWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig, sig_index);

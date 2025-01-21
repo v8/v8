@@ -53,7 +53,7 @@ template <typename T>
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
-  // The extra here is to accomodate the instance object as first parameter
+  // The extra here is to accommodate the instance object as first parameter
   // and, when specified, the additional callable.
   bool extra_callable_param =
       call_kind == kWasmImportWrapper || call_kind == kWasmCapiFunction;
