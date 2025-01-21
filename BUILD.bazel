@@ -4282,10 +4282,7 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = select({
-        "@v8//bazel/config:is_macos": ["@abseil-cpp//absl:synchronization"],
-        "//conditions:default": [],
-    }),
+    deps = ["@abseil-cpp//absl/synchronization"],
 )
 
 cc_library(
