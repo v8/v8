@@ -312,7 +312,7 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 
   if (reference_results.empty()) {
     // If the first run already included non-determinism, there isn't any value
-    // in even compiling it (as this fuzzer focusses on executing deopts).
+    // in even compiling it (as this fuzzer focuses on executing deopts).
     // Return -1 to not add this case to the corpus.
     return -1;
   }

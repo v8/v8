@@ -332,7 +332,7 @@ void AddDummyTypesToTypeCanonicalizer(Isolate* isolate, Zone* zone) {
       isolate, WasmEnabledFeatures(), CompileTimeImportsForFuzzing(),
       base::VectorOf(wire_bytes));
   CHECK(is_valid);
-  // As the tpyes are reset on each run by the fuzzer, the validation should
+  // As the types are reset on each run by the fuzzer, the validation should
   // have added new types to the TypeCanonicalizer.
   CHECK_GT(GetTypeCanonicalizer()->GetCurrentNumberOfTypes(), type_count);
 }

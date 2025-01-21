@@ -1455,7 +1455,7 @@ class LiftoffCompiler {
     DCHECK(block->is_try_catch());
     __ emit_jump(block->label.get());
 
-    // This is the last use of this label. Re-use the field for the label of the
+    // This is the last use of this label. Reuse the field for the label of the
     // next catch block, and jump there if the tag does not match.
     __ bind(&block->try_info->catch_label);
     block->try_info->catch_label.Unuse();
@@ -1635,7 +1635,7 @@ class LiftoffCompiler {
                  const CatchCase& catch_case, base::Vector<Value> values) {
     DCHECK(block->is_try_table());
 
-    // This is the last use of this label. Re-use the field for the label of the
+    // This is the last use of this label. Reuse the field for the label of the
     // next catch block, and jump there if the tag does not match.
     __ bind(&block->try_info->catch_label);
     block->try_info->catch_label.Unuse();
@@ -6126,7 +6126,7 @@ class LiftoffCompiler {
 
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
-    // managable.
+    // manageable.
     DCHECK(is_64bit_value && !Is64());  // Other cases are handled above.
     LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
     pinned->set(reg.low());
