@@ -336,6 +336,7 @@ def _call_with_output(cmd):
     os.close(parent)
     while p.poll() is None:
       print(".", end="")
+      time.sleep(0.1)
   return p.returncode, "".join(output)
 
 
