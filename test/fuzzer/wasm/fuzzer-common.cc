@@ -140,8 +140,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
   // Before execution, there should be no dangling nondeterminism registered on
   // the engine.
-  // TODO(clemensb): Enable this.
-  // DCHECK(!WasmEngine::had_nondeterminism());
+  DCHECK(!WasmEngine::had_nondeterminism());
 
   // Try to instantiate the reference instance, return if it fails.
   {
@@ -250,6 +249,12 @@ void ExecuteAgainstReference(Isolate* isolate,
   std::unique_ptr<const char[]> exception;
   int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", base::VectorOf(compiled_args), &exception);
+
+  // Also the second run can hit nondeterminism which was not hit before (when
+  // growing memory). In that case, do not compare results.
+  // TODO(384781857): Due to nondeterminism, the second run could even not
+  // terminate. If this happens often enough we should do something about this.
+  if (WasmEngine::clear_nondeterminism()) return;
 
   if ((exception_ref != nullptr) != (exception != nullptr)) {
     FATAL("Exception mismatch! Expected: <%s>; got: <%s>",

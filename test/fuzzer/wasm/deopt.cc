@@ -153,8 +153,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
   for (uint32_t i = 0; i < callees.size(); ++i) {
     // Before execution, there should be no dangling nondeterminism registered
     // on the engine.
-    // TODO(clemensb): Enable this.
-    // DCHECK(!WasmEngine::had_nondeterminism());
+    DCHECK(!WasmEngine::had_nondeterminism());
 
     DirectHandle<Object> arguments[] = {
         direct_handle(Smi::FromInt(i), isolate)};
@@ -353,8 +352,17 @@ int FuzzIt(base::Vector<const uint8_t> data) {
     DirectHandle<Object> arguments[] = {
         direct_handle(Smi::FromInt(i), i_isolate)};
     std::unique_ptr<const char[]> exception;
+
+    DCHECK(!WasmEngine::had_nondeterminism());  // No dangling nondeterminism.
     int32_t result_value = testing::CallWasmFunctionForTesting(
         i_isolate, instance, "main", base::VectorOf(arguments), &exception);
+    // Also the second run can hit nondeterminism which was not hit before (when
+    // growing memory). In that case, do not compare results.
+    // TODO(384781857): Due to nondeterminism, the second run could even not
+    // terminate. If this happens often enough we should do something about
+    // this.
+    if (WasmEngine::clear_nondeterminism()) return -1;
+
     ExecutionResult actual_result;
     if (exception) {
       actual_result = exception.get();
