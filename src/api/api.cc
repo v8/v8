@@ -8481,6 +8481,9 @@ FastIterateResult FastIterateArray(DirectHandle<JSArray> array,
       // These are never used by v8::Array instances.
       UNREACHABLE();
   }
+  // The input value of the switch is untrusted, so even if it's exhaustive, it
+  // can skip all cases and end up here, triggering UB since there's no return.
+  SBXCHECK(false);
 }
 
 }  // namespace internal
