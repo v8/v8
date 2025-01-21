@@ -509,7 +509,8 @@ class RuntimeCallTimer final {
   V(NamedSetterCallback)                       \
   V(ObjectVerify)                              \
   V(Object_DeleteProperty)                     \
-  V(OptimizeBackgroundDispatcherJob)           \
+  V(OptimizeBackgroundMaglev)                  \
+  V(OptimizeBackgroundTurbofan)                \
   V(OptimizeCode)                              \
   V(OptimizeConcurrentFinalize)                \
   V(OptimizeConcurrentFinalizeMaglev)          \
@@ -518,7 +519,6 @@ class RuntimeCallTimer final {
   V(OptimizeHeapBrokerInitialization)          \
   V(OptimizeNonConcurrent)                     \
   V(OptimizeNonConcurrentMaglev)               \
-  V(OptimizeBackgroundMaglev)                  \
   V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \

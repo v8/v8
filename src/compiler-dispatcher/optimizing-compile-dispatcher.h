@@ -129,7 +129,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void FlushInputQueue();
   void FlushOutputQueue();
   void CompileNext(TurbofanCompilationJob* job, LocalIsolate* local_isolate);
-  TurbofanCompilationJob* NextInput(LocalIsolate* local_isolate);
+  TurbofanCompilationJob* NextInput();
 
   Isolate* isolate_;
 

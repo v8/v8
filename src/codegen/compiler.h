@@ -466,7 +466,8 @@ class OptimizedCompilationJob : public CompilationJob {
 class TurbofanCompilationJob : public OptimizedCompilationJob {
  public:
   V8_EXPORT_PRIVATE TurbofanCompilationJob(
-      OptimizedCompilationInfo* compilation_info, State initial_state);
+      Isolate* isolate, OptimizedCompilationInfo* compilation_info,
+      State initial_state);
 
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
@@ -491,7 +492,10 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   // Intended for use as a globally unique id in trace events.
   uint64_t trace_id() const;
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
+  Isolate* const isolate_;
   OptimizedCompilationInfo* const compilation_info_;
   uint64_t trace_id_;
 };

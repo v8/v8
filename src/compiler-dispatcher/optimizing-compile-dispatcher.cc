@@ -24,37 +24,33 @@ namespace internal {
 
 class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
  public:
-  explicit CompileTask(Isolate* isolate,
-                       OptimizingCompileDispatcher* dispatcher)
-      : isolate_(isolate),
-        worker_thread_runtime_call_stats_(
-            isolate->counters()->worker_thread_runtime_call_stats()),
-        dispatcher_(dispatcher) {}
+  explicit CompileTask(OptimizingCompileDispatcher* dispatcher)
+      : dispatcher_(dispatcher) {}
 
   void Run(JobDelegate* delegate) override {
-    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
-    DCHECK(local_isolate.heap()->IsParked());
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
 
-    {
-      RCS_SCOPE(&local_isolate,
-                RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
+    while (!delegate->ShouldYield()) {
+      TurbofanCompilationJob* job = dispatcher_->NextInput();
+      if (!job) break;
+      TRACE_EVENT_WITH_FLOW0(
+          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
+          job->trace_id(),
+          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      TimerEventScope<TimerEventRecompileConcurrent> timer(job->isolate());
 
-      TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
-      while (!delegate->ShouldYield()) {
-        TurbofanCompilationJob* job = dispatcher_->NextInput(&local_isolate);
-        if (!job) break;
-        TRACE_EVENT_WITH_FLOW0(
-            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
-            job->trace_id(),
-            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-
-        if (dispatcher_->recompilation_delay_ != 0) {
-          base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-              dispatcher_->recompilation_delay_));
-        }
-
-        dispatcher_->CompileNext(job, &local_isolate);
+      if (dispatcher_->recompilation_delay_ != 0) {
+        base::OS::Sleep(base::TimeDelta::FromMilliseconds(
+            dispatcher_->recompilation_delay_));
       }
+
+      LocalIsolate local_isolate(job->isolate(), ThreadKind::kBackground);
+      DCHECK(local_isolate.heap()->IsParked());
+
+      RCS_SCOPE(&local_isolate,
+                RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
+
+      dispatcher_->CompileNext(job, &local_isolate);
     }
   }
 
@@ -68,8 +64,6 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
   }
 
  private:
-  Isolate* isolate_;
-  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   OptimizingCompileDispatcher* dispatcher_;
 };
 
@@ -82,8 +76,7 @@ OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
   }
 }
 
-TurbofanCompilationJob* OptimizingCompileDispatcher::NextInput(
-    LocalIsolate* local_isolate) {
+TurbofanCompilationJob* OptimizingCompileDispatcher::NextInput() {
   return input_queue_.Dequeue();
 }
 
@@ -144,7 +137,7 @@ void OptimizingCompileDispatcher::AwaitCompileTasks() {
   }
   // Join kills the job handle, so drop it and post a new one.
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
-      kTaskPriority, std::make_unique<CompileTask>(isolate_, this));
+      kTaskPriority, std::make_unique<CompileTask>(this));
 
 #ifdef DEBUG
   CHECK_EQ(input_queue_.Length(), 0);
@@ -284,7 +277,7 @@ OptimizingCompileDispatcher::OptimizingCompileDispatcher(Isolate* isolate)
       (v8_flags.concurrent_builtin_generation &&
        isolate->IsGeneratingEmbeddedBuiltins())) {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
-        kTaskPriority, std::make_unique<CompileTask>(isolate, this));
+        kTaskPriority, std::make_unique<CompileTask>(this));
   }
 }
 

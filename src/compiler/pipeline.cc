@@ -574,7 +574,7 @@ PipelineCompilationJob::PipelineCompilationJob(
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
-    : TurbofanCompilationJob(&compilation_info_,
+    : TurbofanCompilationJob(isolate, &compilation_info_,
                              CompilationJob::State::kReadyToPrepare),
       zone_(isolate->allocator(), kPipelineCompilationJobZoneName),
       zone_stats_(isolate->allocator()),
@@ -2122,7 +2122,8 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
-      : TurbofanCompilationJob(&info_, CompilationJob::State::kReadyToExecute),
+      : TurbofanCompilationJob(isolate, &info_,
+                               CompilationJob::State::kReadyToExecute),
         debug_name_(std::move(debug_name)),
         info_(base::CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
@@ -2819,7 +2820,8 @@ CodeAssemblerCompilationJob::CodeAssemblerCompilationJob(
     std::function<compiler::CallDescriptor*(Zone*)> get_call_descriptor,
     CodeKind code_kind, const char* name,
     const ProfileDataFromFile* profile_data, int finalize_order)
-    : TurbofanCompilationJob(&compilation_info_, State::kReadyToPrepare),
+    : TurbofanCompilationJob(isolate, &compilation_info_,
+                             State::kReadyToPrepare),
       generator_(generator),
       installer_(installer),
       profile_data_(profile_data),

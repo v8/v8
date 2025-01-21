@@ -521,8 +521,10 @@ uint64_t GetNextTraceId() {
 }  // namespace
 
 TurbofanCompilationJob::TurbofanCompilationJob(
-    OptimizedCompilationInfo* compilation_info, State initial_state)
+    Isolate* isolate, OptimizedCompilationInfo* compilation_info,
+    State initial_state)
     : OptimizedCompilationJob("Turbofan", initial_state),
+      isolate_(isolate),
       compilation_info_(compilation_info),
       trace_id_(GetNextTraceId() ^ reinterpret_cast<uintptr_t>(this)) {}
 
