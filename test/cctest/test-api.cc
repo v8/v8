@@ -27148,6 +27148,7 @@ END_ALLOW_USE_DEPRECATED()
 namespace v8::internal::wasm {
 
 TEST(WasmCodeFlushingOnMemoryPressure) {
+  i::v8_flags.flush_liftoff_code = true;
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   r.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(44))});
   CHECK_EQ(55, r.Call());
