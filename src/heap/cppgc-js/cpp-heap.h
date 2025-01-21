@@ -127,6 +127,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   const HeapBase& AsBase() const { return *this; }
 
   void AttachIsolate(Isolate* isolate);
+  void StartDetachingIsolate();
   void DetachIsolate();
 
   void Terminate();
@@ -275,6 +276,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   bool already_terminated_ = false;
+#if DEBUG
+  bool detach_started_ = false;
+#endif  // DEBUG
 
   friend class MetricRecorderAdapter;
 };

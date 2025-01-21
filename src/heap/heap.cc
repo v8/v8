@@ -5987,6 +5987,7 @@ void Heap::DetachCppHeap() {
   // The CppHeap may have been detached already.
   if (!cpp_heap_) return;
 
+  CppHeap::From(cpp_heap_)->StartDetachingIsolate();
   CppHeap::From(cpp_heap_)->DetachIsolate();
   cpp_heap_ = nullptr;
 }
@@ -6019,9 +6020,7 @@ const ::heap::base::Stack& Heap::stack() const {
 
 void Heap::StartTearDown() {
   if (cpp_heap_) {
-    CppHeap::From(cpp_heap_)->DetachIsolate();
-    cpp_heap_ = nullptr;
-    owning_cpp_heap_.reset();
+    CppHeap::From(cpp_heap_)->StartDetachingIsolate();
   }
 
   // Finish any ongoing sweeping to avoid stray background tasks still accessing
@@ -6089,6 +6088,12 @@ void Heap::TearDown() {
     }
   }
 
+  if (cpp_heap_) {
+    CppHeap::From(cpp_heap_)->DetachIsolate();
+    cpp_heap_ = nullptr;
+    owning_cpp_heap_.reset();
+  }
+
   minor_gc_job_.reset();
 
   if (need_to_remove_stress_concurrent_allocation_observer_) {
@@ -6136,11 +6141,6 @@ void Heap::TearDown() {
   dead_object_stats_.reset();
 
   embedder_roots_handler_ = nullptr;
-
-  if (cpp_heap_) {
-    CppHeap::From(cpp_heap_)->DetachIsolate();
-    cpp_heap_ = nullptr;
-  }
 
   tracer_.reset();
 

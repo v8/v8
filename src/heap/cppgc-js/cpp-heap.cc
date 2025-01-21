@@ -601,7 +601,11 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   }
 }
 
-void CppHeap::DetachIsolate() {
+void CppHeap::StartDetachingIsolate() {
+#if DEBUG
+  DCHECK(!detach_started_);
+  detach_started_ = true;
+#endif  // DEBUG
   // TODO(chromium:1056170): Investigate whether this can be enforced with a
   // CHECK across all relevant embedders and setups.
   if (!isolate_) return;
@@ -612,7 +616,9 @@ void CppHeap::DetachIsolate() {
         i::GarbageCollectionReason::kExternalFinalize);
   }
   sweeper_.FinishIfRunning();
+}
 
+void CppHeap::DetachIsolate() {
   sweeping_on_mutator_thread_observer_.reset();
 
   if (auto* heap_profiler = isolate_->heap_profiler()) {
@@ -630,7 +636,6 @@ void CppHeap::DetachIsolate() {
     detached_override_stack_state_ = heap_->overridden_stack_state();
     override_stack_state_scope_.reset();
   }
-
   isolate_ = nullptr;
   heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
