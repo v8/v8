@@ -517,6 +517,9 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
     // Try to adjust the permissions on the memory.
     if (!i::SetPermissions(GetPlatformPageAllocator(), buffer_start_,
                            new_length, PageAllocator::kReadWrite)) {
+      // This is a nondeterministic failure; mark as such in the WasmEngine (for
+      // differential fuzzing).
+      wasm::WasmEngine::set_had_nondeterminism();
       return {};
     }
     if (byte_length_.compare_exchange_weak(old_length, new_length,

@@ -118,6 +118,9 @@ class WasmOrphanedGlobalHandle {
 };
 
 // static
+std::atomic<int32_t> WasmEngine::had_nondeterminism_{0};
+
+// static
 WasmOrphanedGlobalHandle* WasmEngine::NewOrphanedGlobalHandle(
     WasmOrphanedGlobalHandle** pointer) {
   // No need for additional locking: this is only ever called indirectly

@@ -36,8 +36,7 @@ namespace v8::internal::wasm::fuzzing {
 namespace {
 
 void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
-                                              int32_t* max_steps,
-                                              int32_t* nondeterminism) {
+                                              int32_t* max_steps) {
   const WasmModule* module = native_module->module();
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = CompilationEnv::ForModule(native_module);
@@ -56,7 +55,7 @@ void CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
                                       .set_func_index(func.func_index)
                                       .set_for_debugging(kForDebugging)
                                       .set_max_steps(max_steps)
-                                      .set_nondeterminism(nondeterminism));
+                                      .set_detect_nondeterminism(true));
     if (!result.succeeded()) {
       FATAL(
           "Liftoff compilation failed on a valid module. Run with "
@@ -80,7 +79,7 @@ CompileTimeImports CompileTimeImportsForFuzzing() {
 // nondeterminsm flag that are updated during execution by Liftoff.
 Handle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    int32_t* max_steps, int32_t* nondeterminism) {
+    int32_t* max_steps) {
   // Create the native module.
   std::shared_ptr<NativeModule> native_module;
   constexpr bool kNoVerifyFunctions = false;
@@ -113,8 +112,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
   InitializeCompilationForTesting(native_module.get());
 
   // Compile all functions with Liftoff.
-  CompileAllFunctionsForReferenceExecution(native_module.get(), max_steps,
-                                           nondeterminism);
+  CompileAllFunctionsForReferenceExecution(native_module.get(), max_steps);
 
   // Create the module object.
   constexpr base::Vector<const char> kNoSourceUrl;
@@ -133,14 +131,17 @@ void ExecuteAgainstReference(Isolate* isolate,
   if (module_object->module()->start_function_index >= 0) return;
 
   int32_t max_steps = max_executed_instructions;
-  int32_t nondeterminism = 0;
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
   Zone reference_module_zone(isolate->allocator(), "wasm reference module");
   Handle<WasmModuleObject> module_ref = CompileReferenceModule(
-      isolate, module_object->native_module()->wire_bytes(), &max_steps,
-      &nondeterminism);
+      isolate, module_object->native_module()->wire_bytes(), &max_steps);
   DirectHandle<WasmInstanceObject> instance_ref;
+
+  // Before execution, there should be no dangling nondeterminism registered on
+  // the engine.
+  // TODO(clemensb): Enable this.
+  // DCHECK(!WasmEngine::had_nondeterminism());
 
   // Try to instantiate the reference instance, return if it fails.
   {
@@ -198,7 +199,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   if (max_steps < 0) execute = false;
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
-  if (nondeterminism != 0) execute = false;
+  if (WasmEngine::clear_nondeterminism()) execute = false;
   // Similar to max steps reached, also discard modules that need too much
   // memory.
   isolate->heap()->RemoveNearHeapLimitCallback(heap_limit_callback,

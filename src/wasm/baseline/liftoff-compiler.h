@@ -73,7 +73,7 @@ struct LiftoffOptions {
   std::unique_ptr<DebugSideTable>* debug_sidetable = nullptr;
   int dead_breakpoint = 0;
   int32_t* max_steps = nullptr;
-  int32_t* nondeterminism = nullptr;
+  bool detect_nondeterminism = false;
   uint32_t deopt_info_bytecode_offset = std::numeric_limits<uint32_t>::max();
   LocationKindForDeopt deopt_location_kind = LocationKindForDeopt::kNone;
 
@@ -95,7 +95,7 @@ struct LiftoffOptions {
   SETTER(debug_sidetable)
   SETTER(dead_breakpoint)
   SETTER(max_steps)
-  SETTER(nondeterminism)
+  SETTER(detect_nondeterminism)
   SETTER(deopt_info_bytecode_offset)
   SETTER(deopt_location_kind)
 

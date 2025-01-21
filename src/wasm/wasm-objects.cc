@@ -1135,6 +1135,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     if (v8_flags.correctness_fuzzer_suppressions) {
       FATAL("could not grow wasm memory");
     }
+    // Set the non-determinism flag in the WasmEngine.
+    wasm::WasmEngine::set_had_nondeterminism();
     return -1;
   }
 

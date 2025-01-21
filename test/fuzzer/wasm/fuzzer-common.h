@@ -44,7 +44,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
 Handle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
-    int32_t* max_steps, int32_t* nondeterminism);
+    int32_t* max_steps);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);

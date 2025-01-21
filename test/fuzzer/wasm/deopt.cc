@@ -124,7 +124,6 @@ std::vector<ExecutionResult> PerformReferenceRun(
   ErrorThrower thrower(isolate, "WasmFuzzerSyncCompileReference");
 
   int32_t max_steps = kDefaultMaxFuzzerExecutedInstructions;
-  int32_t nondeterminism = 0;
 
   // We aren't really debugging but this will prevent tier-up and other
   // "dynamic" behavior that we do not want to trigger during reference
@@ -132,8 +131,8 @@ std::vector<ExecutionResult> PerformReferenceRun(
   // with the kForDebugging liftoff option.
   EnterDebuggingScope debugging_scope(isolate);
 
-  Handle<WasmModuleObject> module_object = CompileReferenceModule(
-      isolate, wire_bytes.module_bytes(), &max_steps, &nondeterminism);
+  Handle<WasmModuleObject> module_object =
+      CompileReferenceModule(isolate, wire_bytes.module_bytes(), &max_steps);
 
   thrower.Reset();
   CHECK(!isolate->has_exception());
@@ -152,6 +151,11 @@ std::vector<ExecutionResult> PerformReferenceRun(
 
   NearHeapLimitCallbackScope near_heap_limit(isolate);
   for (uint32_t i = 0; i < callees.size(); ++i) {
+    // Before execution, there should be no dangling nondeterminism registered
+    // on the engine.
+    // TODO(clemensb): Enable this.
+    // DCHECK(!WasmEngine::had_nondeterminism());
+
     DirectHandle<Object> arguments[] = {
         direct_handle(Smi::FromInt(i), isolate)};
     std::unique_ptr<const char[]> exception;
@@ -162,7 +166,7 @@ std::vector<ExecutionResult> PerformReferenceRun(
     if (max_steps < 0) break;
     // If there is nondeterminism, we cannot guarantee the behavior of the test
     // module, and in particular it may not terminate.
-    if (nondeterminism != 0) break;
+    if (WasmEngine::clear_nondeterminism()) break;
     // Similar to max steps reached, also discard modules that need too much
     // memory.
     if (near_heap_limit.heap_limit_reached()) {
