@@ -61,8 +61,7 @@ BasicBlockProfilerData* BasicBlockProfiler::NewData(size_t n_blocks) {
 }
 
 namespace {
-DirectHandle<String> CopyStringToJSHeap(const std::string& source,
-                                        Isolate* isolate) {
+Handle<String> CopyStringToJSHeap(const std::string& source, Isolate* isolate) {
   return isolate->factory()->NewStringFromAsciiChecked(source.c_str(),
                                                        AllocationType::kOld);
 }
@@ -105,7 +104,7 @@ void BasicBlockProfilerData::CopyFromJSHeap(
   hash_ = js_heap_data->hash();
 }
 
-DirectHandle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
+Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
     Isolate* isolate) {
   int id_array_size_in_bytes = static_cast<int>(n_blocks() * kBlockIdSlotSize);
   CHECK(id_array_size_in_bytes >= 0 &&

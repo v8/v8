@@ -67,8 +67,8 @@ class Deoptimizer : public Malloced {
 
   static const char* MessageFor(DeoptimizeKind kind);
 
-  DirectHandle<JSFunction> function() const;
-  DirectHandle<Code> compiled_code() const;
+  Handle<JSFunction> function() const;
+  Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
   int output_count() const { return output_count_; }
 
@@ -305,7 +305,7 @@ class Deoptimizer : public Malloced {
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_32_BIT
   // Needed by webassembly for lowering signatures containing i64 types. Stored
-  // as members for reuse for multiple signatures during one de-optimization.
+  // as members for re-use for multiple signatures during one de-optimization.
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
 #endif

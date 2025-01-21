@@ -52,7 +52,7 @@ void PendingCompilationErrorHandler::MessageDetails::Prepare(
   }
 }
 
-DirectHandle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
+Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
     Isolate* isolate, int index) const {
   // `index` may be >= argc; in that case we return a default value to pass on
   // elsewhere.
@@ -202,7 +202,7 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   isolate->ThrowAt(error, &location);
 }
 
-DirectHandle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
+Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
   int num_args = 0;

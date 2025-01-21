@@ -126,7 +126,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
     : public HashTableBase {
  public:
   // TODO(jgruber): Derive from TaggedArrayBase instead of FixedArray, and
-  // merge with TaggedArrayBase's Shape class. Once the naming conflict is
+  // merge with TaggedArraryBase's Shape class. Once the naming conflict is
   // resolved rename all TodoShape occurrences back to Shape.
   using TodoShape = ShapeT;
   using Key = typename TodoShape::Key;
@@ -138,7 +138,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
-  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   // Garbage collection support.
   void IteratePrefix(ObjectVisitor* visitor);
@@ -508,7 +508,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
  public:
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
 
-  inline static DirectHandle<Map> GetMap(RootsTable& roots);
+  inline static Handle<Map> GetMap(RootsTable& roots);
   int Lookup(DirectHandle<Name> key);
 
   // Returns the value at entry.
@@ -553,7 +553,7 @@ class RegisteredSymbolTable
   // Returns the value at entry.
   Tagged<Object> ValueAt(InternalIndex entry);
 
-  inline static DirectHandle<Map> GetMap(RootsTable& roots);
+  inline static Handle<Map> GetMap(RootsTable& roots);
 
   static Handle<RegisteredSymbolTable> Add(Isolate* isolate,
                                            Handle<RegisteredSymbolTable> table,

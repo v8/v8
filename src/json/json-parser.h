@@ -369,9 +369,7 @@ class JsonParser final {
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }
   inline ReadOnlyRoots roots() { return ReadOnlyRoots(isolate_); }
-  inline DirectHandle<JSFunction> object_constructor() {
-    return object_constructor_;
-  }
+  inline Handle<JSFunction> object_constructor() { return object_constructor_; }
 
   static const int kInitialSpecialStringLength = 32;
 

@@ -20,7 +20,7 @@
 namespace v8 {
 namespace internal {
 
-DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
   Validate();
   switch (kind_) {
     case DeoptimizationLiteralKind::kObject: {

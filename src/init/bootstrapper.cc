@@ -203,7 +203,7 @@ class Genesis {
   // Creates some basic objects. Used for creating a context from scratch.
   void CreateRoots();
   // Creates the empty function.  Used for creating a context from scratch.
-  DirectHandle<JSFunction> CreateEmptyFunction();
+  Handle<JSFunction> CreateEmptyFunction();
   // Returns the %ThrowTypeError% intrinsic function.
   // See ES#sec-%throwtypeerror% for details.
   DirectHandle<JSFunction> GetThrowTypeErrorIntrinsic();
@@ -226,7 +226,7 @@ class Genesis {
   // we have to use the deserialized ones that are linked together with the
   // rest of the context snapshot. At the end we link the global proxy and the
   // context to each other.
-  DirectHandle<JSGlobalObject> CreateNewGlobals(
+  Handle<JSGlobalObject> CreateNewGlobals(
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       DirectHandle<JSGlobalProxy> global_proxy);
   // Similarly, we want to use the global that has been created by the templates
@@ -264,16 +264,16 @@ class Genesis {
 #endif
 
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
-  DirectHandle<JSFunction> CreateArrayBuffer(DirectHandle<String> name,
-                                             ArrayBufferKind array_buffer_kind);
+  Handle<JSFunction> CreateArrayBuffer(DirectHandle<String> name,
+                                       ArrayBufferKind array_buffer_kind);
 
   bool InstallABunchOfRandomThings();
   bool InstallExtrasBindings();
 
-  DirectHandle<JSFunction> InstallTypedArray(const char* name,
-                                             ElementsKind elements_kind,
-                                             InstanceType constructor_type,
-                                             int rab_gsab_initial_map_index);
+  Handle<JSFunction> InstallTypedArray(const char* name,
+                                       ElementsKind elements_kind,
+                                       InstanceType constructor_type,
+                                       int rab_gsab_initial_map_index);
   void InitializeMapCaches();
 
   enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
@@ -322,8 +322,8 @@ class Genesis {
   void TransferIndexedProperties(DirectHandle<JSObject> from,
                                  DirectHandle<JSObject> to);
 
-  DirectHandle<Map> CreateInitialMapForArraySubclass(int size,
-                                                     int inobject_properties);
+  Handle<Map> CreateInitialMapForArraySubclass(int size,
+                                               int inobject_properties);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
@@ -407,10 +407,10 @@ bool IsFunctionMapOrSpecialBuiltin(DirectHandle<Map> map, Builtin builtin,
 }
 #endif  // DEBUG
 
-DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfoForBuiltin(
+Handle<SharedFunctionInfo> CreateSharedFunctionInfoForBuiltin(
     Isolate* isolate, DirectHandle<String> name, Builtin builtin, int len,
     AdaptArguments adapt) {
-  DirectHandle<SharedFunctionInfo> info =
+  Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin, len,
                                                           adapt);
   info->set_language_mode(LanguageMode::kStrict);
@@ -529,7 +529,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
   return result;
 }
 
-V8_NOINLINE DirectHandle<JSFunction> CreateFunction(
+V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, const char* name, InstanceType type, int instance_size,
     int inobject_properties, DirectHandle<UnionOf<JSPrototype, Hole>> prototype,
     Builtin builtin, int len, AdaptArguments adapt) {
@@ -624,14 +624,14 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
   return fun;
 }
 
-V8_NOINLINE DirectHandle<JSFunction> CreateSharedObjectConstructor(
+V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
     Isolate* isolate, DirectHandle<String> name, DirectHandle<Map> instance_map,
     Builtin builtin, int len, AdaptArguments adapt) {
   Factory* factory = isolate->factory();
   DirectHandle<SharedFunctionInfo> info =
       factory->NewSharedFunctionInfoForBuiltin(name, builtin, len, adapt);
   info->set_language_mode(LanguageMode::kStrict);
-  DirectHandle<JSFunction> constructor =
+  Handle<JSFunction> constructor =
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
           .set_map(isolate->strict_function_with_readonly_prototype_map())
           .Build();
@@ -722,7 +722,7 @@ V8_NOINLINE void InstallSpeciesGetter(Isolate* isolate,
                                       DirectHandle<JSFunction> constructor) {
   Factory* factory = isolate->factory();
   // TODO(adamk): We should be able to share a SharedFunctionInfo
-  // between all these JSFunctions.
+  // between all these JSFunctins.
   SimpleInstallGetter(isolate, constructor, factory->symbol_species_string(),
                       factory->species_symbol(), Builtin::kReturnReceiver,
                       kAdapt);
@@ -751,11 +751,11 @@ void InstallToStringTag(Isolate* isolate, DirectHandle<JSObject> holder,
 // make it possible to hit the fast-paths in various builtins (i.e. promises and
 // collections) with user defined iterators.
 template <size_t N>
-DirectHandle<Map> CreateLiteralObjectMapFromCache(
+Handle<Map> CreateLiteralObjectMapFromCache(
     Isolate* isolate, const std::array<DirectHandle<Name>, N>& properties) {
   Factory* factory = isolate->factory();
   DirectHandle<NativeContext> native_context = isolate->native_context();
-  DirectHandle<Map> map = factory->ObjectLiteralMapFromCache(native_context, N);
+  Handle<Map> map = factory->ObjectLiteralMapFromCache(native_context, N);
   for (DirectHandle<Name> name : properties) {
     map = Map::CopyWithField(isolate, map, name, FieldType::Any(isolate), NONE,
                              PropertyConstness::kConst,
@@ -767,7 +767,7 @@ DirectHandle<Map> CreateLiteralObjectMapFromCache(
 
 }  // namespace
 
-DirectHandle<JSFunction> Genesis::CreateEmptyFunction() {
+Handle<JSFunction> Genesis::CreateEmptyFunction() {
   // Allocate the function map first and then patch the prototype later.
   DirectHandle<Map> empty_function_map =
       factory()->CreateSloppyFunctionMap(FUNCTION_WITHOUT_PROTOTYPE, {});
@@ -776,7 +776,7 @@ DirectHandle<JSFunction> Genesis::CreateEmptyFunction() {
 
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
-  DirectHandle<JSFunction> empty_function = CreateFunctionForBuiltin(
+  Handle<JSFunction> empty_function = CreateFunctionForBuiltin(
       isolate(), factory()->empty_string(), empty_function_map,
       Builtin::kEmptyFunction, 0, kDontAdapt);
   empty_function_map->SetConstructor(*empty_function);
@@ -962,13 +962,13 @@ void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
 
 namespace {
 
-DirectHandle<Map> CreateNonConstructorMap(Isolate* isolate,
-                                          DirectHandle<Map> source_map,
-                                          DirectHandle<JSObject> prototype,
-                                          const char* reason) {
-  DirectHandle<Map> map = Map::Copy(isolate, source_map, reason);
+Handle<Map> CreateNonConstructorMap(Isolate* isolate,
+                                    DirectHandle<Map> source_map,
+                                    DirectHandle<JSObject> prototype,
+                                    const char* reason) {
+  Handle<Map> map = Map::Copy(isolate, source_map, reason);
   // Ensure the resulting map has prototype slot (it is necessary for storing
-  // initial map even when the prototype property is not required).
+  // inital map even when the prototype property is not required).
   if (!map->has_prototype_slot()) {
     // Re-set the unused property fields after changing the instance size.
     int unused_property_fields = map->UnusedPropertyFields();
@@ -1371,7 +1371,7 @@ void Genesis::InstallGlobalThisBinding() {
   native_context()->set_script_context_table(*new_script_contexts);
 }
 
-DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
+Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     DirectHandle<JSGlobalProxy> global_proxy) {
   // The argument global_proxy_template aka data is an ObjectTemplateInfo.
@@ -1430,7 +1430,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   js_global_object_function->initial_map()->set_is_dictionary_map(true);
   js_global_object_function->initial_map()->set_may_have_interesting_properties(
       true);
-  DirectHandle<JSGlobalObject> global_object =
+  Handle<JSGlobalObject> global_object =
       factory()->NewJSGlobalObject(js_global_object_function);
 
   // Step 2: (re)initialize the global proxy object.
@@ -5044,9 +5044,10 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
   }
 }
 
-DirectHandle<JSFunction> Genesis::InstallTypedArray(
-    const char* name, ElementsKind elements_kind, InstanceType constructor_type,
-    int rab_gsab_initial_map_index) {
+Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
+                                              ElementsKind elements_kind,
+                                              InstanceType constructor_type,
+                                              int rab_gsab_initial_map_index) {
   DirectHandle<JSObject> global(native_context()->global_object(), isolate());
 
   DirectHandle<JSObject> typed_array_prototype =
@@ -5054,7 +5055,7 @@ DirectHandle<JSFunction> Genesis::InstallTypedArray(
   DirectHandle<JSFunction> typed_array_function =
       isolate()->typed_array_function();
 
-  DirectHandle<JSFunction> result = InstallFunction(
+  Handle<JSFunction> result = InstallFunction(
       isolate(), global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithEmbedderFields, 0, factory()->the_hole_value(),
       Builtin::kTypedArrayConstructor, 3, kDontAdapt);
@@ -6034,8 +6035,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 
   // The Temporal object is set up lazily upon first access.
   {
-    DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                        isolate());
+    Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
     DirectHandle<String> name = factory()->InternalizeUtf8String("Temporal");
     DirectHandle<AccessorInfo> accessor = Accessors::MakeAccessor(
         isolate(), name, LazyInitializeGlobalThisTemporal, nullptr);
@@ -6047,7 +6047,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   {
     DirectHandle<JSFunction> date_func(native_context()->date_function(),
                                        isolate());
-    DirectHandle<JSObject> date_prototype(
+    Handle<JSObject> date_prototype(
         Cast<JSObject>(date_func->instance_prototype()), isolate());
     DirectHandle<String> name =
         factory()->InternalizeUtf8String("toTemporalInstant");
@@ -6058,7 +6058,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   }
 }
 
-DirectHandle<JSFunction> Genesis::CreateArrayBuffer(
+Handle<JSFunction> Genesis::CreateArrayBuffer(
     DirectHandle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
@@ -6067,7 +6067,7 @@ DirectHandle<JSFunction> Genesis::CreateArrayBuffer(
   InstallToStringTag(isolate(), prototype, name);
 
   // Allocate the constructor with the given {prototype}.
-  DirectHandle<JSFunction> array_buffer_fun =
+  Handle<JSFunction> array_buffer_fun =
       CreateFunction(isolate(), name, JS_ARRAY_BUFFER_TYPE,
                      JSArrayBuffer::kSizeWithEmbedderFields, 0, prototype,
                      Builtin::kArrayBufferConstructor, 1, kAdapt);
@@ -6975,8 +6975,8 @@ void Genesis::TransferObject(DirectHandle<JSObject> from,
   JSObject::ForceSetPrototype(isolate(), to, proto);
 }
 
-DirectHandle<Map> Genesis::CreateInitialMapForArraySubclass(
-    int size, int inobject_properties) {
+Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
+                                                      int inobject_properties) {
   // Find global.Array.prototype to inherit from.
   DirectHandle<JSFunction> array_constructor(native_context()->array_function(),
                                              isolate());
@@ -6984,7 +6984,7 @@ DirectHandle<Map> Genesis::CreateInitialMapForArraySubclass(
       native_context()->initial_array_prototype(), isolate());
 
   // Add initial map.
-  DirectHandle<Map> initial_map = factory()->NewContextfulMapForCurrentContext(
+  Handle<Map> initial_map = factory()->NewContextfulMapForCurrentContext(
       JS_ARRAY_TYPE, size, TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
   initial_map->SetConstructor(*array_constructor);
 

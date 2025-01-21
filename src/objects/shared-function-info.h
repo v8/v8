@@ -616,8 +616,8 @@ class SharedFunctionInfo
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  static DirectHandle<Object> GetSourceCode(
-      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCode(Isolate* isolate,
+                                      DirectHandle<SharedFunctionInfo> shared);
   static Handle<Object> GetSourceCodeHarmony(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 

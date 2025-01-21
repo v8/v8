@@ -269,7 +269,7 @@ inline void PushAligned(MaglevAssembler* masm, Arg1 arg1, Arg2 arg2) {
   {
     // Push the first argument together with padding to ensure alignment.
     // The second argument is not pushed together with the first so we can
-    // reuse any scratch registers used to materialise the first argument for
+    // re-use any scratch registers used to materialise the first argument for
     // the second one.
     MaglevAssembler::TemporaryRegisterScope temps(masm);
     masm->MacroAssembler::Push(ToRegister(masm, &temps, arg1), padreg);

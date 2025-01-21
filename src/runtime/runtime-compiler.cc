@@ -38,7 +38,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
   Tagged<SharedFunctionInfo> raw_sfi = *sfi;
   std::string event_name = "first-execution";
   CodeKind kind = function->abstract_code(isolate)->kind(isolate);
-  // Not adding "-interpreter" for tooling backwards compatibility.
+  // Not adding "-interpreter" for tooling backwards compatiblity.
   if (kind != CodeKind::INTERPRETED_FUNCTION) {
     event_name += "-";
     event_name += CodeKindToString(kind);
@@ -566,7 +566,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   }
 
   // Non-OSR'd code is deoptimized unconditionally. If the deoptimization occurs
-  // inside the outermost loop containing a loop that can trigger OSR
+  // inside the outermost loop containning a loop that can trigger OSR
   // compilation, we remove the OSR code, it will avoid hit the out of date OSR
   // code and soon later deoptimization.
   //
@@ -810,15 +810,17 @@ RUNTIME_FUNCTION(Runtime_LogOrTraceOptimizedOSREntry) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-static Tagged<Object> CompileGlobalEval(
-    Isolate* isolate, Handle<i::Object> source_object,
-    DirectHandle<SharedFunctionInfo> outer_info, LanguageMode language_mode,
-    int eval_scope_info_index, int eval_position) {
+static Tagged<Object> CompileGlobalEval(Isolate* isolate,
+                                        Handle<i::Object> source_object,
+                                        Handle<SharedFunctionInfo> outer_info,
+                                        LanguageMode language_mode,
+                                        int eval_scope_info_index,
+                                        int eval_position) {
   DirectHandle<NativeContext> native_context = isolate->native_context();
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  MaybeDirectHandle<String> source;
+  MaybeHandle<String> source;
   bool unknown_object;
   std::tie(source, unknown_object) = Compiler::ValidateDynamicCompilationSource(
       isolate, native_context, source_object);
@@ -871,8 +873,8 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
 
   DCHECK(is_valid_language_mode(args.smi_value_at(3)));
   LanguageMode language_mode = static_cast<LanguageMode>(args.smi_value_at(3));
-  DirectHandle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
-                                              isolate);
+  Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
+                                        isolate);
   return CompileGlobalEval(isolate, args.at<Object>(1), outer_info,
                            language_mode, args.smi_value_at(4),
                            args.smi_value_at(5));

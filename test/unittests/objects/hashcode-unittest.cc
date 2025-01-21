@@ -22,11 +22,11 @@ namespace internal {
 class HashcodeTest : public TestWithContext {
  public:
   template <typename T>
-  inline DirectHandle<T> GetGlobal(const char* name) {
+  inline Handle<T> GetGlobal(const char* name) {
     DirectHandle<String> str_name =
         i_isolate()->factory()->InternalizeUtf8String(name);
 
-    DirectHandle<Object> value =
+    Handle<Object> value =
         Object::GetProperty(i_isolate(), i_isolate()->global_object(), str_name)
             .ToHandleChecked();
     return Cast<T>(value);

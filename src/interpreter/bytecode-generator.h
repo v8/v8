@@ -50,7 +50,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Handle<BytecodeArray> FinalizeBytecode(IsolateT* isolate,
                                          Handle<Script> script);
   template <typename IsolateT>
-  DirectHandle<TrustedByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
 
   // Check if hint2 is same or the subtype of hint1.
   static bool IsSameOrSubTypeHint(TypeHint hint1, TypeHint hint2) {
@@ -110,7 +110,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // An assignment has to evaluate its LHS before its RHS, but has to assign to
   // the LHS after both evaluations are done. This class stores the data
-  // computed in the LHS evaluation that has to live across the RHS evaluation,
+  // computed in the LHS evaulation that has to live across the RHS evaluation,
   // and is used in the actual LHS assignment.
   class AssignmentLhsData {
    public:

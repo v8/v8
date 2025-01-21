@@ -154,7 +154,7 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
-  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+  i::Handle<i::String> MakeName(const char* str, int suffix) {
     v8::base::EmbeddedVector<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
     return MakeString(buffer.begin());
@@ -388,7 +388,7 @@ class WithInternalIsolateMixin : public TMixin {
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return TMixin::i_isolate(); }
 
-  DirectHandle<NativeContext> native_context() const {
+  Handle<NativeContext> native_context() const {
     return isolate()->native_context();
   }
 
@@ -402,7 +402,7 @@ class WithInternalIsolateMixin : public TMixin {
   }
 
   template <typename T = Object>
-  DirectHandle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
+  Handle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
     return Cast<T>(RunJSInternal(source));
   }
 
@@ -568,7 +568,7 @@ class FeedbackVectorHelper {
     }
   }
 
-  DirectHandle<FeedbackVector> vector() { return vector_; }
+  Handle<FeedbackVector> vector() { return vector_; }
 
   // Returns slot identifier by numerical index.
   FeedbackSlot slot(int index) const { return slots_[index]; }

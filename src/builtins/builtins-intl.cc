@@ -209,9 +209,9 @@ BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
 
 namespace {
 
-DirectHandle<JSFunction> CreateBoundFunction(Isolate* isolate,
-                                             DirectHandle<JSObject> object,
-                                             Builtin builtin, int len) {
+Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
+                                       Builtin builtin, int len) {
   DirectHandle<NativeContext> native_context(
       isolate->context()->native_context(), isolate);
   DirectHandle<Context> context = isolate->factory()->NewBuiltinContext(
@@ -232,7 +232,7 @@ DirectHandle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
 /**
  * Common code shared between DateTimeFormatConstructor and
- * NumberFormatConstructor
+ * NumberFormatConstrutor
  */
 template <class T>
 Tagged<Object> LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
@@ -531,10 +531,9 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                         isolate, number_format, value));
 }
 
-// Common code for NumberFormatPrototypeFormatRange(|ToParts)
-template <class T,
-          MaybeDirectHandle<T> (*F)(Isolate*, DirectHandle<JSNumberFormat>,
-                                    Handle<Object>, Handle<Object>)>
+// Common code for NumberFormatPrototypeFormtRange(|ToParts)
+template <class T, MaybeHandle<T> (*F)(Isolate*, DirectHandle<JSNumberFormat>,
+                                       Handle<Object>, Handle<Object>)>
 V8_WARN_UNUSED_RESULT Tagged<Object> NumberFormatRange(
     BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let nf be this value.

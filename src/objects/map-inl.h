@@ -357,7 +357,7 @@ int Map::GetInObjectPropertyOffset(int index) const {
   return (GetInObjectPropertiesStartInWords() + index) * kTaggedSize;
 }
 
-DirectHandle<Map> Map::AddMissingTransitionsForTesting(
+Handle<Map> Map::AddMissingTransitionsForTesting(
     Isolate* isolate, DirectHandle<Map> split_map,
     DirectHandle<DescriptorArray> descriptors) {
   return AddMissingTransitions(isolate, split_map, descriptors);

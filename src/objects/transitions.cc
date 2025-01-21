@@ -373,14 +373,14 @@ bool TransitionArray::CompactPrototypeTransitionArray(
 }
 
 // static
-DirectHandle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
+Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
     DirectHandle<WeakFixedArray> array, int new_capacity, Isolate* isolate) {
   // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
   int capacity = array->length() - kProtoTransitionHeaderSize;
   new_capacity = std::min({kMaxCachedPrototypeTransitions, new_capacity});
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
-  DirectHandle<WeakFixedArray> new_array =
+  Handle<WeakFixedArray> new_array =
       isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
   if (capacity < 0) {
     // There was no prototype transitions array before, so the size

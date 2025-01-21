@@ -550,8 +550,8 @@ Tagged<String> JSReceiver::class_name() {
 }
 
 namespace {
-std::pair<MaybeDirectHandle<JSFunction>, DirectHandle<String>>
-GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
+std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver) {
   // If the object was instantiated simply with base == new.target, the
   // constructor on the map provides the most accurate name.
   // Don't provide the info for prototypes, since their constructors are
@@ -629,19 +629,19 @@ GetConstructorHelper(Isolate* isolate, DirectHandle<JSReceiver> receiver) {
 }  // anonymous namespace
 
 // static
-MaybeDirectHandle<JSFunction> JSReceiver::GetConstructor(
+MaybeHandle<JSFunction> JSReceiver::GetConstructor(
     Isolate* isolate, DirectHandle<JSReceiver> receiver) {
   return GetConstructorHelper(isolate, receiver).first;
 }
 
 // static
-DirectHandle<String> JSReceiver::GetConstructorName(
+Handle<String> JSReceiver::GetConstructorName(
     Isolate* isolate, DirectHandle<JSReceiver> receiver) {
   return GetConstructorHelper(isolate, receiver).second;
 }
 
 // static
-MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
+MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     DirectHandle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
   // This is implemented as a loop because it's possible to construct very
@@ -663,7 +663,7 @@ MaybeDirectHandle<NativeContext> JSReceiver::GetFunctionRealm(
     }
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
       Tagged<JSFunction> function = Cast<JSFunction>(current);
-      return direct_handle(function->native_context(), isolate);
+      return handle(function->native_context(), isolate);
     }
     if (InstanceTypeChecker::IsJSBoundFunction(instance_type)) {
       Tagged<JSBoundFunction> function = Cast<JSBoundFunction>(current);
@@ -1050,9 +1050,8 @@ Tagged<Object> JSReceiver::DefineProperty(Isolate* isolate,
 
 // ES6 19.1.2.3.1
 // static
-MaybeDirectHandle<Object> JSReceiver::DefineProperties(
-    Isolate* isolate, DirectHandle<Object> object,
-    DirectHandle<Object> properties) {
+MaybeHandle<Object> JSReceiver::DefineProperties(
+    Isolate* isolate, Handle<Object> object, DirectHandle<Object> properties) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
   if (!IsJSReceiver(*object)) {
     DirectHandle<String> fun_name =
@@ -1085,7 +1084,7 @@ MaybeDirectHandle<Object> JSReceiver::DefineProperties(
     PropertyKey key(isolate, next_key);
     LookupIterator it(isolate, props, key, LookupIterator::OWN);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-    if (maybe.IsNothing()) return MaybeDirectHandle<Object>();
+    if (maybe.IsNothing()) return MaybeHandle<Object>();
     PropertyAttributes attrs = maybe.FromJust();
     // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
     if (attrs == ABSENT) continue;
@@ -1099,7 +1098,7 @@ MaybeDirectHandle<Object> JSReceiver::DefineProperties(
     bool success = PropertyDescriptor::ToPropertyDescriptor(
         isolate, desc_obj, &descriptors[descriptors_index]);
     // 7c iv. ReturnIfAbrupt(desc).
-    if (!success) return MaybeDirectHandle<Object>();
+    if (!success) return MaybeHandle<Object>();
     // 7c v. Append the pair (a two element List) consisting of nextKey and
     //       desc to the end of descriptors.
     descriptors[descriptors_index].set_name(next_key);
@@ -1115,7 +1114,7 @@ MaybeDirectHandle<Object> JSReceiver::DefineProperties(
         DefineOwnProperty(isolate, Cast<JSReceiver>(object), desc->name(), desc,
                           Just(kThrowOnError));
     // 8d. ReturnIfAbrupt(status).
-    if (status.IsNothing()) return MaybeDirectHandle<Object>();
+    if (status.IsNothing()) return MaybeHandle<Object>();
     CHECK(status.FromJust());
   }
   // 9. Return o.
@@ -2098,7 +2097,7 @@ template <template <typename> typename HandleType>
       std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
 typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
     Isolate* isolate, HandleType<JSReceiver> receiver, ToPrimitiveHint hint) {
-  DirectHandle<Object> exotic_to_prim;
+  HandleType<Object> exotic_to_prim;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, exotic_to_prim,
       Object::GetMethod(isolate, receiver,
@@ -2315,13 +2314,13 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   return FixedArray::RightTrimOrEmpty(isolate, values_or_entries, length);
 }
 
-MaybeDirectHandle<FixedArray> JSReceiver::GetOwnValues(
+MaybeHandle<FixedArray> JSReceiver::GetOwnValues(
     Isolate* isolate, DirectHandle<JSReceiver> object, PropertyFilter filter,
     bool try_fast_path) {
   return GetOwnValuesOrEntries(isolate, object, filter, try_fast_path, false);
 }
 
-MaybeDirectHandle<FixedArray> JSReceiver::GetOwnEntries(
+MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(
     Isolate* isolate, DirectHandle<JSReceiver> object, PropertyFilter filter,
     bool try_fast_path) {
   return GetOwnValuesOrEntries(isolate, object, filter, try_fast_path, true);
@@ -2398,14 +2397,14 @@ MaybeHandle<JSObject> JSObject::New(DirectHandle<JSFunction> constructor,
 }
 
 // static
-MaybeDirectHandle<JSObject> JSObject::NewWithMap(
-    Isolate* isolate, DirectHandle<Map> initial_map,
-    DirectHandle<AllocationSite> site, NewJSObjectType new_js_object_type) {
+MaybeHandle<JSObject> JSObject::NewWithMap(Isolate* isolate,
+                                           DirectHandle<Map> initial_map,
+                                           DirectHandle<AllocationSite> site,
+                                           NewJSObjectType new_js_object_type) {
   constexpr int initial_capacity = PropertyDictionary::kInitialCapacity;
-  DirectHandle<JSObject> result =
-      isolate->factory()->NewFastOrSlowJSObjectFromMap(
-          initial_map, initial_capacity, AllocationType::kYoung, site,
-          new_js_object_type);
+  Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
+      initial_map, initial_capacity, AllocationType::kYoung, site,
+      new_js_object_type);
   return result;
 }
 
@@ -3471,8 +3470,8 @@ Maybe<InterceptorResult> JSObject::SetPropertyWithInterceptor(
                                             should_throw, value);
 }
 
-DirectHandle<Map> JSObject::GetElementsTransitionMap(
-    DirectHandle<JSObject> object, ElementsKind to_kind) {
+Handle<Map> JSObject::GetElementsTransitionMap(DirectHandle<JSObject> object,
+                                               ElementsKind to_kind) {
   Handle<Map> map(object->map(), object->GetIsolate());
   return Map::TransitionElementsTo(object->GetIsolate(), map, to_kind);
 }
@@ -3783,7 +3782,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   }
 }
 
-MaybeDirectHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
+MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     Handle<Object> value, PropertyAttributes attributes) {
   DCHECK(!IsTheHole(*value));
@@ -3792,7 +3791,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
-MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
+MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     DirectHandle<JSObject> object, size_t index, Handle<Object> value,
     PropertyAttributes attributes) {
   DCHECK(!IsJSTypedArray(*object));
@@ -3801,7 +3800,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
-MaybeDirectHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
+MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     Handle<Object> value, PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
@@ -4081,8 +4080,7 @@ DirectHandle<NumberDictionary> JSObject::NormalizeElements(
                                                : DICTIONARY_ELEMENTS;
   DirectHandle<Map> new_map =
       JSObject::GetElementsTransitionMap(object, target_kind);
-  // Set the new map first to satisfy the elements type assert in
-  // set_elements().
+  // Set the new map first to satify the elements type assert in set_elements().
   JSObject::MigrateToMap(isolate, object, new_map);
 
   if (is_sloppy_arguments) {
@@ -4336,14 +4334,14 @@ bool JSObject::IsExtensible(Isolate* isolate, DirectHandle<JSObject> object) {
 }
 
 // static
-MaybeDirectHandle<Object> JSObject::ReadFromOptionsBag(
+MaybeHandle<Object> JSObject::ReadFromOptionsBag(
     DirectHandle<Object> options, DirectHandle<String> option_name,
     Isolate* isolate) {
   if (IsJSReceiver(*options)) {
     DirectHandle<JSReceiver> js_options = Cast<JSReceiver>(options);
     return JSObject::GetProperty(isolate, js_options, option_name);
   }
-  return MaybeDirectHandle<Object>(isolate->factory()->undefined_value());
+  return MaybeHandle<Object>(isolate->factory()->undefined_value());
 }
 
 template <typename Dictionary>
@@ -4725,7 +4723,7 @@ bool JSObject::HasEnumerableElements() {
   UNREACHABLE();
 }
 
-MaybeDirectHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
+MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
     DirectHandle<Object> getter, DirectHandle<Object> setter,
     PropertyAttributes attributes) {
@@ -4767,10 +4765,10 @@ MaybeHandle<Object> JSObject::DefineOwnAccessorIgnoreAttributes(
   return isolate->factory()->undefined_value();
 }
 
-MaybeDirectHandle<Object> JSObject::SetAccessor(DirectHandle<JSObject> object,
-                                                DirectHandle<Name> name,
-                                                DirectHandle<AccessorInfo> info,
-                                                PropertyAttributes attributes) {
+MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
+                                          DirectHandle<Name> name,
+                                          DirectHandle<AccessorInfo> info,
+                                          PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
   PropertyKey key(isolate, name);
@@ -5905,7 +5903,7 @@ Tagged<String> JSMessageObject::GetSource() const {
   return ReadOnlyRoots(GetIsolate()).empty_string();
 }
 
-DirectHandle<String> JSMessageObject::GetSourceLine() const {
+Handle<String> JSMessageObject::GetSourceLine() const {
   Isolate* isolate = GetIsolate();
 
 #if V8_ENABLE_WEBASSEMBLY

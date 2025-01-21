@@ -830,7 +830,7 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_valid = false;
 }
 
-DirectHandle<WasmSuspendingObject> WasmSuspendingObject::New(
+Handle<WasmSuspendingObject> WasmSuspendingObject::New(
     Isolate* isolate, DirectHandle<JSReceiver> callable) {
   DirectHandle<JSFunction> suspending_ctor(
       isolate->native_context()->wasm_suspending_constructor(), isolate);
@@ -1157,7 +1157,7 @@ MaybeHandle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromAnonymous(
     Isolate* isolate, size_t length) {
 #if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
-  DirectHandle<JSFunction> descriptor_ctor(
+  Handle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
       isolate);
 
@@ -1187,7 +1187,7 @@ MaybeHandle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromAnonymous(
 Handle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromFileDescriptor(
     Isolate* isolate, int file_descriptor) {
   CHECK(v8_flags.experimental_wasm_memory_control);
-  DirectHandle<JSFunction> descriptor_ctor(
+  Handle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
       isolate);
 
@@ -1200,7 +1200,7 @@ Handle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromFileDescriptor(
 }
 
 size_t WasmMemoryObject::MapDescriptor(
-    DirectHandle<WasmMemoryMapDescriptor> descriptor, size_t offset) {
+    Handle<WasmMemoryMapDescriptor> descriptor, size_t offset) {
 #if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   if (this->array_buffer()->is_shared()) {
@@ -2589,7 +2589,7 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 }
 
 // static
-DirectHandle<WasmContinuationObject> WasmContinuationObject::New(
+Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, wasm::StackMemory* stack,
     wasm::JumpBuffer::StackState state, AllocationType allocation_type) {
   auto parent = ReadOnlyRoots(isolate).undefined_value();
@@ -2834,8 +2834,7 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
   return js_function->shared()->HasWasmJSFunctionData();
 }
 
-DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
-                                   Handle<Map> opt_rtt_parent) {
+Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
@@ -2846,15 +2845,16 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   DCHECK_EQ(
       kInstanceSize,
       Cast<Map>(isolate->root(RootIndex::kWasmFuncRefMap))->instance_size());
-  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+  Handle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, kInstanceSize, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   return map;
 }
 
-DirectHandle<WasmJSFunction> WasmJSFunction::New(
-    Isolate* isolate, const wasm::FunctionSig* sig,
-    DirectHandle<JSReceiver> callable, wasm::Suspend suspend) {
+Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
+                                           const wasm::FunctionSig* sig,
+                                           DirectHandle<JSReceiver> callable,
+                                           wasm::Suspend suspend) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int parameter_count = static_cast<int>(sig->parameter_count());
   Factory* factory = isolate->factory();
@@ -2967,7 +2967,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
       factory->NewSharedFunctionInfoForWasmJSFunction(name, function_data);
   shared->set_internal_formal_parameter_count(
       JSParameterCount(parameter_count));
-  DirectHandle<JSFunction> js_function =
+  Handle<JSFunction> js_function =
       Factory::JSFunctionBuilder{isolate, shared, context}
           .set_map(isolate->wasm_exported_function_map())
           .Build();

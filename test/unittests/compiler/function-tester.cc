@@ -113,11 +113,11 @@ Handle<Object> FunctionTester::NewNumber(double value) {
   return isolate->factory()->NewNumber(value);
 }
 
-DirectHandle<Object> FunctionTester::infinity() {
+Handle<Object> FunctionTester::infinity() {
   return isolate->factory()->infinity_value();
 }
 
-DirectHandle<Object> FunctionTester::minus_infinity() {
+Handle<Object> FunctionTester::minus_infinity() {
   return NewNumber(-V8_INFINITY);
 }
 

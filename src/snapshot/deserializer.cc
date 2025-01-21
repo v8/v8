@@ -602,7 +602,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         // TODO(leszeks): This handle patching is ugly, consider adding an
         // explicit internalized string bytecode. Also, the new thin string
         // should be dead, try immediately freeing it.
-        DirectHandle<String> string = Cast<String>(obj);
+        Handle<String> string = Cast<String>(obj);
 
         StringTableInsertionKey key(
             isolate(), string,
@@ -1093,7 +1093,7 @@ int Deserializer<IsolateT>::ReadNewObject(uint8_t data,
   DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL, space != SnapshotSpace::kReadOnlyHeap);
   // Save the descriptor before recursing down into reading the object.
   ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
-  DirectHandle<HeapObject> heap_object = ReadObject(space);
+  Handle<HeapObject> heap_object = ReadObject(space);
   if (v8_flags.trace_deserialization) {
     --depth_;
   }
@@ -1152,7 +1152,7 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int id = source_.GetUint30();
   RootIndex root_index = static_cast<RootIndex>(id);
-  DirectHandle<HeapObject> heap_object =
+  Handle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
 
   if (v8_flags.trace_deserialization) {
@@ -1211,7 +1211,7 @@ int Deserializer<IsolateT>::ReadNewMetaMap(uint8_t data,
   SnapshotSpace space = data == kNewContextlessMetaMap
                             ? SnapshotSpace::kReadOnlyHeap
                             : SnapshotSpace::kOld;
-  DirectHandle<HeapObject> heap_object = ReadMetaMap(space);
+  Handle<HeapObject> heap_object = ReadMetaMap(space);
   if (v8_flags.trace_deserialization) {
     PrintF("%*sNewMetaMap [%s]\n", depth_, "", SnapshotSpaceName(space));
   }
@@ -1297,7 +1297,7 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
   // the map field or after the 'self' indirect pointer for trusted objects.
   DCHECK(slot_accessor.offset() == HeapObject::kHeaderSize ||
          slot_accessor.offset() == ExposedTrustedObject::kHeaderSize);
-  DirectHandle<HeapObject> obj = slot_accessor.object();
+  Handle<HeapObject> obj = slot_accessor.object();
   int index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
   auto slot = SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
@@ -1558,7 +1558,7 @@ int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
                 static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
   RootIndex root_index = RootArrayConstant::Decode(data);
-  DirectHandle<HeapObject> heap_object =
+  Handle<HeapObject> heap_object =
       Cast<HeapObject>(isolate()->root_handle(root_index));
   if (v8_flags.trace_deserialization) {
     PrintF("%*sRootArrayConstants [%u] : %s\n", depth_, "",

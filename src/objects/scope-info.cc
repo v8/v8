@@ -173,7 +173,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           : 0;
   const bool has_outer_scope_info = !outer_scope.is_null();
 
-  DirectHandle<SourceTextModuleInfo> module_info;
+  Handle<SourceTextModuleInfo> module_info;
   if (scope->is_module_scope()) {
     module_info = SourceTextModuleInfo::New(isolate, zone,
                                             scope->AsModuleScope()->module());
@@ -371,7 +371,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       if (has_inlined_local_names) {
         local_index = class_variable->index();
       } else {
-        DirectHandle<Name> name = class_variable->name();
+        Handle<Name> name = class_variable->name();
         InternalIndex entry = local_names_hashtable->FindEntry(isolate, name);
         local_index = entry.as_int();
       }
@@ -440,13 +440,13 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         MaybeDirectHandle<ScopeInfo> outer_scope);
 
 // static
-DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
+Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
     Isolate* isolate, MaybeDirectHandle<ScopeInfo> outer_scope) {
   const bool has_outer_scope_info = !outer_scope.is_null();
   const int length = kVariablePartIndex + (has_outer_scope_info ? 1 : 0);
 
   Factory* factory = isolate->factory();
-  DirectHandle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
+  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
 
   // Encode the flags.
   uint32_t flags =
@@ -491,22 +491,22 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
 }
 
 // static
-DirectHandle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
+Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   return CreateForBootstrapping(isolate, BootstrappingType::kScript);
 }
 
 // static
-DirectHandle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
+Handle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
   return CreateForBootstrapping(isolate, BootstrappingType::kFunction);
 }
 
 // static
-DirectHandle<ScopeInfo> ScopeInfo::CreateForNativeContext(Isolate* isolate) {
+Handle<ScopeInfo> ScopeInfo::CreateForNativeContext(Isolate* isolate) {
   return CreateForBootstrapping(isolate, BootstrappingType::kNative);
 }
 
 // static
-DirectHandle<ScopeInfo> ScopeInfo::CreateForShadowRealmNativeContext(
+Handle<ScopeInfo> ScopeInfo::CreateForShadowRealmNativeContext(
     Isolate* isolate) {
   return CreateForBootstrapping(isolate, BootstrappingType::kShadowRealm);
 }

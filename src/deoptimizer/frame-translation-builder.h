@@ -29,7 +29,7 @@ class FrameTranslationBuilder {
         basis_instructions_(zone),
         zone_(zone) {}
 
-  DirectHandle<DeoptimizationFrameTranslation> ToFrameTranslation(
+  Handle<DeoptimizationFrameTranslation> ToFrameTranslation(
       LocalFactory* factory);
   base::Vector<const uint8_t> ToFrameTranslationWasm();
 

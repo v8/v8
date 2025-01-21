@@ -918,7 +918,7 @@ void InlinedAllocation::VerifyInputs(
 // Reify constants
 // ---
 
-DirectHandle<Object> ValueNode::Reify(LocalIsolate* isolate) const {
+Handle<Object> ValueNode::Reify(LocalIsolate* isolate) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
@@ -3227,7 +3227,7 @@ void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     Label done;
     ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
-    // maybe that's a case we should fast-path here and reuse that boolean
+    // maybe that's a case we should fast-path here and re-use that boolean
     // value?
     __ ToBoolean(
         ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
@@ -3284,7 +3284,7 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     Label done;
     ZoneLabelRef keep_byte_order(masm), reverse_byte_order(masm);
     // TODO(leszeks): We're likely to be calling this on an existing boolean --
-    // maybe that's a case we should fast-path here and reuse that boolean
+    // maybe that's a case we should fast-path here and re-use that boolean
     // value?
     __ ToBoolean(
         ToRegister(is_little_endian_input()), CheckType::kCheckHeapObject,
@@ -5328,7 +5328,7 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
   Label done;
   ZoneLabelRef object_is_true(masm), object_is_false(masm);
   // TODO(leszeks): We're likely to be calling this on an existing boolean --
-  // maybe that's a case we should fast-path here and reuse that boolean value?
+  // maybe that's a case we should fast-path here and re-use that boolean value?
   __ ToBoolean(object, check_type(), object_is_true, object_is_false, true);
   __ bind(*object_is_true);
   __ LoadRoot(return_value, RootIndex::kTrueValue);

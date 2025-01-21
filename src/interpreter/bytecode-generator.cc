@@ -570,7 +570,7 @@ class BytecodeGenerator::ControlScopeForTryFinally final
   DeferredCommands* commands_;
 };
 
-// Scoped class for collecting 'return' statements in a derived constructor.
+// Scoped class for collecting 'return' statments in a derived constructor.
 // Derived constructors can only return undefined or objects, and this check
 // must occur right before return (e.g., after `finally` blocks execute).
 class BytecodeGenerator::ControlScopeForDerivedConstructor final
@@ -1499,7 +1499,7 @@ template Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     LocalIsolate* isolate, Handle<Script> script);
 
 template <typename IsolateT>
-DirectHandle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
+Handle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
     IsolateT* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #ifdef DEBUG
@@ -1508,7 +1508,7 @@ DirectHandle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
   NullContextScopeFor<IsolateT> null_context_scope(isolate);
 #endif
 
-  DirectHandle<TrustedByteArray> source_position_table =
+  Handle<TrustedByteArray> source_position_table =
       builder()->ToSourcePositionTable(isolate);
 
   LOG_CODE_EVENT(isolate,
@@ -1519,9 +1519,9 @@ DirectHandle<TrustedByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
   return source_position_table;
 }
 
-template DirectHandle<TrustedByteArray>
+template Handle<TrustedByteArray>
 BytecodeGenerator::FinalizeSourcePositionTable(Isolate* isolate);
-template DirectHandle<TrustedByteArray>
+template Handle<TrustedByteArray>
 BytecodeGenerator::FinalizeSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
@@ -4263,7 +4263,7 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
     builder()->CreateArrayFromIterable().StoreAccumulatorInRegister(array);
 
     if (++current != end) {
-      // If there are remaining elements, prepare the index register that is
+      // If there are remaning elements, prepare the index register that is
       // used for adding those elements. The next index is the length of the
       // newly created array.
       auto length = ast_string_constants()->length_string();
@@ -7104,7 +7104,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
         break;
       }
       case VariableLocation::MODULE:
-        // Modules are always in strict mode and unqualified identifiers are not
+        // Modules are always in strict mode and unqualified identifers are not
         // allowed in strict mode.
         UNREACHABLE();
     }
@@ -7447,7 +7447,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Literal* literal;
   TestTypeOfFlags::LiteralFlag flag;
   if (IsLiteralCompareTypeof(expr, &sub_expr, &flag, ast_string_constants())) {
-    // Emit a fast literal comparison for expressions of the form:
+    // Emit a fast literal comparion for expressions of the form:
     // typeof(x) === 'string'.
     VisitForTypeOfValue(sub_expr);
     builder()->SetExpressionPosition(expr);

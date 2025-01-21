@@ -222,11 +222,11 @@ class TranslatedFrame {
 
   Kind kind() const { return kind_; }
   BytecodeOffset bytecode_offset() const { return bytecode_offset_; }
-  DirectHandle<SharedFunctionInfo> shared_info() const {
+  Handle<SharedFunctionInfo> shared_info() const {
     CHECK_EQ(handle_state_, kHandles);
     return shared_info_;
   }
-  DirectHandle<BytecodeArray> bytecode_array() const {
+  Handle<BytecodeArray> bytecode_array() const {
     CHECK_EQ(handle_state_, kHandles);
     return bytecode_array_;
   }
@@ -556,8 +556,7 @@ class TranslatedState {
 
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);
-  DirectHandle<Object> GetValueAndAdvance(TranslatedFrame* frame,
-                                          int* value_index);
+  Handle<Object> GetValueAndAdvance(TranslatedFrame* frame, int* value_index);
   TranslatedValue* GetResolvedSlot(TranslatedFrame* frame, int value_index);
   TranslatedValue* GetResolvedSlotAndAdvance(TranslatedFrame* frame,
                                              int* value_index);

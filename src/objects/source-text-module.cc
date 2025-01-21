@@ -779,7 +779,7 @@ void SourceTextModule::GatherAvailableAncestors(
   // 2. Return UNUSED.
 }
 
-DirectHandle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
+Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     int module_request) {
   DCHECK_EQ(Cast<ModuleRequest>(
@@ -1125,7 +1125,7 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
   return Just<bool>(true);
 }
 
-MaybeDirectHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
+MaybeHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<JSPromise> capability) {
   // If we have an async module, then it has an associated
@@ -1161,10 +1161,10 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
   return handle(Cast<JSIteratorResult>(*result)->value(), isolate);
 }
 
-MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
+MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
     Isolate* isolate, Handle<SourceTextModule> module,
     ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index) {
-  STACK_CHECK(isolate, MaybeDirectHandle<Object>());
+  STACK_CHECK(isolate, MaybeHandle<Object>());
   int module_status = module->status();
   // InnerModuleEvaluation(module, stack, index)
 
@@ -1181,7 +1181,7 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
     // b. Otherwise return module.[[EvaluationError]].
     // (We throw on isolate and return a MaybeHandle<Object> instead)
     isolate->Throw(module->exception());
-    return MaybeDirectHandle<Object>();
+    return MaybeHandle<Object>();
   }
 
   // 4. Assert: module.[[Status]] is LINKED.
@@ -1279,7 +1279,7 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
         // throw on isolate and return a MaybeHandle<Object>.)
         if (required_module_status == kErrored) {
           isolate->Throw(required_module->exception());
-          return MaybeDirectHandle<Object>();
+          return MaybeHandle<Object>();
         }
       }
       // v. If requiredModule.[[AsyncEvaluation]] is true, then
@@ -1304,7 +1304,7 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
   // Before async modules v8 returned the value result from calling next
   // on the module's implicit iterator. We preserve this behavior for
   // synchronous modules, but return undefined for AsyncModules.
-  DirectHandle<Object> result = isolate->factory()->undefined_value();
+  Handle<Object> result = isolate->factory()->undefined_value();
 
   // 12. If module.[[PendingAsyncDependencies]] > 0 or module.[[HasTLA]] is
   //     true, then
@@ -1325,12 +1325,12 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
     // raise the exception.
     if (!module->HasPendingAsyncDependencies()) {
       MAYBE_RETURN(SourceTextModule::ExecuteAsyncModule(isolate, module),
-                   MaybeDirectHandle<Object>());
+                   MaybeHandle<Object>());
     }
   } else {  // 13. Else,
     // a. Perform ? module.ExecuteModule().
     MaybeDirectHandle<Object> exception;
-    DirectHandle<Object> maybe_result;
+    Handle<Object> maybe_result;
     if (!ExecuteModule(isolate, module, &exception).ToHandle(&maybe_result)) {
       if (!isolate->is_execution_terminating()) {
         isolate->Throw(*exception.ToHandleChecked());

@@ -68,7 +68,7 @@ class WasmValueObject : public JSObject {
   OBJECT_CONSTRUCTORS(WasmValueObject, JSObject);
 };
 
-DirectHandle<JSObject> GetWasmDebugProxy(WasmFrame* frame);
+Handle<JSObject> GetWasmDebugProxy(WasmFrame* frame);
 
 std::unique_ptr<debug::ScopeIterator> GetWasmScopeIterator(WasmFrame* frame);
 
@@ -83,7 +83,7 @@ Handle<String> GetWasmFunctionDebugName(
 
 Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
     Isolate* isolate, Handle<ArrayList> result,
-    DirectHandle<WasmInstanceObject> instance);
+    Handle<WasmInstanceObject> instance);
 
 Handle<ArrayList> AddWasmModuleObjectInternalProperties(
     Isolate* isolate, Handle<ArrayList> result,

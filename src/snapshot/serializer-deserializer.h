@@ -140,7 +140,7 @@ class SerializerDeserializer : public RootVisitor {
     // object.
     kResolvePendingForwardRef,
     // Special construction bytecodes for the metamaps. In theory we could
-    // reuse forward-references for this, but then the forward reference would
+    // re-use forward-references for this, but then the forward reference would
     // be registered during object map deserialization, before the object is
     // allocated, so there wouldn't be a allocated object whose map field we can
     // register as the pending field. We could either hack around this, or

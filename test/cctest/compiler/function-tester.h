@@ -106,15 +106,15 @@ class FunctionTester : public InitializedHandleScope {
   }
 
   Handle<JSFunction> NewFunction(const char* source);
-  DirectHandle<JSObject> NewObject(const char* source);
+  Handle<JSObject> NewObject(const char* source);
 
   Handle<String> Val(const char* string);
   Handle<Object> Val(double value);
-  DirectHandle<Object> infinity();
-  DirectHandle<Object> minus_infinity();
-  DirectHandle<Object> nan();
+  Handle<Object> infinity();
+  Handle<Object> minus_infinity();
+  Handle<Object> nan();
   Handle<Object> undefined();
-  DirectHandle<Object> null();
+  Handle<Object> null();
   Handle<Object> true_value();
   Handle<Object> false_value();
 

@@ -55,7 +55,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
   ~ScopeIterator();
 
-  DirectHandle<JSObject> MaterializeScopeDetails();
+  Handle<JSObject> MaterializeScopeDetails();
 
   // More scopes?
   bool Done() const { return context_.is_null(); }
@@ -86,13 +86,13 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   bool ClosureScopeHasThisReference() const;
 
   // Populate the set with collected non-local variable names.
-  DirectHandle<StringSet> GetLocals() { return locals_; }
+  Handle<StringSet> GetLocals() { return locals_; }
 
   // Similar to JSFunction::GetName return the function's name or it's inferred
   // name.
-  DirectHandle<Object> GetFunctionDebugName() const;
+  Handle<Object> GetFunctionDebugName() const;
 
-  DirectHandle<Script> GetScript() const { return script_; }
+  Handle<Script> GetScript() const { return script_; }
 
   bool HasPositionInfo();
   int start_position();
@@ -179,8 +179,7 @@ class V8_EXPORT_PRIVATE ScopeIterator {
   void VisitModuleScope(const Visitor& visitor) const;
   bool VisitLocals(const Visitor& visitor, Mode mode,
                    ScopeType scope_type) const;
-  bool VisitContextLocals(const Visitor& visitor,
-                          DirectHandle<ScopeInfo> scope_info,
+  bool VisitContextLocals(const Visitor& visitor, Handle<ScopeInfo> scope_info,
                           DirectHandle<Context> context,
                           ScopeType scope_type) const;
 

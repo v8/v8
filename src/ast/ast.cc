@@ -552,7 +552,7 @@ bool ObjectLiteralBoilerplateBuilder::IsFastCloningSupported() const {
 
 // static
 template <typename IsolateT>
-DirectHandle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
+Handle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
     Expression* expression, IsolateT* isolate) {
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
@@ -572,10 +572,10 @@ DirectHandle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
   return isolate->factory()->uninitialized_value();
 }
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    DirectHandle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
+    Handle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
         Expression* expression, Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    DirectHandle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
+    Handle<Object> LiteralBoilerplateBuilder::GetBoilerplateValue(
         Expression* expression, LocalIsolate* isolate);
 
 void ArrayLiteralBoilerplateBuilder::InitDepthAndFlags() {
@@ -668,7 +668,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
   ElementsKind kind = boilerplate_descriptor_kind();
   bool use_doubles = IsDoubleElementsKind(kind);
 
-  DirectHandle<FixedArrayBase> elements;
+  Handle<FixedArrayBase> elements;
   if (use_doubles) {
     elements = isolate->factory()->NewFixedDoubleArray(constants_length,
                                                        AllocationType::kOld);
@@ -705,7 +705,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
         BuildConstants(isolate, m_literal);
       }
 
-      // New handle scope here, needs to be after BuildConstants().
+      // New handle scope here, needs to be after BuildContants().
       typename IsolateT::HandleScopeType scope(isolate);
 
       Tagged<Object> boilerplate_value = *GetBoilerplateValue(element, isolate);
@@ -808,9 +808,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_BASE_EXPORT) void LiteralBoilerplateBuilder::
 template <typename IsolateT>
 Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     IsolateT* isolate) {
-  DirectHandle<FixedArray> raw_strings_handle =
-      isolate->factory()->NewFixedArray(this->raw_strings()->length(),
-                                        AllocationType::kOld);
+  Handle<FixedArray> raw_strings_handle = isolate->factory()->NewFixedArray(
+      this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
   {
     DisallowGarbageCollection no_gc;
@@ -830,7 +829,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       raw_strings->set(i, *this->raw_strings()->at(i)->string());
     }
   }
-  DirectHandle<FixedArray> cooked_strings_handle = raw_strings_handle;
+  Handle<FixedArray> cooked_strings_handle = raw_strings_handle;
   if (!raw_and_cooked_match) {
     cooked_strings_handle = isolate->factory()->NewFixedArray(
         this->cooked_strings()->length(), AllocationType::kOld);

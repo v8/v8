@@ -106,7 +106,7 @@ class JSHeapBroker;
 #endif
 
 // Similar to TEST, but used when test definitions appear as members of a
-// (probably parameterized) class. This allows reusing the given tests multiple
+// (probably parameterized) class. This allows re-using the given tests multiple
 // times. For this to work, the following conditions must hold:
 //   1. The class has a template parameter named kTestFileName of type  char
 //      const*, which is instantiated with __FILE__ at the *use site*, in order

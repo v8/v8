@@ -115,7 +115,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
           cell_index(0) {}
 
     template <typename IsolateT>
-    DirectHandle<SourceTextModuleInfoEntry> Serialize(IsolateT* isolate) const;
+    Handle<SourceTextModuleInfoEntry> Serialize(IsolateT* isolate) const;
   };
 
   enum CellIndexKind { kInvalid, kExport, kImport };
@@ -134,8 +134,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
           index_(index) {}
 
     template <typename IsolateT>
-    DirectHandle<v8::internal::ModuleRequest> Serialize(
-        IsolateT* isolate) const;
+    Handle<v8::internal::ModuleRequest> Serialize(IsolateT* isolate) const;
 
     const AstRawString* specifier() const { return specifier_; }
     const ImportAttributes* import_attributes() const {
@@ -229,8 +228,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
   }
 
   template <typename IsolateT>
-  DirectHandle<FixedArray> SerializeRegularExports(IsolateT* isolate,
-                                                   Zone* zone) const;
+  Handle<FixedArray> SerializeRegularExports(IsolateT* isolate,
+                                             Zone* zone) const;
 
  private:
   ModuleRequestMap module_requests_;

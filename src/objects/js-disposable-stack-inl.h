@@ -59,11 +59,9 @@ inline void JSDisposableStackBase::Add(
 
 // part of
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-createdisposableresource
-inline MaybeDirectHandle<Object>
-JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
-                                                     DirectHandle<JSAny> value,
-                                                     DisposeMethodHint hint) {
-  DirectHandle<Object> method;
+inline MaybeHandle<Object> JSDisposableStackBase::CheckValueAndGetDisposeMethod(
+    Isolate* isolate, DirectHandle<JSAny> value, DisposeMethodHint hint) {
+  Handle<Object> method;
   if (hint == DisposeMethodHint::kSyncDispose) {
     // 1. If method is not present, then
     //   a. If V is either null or undefined, then
@@ -150,7 +148,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
         //      3. Return CreateBuiltinFunction(closure, 0, "", « »).
 
         // (TODO:rezvan): Add `kAsyncFromSyncDispose` to the `DisposeMethodHint`
-        // enum and remove the following allocation of adapter closure.
+        // enum and remove the following allocation of adapter clousre.
         DirectHandle<Context> async_dispose_from_sync_dispose_context =
             isolate->factory()->NewBuiltinContext(
                 isolate->native_context(),

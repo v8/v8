@@ -205,7 +205,7 @@ Tagged<Object> GlobalDictionaryShape::Unwrap(Tagged<Object> object) {
   return Cast<PropertyCell>(object)->name();
 }
 
-DirectHandle<Map> GlobalDictionary::GetMap(RootsTable& roots) {
+Handle<Map> GlobalDictionary::GetMap(RootsTable& roots) {
   return roots.global_dictionary_map();
 }
 
@@ -219,7 +219,7 @@ Tagged<Name> NameDictionary::NameAt(PtrComprCageBase cage_base,
   return Cast<Name>(KeyAt(cage_base, entry));
 }
 
-DirectHandle<Map> NameDictionary::GetMap(RootsTable& roots) {
+Handle<Map> NameDictionary::GetMap(RootsTable& roots) {
   return roots.name_dictionary_map();
 }
 
@@ -309,11 +309,11 @@ DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
-DirectHandle<Map> NumberDictionary::GetMap(RootsTable& roots) {
+Handle<Map> NumberDictionary::GetMap(RootsTable& roots) {
   return roots.number_dictionary_map();
 }
 
-DirectHandle<Map> SimpleNumberDictionary::GetMap(RootsTable& roots) {
+Handle<Map> SimpleNumberDictionary::GetMap(RootsTable& roots) {
   return roots.simple_number_dictionary_map();
 }
 

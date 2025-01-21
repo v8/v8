@@ -875,8 +875,7 @@ class Heap final {
                          Tagged<Object> target)>
           gc_notify_updated_slot);
 
-  MaybeDirectHandle<JSFinalizationRegistry>
-  DequeueDirtyJSFinalizationRegistry();
+  MaybeHandle<JSFinalizationRegistry> DequeueDirtyJSFinalizationRegistry();
 
   // Called from Heap::NotifyContextDisposed to remove all
   // FinalizationRegistries with {context} from the dirty list when the context

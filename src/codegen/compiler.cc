@@ -1010,7 +1010,7 @@ class OptimizedCodeCache : public AllStatic {
 
     // Normal tierup should never request a code-kind we already have. In case
     // of OSR it can happen that we OSR from ignition to turbofan. This is
-    // explicitly allowed here by reusing any larger-kinded than requested
+    // explicitly allowed here by re-using any larger-kinded than requested
     // code.
     DCHECK_IMPLIES(!code.is_null() && code->kind() > code_kind,
                    IsOSR(osr_offset));
@@ -1551,7 +1551,7 @@ void CompileAllWithBaseline(Isolate* isolate,
 // inner functions.
 template <typename IsolateT>
 Handle<SharedFunctionInfo> CreateTopLevelSharedFunctionInfo(
-    ParseInfo* parse_info, DirectHandle<Script> script, IsolateT* isolate) {
+    ParseInfo* parse_info, Handle<Script> script, IsolateT* isolate) {
   EnsureInfosArrayOnScript(script, parse_info, isolate);
   DCHECK_EQ(kNoSourcePosition,
             parse_info->literal()->function_token_position());
@@ -1560,7 +1560,7 @@ Handle<SharedFunctionInfo> CreateTopLevelSharedFunctionInfo(
 }
 
 Handle<SharedFunctionInfo> GetOrCreateTopLevelSharedFunctionInfo(
-    ParseInfo* parse_info, DirectHandle<Script> script, Isolate* isolate,
+    ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
   EnsureInfosArrayOnScript(script, parse_info, isolate);
   MaybeHandle<SharedFunctionInfo> maybe_shared =
@@ -2764,7 +2764,7 @@ void BackgroundDeserializeTask::MergeWithExistingScript() {
       &isolate, off_thread_data_.GetOnlyScript(isolate.heap()));
 }
 
-MaybeDirectHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
+MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
     Isolate* isolate, DirectHandle<String> source,
     const ScriptDetails& script_details) {
   return CodeSerializer::FinishOffThreadDeserialize(
@@ -2958,7 +2958,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   }
 
   if (script->produce_compile_hints()) {
-    // Log lazy function compilation.
+    // Log lazy funtion compilation.
     Handle<ArrayList> list;
     if (IsUndefined(script->compiled_lazy_function_positions())) {
       constexpr int kInitialLazyFunctionPositionListSize = 100;
@@ -3217,7 +3217,7 @@ void Compiler::CompileOptimized(Isolate* isolate,
 }
 
 // static
-MaybeDirectHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
+MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
     ParseInfo* parse_info, Handle<Script> script,
     MaybeDirectHandle<ScopeInfo> outer_scope_info, Isolate* isolate) {
   IsCompiledScope is_compiled_scope;
@@ -3227,7 +3227,7 @@ MaybeDirectHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
-    DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
+    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos, int eval_position,
     ParsingWhileDebugging parsing_while_debugging) {
@@ -3402,11 +3402,9 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate,
 // - !source_is_null() and unknown_object can't be true at the same time.
 
 // static
-std::pair<MaybeDirectHandle<String>, bool>
-Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
-                                           DirectHandle<NativeContext> context,
-                                           Handle<i::Object> original_source,
-                                           bool is_code_like) {
+std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
+    Isolate* isolate, DirectHandle<NativeContext> context,
+    Handle<i::Object> original_source, bool is_code_like) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
@@ -3447,9 +3445,8 @@ Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
-    DirectHandle<NativeContext> native_context,
-    MaybeDirectHandle<String> source, ParseRestriction restriction,
-    int parameters_end_pos) {
+    DirectHandle<NativeContext> native_context, MaybeHandle<String> source,
+    ParseRestriction restriction, int parameters_end_pos) {
   Isolate* const isolate = native_context->GetIsolate();
 
   // Raise an EvalError if we did not receive a string.
@@ -3462,7 +3459,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
 
   // Compile source string in the native context.
   int eval_position = kNoSourcePosition;
-  DirectHandle<SharedFunctionInfo> outer_info(
+  Handle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
   return Compiler::GetFunctionFromEval(
       source.ToHandleChecked(), outer_info, native_context,
@@ -3470,11 +3467,11 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
 }
 
 // static
-MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromString(
+MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     DirectHandle<NativeContext> context, Handle<Object> source,
     int parameters_end_pos, bool is_code_like) {
   Isolate* const isolate = context->GetIsolate();
-  MaybeDirectHandle<String> validated_source =
+  MaybeHandle<String> validated_source =
       ValidateDynamicCompilationSource(isolate, context, source, is_code_like)
           .first;
   return GetFunctionFromValidatedString(context, validated_source,
@@ -3678,8 +3675,8 @@ struct ScriptCompileTimerScope {
 };
 
 Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
-                         DirectHandle<String> source,
-                         ScriptDetails script_details, NativesFlag natives) {
+                         Handle<String> source, ScriptDetails script_details,
+                         NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   Handle<Script> script = parse_info->CreateScript(
       isolate, source, script_details.wrapped_arguments,
@@ -3690,8 +3687,8 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
   return script;
 }
 
-MaybeDirectHandle<SharedFunctionInfo> CompileScriptOnMainThread(
-    const UnoptimizedCompileFlags flags, DirectHandle<String> source,
+MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
+    const UnoptimizedCompileFlags flags, Handle<String> source,
     const ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
     MaybeHandle<Script> maybe_script, IsCompiledScope* is_compiled_scope,
@@ -4096,7 +4093,7 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
 }
 
 // static
-MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
+MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, DirectHandle<Context> context,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
@@ -4282,14 +4279,14 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 // static
 template <typename IsolateT>
 DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, DirectHandle<Script> script, IsolateT* isolate) {
+    FunctionLiteral* literal, Handle<Script> script, IsolateT* isolate) {
   // If we're parallel compiling functions, we might already have attached a SFI
   // to this literal.
   if (!literal->shared_function_info().is_null()) {
     return literal->shared_function_info();
   }
   // Precondition: code has been parsed and scopes have been analyzed.
-  MaybeDirectHandle<SharedFunctionInfo> maybe_existing;
+  MaybeHandle<SharedFunctionInfo> maybe_existing;
 
   // Find any previously allocated shared function info for the given literal.
   maybe_existing = Script::FindSharedFunctionInfo(script, isolate, literal);
@@ -4331,10 +4328,9 @@ DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 }
 
 template DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, DirectHandle<Script> script, Isolate* isolate);
+    FunctionLiteral* literal, Handle<Script> script, Isolate* isolate);
 template DirectHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
-    FunctionLiteral* literal, DirectHandle<Script> script,
-    LocalIsolate* isolate);
+    FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
 MaybeHandle<Code> Compiler::CompileOptimizedOSR(
@@ -4530,7 +4526,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
       // Evict any deoptimized code on feedback vector. We need to do this after
       // creating the closure, since any heap allocations could trigger a GC and
       // deoptimized the code on the feedback vector. So check for any
-      // deoptimized code just before installing it on the function.
+      // deoptimized code just before installing it on the funciton.
       function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
           isolate, *shared, "new function from shared function info");
       Tagged<Code> code = function->feedback_vector()->optimized_code(isolate);

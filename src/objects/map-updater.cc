@@ -262,8 +262,7 @@ Handle<Map> MapUpdater::ApplyPrototypeTransition(
 }
 
 // static
-DirectHandle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate,
-                                              Handle<Map> map) {
+Handle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate, Handle<Map> map) {
   if (!map->is_deprecated()) return map;
   // TODO(ishell): support fast map updating if we enable it.
   CHECK(!v8_flags.fast_map_update);
@@ -822,7 +821,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
   return state_;  // Not done yet.
 }
 
-DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
+Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   InstanceType instance_type = old_map_->instance_type();
   int target_nof = target_map_->NumberOfOwnDescriptors();
   DirectHandle<DescriptorArray> target_descriptors(
@@ -834,7 +833,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   int new_slack =
       std::max<int>(old_nof_, old_descriptors_->number_of_descriptors()) -
       old_nof_;
-  DirectHandle<DescriptorArray> new_descriptors =
+  Handle<DescriptorArray> new_descriptors =
       DescriptorArray::Allocate(isolate_, old_nof_, new_slack);
   DCHECK(new_descriptors->number_of_all_descriptors() >
              target_descriptors->number_of_all_descriptors() ||
@@ -1002,7 +1001,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
   return new_descriptors;
 }
 
-DirectHandle<Map> MapUpdater::FindSplitMap(
+Handle<Map> MapUpdater::FindSplitMap(
     DirectHandle<DescriptorArray> descriptors) {
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Tagged<Map> current = *root_map_;
@@ -1036,7 +1035,7 @@ DirectHandle<Map> MapUpdater::FindSplitMap(
     }
     current = next;
   }
-  return direct_handle(current, isolate_);
+  return handle(current, isolate_);
 }
 
 MapUpdater::State MapUpdater::ConstructNewMap() {

@@ -34,7 +34,7 @@ class RegExpImpl final : public AllStatic {
   // Returns a string representation of a regular expression.
   // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
   // This function calls the garbage collector if necessary.
-  static DirectHandle<String> ToString(Handle<Object> value);
+  static Handle<String> ToString(Handle<Object> value);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
@@ -197,11 +197,9 @@ bool HasFewDifferentCharacters(DirectHandle<String> pattern) {
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 // static
-MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
-                                          DirectHandle<JSRegExp> re,
-                                          Handle<String> pattern,
-                                          RegExpFlags flags,
-                                          uint32_t backtrack_limit) {
+MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
+                                    Handle<String> pattern, RegExpFlags flags,
+                                    uint32_t backtrack_limit) {
   DCHECK(pattern->IsFlat());
 
   // Caching is based only on the pattern and flags, but code also differs when

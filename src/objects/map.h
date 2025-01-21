@@ -497,9 +497,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                  Tagged<UnionOf<Smi, PrototypeInfo>>)
   // PrototypeInfo is created lazily using this helper (which installs it on
   // the given prototype's map).
-  static DirectHandle<PrototypeInfo> GetOrCreatePrototypeInfo(
+  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
       DirectHandle<JSObject> prototype, Isolate* isolate);
-  static DirectHandle<PrototypeInfo> GetOrCreatePrototypeInfo(
+  static Handle<PrototypeInfo> GetOrCreatePrototypeInfo(
       DirectHandle<Map> prototype_map, Isolate* isolate);
   inline bool should_be_fast_prototype_map() const;
   static void SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
@@ -762,7 +762,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> CopyInitialMap(
       Isolate* isolate, DirectHandle<Map> map, int instance_size,
       int in_object_properties, int unused_property_fields);
-  static DirectHandle<Map> CopyInitialMapNormalized(
+  static Handle<Map> CopyInitialMapNormalized(
       Isolate* isolate, DirectHandle<Map> map,
       PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES);
   static Handle<Map> CopyDropDescriptors(Isolate* isolate,
@@ -802,8 +802,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> CopyAsElementsKind(Isolate* isolate, DirectHandle<Map> map,
                                         ElementsKind kind, TransitionFlag flag);
 
-  static DirectHandle<Map> AsLanguageMode(
-      Isolate* isolate, DirectHandle<Map> initial_map,
+  static Handle<Map> AsLanguageMode(
+      Isolate* isolate, Handle<Map> initial_map,
       DirectHandle<SharedFunctionInfo> shared_info);
 
   V8_EXPORT_PRIVATE static Handle<Map> CopyForPreventExtensions(
@@ -819,8 +819,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
       DirectHandle<Object> value, PropertyAttributes attributes,
       PropertyConstness constness, StoreOrigin store_origin);
-  V8_EXPORT_PRIVATE static DirectHandle<Map> TransitionToAccessorProperty(
-      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
+  V8_EXPORT_PRIVATE static Handle<Map> TransitionToAccessorProperty(
+      Isolate* isolate, Handle<Map> map, DirectHandle<Name> name,
       InternalIndex descriptor, DirectHandle<Object> getter,
       DirectHandle<Object> setter, PropertyAttributes attributes);
 
@@ -860,8 +860,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to an Object.create call. Might transition the given {prototype}.
-  static DirectHandle<Map> GetObjectCreateMap(
-      Isolate* isolate, DirectHandle<JSPrototype> prototype);
+  static Handle<Map> GetObjectCreateMap(Isolate* isolate,
+                                        DirectHandle<JSPrototype> prototype);
 
   // Returns the map to be used for instances when the given {prototype} is
   // passed to Reflect.construct or proxy constructors.
@@ -923,8 +923,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, DirectHandle<Map> map,
       DirectHandle<JSPrototype> prototype);
 
-  static DirectHandle<Map> TransitionToImmutableProto(Isolate* isolate,
-                                                      DirectHandle<Map> map);
+  static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
+                                                DirectHandle<Map> map);
 
   static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
@@ -944,7 +944,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   void PrintMapDetails(std::ostream& os);
 
-  static inline DirectHandle<Map> AddMissingTransitionsForTesting(
+  static inline Handle<Map> AddMissingTransitionsForTesting(
       Isolate* isolate, DirectHandle<Map> split_map,
       DirectHandle<DescriptorArray> descriptors);
 
@@ -1073,7 +1073,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 class NormalizedMapCache : public WeakFixedArray {
  public:
   NEVER_READ_ONLY_SPACE
-  static DirectHandle<NormalizedMapCache> New(Isolate* isolate);
+  static Handle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,
                                              DirectHandle<Map> fast_map,

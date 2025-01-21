@@ -50,21 +50,20 @@ class SharedEngineIsolate {
   v8::Isolate* v8_isolate() { return isolate_; }
   Isolate* isolate() { return reinterpret_cast<Isolate*>(isolate_); }
 
-  DirectHandle<WasmInstanceObject> CompileAndInstantiate(ZoneBuffer* buffer) {
+  Handle<WasmInstanceObject> CompileAndInstantiate(ZoneBuffer* buffer) {
     ErrorThrower thrower(isolate(), "CompileAndInstantiate");
-    MaybeDirectHandle<WasmInstanceObject> instance =
+    MaybeHandle<WasmInstanceObject> instance =
         testing::CompileAndInstantiateForTesting(isolate(), &thrower,
                                                  base::VectorOf(*buffer));
     return instance.ToHandleChecked();
   }
 
-  DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
+  Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     Handle<WasmModuleObject> module_object =
         GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
     ErrorThrower thrower(isolate(), "ImportInstance");
-    MaybeDirectHandle<WasmInstanceObject> instance =
-        GetWasmEngine()->SyncInstantiate(isolate(), &thrower, module_object, {},
-                                         {});
+    MaybeHandle<WasmInstanceObject> instance = GetWasmEngine()->SyncInstantiate(
+        isolate(), &thrower, module_object, {}, {});
     return instance.ToHandleChecked();
   }
 
@@ -153,7 +152,7 @@ void PumpMessageLoop(SharedEngineIsolate* isolate) {
       isolate->isolate());
 }
 
-DirectHandle<WasmInstanceObject> CompileAndInstantiateAsync(
+Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate* isolate, ZoneBuffer* buffer) {
   IndirectHandle<Object> maybe_instance(Smi::zero(), isolate->isolate());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate->isolate());
@@ -163,7 +162,7 @@ DirectHandle<WasmInstanceObject> CompileAndInstantiateAsync(
       std::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
       base::OwnedCopyOf(*buffer), kAPIMethodName);
   while (!IsWasmInstanceObject(*maybe_instance)) PumpMessageLoop(isolate);
-  DirectHandle<WasmInstanceObject> instance =
+  Handle<WasmInstanceObject> instance =
       Cast<WasmInstanceObject>(maybe_instance);
   return instance;
 }

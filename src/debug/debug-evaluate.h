@@ -24,7 +24,7 @@ class FrameInspector;
 
 class DebugEvaluate : public AllStatic {
  public:
-  static V8_EXPORT_PRIVATE MaybeDirectHandle<Object> Global(
+  static V8_EXPORT_PRIVATE MaybeHandle<Object> Global(
       Isolate* isolate, Handle<String> source, debug::EvaluateGlobalMode mode,
       REPLMode repl_mode = REPLMode::kNo);
 
@@ -36,15 +36,17 @@ class DebugEvaluate : public AllStatic {
   // The stack frame can be either a JavaScript stack frame or a Wasm
   // stack frame. In the latter case, a special Debug Proxy API is
   // provided to peek into the Wasm state.
-  static V8_EXPORT_PRIVATE MaybeDirectHandle<Object> Local(
-      Isolate* isolate, StackFrameId frame_id, int inlined_jsframe_index,
-      DirectHandle<String> source, bool throw_on_side_effect);
+  static V8_EXPORT_PRIVATE MaybeHandle<Object> Local(Isolate* isolate,
+                                                     StackFrameId frame_id,
+                                                     int inlined_jsframe_index,
+                                                     Handle<String> source,
+                                                     bool throw_on_side_effect);
 
   // This is used for break-at-entry for builtins and API functions.
   // Evaluate a piece of JavaScript in the native context, but with the
   // materialized arguments object and receiver of the current call.
-  static MaybeDirectHandle<Object> WithTopmostArguments(
-      Isolate* isolate, DirectHandle<String> source);
+  static MaybeHandle<Object> WithTopmostArguments(Isolate* isolate,
+                                                  Handle<String> source);
 
   static DebugInfo::SideEffectState FunctionGetSideEffectState(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> info);
@@ -69,9 +71,9 @@ class DebugEvaluate : public AllStatic {
   // context chain, based on a scope chain:
   //   - every With and Catch scope begets a cloned context
   //   - Block scope begets one or two contexts:
-  //       - if a block has context-allocated variables, its context is cloned
-  //       - stack locals are materialized as a With context
-  //   - Local scope begets a With context for materialized locals, chained to
+  //       - if a block has context-allocated varaibles, its context is cloned
+  //       - stack locals are materizalized as a With context
+  //   - Local scope begets a With context for materizalized locals, chained to
   //     original function context. Original function context is the end of
   //     the chain.
   class ContextBuilder {
@@ -81,9 +83,7 @@ class DebugEvaluate : public AllStatic {
 
     void UpdateValues();
 
-    DirectHandle<Context> evaluation_context() const {
-      return evaluation_context_;
-    }
+    Handle<Context> evaluation_context() const { return evaluation_context_; }
     Handle<SharedFunctionInfo> outer_info() const;
 
    private:
@@ -100,10 +100,12 @@ class DebugEvaluate : public AllStatic {
     ScopeIterator scope_iterator_;
   };
 
-  static MaybeHandle<Object> Evaluate(
-      Isolate* isolate, DirectHandle<SharedFunctionInfo> outer_info,
-      DirectHandle<Context> context, DirectHandle<Object> receiver,
-      DirectHandle<String> source, bool throw_on_side_effect);
+  static MaybeHandle<Object> Evaluate(Isolate* isolate,
+                                      Handle<SharedFunctionInfo> outer_info,
+                                      DirectHandle<Context> context,
+                                      DirectHandle<Object> receiver,
+                                      Handle<String> source,
+                                      bool throw_on_side_effect);
 };
 
 }  // namespace internal

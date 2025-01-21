@@ -55,13 +55,12 @@ Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
-                                                   WasmValueType type,
-                                                   int offset) {
+Handle<Smi> LoadHandler::LoadWasmStructField(Isolate* isolate,
+                                             WasmValueType type, int offset) {
   int config = KindBits::encode(Kind::kField) | IsWasmStructBits::encode(true) |
                WasmFieldTypeBits::encode(type) |
                WasmFieldOffsetBits::encode(offset);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
@@ -69,9 +68,9 @@ Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> LoadHandler::LoadAccessorFromPrototype(Isolate* isolate) {
+Handle<Smi> LoadHandler::LoadAccessorFromPrototype(Isolate* isolate) {
   int config = KindBits::encode(Kind::kAccessorFromPrototype);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadProxy(Isolate* isolate) {
@@ -126,18 +125,18 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
-                                                    WasmValueType type) {
+Handle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
+                                              WasmValueType type) {
   int config = KindBits::encode(Kind::kElement) |
                IsWasmArrayBits::encode(true) | WasmArrayTypeBits::encode(type);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 
-DirectHandle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
+Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(Kind::kGlobalProxy);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
@@ -188,7 +187,7 @@ Handle<Code> StoreHandler::StoreFastElementBuiltin(Isolate* isolate,
   }
 }
 
-DirectHandle<Code> StoreHandler::ElementsTransitionAndStoreBuiltin(
+Handle<Code> StoreHandler::ElementsTransitionAndStoreBuiltin(
     Isolate* isolate, KeyedAccessStoreMode mode) {
   switch (mode) {
     case KeyedAccessStoreMode::kInBounds:
@@ -262,17 +261,17 @@ Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> StoreHandler::StoreAccessorFromPrototype(Isolate* isolate) {
+Handle<Smi> StoreHandler::StoreAccessorFromPrototype(Isolate* isolate) {
   int config = KindBits::encode(Kind::kAccessorFromPrototype);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
-                                               bool holder_is_receiver) {
+Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
+                                         bool holder_is_receiver) {
   int config =
       KindBits::encode(holder_is_receiver ? Kind::kApiSetter
                                           : Kind::kApiSetterHolderIsPrototype);
-  return direct_handle(Smi::FromInt(config), isolate);
+  return handle(Smi::FromInt(config), isolate);
 }
 
 inline const char* WasmValueType2String(WasmValueType type) {

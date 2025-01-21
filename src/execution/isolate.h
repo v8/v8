@@ -969,7 +969,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
-  DirectHandle<String> StackTraceString();
+  Handle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
   V8_NOINLINE void PushStackTraceAndDie(
@@ -989,19 +989,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_NOINLINE void PushParamsAndContinue(
       void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
       void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
-  DirectHandle<StackTraceInfo> CaptureDetailedStackTrace(
+  Handle<StackTraceInfo> CaptureDetailedStackTrace(
       int limit, StackTrace::StackTraceOptions options);
-  MaybeDirectHandle<JSObject> CaptureAndSetErrorStack(
-      DirectHandle<JSObject> error_object, FrameSkipMode mode,
-      Handle<Object> caller);
+  MaybeHandle<JSObject> CaptureAndSetErrorStack(Handle<JSObject> error_object,
+                                                FrameSkipMode mode,
+                                                Handle<Object> caller);
   Handle<StackTraceInfo> GetDetailedStackTrace(
       DirectHandle<JSReceiver> error_object);
   Handle<FixedArray> GetSimpleStackTrace(DirectHandle<JSReceiver> error_object);
   // Walks the JS stack to find the first frame with a script name or
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
-  DirectHandle<String> CurrentScriptNameOrSourceURL();
-  MaybeDirectHandle<Script> CurrentReferrerScript();
+  Handle<String> CurrentScriptNameOrSourceURL();
+  MaybeHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
   Address GetAbstractPC(int* line, int* column);
@@ -1013,7 +1013,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                  DirectHandle<JSObject> receiver);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> ReportFailedAccessCheck(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReportFailedAccessCheck(
       DirectHandle<JSObject> receiver);
 
   // Exception throwing support. The caller should use the result of Throw() as
@@ -1086,8 +1086,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Handle<JSMessageObject> CreateMessage(DirectHandle<Object> exception,
                                         MessageLocation* location);
-  DirectHandle<JSMessageObject> CreateMessageOrAbort(
-      DirectHandle<Object> exception, MessageLocation* location);
+  Handle<JSMessageObject> CreateMessageOrAbort(DirectHandle<Object> exception,
+                                               MessageLocation* location);
   // Similar to Isolate::CreateMessage but DOESN'T inspect the JS stack and
   // only looks at the "detailed stack trace" as the "simple stack trace" might
   // have already been stringified.
@@ -1114,7 +1114,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Handle<NativeContext> native_context();
   inline Tagged<NativeContext> raw_native_context();
 
-  inline DirectHandle<NativeContext> GetIncumbentContext();
+  inline Handle<NativeContext> GetIncumbentContext();
   Handle<NativeContext> GetIncumbentContextSlow();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
@@ -1502,7 +1502,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Turbofan's string builder optimization can introduce SlicedString that are
   // less than SlicedString::kMinLength characters. Their live range and scope
-  // are pretty limited, but they can be visible to the GC, which shouldn't
+  // are pretty limitted, but they can be visible to the GC, which shouldn't
   // treat them as invalid. When such short SlicedString are introduced,
   // Turbofan will set has_turbofan_string_builders_ to true, which
   // SlicedString::SlicedStringVerify will check when verifying SlicedString to
@@ -1785,8 +1785,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetTerminationOnExternalTryCatch();
 
-  DirectHandle<Symbol> SymbolFor(RootIndex dictionary_index,
-                                 Handle<String> name, bool private_symbol);
+  Handle<Symbol> SymbolFor(RootIndex dictionary_index, Handle<String> name,
+                           bool private_symbol);
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
@@ -1968,7 +1968,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       HostImportModuleDynamicallyCallback callback);
   void SetHostImportModuleWithPhaseDynamicallyCallback(
       HostImportModuleWithPhaseDynamicallyCallback callback);
-  MaybeDirectHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
+  MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
       MaybeDirectHandle<Script> maybe_referrer, Handle<Object> specifier,
       ModuleImportPhase phase,
       MaybeDirectHandle<Object> maybe_import_options_argument);
@@ -1980,7 +1980,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetHostCreateShadowRealmContextCallback(
       HostCreateShadowRealmContextCallback callback);
-  MaybeDirectHandle<NativeContext> RunHostCreateShadowRealmContextCallback();
+  MaybeHandle<NativeContext> RunHostCreateShadowRealmContextCallback();
 
   bool IsJSApiWrapperNativeError(DirectHandle<JSReceiver> obj);
 
@@ -2579,7 +2579,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // MaybeHandle if an error was thrown.  In this case, the host callback should
   // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
-  MaybeDirectHandle<FixedArray> GetImportAttributesFromArgument(
+  MaybeHandle<FixedArray> GetImportAttributesFromArgument(
       MaybeDirectHandle<Object> maybe_import_options_argument);
 
   HostInitializeImportMetaObjectCallback

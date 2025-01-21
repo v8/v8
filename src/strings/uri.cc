@@ -504,15 +504,14 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 
 }  // anonymous namespace
 
-MaybeDirectHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
+MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentation()
              ? EscapePrivate<uint8_t>(isolate, string)
              : EscapePrivate<base::uc16>(isolate, string);
 }
 
-MaybeDirectHandle<String> Uri::Unescape(Isolate* isolate,
-                                        Handle<String> string) {
+MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
   return string->IsOneByteRepresentation()
              ? UnescapePrivate<uint8_t>(isolate, string)

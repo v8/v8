@@ -39,7 +39,7 @@ class RuntimeTestRunner {
   // Retrieves data associated with |entry|, which must be an index pointing to
   // an existing entry. The returned array contains key, value, property details
   // in that order.
-  DirectHandle<FixedArray> GetData(InternalIndex entry);
+  Handle<FixedArray> GetData(InternalIndex entry);
 
   // Tests that the current table has the given capacity, and number of
   // (deleted) elements, based on which optional values are present.
@@ -72,15 +72,15 @@ InternalIndex RuntimeTestRunner::FindEntry(DirectHandle<Name> key) {
   return table->FindEntry(isolate_, key);
 }
 
-DirectHandle<FixedArray> RuntimeTestRunner::GetData(InternalIndex entry) {
+Handle<FixedArray> RuntimeTestRunner::GetData(InternalIndex entry) {
   if (entry.is_found()) {
-    DirectHandle<FixedArray> data = isolate_->factory()->NewFixedArray(3);
+    Handle<FixedArray> data = isolate_->factory()->NewFixedArray(3);
     data->set(0, table->KeyAt(entry));
     data->set(1, table->ValueAt(entry));
     data->set(2, table->DetailsAt(entry).AsSmi());
     return data;
   } else {
-    return direct_handle(ReadOnlyRoots(isolate_).empty_fixed_array(), isolate_);
+    return handle(ReadOnlyRoots(isolate_).empty_fixed_array(), isolate_);
   }
 }
 

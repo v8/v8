@@ -41,10 +41,9 @@ class PropertyDescriptor {
   }
 
   // ES6 6.2.4.4
-  DirectHandle<JSObject> ToObject(Isolate* isolate);
+  Handle<JSObject> ToObject(Isolate* isolate);
 
-  DirectHandle<PropertyDescriptorObject> ToPropertyDescriptorObject(
-      Isolate* isolate);
+  Handle<PropertyDescriptorObject> ToPropertyDescriptorObject(Isolate* isolate);
 
   // ES6 6.2.4.5
   static bool ToPropertyDescriptor(Isolate* isolate, Handle<JSAny> obj,
@@ -106,7 +105,7 @@ class PropertyDescriptor {
   }
   bool has_set() const { return !set_.is_null(); }
 
-  DirectHandle<JSAny> name() const { return name_; }
+  Handle<JSAny> name() const { return name_; }
   void set_name(DirectHandle<JSAny> name) { name_ = indirect_handle(name); }
 
   PropertyAttributes ToAttributes() {

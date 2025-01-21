@@ -518,8 +518,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    DirectHandle<HeapObject> ToHeapObject(
-        const InstructionOperand* operand) const {
+    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 

@@ -201,8 +201,8 @@ namespace {
 
 // Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
 // a JSArray of JSCallSite objects.
-MaybeDirectHandle<JSArray> GetStackFrames(Isolate* isolate,
-                                          DirectHandle<FixedArray> frames) {
+MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
+                                    DirectHandle<FixedArray> frames) {
   int frame_count = frames->length();
   DirectHandle<JSFunction> constructor = isolate->callsite_function();
   DirectHandle<FixedArray> sites =
@@ -524,10 +524,11 @@ MaybeHandle<String> MessageFormatter::TryFormat(
   return indirect_handle(builder.Finish(), isolate);
 }
 
-MaybeDirectHandle<JSObject> ErrorUtils::Construct(
-    Isolate* isolate, DirectHandle<JSFunction> target,
-    DirectHandle<Object> new_target, DirectHandle<Object> message,
-    DirectHandle<Object> options) {
+MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
+                                            DirectHandle<JSFunction> target,
+                                            DirectHandle<Object> new_target,
+                                            DirectHandle<Object> message,
+                                            DirectHandle<Object> options) {
   FrameSkipMode mode = SKIP_FIRST;
   DirectHandle<Object> caller;
 
@@ -551,7 +552,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     DirectHandle<Object> caller, StackTraceCollection stack_trace_collection) {
   if (v8_flags.correctness_fuzzer_suppressions) {
     // Abort range errors in correctness fuzzing, as their causes differ
-    // across correctness-fuzzing scenarios.
+    // accross correctness-fuzzing scenarios.
     if (target.is_identical_to(isolate->range_error_function())) {
       FATAL("Aborting on range error");
     }
@@ -880,10 +881,9 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate,
   return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
 }
 
-DirectHandle<String> RenderCallSite(Isolate* isolate,
-                                    DirectHandle<Object> object,
-                                    MessageLocation* location,
-                                    CallPrinter::ErrorHint* hint) {
+Handle<String> RenderCallSite(Isolate* isolate, DirectHandle<Object> object,
+                              MessageLocation* location,
+                              CallPrinter::ErrorHint* hint) {
   if (ComputeLocation(isolate, location)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForFunctionCompile(
         isolate, *location->shared());
@@ -895,8 +895,7 @@ DirectHandle<String> RenderCallSite(Isolate* isolate,
                           parsing::ReportStatisticsMode::kNo)) {
       info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
-      DirectHandle<String> str =
-          printer.Print(info.literal(), location->start_pos());
+      Handle<String> str = printer.Print(info.literal(), location->start_pos());
       *hint = printer.GetErrorHint();
       if (str->length() > 0) return str;
     }
@@ -926,8 +925,8 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
 
 }  // namespace
 
-DirectHandle<JSObject> ErrorUtils::NewIteratorError(
-    Isolate* isolate, DirectHandle<Object> source) {
+Handle<JSObject> ErrorUtils::NewIteratorError(Isolate* isolate,
+                                              DirectHandle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   DirectHandle<String> callsite =
@@ -982,7 +981,7 @@ Tagged<Object> ErrorUtils::ThrowSpreadArgError(Isolate* isolate,
   return ReadOnlyRoots(isolate).exception();
 }
 
-DirectHandle<JSObject> ErrorUtils::NewCalledNonCallableError(
+Handle<JSObject> ErrorUtils::NewCalledNonCallableError(
     Isolate* isolate, DirectHandle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
@@ -993,7 +992,7 @@ DirectHandle<JSObject> ErrorUtils::NewCalledNonCallableError(
   return isolate->factory()->NewTypeError(id, callsite);
 }
 
-DirectHandle<JSObject> ErrorUtils::NewConstructedNonConstructable(
+Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
     Isolate* isolate, DirectHandle<Object> source) {
   MessageLocation location;
   CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
@@ -1144,7 +1143,7 @@ ErrorUtils::StackPropertyLookupResult ErrorUtils::GetErrorStackProperty(
 }
 
 // static
-MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
+MaybeHandle<Object> ErrorUtils::GetFormattedStack(
     Isolate* isolate, DirectHandle<JSObject> maybe_error_object) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
 
@@ -1154,12 +1153,12 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   if (IsErrorStackData(*lookup.error_stack)) {
     auto error_stack_data = Cast<ErrorStackData>(lookup.error_stack);
     if (error_stack_data->HasFormattedStack()) {
-      return direct_handle(error_stack_data->formatted_stack(), isolate);
+      return handle(error_stack_data->formatted_stack(), isolate);
     }
 
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
-    DirectHandle<Object> formatted_stack;
+    Handle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
         FormatStackTrace(
@@ -1172,7 +1171,7 @@ MaybeDirectHandle<Object> ErrorUtils::GetFormattedStack(
   if (IsFixedArray(*lookup.error_stack)) {
     DirectHandle<JSObject> error_object =
         lookup.error_stack_symbol_holder.ToHandleChecked();
-    DirectHandle<Object> formatted_stack;
+    Handle<Object> formatted_stack;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, formatted_stack,
         FormatStackTrace(isolate, error_object,
@@ -1214,7 +1213,7 @@ void ErrorUtils::SetFormattedStack(Isolate* isolate,
 
 // static
 MaybeHandle<Object> ErrorUtils::CaptureStackTrace(Isolate* isolate,
-                                                  DirectHandle<JSObject> object,
+                                                  Handle<JSObject> object,
                                                   FrameSkipMode mode,
                                                   Handle<Object> caller) {
   Factory* factory = isolate->factory();

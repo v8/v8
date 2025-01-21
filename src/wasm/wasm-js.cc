@@ -1714,7 +1714,7 @@ void WebAssemblyMemoryMapDescriptorImpl(
     return js_api_scope.AssertException();
   }
 
-  i::DirectHandle<i::JSObject> descriptor_obj;
+  i::Handle<i::JSObject> descriptor_obj;
   if (!i::WasmMemoryMapDescriptor::NewFromAnonymous(i_isolate, size.value())
            .ToHandle(&descriptor_obj)) {
     thrower.RuntimeError("Failed to create a MemoryMapDescriptor");
@@ -1729,7 +1729,7 @@ void WebAssemblyMemoryMapDescriptorImpl(
   // subclass: {memory_obj} has {WebAssembly.Memory}'s prototype at this
   // point, so we must overwrite that with the correct prototype for {Foo}.
   if (!TransferPrototype(i_isolate, descriptor_obj,
-                         Utils::OpenDirectHandle(*info.This()))) {
+                         Utils::OpenHandle(*info.This()))) {
     DCHECK(i_isolate->has_exception());
     return js_api_scope.AssertException();
   }
@@ -2202,7 +2202,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   uint32_t size = GetEncodedSize(tag_object);
-  i::DirectHandle<i::WasmExceptionPackage> runtime_exception =
+  i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
   // The constructor above should guarantee that the cast below succeeds.
   i::DirectHandle<i::FixedArray> values =
@@ -2245,7 +2245,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       Utils::ToLocal(i::Cast<i::Object>(runtime_exception)));
 }
 
-i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
+i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Isolate* i_isolate, i::DirectHandle<i::WasmExportedFunctionData> data,
     ErrorThrower& thrower) {
   i::DirectHandle<i::WasmTrustedInstanceData> trusted_instance_data{
@@ -2293,7 +2293,7 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
     i::Cast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
 
-  i::DirectHandle<i::JSFunction> result = i::WasmExportedFunction::New(
+  i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(
       i_isolate, trusted_instance_data, func_ref, internal,
       static_cast<int>(data->sig()->parameter_count()), wrapper);
   return result;
@@ -2734,10 +2734,9 @@ void WebAssemblyMemoryMapImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
-  i::DirectHandle<i::WasmMemoryMapDescriptor> descriptor;
+  i::Handle<i::WasmMemoryMapDescriptor> descriptor;
   {
-    i::DirectHandle<i::Object> descriptor_param =
-        Utils::OpenDirectHandle(*info[0]);
+    i::Handle<i::Object> descriptor_param = Utils::OpenHandle(*info[0]);
     if (!i::IsWasmMemoryMapDescriptor(*descriptor_param)) {
       thrower.TypeError("Receiver is not a WebAssembly.MemoryMapDescriptor");
       return js_api_scope.AssertException();
@@ -3160,7 +3159,7 @@ WASM_JS_EXTERNAL_REFERENCE_LIST(DEF_WASM_JS_EXTERNAL_REFERENCE)
 
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
-static i::DirectHandle<i::FunctionTemplateInfo> NewFunctionTemplate(
+static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
     i::Isolate* i_isolate, FunctionCallback func, bool has_prototype,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
@@ -3169,14 +3168,14 @@ static i::DirectHandle<i::FunctionTemplateInfo> NewFunctionTemplate(
   Local<FunctionTemplate> templ = FunctionTemplate::New(
       isolate, func, {}, {}, 0, behavior, side_effect_type);
   if (has_prototype) templ->ReadOnlyPrototype();
-  return v8::Utils::OpenDirectHandle(*templ);
+  return v8::Utils::OpenHandle(*templ);
 }
 
-static i::DirectHandle<i::ObjectTemplateInfo> NewObjectTemplate(
+static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
     i::Isolate* i_isolate) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  return v8::Utils::OpenDirectHandle(*templ);
+  return v8::Utils::OpenHandle(*templ);
 }
 
 namespace internal {
@@ -3233,7 +3232,7 @@ Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
                      SideEffectType::kHasNoSideEffect);
 }
 
-DirectHandle<String> GetterName(Isolate* isolate, Handle<String> name) {
+Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
   return Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
       .ToHandleChecked();
 }
@@ -3250,7 +3249,7 @@ void InstallGetter(Isolate* isolate, DirectHandle<JSObject> object,
                                               Local<Function>(), v8::None);
 }
 
-DirectHandle<String> SetterName(Isolate* isolate, Handle<String> name) {
+Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
   return Name::ToFunctionName(isolate, name, isolate->factory()->set_string())
       .ToHandleChecked();
 }
@@ -3691,12 +3690,12 @@ void WasmJs::InstallMemoryControl(Isolate* isolate,
   // by the caller.
   DCHECK(webassembly->map()->is_extensible());
 
-  DirectHandle<JSObject> memory_proto = direct_handle(
+  Handle<JSObject> memory_proto = handle(
       Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
       isolate);
   InstallFunc(isolate, memory_proto, "map", wasm::WebAssemblyMemoryMap, 1);
 
-  DirectHandle<JSFunction> descriptor_constructor =
+  Handle<JSFunction> descriptor_constructor =
       InstallConstructorFunc(isolate, webassembly, "MemoryMapDescriptor",
                              wasm::WebAssemblyMemoryMapDescriptor);
   SetupConstructor(

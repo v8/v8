@@ -19,14 +19,14 @@ class MaterializedObjectStore {
  public:
   explicit MaterializedObjectStore(Isolate* isolate) : isolate_(isolate) {}
 
-  DirectHandle<FixedArray> Get(Address fp);
+  Handle<FixedArray> Get(Address fp);
   void Set(Address fp, DirectHandle<FixedArray> materialized_objects);
   bool Remove(Address fp);
 
  private:
   Isolate* isolate() const { return isolate_; }
   Handle<FixedArray> GetStackEntries();
-  DirectHandle<FixedArray> EnsureStackEntries(int size);
+  Handle<FixedArray> EnsureStackEntries(int size);
 
   int StackIdToIndex(Address fp);
 

@@ -160,8 +160,8 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
 }
 
 template <typename Impl>
-DirectHandle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
-  DirectHandle<CodeWrapper> wrapper(
+Handle<CodeWrapper> FactoryBase<Impl>::NewCodeWrapper() {
+  Handle<CodeWrapper> wrapper(
       Cast<CodeWrapper>(NewWithImmortalMap(read_only_roots().code_wrapper_map(),
                                            AllocationType::kOld)),
       isolate());
@@ -231,7 +231,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 }
 
 template <typename Impl>
-DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
     int length, AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return impl()->empty_fixed_array();
@@ -245,7 +245,7 @@ DirectHandle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   Tagged<FixedArray> array = Cast<FixedArray>(result);
   array->set_length(length);
   MemsetTagged(array->RawFieldOfFirstElement(), Smi::zero(), length);
-  return direct_handle(array, isolate());
+  return handle(array, isolate());
 }
 
 template <typename Impl>
@@ -311,7 +311,7 @@ Handle<TrustedByteArray> FactoryBase<Impl>::NewTrustedByteArray(
 }
 
 template <typename Impl>
-DirectHandle<DeoptimizationLiteralArray>
+Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
   return Cast<DeoptimizationLiteralArray>(NewTrustedWeakFixedArray(length));
 }
@@ -359,12 +359,12 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
 }
 
 template <typename Impl>
-DirectHandle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper(
+Handle<BytecodeWrapper> FactoryBase<Impl>::NewBytecodeWrapper(
     AllocationType allocation) {
   DCHECK(allocation == AllocationType::kOld ||
          allocation == AllocationType::kSharedOld);
 
-  DirectHandle<BytecodeWrapper> wrapper(
+  Handle<BytecodeWrapper> wrapper(
       Cast<BytecodeWrapper>(NewWithImmortalMap(
           read_only_roots().bytecode_wrapper_map(), allocation)),
       isolate());
@@ -423,8 +423,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 }
 
 template <typename Impl>
-DirectHandle<SloppyArgumentsElements>
-FactoryBase<Impl>::NewSloppyArgumentsElements(
+Handle<SloppyArgumentsElements> FactoryBase<Impl>::NewSloppyArgumentsElements(
     int length, DirectHandle<Context> context,
     DirectHandle<FixedArray> arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
@@ -439,7 +438,7 @@ FactoryBase<Impl>::NewSloppyArgumentsElements(
   result->set_length(length);
   result->set_context(*context, write_barrier_mode);
   result->set_arguments(*arguments, write_barrier_mode);
-  return direct_handle(result, isolate());
+  return handle(result, isolate());
 }
 
 template <typename Impl>
@@ -479,7 +478,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
 }
 
 template <typename Impl>
-DirectHandle<SharedFunctionInfoWrapper>
+Handle<SharedFunctionInfoWrapper>
 FactoryBase<Impl>::NewSharedFunctionInfoWrapper(
     DirectHandle<SharedFunctionInfo> sfi) {
   Tagged<Map> map = read_only_roots().shared_function_info_wrapper_map();
@@ -488,7 +487,7 @@ FactoryBase<Impl>::NewSharedFunctionInfoWrapper(
 
   wrapper->set_shared_info(*sfi);
 
-  return direct_handle(wrapper, isolate());
+  return handle(wrapper, isolate());
 }
 
 template <typename Impl>
@@ -632,8 +631,8 @@ FactoryBase<Impl>::NewArrayBoilerplateDescription(
 }
 
 template <typename Impl>
-DirectHandle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
-  DirectHandle<RegExpDataWrapper> wrapper(
+Handle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
+  Handle<RegExpDataWrapper> wrapper(
       Cast<RegExpDataWrapper>(NewWithImmortalMap(
           read_only_roots().regexp_data_wrapper_map(), AllocationType::kOld)),
       isolate());
@@ -642,7 +641,7 @@ DirectHandle<RegExpDataWrapper> FactoryBase<Impl>::NewRegExpDataWrapper() {
 }
 
 template <typename Impl>
-DirectHandle<RegExpBoilerplateDescription>
+Handle<RegExpBoilerplateDescription>
 FactoryBase<Impl>::NewRegExpBoilerplateDescription(
     DirectHandle<RegExpData> data, DirectHandle<String> source,
     Tagged<Smi> flags) {
@@ -652,7 +651,7 @@ FactoryBase<Impl>::NewRegExpBoilerplateDescription(
   result->set_data(*data);
   result->set_source(*source);
   result->set_flags(flags.value());
-  return direct_handle(result, isolate());
+  return handle(result, isolate());
 }
 
 template <typename Impl>
@@ -789,10 +788,10 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 }
 
 template <typename Impl>
-DirectHandle<SeqOneByteString>
+Handle<SeqOneByteString>
 FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
-  DirectHandle<SeqOneByteString> result =
+  Handle<SeqOneByteString> result =
       AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
   DisallowGarbageCollection no_gc;
   CopyChars(
@@ -1334,7 +1333,7 @@ Handle<SwissNameDictionary> FactoryBase<Impl>::NewSwissNameDictionary(
 }
 
 template <typename Impl>
-DirectHandle<FunctionTemplateRareData>
+Handle<FunctionTemplateRareData>
 FactoryBase<Impl>::NewFunctionTemplateRareData() {
   auto function_template_rare_data =
       NewStructInternal<FunctionTemplateRareData>(
@@ -1342,7 +1341,7 @@ FactoryBase<Impl>::NewFunctionTemplateRareData() {
   DisallowGarbageCollection no_gc;
   function_template_rare_data->set_c_function_overloads(
       *impl()->empty_fixed_array(), SKIP_WRITE_BARRIER);
-  return direct_handle(function_template_rare_data, isolate());
+  return handle(function_template_rare_data, isolate());
 }
 
 template <typename Impl>

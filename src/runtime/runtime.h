@@ -28,7 +28,7 @@ namespace internal {
 //
 // * All intrinsics have a C++ implementation Runtime_##name.
 //
-// * Each compiler has an explicit list of intrinsics it supports, falling back
+// * Each compiler has an explicit list of intrisics it supports, falling back
 //   to a simple runtime call if necessary.
 
 // Entries have the form F(name, number of arguments, number of return values):
@@ -996,7 +996,7 @@ class Runtime : public AllStatic {
   // matching private member, or there are more than one matching private member
   // (which would be ambiguous). If the found private member is an accessor with
   // a getter, the getter will be called to set the value.
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   GetPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                    Handle<String> desc);
 
@@ -1008,7 +1008,7 @@ class Runtime : public AllStatic {
   // than one matching private member (which would be ambiguous).
   // If the found private member is an accessor with a setter, the setter will
   // be called to set the value.
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   SetPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                    Handle<String> desc, DirectHandle<Object> value);
 
@@ -1018,7 +1018,7 @@ class Runtime : public AllStatic {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray>
   GetInternalProperties(Isolate* isolate, Handle<Object>);
 
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> ThrowIteratorError(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ThrowIteratorError(
       Isolate* isolate, Handle<Object> object);
 };
 

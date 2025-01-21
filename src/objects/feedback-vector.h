@@ -199,7 +199,7 @@ class ClosureFeedbackCellArray
   NEVER_READ_ONLY_SPACE
   using Shape = ClosureFeedbackCellArrayShape;
 
-  V8_EXPORT_PRIVATE static DirectHandle<ClosureFeedbackCellArray> New(
+  V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -348,8 +348,8 @@ class FeedbackVector
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.
-  inline DirectHandle<FeedbackCell> GetClosureFeedbackCell(Isolate* isolate,
-                                                           int index) const;
+  inline Handle<FeedbackCell> GetClosureFeedbackCell(Isolate* isolate,
+                                                     int index) const;
   inline Tagged<FeedbackCell> closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.
@@ -418,13 +418,13 @@ class FeedbackVector
   }
 
   // The object that indicates an uninitialized cache.
-  static inline DirectHandle<Symbol> UninitializedSentinel(Isolate* isolate);
+  static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
 
   // The object that indicates a megamorphic state.
   static inline Handle<Symbol> MegamorphicSentinel(Isolate* isolate);
 
   // The object that indicates a MegaDOM state.
-  static inline DirectHandle<Symbol> MegaDOMSentinel(Isolate* isolate);
+  static inline Handle<Symbol> MegaDOMSentinel(Isolate* isolate);
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
@@ -843,7 +843,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
                 const NexusConfig& config);
 
   const NexusConfig* config() const { return &config_; }
-  DirectHandle<FeedbackVector> vector_handle() const {
+  Handle<FeedbackVector> vector_handle() const {
     DCHECK(vector_.is_null());
     return vector_handle_;
   }
@@ -943,7 +943,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   using CallCountField = base::BitField<uint32_t, 2, 30>;
 
   // For InstanceOf ICs.
-  MaybeDirectHandle<JSObject> GetConstructorFeedback() const;
+  MaybeHandle<JSObject> GetConstructorFeedback() const;
 
   // For Global Load and Store ICs.
   void ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell);
@@ -983,7 +983,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline Tagged<MaybeObject> MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
-  DirectHandle<WeakFixedArray> CreateArrayOfSize(int length);
+  Handle<WeakFixedArray> CreateArrayOfSize(int length);
 
   // Helpers to maintain feedback_cache_.
   inline Tagged<MaybeObject> FromHandle(MaybeObjectHandle slot) const;

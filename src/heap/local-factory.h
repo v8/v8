@@ -38,8 +38,8 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   // The parser shouldn't allow the LocalFactory to get into a state where
   // it generates errors.
-  DirectHandle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
-  DirectHandle<Object> NewRangeError(MessageTemplate template_index) {
+  Handle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
+  Handle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
 

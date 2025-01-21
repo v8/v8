@@ -885,7 +885,7 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    DirectHandle<Object> value =
+    Handle<Object> value =
         factory->NewPropertyCell(keys[i], fake_details, keys[i]);
     dictionary =
         Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
@@ -2009,7 +2009,7 @@ void TestDictionaryAllocation(CSAAllocator<Dictionary> csa_alloc,
     for (int i = 0; i < max_capacity; i = i * 1.1 + 1) {
       DirectHandle<HeapObject> result = Cast<HeapObject>(
           ft.Call(handle(Smi::FromInt(i), isolate)).ToHandleChecked());
-      DirectHandle<Dictionary> dict = alloc(isolate, i);
+      Handle<Dictionary> dict = alloc(isolate, i);
       // Both dictionaries should be memory equal.
       int size = dict->Size();
       CHECK_EQ(0, memcmp(reinterpret_cast<void*>(dict->address()),
@@ -2616,11 +2616,11 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
         kind_, 2, initial_size,
         ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-    Object::SetElement(isolate, array, 0,
-                       DirectHandle<Smi>(Smi::FromInt(1), isolate), kDontThrow)
+    Object::SetElement(isolate, array, 0, Handle<Smi>(Smi::FromInt(1), isolate),
+                       kDontThrow)
         .Check();
-    Object::SetElement(isolate, array, 1,
-                       DirectHandle<Smi>(Smi::FromInt(2), isolate), kDontThrow)
+    Object::SetElement(isolate, array, 1, Handle<Smi>(Smi::FromInt(2), isolate),
+                       kDontThrow)
         .Check();
     CodeStubArguments args(this,
                            IntPtrConstant(kNumParams + kJSArgcReceiverSlots));

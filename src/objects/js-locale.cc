@@ -367,14 +367,13 @@ Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
 
 }  // namespace
 
-MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
-                                          DirectHandle<Map> map,
-                                          DirectHandle<String> locale_str,
-                                          DirectHandle<JSReceiver> options) {
+MaybeHandle<JSLocale> JSLocale::New(Isolate* isolate, DirectHandle<Map> map,
+                                    DirectHandle<String> locale_str,
+                                    DirectHandle<JSReceiver> options) {
   icu::LocaleBuilder builder;
   Maybe<bool> maybe_apply =
       ApplyOptionsToTag(isolate, locale_str, options, &builder);
-  MAYBE_RETURN(maybe_apply, MaybeDirectHandle<JSLocale>());
+  MAYBE_RETURN(maybe_apply, MaybeHandle<JSLocale>());
   if (!maybe_apply.FromJust()) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kLocaleBadParameters));
@@ -382,7 +381,7 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
 
   Maybe<bool> maybe_insert =
       InsertOptionsIntoLocale(isolate, options, &builder);
-  MAYBE_RETURN(maybe_insert, MaybeDirectHandle<JSLocale>());
+  MAYBE_RETURN(maybe_insert, MaybeHandle<JSLocale>());
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale = builder.build(status);
 
@@ -399,7 +398,7 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
 
   // Now all properties are ready, so we can allocate the result object.
-  DirectHandle<JSLocale> locale =
+  Handle<JSLocale> locale =
       Cast<JSLocale>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
@@ -431,8 +430,8 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
 
 }  // namespace
 
-MaybeDirectHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
-                                               DirectHandle<JSLocale> locale) {
+MaybeHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
+                                         DirectHandle<JSLocale> locale) {
   // ICU has limitation on the length of the locale while addLikelySubtags
   // is called. Work around the issue by only perform addLikelySubtags
   // on the base locale and merge the extension if needed.
@@ -465,8 +464,8 @@ MaybeDirectHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
   return Construct(isolate, result);
 }
 
-MaybeDirectHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
-                                               DirectHandle<JSLocale> locale) {
+MaybeHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
+                                         DirectHandle<JSLocale> locale) {
   // ICU has limitation on the length of the locale while minimizeSubtags
   // is called. Work around the issue by only perform addLikelySubtags
   // on the base locale and merge the extension if needed.
@@ -537,8 +536,8 @@ MaybeHandle<JSArray> CalendarsForLocale(Isolate* isolate,
 
 }  // namespace
 
-MaybeDirectHandle<JSArray> JSLocale::GetCalendars(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCalendars(Isolate* isolate,
+                                            DirectHandle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   return CalendarsForLocale(isolate, icu_locale, true, false);
 }
@@ -548,16 +547,16 @@ MaybeHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
   return CalendarsForLocale(isolate, icu_locale, false, true);
 }
 
-MaybeDirectHandle<JSArray> JSLocale::GetCollations(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetCollations(Isolate* isolate,
+                                             DirectHandle<JSLocale> locale) {
   icu::Locale icu_locale(*(locale->icu_locale()->raw()));
   return GetKeywordValuesFromLocale<icu::Collator>(
       isolate, "collations", "co", icu_locale, Intl::RemoveCollation, true,
       true);
 }
 
-MaybeDirectHandle<JSArray> JSLocale::GetHourCycles(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<JSArray> JSLocale::GetHourCycles(Isolate* isolate,
+                                             DirectHandle<JSLocale> locale) {
   // Let preferred be loc.[[HourCycle]].
   // Let locale be loc.[[Locale]].
   icu::Locale icu_locale(*(locale->icu_locale()->raw()));
@@ -613,7 +612,7 @@ MaybeDirectHandle<JSArray> JSLocale::GetHourCycles(
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeDirectHandle<JSArray> JSLocale::GetNumberingSystems(
+MaybeHandle<JSArray> JSLocale::GetNumberingSystems(
     Isolate* isolate, DirectHandle<JSLocale> locale) {
   // Let preferred be loc.[[NumberingSystem]].
 
@@ -643,8 +642,8 @@ MaybeDirectHandle<JSArray> JSLocale::GetNumberingSystems(
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeDirectHandle<Object> JSLocale::GetTimeZones(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<Object> JSLocale::GetTimeZones(Isolate* isolate,
+                                           DirectHandle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]])
@@ -682,8 +681,8 @@ MaybeDirectHandle<Object> JSLocale::GetTimeZones(
   return Intl::ToJSArray(isolate, nullptr, enumeration.get(), nullptr, true);
 }
 
-MaybeDirectHandle<JSObject> JSLocale::GetTextInfo(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetTextInfo(Isolate* isolate,
+                                            DirectHandle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
@@ -694,8 +693,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetTextInfo(
 
   Factory* factory = isolate->factory();
   // Let info be ! ObjectCreate(%Object.prototype%).
-  DirectHandle<JSObject> info =
-      factory->NewJSObject(isolate->object_function());
+  Handle<JSObject> info = factory->NewJSObject(isolate->object_function());
 
   // Let dir be "ltr".
   DirectHandle<String> dir = locale->icu_locale()->raw()->isRightToLeft()
@@ -711,8 +709,8 @@ MaybeDirectHandle<JSObject> JSLocale::GetTextInfo(
   return info;
 }
 
-MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
-    Isolate* isolate, DirectHandle<JSLocale> locale) {
+MaybeHandle<JSObject> JSLocale::GetWeekInfo(Isolate* isolate,
+                                            DirectHandle<JSLocale> locale) {
   // Let loc be the this value.
 
   // Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
@@ -723,8 +721,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
   Factory* factory = isolate->factory();
 
   // Let info be ! ObjectCreate(%Object.prototype%).
-  DirectHandle<JSObject> info =
-      factory->NewJSObject(isolate->object_function());
+  Handle<JSObject> info = factory->NewJSObject(isolate->object_function());
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::Calendar> calendar(
       icu::Calendar::createInstance(*(locale->icu_locale()->raw()), status));
@@ -782,64 +779,64 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
   return info;
 }
 
-DirectHandle<Object> JSLocale::Language(Isolate* isolate,
-                                        DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Language(Isolate* isolate,
+                                  DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
   const char* language = locale->icu_locale()->raw()->getLanguage();
   if (strlen(language) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(language);
 }
 
-DirectHandle<Object> JSLocale::Script(Isolate* isolate,
-                                      DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Script(Isolate* isolate,
+                                DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
   const char* script = locale->icu_locale()->raw()->getScript();
   if (strlen(script) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(script);
 }
 
-DirectHandle<Object> JSLocale::Region(Isolate* isolate,
-                                      DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Region(Isolate* isolate,
+                                DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
   const char* region = locale->icu_locale()->raw()->getCountry();
   if (strlen(region) == 0) return factory->undefined_value();
   return factory->NewStringFromAsciiChecked(region);
 }
 
-DirectHandle<String> JSLocale::BaseName(Isolate* isolate,
-                                        DirectHandle<JSLocale> locale) {
+Handle<String> JSLocale::BaseName(Isolate* isolate,
+                                  DirectHandle<JSLocale> locale) {
   icu::Locale icu_locale =
       icu::Locale::createFromName(locale->icu_locale()->raw()->getBaseName());
   std::string base_name = Intl::ToLanguageTag(icu_locale).FromJust();
   return isolate->factory()->NewStringFromAsciiChecked(base_name.c_str());
 }
 
-DirectHandle<Object> JSLocale::Calendar(Isolate* isolate,
-                                        DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Calendar(Isolate* isolate,
+                                  DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "ca");
 }
 
-DirectHandle<Object> JSLocale::CaseFirst(Isolate* isolate,
-                                         DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::CaseFirst(Isolate* isolate,
+                                   DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "kf");
 }
 
-DirectHandle<Object> JSLocale::Collation(Isolate* isolate,
-                                         DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Collation(Isolate* isolate,
+                                   DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "co");
 }
 
-DirectHandle<Object> JSLocale::FirstDayOfWeek(Isolate* isolate,
-                                              DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::FirstDayOfWeek(Isolate* isolate,
+                                        DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "fw");
 }
-DirectHandle<Object> JSLocale::HourCycle(Isolate* isolate,
-                                         DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::HourCycle(Isolate* isolate,
+                                   DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "hc");
 }
 
-DirectHandle<Object> JSLocale::Numeric(Isolate* isolate,
-                                       DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::Numeric(Isolate* isolate,
+                                 DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
   icu::Locale* icu_locale = locale->icu_locale()->raw();
   UErrorCode status = U_ZERO_ERROR;
@@ -848,8 +845,8 @@ DirectHandle<Object> JSLocale::Numeric(Isolate* isolate,
   return factory->ToBoolean(numeric == "true");
 }
 
-DirectHandle<Object> JSLocale::NumberingSystem(Isolate* isolate,
-                                               DirectHandle<JSLocale> locale) {
+Handle<Object> JSLocale::NumberingSystem(Isolate* isolate,
+                                         DirectHandle<JSLocale> locale) {
   return UnicodeKeywordValue(isolate, locale, "nu");
 }
 
@@ -858,8 +855,8 @@ std::string JSLocale::ToString(DirectHandle<JSLocale> locale) {
   return Intl::ToLanguageTag(*icu_locale).FromJust();
 }
 
-DirectHandle<String> JSLocale::ToString(Isolate* isolate,
-                                        DirectHandle<JSLocale> locale) {
+Handle<String> JSLocale::ToString(Isolate* isolate,
+                                  DirectHandle<JSLocale> locale) {
   std::string locale_str = JSLocale::ToString(locale);
   return isolate->factory()->NewStringFromAsciiChecked(locale_str.c_str());
 }

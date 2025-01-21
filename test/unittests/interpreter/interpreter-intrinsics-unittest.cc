@@ -26,7 +26,7 @@ class InvokeIntrinsicHelper {
         function_id_(function_id) {}
 
   template <class... A>
-  DirectHandle<Object> Invoke(A... args) {
+  Handle<Object> Invoke(A... args) {
     CHECK(IntrinsicsHelper::IsSupported(function_id_));
     int parameter_count = sizeof...(args);
     // Move the parameter to locals, since the order of the
@@ -44,12 +44,12 @@ class InvokeIntrinsicHelper {
     return callable(args...).ToHandleChecked();
   }
 
-  DirectHandle<Object> NewObject(const char* script) {
-    return v8::Utils::OpenDirectHandle(*CompileRun(script));
+  Handle<Object> NewObject(const char* script) {
+    return v8::Utils::OpenHandle(*CompileRun(script));
   }
 
-  DirectHandle<Object> Undefined() { return factory_->undefined_value(); }
-  DirectHandle<Object> Null() { return factory_->null_value(); }
+  Handle<Object> Undefined() { return factory_->undefined_value(); }
+  Handle<Object> Null() { return factory_->null_value(); }
 
  private:
   Isolate* isolate_;

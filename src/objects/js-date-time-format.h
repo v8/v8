@@ -40,7 +40,7 @@ class JSDateTimeFormat
   enum class RequiredOption { kDate, kTime, kAny };
   enum class DefaultsOption { kDate, kTime, kAll };
 
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSDateTimeFormat> New(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* service);
 
@@ -50,17 +50,17 @@ class JSDateTimeFormat
                        DirectHandle<Object> options, RequiredOption required,
                        DefaultsOption defaults, const char* service);
 
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSObject> ResolvedOptions(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
 
-  V8_WARN_UNUSED_RESULT static DirectHandle<String> Calendar(
+  V8_WARN_UNUSED_RESULT static Handle<String> Calendar(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
 
-  V8_WARN_UNUSED_RESULT static DirectHandle<Object> TimeZone(
+  V8_WARN_UNUSED_RESULT static Handle<Object> TimeZone(
       Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format);
 
   // ecma402/#sec-unwrapdatetimeformat
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSDateTimeFormat>
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat>
   UnwrapDateTimeFormat(Isolate* isolate, Handle<JSReceiver> format_holder);
 
   // ecma402/#sec-datetime-format-functions

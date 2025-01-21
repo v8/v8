@@ -37,7 +37,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   DisallowGarbageCollection no_gc;
 
   // Set the function data to the "illegal" builtin. Ideally we'd use some sort
-  // of "uninitialized" marker here, but it's cheaper to use a valid builtin and
+  // of "uninitialized" marker here, but it's cheaper to use a valid buitin and
   // avoid having to do uninitialized checks elsewhere.
   set_builtin_id(Builtin::kIllegal);
 
@@ -440,7 +440,7 @@ void SharedFunctionInfo::DiscardCompiled(
 }
 
 // static
-DirectHandle<Object> SharedFunctionInfo::GetSourceCode(
+Handle<Object> SharedFunctionInfo::GetSourceCode(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> source(Cast<String>(Cast<Script>(shared->script())->source()),
@@ -607,7 +607,7 @@ template <typename IsolateT>
 void SharedFunctionInfo::CreateAndSetUncompiledData(IsolateT* isolate,
                                                     FunctionLiteral* lit) {
   DCHECK(!lit->shared_function_info()->HasUncompiledData());
-  DirectHandle<UncompiledData> data;
+  Handle<UncompiledData> data;
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
     Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);

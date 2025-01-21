@@ -81,13 +81,12 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
   explicit CompilationCacheEval(Isolate* isolate)
       : CompilationCacheEvalOrScript(isolate) {}
 
-  InfoCellPair Lookup(DirectHandle<String> source,
-                      DirectHandle<SharedFunctionInfo> outer_info,
+  InfoCellPair Lookup(Handle<String> source,
+                      Handle<SharedFunctionInfo> outer_info,
                       DirectHandle<NativeContext> native_context,
                       LanguageMode language_mode, int position);
 
-  void Put(DirectHandle<String> source,
-           DirectHandle<SharedFunctionInfo> outer_info,
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
            DirectHandle<SharedFunctionInfo> function_info,
            DirectHandle<NativeContext> native_context,
            DirectHandle<FeedbackCell> feedback_cell, int position);
@@ -103,10 +102,9 @@ class CompilationCacheRegExp {
  public:
   CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
-  MaybeHandle<RegExpData> Lookup(DirectHandle<String> source,
-                                 JSRegExp::Flags flags);
+  MaybeHandle<RegExpData> Lookup(Handle<String> source, JSRegExp::Flags flags);
 
-  void Put(DirectHandle<String> source, JSRegExp::Flags flags,
+  void Put(Handle<String> source, JSRegExp::Flags flags,
            DirectHandle<RegExpData> data);
 
   // The number of generations for the RegExp sub cache.
@@ -154,15 +152,15 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  InfoCellPair LookupEval(DirectHandle<String> source,
-                          DirectHandle<SharedFunctionInfo> outer_info,
+  InfoCellPair LookupEval(Handle<String> source,
+                          Handle<SharedFunctionInfo> outer_info,
                           DirectHandle<Context> context,
                           LanguageMode language_mode, int position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
-  MaybeDirectHandle<RegExpData> LookupRegExp(DirectHandle<String> source,
-                                             JSRegExp::Flags flags);
+  MaybeHandle<RegExpData> LookupRegExp(Handle<String> source,
+                                       JSRegExp::Flags flags);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.
@@ -171,15 +169,14 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.
-  void PutEval(DirectHandle<String> source,
-               DirectHandle<SharedFunctionInfo> outer_info,
+  void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
                DirectHandle<Context> context,
                DirectHandle<SharedFunctionInfo> function_info,
                DirectHandle<FeedbackCell> feedback_cell, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
-  void PutRegExp(DirectHandle<String> source, JSRegExp::Flags flags,
+  void PutRegExp(Handle<String> source, JSRegExp::Flags flags,
                  DirectHandle<RegExpData> data);
 
   // Clear the cache - also used to initialize the cache at startup.

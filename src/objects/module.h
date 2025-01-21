@@ -68,7 +68,7 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
       v8::Module::ResolveSourceCallback source_callback);
 
   // Implementation of spec operation ModuleEvaluation.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Isolate* isolate, Handle<Module> module);
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
@@ -132,7 +132,7 @@ class JSModuleNamespace
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
   // schedule an exception and return Nothing.
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> GetExport(
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(
       Isolate* isolate, DirectHandle<String> name);
 
   bool HasExport(Isolate* isolate, DirectHandle<String> name);

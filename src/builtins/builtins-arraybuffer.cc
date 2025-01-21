@@ -252,9 +252,9 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * [AB] Let ctor be ? SpeciesConstructor(O, %ArrayBuffer%).
   // * [SAB] Let ctor be ? SpeciesConstructor(O, %SharedArrayBuffer%).
-  DirectHandle<JSFunction> constructor_fun =
-      is_shared ? isolate->shared_array_buffer_fun()
-                : isolate->array_buffer_fun();
+  Handle<JSFunction> constructor_fun = is_shared
+                                           ? isolate->shared_array_buffer_fun()
+                                           : isolate->array_buffer_fun();
   DirectHandle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, ctor,

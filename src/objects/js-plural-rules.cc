@@ -66,13 +66,13 @@ Handle<String> JSPluralRules::TypeAsString(Isolate* isolate) const {
 }
 
 // static
-MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
+MaybeHandle<JSPluralRules> JSPluralRules::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
-  MAYBE_RETURN(maybe_requested_locales, DirectHandle<JSPluralRules>());
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSPluralRules>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
@@ -87,7 +87,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   // 6. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
       Intl::GetLocaleMatcher(isolate, options, service);
-  MAYBE_RETURN(maybe_locale_matcher, MaybeDirectHandle<JSPluralRules>());
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSPluralRules>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 7. Let t be ? GetOption(options, "type", "string", « "cardinal",
@@ -95,7 +95,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   Maybe<Type> maybe_type = GetStringOption<Type>(
       isolate, options, "type", service, {"cardinal", "ordinal"},
       {Type::CARDINAL, Type::ORDINAL}, Type::CARDINAL);
-  MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSPluralRules>());
+  MAYBE_RETURN(maybe_type, MaybeHandle<JSPluralRules>());
   Type type = maybe_type.FromJust();
 
   // Note: The spec says we should do ResolveLocale after performing
@@ -139,7 +139,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
       Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3, false, service);
-  MAYBE_RETURN(maybe_digit_options, MaybeDirectHandle<JSPluralRules>());
+  MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
   settings =
       JSNumberFormat::SetDigitOptionsToFormatter(settings, digit_options);
@@ -158,7 +158,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
                   icu_number_formatter));
 
   // Now all properties are ready, so we can allocate the result object.
-  DirectHandle<JSPluralRules> plural_rules = Cast<JSPluralRules>(
+  Handle<JSPluralRules> plural_rules = Cast<JSPluralRules>(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   plural_rules->set_flags(0);
@@ -176,7 +176,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   return plural_rules;
 }
 
-MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
+MaybeHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double number) {
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
   DCHECK_NOT_NULL(icu_plural_rules);
@@ -197,7 +197,7 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePlural(
   return Intl::ToString(isolate, result);
 }
 
-MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
+MaybeHandle<String> JSPluralRules::ResolvePluralRange(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules, double x,
     double y) {
   icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
@@ -207,7 +207,7 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
       JSNumberFormat::GetRangeFormatter(
           isolate, plural_rules->locale(),
           *plural_rules->icu_number_formatter()->raw());
-  MAYBE_RETURN(maybe_range_formatter, MaybeDirectHandle<String>());
+  MAYBE_RETURN(maybe_range_formatter, MaybeHandle<String>());
 
   icu::number::LocalizedNumberRangeFormatter nrfmt =
       maybe_range_formatter.FromJust();
@@ -248,9 +248,9 @@ void CreateDataPropertyForOptions(Isolate* isolate,
 
 }  // namespace
 
-DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
+Handle<JSObject> JSPluralRules::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules) {
-  DirectHandle<JSObject> options =
+  Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale_value(plural_rules->locale(), isolate);

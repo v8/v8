@@ -15,10 +15,10 @@
 
 namespace v8::internal {
 
-DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
+Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
     Handle<Object> maybe_names) {
-  DirectHandle<JSRegExpResultIndices> indices(
+  Handle<JSRegExpResultIndices> indices(
       Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
 
@@ -163,9 +163,9 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 }
 
 // static
-MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                                 Handle<String> source,
-                                                 Handle<String> flags_string) {
+MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
+                                           Handle<String> source,
+                                           Handle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
@@ -296,8 +296,8 @@ Handle<StringType> WriteEscapedRegExpSource(DirectHandle<String> source,
   return result;
 }
 
-MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
-                                             DirectHandle<String> source) {
+MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
+                                       Handle<String> source) {
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = source->IsOneByteRepresentation();

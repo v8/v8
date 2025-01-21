@@ -118,7 +118,7 @@ class DeoptimizationLiteral {
     UNREACHABLE();
   }
 
-  DirectHandle<Object> Reify(Isolate* isolate) const;
+  Handle<Object> Reify(Isolate* isolate) const;
 
 #if V8_ENABLE_WEBASSEMBLY
   Float64 GetFloat64() const {

@@ -908,11 +908,10 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate,
   return GetProperty(&it);
 }
 
-MaybeDirectHandle<Object> Object::SetElement(Isolate* isolate,
-                                             DirectHandle<JSAny> object,
-                                             uint32_t index,
-                                             DirectHandle<Object> value,
-                                             ShouldThrow should_throw) {
+MaybeHandle<Object> Object::SetElement(Isolate* isolate,
+                                       DirectHandle<JSAny> object,
+                                       uint32_t index, Handle<Object> value,
+                                       ShouldThrow should_throw) {
   LookupIterator it(isolate, object, index);
   MAYBE_RETURN_NULL(
       SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
@@ -1728,17 +1727,17 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
   return GetProperty(&it);
 }
 
-MaybeDirectHandle<Object> Object::SetPropertyOrElement(
+MaybeHandle<Object> Object::SetPropertyOrElement(
     Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name,
     DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key);
   MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
-  return value;
+  return indirect_handle(value, isolate);
 }
 
-MaybeDirectHandle<Object> Object::GetPropertyOrElement(
+MaybeHandle<Object> Object::GetPropertyOrElement(
     DirectHandle<JSAny> receiver, DirectHandle<Name> name,
     DirectHandle<JSReceiver> holder) {
   Isolate* isolate = holder->GetIsolate();
@@ -1899,8 +1898,8 @@ static inline uint32_t ObjectAddressForHashing(Address object) {
   return MemoryChunk::AddressToOffset(object);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
-                                                 DirectHandle<Object> value) {
+static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,
+                                           DirectHandle<Object> value) {
   DirectHandle<Object> key = isolate->factory()->SizeToString(index);
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
@@ -1911,9 +1910,9 @@ static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                                     PACKED_ELEMENTS, 2);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate,
-                                                 DirectHandle<Object> key,
-                                                 DirectHandle<Object> value) {
+static inline Handle<Object> MakeEntryPair(Isolate* isolate,
+                                           DirectHandle<Object> key,
+                                           DirectHandle<Object> value) {
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);

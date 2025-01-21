@@ -1373,7 +1373,7 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   HandleScope handle_scope(isolate);
 
-  DirectHandle<String> key(Cast<String>(Tagged<Object>(raw_key)), isolate);
+  Handle<String> key(Cast<String>(Tagged<Object>(raw_key)), isolate);
   // This function should only be used as the slow path for forwarded strings.
   DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
 

@@ -912,7 +912,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #ifndef V8_JITLESS
 #ifndef V8_ENABLE_LEAPTIERING
   // If feedback vector is valid, check for optimized code and update invocation
-  // count. Load the optimization state from the feedback vector and reuse the
+  // count. Load the optimization state from the feedback vector and re-use the
   // register.
   Label flags_need_processing;
   Register flags = ecx;
@@ -1879,7 +1879,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_ENABLE_LEAPTIERING
   __ movd(saved_feedback_vector, feedback_vector);
 #else
-  // Load the optimization state from the feedback vector and reuse the
+  // Load the optimization state from the feedback vector and re-use the
   // register.
   Label flags_need_processing;
   Register flags = ecx;

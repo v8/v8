@@ -105,14 +105,13 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 // static
-DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
-                                                 DirectHandle<ArrayList> array,
-                                                 AllocationType allocation) {
+Handle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
+                                           DirectHandle<ArrayList> array,
+                                           AllocationType allocation) {
   int length = array->length();
   if (length == 0) return isolate->factory()->empty_fixed_array();
 
-  DirectHandle<FixedArray> result =
-      FixedArray::New(isolate, length, allocation);
+  Handle<FixedArray> result = FixedArray::New(isolate, length, allocation);
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   ObjectSlot dst_slot(result->RawFieldOfElementAt(0));

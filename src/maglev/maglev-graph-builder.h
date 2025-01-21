@@ -2361,7 +2361,7 @@ class MaglevGraphBuilder {
       GenericAccessFunc&& build_generic_access);
 
   // Load elimination -- when loading or storing a simple property without
-  // side effects, record its value, and allow that value to be reused on
+  // side effects, record its value, and allow that value to be re-used on
   // subsequent loads.
   void RecordKnownProperty(ValueNode* lookup_start_object,
                            KnownNodeAspects::LoadedPropertyMapKey key,

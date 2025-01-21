@@ -66,13 +66,13 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
 }
 }  // namespace
 
-MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
+MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
-  MAYBE_RETURN(maybe_requested_locales, DirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_requested_locales, Handle<JSRelativeTimeFormat>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
@@ -88,7 +88,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // 6. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
       Intl::GetLocaleMatcher(isolate, options, service);
-  MAYBE_RETURN(maybe_locale_matcher, MaybeDirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSRelativeTimeFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   // 7. Let _numberingSystem_ be ? GetOption(_options_, `"numberingSystem"`,
@@ -100,8 +100,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // a. If _numberingSystem_ does not match the
   //    `(3*8alphanum) *("-" (3*8alphanum))` sequence, throw a *RangeError*
   //     exception.
-  MAYBE_RETURN(maybe_numberingSystem,
-               MaybeDirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSRelativeTimeFormat>());
 
   // 9. Set _opt_.[[nu]] to _numberingSystem_.
 
@@ -131,7 +130,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   }
   // 12. Let locale be r.[[Locale]].
   Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(icu_locale);
-  MAYBE_RETURN(maybe_locale_str, MaybeDirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSRelativeTimeFormat>());
 
   // 13. Set relativeTimeFormat.[[Locale]] to locale.
   DirectHandle<String> locale_str =
@@ -151,7 +150,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::LONG, Style::SHORT, Style::NARROW}, Style::LONG);
-  MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_style, MaybeHandle<JSRelativeTimeFormat>());
   Style style_enum = maybe_style.FromJust();
 
   // 17. Set relativeTimeFormat.[[Style]] to s.
@@ -161,7 +160,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Maybe<Numeric> maybe_numeric = GetStringOption<Numeric>(
       isolate, options, "numeric", service, {"always", "auto"},
       {Numeric::ALWAYS, Numeric::AUTO}, Numeric::ALWAYS);
-  MAYBE_RETURN(maybe_numeric, MaybeDirectHandle<JSRelativeTimeFormat>());
+  MAYBE_RETURN(maybe_numeric, MaybeHandle<JSRelativeTimeFormat>());
   Numeric numeric_enum = maybe_numeric.FromJust();
 
   // 19. Set relativeTimeFormat.[[Numeric]] to numeric.
@@ -215,7 +214,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
       Managed<icu::RelativeDateTimeFormatter>::From(isolate, 0,
                                                     std::move(icu_formatter));
 
-  DirectHandle<JSRelativeTimeFormat> relative_time_format_holder =
+  Handle<JSRelativeTimeFormat> relative_time_format_holder =
       Cast<JSRelativeTimeFormat>(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
@@ -232,7 +231,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
 
 namespace {
 
-DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
+Handle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
     case Style::LONG:
       return isolate->factory()->long_string();
@@ -246,14 +245,13 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
 
 }  // namespace
 
-DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
+Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
   icu::RelativeDateTimeFormatter* formatter =
       format_holder->icu_formatter()->raw();
   DCHECK_NOT_NULL(formatter);
-  DirectHandle<JSObject> result =
-      factory->NewJSObject(isolate->object_function());
+  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   DirectHandle<String> locale(format_holder->locale(), isolate);
   DirectHandle<String> numberingSystem(format_holder->numberingSystem(),
                                        isolate);
@@ -281,8 +279,7 @@ Handle<String> JSRelativeTimeFormat::NumericAsString(Isolate* isolate) const {
 
 namespace {
 
-DirectHandle<String> UnitAsString(Isolate* isolate,
-                                  URelativeDateTimeUnit unit_enum) {
+Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
   Factory* factory = isolate->factory();
   switch (unit_enum) {
     case UDAT_REL_UNIT_SECOND:
@@ -340,12 +337,12 @@ bool GetURelativeDateTimeUnit(DirectHandle<String> unit,
 }
 
 template <typename T>
-MaybeDirectHandle<T> FormatCommon(
+MaybeHandle<T> FormatCommon(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format,
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
-    MaybeDirectHandle<T> (*formatToResult)(
-        Isolate*, const icu::FormattedRelativeDateTime&, DirectHandle<String>,
-        bool)) {
+    MaybeHandle<T> (*formatToResult)(Isolate*,
+                                     const icu::FormattedRelativeDateTime&,
+                                     DirectHandle<String>, bool)) {
   // 3. Let value be ? ToNumber(value).
   DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -384,7 +381,7 @@ MaybeDirectHandle<T> FormatCommon(
                         IsNaN(*value));
 }
 
-MaybeDirectHandle<String> FormatToString(
+MaybeHandle<String> FormatToString(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
     DirectHandle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
@@ -422,14 +419,14 @@ Maybe<bool> AddUnit(Isolate* isolate, DirectHandle<JSArray> array,
   return Just(true);
 }
 
-MaybeDirectHandle<JSArray> FormatToJSArray(
+MaybeHandle<JSArray> FormatToJSArray(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
     DirectHandle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string = formatted.toString(status);
 
   Factory* factory = isolate->factory();
-  DirectHandle<JSArray> array = factory->NewJSArray(0);
+  Handle<JSArray> array = factory->NewJSArray(0);
   icu::ConstrainedFieldPosition cfpos;
   cfpos.constrainCategory(UFIELD_CATEGORY_NUMBER);
   int32_t index = 0;
@@ -450,7 +447,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
       if (start > previous_end) {
         Maybe<bool> maybe_added =
             AddLiteral(isolate, array, string, index++, previous_end, start);
-        MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
+        MAYBE_RETURN(maybe_added, Handle<JSArray>());
       }
       if (field == UNUM_INTEGER_FIELD) {
         for (auto start_limit : groups) {
@@ -459,13 +456,13 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
                 AddUnit(isolate, array, string, index++,
                         NumberFormatSpan(field, start, start_limit.first), unit,
                         is_nan);
-            MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
+            MAYBE_RETURN(maybe_added, Handle<JSArray>());
             maybe_added =
                 AddUnit(isolate, array, string, index++,
                         NumberFormatSpan(UNUM_GROUPING_SEPARATOR_FIELD,
                                          start_limit.first, start_limit.second),
                         unit, is_nan);
-            MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
+            MAYBE_RETURN(maybe_added, Handle<JSArray>());
             start = start_limit.second;
           }
         }
@@ -473,7 +470,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
       Maybe<bool> maybe_added =
           AddUnit(isolate, array, string, index++,
                   NumberFormatSpan(field, start, limit), unit, is_nan);
-      MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
+      MAYBE_RETURN(maybe_added, Handle<JSArray>());
       previous_end = limit;
     }
   }
@@ -483,7 +480,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
   if (string.length() > previous_end) {
     Maybe<bool> maybe_added = AddLiteral(isolate, array, string, index,
                                          previous_end, string.length());
-    MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
+    MAYBE_RETURN(maybe_added, Handle<JSArray>());
   }
 
   JSObject::ValidateElements(*array);
@@ -492,7 +489,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
 
 }  // namespace
 
-MaybeDirectHandle<String> JSRelativeTimeFormat::Format(
+MaybeHandle<String> JSRelativeTimeFormat::Format(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
     DirectHandle<JSRelativeTimeFormat> format) {
   return FormatCommon<String>(isolate, format, value_obj, unit_obj,
@@ -500,7 +497,7 @@ MaybeDirectHandle<String> JSRelativeTimeFormat::Format(
                               FormatToString);
 }
 
-MaybeDirectHandle<JSArray> JSRelativeTimeFormat::FormatToParts(
+MaybeHandle<JSArray> JSRelativeTimeFormat::FormatToParts(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
     DirectHandle<JSRelativeTimeFormat> format) {
   return FormatCommon<JSArray>(

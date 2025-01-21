@@ -28,7 +28,7 @@ class AsmJs {
   static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator);
-  static MaybeDirectHandle<Object> InstantiateAsmWasm(
+  static MaybeHandle<Object> InstantiateAsmWasm(
       Isolate* isolate, DirectHandle<SharedFunctionInfo>,
       DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
       Handle<JSReceiver> foreign, Handle<JSArrayBuffer> memory);

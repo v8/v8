@@ -357,7 +357,7 @@ template <bool IsFirstUpdate = false>
 void UpdateOutLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
                        BytecodeLivenessState* next_bytecode_in_liveness,
                        const interpreter::BytecodeArrayIterator& iterator,
-                       DirectHandle<BytecodeArray> bytecode_array,
+                       Handle<BytecodeArray> bytecode_array,
                        const BytecodeLivenessMap& liveness_map, Zone* zone) {
   switch (bytecode) {
 #define BYTECODE_UPDATE_OUT_LIVENESS(Name, ...)                        \
@@ -376,7 +376,7 @@ template <bool IsFirstUpdate, Bytecode bytecode,
 void UpdateLiveness(BytecodeLiveness& liveness,
                     BytecodeLivenessState** next_bytecode_in_liveness,
                     const interpreter::BytecodeArrayIterator& iterator,
-                    DirectHandle<BytecodeArray> bytecode_array,
+                    Handle<BytecodeArray> bytecode_array,
                     const BytecodeLivenessMap& liveness_map, Zone* zone) {
   UpdateOutLiveness<IsFirstUpdate, bytecode>(
       liveness, *next_bytecode_in_liveness, iterator, bytecode_array,
@@ -402,7 +402,7 @@ template <bool IsFirstUpdate = false>
 void UpdateLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
                     BytecodeLivenessState** next_bytecode_in_liveness,
                     const interpreter::BytecodeArrayIterator& iterator,
-                    DirectHandle<BytecodeArray> bytecode_array,
+                    Handle<BytecodeArray> bytecode_array,
                     const BytecodeLivenessMap& liveness_map, Zone* zone) {
   switch (bytecode) {
 #define BYTECODE_UPDATE_LIVENESS(Name, ...)                               \

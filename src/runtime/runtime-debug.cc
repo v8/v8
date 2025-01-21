@@ -162,8 +162,7 @@ namespace {
 
 template <class IteratorType>
 static Handle<ArrayList> AddIteratorInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
-    DirectHandle<IteratorType> iterator) {
+    Isolate* isolate, Handle<ArrayList> result, Handle<IteratorType> iterator) {
   const char* kind = nullptr;
   switch (iterator->map()->instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -238,10 +237,10 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
             isolate->factory()->CopyFixedArray(
                 handle(function->bound_arguments(), isolate))));
   } else if (IsJSMapIterator(*object)) {
-    DirectHandle<JSMapIterator> iterator = Cast<JSMapIterator>(object);
+    Handle<JSMapIterator> iterator = Cast<JSMapIterator>(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (IsJSSetIterator(*object)) {
-    DirectHandle<JSSetIterator> iterator = Cast<JSSetIterator>(object);
+    Handle<JSSetIterator> iterator = Cast<JSSetIterator>(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
   } else if (IsJSGeneratorObject(*object)) {
     auto generator = Cast<JSGeneratorObject>(object);
@@ -628,11 +627,11 @@ Handle<Object> GetJSPositionInfo(DirectHandle<Script> script, int position,
   return jsinfo;
 }
 
-DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
-                                            DirectHandle<Script> script,
-                                            DirectHandle<Object> opt_line,
-                                            DirectHandle<Object> opt_column,
-                                            int32_t offset) {
+Handle<Object> ScriptLocationFromLine(Isolate* isolate,
+                                      DirectHandle<Script> script,
+                                      DirectHandle<Object> opt_line,
+                                      DirectHandle<Object> opt_column,
+                                      int32_t offset) {
   // Line and column are possibly undefined and we need to handle these cases,
   // additionally subtracting corresponding offsets.
 
@@ -720,15 +719,14 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
 }
 
 namespace {
-DirectHandle<JSObject> MakeRangeObject(Isolate* isolate,
-                                       const CoverageBlock& range) {
+Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
   Factory* factory = isolate->factory();
 
   DirectHandle<String> start_string = factory->InternalizeUtf8String("start");
   DirectHandle<String> end_string = factory->InternalizeUtf8String("end");
   DirectHandle<String> count_string = factory->InternalizeUtf8String("count");
 
-  DirectHandle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
   JSObject::AddProperty(isolate, range_obj, start_string,
                         factory->NewNumberFromInt(range.start), NONE);
   JSObject::AddProperty(isolate, range_obj, end_string,

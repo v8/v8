@@ -51,11 +51,11 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
          offset;
 }
 
-DirectHandle<Map> CreateStructMap(
-    Isolate* isolate, const WasmModule* module, ModuleTypeIndex struct_index,
-    Handle<Map> opt_rtt_parent,
-    DirectHandle<WasmTrustedInstanceData> trusted_data,
-    DirectHandle<WasmInstanceObject> instance) {
+Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
+                            ModuleTypeIndex struct_index,
+                            Handle<Map> opt_rtt_parent,
+                            DirectHandle<WasmTrustedInstanceData> trusted_data,
+                            DirectHandle<WasmInstanceObject> instance) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
@@ -67,7 +67,7 @@ DirectHandle<Map> CreateStructMap(
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, trusted_data,
       struct_index);
-  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, map_instance_size, elements_kind,
       inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -80,11 +80,11 @@ DirectHandle<Map> CreateStructMap(
   return map;
 }
 
-DirectHandle<Map> CreateArrayMap(
-    Isolate* isolate, const WasmModule* module, ModuleTypeIndex array_index,
-    Handle<Map> opt_rtt_parent,
-    DirectHandle<WasmTrustedInstanceData> trusted_data,
-    DirectHandle<WasmInstanceObject> instance) {
+Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
+                           ModuleTypeIndex array_index,
+                           Handle<Map> opt_rtt_parent,
+                           DirectHandle<WasmTrustedInstanceData> trusted_data,
+                           DirectHandle<WasmInstanceObject> instance) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
@@ -93,7 +93,7 @@ DirectHandle<Map> CreateArrayMap(
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, trusted_data,
       array_index);
-  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
+  Handle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, instance_size, elements_kind,
       inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -920,7 +920,7 @@ class InstanceBuilder {
   void SanitizeImports();
 
   // Allocate the memory.
-  MaybeDirectHandle<WasmMemoryObject> AllocateMemory(uint32_t memory_index);
+  MaybeHandle<WasmMemoryObject> AllocateMemory(uint32_t memory_index);
 
   // Processes a single imported function.
   bool ProcessImportedFunction(
@@ -2465,7 +2465,7 @@ void InstanceBuilder::InitGlobals(
 }
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
-MaybeDirectHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
+MaybeHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
     uint32_t memory_index) {
   const WasmMemory& memory = module_->memories[memory_index];
   int initial_pages = static_cast<int>(memory.initial_pages);
@@ -2474,9 +2474,8 @@ MaybeDirectHandle<WasmMemoryObject> InstanceBuilder::AllocateMemory(
                           : WasmMemoryObject::kNoMaximum;
   auto shared = memory.is_shared ? SharedFlag::kShared : SharedFlag::kNotShared;
 
-  MaybeDirectHandle<WasmMemoryObject> maybe_memory_object =
-      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared,
-                            memory.address_type);
+  MaybeHandle<WasmMemoryObject> maybe_memory_object = WasmMemoryObject::New(
+      isolate_, initial_pages, maximum_pages, shared, memory.address_type);
   if (maybe_memory_object.is_null()) {
     thrower_->RangeError(
         "Out of memory: Cannot allocate Wasm memory for new instance");

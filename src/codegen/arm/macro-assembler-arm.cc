@@ -1977,7 +1977,7 @@ void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
   if (temps.CanAcquireVfp<SwVfpRegister>()) {
     single_scratch = temps.AcquireS();
   } else {
-    // Reuse the input as a scratch register. However, we can only do this if
+    // Re-use the input as a scratch register. However, we can only do this if
     // the input register is d0-d15 as there are no s32+ registers.
     DCHECK_LT(double_input.code(), LowDwVfpRegister::kNumRegisters);
     LowDwVfpRegister double_scratch =

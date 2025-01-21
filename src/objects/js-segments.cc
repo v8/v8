@@ -26,9 +26,9 @@ namespace v8 {
 namespace internal {
 
 // ecma402 #sec-createsegmentsobject
-MaybeDirectHandle<JSSegments> JSSegments::Create(
-    Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
-    DirectHandle<String> string) {
+MaybeHandle<JSSegments> JSSegments::Create(Isolate* isolate,
+                                           DirectHandle<JSSegmenter> segmenter,
+                                           DirectHandle<String> string) {
   std::shared_ptr<icu::BreakIterator> break_iterator{
       segmenter->icu_break_iterator()->raw()->clone()};
   DCHECK_NOT_NULL(break_iterator);
@@ -42,9 +42,9 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
   // 2. Let segments be ! ObjectCreate(%Segments.prototype%, internalSlotsList).
   DirectHandle<Map> map(isolate->native_context()->intl_segments_map(),
                         isolate);
-  DirectHandle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
+  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
 
-  DirectHandle<JSSegments> segments = Cast<JSSegments>(result);
+  Handle<JSSegments> segments = Cast<JSSegments>(result);
   segments->set_flags(0);
 
   // 3. Set segments.[[SegmentsSegmenter]] to segmenter.
@@ -60,8 +60,9 @@ MaybeDirectHandle<JSSegments> JSSegments::Create(
 }
 
 // ecma402 #sec-%segmentsprototype%.containing
-MaybeDirectHandle<Object> JSSegments::Containing(
-    Isolate* isolate, DirectHandle<JSSegments> segments, double n_double) {
+MaybeHandle<Object> JSSegments::Containing(Isolate* isolate,
+                                           DirectHandle<JSSegments> segments,
+                                           double n_double) {
   // 5. Let len be the length of string.
   int32_t len = segments->unicode_string()->raw()->length();
 

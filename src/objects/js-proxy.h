@@ -21,8 +21,9 @@ class KeyAccumulator;
 // The JSProxy describes ECMAScript Harmony proxies
 class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSProxy> New(
-      Isolate* isolate, DirectHandle<Object>, DirectHandle<Object>);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSProxy> New(Isolate* isolate,
+                                                        DirectHandle<Object>,
+                                                        DirectHandle<Object>);
 
   V8_INLINE bool IsRevoked() const;
   static void Revoke(DirectHandle<JSProxy> proxy);

@@ -62,7 +62,7 @@ class CodeSerializer : public Serializer {
   struct OffThreadDeserializeData {
    public:
     bool HasResult() const { return !maybe_result.is_null(); }
-    DirectHandle<Script> GetOnlyScript(LocalHeap* heap);
+    Handle<Script> GetOnlyScript(LocalHeap* heap);
 
    private:
     friend class CodeSerializer;

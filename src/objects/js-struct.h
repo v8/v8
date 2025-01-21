@@ -61,7 +61,7 @@ class JSSharedStruct
                                       Tagged<Map> instance_map,
                                       InternalIndex i);
 
-  static MaybeDirectHandle<NumberDictionary> GetElementsTemplate(
+  static MaybeHandle<NumberDictionary> GetElementsTemplate(
       Isolate* isolate, Tagged<Map> instance_map);
 
   static bool IsElementsTemplateDescriptor(Isolate* isolate,
@@ -83,7 +83,7 @@ class SharedStructTypeRegistry final {
   SharedStructTypeRegistry();
   ~SharedStructTypeRegistry();
 
-  MaybeDirectHandle<Map> Register(
+  MaybeHandle<Map> Register(
       Isolate* isolate, Handle<String> key,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names);

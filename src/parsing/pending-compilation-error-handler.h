@@ -70,8 +70,7 @@ class PendingCompilationErrorHandler {
   void PrepareWarnings(IsolateT* isolate);
   void ReportWarnings(Isolate* isolate, Handle<Script> script) const;
 
-  V8_EXPORT_PRIVATE DirectHandle<String> FormatErrorMessageForTest(
-      Isolate* isolate);
+  V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(Isolate* isolate);
 
   void set_unidentifiable_error() {
     has_pending_error_ = true;
@@ -131,7 +130,7 @@ class PendingCompilationErrorHandler {
           message_(message),
           args_{MessageArgument{arg0}, MessageArgument{}, MessageArgument{}} {}
 
-    DirectHandle<String> ArgString(Isolate* isolate, int index) const;
+    Handle<String> ArgString(Isolate* isolate, int index) const;
     int ArgCount() const {
       int argc = 0;
       for (int i = 0; i < kMaxArgumentCount; i++) {

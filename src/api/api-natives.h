@@ -25,7 +25,7 @@ class ApiNatives {
 
   // A convenient internal wrapper around FunctionTemplate::New() for creating
   // getter/setter callback function templates.
-  static DirectHandle<FunctionTemplateInfo> CreateAccessorFunctionTemplateInfo(
+  static Handle<FunctionTemplateInfo> CreateAccessorFunctionTemplateInfo(
       Isolate* isolate, FunctionCallback callback, int length,
       v8::SideEffectType side_effect_type);
 

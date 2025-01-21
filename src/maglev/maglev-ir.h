@@ -2012,7 +2012,7 @@ class NodeBase : public ZoneObject {
   }
 
   // Specify that there need to be a certain number of registers free (i.e.
-  // usable as scratch registers) on entry into this node.
+  // useable as scratch registers) on entry into this node.
   //
   // Does not include any registers requested by RequireSpecificTemporary.
   void set_temporaries_needed(uint8_t value) {
@@ -2325,7 +2325,7 @@ class ValueNode : public Node {
   void LoadToRegister(MaglevAssembler*, DoubleRegister);
   void DoLoadToRegister(MaglevAssembler*, Register);
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
-  DirectHandle<Object> Reify(LocalIsolate* isolate) const;
+  Handle<Object> Reify(LocalIsolate* isolate) const;
 
   size_t GetInputLocationsArraySize() const;
 
@@ -2374,7 +2374,7 @@ class ValueNode : public Node {
   LiveRange live_range() const { return {start_id(), end_id_}; }
   NodeIdT current_next_use() const { return next_use_; }
 
-  // The following methods should only be used during register allocation, to
+  // The following metods should only be used during register allocation, to
   // mark the _current_ state of this Node according to the register allocator.
   void advance_next_use(NodeIdT use) { next_use_ = use; }
 
@@ -5475,7 +5475,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   compiler::MapRef map_;
   const int id_;
   Type type_;  // We need to cache the type. We cannot do map comparison in some
-               // parts of the pipeline, because we would need to dereference a
+               // parts of the pipeline, because we would need to derefernece a
                // handle.
   bool snapshotted_ = false;  // Object should not be modified anymore.
   union {
@@ -6990,7 +6990,7 @@ class PolymorphicAccessInfo {
 
   const ZoneVector<compiler::MapRef>& maps() const { return maps_; }
 
-  DirectHandle<Object> constant() const {
+  Handle<Object> constant() const {
     DCHECK_EQ(kind_, kConstant);
     return constant_.object();
   }
@@ -7000,7 +7000,7 @@ class PolymorphicAccessInfo {
     return constant_double_.get_scalar();
   }
 
-  DirectHandle<Cell> cell() const {
+  Handle<Cell> cell() const {
     DCHECK_EQ(kind_, kModuleExport);
     return constant_.AsCell().object();
   }

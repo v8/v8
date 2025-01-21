@@ -66,7 +66,7 @@ class SourceTextModule
 
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
-  static DirectHandle<JSModuleNamespace> GetModuleNamespace(
+  static Handle<JSModuleNamespace> GetModuleNamespace(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
       int module_request);
 
@@ -195,7 +195,7 @@ class SourceTextModule
       Isolate* isolate, Handle<SourceTextModule> module);
 
   // Implementation of spec abstract operation InnerModuleEvaluation.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> InnerModuleEvaluation(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerModuleEvaluation(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
 
@@ -211,10 +211,9 @@ class SourceTextModule
   // Implementation of spec ExecuteModule is broken up into
   // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule
   // for synchronous modules.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object>
-  InnerExecuteAsyncModule(Isolate* isolate,
-                          DirectHandle<SourceTextModule> module,
-                          DirectHandle<JSPromise> capability);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerExecuteAsyncModule(
+      Isolate* isolate, DirectHandle<SourceTextModule> module,
+      DirectHandle<JSPromise> capability);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
       Isolate* isolate, DirectHandle<SourceTextModule> module,

@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
 
  private:
   bool generate_value() const { return isolate_ != nullptr && !has_error(); }
-  DirectHandle<WasmTrustedInstanceData> GetTrustedInstanceDataForTypeIndex(
+  Handle<WasmTrustedInstanceData> GetTrustedInstanceDataForTypeIndex(
       ModuleTypeIndex index);
 
   bool end_found_ = false;

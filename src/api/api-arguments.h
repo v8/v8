@@ -117,9 +117,9 @@ class PropertyCallbackArguments final
 
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
-  inline DirectHandle<Object> CallNamedQuery(
+  inline Handle<Object> CallNamedQuery(
       DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
-  inline DirectHandle<JSAny> CallNamedGetter(
+  inline Handle<JSAny> CallNamedGetter(
       DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
 
   // Calls Setter/Definer/Deleter callback and returns whether the request
@@ -140,7 +140,7 @@ class PropertyCallbackArguments final
   inline Handle<JSAny> CallNamedDescriptor(
       DirectHandle<InterceptorInfo> interceptor, DirectHandle<Name> name);
   // Returns JSArray-like object with property names or undefined.
-  inline DirectHandle<JSObjectOrUndefined> CallNamedEnumerator(
+  inline Handle<JSObjectOrUndefined> CallNamedEnumerator(
       DirectHandle<InterceptorInfo> interceptor);
 
   // -------------------------------------------------------------------------
@@ -148,9 +148,9 @@ class PropertyCallbackArguments final
 
   // Empty handle means that the request was not intercepted.
   // Pending exception handling should be done by the caller.
-  inline DirectHandle<Object> CallIndexedQuery(
+  inline Handle<Object> CallIndexedQuery(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index);
-  inline DirectHandle<JSAny> CallIndexedGetter(
+  inline Handle<JSAny> CallIndexedGetter(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index);
 
   // Calls Setter/Definer/Deleter callback and returns whether the request
@@ -171,7 +171,7 @@ class PropertyCallbackArguments final
   inline Handle<JSAny> CallIndexedDescriptor(
       DirectHandle<InterceptorInfo> interceptor, uint32_t index);
   // Returns JSArray-like object with property names or undefined.
-  inline DirectHandle<JSObjectOrUndefined> CallIndexedEnumerator(
+  inline Handle<JSObjectOrUndefined> CallIndexedEnumerator(
       DirectHandle<InterceptorInfo> interceptor);
 
   // Accept potential JavaScript side effects that might occur during life
@@ -292,8 +292,8 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline DirectHandle<Object> CallOrConstruct(
-      Tagged<FunctionTemplateInfo> function, bool is_construct);
+  inline Handle<Object> CallOrConstruct(Tagged<FunctionTemplateInfo> function,
+                                        bool is_construct);
 
   // Unofficial way of getting target FunctionTemplateInfo from
   // v8::FunctionCallbackInfo<T>.

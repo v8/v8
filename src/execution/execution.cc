@@ -163,8 +163,8 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   return params;
 }
 
-DirectHandle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
-                           bool is_construct) {
+Handle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
+                     bool is_construct) {
   if (is_construct) {
     DCHECK_EQ(Execution::Target::kCallable, execution_target);
     return BUILTIN_CODE(isolate, JSConstructEntry);
@@ -178,7 +178,7 @@ DirectHandle<Code> JSEntry(Isolate* isolate, Execution::Target execution_target,
   UNREACHABLE();
 }
 
-MaybeDirectHandle<Context> NewScriptContext(
+MaybeHandle<Context> NewScriptContext(
     Isolate* isolate, DirectHandle<JSFunction> function,
     DirectHandle<FixedArray> host_defined_options) {
   // TODO(cbruni, 1244145): Use passed in host_defined_options.
@@ -187,12 +187,12 @@ MaybeDirectHandle<Context> NewScriptContext(
   if (isolate->should_check_side_effects()) {
     isolate->Throw(*isolate->factory()->NewEvalError(
         MessageTemplate::kNoSideEffectDebugEvaluate));
-    return MaybeDirectHandle<Context>();
+    return MaybeHandle<Context>();
   }
   SaveAndSwitchContext save(isolate, function->context());
   Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Cast<Script>(sfi->script()), isolate);
-  DirectHandle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
+  Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
   DirectHandle<NativeContext> native_context(
       Cast<NativeContext>(function->context()), isolate);
   DirectHandle<JSGlobalObject> global_object(native_context->global_object(),
@@ -209,7 +209,7 @@ MaybeDirectHandle<Context> NewScriptContext(
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         DirectHandle<Context> context(script_context->get(lookup.context_index),
                                       isolate);
-        // If we are trying to redeclare a REPL-mode let as a let, REPL-mode
+        // If we are trying to re-declare a REPL-mode let as a let, REPL-mode
         // const as a const, REPL-mode using as a using and REPL-mode await
         // using as an await using allow it.
         if (!((mode == lookup.mode && IsLexicalVariableMode(mode)) &&
@@ -222,7 +222,7 @@ MaybeDirectHandle<Context> NewScriptContext(
           isolate->ThrowAt(isolate->factory()->NewSyntaxError(
                                MessageTemplate::kVarRedeclaration, name),
                            &location);
-          return MaybeDirectHandle<Context>();
+          return MaybeHandle<Context>();
         }
       }
     }
@@ -245,14 +245,14 @@ MaybeDirectHandle<Context> NewScriptContext(
         isolate->ThrowAt(isolate->factory()->NewSyntaxError(
                              MessageTemplate::kVarRedeclaration, name),
                          &location);
-        return MaybeDirectHandle<Context>();
+        return MaybeHandle<Context>();
       }
 
       JSGlobalObject::InvalidatePropertyCell(global_object, name);
     }
   }
 
-  DirectHandle<Context> result =
+  Handle<Context> result =
       isolate->factory()->NewScriptContext(native_context, scope_info);
 
   result->Initialize(isolate);
@@ -567,7 +567,7 @@ MaybeHandle<JSReceiver> Execution::New(
 }
 
 // static
-MaybeDirectHandle<Object> Execution::TryCallScript(
+MaybeHandle<Object> Execution::TryCallScript(
     Isolate* isolate, DirectHandle<JSFunction> script_function,
     DirectHandle<Object> receiver,
     DirectHandle<FixedArray> host_defined_options) {
@@ -596,7 +596,7 @@ MaybeHandle<Object> Execution::TryCall(
 }
 
 // static
-MaybeDirectHandle<Object> Execution::TryRunMicrotasks(
+MaybeHandle<Object> Execution::TryRunMicrotasks(
     Isolate* isolate, MicrotaskQueue* microtask_queue) {
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue));

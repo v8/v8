@@ -2476,7 +2476,7 @@ WASM_EXEC_TEST(Regular_Factorial) {
 }
 
 namespace {
-// TODO(cleanup): Define in cctest.h and reuse where appropriate.
+// TODO(cleanup): Define in cctest.h and re-use where appropriate.
 class IsolateScope {
  public:
   IsolateScope() {

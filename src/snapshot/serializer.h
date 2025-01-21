@@ -170,7 +170,7 @@ class ObjectCacheIndexMap {
     return true;
   }
 
-  DirectHandle<FixedArray> Values(Isolate* isolate);
+  Handle<FixedArray> Values(Isolate* isolate);
 
   int size() const { return next_index_; }
 

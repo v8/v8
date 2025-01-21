@@ -211,7 +211,7 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 }
 
 // static
-DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
+Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
   int length = shared->feedback_metadata()->create_closure_slot_count();
@@ -598,9 +598,9 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
-DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
+Handle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
   DCHECK(config()->can_write());
-  DirectHandle<WeakFixedArray> array =
+  Handle<WeakFixedArray> array =
       config()->isolate()->factory()->NewWeakFixedArray(length);
   return array;
 }
@@ -1391,14 +1391,14 @@ ForInHint FeedbackNexus::GetForInFeedback() const {
   return ForInHintFromFeedback(static_cast<ForInFeedback>(feedback));
 }
 
-MaybeDirectHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
+MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kInstanceOf);
   Tagged<MaybeObject> feedback = GetFeedback();
   Tagged<HeapObject> heap_object;
   if (feedback.GetHeapObjectIfWeak(&heap_object)) {
     return config()->NewHandle(Cast<JSObject>(heap_object));
   }
-  return MaybeDirectHandle<JSObject>();
+  return MaybeHandle<JSObject>();
 }
 
 FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)

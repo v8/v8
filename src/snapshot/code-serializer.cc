@@ -558,7 +558,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   return scope.CloseAndEscape(result);
 }
 
-DirectHandle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
+Handle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
     LocalHeap* heap) {
   std::unique_ptr<PersistentHandles> previous_persistent_handles =
       heap->DetachPersistentHandles();
@@ -566,7 +566,7 @@ DirectHandle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
 
   DCHECK_EQ(scripts.size(), 1);
   // Make a non-persistent handle to return.
-  DirectHandle<Script> script = direct_handle(*scripts[0], heap);
+  Handle<Script> script = handle(*scripts[0], heap);
   DCHECK_EQ(*script, maybe_result.ToHandleChecked()->script());
 
   persistent_handles = heap->DetachPersistentHandles();
@@ -885,7 +885,7 @@ SerializedCodeData SerializedCodeData::FromPartiallySanityCheckedCachedData(
     SerializedCodeSanityCheckResult* rejection_result) {
   DisallowGarbageCollection no_gc;
   // The previous call to FromCachedDataWithoutSource may have already rejected
-  // the cached data, so reuse the previous rejection result if it's not a
+  // the cached data, so re-use the previous rejection result if it's not a
   // success.
   if (*rejection_result != SerializedCodeSanityCheckResult::kSuccess) {
     // FromCachedDataWithoutSource doesn't check the source, so there can't be

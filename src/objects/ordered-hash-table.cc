@@ -269,7 +269,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
       isolate, new_capacity,
       HeapLayout::InYoungGeneration(*table) ? AllocationType::kYoung
                                             : AllocationType::kOld);
-  DirectHandle<Derived> new_table;
+  Handle<Derived> new_table;
   if (!new_table_candidate.ToHandle(&new_table)) {
     return new_table_candidate;
   }
@@ -1411,7 +1411,7 @@ int OrderedNameDictionaryHandler::Capacity(Tagged<HeapObject> table) {
   return Cast<OrderedNameDictionary>(table)->Capacity();
 }
 
-DirectHandle<HeapObject> OrderedNameDictionaryHandler::Shrink(
+Handle<HeapObject> OrderedNameDictionaryHandler::Shrink(
     Isolate* isolate, Handle<HeapObject> table) {
   if (IsSmallOrderedNameDictionary(*table)) {
     Handle<SmallOrderedNameDictionary> small_dict =
@@ -1423,7 +1423,7 @@ DirectHandle<HeapObject> OrderedNameDictionaryHandler::Shrink(
   return OrderedNameDictionary::Shrink(isolate, large_dict);
 }
 
-DirectHandle<HeapObject> OrderedNameDictionaryHandler::DeleteEntry(
+Handle<HeapObject> OrderedNameDictionaryHandler::DeleteEntry(
     Isolate* isolate, Handle<HeapObject> table, InternalIndex entry) {
   DisallowGarbageCollection no_gc;
   if (IsSmallOrderedNameDictionary(*table)) {

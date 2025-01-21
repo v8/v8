@@ -73,7 +73,7 @@ class WasmGCTester {
     builder_.AddExport(base::CStrVector(name), fun);
   }
 
-  MaybeDirectHandle<Object> CallExportedFunction(
+  MaybeHandle<Object> CallExportedFunction(
       const char* name, base::Vector<const DirectHandle<Object>> args) {
     DirectHandle<WasmExportedFunction> func =
         testing::GetExportedFunction(isolate_, instance_object_, name)
@@ -191,10 +191,10 @@ class WasmGCTester {
     return true;
   }
 
-  DirectHandle<WasmInstanceObject> instance_object() const {
+  Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
   }
-  DirectHandle<WasmTrustedInstanceData> trusted_instance_data() const {
+  Handle<WasmTrustedInstanceData> trusted_instance_data() const {
     return trusted_instance_data_;
   }
   Isolate* isolate() const { return isolate_; }

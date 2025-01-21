@@ -473,8 +473,8 @@ MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
   return ReferenceError(name);
 }
 
-MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
-                                             bool update_feedback) {
+MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
+                                       bool update_feedback) {
   Handle<JSGlobalObject> global = isolate()->global_object();
 
   if (IsString(*name)) {
@@ -487,8 +487,8 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
     if (script_contexts->Lookup(str_name, &lookup_result)) {
       DirectHandle<Context> script_context(
           script_contexts->get(lookup_result.context_index), isolate());
-      DirectHandle<Object> result(script_context->get(lookup_result.slot_index),
-                                  isolate());
+      Handle<Object> result(script_context->get(lookup_result.slot_index),
+                            isolate());
 
       if (IsTheHole(*result, isolate())) {
         // Do not install stubs and stay pre-monomorphic for
@@ -519,7 +519,7 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
         TraceIC("LoadGlobalIC", name);
       }
       if (v8_flags.script_context_mutable_heap_number) {
-        return direct_handle(
+        return handle(
             *Context::LoadScriptContextElement(
                 script_context, lookup_result.slot_index, result, isolate()),
             isolate());
@@ -586,7 +586,7 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler,
   if (!Protectors::IsMegaDOMIntact(isolate())) return false;
 
   // Check if current lookup object is an API object
-  DirectHandle<Map> map = lookup_start_object_map();
+  Handle<Map> map = lookup_start_object_map();
   if (!InstanceTypeChecker::IsJSApiObject(map->instance_type())) return false;
 
   Handle<Object> accessor_obj;
@@ -888,7 +888,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
     }
   }
 
-  DirectHandle<Map> map = lookup_start_object_map();
+  Handle<Map> map = lookup_start_object_map();
   bool holder_is_lookup_start_object =
       lookup_start_object.is_identical_to(lookup->GetHolder<JSReceiver>());
 
@@ -1578,8 +1578,8 @@ MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<JSAny> object,
   return load_handle;
 }
 
-MaybeDirectHandle<Object> KeyedLoadIC::Load(Handle<JSAny> object,
-                                            Handle<Object> key) {
+MaybeHandle<Object> KeyedLoadIC::Load(Handle<JSAny> object,
+                                      Handle<Object> key) {
   if (MigrateDeprecated(isolate(), object)) {
     return RuntimeLoad(object, key);
   }
@@ -1591,7 +1591,7 @@ MaybeDirectHandle<Object> KeyedLoadIC::Load(Handle<JSAny> object,
   if (key_type == kName) return LoadName(object, key, maybe_name);
 
   bool is_found = false;
-  MaybeDirectHandle<Object> result = RuntimeLoad(object, key, &is_found);
+  MaybeHandle<Object> result = RuntimeLoad(object, key, &is_found);
 
   size_t index;
   if (key_type == kIntPtr && CanCache(object, state()) &&
@@ -1711,8 +1711,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
   }
 }
 
-MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
-                                               Handle<Object> value) {
+MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
+                                         Handle<Object> value) {
   DCHECK(IsString(*name));
 
   // Look up in script context table.
@@ -2574,9 +2574,9 @@ KeyedAccessStoreMode GetStoreMode(DirectHandle<JSObject> receiver,
 
 }  // namespace
 
-MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
-                                              Handle<Object> key,
-                                              Handle<Object> value) {
+MaybeHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
+                                        Handle<Object> key,
+                                        Handle<Object> value) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
@@ -2593,7 +2593,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
     return result;
   }
 
-  DirectHandle<Object> store_handle;
+  Handle<Object> store_handle;
 
   intptr_t maybe_index;
   Handle<Name> maybe_name;
@@ -2655,7 +2655,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
   DCHECK(store_handle.is_null());
   // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
   // so the logic doesn't get mixed here.
-  MaybeDirectHandle<Object> result =
+  MaybeHandle<Object> result =
       IsDefineKeyedOwnIC()
           ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                              StoreOrigin::kNamed)
@@ -2728,9 +2728,9 @@ Maybe<bool> StoreOwnElement(Isolate* isolate, DirectHandle<JSArray> array,
 }
 }  // namespace
 
-MaybeDirectHandle<Object> StoreInArrayLiteralIC::Store(
-    DirectHandle<JSArray> array, Handle<Object> index,
-    DirectHandle<Object> value) {
+MaybeHandle<Object> StoreInArrayLiteralIC::Store(DirectHandle<JSArray> array,
+                                                 Handle<Object> index,
+                                                 Handle<Object> value) {
   DCHECK(!array->map()->IsMapInArrayPrototypeChain(isolate()));
   DCHECK(IsNumber(*index));
 
@@ -3172,7 +3172,7 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  DirectHandle<Object> value = args.at(0);
+  Handle<Object> value = args.at(0);
   int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   DirectHandle<JSAny> receiver = args.at<JSAny>(3);
@@ -3392,7 +3392,7 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
       !null_proto_literal,
       *target_map->prototype() == *isolate->object_function_prototype());
 
-  // Ensure source and target have identical binary representation of properties
+  // Ensure source and target have identical binary represenation of properties
   // and elements as the IC relies on copying the raw bytes. This also excludes
   // cases with non-enumerable properties or accessors on the source object.
   if (source_map->instance_type() != JS_OBJECT_TYPE ||
@@ -3517,9 +3517,10 @@ bool CanFastCloneObjectToObjectLiteral(DirectHandle<Map> source_map,
 
 }  // namespace
 
-static MaybeDirectHandle<JSObject> CloneObjectSlowPath(
-    Isolate* isolate, DirectHandle<Object> source, int flags) {
-  DirectHandle<JSObject> new_object;
+static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
+                                                 DirectHandle<Object> source,
+                                                 int flags) {
+  Handle<JSObject> new_object;
   if (flags & ObjectLiteral::kHasNullPrototype) {
     new_object = isolate->factory()->NewJSObjectWithNullProto();
   } else if (IsJSObject(*source) &&
@@ -3547,7 +3548,7 @@ static MaybeDirectHandle<JSObject> CloneObjectSlowPath(
       JSReceiver::SetOrCopyDataProperties(
           isolate, new_object, source,
           PropertiesEnumerationMode::kPropertyAdditionOrder, {}, false),
-      MaybeDirectHandle<JSObject>());
+      MaybeHandle<JSObject>());
   return new_object;
 }
 
@@ -3648,7 +3649,7 @@ Tagged<Object> GetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
 }
 
 template <SideStepTransition::Kind kind>
-void SetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
+void SetCloneTargetMap(Isolate* isolate, Handle<Map> source_map,
                        DirectHandle<Map> new_target_map,
                        DirectHandle<Map> override_map) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
@@ -3684,8 +3685,7 @@ void SetCloneTargetMap(Isolate* isolate, DirectHandle<Map> source_map,
 }
 
 template <SideStepTransition::Kind kind>
-void SetCloneTargetMapUnsupported(Isolate* isolate,
-                                  DirectHandle<Map> source_map,
+void SetCloneTargetMapUnsupported(Isolate* isolate, Handle<Map> source_map,
                                   DirectHandle<Map> override_map) {
   if (!v8_flags.clone_object_sidestep_transitions) return;
   DCHECK_EQ(GetCloneTargetMap<kind>(isolate, source_map, override_map),

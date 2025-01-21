@@ -926,7 +926,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   if (i_isolate->is_execution_terminating()) return true;
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
-    i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source));
+    i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
     // Set up ParseInfo.
     i::UnoptimizedCompileState compile_state;
@@ -5823,7 +5823,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
         WaitForRunningWorkers(parked);
       });
 
-  // Other threads have terminated, we can now run the artificial
+  // Other threads have terminated, we can now run the artifical
   // serialize-deserialize pass (which destructively mutates heap state).
   if (success && last_run && i::v8_flags.stress_snapshot) {
     HandleScope handle_scope(isolate);

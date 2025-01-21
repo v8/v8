@@ -312,7 +312,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
-DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_)) {
     return origin->code_target_object_handle_at(pc_);
@@ -321,7 +321,7 @@ DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
     DCHECK(IsFullEmbeddedObject(rmode_));
-    return Cast<HeapObject>(ReadUnalignedValue<IndirectHandle<Object>>(pc_));
+    return Cast<HeapObject>(ReadUnalignedValue<Handle<Object>>(pc_));
   }
 }
 

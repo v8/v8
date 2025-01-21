@@ -403,8 +403,8 @@ class JsonStringifier {
   V8_INLINE void Unindent() { indent_--; }
   V8_INLINE void Separator(bool first);
 
-  DirectHandle<JSReceiver> CurrentHolder(DirectHandle<Object> value,
-                                         DirectHandle<Object> inital_holder);
+  Handle<JSReceiver> CurrentHolder(DirectHandle<Object> value,
+                                   DirectHandle<Object> inital_holder);
 
   Result StackPush(Handle<Object> object, Handle<Object> key);
   void StackPop();
@@ -714,17 +714,17 @@ MaybeHandle<JSAny> JsonStringifier::ApplyReplacerFunction(
   return scope.CloseAndEscape(value);
 }
 
-DirectHandle<JSReceiver> JsonStringifier::CurrentHolder(
+Handle<JSReceiver> JsonStringifier::CurrentHolder(
     DirectHandle<Object> value, DirectHandle<Object> initial_holder) {
   if (stack_.empty()) {
-    DirectHandle<JSObject> holder =
+    Handle<JSObject> holder =
         factory()->NewJSObject(isolate_->object_function());
     JSObject::AddProperty(isolate_, holder, factory()->empty_string(),
                           initial_holder, NONE);
     return holder;
   } else {
-    return DirectHandle<JSReceiver>(Cast<JSReceiver>(*stack_.back().second),
-                                    isolate_);
+    return Handle<JSReceiver>(Cast<JSReceiver>(*stack_.back().second),
+                              isolate_);
   }
 }
 
@@ -2524,7 +2524,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     DCHECK_EQ(stack_.back().type, ContinuationRecord::kObject);
   }
   if (cont.type == ContinuationRecord::kResumeFromOther) {
-    // Multiple scenarios lead here:
+    // Mutliple scenarios lead here:
     // 1) The object to serialize was a string on the top-level, which triggered
     //    an encoding change.
     // 2) A string value in an array or object triggered an encoding change.
@@ -2887,9 +2887,8 @@ MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
 
 }  // namespace
 
-MaybeDirectHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
-                                        Handle<JSAny> replacer,
-                                        Handle<Object> gap) {
+MaybeHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
+                                  Handle<JSAny> replacer, Handle<Object> gap) {
   if (CanUseFastStringifier(replacer, gap)) {
     return FastJsonStringify(isolate, object);
   } else {

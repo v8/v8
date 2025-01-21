@@ -375,7 +375,7 @@ V8_OBJECT class String : public Name {
   // the result.
   // A {start_index} can be passed to specify where to start scanning the
   // replacement string.
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> GetSubstitution(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetSubstitution(
       Isolate* isolate, Match* match, Handle<String> replacement,
       uint32_t start_index = 0);
 
@@ -390,7 +390,7 @@ V8_OBJECT class String : public Name {
   // whole string or just a prefix.
   //
   // The Isolate is passed as "evidence" that this call is on the main thread,
-  // and to distinguish from the LocalIsolate overload.
+  // and to distiguish from the LocalIsolate overload.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const;
 
@@ -1196,7 +1196,7 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   inline const Resource* resource() const;
 
   // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsibility of the caller the handle the previous resource.
+  // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
 
   // Used only during serialization.
@@ -1234,7 +1234,7 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
   inline const Resource* resource() const;
 
   // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsibility of the caller the handle the previous resource.
+  // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
 
   // Used only during serialization.

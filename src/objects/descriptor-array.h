@@ -102,9 +102,9 @@ class DescriptorArray
   // array.
   inline void Append(Descriptor* desc);
 
-  static DirectHandle<DescriptorArray> CopyUpTo(
-      Isolate* isolate, DirectHandle<DescriptorArray> desc,
-      int enumeration_index, int slack = 0);
+  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
+                                          DirectHandle<DescriptorArray> desc,
+                                          int enumeration_index, int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,

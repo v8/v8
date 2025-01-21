@@ -78,10 +78,10 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
   }
 }
 
-MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
-    Isolate* isolate, DirectHandle<JSReceiver> recv) {
+MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
+                                              DirectHandle<JSReceiver> recv) {
   if (HasInitialRegExpMap(isolate, *recv)) {
-    return direct_handle(Cast<JSRegExp>(*recv)->last_index(), isolate);
+    return handle(Cast<JSRegExp>(*recv)->last_index(), isolate);
   } else {
     return Object::GetProperty(isolate, recv,
                                isolate->factory()->lastIndex_string());
@@ -204,7 +204,7 @@ uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
   return index + 1;
 }
 
-MaybeDirectHandle<Object> RegExpUtils::SetAdvancedStringIndex(
+MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
     Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
     bool unicode) {
   DirectHandle<Object> last_index_obj;

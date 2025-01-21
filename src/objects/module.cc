@@ -108,7 +108,7 @@ void Module::RecordError(Isolate* isolate, Tagged<Object> error) {
                  IsTheHole(exception(), isolate));
   DCHECK(!IsTheHole(error, isolate));
   if (IsSourceTextModule(*this)) {
-    // Revert to minimal SFI in case we have already been instantiating or
+    // Revert to minmal SFI in case we have already been instantiating or
     // evaluating.
     auto self = Cast<SourceTextModule>(*this);
     self->set_code(self->GetSharedFunctionInfo());
@@ -269,8 +269,7 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
   }
 }
 
-MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
-                                           Handle<Module> module) {
+MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
@@ -282,13 +281,13 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
     // rejected, and return it here. Otherwise create a new promise and
     // reject it with the module's exception.
     if (IsJSPromise(module->top_level_capability())) {
-      DirectHandle<JSPromise> top_level_capability(
+      Handle<JSPromise> top_level_capability(
           Cast<JSPromise>(module->top_level_capability()), isolate);
       DCHECK(top_level_capability->status() == Promise::kRejected &&
              top_level_capability->result() == module->exception());
       return top_level_capability;
     }
-    DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
+    Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
     JSPromise::Reject(capability, direct_handle(module->exception(), isolate));
     return capability;
   }
@@ -309,8 +308,7 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
   // 4. If module.[[TopLevelCapability]] is not EMPTY, then
   //    a. Return module.[[TopLevelCapability]].[[Promise]].
   if (IsJSPromise(module->top_level_capability())) {
-    return direct_handle(Cast<JSPromise>(module->top_level_capability()),
-                         isolate);
+    return handle(Cast<JSPromise>(module->top_level_capability()), isolate);
   }
   DCHECK(IsUndefined(module->top_level_capability()));
 
@@ -401,21 +399,21 @@ bool JSModuleNamespace::HasExport(Isolate* isolate, DirectHandle<String> name) {
   return !IsTheHole(*object, isolate);
 }
 
-MaybeDirectHandle<Object> JSModuleNamespace::GetExport(
-    Isolate* isolate, DirectHandle<String> name) {
+MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
+                                                 DirectHandle<String> name) {
   DirectHandle<Object> object(module()->exports()->Lookup(name), isolate);
   if (IsTheHole(*object, isolate)) {
     return isolate->factory()->undefined_value();
   }
 
-  DirectHandle<Object> value(Cast<Cell>(*object)->value(), isolate);
+  Handle<Object> value(Cast<Cell>(*object)->value(), isolate);
   if (IsTheHole(*value, isolate)) {
     // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
     // step 10 and
     // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
     // step 8-25, variables must be declared in Link. And according to
     // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-get-p-receiver,
-    // here accessing uninitialized variable error should be thrown.
+    // here accessing uninitialized variable error should be throwed.
     THROW_NEW_ERROR(isolate,
                     NewReferenceError(
                         MessageTemplate::kAccessedUninitializedVariable, name));

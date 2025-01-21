@@ -223,7 +223,7 @@ class ValueDeserializer {
   /*
    * Deserializes a V8 object from the buffer.
    */
-  MaybeDirectHandle<Object> ReadObjectWrapper() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<Object> ReadObjectWrapper() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads an object, consuming the entire buffer.
@@ -232,7 +232,7 @@ class ValueDeserializer {
    * reference deduplication, and instead relied on a "stack" model for
    * deserializing, with the contents of objects and arrays provided first.
    */
-  MaybeDirectHandle<Object> ReadObjectUsingEntireBufferForLegacyFormat()
+  MaybeHandle<Object> ReadObjectUsingEntireBufferForLegacyFormat()
       V8_WARN_UNUSED_RESULT;
 
   /*

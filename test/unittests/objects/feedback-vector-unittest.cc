@@ -14,10 +14,10 @@ namespace internal {
 
 class FeedbackVectorTest : public TestWithContext {
  protected:
-  DirectHandle<JSFunction> GetFunction(const char* name) {
+  Handle<JSFunction> GetFunction(const char* name) {
     v8::MaybeLocal<v8::Value> v8_f =
         v8_context()->Global()->Get(v8_context(), NewString(name));
-    DirectHandle<JSFunction> f =
+    Handle<JSFunction> f =
         Cast<JSFunction>(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
     return f;
   }

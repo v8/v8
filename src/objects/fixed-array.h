@@ -724,7 +724,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
       DirectHandle<Object> obj1,
       AllocationType allocation = AllocationType::kYoung);
 
-  V8_EXPORT_PRIVATE static DirectHandle<FixedArray> ToFixedArray(
+  V8_EXPORT_PRIVATE static Handle<FixedArray> ToFixedArray(
       Isolate* isolate, DirectHandle<ArrayList> array,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -876,8 +876,8 @@ class FixedAddressArrayBase : public FixedIntegerArrayBase<Address, Base> {
 
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
   template <typename... MoreArgs>
-  static inline DirectHandle<FixedAddressArrayBase> New(
-      Isolate* isolate, int length, MoreArgs&&... more_args);
+  static inline Handle<FixedAddressArrayBase> New(Isolate* isolate, int length,
+                                                  MoreArgs&&... more_args);
 } V8_OBJECT_END;
 
 using FixedAddressArray = FixedAddressArrayBase<ByteArray>;
@@ -937,8 +937,7 @@ template <class T>
 class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
  public:
   static Handle<TrustedPodArray<T>> New(Isolate* isolate, int length);
-  static DirectHandle<TrustedPodArray<T>> New(LocalIsolate* isolate,
-                                              int length);
+  static Handle<TrustedPodArray<T>> New(LocalIsolate* isolate, int length);
 } V8_OBJECT_END;
 
 }  // namespace v8::internal

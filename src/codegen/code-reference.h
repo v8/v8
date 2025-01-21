@@ -43,7 +43,7 @@ class CodeReference {
   bool is_code() const { return kind_ == Kind::CODE; }
   bool is_wasm_code() const { return kind_ == Kind::WASM_CODE; }
 
-  DirectHandle<Code> as_code() const {
+  Handle<Code> as_code() const {
     DCHECK_EQ(Kind::CODE, kind_);
     return code_;
   }

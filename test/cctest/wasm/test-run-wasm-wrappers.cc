@@ -21,13 +21,13 @@ using testing::CompileAndInstantiateForTesting;
     (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64)
 namespace {
-DirectHandle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
-                                               WasmModuleBuilder* builder) {
+Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
+                                         WasmModuleBuilder* builder) {
   ZoneBuffer buffer(zone);
   builder->WriteTo(&buffer);
   testing::SetupIsolateForWasmModule(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  MaybeDirectHandle<WasmInstanceObject> maybe_instance =
+  MaybeHandle<WasmInstanceObject> maybe_instance =
       CompileAndInstantiateForTesting(isolate, &thrower,
                                       base::VectorOf(buffer));
   CHECK_WITH_MSG(!thrower.error(), thrower.error_msg());
@@ -43,8 +43,8 @@ bool IsSpecific(Tagged<Code> wrapper) {
   return wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION;
 }
 
-DirectHandle<Object> SmiHandle(Isolate* isolate, int value) {
-  return DirectHandle<Object>(Smi::FromInt(value), isolate);
+Handle<Object> SmiHandle(Isolate* isolate, int value) {
+  return Handle<Object>(Smi::FromInt(value), isolate);
 }
 
 void SmiCall(Isolate* isolate,

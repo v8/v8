@@ -68,10 +68,12 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
   }
 }
 
-MaybeDirectHandle<Object> DefineAccessorProperty(
-    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Name> name,
-    DirectHandle<Object> getter, DirectHandle<Object> setter,
-    PropertyAttributes attributes) {
+MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
+                                           Handle<JSObject> object,
+                                           DirectHandle<Name> name,
+                                           DirectHandle<Object> getter,
+                                           DirectHandle<Object> setter,
+                                           PropertyAttributes attributes) {
   DCHECK(!IsFunctionTemplateInfo(*getter) ||
          Cast<FunctionTemplateInfo>(*getter)->should_cache());
   DCHECK(!IsFunctionTemplateInfo(*setter) ||
@@ -97,12 +99,12 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
   return object;
 }
 
-MaybeDirectHandle<Object> DefineDataProperty(Isolate* isolate,
-                                             DirectHandle<JSObject> object,
-                                             DirectHandle<Name> name,
-                                             Handle<Object> prop_data,
-                                             PropertyAttributes attributes) {
-  DirectHandle<Object> value;
+MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
+                                       DirectHandle<JSObject> object,
+                                       DirectHandle<Name> name,
+                                       Handle<Object> prop_data,
+                                       PropertyAttributes attributes) {
+  Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, name));
 
@@ -361,7 +363,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 }
 
 namespace {
-MaybeDirectHandle<Object> GetInstancePrototype(
+MaybeHandle<Object> GetInstancePrototype(
     Isolate* isolate, DirectHandle<Object> function_template) {
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
@@ -479,8 +481,7 @@ void AddPropertyToPropertyList(Isolate* isolate,
 }  // namespace
 
 // static
-DirectHandle<FunctionTemplateInfo>
-ApiNatives::CreateAccessorFunctionTemplateInfo(
+Handle<FunctionTemplateInfo> ApiNatives::CreateAccessorFunctionTemplateInfo(
     Isolate* i_isolate, FunctionCallback callback, int length,
     SideEffectType side_effect_type) {
   // TODO(v8:5962): move FunctionTemplateNew() from api.cc here.
@@ -488,7 +489,7 @@ ApiNatives::CreateAccessorFunctionTemplateInfo(
   Local<FunctionTemplate> func_template = FunctionTemplate::New(
       isolate, callback, v8::Local<Value>{}, v8::Local<v8::Signature>{}, length,
       v8::ConstructorBehavior::kThrow, side_effect_type);
-  return Utils::OpenDirectHandle(*func_template);
+  return Utils::OpenHandle(*func_template);
 }
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(

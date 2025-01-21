@@ -394,7 +394,7 @@ void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,
   }
 }
 
-DirectHandle<WasmTrustedInstanceData>
+Handle<WasmTrustedInstanceData>
 ConstantExpressionInterface::GetTrustedInstanceDataForTypeIndex(
     ModuleTypeIndex index) {
   bool type_is_shared = module_->type(index).is_shared;

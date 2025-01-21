@@ -260,8 +260,8 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
   return code;
 }
 
-DirectHandle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
-                                     CallDescriptor* call_descriptor) {
+Handle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
+                               CallDescriptor* call_descriptor) {
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);

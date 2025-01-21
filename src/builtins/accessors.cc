@@ -84,12 +84,12 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
   }
 }
 
-V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object>
+V8_WARN_UNUSED_RESULT MaybeHandle<Object>
 Accessors::ReplaceAccessorWithDataProperty(Isolate* isolate,
                                            DirectHandle<JSAny> receiver,
                                            DirectHandle<JSObject> holder,
                                            DirectHandle<Name> name,
-                                           DirectHandle<Object> value) {
+                                           Handle<Object> value) {
   LookupIterator it(isolate, receiver, PropertyKey(isolate, name), holder,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   // Skip any access checks we might hit. This accessor should never hit in a
@@ -121,7 +121,7 @@ void Accessors::ReconfigureToDataProperty(
   DirectHandle<JSObject> holder =
       Cast<JSObject>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Name> name = Utils::OpenDirectHandle(*key);
-  DirectHandle<Object> value = Utils::OpenDirectHandle(*val);
+  Handle<Object> value = Utils::OpenHandle(*val);
   MaybeDirectHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
       isolate, receiver, holder, name, value);
   if (!result.is_null()) {
@@ -143,8 +143,7 @@ void Accessors::ArgumentsIteratorGetter(
       Utils::ToLocal(DirectHandle<Object>(result, isolate)));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeArgumentsIteratorInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeArgumentsIteratorInfo(Isolate* isolate) {
   DirectHandle<Name> name = isolate->factory()->iterator_symbol();
   return MakeAccessor(isolate, name, &ArgumentsIteratorGetter, nullptr);
 }
@@ -230,7 +229,7 @@ void Accessors::ArrayLengthSetter(
   }
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeArrayLengthInfo(Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeArrayLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &ArrayLengthGetter, &ArrayLengthSetter);
 }
@@ -271,7 +270,7 @@ void Accessors::ModuleNamespaceEntrySetter(
   }
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeModuleNamespaceEntryInfo(
+Handle<AccessorInfo> Accessors::MakeModuleNamespaceEntryInfo(
     Isolate* isolate, DirectHandle<String> name) {
   return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
                       &ModuleNamespaceEntrySetter);
@@ -306,7 +305,7 @@ void Accessors::StringLengthGetter(
       Utils::ToLocal(DirectHandle<Object>(result, isolate)));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &StringLengthGetter, nullptr);
 }
@@ -315,8 +314,8 @@ DirectHandle<AccessorInfo> Accessors::MakeStringLengthInfo(Isolate* isolate) {
 // Accessors::FunctionPrototype
 //
 
-static DirectHandle<Object> GetFunctionPrototype(
-    Isolate* isolate, DirectHandle<JSFunction> function) {
+static Handle<Object> GetFunctionPrototype(Isolate* isolate,
+                                           DirectHandle<JSFunction> function) {
   if (!function->has_prototype()) {
     // We lazily allocate .prototype for functions, which confuses debug
     // evaluate which assumes we can write to temporary objects we allocated
@@ -328,7 +327,7 @@ static DirectHandle<Object> GetFunctionPrototype(
         isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
   }
-  return DirectHandle<Object>(function->prototype(), isolate);
+  return Handle<Object>(function->prototype(), isolate);
 }
 
 void Accessors::FunctionPrototypeGetter(
@@ -357,8 +356,7 @@ void Accessors::FunctionPrototypeSetter(
   info.GetReturnValue().Set(true);
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeFunctionPrototypeInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeFunctionPrototypeInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->prototype_string(),
                       &FunctionPrototypeGetter, &FunctionPrototypeSetter);
 }
@@ -378,7 +376,7 @@ void Accessors::FunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeFunctionLengthInfo(Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeFunctionLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &FunctionLengthGetter, &ReconfigureToDataProperty);
 }
@@ -396,7 +394,7 @@ void Accessors::FunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeFunctionNameInfo(Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &FunctionNameGetter, &ReconfigureToDataProperty);
 }
@@ -551,8 +549,7 @@ void Accessors::FunctionArgumentsGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->arguments_string(),
                       &FunctionArgumentsGetter, nullptr);
 }
@@ -726,7 +723,7 @@ void Accessors::FunctionCallerGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeFunctionCallerInfo(Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeFunctionCallerInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->caller_string(),
                       &FunctionCallerGetter, nullptr);
 }
@@ -751,8 +748,7 @@ void Accessors::BoundFunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeBoundFunctionLengthInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeBoundFunctionLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &BoundFunctionLengthGetter, &ReconfigureToDataProperty);
 }
@@ -775,8 +771,7 @@ void Accessors::BoundFunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeBoundFunctionNameInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeBoundFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &BoundFunctionNameGetter, &ReconfigureToDataProperty);
 }
@@ -801,7 +796,7 @@ void Accessors::WrappedFunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
     Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
                       &WrappedFunctionLengthGetter, &ReconfigureToDataProperty);
@@ -820,8 +815,7 @@ void Accessors::ValueUnavailableGetter(
       Utils::OpenDirectHandle(*name)));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeValueUnavailableInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeValueUnavailableInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->empty_string(),
                       &ValueUnavailableGetter, &ReconfigureToDataProperty);
 }
@@ -844,8 +838,7 @@ void Accessors::WrappedFunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-DirectHandle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(
-    Isolate* isolate) {
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
                       &WrappedFunctionNameGetter, &ReconfigureToDataProperty);
 }

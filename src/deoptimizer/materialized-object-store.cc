@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-DirectHandle<FixedArray> MaterializedObjectStore::Get(Address fp) {
+Handle<FixedArray> MaterializedObjectStore::Get(Address fp) {
   int index = StackIdToIndex(fp);
   if (index == -1) {
     return Handle<FixedArray>::null();
@@ -63,9 +63,8 @@ Handle<FixedArray> MaterializedObjectStore::GetStackEntries() {
                             isolate());
 }
 
-DirectHandle<FixedArray> MaterializedObjectStore::EnsureStackEntries(
-    int length) {
-  DirectHandle<FixedArray> array = GetStackEntries();
+Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
+  Handle<FixedArray> array = GetStackEntries();
   if (array->length() >= length) {
     return array;
   }
@@ -75,7 +74,7 @@ DirectHandle<FixedArray> MaterializedObjectStore::EnsureStackEntries(
     new_length = 2 * array->length();
   }
 
-  DirectHandle<FixedArray> new_array =
+  Handle<FixedArray> new_array =
       isolate()->factory()->NewFixedArray(new_length, AllocationType::kOld);
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));

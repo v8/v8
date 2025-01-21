@@ -238,7 +238,7 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
 class V8_EXPORT_PRIVATE NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
-  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   DECL_PRINTER(NameDictionary)
 
@@ -296,7 +296,7 @@ EXTERN_DECLARE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 class V8_EXPORT_PRIVATE GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
-  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   DECL_PRINTER(GlobalDictionary)
 
@@ -366,7 +366,7 @@ EXTERN_DECLARE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 class SimpleNumberDictionary
     : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
  public:
-  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   // Type specific at put (default NONE attributes is used when adding).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary>
@@ -383,7 +383,7 @@ EXTERN_DECLARE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
-  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+  static inline Handle<Map> GetMap(RootsTable& roots);
 
   DECL_PRINTER(NumberDictionary)
 

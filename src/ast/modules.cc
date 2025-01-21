@@ -129,12 +129,11 @@ Handle<UnionOf<String, Undefined>> ToStringOrUndefined(IsolateT* isolate,
 }  // namespace
 
 template <typename IsolateT>
-DirectHandle<ModuleRequest>
-SourceTextModuleDescriptor::AstModuleRequest::Serialize(
+Handle<ModuleRequest> SourceTextModuleDescriptor::AstModuleRequest::Serialize(
     IsolateT* isolate) const {
   // The import attributes will be stored in this array in the form:
   // [key1, value1, location1, key2, value2, location2, ...]
-  DirectHandle<FixedArray> import_attributes_array =
+  Handle<FixedArray> import_attributes_array =
       isolate->factory()->NewFixedArray(
           static_cast<int>(import_attributes()->size() *
                            ModuleRequest::kAttributeEntrySize),
@@ -156,15 +155,15 @@ SourceTextModuleDescriptor::AstModuleRequest::Serialize(
                                           phase_, import_attributes_array,
                                           position());
 }
-template DirectHandle<ModuleRequest>
+template Handle<ModuleRequest>
 SourceTextModuleDescriptor::AstModuleRequest::Serialize(Isolate* isolate) const;
-template DirectHandle<ModuleRequest>
+template Handle<ModuleRequest>
 SourceTextModuleDescriptor::AstModuleRequest::Serialize(
     LocalIsolate* isolate) const;
 
 template <typename IsolateT>
-DirectHandle<SourceTextModuleInfoEntry>
-SourceTextModuleDescriptor::Entry::Serialize(IsolateT* isolate) const {
+Handle<SourceTextModuleInfoEntry> SourceTextModuleDescriptor::Entry::Serialize(
+    IsolateT* isolate) const {
   CHECK(Smi::IsValid(module_request));  // TODO(neis): Check earlier?
   return SourceTextModuleInfoEntry::New(
       isolate, ToStringOrUndefined(isolate, export_name),
@@ -172,13 +171,13 @@ SourceTextModuleDescriptor::Entry::Serialize(IsolateT* isolate) const {
       ToStringOrUndefined(isolate, import_name), module_request, cell_index,
       location.beg_pos, location.end_pos);
 }
-template DirectHandle<SourceTextModuleInfoEntry>
+template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(Isolate* isolate) const;
-template DirectHandle<SourceTextModuleInfoEntry>
+template Handle<SourceTextModuleInfoEntry>
 SourceTextModuleDescriptor::Entry::Serialize(LocalIsolate* isolate) const;
 
 template <typename IsolateT>
-DirectHandle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
     IsolateT* isolate, Zone* zone) const {
   // We serialize regular exports in a way that lets us later iterate over their
   // local names and for each local name immediately access all its export
@@ -225,19 +224,17 @@ DirectHandle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
 
   // We cannot create the FixedArray earlier because we only now know the
   // precise size.
-  DirectHandle<FixedArray> result =
+  Handle<FixedArray> result =
       isolate->factory()->NewFixedArray(index, AllocationType::kOld);
   for (int i = 0; i < index; ++i) {
     result->set(i, *data[i]);
   }
   return result;
 }
-template DirectHandle<FixedArray>
-SourceTextModuleDescriptor::SerializeRegularExports(Isolate* isolate,
-                                                    Zone* zone) const;
-template DirectHandle<FixedArray>
-SourceTextModuleDescriptor::SerializeRegularExports(LocalIsolate* isolate,
-                                                    Zone* zone) const;
+template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    Isolate* isolate, Zone* zone) const;
+template Handle<FixedArray> SourceTextModuleDescriptor::SerializeRegularExports(
+    LocalIsolate* isolate, Zone* zone) const;
 
 void SourceTextModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {

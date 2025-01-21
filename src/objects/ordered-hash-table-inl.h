@@ -68,15 +68,15 @@ Handle<Map> OrderedNameDictionary::GetMap(RootsTable& roots) {
   return roots.ordered_name_dictionary_map();
 }
 
-DirectHandle<Map> SmallOrderedNameDictionary::GetMap(RootsTable& roots) {
+Handle<Map> SmallOrderedNameDictionary::GetMap(RootsTable& roots) {
   return roots.small_ordered_name_dictionary_map();
 }
 
-DirectHandle<Map> SmallOrderedHashMap::GetMap(RootsTable& roots) {
+Handle<Map> SmallOrderedHashMap::GetMap(RootsTable& roots) {
   return roots.small_ordered_hash_map_map();
 }
 
-DirectHandle<Map> SmallOrderedHashSet::GetMap(RootsTable& roots) {
+Handle<Map> SmallOrderedHashSet::GetMap(RootsTable& roots) {
   return roots.small_ordered_hash_set_map();
 }
 

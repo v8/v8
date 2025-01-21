@@ -29,7 +29,7 @@ Handle<String> JSSegmentIterator::GranularityAsString(Isolate* isolate) const {
 }
 
 // ecma402 #sec-createsegmentiterator
-MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
+MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
     Isolate* isolate, DirectHandle<String> input_string,
     icu::BreakIterator* incoming_break_iterator,
     JSSegmenter::Granularity granularity) {
@@ -57,10 +57,9 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
   break_iterator->setText(*string);
 
   // Now all properties are ready, so we can allocate the result object.
-  DirectHandle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
+  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(map);
   DisallowGarbageCollection no_gc;
-  DirectHandle<JSSegmentIterator> segment_iterator =
-      Cast<JSSegmentIterator>(result);
+  Handle<JSSegmentIterator> segment_iterator = Cast<JSSegmentIterator>(result);
 
   segment_iterator->set_flags(0);
   segment_iterator->set_granularity(granularity);
@@ -72,7 +71,7 @@ MaybeDirectHandle<JSSegmentIterator> JSSegmentIterator::Create(
 }
 
 // ecma402 #sec-%segmentiteratorprototype%.next
-MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
+MaybeHandle<JSReceiver> JSSegmentIterator::Next(
     Isolate* isolate, DirectHandle<JSSegmentIterator> segment_iterator) {
   // Sketches of ideas for future performance improvements, roughly in order
   // of difficulty:
@@ -86,7 +85,7 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
 
   // TODO(v8:14681): We StackCheck here to break execution in the event of an
   // interrupt. Ordinarily in JS loops, this stack check should already be
-  // occurring, however some loops implemented within CodeStubAssembler and
+  // occuring, however some loops implemented within CodeStubAssembler and
   // Torque builtins do not currently implement these checks. A preferable
   // solution which would benefit other iterators implemented in C++ include:
   //   1) Performing the stack check in CEntry, which would provide a solution
@@ -95,7 +94,7 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
   //   2) Rewriting the loop to include an outer loop, which performs periodic
   //   stack checks every N loop bodies (where N is some arbitrary heuristic
   //   selected to allow short loop counts to run with few interruptions).
-  STACK_CHECK(isolate, MaybeDirectHandle<JSReceiver>());
+  STACK_CHECK(isolate, MaybeHandle<JSReceiver>());
 
   Factory* factory = isolate->factory();
   icu::BreakIterator* icu_break_iterator =

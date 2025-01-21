@@ -346,7 +346,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
   for (int i = 0; i < arg_count; ++i) {
     // a. Remove the first element from args and let E be the value of the
     //    element.
-    DirectHandle<Object> element = args->at(i + 1);
+    Handle<Object> element = args->at(i + 1);
 
     // b. Perform ? Set(O, ! ToString(len), E, true).
     if (length <= JSObject::kMaxElementIndex) {
@@ -764,9 +764,9 @@ class ArrayConcatVisitor {
     return ExceedsLimitField::decode(bit_field_);
   }
 
-  DirectHandle<JSArray> ToArray() {
+  Handle<JSArray> ToArray() {
     DCHECK(is_fixed_array());
-    DirectHandle<JSArray> array = isolate_->factory()->NewJSArray(0);
+    Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
     DirectHandle<Number> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     DirectHandle<Map> map = JSObject::GetElementsTransitionMap(
@@ -781,9 +781,9 @@ class ArrayConcatVisitor {
     return array;
   }
 
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSReceiver> ToJSReceiver() {
+  V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
-    DirectHandle<JSReceiver> result = Cast<JSReceiver>(storage_);
+    Handle<JSReceiver> result = Cast<JSReceiver>(storage_);
     DirectHandle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
@@ -845,7 +845,7 @@ class ArrayConcatVisitor {
     bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
   }
   bool is_fixed_array() const { return IsFixedArrayField::decode(bit_field_); }
-  DirectHandle<FixedArray> storage_fixed_array() {
+  Handle<FixedArray> storage_fixed_array() {
     DCHECK(is_fixed_array());
     DCHECK(has_simple_elements());
     return Cast<FixedArray>(storage_);
@@ -1512,8 +1512,8 @@ bool IsSimpleArray(Isolate* isolate, DirectHandle<JSArray> obj) {
   return false;
 }
 
-MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
-                                            BuiltinArguments* args) {
+MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
+                                      BuiltinArguments* args) {
   if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate)) {
     return {};
   }
@@ -1543,7 +1543,7 @@ MaybeDirectHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       if (!IsSimpleArray(isolate, array)) {
         return {};
       }
-      // The Array length is guaranteed to be <= kHalfOfMaxInt thus we won't
+      // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
       // overflow.
       result_len += Smi::ToInt(array->length());
       DCHECK_GE(result_len, 0);
