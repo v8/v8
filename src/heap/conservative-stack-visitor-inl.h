@@ -69,6 +69,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
 #endif  // V8_COMPRESS_POINTERS
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
+  // TODO(379788114): Consider introducing a bloom filter for pages.
   const MemoryChunk* chunk =
       allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
   if (chunk == nullptr) {
@@ -102,16 +103,17 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   // Iterate through the objects in the page forwards, until we find the object
   // containing maybe_inner_ptr.
   DCHECK_LE(base_ptr, maybe_inner_ptr);
+  MarkingBitmap* bitmap = const_cast<MarkingBitmap*>(page->marking_bitmap());
   while (true) {
     Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
     MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
-    if (!ConcreteVisitor::FilterNormalObject(obj, map_word)) {
+    if (!ConcreteVisitor::FilterNormalObject(obj, map_word, bitmap)) {
       return kNullAddress;
     }
     const int size = obj->SizeFromMap(map_word.ToMap());
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size) {
-      ConcreteVisitor::HandleObjectFound(obj, size);
+      ConcreteVisitor::HandleObjectFound(obj, size, bitmap);
       return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
     }
     base_ptr += ALIGN_TO_ALLOCATION_ALIGNMENT(size);

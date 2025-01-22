@@ -148,6 +148,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // Gets the MarkBit for an `address` which may be unaligned (include the tag
   // bit).
   V8_INLINE static MarkBit MarkBitFromAddress(Address address);
+  V8_INLINE static MarkBit MarkBitFromAddress(MarkingBitmap* bitmap,
+                                              Address address);
 
   MarkingBitmap() = default;
   MarkingBitmap(const MarkingBitmap&) = delete;

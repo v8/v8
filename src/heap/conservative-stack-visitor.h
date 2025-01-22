@@ -9,6 +9,7 @@
 #include "src/base/address-region.h"
 #include "src/common/globals.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
 
@@ -23,9 +24,11 @@ class RootVisitor;
 //    interesting objects for the GC (e.g. a young page in a young gen GC).
 // 2) FilterLargeObject(Tagged<HeapObject>, MapWord) - returns true if the
 //    object should be handled by conservative stack scanning.
-// 3) FilterNormalObject(Tagged<HeapObject>, MapWord) - returns true if the
+// 3) FilterNormalObject(Tagged<HeapObject>, MapWord, MarkingBitmap*) - returns
+// true if the
 //    object should be handled by conservative stack scanning.
-// 4) HandleObjectFound(Tagged<HeapObject>, size_t) - Callback whenever
+// 4) HandleObjectFound(Tagged<HeapObject>, size_t, MarkingBitmap*) - Callback
+// whenever
 //    FindBasePtr finds a new object.
 // 5) OnlyScanMainV8Heap() - returns true if the visitor does not handle the
 // external code and trusted spaces.
@@ -86,8 +89,10 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitor
     return v8_flags.sticky_mark_bits || !chunk->IsFromPage();
   }
   static bool FilterLargeObject(Tagged<HeapObject>, MapWord) { return true; }
-  static bool FilterNormalObject(Tagged<HeapObject>, MapWord) { return true; }
-  static void HandleObjectFound(Tagged<HeapObject>, size_t) {}
+  static bool FilterNormalObject(Tagged<HeapObject>, MapWord, MarkingBitmap*) {
+    return true;
+  }
+  static void HandleObjectFound(Tagged<HeapObject>, size_t, MarkingBitmap*) {}
 
   friend class ConservativeStackVisitorBase<ConservativeStackVisitor>;
 };

@@ -452,24 +452,27 @@ class YoungGenerationConservativeStackVisitor
     return HeapLayout::IsSelfForwarded(object, map_word);
   }
 
-  static bool FilterNormalObject(Tagged<HeapObject> object, MapWord map_word) {
+  static bool FilterNormalObject(Tagged<HeapObject> object, MapWord map_word,
+                                 MarkingBitmap* bitmap) {
     DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
     if (map_word.IsForwardingAddress()) {
       DCHECK(HeapLayout::IsSelfForwarded(object));
-      DCHECK(MarkingBitmap::MarkBitFromAddress(object->address()).Get());
+      DCHECK(
+          MarkingBitmap::MarkBitFromAddress(bitmap, object->address()).Get());
       return false;
     }
-    MarkingBitmap::MarkBitFromAddress(object->address())
+    MarkingBitmap::MarkBitFromAddress(bitmap, object->address())
         .Set<AccessMode::NON_ATOMIC>();
     return true;
   }
 
-  static void HandleObjectFound(Tagged<HeapObject> object, size_t object_size) {
+  static void HandleObjectFound(Tagged<HeapObject> object, size_t object_size,
+                                MarkingBitmap* bitmap) {
     DCHECK_EQ(object_size, object->Size());
     Address object_address = object->address();
     if (object_address + object_size <
         PageMetadata::FromHeapObject(object)->area_end()) {
-      MarkingBitmap::MarkBitFromAddress(object_address + object_size)
+      MarkingBitmap::MarkBitFromAddress(bitmap, object_address + object_size)
           .Set<AccessMode::NON_ATOMIC>();
     }
   }

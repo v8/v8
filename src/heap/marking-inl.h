@@ -155,9 +155,16 @@ MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
 
 // static
 MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
+  return MarkBitFromAddress(FromAddress(address), address);
+}
+
+// static
+MarkBit MarkingBitmap::MarkBitFromAddress(MarkingBitmap* bitmap,
+                                          Address address) {
+  DCHECK_EQ(bitmap, FromAddress(address));
   const auto index = AddressToIndex(address);
   const auto mask = IndexInCellMask(index);
-  MarkBit::CellType* cell = FromAddress(address)->cells() + IndexToCell(index);
+  MarkBit::CellType* cell = bitmap->cells() + IndexToCell(index);
   return MarkBit(cell, mask);
 }
 
