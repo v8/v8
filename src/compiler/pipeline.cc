@@ -3362,11 +3362,9 @@ base::OwnedVector<uint8_t> SerializeInliningPositions(
 }  // namespace
 
 // static
-bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
-    OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
-    WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-    wasm::WasmDetectedFeatures* detected, CallDescriptor* call_descriptor,
-    Counters* counters) {
+wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
+    wasm::CompilationEnv* env, WasmCompilationData& compilation_data,
+    wasm::WasmDetectedFeatures* detected, Counters* counters) {
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
   base::TimeTicks start_time;
@@ -3374,10 +3372,42 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     start_time = base::TimeTicks::Now();
   }
   ZoneStats zone_stats(wasm_engine->allocator());
+
+  Zone graph_zone{wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone};
+  OptimizedCompilationInfo info(
+      GetDebugName(&graph_zone, env->module,
+                   compilation_data.wire_bytes_storage,
+                   compilation_data.func_index),
+      &graph_zone, CodeKind::WASM_FUNCTION);
+
+  if (info.trace_turbo_json()) {
+    TurboCfgFile tcf;
+    tcf << AsC1VCompilation(&info);
+  }
+
+  // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
+  // instead use only Turboshaft.
+  compiler::MachineGraph* mcgraph = graph_zone.New<compiler::MachineGraph>(
+      graph_zone.New<compiler::Graph>(&graph_zone),
+      graph_zone.New<CommonOperatorBuilder>(&graph_zone),
+      graph_zone.New<MachineOperatorBuilder>(
+          &graph_zone, MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags(),
+          InstructionSelector::AlignmentRequirements()));
+  if (info.trace_turbo_json()) {
+    compilation_data.node_origins =
+        graph_zone.New<NodeOriginTable>(mcgraph->graph());
+  }
+
+  compilation_data.source_positions =
+      mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
+  auto call_descriptor =
+      GetWasmCallDescriptor(&graph_zone, compilation_data.func_body.sig);
+
   std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(compilation_data, module, info, &zone_stats));
+      CreatePipelineStatistics(compilation_data, module, &info, &zone_stats));
   AssemblerOptions options = WasmAssemblerOptions();
-  TFPipelineData data(&zone_stats, wasm_engine, info, mcgraph,
+  TFPipelineData data(&zone_stats, wasm_engine, &info, mcgraph,
                       pipeline_statistics.get(),
                       compilation_data.source_positions,
                       compilation_data.node_origins, options);
@@ -3402,7 +3432,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   ZoneVector<WasmInliningPosition> inlining_positions(&inlining_positions_zone);
 
   turboshaft::PipelineData turboshaft_data(
-      &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, info,
+      &zone_stats, turboshaft::TurboshaftPipelineKind::kWasm, nullptr, &info,
       options);
   turboshaft_data.set_pipeline_statistics(pipeline_statistics.get());
   const wasm::FunctionSig* sig = compilation_data.func_body.sig;
@@ -3510,7 +3540,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
   const bool success = GenerateCodeFromTurboshaftGraph(
       v8_flags.turboshaft_wasm_instruction_selection_staged, &linkage,
       turboshaft_pipeline, &pipeline, data.osr_helper_ptr());
-  if (!success) return false;
+  if (!success) return {};
 
   CodeGenerator* code_generator;
   if (v8_flags.turboshaft_wasm_instruction_selection_staged) {
@@ -3519,20 +3549,20 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     code_generator = pipeline.code_generator();
   }
 
-  auto result = std::make_unique<wasm::WasmCompilationResult>();
+  wasm::WasmCompilationResult result;
   code_generator->masm()->GetCode(
-      nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
+      nullptr, &result.code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->handler_table_offset()));
 
-  result->instr_buffer = code_generator->masm()->ReleaseBuffer();
-  result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
-  result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
-  result->source_positions = code_generator->GetSourcePositionTable();
-  result->inlining_positions = SerializeInliningPositions(inlining_positions);
-  result->protected_instructions_data =
+  result.instr_buffer = code_generator->masm()->ReleaseBuffer();
+  result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
+  result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
+  result.source_positions = code_generator->GetSourcePositionTable();
+  result.inlining_positions = SerializeInliningPositions(inlining_positions);
+  result.protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
-  result->deopt_data = code_generator->GenerateWasmDeoptimizationData();
-  result->result_tier = wasm::ExecutionTier::kTurbofan;
+  result.deopt_data = code_generator->GenerateWasmDeoptimizationData();
+  result.result_tier = wasm::ExecutionTier::kTurbofan;
 
   if (data.info()->trace_turbo_json()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);
@@ -3542,9 +3572,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        nullptr, disassembler_stream, result->code_desc.buffer,
-        result->code_desc.buffer + result->code_desc.safepoint_table_offset,
-        CodeReference(&result->code_desc));
+        nullptr, disassembler_stream, result.code_desc.buffer,
+        result.code_desc.buffer + result.code_desc.safepoint_table_offset,
+        CodeReference(&result.code_desc));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
@@ -3567,7 +3597,7 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
 
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
-    int codesize = result->code_desc.body_size();
+    int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(module) << "#"
                    << compilation_data.func_index << " using TurboFan, took "
@@ -3586,9 +3616,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
         static_cast<int>(std::min(size_t{kMaxInt}, zone_bytes)));
   }
 
-  DCHECK(result->succeeded());
-  info->SetWasmCompilationResult(std::move(result));
-  return true;
+  DCHECK(result.succeeded());
+  return result;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

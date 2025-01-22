@@ -147,11 +147,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void SetCode(IndirectHandle<Code> code);
 
-#if V8_ENABLE_WEBASSEMBLY
-  void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
-  std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   bool has_context() const;
   Tagged<Context> context() const;
 
@@ -311,11 +306,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // Basic block profiling support.
   BasicBlockProfilerData* profiler_data_ = nullptr;
-
-#if V8_ENABLE_WEBASSEMBLY
-  // The WebAssembly compilation result, not published in the NativeModule yet.
-  std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Entry point when compiling for OSR, {BytecodeOffset::None} otherwise.
   const BytecodeOffset osr_offset_ = BytecodeOffset::None();

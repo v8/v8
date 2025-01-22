@@ -21,46 +21,15 @@ namespace v8::internal::compiler::turboshaft {
 wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv* env, compiler::WasmCompilationData& data,
     wasm::WasmDetectedFeatures* detected, Counters* counters) {
-  // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
-  // instead use only Turboshaft inside `GenerateWasmCodeFromTurboshaftGraph`.
-  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
-  compiler::MachineGraph* mcgraph = zone.New<compiler::MachineGraph>(
-      zone.New<compiler::Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
-      zone.New<MachineOperatorBuilder>(
-          &zone, MachineType::PointerRepresentation(),
-          InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements()));
+  wasm::WasmCompilationResult result =
+      Pipeline::GenerateWasmCode(env, data, detected, counters);
+  if (result.failed()) return {};
 
-  OptimizedCompilationInfo info(
-      GetDebugName(&zone, env->module, data.wire_bytes_storage,
-                   data.func_index),
-      &zone, CodeKind::WASM_FUNCTION);
-
-  if (info.trace_turbo_json()) {
-    TurboCfgFile tcf;
-    tcf << AsC1VCompilation(&info);
-  }
-
-  if (info.trace_turbo_json()) {
-    data.node_origins = zone.New<NodeOriginTable>(mcgraph->graph());
-  }
-
-  data.source_positions =
-      mcgraph->zone()->New<SourcePositionTable>(mcgraph->graph());
-  auto call_descriptor = GetWasmCallDescriptor(&zone, data.func_body.sig);
-
-  if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(
-          &info, env, data, mcgraph, detected, call_descriptor, counters)) {
-    return {};
-  }
-
-  auto result = info.ReleaseWasmCompilationResult();
-  CHECK_NOT_NULL(result);  // Compilation expected to succeed.
-  DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
-  DCHECK_NULL(result->assumptions);
-  result->assumptions = std::move(data.assumptions);
-  DCHECK_IMPLIES(result->assumptions, !result->assumptions->empty());
-  return std::move(*result);
+  DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result.result_tier);
+  DCHECK_NULL(result.assumptions);
+  result.assumptions = std::move(data.assumptions);
+  DCHECK_IMPLIES(result.assumptions, !result.assumptions->empty());
+  return result;
 }
 
 }  // namespace v8::internal::compiler::turboshaft
