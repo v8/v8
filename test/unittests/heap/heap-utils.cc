@@ -160,7 +160,7 @@ void HeapInternalsBase::SimulateFullSpace(
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   new_space->heap()->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kV8Only);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   if (v8_flags.minor_ms) {
     auto* space = heap->paged_new_space()->paged_space();
     space->AllocatePageUpToCapacityForTesting();
@@ -184,10 +184,8 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  if (heap->sweeping_in_progress()) {
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
-  }
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   space->ResetFreeList();
 }
 
