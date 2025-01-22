@@ -1575,7 +1575,7 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeMillisecond, JSParameterCount(0))              \
   /* Temporal #sec-get-temporal.plaintime.prototype.microsecond */             \
   CPP(TemporalPlainTimePrototypeMicrosecond, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaintime.prototype.nanoseond */               \
+  /* Temporal #sec-get-temporal.plaintime.prototype.nanosecond */               \
   CPP(TemporalPlainTimePrototypeNanosecond, JSParameterCount(0))               \
   /* Temporal #sec-temporal.plaintime.prototype.add */                         \
   CPP(TemporalPlainTimePrototypeAdd, kDontAdaptArgumentsSentinel)              \

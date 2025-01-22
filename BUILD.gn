@@ -205,7 +205,7 @@ declare_args() {
   # the `--trace-turbo` .json file from `mksnapshot`.
   v8_log_builtins_block_count_input = ""
 
-  # This build flag is used to control whether reorder builtins acoording to
+  # This build flag is used to control whether reorder builtins according to
   # the call graph with C3 algorithm based builtin PGO profiling.
   v8_enable_builtins_reordering = true
 
