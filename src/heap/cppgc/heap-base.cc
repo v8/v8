@@ -348,8 +348,8 @@ bool HeapBase::IsGCAllowed() const {
   return !sweeper().IsSweepingOnMutatorThread() && !in_no_gc_scope();
 }
 
-bool HeapBase::IsCurrentThread(int thread_id) const {
-  return thread_id == v8::base::OS::GetCurrentThreadId();
+bool HeapBase::CurrentThreadIsHeapThread() const {
+  return heap_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

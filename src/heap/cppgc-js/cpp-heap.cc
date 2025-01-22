@@ -636,6 +636,9 @@ void CppHeap::DetachIsolate() {
     detached_override_stack_state_ = heap_->overridden_stack_state();
     override_stack_state_scope_.reset();
   }
+  // Store the last thread that owned the isolate, as it is the thread CppHeap
+  // should also get terminated with.
+  heap_thread_id_ = v8::base::OS::GetCurrentThreadId();
   isolate_ = nullptr;
   heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
@@ -1314,13 +1317,13 @@ bool CppHeap::IsGCForbidden() const {
          HeapBase::IsGCForbidden();
 }
 
-bool CppHeap::IsCurrentThread(int thread_id) const {
+bool CppHeap::CurrentThreadIsHeapThread() const {
   if (isolate_ && V8_UNLIKELY(isolate_->was_locker_ever_used())) {
     // If v8::Locker has been used, we only check if the isolate is now locked
     // by the current thread.
     return isolate_->thread_manager()->IsLockedByCurrentThread();
   }
-  return HeapBase::IsCurrentThread(thread_id);
+  return HeapBase::CurrentThreadIsHeapThread();
 }
 
 }  // namespace internal

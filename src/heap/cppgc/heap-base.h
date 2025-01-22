@@ -206,9 +206,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     stats_collector_->SetMetricRecorder(std::move(histogram_recorder));
   }
 
-  bool CurrentThreadIsHeapThread() const {
-    return IsCurrentThread(creation_thread_id_);
-  }
+  virtual bool CurrentThreadIsHeapThread() const;
 
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
@@ -265,8 +263,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   using HeapHandle::is_incremental_marking_in_progress;
 
-  virtual bool IsCurrentThread(int thread_id) const;
-
  protected:
   static std::unique_ptr<PageBackend> InitializePageBackend(
       PageAllocator& allocator);
@@ -293,7 +289,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   // This field should be first so that it is initialized first at heap creation
   // and is available upon initialization of other fields.
-  int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
+  int heap_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;

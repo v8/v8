@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void CollectGarbageForTesting(CollectionType, StackState);
   void UpdateGCCapabilitiesFromFlagsForTesting();
 
-  bool IsCurrentThread(int thread_id) const final;
+  bool CurrentThreadIsHeapThread() const final;
 
  private:
   void UpdateGCCapabilitiesFromFlags();
