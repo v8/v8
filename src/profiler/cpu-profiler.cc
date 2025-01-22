@@ -160,8 +160,8 @@ void ProfilerEventsProcessor::AddDeoptStack(Address from, int fp_to_sp_delta) {
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
-void ProfilerEventsProcessor::AddCurrentStack(bool update_stats,
-                                              const uint64_t trace_id) {
+void ProfilerEventsProcessor::AddCurrentStack(
+    bool update_stats, const std::optional<uint64_t> trace_id) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
   StackFrameIterator it(isolate_, isolate_->thread_local_top(),
@@ -247,7 +247,8 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
       tick_sample.update_stats_, tick_sample.sampling_interval_,
       tick_sample.state, tick_sample.embedder_state,
       reinterpret_cast<Address>(tick_sample.context),
-      reinterpret_cast<Address>(tick_sample.embedder_context));
+      reinterpret_cast<Address>(tick_sample.embedder_context),
+      tick_sample.trace_id_);
 }
 
 ProfilerEventsProcessor::SampleProcessingResult
@@ -478,7 +479,8 @@ class CpuProfilersManager {
     UNREACHABLE();
   }
 
-  void CallCollectSample(Isolate* isolate, const uint64_t trace_id) {
+  void CallCollectSample(Isolate* isolate,
+                         const std::optional<uint64_t> trace_id) {
     base::SpinningMutexGuard lock(&mutex_);
     auto range = profilers_.equal_range(isolate);
     for (auto it = range.first; it != range.second; ++it) {
@@ -594,13 +596,13 @@ void CpuProfiler::AdjustSamplingInterval() {
 
 // static
 // |trace_id| is an optional identifier stored in the sample record used
-// to associate the sample with a trace event. Defaults to 0, which
-// means no identifier has been set.
-void CpuProfiler::CollectSample(Isolate* isolate, const uint64_t trace_id) {
+// to associate the sample with a trace event.
+void CpuProfiler::CollectSample(Isolate* isolate,
+                                const std::optional<uint64_t> trace_id) {
   GetProfilersManager()->CallCollectSample(isolate, trace_id);
 }
 
-void CpuProfiler::CollectSample(const uint64_t trace_id) {
+void CpuProfiler::CollectSample(const std::optional<uint64_t> trace_id) {
   if (processor_) {
     processor_->AddCurrentStack(false, trace_id);
   }

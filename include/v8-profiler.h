@@ -421,7 +421,8 @@ class V8_EXPORT CpuProfiler {
    * |trace_id| is an optional identifier set to the collected sample.
    * this is useful to associate the sample with a trace event.
    */
-  static void CollectSample(Isolate* isolate, const uint64_t trace_id = 0);
+  static void CollectSample(
+      Isolate* isolate, const std::optional<uint64_t> trace_id = std::nullopt);
 
   /**
    * Disposes the CPU profiler object.

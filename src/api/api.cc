@@ -11494,9 +11494,9 @@ void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
 
 // static
 // |trace_id| is an optional identifier stored in the sample record used
-// to associate the sample with a trace event. Defaults to
-// 0, which means no identifier has been set.
-void CpuProfiler::CollectSample(Isolate* v8_isolate, const uint64_t trace_id) {
+// to associate the sample with a trace event.
+void CpuProfiler::CollectSample(Isolate* v8_isolate,
+                                const std::optional<uint64_t> trace_id) {
   i::CpuProfiler::CollectSample(reinterpret_cast<i::Isolate*>(v8_isolate),
                                 trace_id);
 }

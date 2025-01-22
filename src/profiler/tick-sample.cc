@@ -167,7 +167,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    bool update_stats,
                                    bool use_simulator_reg_state,
                                    base::TimeDelta sampling_interval,
-                                   const uint64_t trace_id) {
+                                   const std::optional<uint64_t> trace_id) {
   update_stats_ = update_stats;
   SampleInfo info;
   RegisterState regs = reg_state;
