@@ -1020,7 +1020,7 @@ class Literal final : public Expression {
   // Returns an appropriate Object representing this Literal, allocating
   // a heap object if needed.
   template <typename IsolateT>
-  Handle<Object> BuildValue(IsolateT* isolate) const;
+  DirectHandle<Object> BuildValue(IsolateT* isolate) const;
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1304,7 +1304,7 @@ class ObjectLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
                   FastElementsField::encode(false) |
                   HasNullPrototypeField::encode(false);
   }
-  Handle<ObjectBoilerplateDescription> boilerplate_description() const {
+  DirectHandle<ObjectBoilerplateDescription> boilerplate_description() const {
     DCHECK(!boilerplate_description_.is_null());
     return boilerplate_description_;
   }
@@ -1426,7 +1426,7 @@ class ArrayLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
   ArrayLiteralBoilerplateBuilder(const ZonePtrList<Expression>* values,
                                  int first_spread_index)
       : values_(values), first_spread_index_(first_spread_index) {}
-  Handle<ArrayBoilerplateDescription> boilerplate_description() const {
+  DirectHandle<ArrayBoilerplateDescription> boilerplate_description() const {
     return boilerplate_description_;
   }
 

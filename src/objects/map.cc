@@ -1076,8 +1076,8 @@ bool Map::IsMapInArrayPrototypeChain(Isolate* isolate) const {
   return false;
 }
 
-Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
-                                      ElementsKind to_kind) {
+DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
+                                            ElementsKind to_kind) {
   ElementsKind from_kind = map->elements_kind();
   if (from_kind == to_kind) return map;
 
@@ -1085,12 +1085,14 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
   if (from_kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->fast_aliased_arguments_map()) {
       DCHECK_EQ(SLOW_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
-      return handle(native_context->slow_aliased_arguments_map(), isolate);
+      return direct_handle(native_context->slow_aliased_arguments_map(),
+                           isolate);
     }
   } else if (from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->slow_aliased_arguments_map()) {
       DCHECK_EQ(FAST_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
-      return handle(native_context->fast_aliased_arguments_map(), isolate);
+      return direct_handle(native_context->fast_aliased_arguments_map(),
+                           isolate);
     }
   } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
@@ -1099,7 +1101,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
       Tagged<Object> maybe_transitioned_map =
           native_context->get(Context::ArrayMapIndex(to_kind));
       if (IsMap(maybe_transitioned_map)) {
-        return handle(Cast<Map>(maybe_transitioned_map), isolate);
+        return direct_handle(Cast<Map>(maybe_transitioned_map), isolate);
       }
     }
   }
@@ -1110,7 +1112,7 @@ Handle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
       to_kind == GetPackedElementsKind(from_kind) &&
       IsMap(map->GetBackPointer()) &&
       Cast<Map>(map->GetBackPointer())->elements_kind() == to_kind) {
-    return handle(Cast<Map>(map->GetBackPointer()), isolate);
+    return direct_handle(Cast<Map>(map->GetBackPointer()), isolate);
   }
 
   bool allow_store_transition = IsTransitionElementsKind(from_kind);
@@ -1993,7 +1995,7 @@ Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
   return UpdateDescriptorForValue(isolate, map, descriptor, constness, value);
 }
 
-Handle<Map> Map::TransitionToDataProperty(
+DirectHandle<Map> Map::TransitionToDataProperty(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
     DirectHandle<Object> value, PropertyAttributes attributes,
     PropertyConstness constness, StoreOrigin store_origin) {
@@ -2025,7 +2027,7 @@ Handle<Map> Map::TransitionToDataProperty(
   // Do not track transitions during bootstrapping.
   TransitionFlag flag =
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
-  MaybeHandle<Map> maybe_map;
+  MaybeDirectHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
     Representation representation =
         Object::OptimalRepresentation(*value, isolate);
@@ -2035,7 +2037,7 @@ Handle<Map> Map::TransitionToDataProperty(
                                    constness, representation, flag);
   }
 
-  Handle<Map> result;
+  DirectHandle<Map> result;
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS

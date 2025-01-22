@@ -102,9 +102,11 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
               ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.1.1 OrdinaryToPrimitive
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
-      Isolate* isolate, DirectHandle<JSReceiver> receiver,
-      OrdinaryToPrimitiveHint hint);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  V8_WARN_UNUSED_RESULT static typename HandleType<Object>::MaybeType
+  OrdinaryToPrimitive(Isolate* isolate, DirectHandle<JSReceiver> receiver,
+                      OrdinaryToPrimitiveHint hint);
 
   // Unwraps the chain of potential function wrappers or JSProxy objects and
   // return the leaf function's creation context.
@@ -279,7 +281,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
   GetCreationContext();
-  V8_EXPORT_PRIVATE inline MaybeHandle<NativeContext> GetCreationContext(
+  V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
       Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
@@ -376,7 +378,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
-  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSObject> ObjectCreate(
       Isolate* isolate, DirectHandle<JSPrototype> prototype);
 
   DECL_ACCESSORS(elements, Tagged<FixedArrayBase>)
@@ -591,7 +593,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                     DirectHandle<Object> getter,
                                     DirectHandle<Object> setter,
                                     PropertyAttributes attributes);
-  static MaybeHandle<Object> DefineOwnAccessorIgnoreAttributes(
+  static MaybeDirectHandle<Object> DefineOwnAccessorIgnoreAttributes(
       LookupIterator* it, DirectHandle<Object> getter,
       DirectHandle<Object> setter, PropertyAttributes attributes);
 
@@ -753,10 +755,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                       DirectHandle<JSObject> object,
                                       Representation representation,
                                       FieldIndex index);
-  static Handle<JSAny> FastPropertyAt(Isolate* isolate,
-                                      DirectHandle<JSObject> object,
-                                      Representation representation,
-                                      FieldIndex index, SeqCstAccessTag tag);
+  static DirectHandle<JSAny> FastPropertyAt(Isolate* isolate,
+                                            DirectHandle<JSObject> object,
+                                            Representation representation,
+                                            FieldIndex index,
+                                            SeqCstAccessTag tag);
   inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index) const;
   inline Tagged<JSAny> RawFastPropertyAt(PtrComprCageBase cage_base,
                                          FieldIndex index) const;

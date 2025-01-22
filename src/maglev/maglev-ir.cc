@@ -930,36 +930,36 @@ DirectHandle<Object> ValueNode::Reify(LocalIsolate* isolate) const {
   }
 }
 
-Handle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> ExternalConstant::DoReify(LocalIsolate* isolate) const {
   UNREACHABLE();
 }
 
-Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) const {
-  return handle(value_, isolate);
+DirectHandle<Object> SmiConstant::DoReify(LocalIsolate* isolate) const {
+  return direct_handle(value_, isolate);
 }
 
-Handle<Object> TaggedIndexConstant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> TaggedIndexConstant::DoReify(LocalIsolate* isolate) const {
   UNREACHABLE();
 }
 
-Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> Int32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromInt<AllocationType::kOld>(value());
 }
 
-Handle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
-Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumber<AllocationType::kOld>(
       value_.get_scalar());
 }
 
-Handle<Object> Constant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> Constant::DoReify(LocalIsolate* isolate) const {
   return object_.object();
 }
 
-Handle<Object> TrustedConstant::DoReify(LocalIsolate* isolate) const {
+DirectHandle<Object> TrustedConstant::DoReify(LocalIsolate* isolate) const {
   return object_.object();
 }
 

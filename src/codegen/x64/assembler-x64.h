@@ -561,8 +561,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  inline Handle<Code> code_target_object_handle_at(Address pc);
-  inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
+  inline DirectHandle<Code> code_target_object_handle_at(Address pc);
+  inline DirectHandle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc);
 
   // Read/modify the uint32 constant used at pc.
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);

@@ -944,11 +944,12 @@ std::optional<Tagged<NativeContext>> JSReceiver::GetCreationContext() {
   return Cast<NativeContext>(maybe_native_context);
 }
 
-MaybeHandle<NativeContext> JSReceiver::GetCreationContext(Isolate* isolate) {
+MaybeDirectHandle<NativeContext> JSReceiver::GetCreationContext(
+    Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   std::optional<Tagged<NativeContext>> maybe_context = GetCreationContext();
   if (!maybe_context.has_value()) return {};
-  return handle(maybe_context.value(), isolate);
+  return direct_handle(maybe_context.value(), isolate);
 }
 
 Maybe<bool> JSReceiver::HasProperty(Isolate* isolate,

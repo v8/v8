@@ -122,7 +122,7 @@ int BytecodeArrayBuilder::CheckBytecodeMatches(Tagged<BytecodeArray> bytecode) {
 #endif
 
 template <typename IsolateT>
-Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+DirectHandle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
     IsolateT* isolate) {
   DCHECK(RemainderOfBlockIsDead());
 
@@ -130,10 +130,10 @@ Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    DirectHandle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    DirectHandle<TrustedByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
         LocalIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(

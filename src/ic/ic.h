@@ -98,9 +98,9 @@ class IC {
   void TraceIC(const char* type, DirectHandle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
-                                Handle<Object> key);
-  MaybeHandle<Object> ReferenceError(Handle<Name> name);
+  MaybeDirectHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
+                                      Handle<Object> key);
+  MaybeDirectHandle<Object> ReferenceError(Handle<Name> name);
 
   void UpdateMonomorphicIC(const MaybeObjectHandle& handler,
                            DirectHandle<Name> name);
@@ -198,7 +198,7 @@ class LoadIC : public IC {
   }
 
   // If receiver is empty, use object as the receiver.
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Load(
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Load(
       Handle<JSAny> object, Handle<Name> name, bool update_feedback = true,
       DirectHandle<JSAny> receiver = DirectHandle<JSAny>());
 
@@ -234,13 +234,12 @@ class KeyedLoadIC : public LoadIC {
                                                        Handle<Object> key);
 
  protected:
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> RuntimeLoad(
       DirectHandle<JSAny> object, DirectHandle<Object> key,
       bool* is_found = nullptr);
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<JSAny> object,
-                                                     DirectHandle<Object> key,
-                                                     Handle<Name> name);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> LoadName(
+      Handle<JSAny> object, DirectHandle<Object> key, Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(DirectHandle<HeapObject> receiver,
@@ -268,8 +267,8 @@ class StoreIC : public IC {
     DCHECK(IsAnyStore());
   }
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
-      Handle<JSAny> object, Handle<Name> name, Handle<Object> value,
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(
+      Handle<JSAny> object, Handle<Name> name, DirectHandle<Object> value,
       StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
@@ -294,8 +293,8 @@ class StoreGlobalIC : public StoreIC {
                 FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(Handle<Name> name,
-                                                        Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(
+      Handle<Name> name, DirectHandle<Object> value);
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };

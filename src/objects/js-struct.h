@@ -48,7 +48,7 @@ class JSSharedStruct
     : public TorqueGeneratedJSSharedStruct<JSSharedStruct,
                                            AlwaysSharedSpaceJSObject> {
  public:
-  static Handle<Map> CreateInstanceMap(
+  static DirectHandle<Map> CreateInstanceMap(
       Isolate* isolate,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names,
@@ -94,12 +94,12 @@ class SharedStructTypeRegistry final {
  private:
   class Data;
 
-  MaybeHandle<Map> RegisterNoThrow(
+  MaybeDirectHandle<Map> RegisterNoThrow(
       Isolate* isolate, Handle<String> key,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names);
 
-  MaybeHandle<Map> CheckIfEntryMatches(
+  MaybeDirectHandle<Map> CheckIfEntryMatches(
       Isolate* isolate, InternalIndex entry, DirectHandle<String> key,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names);

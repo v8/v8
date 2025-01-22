@@ -62,9 +62,8 @@ V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Tagged<JSReceiver> recv) {
 
 }  // namespace
 
-MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
-                                              Handle<JSReceiver> recv,
-                                              uint64_t value) {
+MaybeDirectHandle<Object> RegExpUtils::SetLastIndex(
+    Isolate* isolate, DirectHandle<JSReceiver> recv, uint64_t value) {
   DirectHandle<Object> value_as_object =
       isolate->factory()->NewNumberFromInt64(value);
   if (HasInitialRegExpMap(isolate, *recv)) {
@@ -205,8 +204,8 @@ uint64_t RegExpUtils::AdvanceStringIndex(Tagged<String> string, uint64_t index,
 }
 
 MaybeDirectHandle<Object> RegExpUtils::SetAdvancedStringIndex(
-    Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
-    bool unicode) {
+    Isolate* isolate, DirectHandle<JSReceiver> regexp,
+    DirectHandle<String> string, bool unicode) {
   DirectHandle<Object> last_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, last_index_obj,

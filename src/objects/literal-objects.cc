@@ -152,7 +152,7 @@ Handle<SwissNameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 }
 
 template <typename IsolateT>
-Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
+DirectHandle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     IsolateT* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
     DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out = nullptr) {

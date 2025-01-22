@@ -503,7 +503,7 @@ DirectHandle<String> JSWrappedFunction::ToString(
 }
 
 // static
-MaybeHandle<Object> JSWrappedFunction::Create(
+MaybeDirectHandle<Object> JSWrappedFunction::Create(
     Isolate* isolate, DirectHandle<NativeContext> creation_context,
     DirectHandle<JSReceiver> value) {
   // The value must be a callable according to the specification.
@@ -524,7 +524,7 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // 4. Set wrapped.[[Call]] as described in 2.1.
   // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
   // 6. Set wrapped.[[Realm]] to callerRealm.
-  Handle<JSWrappedFunction> wrapped =
+  DirectHandle<JSWrappedFunction> wrapped =
       isolate->factory()->NewJSWrappedFunction(creation_context, value);
 
   // 7. Let result be CopyNameAndLength(wrapped, Target, "wrapped").
@@ -1373,13 +1373,13 @@ bool JSFunction::SetName(DirectHandle<JSFunction> function, Handle<Name> name,
 
 namespace {
 
-Handle<String> NativeCodeFunctionSourceString(
+DirectHandle<String> NativeCodeFunctionSourceString(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(direct_handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 }  // namespace

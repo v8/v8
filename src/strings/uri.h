@@ -46,10 +46,12 @@ class Uri : public AllStatic {
                                             Handle<String> string);
 
  private:
-  static MaybeHandle<String> Decode(Isolate* isolate, DirectHandle<String> uri,
-                                    bool is_uri);
-  static MaybeHandle<String> Encode(Isolate* isolate, DirectHandle<String> uri,
-                                    bool is_uri);
+  static MaybeDirectHandle<String> Decode(Isolate* isolate,
+                                          DirectHandle<String> uri,
+                                          bool is_uri);
+  static MaybeDirectHandle<String> Encode(Isolate* isolate,
+                                          DirectHandle<String> uri,
+                                          bool is_uri);
 };
 
 }  // namespace internal

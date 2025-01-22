@@ -1139,7 +1139,7 @@ MaybeDirectHandle<Object> Object::GetMethod(Isolate* isolate,
 
 namespace {
 
-MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
+MaybeDirectHandle<FixedArray> CreateListFromArrayLikeFastPath(
     Isolate* isolate, DirectHandle<Object> object, ElementTypes element_types) {
   if (element_types == ElementTypes::kAll) {
     if (IsJSArray(*object)) {
@@ -1149,7 +1149,7 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           !Object::ToUint32(array->length(), &length) ||
           !array->HasFastElements() ||
           !JSObject::PrototypeHasNoElements(isolate, *array)) {
-        return MaybeHandle<FixedArray>();
+        return MaybeDirectHandle<FixedArray>();
       }
       return array->GetElementsAccessor()->CreateListFromArrayLike(
           isolate, array, length);
@@ -1158,7 +1158,7 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
       size_t length = array->GetLength();
       if (array->IsDetachedOrOutOfBounds() ||
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
-        return MaybeHandle<FixedArray>();
+        return MaybeDirectHandle<FixedArray>();
       }
       static_assert(FixedArray::kMaxLength <=
                     std::numeric_limits<uint32_t>::max());
@@ -1166,7 +1166,7 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           isolate, array, static_cast<uint32_t>(length));
     }
   }
-  return MaybeHandle<FixedArray>();
+  return MaybeDirectHandle<FixedArray>();
 }
 
 }  // namespace
@@ -3183,7 +3183,7 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate,
 // Part of ES6 9.4.2.4 ArraySetLength.
 // static
 bool JSArray::AnythingToArrayLength(Isolate* isolate,
-                                    Handle<Object> length_object,
+                                    DirectHandle<Object> length_object,
                                     uint32_t* output) {
   // Fast path: check numbers and strings that can be converted directly
   // and unobservably.
@@ -3705,7 +3705,7 @@ DirectHandle<DescriptorArray> DescriptorArray::CopyUpTo(
                                                 enumeration_index, NONE, slack);
 }
 
-Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
+DirectHandle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Isolate* isolate, DirectHandle<DescriptorArray> source_handle,
     int enumeration_index, PropertyAttributes attributes, int slack) {
   if (enumeration_index + slack == 0) {
@@ -3713,7 +3713,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   }
 
   int size = enumeration_index;
-  Handle<DescriptorArray> copy_handle =
+  DirectHandle<DescriptorArray> copy_handle =
       DescriptorArray::Allocate(isolate, size, slack);
 
   DisallowGarbageCollection no_gc;
@@ -4642,9 +4642,9 @@ Tagged<Object> Script::GetNameOrSourceURL() {
 }
 
 // static
-Handle<String> Script::GetScriptHash(Isolate* isolate,
-                                     DirectHandle<Script> script,
-                                     bool forceForInspector) {
+DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
+                                           DirectHandle<Script> script,
+                                           bool forceForInspector) {
   if (script->origin_options().IsOpaque() && !forceForInspector) {
     return isolate->factory()->empty_string();
   }
@@ -4653,7 +4653,8 @@ Handle<String> Script::GetScriptHash(Isolate* isolate,
   {
     Tagged<Object> maybe_source_hash = script->source_hash(cage_base);
     if (IsString(maybe_source_hash, cage_base)) {
-      Handle<String> precomputed(Cast<String>(maybe_source_hash), isolate);
+      DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
+                                       isolate);
       if (precomputed->length() > 0) {
         return precomputed;
       }
@@ -4680,7 +4681,7 @@ Handle<String> Script::GetScriptHash(Isolate* isolate,
                    kSizeOfSha256Digest);
   formatted_hash[kSizeOfSha256Digest * 2] = '\0';
 
-  Handle<String> result =
+  DirectHandle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(formatted_hash);
   script->set_source_hash(*result);
   return result;

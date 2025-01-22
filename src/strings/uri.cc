@@ -174,8 +174,8 @@ bool IntoOneAndTwoByte(DirectHandle<String> uri, bool is_uri,
 
 }  // anonymous namespace
 
-MaybeHandle<String> Uri::Decode(Isolate* isolate, DirectHandle<String> uri,
-                                bool is_uri) {
+MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
+                                      DirectHandle<String> uri, bool is_uri) {
   uri = String::Flatten(isolate, uri);
   std::vector<uint8_t> one_byte_buffer;
   std::vector<base::uc16> two_byte_buffer;
@@ -189,7 +189,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, DirectHandle<String> uri,
         one_byte_buffer.data(), static_cast<int>(one_byte_buffer.size())));
   }
 
-  Handle<SeqTwoByteString> result;
+  DirectHandle<SeqTwoByteString> result;
   int result_length =
       static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size());
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -277,8 +277,8 @@ void EncodePair(base::uc16 cc1, base::uc16 cc2, std::vector<uint8_t>* buffer) {
 
 }  // anonymous namespace
 
-MaybeHandle<String> Uri::Encode(Isolate* isolate, DirectHandle<String> uri,
-                                bool is_uri) {
+MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
+                                      DirectHandle<String> uri, bool is_uri) {
   uri = String::Flatten(isolate, uri);
   int uri_length = uri->length();
   std::vector<uint8_t> buffer;

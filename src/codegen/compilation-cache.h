@@ -103,8 +103,8 @@ class CompilationCacheRegExp {
  public:
   CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
-  MaybeHandle<RegExpData> Lookup(DirectHandle<String> source,
-                                 JSRegExp::Flags flags);
+  MaybeDirectHandle<RegExpData> Lookup(DirectHandle<String> source,
+                                       JSRegExp::Flags flags);
 
   void Put(DirectHandle<String> source, JSRegExp::Flags flags,
            DirectHandle<RegExpData> data);
@@ -114,7 +114,7 @@ class CompilationCacheRegExp {
 
   // Gets the compilation cache tables for a specific generation. Allocates the
   // table if it does not yet exist.
-  Handle<CompilationCacheTable> GetTable(int generation);
+  DirectHandle<CompilationCacheTable> GetTable(int generation);
 
   // Ages the sub-cache by evicting the oldest generation and creating a new
   // young generation.

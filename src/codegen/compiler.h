@@ -163,12 +163,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // real function with a context.
 
   // Create a (bound) function for a String source within a context for eval.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
-      DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
-      DirectHandle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int parameters_end_pos, int eval_position,
-      ParsingWhileDebugging parsing_while_debugging =
-          ParsingWhileDebugging::kNo);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
+  GetFunctionFromEval(DirectHandle<String> source,
+                      DirectHandle<SharedFunctionInfo> outer_info,
+                      DirectHandle<Context> context, LanguageMode language_mode,
+                      ParseRestriction restriction, int parameters_end_pos,
+                      int eval_position,
+                      ParsingWhileDebugging parsing_while_debugging =
+                          ParsingWhileDebugging::kNo);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
@@ -191,7 +193,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                    DirectHandle<NativeContext> context,
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
   GetFunctionFromValidatedString(DirectHandle<NativeContext> context,
                                  MaybeDirectHandle<String> source,
                                  ParseRestriction restriction,

@@ -1430,7 +1430,7 @@ static Tagged<Object> SearchRegExpMultiple(
 // Legacy implementation of RegExp.prototype[Symbol.replace] which
 // doesn't properly call the underlying exec method.
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> RegExpReplace(
-    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> string,
+    Isolate* isolate, DirectHandle<JSRegExp> regexp, Handle<String> string,
     Handle<String> replace) {
   // Functional fast-paths are dispatched directly by replace builtin.
   DCHECK(RegExpUtils::IsUnmodifiedRegExp(isolate, regexp));

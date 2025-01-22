@@ -42,8 +42,8 @@ class FunctionTester : public InitializedHandleScope {
   }
 
   template <typename T, typename... Args>
-  Handle<T> CallChecked(Args... args) {
-    Handle<Object> result = Call(args...).ToHandleChecked();
+  DirectHandle<T> CallChecked(Args... args) {
+    DirectHandle<Object> result = Call(args...).ToHandleChecked();
     return Cast<T>(result);
   }
 

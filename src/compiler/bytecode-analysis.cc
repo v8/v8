@@ -509,7 +509,7 @@ class BytecodeAnalysis::BytecodeAnalysisImpl {
 
   bool analyze_liveness() const { return res_.analyze_liveness_; }
   Zone* zone() const { return zone_; }
-  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  DirectHandle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
   BytecodeLivenessMap& liveness_map() { return *res_.liveness_map_; }
 
   struct LoopStackEntry {

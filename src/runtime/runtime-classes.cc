@@ -471,7 +471,7 @@ bool AddDescriptorsByTemplate(
   return true;
 }
 
-Handle<JSObject> CreateClassPrototype(Isolate* isolate) {
+DirectHandle<JSObject> CreateClassPrototype(Isolate* isolate) {
   // For constant tracking we want to avoid the hassle of handling
   // in-object properties, so create a map with no in-object
   // properties.

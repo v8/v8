@@ -455,8 +455,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const;
     Handle<Object> script() const;
-    Handle<Context> native_context() const;
-    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+    DirectHandle<Context> native_context() const;
+    DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<Object> receiver_;
@@ -489,9 +489,9 @@ class V8_EXPORT_PRIVATE FrameSummary {
     DirectHandle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
       return instance_data_;
     }
-    Handle<Context> native_context() const;
+    DirectHandle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
-    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+    DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<WasmTrustedInstanceData> instance_data_;
@@ -521,8 +521,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<Script> script() const;
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
-    Handle<Context> native_context() const;
-    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+    DirectHandle<Context> native_context() const;
+    DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<WasmTrustedInstanceData> instance_data_;
@@ -543,8 +543,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<Object> script() const;
     int SourcePosition() const { return kNoSourcePosition; }
     int SourceStatementPosition() const { return 0; }
-    Handle<Context> native_context() const;
-    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+    DirectHandle<Context> native_context() const;
+    DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Builtin builtin_;

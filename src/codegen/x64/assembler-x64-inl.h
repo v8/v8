@@ -227,11 +227,12 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
+DirectHandle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
-Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
+DirectHandle<HeapObject> Assembler::compressed_embedded_object_handle_at(
+    Address pc) {
   return GetEmbeddedObject(ReadUnalignedValue<uint32_t>(pc));
 }
 

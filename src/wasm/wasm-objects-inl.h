@@ -635,18 +635,19 @@ bool WasmMemoryObject::is_memory64() const {
 }
 
 // static
-Handle<Object> WasmObject::ReadValueAt(Isolate* isolate,
-                                       DirectHandle<HeapObject> obj,
-                                       wasm::ValueType type, uint32_t offset) {
+DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
+                                             DirectHandle<HeapObject> obj,
+                                             wasm::ValueType type,
+                                             uint32_t offset) {
   Address field_address = obj->GetFieldAddress(offset);
   switch (type.kind()) {
     case wasm::kI8: {
       int8_t value = base::Memory<int8_t>(field_address);
-      return handle(Smi::FromInt(value), isolate);
+      return direct_handle(Smi::FromInt(value), isolate);
     }
     case wasm::kI16: {
       int16_t value = base::Memory<int16_t>(field_address);
-      return handle(Smi::FromInt(value), isolate);
+      return direct_handle(Smi::FromInt(value), isolate);
     }
     case wasm::kI32: {
       int32_t value = base::Memory<int32_t>(field_address);
@@ -675,7 +676,7 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate,
     case wasm::kRef:
     case wasm::kRefNull: {
       ObjectSlot slot(field_address);
-      return handle(slot.load(isolate), isolate);
+      return direct_handle(slot.load(isolate), isolate);
     }
 
     case wasm::kRtt:

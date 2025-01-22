@@ -122,9 +122,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<Number> NewNumberFromUint(uint32_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Number> NewNumberFromSize(size_t value);
+  inline DirectHandle<Number> NewNumberFromSize(size_t value);
   template <AllocationType allocation = AllocationType::kYoung>
-  inline Handle<Number> NewNumberFromInt64(int64_t value);
+  inline DirectHandle<Number> NewNumberFromInt64(int64_t value);
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<HeapNumber> NewHeapNumber(double value);
   template <AllocationType allocation = AllocationType::kYoung>
@@ -205,8 +205,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   DirectHandle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(
       int length);
-  Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
-      int length);
+  DirectHandle<DeoptimizationFrameTranslation>
+  NewDeoptimizationFrameTranslation(int length);
 
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
@@ -265,21 +265,22 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
-  Handle<UncompiledDataWithoutPreparseData>
+  DirectHandle<UncompiledDataWithoutPreparseData>
   NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
                                        int32_t start_position,
                                        int32_t end_position);
 
-  Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
-      Handle<String> inferred_name, int32_t start_position,
-      int32_t end_position, Handle<PreparseData>);
+  DirectHandle<UncompiledDataWithPreparseData>
+  NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
+                                    int32_t start_position,
+                                    int32_t end_position, Handle<PreparseData>);
 
-  Handle<UncompiledDataWithoutPreparseDataWithJob>
+  DirectHandle<UncompiledDataWithoutPreparseDataWithJob>
   NewUncompiledDataWithoutPreparseDataWithJob(Handle<String> inferred_name,
                                               int32_t start_position,
                                               int32_t end_position);
 
-  Handle<UncompiledDataWithPreparseDataAndJob>
+  DirectHandle<UncompiledDataWithPreparseDataAndJob>
   NewUncompiledDataWithPreparseDataAndJob(Handle<String> inferred_name,
                                           int32_t start_position,
                                           int32_t end_position,
@@ -373,7 +374,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ScopeInfo> NewScopeInfo(int length,
                                  AllocationType type = AllocationType::kOld);
 
-  Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
+  DirectHandle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<DescriptorArray> NewDescriptorArray(
       int number_of_descriptors, int slack = 0,

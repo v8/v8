@@ -231,8 +231,11 @@ V8_OBJECT class FixedArray
                            WriteBarrierMode mode);
 
   // Return a grown copy if the index is bigger than the array's length.
-  V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
-      Isolate* isolate, Handle<FixedArray> array, int index,
+  template <template <typename> typename HandleType>
+    requires(
+        std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+  V8_EXPORT_PRIVATE static HandleType<FixedArray> SetAndGrow(
+      Isolate* isolate, HandleType<FixedArray> array, int index,
       DirectHandle<Object> value);
 
   // Right-trim the array.
@@ -936,7 +939,7 @@ V8_OBJECT
 template <class T>
 class TrustedPodArray : public PodArrayBase<T, TrustedByteArray> {
  public:
-  static Handle<TrustedPodArray<T>> New(Isolate* isolate, int length);
+  static DirectHandle<TrustedPodArray<T>> New(Isolate* isolate, int length);
   static DirectHandle<TrustedPodArray<T>> New(LocalIsolate* isolate,
                                               int length);
 } V8_OBJECT_END;

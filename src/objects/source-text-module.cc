@@ -836,7 +836,7 @@ bool SourceTextModule::MaybeHandleEvaluationException(
 }
 
 // ES#sec-moduleevaluation
-MaybeHandle<Object> SourceTextModule::Evaluate(
+MaybeDirectHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
         module->status() == kEvaluated);
@@ -847,7 +847,7 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
   unsigned dfs_index = 0;
 
   // 6. Let capability be ! NewPromiseCapability(%Promise%).
-  Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
+  DirectHandle<JSPromise> capability = isolate->factory()->NewJSPromise();
 
   // 7. Set module.[[TopLevelCapability]] to capability.
   module->set_top_level_capability(*capability);
@@ -1140,7 +1140,7 @@ MaybeDirectHandle<Object> SourceTextModule::InnerExecuteAsyncModule(
                             Execution::MessageHandling::kKeepPending, nullptr);
 }
 
-MaybeHandle<Object> SourceTextModule::ExecuteModule(
+MaybeDirectHandle<Object> SourceTextModule::ExecuteModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     MaybeDirectHandle<Object>* exception_out) {
   // Synchronous modules have an associated JSGeneratorObject.
@@ -1158,7 +1158,7 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
   }
   DCHECK(
       Object::BooleanValue(Cast<JSIteratorResult>(*result)->done(), isolate));
-  return handle(Cast<JSIteratorResult>(*result)->value(), isolate);
+  return direct_handle(Cast<JSIteratorResult>(*result)->value(), isolate);
 }
 
 MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(

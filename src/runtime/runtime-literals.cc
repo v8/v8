@@ -236,10 +236,10 @@ class DeprecationUpdateContext {
   bool ShouldCreateMemento(DirectHandle<JSObject> object) { return false; }
   inline void ExitScope(DirectHandle<AllocationSite> scope_site,
                         DirectHandle<JSObject> object) {}
-  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
-  Handle<AllocationSite> current() {
-    UNREACHABLE();
+  DirectHandle<AllocationSite> EnterNewScope() {
+    return DirectHandle<AllocationSite>();
   }
+  DirectHandle<AllocationSite> current() { UNREACHABLE(); }
 
   static const bool kCopying = false;
 
@@ -323,10 +323,10 @@ MaybeDirectHandle<JSObject> DeepWalk(
   return result;
 }
 
-MaybeHandle<JSObject> DeepCopy(Handle<JSObject> object,
-                               AllocationSiteUsageContext* site_context) {
+MaybeDirectHandle<JSObject> DeepCopy(Handle<JSObject> object,
+                                     AllocationSiteUsageContext* site_context) {
   JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context);
-  MaybeHandle<JSObject> copy = v.StructureWalk(object);
+  MaybeDirectHandle<JSObject> copy = v.StructureWalk(object);
   DirectHandle<JSObject> for_assert;
   DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
   return copy;
@@ -507,7 +507,7 @@ Handle<JSObject> CreateArrayLiteral(
 }
 
 template <typename LiteralHelper>
-MaybeHandle<JSObject> CreateLiteralWithoutAllocationSite(
+MaybeDirectHandle<JSObject> CreateLiteralWithoutAllocationSite(
     Isolate* isolate, Handle<HeapObject> description, int flags) {
   Handle<JSObject> literal = LiteralHelper::Create(isolate, description, flags,
                                                    AllocationType::kYoung);

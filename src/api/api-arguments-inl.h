@@ -393,7 +393,8 @@ v8::Intercepted PropertyCallbackArguments::CallIndexedDeleter(
   return intercepted;
 }
 
-Handle<JSObjectOrUndefined> PropertyCallbackArguments::CallPropertyEnumerator(
+DirectHandle<JSObjectOrUndefined>
+PropertyCallbackArguments::CallPropertyEnumerator(
     DirectHandle<InterceptorInfo> interceptor) {
   // Named and indexed enumerator callbacks have same signatures.
   static_assert(std::is_same<NamedPropertyEnumeratorCallback,
@@ -412,7 +413,7 @@ Handle<JSObjectOrUndefined> PropertyCallbackArguments::CallPropertyEnumerator(
   PREPARE_CALLBACK_INFO_INTERCEPTOR(isolate, f, v8::Array, interceptor,
                                     ExceptionContext::kNamedEnumerator);
   f(callback_info);
-  Handle<JSAny> result = GetReturnValue<JSAny>(isolate);
+  DirectHandle<JSAny> result = GetReturnValue<JSAny>(isolate);
   DCHECK(IsUndefined(*result) || IsJSObject(*result));
   return Cast<JSObjectOrUndefined>(result);
 }
@@ -420,7 +421,7 @@ Handle<JSObjectOrUndefined> PropertyCallbackArguments::CallPropertyEnumerator(
 // -------------------------------------------------------------------------
 // Accessors
 
-Handle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
+DirectHandle<JSAny> PropertyCallbackArguments::CallAccessorGetter(
     DirectHandle<AccessorInfo> info, DirectHandle<Name> name) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);

@@ -41,7 +41,7 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
       Isolate* isolate, DirectHandle<JSSegments> segments_holder, double n);
 
   // ecma402 #sec-createsegmentdataobject
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentDataObject>
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentDataObject>
   CreateSegmentDataObject(Isolate* isolate,
                           JSSegmenter::Granularity granularity,
                           icu::BreakIterator* break_iterator,

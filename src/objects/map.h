@@ -788,8 +788,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Returns a new map with all transitions dropped from the given map and
   // the ElementsKind set.
-  static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
-                                          ElementsKind to_kind);
+  static DirectHandle<Map> TransitionElementsTo(Isolate* isolate,
+                                                Handle<Map> map,
+                                                ElementsKind to_kind);
 
   static std::optional<Tagged<Map>> TryAsElementsKind(Isolate* isolate,
                                                       DirectHandle<Map> map,
@@ -815,7 +816,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
   inline bool TooManyFastProperties(StoreOrigin store_origin) const;
-  V8_EXPORT_PRIVATE static Handle<Map> TransitionToDataProperty(
+  V8_EXPORT_PRIVATE static DirectHandle<Map> TransitionToDataProperty(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Name> name,
       DirectHandle<Object> value, PropertyAttributes attributes,
       PropertyConstness constness, StoreOrigin store_origin);

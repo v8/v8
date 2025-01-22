@@ -590,9 +590,10 @@ int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
   return ScriptLinePosition(script, total_line);
 }
 
-Handle<Object> GetJSPositionInfo(DirectHandle<Script> script, int position,
-                                 Script::OffsetFlag offset_flag,
-                                 Isolate* isolate) {
+DirectHandle<Object> GetJSPositionInfo(DirectHandle<Script> script,
+                                       int position,
+                                       Script::OffsetFlag offset_flag,
+                                       Isolate* isolate) {
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, position, &info, offset_flag)) {
     return isolate->factory()->null_value();
@@ -609,7 +610,7 @@ Handle<Object> GetJSPositionInfo(DirectHandle<Script> script, int position,
                            handle(Cast<String>(script->source()), isolate),
                            info.line_start, info.line_end);
 
-  Handle<JSObject> jsinfo =
+  DirectHandle<JSObject> jsinfo =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   JSObject::AddProperty(isolate, jsinfo, isolate->factory()->script_string(),

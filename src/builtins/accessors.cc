@@ -26,13 +26,13 @@
 namespace v8 {
 namespace internal {
 
-Handle<AccessorInfo> Accessors::MakeAccessor(
+DirectHandle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate, DirectHandle<Name> name,
     AccessorNameGetterCallback getter,
     AccessorNameBooleanSetterCallback setter) {
   Factory* factory = isolate->factory();
   name = factory->InternalizeName(name);
-  Handle<AccessorInfo> info = factory->NewAccessorInfo();
+  DirectHandle<AccessorInfo> info = factory->NewAccessorInfo();
   {
     DisallowGarbageCollection no_gc;
     Tagged<AccessorInfo> raw = *info;
@@ -178,7 +178,7 @@ void Accessors::ArrayLengthSetter(
 
   DirectHandle<JSReceiver> object = Utils::OpenDirectHandle(*info.Holder());
   DirectHandle<JSArray> array = Cast<JSArray>(object);
-  Handle<Object> length_obj = Utils::OpenHandle(*val);
+  DirectHandle<Object> length_obj = Utils::OpenDirectHandle(*val);
 
   bool was_readonly = JSArray::HasReadOnlyLength(array);
 

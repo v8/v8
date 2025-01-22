@@ -317,7 +317,7 @@ FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
 }
 
 template <typename Impl>
-Handle<DeoptimizationFrameTranslation>
+DirectHandle<DeoptimizationFrameTranslation>
 FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
   return Cast<DeoptimizationFrameTranslation>(NewTrustedByteArray(length));
 }
@@ -507,7 +507,7 @@ Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
 }
 
 template <typename Impl>
-Handle<UncompiledDataWithoutPreparseData>
+DirectHandle<UncompiledDataWithoutPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
@@ -516,7 +516,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseData(
 }
 
 template <typename Impl>
-Handle<UncompiledDataWithPreparseData>
+DirectHandle<UncompiledDataWithPreparseData>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
     Handle<String> inferred_name, int32_t start_position, int32_t end_position,
     Handle<PreparseData> preparse_data) {
@@ -526,7 +526,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
 }
 
 template <typename Impl>
-Handle<UncompiledDataWithoutPreparseDataWithJob>
+DirectHandle<UncompiledDataWithoutPreparseDataWithJob>
 FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
     Handle<String> inferred_name, int32_t start_position,
     int32_t end_position) {
@@ -537,7 +537,7 @@ FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
 }
 
 template <typename Impl>
-Handle<UncompiledDataWithPreparseDataAndJob>
+DirectHandle<UncompiledDataWithPreparseDataAndJob>
 FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
     Handle<String> inferred_name, int32_t start_position, int32_t end_position,
     Handle<PreparseData> preparse_data) {
@@ -1129,7 +1129,8 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
 }
 
 template <typename Impl>
-Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
+DirectHandle<SourceTextModuleInfo>
+FactoryBase<Impl>::NewSourceTextModuleInfo() {
   return Cast<SourceTextModuleInfo>(NewFixedArrayWithMap(
       module_info_map(), SourceTextModuleInfo::kLength, AllocationType::kOld));
 }

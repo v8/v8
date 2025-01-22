@@ -1048,10 +1048,10 @@ bool Literal::AsArrayIndex(uint32_t* value) const {
 }
 
 template <typename IsolateT>
-Handle<Object> Literal::BuildValue(IsolateT* isolate) const {
+DirectHandle<Object> Literal::BuildValue(IsolateT* isolate) const {
   switch (type()) {
     case kSmi:
-      return handle(Smi::FromInt(smi_), isolate);
+      return direct_handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
       return isolate->factory()->template NewNumber<AllocationType::kOld>(
           number_);
@@ -1075,9 +1075,9 @@ Handle<Object> Literal::BuildValue(IsolateT* isolate) const {
   UNREACHABLE();
 }
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<Object> Literal::BuildValue(Isolate* isolate) const;
+    DirectHandle<Object> Literal::BuildValue(Isolate* isolate) const;
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<Object> Literal::BuildValue(LocalIsolate* isolate) const;
+    DirectHandle<Object> Literal::BuildValue(LocalIsolate* isolate) const;
 
 bool Literal::ToBooleanIsTrue() const {
   switch (type()) {

@@ -172,7 +172,7 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
 }
 
 // Compile and evaluate source for the given context.
-MaybeHandle<Object> DebugEvaluate::Evaluate(
+MaybeDirectHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, DirectHandle<Object> receiver,
     DirectHandle<String> source, bool throw_on_side_effect) {
@@ -193,8 +193,9 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   return success ? result : MaybeHandle<Object>();
 }
 
-Handle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info() const {
-  return handle(frame_inspector_.GetFunction()->shared(), isolate_);
+DirectHandle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info()
+    const {
+  return direct_handle(frame_inspector_.GetFunction()->shared(), isolate_);
 }
 
 DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,

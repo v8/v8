@@ -321,9 +321,9 @@ MaybeDirectHandle<Object> Module::Evaluate(Isolate* isolate,
   }
 }
 
-Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
-                                                     Handle<Module> module) {
-  Handle<HeapObject> object(module->module_namespace(), isolate);
+DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
+    Isolate* isolate, Handle<Module> module) {
+  DirectHandle<HeapObject> object(module->module_namespace(), isolate);
   ReadOnlyRoots roots(isolate);
   if (!IsUndefined(*object, roots)) {
     // Namespace object already exists.
@@ -357,7 +357,8 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
             });
 
   // Create the namespace object (initially empty).
-  Handle<JSModuleNamespace> ns = isolate->factory()->NewJSModuleNamespace();
+  DirectHandle<JSModuleNamespace> ns =
+      isolate->factory()->NewJSModuleNamespace();
   ns->set_module(*module);
   module->set_module_namespace(*ns);
 

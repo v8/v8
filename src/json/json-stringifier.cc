@@ -39,9 +39,8 @@ class JsonStringifier {
     DeleteArray(gap_);
   }
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Stringify(Handle<JSAny> object,
-                                                      Handle<JSAny> replacer,
-                                                      Handle<Object> gap);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Stringify(
+      Handle<JSAny> object, Handle<JSAny> replacer, Handle<Object> gap);
 
  private:
   enum Result { UNCHANGED, SUCCESS, EXCEPTION, NEED_STACK };
@@ -551,16 +550,16 @@ JsonStringifier::JsonStringifier(Isolate* isolate)
   part_ptr_ = one_byte_ptr_;
 }
 
-MaybeHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
-                                               Handle<JSAny> replacer,
-                                               Handle<Object> gap) {
+MaybeDirectHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
+                                                     Handle<JSAny> replacer,
+                                                     Handle<Object> gap) {
   if (!InitializeReplacer(replacer)) {
     CHECK(isolate_->has_exception());
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
   if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
     CHECK(isolate_->has_exception());
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
   Result result = SerializeObject(object);
   if (result == NEED_STACK) {
@@ -585,7 +584,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<JSAny> object,
   }
   DCHECK(result == EXCEPTION);
   CHECK(isolate_->has_exception());
-  return MaybeHandle<Object>();
+  return MaybeDirectHandle<Object>();
 }
 
 bool JsonStringifier::InitializeReplacer(Handle<JSAny> replacer) {
@@ -2824,7 +2823,8 @@ bool CanUseFastStringifier(DirectHandle<JSAny> replacer,
          IsUndefined(*gap);
 }
 
-MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
+MaybeDirectHandle<Object> FastJsonStringify(Isolate* isolate,
+                                            Handle<JSAny> object) {
   DisallowGarbageCollection no_gc;
 
   FastJsonStringifier<uint8_t> one_byte_stringifier(isolate);
@@ -2843,7 +2843,7 @@ MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
   if (V8_LIKELY(result == SUCCESS)) {
     if (result_is_one_byte) {
       const int length = one_byte_stringifier.ResultLength();
-      Handle<SeqOneByteString> ret;
+      DirectHandle<SeqOneByteString> ret;
       {
         AllowGarbageCollection allow_gc;
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -2856,7 +2856,7 @@ MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
       const int one_byte_length = one_byte_stringifier.ResultLength();
       const int two_byte_length = two_byte_stringifier->ResultLength();
       const int total_length = one_byte_length + two_byte_length;
-      Handle<SeqTwoByteString> ret;
+      DirectHandle<SeqTwoByteString> ret;
       {
         AllowGarbageCollection allow_gc;
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -2882,7 +2882,7 @@ MaybeHandle<Object> FastJsonStringify(Isolate* isolate, Handle<JSAny> object) {
   }
   DCHECK(result == EXCEPTION);
   CHECK(isolate->has_exception());
-  return MaybeHandle<Object>();
+  return MaybeDirectHandle<Object>();
 }
 
 }  // namespace

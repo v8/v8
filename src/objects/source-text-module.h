@@ -191,7 +191,7 @@ class SourceTextModule
                                        AvailableAncestorsSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
       Isolate* isolate, Handle<SourceTextModule> module);
 
   // Implementation of spec abstract operation InnerModuleEvaluation.
@@ -216,7 +216,7 @@ class SourceTextModule
                           DirectHandle<SourceTextModule> module,
                           DirectHandle<JSPromise> capability);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> ExecuteModule(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> ExecuteModule(
       Isolate* isolate, DirectHandle<SourceTextModule> module,
       MaybeDirectHandle<Object>* exception_out);
 
@@ -239,8 +239,8 @@ class SourceTextModule
 class SourceTextModuleInfo : public FixedArray {
  public:
   template <typename IsolateT>
-  static Handle<SourceTextModuleInfo> New(IsolateT* isolate, Zone* zone,
-                                          SourceTextModuleDescriptor* descr);
+  static DirectHandle<SourceTextModuleInfo> New(
+      IsolateT* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
   inline Tagged<FixedArray> module_requests() const;
   inline Tagged<FixedArray> special_exports() const;

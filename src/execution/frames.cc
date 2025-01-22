@@ -2803,11 +2803,12 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
   return handle(function_->shared()->script(), isolate());
 }
 
-Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
-  return handle(function_->native_context(), isolate());
+DirectHandle<Context> FrameSummary::JavaScriptFrameSummary::native_context()
+    const {
+  return direct_handle(function_->native_context(), isolate());
 }
 
-Handle<StackFrameInfo>
+DirectHandle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<SharedFunctionInfo> shared(function_->shared(), isolate());
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
@@ -2870,12 +2871,13 @@ DirectHandle<WasmInstanceObject> FrameSummary::WasmFrameSummary::wasm_instance()
   return direct_handle(instance_data_->instance_object(), isolate());
 }
 
-Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
-  return handle(wasm_trusted_instance_data()->native_context(), isolate());
+DirectHandle<Context> FrameSummary::WasmFrameSummary::native_context() const {
+  return direct_handle(wasm_trusted_instance_data()->native_context(),
+                       isolate());
 }
 
-Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
-    const {
+DirectHandle<StackFrameInfo>
+FrameSummary::WasmFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<String> function_name =
       GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
@@ -2914,11 +2916,13 @@ Handle<Script> FrameSummary::WasmInlinedFrameSummary::script() const {
   return handle(wasm_instance()->module_object()->script(), isolate());
 }
 
-Handle<Context> FrameSummary::WasmInlinedFrameSummary::native_context() const {
-  return handle(wasm_trusted_instance_data()->native_context(), isolate());
+DirectHandle<Context> FrameSummary::WasmInlinedFrameSummary::native_context()
+    const {
+  return direct_handle(wasm_trusted_instance_data()->native_context(),
+                       isolate());
 }
 
-Handle<StackFrameInfo>
+DirectHandle<StackFrameInfo>
 FrameSummary::WasmInlinedFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<String> function_name =
       GetWasmFunctionDebugName(isolate(), instance_data_, function_index());
@@ -2982,12 +2986,13 @@ Handle<Object> FrameSummary::BuiltinFrameSummary::script() const {
   return isolate()->factory()->undefined_value();
 }
 
-Handle<Context> FrameSummary::BuiltinFrameSummary::native_context() const {
+DirectHandle<Context> FrameSummary::BuiltinFrameSummary::native_context()
+    const {
   return isolate()->native_context();
 }
 
-Handle<StackFrameInfo> FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo()
-    const {
+DirectHandle<StackFrameInfo>
+FrameSummary::BuiltinFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<String> name_str =
       isolate()->factory()->NewStringFromAsciiChecked(
           Builtins::NameForStackTrace(isolate(), builtin_));

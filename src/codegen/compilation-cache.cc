@@ -36,16 +36,17 @@ Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
   return handle(Cast<CompilationCacheTable>(table_), isolate());
 }
 
-Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
+DirectHandle<CompilationCacheTable> CompilationCacheRegExp::GetTable(
+    int generation) {
   DCHECK_LT(generation, kGenerations);
-  Handle<CompilationCacheTable> result;
+  DirectHandle<CompilationCacheTable> result;
   if (IsUndefined(tables_[generation], isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
     Tagged<CompilationCacheTable> table =
         Cast<CompilationCacheTable>(tables_[generation]);
-    result = Handle<CompilationCacheTable>(table, isolate());
+    result = DirectHandle<CompilationCacheTable>(table, isolate());
   }
   return result;
 }
@@ -226,7 +227,7 @@ void CompilationCacheEval::Put(DirectHandle<String> source,
                                       native_context, feedback_cell, position);
 }
 
-MaybeHandle<RegExpData> CompilationCacheRegExp::Lookup(
+MaybeDirectHandle<RegExpData> CompilationCacheRegExp::Lookup(
     DirectHandle<String> source, JSRegExp::Flags flags) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
@@ -249,7 +250,7 @@ MaybeHandle<RegExpData> CompilationCacheRegExp::Lookup(
     return scope.CloseAndEscape(data);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
-    return MaybeHandle<RegExpData>();
+    return MaybeDirectHandle<RegExpData>();
   }
 }
 

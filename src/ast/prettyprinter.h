@@ -25,7 +25,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   // The following routine prints the node with position |position| into a
   // string.
-  Handle<String> Print(FunctionLiteral* program, int position);
+  DirectHandle<String> Print(FunctionLiteral* program, int position);
   enum class ErrorHint {
     kNone,
     kNormalIterator,

@@ -174,7 +174,7 @@ class WasmModuleObject
   inline bool is_asm_js();
 
   // Get the module name, if set. Returns an empty handle otherwise.
-  static MaybeHandle<String> GetModuleNameOrNull(
+  static MaybeDirectHandle<String> GetModuleNameOrNull(
       Isolate*, DirectHandle<WasmModuleObject>);
 
   // Get the function name of the function identified by the given index.
@@ -312,10 +312,10 @@ class WasmMemoryMapDescriptor
     : public TorqueGeneratedWasmMemoryMapDescriptor<WasmMemoryMapDescriptor,
                                                     JSObject> {
  public:
-  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryMapDescriptor>
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryMapDescriptor>
   NewFromAnonymous(Isolate* isolate, size_t length);
 
-  V8_EXPORT_PRIVATE static Handle<WasmMemoryMapDescriptor>
+  V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryMapDescriptor>
   NewFromFileDescriptor(
       Isolate* isolate,
       v8::WasmMemoryMapDescriptor::WasmFileDescriptor file_descriptor);
@@ -913,11 +913,11 @@ class WasmDispatchTable : public ExposedTrustedObject {
 // A Wasm exception that has been thrown out of Wasm code.
 class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
-  static Handle<WasmExceptionPackage> New(
+  static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
       int encoded_size);
 
-  static Handle<WasmExceptionPackage> New(
+  static DirectHandle<WasmExceptionPackage> New(
       Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
       DirectHandle<FixedArray> values);
 
@@ -1000,10 +1000,11 @@ class WasmCapiFunction : public JSFunction {
  public:
   static bool IsWasmCapiFunction(Tagged<Object> object);
 
-  static Handle<WasmCapiFunction> New(Isolate* isolate, Address call_target,
-                                      DirectHandle<Foreign> embedder_data,
-                                      wasm::CanonicalTypeIndex sig_index,
-                                      const wasm::CanonicalSig* sig);
+  static DirectHandle<WasmCapiFunction> New(Isolate* isolate,
+                                            Address call_target,
+                                            DirectHandle<Foreign> embedder_data,
+                                            wasm::CanonicalTypeIndex sig_index,
+                                            const wasm::CanonicalSig* sig);
 
   const wasm::CanonicalSig* sig() const;
 
@@ -1351,10 +1352,10 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
  protected:
   // Returns boxed value of the object's field/element with given type and
   // offset.
-  static inline Handle<Object> ReadValueAt(Isolate* isolate,
-                                           DirectHandle<HeapObject> obj,
-                                           wasm::ValueType type,
-                                           uint32_t offset);
+  static inline DirectHandle<Object> ReadValueAt(Isolate* isolate,
+                                                 DirectHandle<HeapObject> obj,
+                                                 wasm::ValueType type,
+                                                 uint32_t offset);
 
  private:
   template <typename ElementType>
@@ -1458,7 +1459,7 @@ class WasmContinuationObject
       Isolate* isolate, wasm::StackMemory* stack,
       wasm::JumpBuffer::StackState state,
       AllocationType allocation_type = AllocationType::kYoung);
-  static Handle<WasmContinuationObject> New(
+  static DirectHandle<WasmContinuationObject> New(
       Isolate* isolate, wasm::StackMemory* stack,
       wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
       AllocationType allocation_type = AllocationType::kYoung);

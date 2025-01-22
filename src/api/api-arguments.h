@@ -104,8 +104,8 @@ class PropertyCallbackArguments final
   // Returns the result of [[Get]] operation or throws an exception.
   // In case of exception empty handle is returned.
   // TODO(ishell, 328490288): stop returning empty handles.
-  inline Handle<JSAny> CallAccessorGetter(DirectHandle<AccessorInfo> info,
-                                          DirectHandle<Name> name);
+  inline DirectHandle<JSAny> CallAccessorGetter(DirectHandle<AccessorInfo> info,
+                                                DirectHandle<Name> name);
   // Returns the result of [[Set]] operation or throws an exception.
   V8_WARN_UNUSED_RESULT
   inline bool CallAccessorSetter(DirectHandle<AccessorInfo> info,
@@ -233,7 +233,7 @@ class PropertyCallbackArguments final
 
  private:
   // Returns JSArray-like object with property names or undefined.
-  inline Handle<JSObjectOrUndefined> CallPropertyEnumerator(
+  inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
       DirectHandle<InterceptorInfo> interceptor);
 
   inline Tagged<JSObject> holder() const;

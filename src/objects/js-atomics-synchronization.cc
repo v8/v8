@@ -24,7 +24,7 @@ namespace {
 // TODO(v8:12547): Move this logic into a static method JSPromise::PerformThen
 // so that other callsites like this one can use it.
 // Set fulfill/reject handlers for a JSPromise object.
-MaybeHandle<JSReceiver> PerformPromiseThen(
+MaybeDirectHandle<JSReceiver> PerformPromiseThen(
     Isolate* isolate, DirectHandle<JSReceiver> promise,
     DirectHandle<Object> fulfill_handler,
     MaybeDirectHandle<JSFunction> maybe_reject_handler = {}) {
@@ -35,7 +35,7 @@ MaybeHandle<JSReceiver> PerformPromiseThen(
   }
   DirectHandle<Object> args[] = {fulfill_handler, reject_handler};
 
-  Handle<Object> then_result;
+  DirectHandle<Object> then_result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, then_result,
       Execution::CallBuiltin(isolate, isolate->promise_then(), promise,

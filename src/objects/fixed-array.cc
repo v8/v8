@@ -18,9 +18,13 @@ bool FixedArrayBase::IsCowArray() const {
   return map() == GetReadOnlyRoots().fixed_cow_array_map();
 }
 
-Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
-                                          Handle<FixedArray> array, int index,
-                                          DirectHandle<Object> value) {
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
+                                              HandleType<FixedArray> array,
+                                              int index,
+                                              DirectHandle<Object> value) {
   int len = array->length();
   if (index >= len) {
     int new_capacity = FixedArray::NewCapacityForIndex(index, len);
@@ -33,6 +37,13 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   array->set(index, *value);
   return array;
 }
+
+template DirectHandle<FixedArray> FixedArray::SetAndGrow(
+    Isolate* isolate, DirectHandle<FixedArray> array, int index,
+    DirectHandle<Object> value);
+template IndirectHandle<FixedArray> FixedArray::SetAndGrow(
+    Isolate* isolate, IndirectHandle<FixedArray> array, int index,
+    DirectHandle<Object> value);
 
 void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
   DCHECK_NE(map(), ReadOnlyRoots{isolate}.fixed_cow_array_map());

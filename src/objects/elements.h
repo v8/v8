@@ -144,8 +144,9 @@ class ElementsAccessor {
                                                 PropertyAttributes attributes,
                                                 uint32_t new_capacity) = 0;
 
-  static Handle<JSArray> Concat(Isolate* isolate, BuiltinArguments* args,
-                                uint32_t concat_size, uint32_t result_length);
+  static DirectHandle<JSArray> Concat(Isolate* isolate, BuiltinArguments* args,
+                                      uint32_t concat_size,
+                                      uint32_t result_length);
 
   V8_WARN_UNUSED_RESULT virtual Maybe<uint32_t> Push(
       DirectHandle<JSArray> receiver, BuiltinArguments* args,

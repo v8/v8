@@ -72,7 +72,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   static bool AnythingToArrayLength(Isolate* isolate,
-                                    Handle<Object> length_object,
+                                    DirectHandle<Object> length_object,
                                     uint32_t* output);
   V8_WARN_UNUSED_RESULT static Maybe<bool> ArraySetLength(
       Isolate* isolate, DirectHandle<JSArray> a, PropertyDescriptor* desc,

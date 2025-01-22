@@ -357,12 +357,12 @@ class Expectations {
         .ToHandleChecked();
   }
 
-  Handle<Map> TransitionToDataField(DirectHandle<Map> map,
-                                    PropertyAttributes attributes,
-                                    PropertyConstness constness,
-                                    Representation representation,
-                                    Handle<FieldType> heap_type,
-                                    DirectHandle<Object> value) {
+  DirectHandle<Map> TransitionToDataField(DirectHandle<Map> map,
+                                          PropertyAttributes attributes,
+                                          PropertyConstness constness,
+                                          Representation representation,
+                                          Handle<FieldType> heap_type,
+                                          DirectHandle<Object> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataField(property_index, attributes, constness, representation,
@@ -373,9 +373,9 @@ class Expectations {
                                          constness, StoreOrigin::kNamed);
   }
 
-  Handle<Map> TransitionToDataConstant(DirectHandle<Map> map,
-                                       PropertyAttributes attributes,
-                                       DirectHandle<JSFunction> value) {
+  DirectHandle<Map> TransitionToDataConstant(DirectHandle<Map> map,
+                                             PropertyAttributes attributes,
+                                             DirectHandle<JSFunction> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);

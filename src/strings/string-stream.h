@@ -173,7 +173,7 @@ class StringStream final {
   void OutputToFile(FILE* out);
   void OutputToStdOut() { OutputToFile(stdout); }
   void Log(Isolate* isolate);
-  Handle<String> ToString(Isolate* isolate);
+  DirectHandle<String> ToString(Isolate* isolate);
   std::unique_ptr<char[]> ToCString() const;
   int length() const { return length_; }
 

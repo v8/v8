@@ -51,13 +51,13 @@ CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   return ErrorHint::kNone;
 }
 
-Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
+DirectHandle<String> CallPrinter::Print(FunctionLiteral* program,
+                                        int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return indirect_handle(builder_.Finish().ToHandleChecked(), isolate_);
+  return builder_.Finish().ToHandleChecked();
 }
-
 
 void CallPrinter::Find(AstNode* node, bool print) {
   if (found_) {

@@ -477,11 +477,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   return Handle<Object>(value, isolate);
 }
 
-MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
-                                       const InvokeParams& params) {
+MaybeDirectHandle<Object> InvokeWithTryCatch(Isolate* isolate,
+                                             const InvokeParams& params) {
   DCHECK_IMPLIES(v8_flags.strict_termination_checks,
                  !isolate->is_execution_terminating());
-  MaybeHandle<Object> maybe_result;
+  MaybeDirectHandle<Object> maybe_result;
   if (params.exception_out != nullptr) {
     *params.exception_out = {};
   }
@@ -581,7 +581,7 @@ MaybeDirectHandle<Object> Execution::TryCallScript(
 }
 
 // static
-MaybeHandle<Object> Execution::TryCall(
+MaybeDirectHandle<Object> Execution::TryCall(
     Isolate* isolate, DirectHandle<Object> callable,
     DirectHandle<Object> receiver,
     base::Vector<const DirectHandle<Object>> args,

@@ -193,11 +193,11 @@ DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
 
 namespace {
 
-Handle<JSObject> CreateSlowJSObjectWithProperties(
+DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     Isolate* isolate, DirectHandle<FixedArray> property_names,
     const MemorySpan<MaybeLocal<Value>>& property_values,
     int num_properties_set) {
-  Handle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
+  DirectHandle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
       isolate->slow_object_with_object_prototype_map(), num_properties_set,
       AllocationType::kYoung);
   Handle<Object> properties = handle(object->raw_properties_or_hash(), isolate);

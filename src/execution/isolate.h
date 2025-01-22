@@ -1115,7 +1115,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Tagged<NativeContext> raw_native_context();
 
   inline DirectHandle<NativeContext> GetIncumbentContext();
-  Handle<NativeContext> GetIncumbentContextSlow();
+  DirectHandle<NativeContext> GetIncumbentContextSlow();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
@@ -2004,9 +2004,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_OS_WIN64
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
-  MaybeHandle<Object> RunPrepareStackTraceCallback(DirectHandle<NativeContext>,
-                                                   DirectHandle<JSObject> Error,
-                                                   DirectHandle<JSArray> sites);
+  MaybeDirectHandle<Object> RunPrepareStackTraceCallback(
+      DirectHandle<NativeContext>, DirectHandle<JSObject> Error,
+      DirectHandle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
   void SetAddCrashKeyCallback(AddCrashKeyCallback callback);

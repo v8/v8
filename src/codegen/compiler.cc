@@ -3233,7 +3233,7 @@ MaybeDirectHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
 }
 
 // static
-MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
+MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos, int eval_position,
@@ -3318,7 +3318,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
                                        maybe_outer_scope_info, isolate,
                                        &is_compiled_scope)
              .ToHandle(&shared_info)) {
-      return MaybeHandle<JSFunction>();
+      return MaybeDirectHandle<JSFunction>();
     }
     allow_eval_cache = parse_info.allow_eval_cache();
   }
@@ -3326,7 +3326,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   // If caller is strict mode, the result must be in strict mode as well.
   DCHECK(is_sloppy(language_mode) || is_strict(shared_info->language_mode()));
 
-  Handle<JSFunction> result;
+  DirectHandle<JSFunction> result;
   if (eval_result.has_shared()) {
     if (eval_result.has_feedback_cell()) {
       result = Factory::JSFunctionBuilder{isolate, shared_info, context}
@@ -3453,7 +3453,7 @@ Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
 }
 
 // static
-MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
+MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
     DirectHandle<NativeContext> native_context,
     MaybeDirectHandle<String> source, ParseRestriction restriction,
     int parameters_end_pos) {

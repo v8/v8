@@ -984,7 +984,7 @@ class Runtime : public AllStatic {
                           StoreOrigin store_origin);
 
   // When "receiver" is not passed, it defaults to "lookup_start_object".
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
   GetObjectProperty(Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
                     DirectHandle<Object> key, DirectHandle<JSAny> receiver = {},
                     bool* is_found = nullptr);
@@ -1012,7 +1012,7 @@ class Runtime : public AllStatic {
   SetPrivateMember(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                    Handle<String> desc, DirectHandle<Object> value);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> HasProperty(
       Isolate* isolate, DirectHandle<Object> object, DirectHandle<Object> key);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray>

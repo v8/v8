@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   Handle<BytecodeArray> ToBytecodeArray(IsolateT* isolate);
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
+  DirectHandle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);

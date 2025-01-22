@@ -101,15 +101,15 @@ class ErrorUtils : public AllStatic {
       MessageTemplate index, base::Vector<const DirectHandle<Object>> args,
       FrameSkipMode mode);
 
-  static Handle<JSObject> ShadowRealmConstructTypeErrorCopy(
+  static DirectHandle<JSObject> ShadowRealmConstructTypeErrorCopy(
       Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
       base::Vector<const DirectHandle<Object>> args);
 
   // Formats a textual stack trace from the given structured stack trace.
   // Note that this can call arbitrary JS code through Error.prepareStackTrace.
-  static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
-                                              DirectHandle<JSObject> error,
-                                              DirectHandle<Object> stack_trace);
+  static MaybeDirectHandle<Object> FormatStackTrace(
+      Isolate* isolate, DirectHandle<JSObject> error,
+      DirectHandle<Object> stack_trace);
 
   static DirectHandle<JSObject> NewIteratorError(Isolate* isolate,
                                                  DirectHandle<Object> source);

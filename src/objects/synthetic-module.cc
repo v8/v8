@@ -98,7 +98,7 @@ bool SyntheticModule::FinishInstantiate(Isolate* isolate,
 
 // Implements Synthetic Module Record's Evaluate concrete method:
 // https://heycam.github.io/webidl/#smr-evaluate
-MaybeHandle<Object> SyntheticModule::Evaluate(
+MaybeDirectHandle<Object> SyntheticModule::Evaluate(
     Isolate* isolate, DirectHandle<SyntheticModule> module) {
   module->SetStatus(kEvaluating);
 
@@ -110,12 +110,12 @@ MaybeHandle<Object> SyntheticModule::Evaluate(
                         Utils::ToLocal(Cast<Module>(module)))
            .ToLocal(&result)) {
     module->RecordError(isolate, isolate->exception());
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
 
   module->SetStatus(kEvaluated);
 
-  Handle<Object> result_from_callback = Utils::OpenHandle(*result);
+  DirectHandle<Object> result_from_callback = Utils::OpenDirectHandle(*result);
 
   DirectHandle<JSPromise> capability;
   if (IsJSPromise(*result_from_callback)) {

@@ -203,17 +203,17 @@ MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
   return isolate->factory()->true_value();
 }
 
-MaybeHandle<JSReceiver>
+MaybeDirectHandle<JSReceiver>
 JSDisposableStackBase::ResolveAPromiseWithValueAndReturnIt(
     Isolate* isolate, DirectHandle<Object> value) {
   DirectHandle<JSFunction> promise_function = isolate->promise_function();
   DirectHandle<Object> args[] = {value};
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result,
       Execution::CallBuiltin(isolate, isolate->promise_resolve(),
                              promise_function, base::VectorOf(args)),
-      MaybeHandle<JSReceiver>());
+      MaybeDirectHandle<JSReceiver>());
   return Cast<JSReceiver>(result);
 }
 

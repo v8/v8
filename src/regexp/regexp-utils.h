@@ -27,8 +27,8 @@ class RegExpUtils : public AllStatic {
   static bool IsMatchedCapture(Tagged<RegExpMatchInfo> match_info, int capture);
 
   // Last index (RegExp.lastIndex) accessors.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> SetLastIndex(
+      Isolate* isolate, DirectHandle<JSReceiver> regexp, uint64_t value);
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> GetLastIndex(
       Isolate* isolate, DirectHandle<JSReceiver> recv);
 
@@ -50,8 +50,8 @@ class RegExpUtils : public AllStatic {
   static uint64_t AdvanceStringIndex(Tagged<String> string, uint64_t index,
                                      bool unicode);
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> SetAdvancedStringIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
-      bool unicode);
+      Isolate* isolate, DirectHandle<JSReceiver> regexp,
+      DirectHandle<String> string, bool unicode);
 };
 
 }  // namespace internal

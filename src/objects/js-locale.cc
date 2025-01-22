@@ -120,9 +120,9 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   return Just(true);
 }
 
-Handle<Object> UnicodeKeywordValue(Isolate* isolate,
-                                   DirectHandle<JSLocale> locale,
-                                   const char* key) {
+DirectHandle<Object> UnicodeKeywordValue(Isolate* isolate,
+                                         DirectHandle<JSLocale> locale,
+                                         const char* key) {
   icu::Locale* icu_locale = locale->icu_locale()->raw();
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
@@ -408,8 +408,8 @@ MaybeDirectHandle<JSLocale> JSLocale::New(Isolate* isolate,
 
 namespace {
 
-MaybeHandle<JSLocale> Construct(Isolate* isolate,
-                                const icu::Locale& icu_locale) {
+MaybeDirectHandle<JSLocale> Construct(Isolate* isolate,
+                                      const icu::Locale& icu_locale) {
   DirectHandle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::From(
           isolate, 0, std::shared_ptr<icu::Locale>{icu_locale.clone()});
@@ -422,7 +422,7 @@ MaybeHandle<JSLocale> Construct(Isolate* isolate,
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor));
 
-  Handle<JSLocale> locale =
+  DirectHandle<JSLocale> locale =
       Cast<JSLocale>(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   locale->set_icu_locale(*managed_locale);
@@ -500,12 +500,10 @@ MaybeDirectHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
 }
 
 template <typename T>
-MaybeHandle<JSArray> GetKeywordValuesFromLocale(Isolate* isolate,
-                                                const char* key,
-                                                const char* unicode_key,
-                                                const icu::Locale& locale,
-                                                bool (*removes)(const char*),
-                                                bool commonly_used, bool sort) {
+MaybeDirectHandle<JSArray> GetKeywordValuesFromLocale(
+    Isolate* isolate, const char* key, const char* unicode_key,
+    const icu::Locale& locale, bool (*removes)(const char*), bool commonly_used,
+    bool sort) {
   Factory* factory = isolate->factory();
   UErrorCode status = U_ZERO_ERROR;
   std::string ext =
@@ -528,9 +526,9 @@ MaybeHandle<JSArray> GetKeywordValuesFromLocale(Isolate* isolate,
 
 namespace {
 
-MaybeHandle<JSArray> CalendarsForLocale(Isolate* isolate,
-                                        const icu::Locale& icu_locale,
-                                        bool commonly_used, bool sort) {
+MaybeDirectHandle<JSArray> CalendarsForLocale(Isolate* isolate,
+                                              const icu::Locale& icu_locale,
+                                              bool commonly_used, bool sort) {
   return GetKeywordValuesFromLocale<icu::Calendar>(
       isolate, "calendar", "ca", icu_locale, nullptr, commonly_used, sort);
 }
@@ -543,7 +541,7 @@ MaybeDirectHandle<JSArray> JSLocale::GetCalendars(
   return CalendarsForLocale(isolate, icu_locale, true, false);
 }
 
-MaybeHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
+MaybeDirectHandle<JSArray> Intl::AvailableCalendars(Isolate* isolate) {
   icu::Locale icu_locale("und");
   return CalendarsForLocale(isolate, icu_locale, false, true);
 }

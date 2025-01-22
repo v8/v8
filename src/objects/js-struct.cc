@@ -162,7 +162,7 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
 }  // namespace
 
 // static
-Handle<Map> JSSharedStruct::CreateInstanceMap(
+DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
     Isolate* isolate, const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names,
     MaybeDirectHandle<String> maybe_registry_key) {
@@ -244,7 +244,7 @@ Handle<Map> JSSharedStruct::CreateInstanceMap(
   JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
                                           num_fields, &instance_size,
                                           &in_object_properties);
-  Handle<Map> instance_map = factory->NewContextlessMap(
+  DirectHandle<Map> instance_map = factory->NewContextlessMap(
       JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
       in_object_properties, AllocationType::kSharedMap);
 
@@ -374,7 +374,7 @@ SharedStructTypeRegistry::SharedStructTypeRegistry()
 
 SharedStructTypeRegistry::~SharedStructTypeRegistry() = default;
 
-MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
+MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
     Isolate* isolate, InternalIndex entry, DirectHandle<String> key,
     const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
@@ -392,13 +392,13 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
   int num_descriptors = static_cast<int>(field_names.size()) + 1;
   if (!element_names.empty()) {
     if (JSSharedStruct::GetElementsTemplate(isolate, existing_map).is_null()) {
-      return MaybeHandle<Map>();
+      return MaybeDirectHandle<Map>();
     }
     num_descriptors++;
   }
 
   if (num_descriptors != existing_map->NumberOfOwnDescriptors()) {
-    return MaybeHandle<Map>();
+    return MaybeDirectHandle<Map>();
   }
 
   Tagged<DescriptorArray> existing_descriptors =
@@ -413,11 +413,11 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
           isolate);
       if (static_cast<int>(element_names.size()) !=
           elements_template->NumberOfElements()) {
-        return MaybeHandle<Map>();
+        return MaybeDirectHandle<Map>();
       }
       for (int element : element_names) {
         if (elements_template->FindEntry(isolate, element).is_not_found()) {
-          return MaybeHandle<Map>();
+          return MaybeDirectHandle<Map>();
         }
       }
 
@@ -432,14 +432,14 @@ MaybeHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
     DCHECK(IsUniqueName(existing_name));
     Tagged<Name> name = **field_names_iter;
     DCHECK(IsUniqueName(name));
-    if (name != existing_name) return MaybeHandle<Map>();
+    if (name != existing_name) return MaybeDirectHandle<Map>();
     ++field_names_iter;
   }
 
-  return handle(existing_map, isolate);
+  return direct_handle(existing_map, isolate);
 }
 
-MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
+MaybeDirectHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
     Isolate* isolate, Handle<String> key,
     const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
@@ -458,8 +458,8 @@ MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
   }
 
   // We have a likely miss. Create a new instance map outside of the lock.
-  Handle<Map> map = JSSharedStruct::CreateInstanceMap(isolate, field_names,
-                                                      element_names, key);
+  DirectHandle<Map> map = JSSharedStruct::CreateInstanceMap(
+      isolate, field_names, element_names, key);
 
   // Relookup to see if it's in fact a miss.
   NoGarbageCollectionMutexGuard data_guard(&data_mutex_);

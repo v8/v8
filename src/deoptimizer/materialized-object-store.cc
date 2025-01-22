@@ -58,9 +58,9 @@ int MaterializedObjectStore::StackIdToIndex(Address fp) {
              : static_cast<int>(std::distance(frame_fps_.begin(), it));
 }
 
-Handle<FixedArray> MaterializedObjectStore::GetStackEntries() {
-  return Handle<FixedArray>(isolate()->heap()->materialized_objects(),
-                            isolate());
+DirectHandle<FixedArray> MaterializedObjectStore::GetStackEntries() {
+  return DirectHandle<FixedArray>(isolate()->heap()->materialized_objects(),
+                                  isolate());
 }
 
 DirectHandle<FixedArray> MaterializedObjectStore::EnsureStackEntries(

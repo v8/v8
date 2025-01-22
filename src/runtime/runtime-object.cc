@@ -22,7 +22,7 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> Runtime::GetObjectProperty(
+MaybeDirectHandle<Object> Runtime::GetObjectProperty(
     Isolate* isolate, DirectHandle<JSAny> lookup_start_object,
     DirectHandle<Object> key, DirectHandle<JSAny> receiver, bool* is_found) {
   if (receiver.is_null()) {
@@ -30,16 +30,16 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
   }
   if (IsNullOrUndefined(*lookup_start_object, isolate)) {
     ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, lookup_start_object, key);
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
 
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
-  if (!success) return MaybeHandle<Object>();
+  if (!success) return MaybeDirectHandle<Object>();
   LookupIterator it =
       LookupIterator(isolate, receiver, lookup_key, lookup_start_object);
 
-  MaybeHandle<Object> result = Object::GetProperty(&it);
+  MaybeDirectHandle<Object> result = Object::GetProperty(&it);
   if (result.is_null()) {
     return result;
   }
@@ -51,9 +51,9 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
   return result;
 }
 
-MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
-                                         DirectHandle<Object> object,
-                                         DirectHandle<Object> key) {
+MaybeDirectHandle<Object> Runtime::HasProperty(Isolate* isolate,
+                                               DirectHandle<Object> object,
+                                               DirectHandle<Object> key) {
   // Check that {object} is actually a receiver.
   if (!IsJSReceiver(*object)) {
     THROW_NEW_ERROR(
@@ -68,7 +68,7 @@ MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
 
   // Lookup the {name} on {receiver}.
   Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
-  if (maybe.IsNothing()) return MaybeHandle<Object>();
+  if (maybe.IsNothing()) return MaybeDirectHandle<Object>();
   return isolate->factory()->ToBoolean(maybe.FromJust());
 }
 

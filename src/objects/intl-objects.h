@@ -139,7 +139,7 @@ class Intl {
   StringLocaleConvertCase(Isolate* isolate, DirectHandle<String> s,
                           bool is_upper, DirectHandle<Object> locales);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToUpper(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> ConvertToUpper(
       Isolate* isolate, DirectHandle<String> s);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
@@ -236,7 +236,7 @@ class Intl {
       int32_t end);
 
   // Helper function to convert a FormattedValue to String
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormattedToString(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormattedToString(
       Isolate* isolate, const icu::FormattedValue& formatted);
 
   // Helper function to convert number field id to type string.
@@ -279,8 +279,8 @@ class Intl {
   // constructor is called
   //
   // See ecma402/#legacy-constructor.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> LegacyUnwrapReceiver(
-      Isolate* isolate, Handle<JSReceiver> receiver,
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> LegacyUnwrapReceiver(
+      Isolate* isolate, DirectHandle<JSReceiver> receiver,
       DirectHandle<JSFunction> constructor, bool has_initialized_slot);
 
   // enum for "localeMatcher" option: shared by many Intl objects.
@@ -395,7 +395,7 @@ class Intl {
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> ToJSArray(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> ToJSArray(
       Isolate* isolate, const char* unicode_key,
       icu::StringEnumeration* enumeration,
       const std::function<bool(const char*)>& removes, bool sort);
@@ -404,7 +404,7 @@ class Intl {
 
   static std::set<std::string> SanctionedSimpleUnits();
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> AvailableCalendars(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> AvailableCalendars(
       Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(
@@ -455,7 +455,7 @@ class Intl {
       Isolate* isolate, int32_t time_zone_index,
       DirectHandle<BigInt> nanosecond_epoch);
 
-  static Handle<String> DefaultTimeZone(Isolate* isolate);
+  static DirectHandle<String> DefaultTimeZone(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, DirectHandle<String> identifier);

@@ -381,12 +381,12 @@ static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
 }
 
 template <typename T>
-static inline i::Handle<T> GetGlobal(const char* name) {
+static inline i::DirectHandle<T> GetGlobal(const char* name) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::DirectHandle<i::String> str_name =
       isolate->factory()->InternalizeUtf8String(name);
 
-  i::Handle<i::Object> value =
+  i::DirectHandle<i::Object> value =
       i::Object::GetProperty(isolate, isolate->global_object(), str_name)
           .ToHandleChecked();
   return i::Cast<T>(value);

@@ -106,7 +106,7 @@ bool CurrentSegmentIsWordLike(icu::BreakIterator* break_iterator) {
 }  // namespace
 
 // ecma402 #sec-createsegmentdataobject
-MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
+MaybeDirectHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
     Isolate* isolate, JSSegmenter::Granularity granularity,
     icu::BreakIterator* break_iterator, DirectHandle<String> input_string,
     const icu::UnicodeString& unicode_string, int32_t start_index,
@@ -127,7 +127,7 @@ MaybeHandle<JSSegmentDataObject> JSSegments::CreateSegmentDataObject(
           ? isolate->native_context()->intl_segment_data_object_wordlike_map()
           : isolate->native_context()->intl_segment_data_object_map(),
       isolate);
-  Handle<JSSegmentDataObject> result =
+  DirectHandle<JSSegmentDataObject> result =
       Cast<JSSegmentDataObject>(factory->NewJSObjectFromMap(map));
 
   // 6. Let segment be the String value equal to the substring of string

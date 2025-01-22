@@ -63,10 +63,10 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         uint16_t max_arguments, DirectHandle<TrustedByteArray> handler_table);
 
 template <typename IsolateT>
-Handle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+DirectHandle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
     IsolateT* isolate) {
   DCHECK(!source_position_table_builder_.Lazy());
-  Handle<TrustedByteArray> source_position_table =
+  DirectHandle<TrustedByteArray> source_position_table =
       source_position_table_builder_.Omit()
           ? isolate->factory()->empty_trusted_byte_array()
           : source_position_table_builder_.ToSourcePositionTable(isolate);
@@ -74,10 +74,10 @@ Handle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    DirectHandle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
         Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
+    DirectHandle<TrustedByteArray> BytecodeArrayWriter::ToSourcePositionTable(
         LocalIsolate* isolate);
 
 #ifdef DEBUG

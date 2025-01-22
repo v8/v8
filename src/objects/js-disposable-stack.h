@@ -81,7 +81,7 @@ class JSDisposableStackBase
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
       MaybeHandle<Object> maybe_continuation_error,
       DisposableStackResourcesType resources_type);
-  static MaybeHandle<JSReceiver> ResolveAPromiseWithValueAndReturnIt(
+  static MaybeDirectHandle<JSReceiver> ResolveAPromiseWithValueAndReturnIt(
       Isolate* isolate, DirectHandle<Object> value);
   static void HandleErrorInDisposal(
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,

@@ -157,7 +157,7 @@ Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
                    .ToHandleChecked();
 }
 
-MaybeHandle<String> WasmModuleObject::GetModuleNameOrNull(
+MaybeDirectHandle<String> WasmModuleObject::GetModuleNameOrNull(
     Isolate* isolate, DirectHandle<WasmModuleObject> module_object) {
   const WasmModule* module = module_object->module();
   if (!module->name.is_set()) return {};
@@ -1153,8 +1153,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   return static_cast<int32_t>(old_pages);  // success
 }
 
-MaybeHandle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromAnonymous(
-    Isolate* isolate, size_t length) {
+MaybeDirectHandle<WasmMemoryMapDescriptor>
+WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
 #if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
@@ -1184,8 +1184,9 @@ MaybeHandle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromAnonymous(
 #endif  // V8_TARGET_OS_LINUX
 }
 
-Handle<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::NewFromFileDescriptor(
-    Isolate* isolate, int file_descriptor) {
+DirectHandle<WasmMemoryMapDescriptor>
+WasmMemoryMapDescriptor::NewFromFileDescriptor(Isolate* isolate,
+                                               int file_descriptor) {
   CHECK(v8_flags.experimental_wasm_memory_control);
   DirectHandle<JSFunction> descriptor_ctor(
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
@@ -2480,18 +2481,19 @@ bool WasmCapiFunction::MatchesSignature(
 }
 
 // static
-Handle<WasmExceptionPackage> WasmExceptionPackage::New(
+DirectHandle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag, int size) {
   DirectHandle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   return New(isolate, exception_tag, values);
 }
 
-Handle<WasmExceptionPackage> WasmExceptionPackage::New(
+DirectHandle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, DirectHandle<WasmExceptionTag> exception_tag,
     DirectHandle<FixedArray> values) {
   DirectHandle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
-  Handle<JSObject> exception = isolate->factory()->NewJSObject(exception_cons);
+  DirectHandle<JSObject> exception =
+      isolate->factory()->NewJSObject(exception_cons);
   exception->InObjectPropertyAtPut(kTagIndex, *exception_tag);
   exception->InObjectPropertyAtPut(kValuesIndex, *values);
   return Cast<WasmExceptionPackage>(exception);
@@ -2553,7 +2555,7 @@ void DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
 }
 
 // static
-Handle<WasmContinuationObject> WasmContinuationObject::New(
+DirectHandle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, wasm::StackMemory* stack,
     wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
     AllocationType allocation_type) {
@@ -2562,7 +2564,7 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->state = state;
   wasm::JumpBuffer* jmpbuf = stack->jmpbuf();
-  Handle<WasmContinuationObject> result =
+  DirectHandle<WasmContinuationObject> result =
       isolate->factory()->NewWasmContinuationObject(
           reinterpret_cast<Address>(jmpbuf), stack, parent, allocation_type);
   return result;
@@ -2684,7 +2686,7 @@ bool WasmCapiFunction::IsWasmCapiFunction(Tagged<Object> object) {
   return js_function->shared()->HasWasmCapiFunctionData();
 }
 
-Handle<WasmCapiFunction> WasmCapiFunction::New(
+DirectHandle<WasmCapiFunction> WasmCapiFunction::New(
     Isolate* isolate, Address call_target, DirectHandle<Foreign> embedder_data,
     wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig) {
   // TODO(jkummerow): Install a JavaScript wrapper. For now, calling
@@ -2702,7 +2704,7 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
           sig_index, sig);
   DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);
-  Handle<JSFunction> result =
+  DirectHandle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
           .Build();
   fun_data->internal()->set_external(*result);

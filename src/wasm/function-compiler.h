@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   Isolate* isolate() const { return isolate_; }
 
   void Execute();
-  Handle<Code> Finalize();
+  DirectHandle<Code> Finalize();
 
   const CanonicalSig* sig() const { return sig_; }
   CanonicalTypeIndex sig_index() const { return sig_index_; }

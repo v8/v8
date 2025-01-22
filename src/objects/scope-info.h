@@ -350,8 +350,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   }
 
   enum class BootstrappingType { kScript, kFunction, kNative, kShadowRealm };
-  static Handle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
-                                                  BootstrappingType type);
+  static DirectHandle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
+                                                        BootstrappingType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,

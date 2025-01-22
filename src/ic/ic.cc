@@ -296,13 +296,14 @@ void IC::UpdateState(DirectHandle<Object> lookup_start_object,
   }
 }
 
-MaybeHandle<Object> IC::TypeError(MessageTemplate index, Handle<Object> object,
-                                  Handle<Object> key) {
+MaybeDirectHandle<Object> IC::TypeError(MessageTemplate index,
+                                        Handle<Object> object,
+                                        Handle<Object> key) {
   HandleScope scope(isolate());
   THROW_NEW_ERROR(isolate(), NewTypeError(index, key, object));
 }
 
-MaybeHandle<Object> IC::ReferenceError(Handle<Name> name) {
+MaybeDirectHandle<Object> IC::ReferenceError(Handle<Name> name) {
   HandleScope scope(isolate());
   THROW_NEW_ERROR(isolate(),
                   NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -390,9 +391,9 @@ void IC::ConfigureVectorState(DirectHandle<Name> name,
   OnFeedbackChanged("Polymorphic");
 }
 
-MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
-                                 bool update_feedback,
-                                 DirectHandle<JSAny> receiver) {
+MaybeDirectHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
+                                       bool update_feedback,
+                                       DirectHandle<JSAny> receiver) {
   bool use_ic = (state() != NO_FEEDBACK) && v8_flags.use_ic && update_feedback;
 
   if (receiver.is_null()) {
@@ -413,7 +414,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
 
     if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
       isolate()->Throw(*ErrorUtils::NewIteratorError(isolate(), object));
-      return MaybeHandle<Object>();
+      return MaybeDirectHandle<Object>();
     }
 
     if (IsAnyHas()) {
@@ -421,7 +422,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
     } else {
       DCHECK(IsNullOrUndefined(*object, isolate()));
       ErrorUtils::ThrowLoadFromNullOrUndefined(isolate(), object, name);
-      return MaybeHandle<Object>();
+      return MaybeDirectHandle<Object>();
     }
   }
 
@@ -455,12 +456,12 @@ MaybeHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
     if (IsAnyHas()) {
       // Named lookup in the object.
       Maybe<bool> maybe = JSReceiver::HasProperty(&it);
-      if (maybe.IsNothing()) return MaybeHandle<Object>();
+      if (maybe.IsNothing()) return MaybeDirectHandle<Object>();
       return isolate()->factory()->ToBoolean(maybe.FromJust());
     }
 
     // Get the property.
-    Handle<Object> result;
+    DirectHandle<Object> result;
 
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
                                Object::GetProperty(&it, IsLoadGlobalIC()));
@@ -1544,10 +1545,10 @@ bool CanCache(DirectHandle<Object> receiver, InlineCacheState state) {
 
 }  // namespace
 
-MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(DirectHandle<JSAny> object,
-                                             DirectHandle<Object> key,
-                                             bool* is_found) {
-  Handle<Object> result;
+MaybeDirectHandle<Object> KeyedLoadIC::RuntimeLoad(DirectHandle<JSAny> object,
+                                                   DirectHandle<Object> key,
+                                                   bool* is_found) {
+  DirectHandle<Object> result;
 
   if (IsKeyedLoadIC()) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -1562,10 +1563,10 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(DirectHandle<JSAny> object,
   return result;
 }
 
-MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<JSAny> object,
-                                          DirectHandle<Object> key,
-                                          Handle<Name> name) {
-  Handle<Object> load_handle;
+MaybeDirectHandle<Object> KeyedLoadIC::LoadName(Handle<JSAny> object,
+                                                DirectHandle<Object> key,
+                                                Handle<Name> name) {
+  DirectHandle<Object> load_handle;
   ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                              LoadIC::Load(object, name));
 
@@ -1712,7 +1713,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
 }
 
 MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
-                                               Handle<Object> value) {
+                                               DirectHandle<Object> value) {
   DCHECK(IsString(*name));
 
   // Look up in script context table.
@@ -1843,9 +1844,10 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
 }
 }  // namespace
 
-MaybeHandle<Object> StoreIC::Store(Handle<JSAny> object, Handle<Name> name,
-                                   Handle<Object> value,
-                                   StoreOrigin store_origin) {
+MaybeDirectHandle<Object> StoreIC::Store(Handle<JSAny> object,
+                                         Handle<Name> name,
+                                         DirectHandle<Object> value,
+                                         StoreOrigin store_origin) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
@@ -2925,7 +2927,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<JSAny> receiver = args.at<JSAny>(3);
@@ -2956,7 +2958,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<JSAny> receiver = args.at<JSAny>(3);
@@ -3008,7 +3010,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   int slot = args.tagged_index_value_at(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Name> key = args.at<Name>(3);
@@ -3025,7 +3027,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalICNoFeedback_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Name> key = args.at<Name>(1);
 
   // TODO(mythria): Replace StoreGlobalStrict/Sloppy with SetNamedProperty.

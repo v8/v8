@@ -55,8 +55,9 @@ MaybeHandle<JSFunction> InstantiateFunction(
                              maybe_name);
 }
 
-MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
-                                MaybeDirectHandle<Name> maybe_name = {}) {
+MaybeDirectHandle<Object> Instantiate(Isolate* isolate,
+                                      DirectHandle<Object> data,
+                                      MaybeDirectHandle<Name> maybe_name = {}) {
   if (IsFunctionTemplateInfo(*data)) {
     return InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(data),
                                maybe_name);
@@ -100,7 +101,7 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
 MaybeDirectHandle<Object> DefineDataProperty(Isolate* isolate,
                                              DirectHandle<JSObject> object,
                                              DirectHandle<Name> name,
-                                             Handle<Object> prop_data,
+                                             DirectHandle<Object> prop_data,
                                              PropertyAttributes attributes) {
   DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,

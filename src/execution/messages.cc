@@ -283,7 +283,7 @@ class V8_NODISCARD PrepareStackTraceScope {
 }  // namespace
 
 // static
-MaybeHandle<Object> ErrorUtils::FormatStackTrace(
+MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
     Isolate* isolate, DirectHandle<JSObject> error,
     DirectHandle<Object> raw_stack) {
   if (v8_flags.correctness_fuzzer_suppressions) {
@@ -304,7 +304,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
       ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
                                  GetStackFrames(isolate, elems));
 
-      Handle<Object> result;
+      DirectHandle<Object> result;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result,
           isolate->RunPrepareStackTraceCallback(error_context, error, sites));
@@ -341,7 +341,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
         }
         args[1] = sites;
 
-        Handle<Object> result;
+        DirectHandle<Object> result;
 
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, result,
@@ -389,7 +389,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(
     }
   }
 
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 Handle<String> MessageFormatter::Format(
@@ -752,7 +752,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 }
 
 // static
-Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
+DirectHandle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
     Isolate* isolate, DirectHandle<Object> original, MessageTemplate index,
     base::Vector<const DirectHandle<Object>> args) {
   if (v8_flags.clear_exceptions_on_js_entry) {
@@ -802,7 +802,7 @@ Handle<JSObject> ErrorUtils::ShadowRealmConstructTypeErrorCopy(
 
   DirectHandle<Object> no_caller;
   DirectHandle<JSFunction> constructor = isolate->type_error_function();
-  Handle<JSObject> new_error =
+  DirectHandle<JSObject> new_error =
       ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
                             FrameSkipMode::SKIP_NONE, no_caller, collection)
           .ToHandleChecked();
@@ -846,8 +846,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
   return false;
 }
 
-Handle<String> BuildDefaultCallSite(Isolate* isolate,
-                                    DirectHandle<Object> object) {
+DirectHandle<String> BuildDefaultCallSite(Isolate* isolate,
+                                          DirectHandle<Object> object) {
   IncrementalStringBuilder builder(isolate);
 
   builder.AppendString(Object::TypeOf(isolate, object));
@@ -877,7 +877,7 @@ Handle<String> BuildDefaultCallSite(Isolate* isolate,
     builder.AppendString(isolate->factory()->NumberToString(object));
   }
 
-  return indirect_handle(builder.Finish().ToHandleChecked(), isolate);
+  return builder.Finish().ToHandleChecked();
 }
 
 DirectHandle<String> RenderCallSite(Isolate* isolate,

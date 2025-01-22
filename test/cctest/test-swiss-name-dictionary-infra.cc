@@ -50,8 +50,8 @@ std::vector<PropertyDetails> MakeDistinctDetails() {
 // associated with "my_key" both times. This also means that within a given
 // TestSequence, we cannot use the same (std::string) key with different faked
 // hashes.
-Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
-                               const Key& key) {
+DirectHandle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
+                                     const Key& key) {
   Handle<Symbol> key_symbol;
   auto iter = keys.find(key.str);
 

@@ -217,7 +217,7 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
+DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     return isolate_->builtins()->code_handle(

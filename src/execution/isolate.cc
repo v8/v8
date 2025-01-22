@@ -1655,7 +1655,9 @@ class CurrentScriptNameStackVisitor {
     return false;
   }
 
-  Handle<String> CurrentScriptNameOrSourceURL() const { return name_or_url_; }
+  DirectHandle<String> CurrentScriptNameOrSourceURL() const {
+    return name_or_url_;
+  }
 
  private:
   Isolate* const isolate_;
@@ -3674,7 +3676,7 @@ bool Isolate::IsWasmImportedStringsEnabled(
 #endif
 }
 
-Handle<NativeContext> Isolate::GetIncumbentContextSlow() {
+DirectHandle<NativeContext> Isolate::GetIncumbentContextSlow() {
   JavaScriptStackFrameIterator it(this);
 
   // 1st candidate: most-recently-entered author function's context
@@ -3693,7 +3695,7 @@ Handle<NativeContext> Isolate::GetIncumbentContextSlow() {
       DCHECK_EQ(topmost_script_having_context()->native_context(),
                 context->native_context());
     }
-    return Handle<NativeContext>(context->native_context(), this);
+    return DirectHandle<NativeContext>(context->native_context(), this);
   }
   DCHECK(topmost_script_having_context().is_null());
 
@@ -3701,7 +3703,7 @@ Handle<NativeContext> Isolate::GetIncumbentContextSlow() {
   if (top_backup_incumbent_scope()) {
     v8::Local<v8::Context> incumbent_context =
         top_backup_incumbent_scope()->backup_incumbent_context_;
-    return Utils::OpenHandle(*incumbent_context);
+    return Utils::OpenDirectHandle(*incumbent_context);
   }
 
   // Last candidate: the entered context or microtask context.
@@ -3710,7 +3712,7 @@ Handle<NativeContext> Isolate::GetIncumbentContextSlow() {
   // the entry realm.
   v8::Local<v8::Context> entered_context =
       reinterpret_cast<v8::Isolate*>(this)->GetEnteredOrMicrotaskContext();
-  return Utils::OpenHandle(*entered_context);
+  return Utils::OpenDirectHandle(*entered_context);
 }
 
 char* Isolate::ArchiveThread(char* to) {
@@ -6413,20 +6415,20 @@ void Isolate::PromiseHookStateUpdated() {
 
 namespace {
 
-MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
-                                          v8::Local<v8::Context> api_context,
-                                          DirectHandle<Object> exception) {
+MaybeDirectHandle<JSPromise> NewRejectedPromise(
+    Isolate* isolate, v8::Local<v8::Context> api_context,
+    DirectHandle<Object> exception) {
   v8::Local<v8::Promise::Resolver> resolver;
   API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, resolver,
                                        v8::Promise::Resolver::New(api_context),
-                                       MaybeHandle<JSPromise>());
+                                       MaybeDirectHandle<JSPromise>());
 
   MAYBE_RETURN_ON_EXCEPTION_VALUE(
       isolate, resolver->Reject(api_context, v8::Utils::ToLocal(exception)),
-      MaybeHandle<JSPromise>());
+      MaybeDirectHandle<JSPromise>());
 
   v8::Local<v8::Promise> promise = resolver->GetPromise();
-  return v8::Utils::OpenHandle(*promise);
+  return v8::Utils::OpenDirectHandle(*promise);
 }
 
 }  // namespace
@@ -6666,7 +6668,7 @@ Isolate::RunHostCreateShadowRealmContextCallback() {
   return Cast<NativeContext>(shadow_realm_context_handle);
 }
 
-MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
+MaybeDirectHandle<Object> Isolate::RunPrepareStackTraceCallback(
     DirectHandle<NativeContext> context, DirectHandle<JSObject> error,
     DirectHandle<JSArray> sites) {
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
@@ -6676,8 +6678,8 @@ MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
       this, stack,
       prepare_stack_trace_callback_(api_context, Utils::ToLocal(error),
                                     Utils::ToLocal(sites)),
-      MaybeHandle<Object>());
-  return Utils::OpenHandle(*stack);
+      MaybeDirectHandle<Object>());
+  return Utils::OpenDirectHandle(*stack);
 }
 
 bool Isolate::IsJSApiWrapperNativeError(DirectHandle<JSReceiver> obj) {

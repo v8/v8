@@ -243,8 +243,8 @@ void WriteStringToCharVector(base::Vector<Char> v, int* d, const char* string) {
 }
 
 template <typename Char, typename StringType>
-Handle<StringType> WriteEscapedRegExpSource(DirectHandle<String> source,
-                                            Handle<StringType> result) {
+DirectHandle<StringType> WriteEscapedRegExpSource(
+    DirectHandle<String> source, DirectHandle<StringType> result) {
   DisallowGarbageCollection no_gc;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   base::Vector<Char> dst(result->GetChars(no_gc), result->length());
@@ -308,12 +308,12 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
   if (!needs_escapes) return source;
   int length = source->length() + additional_escape_chars;
   if (one_byte) {
-    Handle<SeqOneByteString> result;
+    DirectHandle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                isolate->factory()->NewRawOneByteString(length));
     return WriteEscapedRegExpSource<uint8_t>(source, result);
   } else {
-    Handle<SeqTwoByteString> result;
+    DirectHandle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                isolate->factory()->NewRawTwoByteString(length));
     return WriteEscapedRegExpSource<base::uc16>(source, result);

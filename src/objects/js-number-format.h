@@ -43,13 +43,13 @@ class JSNumberFormat
     : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {
  public:
   // ecma402/#sec-initializenumberformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat>
-  UnwrapNumberFormat(Isolate* isolate, Handle<JSReceiver> format_holder);
+  UnwrapNumberFormat(Isolate* isolate, DirectHandle<JSReceiver> format_holder);
 
   // #sec-number-format-functions
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberFormatFunction(
@@ -75,7 +75,7 @@ class JSNumberFormat
                             DirectHandle<JSNumberFormat> number_format,
                             Handle<Object> x, Handle<Object> y);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumeric(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumeric(
       Isolate* isolate,
       const icu::number::LocalizedNumberFormatter& number_format,
       Handle<Object> numeric_obj);

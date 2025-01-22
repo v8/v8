@@ -25,7 +25,7 @@ class MaterializedObjectStore {
 
  private:
   Isolate* isolate() const { return isolate_; }
-  Handle<FixedArray> GetStackEntries();
+  DirectHandle<FixedArray> GetStackEntries();
   DirectHandle<FixedArray> EnsureStackEntries(int size);
 
   int StackIdToIndex(Address fp);

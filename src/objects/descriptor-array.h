@@ -106,7 +106,7 @@ class DescriptorArray
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
       int enumeration_index, int slack = 0);
 
-  static Handle<DescriptorArray> CopyUpToAddAttributes(
+  static DirectHandle<DescriptorArray> CopyUpToAddAttributes(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
       int enumeration_index, PropertyAttributes attributes, int slack = 0);
 

@@ -84,7 +84,7 @@ class DebugEvaluate : public AllStatic {
     DirectHandle<Context> evaluation_context() const {
       return evaluation_context_;
     }
-    Handle<SharedFunctionInfo> outer_info() const;
+    DirectHandle<SharedFunctionInfo> outer_info() const;
 
    private:
     struct ContextChainElement {
@@ -100,7 +100,7 @@ class DebugEvaluate : public AllStatic {
     ScopeIterator scope_iterator_;
   };
 
-  static MaybeHandle<Object> Evaluate(
+  static MaybeDirectHandle<Object> Evaluate(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> outer_info,
       DirectHandle<Context> context, DirectHandle<Object> receiver,
       DirectHandle<String> source, bool throw_on_side_effect);

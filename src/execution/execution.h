@@ -56,7 +56,7 @@ class Execution final : public AllStatic {
   // If message_handling is MessageHandling::kReport, exceptions (except for
   // termination exceptions) will be stored in exception_out (if not a
   // nullptr).
-  V8_EXPORT_PRIVATE static MaybeHandle<Object> TryCall(
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<Object> TryCall(
       Isolate* isolate, DirectHandle<Object> callable,
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,

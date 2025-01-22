@@ -569,8 +569,8 @@ MaybeHandle<String> JSDateTimeFormat::TimeZoneIdToString(
   return Intl::ToString(isolate, id);
 }
 
-Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
-                                            const icu::TimeZone& tz) {
+DirectHandle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
+                                                  const icu::TimeZone& tz) {
   Factory* factory = isolate->factory();
   icu::UnicodeString time_zone;
   tz.getID(time_zone);
@@ -586,7 +586,7 @@ Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
       return factory->undefined_value();
     }
   }
-  Handle<String> timezone_value;
+  DirectHandle<String> timezone_value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, timezone_value, TimeZoneIdToString(isolate, canonical_time_zone),
       {});
@@ -594,8 +594,8 @@ Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
 }
 
 namespace {
-Handle<String> GetCalendar(Isolate* isolate,
-                           const icu::SimpleDateFormat& simple_date_format) {
+DirectHandle<String> GetCalendar(
+    Isolate* isolate, const icu::SimpleDateFormat& simple_date_format) {
   // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
   // key values. intl.js maps them to BCP47 values for key "ca".
   // TODO(jshin): Consider doing it here, instead.
@@ -613,8 +613,8 @@ Handle<String> GetCalendar(Isolate* isolate,
   return isolate->factory()->NewStringFromAsciiChecked(calendar_str.c_str());
 }
 
-Handle<Object> GetTimeZone(Isolate* isolate,
-                           const icu::SimpleDateFormat& simple_date_format) {
+DirectHandle<Object> GetTimeZone(
+    Isolate* isolate, const icu::SimpleDateFormat& simple_date_format) {
   return JSDateTimeFormat::TimeZoneId(
       isolate, simple_date_format.getCalendar()->getTimeZone());
 }
@@ -892,7 +892,7 @@ Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
     PatternKind kind, DirectHandle<JSTemporalPlainDateTime> plain_date_time,
     const char* method_name) {
   // 8. Let timeZone be ! CreateTemporalTimeZone(dateTimeFormat.[[TimeZone]]).
-  Handle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
+  DirectHandle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
   // TODO(ftang): we should change the return type of GetTimeZone() to
   // Handle<String> by ensure it will not return undefined.
   CHECK(IsString(*time_zone_obj));
@@ -2174,7 +2174,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       DefaultsOption::kDate, service);
 }
 
-MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
+MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, RequiredOption required,
     DefaultsOption defaults, const char* service) {
@@ -2644,7 +2644,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       Managed<icu::DateIntervalFormat>::From(isolate, 0, nullptr);
 
   // Now all properties are ready, so we can allocate the result object.
-  Handle<JSDateTimeFormat> date_time_format = Cast<JSDateTimeFormat>(
+  DirectHandle<JSDateTimeFormat> date_time_format = Cast<JSDateTimeFormat>(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowGarbageCollection no_gc;
   date_time_format->set_flags(0);
@@ -2723,7 +2723,7 @@ DirectHandle<String> IcuDateFieldIdToDateType(int32_t field_id,
   }
 }
 
-MaybeHandle<JSArray> FieldPositionIteratorToArray(
+MaybeDirectHandle<JSArray> FieldPositionIteratorToArray(
     Isolate* isolate, const icu::UnicodeString& formatted,
     icu::FieldPositionIterator fp_iter, bool output_source);
 
@@ -2812,12 +2812,12 @@ MaybeDirectHandle<JSArray> JSDateTimeFormat::FormatToParts(
 }
 
 namespace {
-MaybeHandle<JSArray> FieldPositionIteratorToArray(
+MaybeDirectHandle<JSArray> FieldPositionIteratorToArray(
     Isolate* isolate, const icu::UnicodeString& formatted,
     icu::FieldPositionIterator fp_iter, bool output_source) {
   Factory* factory = isolate->factory();
   icu::FieldPosition fp;
-  Handle<JSArray> result = factory->NewJSArray(0);
+  DirectHandle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
   if (length == 0) return result;
 

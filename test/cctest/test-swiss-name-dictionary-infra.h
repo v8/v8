@@ -104,8 +104,8 @@ struct CachedKey {
 
 using KeyCache = std::unordered_map<std::string, CachedKey>;
 
-Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
-                               const Key& key);
+DirectHandle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
+                                     const Key& key);
 
 class RuntimeTestRunner;
 class CSATestRunner;

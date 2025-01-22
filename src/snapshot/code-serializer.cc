@@ -605,7 +605,8 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
   return result;
 }
 
-MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
+MaybeDirectHandle<SharedFunctionInfo>
+CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
     AlignedCachedData* cached_data, DirectHandle<String> source,
     const ScriptDetails& script_details,
@@ -651,7 +652,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeDirectHandle<SharedFunctionInfo>();
   }
 
   Handle<SharedFunctionInfo> result;
@@ -660,7 +661,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     if (v8_flags.profile_deserialization) {
       PrintF("[Off-thread deserializing failed]\n");
     }
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeDirectHandle<SharedFunctionInfo>();
   }
 
   // Change the result persistent handle into a regular handle.

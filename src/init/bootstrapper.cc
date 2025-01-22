@@ -426,7 +426,7 @@ DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfoForBuiltin(
   return info;
 }
 
-V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(
+V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltin(
     Isolate* isolate, DirectHandle<String> name, DirectHandle<Map> map,
     Builtin builtin, int len, AdaptArguments adapt) {
   DirectHandle<NativeContext> context(isolate->native_context());
@@ -440,7 +440,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(
       .Build();
 }
 
-V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
+V8_NOINLINE DirectHandle<JSFunction> CreateFunctionForBuiltinWithPrototype(
     Isolate* isolate, DirectHandle<String> name, Builtin builtin,
     DirectHandle<UnionOf<JSPrototype, Hole>> prototype, InstanceType type,
     int instance_size, int inobject_properties,
@@ -457,7 +457,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
       CreateSharedFunctionInfoForBuiltin(isolate, name, builtin, len, adapt);
   info->set_expected_nof_properties(inobject_properties);
 
-  Handle<JSFunction> result =
+  DirectHandle<JSFunction> result =
       Factory::JSFunctionBuilder{isolate, info, context}.set_map(map).Build();
 
   ElementsKind elements_kind;
@@ -508,14 +508,14 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
       .Build();
 }
 
-V8_NOINLINE Handle<JSFunction> CreateFunction(
+V8_NOINLINE DirectHandle<JSFunction> CreateFunction(
     Isolate* isolate, DirectHandle<String> name, InstanceType type,
     int instance_size, int inobject_properties,
     DirectHandle<UnionOf<JSPrototype, Hole>> prototype, Builtin builtin,
     int len, AdaptArguments adapt) {
   DCHECK(Builtins::HasJSLinkage(builtin));
 
-  Handle<JSFunction> result = CreateFunctionForBuiltinWithPrototype(
+  DirectHandle<JSFunction> result = CreateFunctionForBuiltinWithPrototype(
       isolate, name, builtin, prototype, type, instance_size,
       inobject_properties, IMMUTABLE, len, adapt);
 
@@ -538,20 +538,20 @@ V8_NOINLINE DirectHandle<JSFunction> CreateFunction(
       instance_size, inobject_properties, prototype, builtin, len, adapt);
 }
 
-V8_NOINLINE Handle<JSFunction> InstallFunction(
+V8_NOINLINE DirectHandle<JSFunction> InstallFunction(
     Isolate* isolate, DirectHandle<JSObject> target, DirectHandle<String> name,
     InstanceType type, int instance_size, int inobject_properties,
     DirectHandle<UnionOf<JSPrototype, Hole>> prototype, Builtin call, int len,
     AdaptArguments adapt) {
   DCHECK(Builtins::HasJSLinkage(call));
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       CreateFunction(isolate, name, type, instance_size, inobject_properties,
                      prototype, call, len, adapt);
   JSObject::AddProperty(isolate, target, name, function, DONT_ENUM);
   return function;
 }
 
-V8_NOINLINE Handle<JSFunction> InstallFunction(
+V8_NOINLINE DirectHandle<JSFunction> InstallFunction(
     Isolate* isolate, DirectHandle<JSObject> target, const char* name,
     InstanceType type, int instance_size, int inobject_properties,
     DirectHandle<UnionOf<JSPrototype, Hole>> prototype, Builtin call, int len,

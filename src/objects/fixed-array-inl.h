@@ -893,8 +893,8 @@ Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
 
 // static
 template <class T>
-Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
-                                                   int length) {
+DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
+                                                         int length) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Cast<TrustedPodArray<T>>(

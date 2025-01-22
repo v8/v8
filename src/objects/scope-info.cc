@@ -512,8 +512,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForShadowRealmNativeContext(
 }
 
 // static
-Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
-                                                    BootstrappingType type) {
+DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
+    Isolate* isolate, BootstrappingType type) {
   const int parameter_count = 0;
   const bool is_empty_function = type == BootstrappingType::kFunction;
   const bool is_native_context = (type == BootstrappingType::kNative) ||
@@ -531,7 +531,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                      (has_inferred_function_name ? 1 : 0);
 
   Factory* factory = isolate->factory();
-  Handle<ScopeInfo> scope_info =
+  DirectHandle<ScopeInfo> scope_info =
       factory->NewScopeInfo(length, AllocationType::kReadOnly);
   DisallowGarbageCollection _nogc;
   // Encode the flags.
@@ -1212,7 +1212,7 @@ template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
     int cell_index, int beg_pos, int end_pos);
 
 template <typename IsolateT>
-Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     IsolateT* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
@@ -1266,7 +1266,7 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     }
   }
 
-  Handle<SourceTextModuleInfo> result =
+  DirectHandle<SourceTextModuleInfo> result =
       isolate->factory()->NewSourceTextModuleInfo();
   result->set(kModuleRequestsIndex, *module_requests);
   result->set(kSpecialExportsIndex, *special_exports);
@@ -1275,9 +1275,10 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   result->set(kRegularImportsIndex, *regular_imports);
   return result;
 }
-template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+
+template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
-template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 int SourceTextModuleInfo::RegularExportCount() const {

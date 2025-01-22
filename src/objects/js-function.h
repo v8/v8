@@ -71,7 +71,7 @@ class JSWrappedFunction
   static Maybe<int> GetLength(Isolate* isolate,
                               DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
-  static MaybeHandle<Object> Create(
+  static MaybeDirectHandle<Object> Create(
       Isolate* isolate, DirectHandle<NativeContext> creation_context,
       DirectHandle<JSReceiver> value);
 

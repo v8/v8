@@ -1783,7 +1783,7 @@ own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
   return (func_data->callback_with_env)(func_data->env, args, results);
 }
 
-i::Handle<i::JSReceiver> GetProperException(
+i::DirectHandle<i::JSReceiver> GetProperException(
     i::Isolate* isolate, i::Handle<i::Object> maybe_exception) {
   if (IsJSReceiver(*maybe_exception)) {
     return i::Cast<i::JSReceiver>(maybe_exception);

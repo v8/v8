@@ -3548,7 +3548,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const int32_t value_;
@@ -3574,7 +3574,7 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const uint32_t value_;
@@ -3602,7 +3602,7 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const Float64 value_;
@@ -5046,7 +5046,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const Tagged<Smi> value_;
@@ -5071,7 +5071,7 @@ class TaggedIndexConstant
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const Tagged<TaggedIndex> value_;
@@ -5099,7 +5099,7 @@ class ExternalConstant : public FixedInputValueNodeT<0, ExternalConstant> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const ExternalReference reference_;
@@ -5129,7 +5129,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   compiler::HeapObjectRef object() { return object_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
   compiler::HeapObjectRef ref() const { return object_; }
 
@@ -5183,7 +5183,7 @@ class TrustedConstant : public FixedInputValueNodeT<0, TrustedConstant> {
   IndirectPointerTag tag() const { return tag_; }
 
   void DoLoadToRegister(MaglevAssembler*, OutputRegister);
-  Handle<Object> DoReify(LocalIsolate* isolate) const;
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
 
  private:
   const compiler::HeapObjectRef object_;

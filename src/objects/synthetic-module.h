@@ -61,7 +61,7 @@ class SyntheticModule
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, DirectHandle<SyntheticModule> module);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
       Isolate* isolate, DirectHandle<SyntheticModule> module);
 
   TQ_OBJECT_CONSTRUCTORS(SyntheticModule)

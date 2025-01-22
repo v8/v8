@@ -131,7 +131,7 @@ struct IndexedDebugProxy {
   }
 
   template <typename V>
-  static Handle<JSObject> GetHolder(const PropertyCallbackInfo<V>& info) {
+  static DirectHandle<JSObject> GetHolder(const PropertyCallbackInfo<V>& info) {
     return Cast<JSObject>(Utils::OpenHandle(*info.HolderV2()));
   }
 
@@ -623,7 +623,7 @@ class ContextProxyPrototype {
 
 class ContextProxy {
  public:
-  static Handle<JSObject> Create(WasmFrame* frame) {
+  static DirectHandle<JSObject> Create(WasmFrame* frame) {
     Isolate* isolate = frame->isolate();
     auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
     DirectHandle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
@@ -858,8 +858,8 @@ DirectHandle<String> WasmSimd128ToString(Isolate* isolate, Simd128 s128) {
   return isolate->factory()->NewStringFromAsciiChecked(buffer.data());
 }
 
-Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
-                              wasm::NativeModule* module) {
+DirectHandle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
+                                    wasm::NativeModule* module) {
   DCHECK(type.is_object_reference());
   StringBuilder name;
   module->GetNamesProvider()->PrintValueType(name, type);

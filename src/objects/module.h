@@ -73,8 +73,8 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
-  static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,
-                                                      Handle<Module> module);
+  static DirectHandle<JSModuleNamespace> GetModuleNamespace(
+      Isolate* isolate, Handle<Module> module);
 
   using BodyDescriptor =
       FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;

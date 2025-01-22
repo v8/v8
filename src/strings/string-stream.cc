@@ -247,7 +247,7 @@ void StringStream::OutputToFile(FILE* out) {
   internal::PrintF(out, "%s", &buffer_[position]);
 }
 
-Handle<String> StringStream::ToString(Isolate* isolate) {
+DirectHandle<String> StringStream::ToString(Isolate* isolate) {
   return isolate->factory()
       ->NewStringFromUtf8(base::Vector<const char>(buffer_, length_))
       .ToHandleChecked();

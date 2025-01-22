@@ -72,14 +72,14 @@ RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
 RUNTIME_FUNCTION(Runtime_ToBigInt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> x = args.at(0);
+  DirectHandle<Object> x = args.at(0);
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
 }
 
 RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<Object> x = args.at(0);
+  DirectHandle<Object> x = args.at(0);
 
   if (IsJSReceiver(*x)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -98,7 +98,7 @@ RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
 RUNTIME_FUNCTION(Runtime_BigIntExponentiate) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> left_obj = args.at(0);
+  DirectHandle<Object> left_obj = args.at(0);
   DirectHandle<Object> right_obj = args.at(1);
 
   if (!IsBigInt(*left_obj) || !IsBigInt(*right_obj)) {

@@ -973,13 +973,12 @@ UListFormatterWidth StyleToWidth(JSDurationFormat::Style style) {
 // for Format function to output detail structure and not needed if the
 // Format only needs to output a String.
 template <typename T, bool Details,
-          MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
-                                   const std::vector<std::vector<Part>>*,
-                                   JSDurationFormat::Separator separator)>
-MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
-                                              DirectHandle<JSDurationFormat> df,
-                                              const DurationRecord& record,
-                                              const char* method_name) {
+          MaybeDirectHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
+                                         const std::vector<std::vector<Part>>*,
+                                         JSDurationFormat::Separator separator)>
+MaybeDirectHandle<T> PartitionDurationFormatPattern(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    const DurationRecord& record, const char* method_name) {
   // 4. Let lfOpts be ! OrdinaryObjectCreate(null).
   // 5. Perform ! CreateDataPropertyOrThrow(lfOpts, "type", "unit").
   UListFormatterType type = ULISTFMT_TYPE_UNITS;
@@ -1043,11 +1042,13 @@ Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
 }
 
 template <typename T, bool Details,
-          MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
-                                   const std::vector<std::vector<Part>>*,
-                                   JSDurationFormat::Separator)>
-MaybeHandle<T> FormatCommon(Isolate* isolate, DirectHandle<JSDurationFormat> df,
-                            Handle<Object> duration, const char* method_name) {
+          MaybeDirectHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
+                                         const std::vector<std::vector<Part>>*,
+                                         JSDurationFormat::Separator)>
+MaybeDirectHandle<T> FormatCommon(Isolate* isolate,
+                                  DirectHandle<JSDurationFormat> df,
+                                  Handle<Object> duration,
+                                  const char* method_name) {
   // 1. Let df be this value.
   // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
   // 3. Let record be ? ToDurationRecord(duration).
@@ -1055,7 +1056,7 @@ MaybeHandle<T> FormatCommon(Isolate* isolate, DirectHandle<JSDurationFormat> df,
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, record,
       ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}),
-      Handle<T>());
+      DirectHandle<T>());
   // 5. Let parts be ! PartitionDurationFormatPattern(df, record).
   return PartitionDurationFormatPattern<T, Details, Format>(isolate, df, record,
                                                             method_name);
@@ -1063,20 +1064,20 @@ MaybeHandle<T> FormatCommon(Isolate* isolate, DirectHandle<JSDurationFormat> df,
 
 }  // namespace
 
-MaybeHandle<String> FormattedToString(
+MaybeDirectHandle<String> FormattedToString(
     Isolate* isolate, const icu::FormattedValue& formatted,
     const std::vector<std::vector<Part>>* parts, JSDurationFormat::Separator) {
   DCHECK_NULL(parts);
   return Intl::FormattedToString(isolate, formatted);
 }
 
-MaybeHandle<JSArray> FormattedListToJSArray(
+MaybeDirectHandle<JSArray> FormattedListToJSArray(
     Isolate* isolate, const icu::FormattedValue& formatted,
     const std::vector<std::vector<Part>>* parts,
     JSDurationFormat::Separator separator) {
   DCHECK_NOT_NULL(parts);
   Factory* factory = isolate->factory();
-  Handle<JSArray> array = factory->NewJSArray(0);
+  DirectHandle<JSArray> array = factory->NewJSArray(0);
   icu::ConstrainedFieldPosition cfpos;
   cfpos.constrainCategory(UFIELD_CATEGORY_LIST);
   int index = 0;
@@ -1100,7 +1101,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
                 factory->NewStringFromAsciiChecked(it.type.c_str());
             Maybe<int> index_after_add = Intl::AddNumberElements(
                 isolate, it.formatted, array, index, type_string);
-            MAYBE_RETURN(index_after_add, MaybeHandle<JSArray>());
+            MAYBE_RETURN(index_after_add, MaybeDirectHandle<JSArray>());
             index = index_after_add.FromJust();
             break;
         }
