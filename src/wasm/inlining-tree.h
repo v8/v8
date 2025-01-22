@@ -322,7 +322,9 @@ void InliningTree::FullyExpand() {
 
     if (top->feedback_found()) {
       if (top->depth_ < kMaxInliningNestingDepth) {
-        if (v8_flags.trace_wasm_inlining) PrintF("queueing callees]\n");
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF("queueing %zu callee(s)]\n", top->function_calls_.size());
+        }
         for (CasesPerCallSite cases : top->function_calls_) {
           for (InliningTree* call : cases) {
             if (call != nullptr) {
