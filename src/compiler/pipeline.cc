@@ -141,7 +141,6 @@
 #include "src/compiler/wasm-gc-operator-reducer.h"
 #include "src/compiler/wasm-js-lowering.h"
 #include "src/compiler/wasm-load-elimination.h"
-#include "src/compiler/wasm-loop-peeling.h"
 #include "src/compiler/wasm-typer.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -1269,82 +1268,6 @@ struct LoopPeelingPhase {
         .PeelInnerLoopsOfTree();
   }
 };
-
-#if V8_ENABLE_WEBASSEMBLY
-namespace {
-void EliminateLoopExits(std::vector<compiler::WasmLoopInfo>* loop_infos) {
-  for (WasmLoopInfo& loop_info : *loop_infos) {
-    std::unordered_set<Node*> loop_exits;
-    // We collect exits into a set first because we are not allowed to mutate
-    // them while iterating uses().
-    for (Node* use : loop_info.header->uses()) {
-      if (use->opcode() == IrOpcode::kLoopExit) {
-        loop_exits.insert(use);
-      }
-    }
-    for (Node* use : loop_exits) {
-      LoopPeeler::EliminateLoopExit(use);
-    }
-  }
-}
-}  // namespace
-
-struct WasmLoopUnrollingPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopUnrolling)
-
-  void Run(TFPipelineData* data, Zone* temp_zone,
-           std::vector<compiler::WasmLoopInfo>* loop_infos) {
-    if (loop_infos->empty()) return;
-    AllNodes all_nodes(temp_zone, data->graph(), data->graph()->end());
-    for (WasmLoopInfo& loop_info : *loop_infos) {
-      if (!loop_info.can_be_innermost) continue;
-      if (!all_nodes.IsReachable(loop_info.header)) continue;
-      ZoneUnorderedSet<Node*>* loop =
-          LoopFinder::FindSmallInnermostLoopFromHeader(
-              loop_info.header, all_nodes, temp_zone,
-              // Only discover the loop until its size is the maximum unrolled
-              // size for its depth.
-              maximum_unrollable_size(loop_info.nesting_depth),
-              LoopFinder::Purpose::kLoopUnrolling);
-      if (loop == nullptr) continue;
-      UnrollLoop(loop_info.header, loop, loop_info.nesting_depth, data->graph(),
-                 data->common(), temp_zone, data->source_positions(),
-                 data->node_origins());
-    }
-
-    EliminateLoopExits(loop_infos);
-  }
-};
-
-struct WasmLoopPeelingPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopPeeling)
-
-  void Run(TFPipelineData* data, Zone* temp_zone,
-           std::vector<compiler::WasmLoopInfo>* loop_infos) {
-    AllNodes all_nodes(temp_zone, data->graph());
-    for (WasmLoopInfo& loop_info : *loop_infos) {
-      if (loop_info.can_be_innermost) {
-        ZoneUnorderedSet<Node*>* loop =
-            LoopFinder::FindSmallInnermostLoopFromHeader(
-                loop_info.header, all_nodes, temp_zone,
-                v8_flags.wasm_loop_peeling_max_size,
-                LoopFinder::Purpose::kLoopPeeling);
-        if (loop == nullptr) continue;
-        if (v8_flags.trace_wasm_loop_peeling) {
-          CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-          auto& os = tracing_scope.stream();
-          os << "Peeling loop at " << loop_info.header->id() << ", size "
-             << loop->size() << std::endl;
-        }
-        PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),
-                     temp_zone, data->source_positions(), data->node_origins());
-      }
-    }
-    // If we are going to unroll later, keep loop exits.
-    if (!v8_flags.wasm_loop_unrolling) EliminateLoopExits(loop_infos);
-  }
-};
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct LoopExitEliminationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(LoopExitElimination)
