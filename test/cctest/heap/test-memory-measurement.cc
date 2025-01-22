@@ -14,10 +14,10 @@ namespace internal {
 namespace heap {
 
 namespace {
-Handle<NativeContext> GetNativeContext(Isolate* isolate,
-                                       v8::Local<v8::Context> v8_context) {
+DirectHandle<NativeContext> GetNativeContext(
+    Isolate* isolate, v8::Local<v8::Context> v8_context) {
   DirectHandle<Context> context = v8::Utils::OpenDirectHandle(*v8_context);
-  return handle(context->native_context(), isolate);
+  return direct_handle(context->native_context(), isolate);
 }
 }  // anonymous namespace
 
@@ -240,7 +240,7 @@ TEST(PartiallyInitializedJSFunction) {
   // 2. Set the context field to the uninitialized sentintel.
   TaggedField<Object, JSFunction::kContextOffset>::store(
       *js_function, Smi::uninitialized_deserialization_value());
-  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // 3. Request memory measurement and run all tasks. GC that runs as part
   // of the measurement should not crash.
   CcTest::isolate()->MeasureMemory(
       std::make_unique<MockMeasureMemoryDelegate>(),
@@ -270,7 +270,7 @@ TEST(PartiallyInitializedContext) {
   // 2. Set the native context field to the uninitialized sentintel.
   TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
       store(*map, Smi::uninitialized_deserialization_value());
-  // 3. Request memory meaurement and run all tasks. GC that runs as part
+  // 3. Request memory measurement and run all tasks. GC that runs as part
   // of the measurement should not crash.
   CcTest::isolate()->MeasureMemory(
       std::make_unique<MockMeasureMemoryDelegate>(),

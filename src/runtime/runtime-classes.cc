@@ -138,11 +138,11 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
 //    method's shared function info indicates that method does not have a
 //    shared name.
 template <typename Dictionary>
-MaybeHandle<Object> GetMethodAndSetName(Isolate* isolate,
-                                        RuntimeArguments& args,
-                                        Tagged<Smi> index,
-                                        DirectHandle<String> name_prefix,
-                                        Handle<Object> key) {
+MaybeDirectHandle<Object> GetMethodAndSetName(Isolate* isolate,
+                                              RuntimeArguments& args,
+                                              Tagged<Smi> index,
+                                              DirectHandle<String> name_prefix,
+                                              Handle<Object> key) {
   int int_index = index.value();
 
   // Class constructor and prototype values do not require post processing.
@@ -150,7 +150,7 @@ MaybeHandle<Object> GetMethodAndSetName(Isolate* isolate,
     return args.at<Object>(int_index);
   }
 
-  Handle<JSFunction> method = args.at<JSFunction>(int_index);
+  DirectHandle<JSFunction> method = args.at<JSFunction>(int_index);
 
   if (!method->shared()->HasSharedName()) {
     // TODO(ishell): method does not have a shared name at this point only if
@@ -160,7 +160,7 @@ MaybeHandle<Object> GetMethodAndSetName(Isolate* isolate,
     // here and avoid converting Smi keys back to Name.
     Handle<Name> name = KeyToName<Dictionary>(isolate, key);
     if (!JSFunction::SetName(method, name, name_prefix)) {
-      return MaybeHandle<Object>();
+      return MaybeDirectHandle<Object>();
     }
   }
   return method;
@@ -188,7 +188,7 @@ Tagged<Object> GetMethodWithSharedName(Isolate* isolate, RuntimeArguments& args,
 
 template <typename Dictionary>
 Handle<Dictionary> ShallowCopyDictionaryTemplate(
-    Isolate* isolate, Handle<Dictionary> dictionary_template) {
+    Isolate* isolate, DirectHandle<Dictionary> dictionary_template) {
   Handle<Dictionary> dictionary =
       Dictionary::ShallowCopy(isolate, dictionary_template);
   // Clone all AccessorPairs in the dictionary.
@@ -204,7 +204,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 }
 
 template <typename Dictionary>
-bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
+bool SubstituteValues(Isolate* isolate, DirectHandle<Dictionary> dictionary,
                       RuntimeArguments& args) {
   // Replace all indices with proper methods.
   ReadOnlyRoots roots(isolate);
@@ -275,14 +275,14 @@ void UpdateProtectors(Isolate* isolate, DirectHandle<JSObject> receiver,
 bool AddDescriptorsByTemplate(
     Isolate* isolate, DirectHandle<Map> map,
     DirectHandle<DescriptorArray> descriptors_template,
-    Handle<NumberDictionary> elements_dictionary_template,
+    DirectHandle<NumberDictionary> elements_dictionary_template,
     DirectHandle<JSObject> receiver, RuntimeArguments& args) {
   int nof_descriptors = descriptors_template->number_of_descriptors();
 
   DirectHandle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, nof_descriptors, 0);
 
-  Handle<NumberDictionary> elements_dictionary =
+  DirectHandle<NumberDictionary> elements_dictionary =
       *elements_dictionary_template ==
               ReadOnlyRoots(isolate).empty_slow_element_dictionary()
           ? elements_dictionary_template
@@ -389,19 +389,19 @@ bool AddDescriptorsByTemplate(
 // OrderedNameDictionary::Add returns MaybeHandle, NameDictionary::Add returns
 // Handle.
 template <typename T>
-Handle<T> ToHandle(Handle<T> h) {
+DirectHandle<T> ToHandle(Handle<T> h) {
   return h;
 }
 template <typename T>
-Handle<T> ToHandle(MaybeHandle<T> h) {
+DirectHandle<T> ToHandle(MaybeHandle<T> h) {
   return h.ToHandleChecked();
 }
 
 template <typename Dictionary>
 bool AddDescriptorsByTemplate(
     Isolate* isolate, DirectHandle<Map> map,
-    Handle<Dictionary> properties_dictionary_template,
-    Handle<NumberDictionary> elements_dictionary_template,
+    DirectHandle<Dictionary> properties_dictionary_template,
+    DirectHandle<NumberDictionary> elements_dictionary_template,
     DirectHandle<FixedArray> computed_properties,
     DirectHandle<JSObject> receiver, RuntimeArguments& args) {
   int computed_properties_length = computed_properties->length();
@@ -497,7 +497,7 @@ bool InitClassPrototype(Isolate* isolate,
   map->SetConstructor(*constructor);
   DirectHandle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
-  Handle<NumberDictionary> elements_dictionary_template(
+  DirectHandle<NumberDictionary> elements_dictionary_template(
       Cast<NumberDictionary>(class_boilerplate->instance_elements_template()),
       isolate);
 
@@ -519,7 +519,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    auto properties_dictionary_template =
+    DirectHandle<PropertyDictionary> properties_dictionary_template =
         Cast<PropertyDictionary>(properties_template);
     return AddDescriptorsByTemplate(
         isolate, map, properties_dictionary_template,
@@ -544,7 +544,7 @@ bool InitClassConstructor(Isolate* isolate,
     JSObject::MakePrototypesFast(constructor_parent, kStartAtReceiver, isolate);
   }
 
-  Handle<NumberDictionary> elements_dictionary_template(
+  DirectHandle<NumberDictionary> elements_dictionary_template(
       Cast<NumberDictionary>(class_boilerplate->static_elements_template()),
       isolate);
   DirectHandle<FixedArray> computed_properties(
@@ -568,14 +568,14 @@ bool InitClassConstructor(Isolate* isolate,
     map->set_construction_counter(Map::kNoSlackTracking);
 
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      auto properties_dictionary_template =
+      DirectHandle<SwissNameDictionary> properties_dictionary_template =
           Cast<SwissNameDictionary>(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
           elements_dictionary_template, computed_properties, constructor, args);
     } else {
-      auto properties_dictionary_template =
+      DirectHandle<NameDictionary> properties_dictionary_template =
           Cast<NameDictionary>(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
@@ -584,7 +584,7 @@ bool InitClassConstructor(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> DefineClass(
+MaybeDirectHandle<Object> DefineClass(
     Isolate* isolate, DirectHandle<ClassBoilerplate> class_boilerplate,
     DirectHandle<Object> super_class, DirectHandle<JSFunction> constructor,
     RuntimeArguments& args) {
@@ -622,7 +622,7 @@ MaybeHandle<Object> DefineClass(
     }
   }
 
-  Handle<JSObject> prototype = CreateClassPrototype(isolate);
+  DirectHandle<JSObject> prototype = CreateClassPrototype(isolate);
   DCHECK_EQ(*constructor, args[ClassBoilerplate::kConstructorArgumentIndex]);
   // Temporarily change ClassBoilerplate::kPrototypeArgumentIndex for the
   // subsequent calls, but use a scope to make sure to change it back before
@@ -636,7 +636,7 @@ MaybeHandle<Object> DefineClass(
       !InitClassPrototype(isolate, class_boilerplate, prototype,
                           prototype_parent, constructor, args)) {
     DCHECK(isolate->has_exception());
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
   if (v8_flags.log_maps) {
     DirectHandle<Map> empty_map;
@@ -696,16 +696,16 @@ MaybeDirectHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
   return Cast<JSReceiver>(proto);
 }
 
-MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
-                                  DirectHandle<JSAny> receiver,
-                                  DirectHandle<JSObject> home_object,
-                                  PropertyKey* key) {
+MaybeDirectHandle<Object> LoadFromSuper(Isolate* isolate,
+                                        DirectHandle<JSAny> receiver,
+                                        DirectHandle<JSObject> home_object,
+                                        PropertyKey* key) {
   DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
       GetSuperHolder(isolate, home_object, SuperMode::kLoad, key));
   LookupIterator it(isolate, receiver, *key, holder);
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return result;
 }
@@ -745,18 +745,19 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 
 namespace {
 
-MaybeHandle<Object> StoreToSuper(Isolate* isolate,
-                                 DirectHandle<JSObject> home_object,
-                                 DirectHandle<JSAny> receiver, PropertyKey* key,
-                                 Handle<Object> value,
-                                 StoreOrigin store_origin) {
+MaybeDirectHandle<Object> StoreToSuper(Isolate* isolate,
+                                       DirectHandle<JSObject> home_object,
+                                       DirectHandle<JSAny> receiver,
+                                       PropertyKey* key,
+                                       DirectHandle<Object> value,
+                                       StoreOrigin store_origin) {
   DirectHandle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
       GetSuperHolder(isolate, home_object, SuperMode::kStore, key));
   LookupIterator it(isolate, receiver, *key, holder);
   MAYBE_RETURN(Object::SetSuperProperty(&it, value, store_origin),
-               MaybeHandle<Object>());
+               MaybeDirectHandle<Object>());
   return value;
 }
 
@@ -768,7 +769,7 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   DirectHandle<JSAny> receiver = args.at<JSAny>(0);
   DirectHandle<JSObject> home_object = args.at<JSObject>(1);
   DirectHandle<Name> name = args.at<Name>(2);
-  Handle<Object> value = args.at(3);
+  DirectHandle<Object> value = args.at(3);
 
   PropertyKey key(isolate, name);
 
@@ -785,7 +786,7 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {key} before calling into the runtime.
   DirectHandle<Object> key = args.at(2);
-  Handle<Object> value = args.at(3);
+  DirectHandle<Object> value = args.at(3);
 
   bool success;
   PropertyKey lookup_key(isolate, key, &success);

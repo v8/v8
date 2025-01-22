@@ -870,7 +870,7 @@ TEST(JSArray) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> name = factory->InternalizeUtf8String("Array");
+  DirectHandle<String> name = factory->InternalizeUtf8String("Array");
   DirectHandle<Object> fun_obj =
       Object::GetProperty(isolate, CcTest::i_isolate()->global_object(), name)
           .ToHandleChecked();
@@ -929,8 +929,8 @@ TEST(JSObjectCopy) {
           .ToHandleChecked();
   DirectHandle<JSFunction> constructor = Cast<JSFunction>(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
-  Handle<String> first = factory->InternalizeUtf8String("first");
-  Handle<String> second = factory->InternalizeUtf8String("second");
+  DirectHandle<String> first = factory->InternalizeUtf8String("first");
+  DirectHandle<String> second = factory->InternalizeUtf8String("second");
 
   DirectHandle<Smi> one(Smi::FromInt(1), isolate);
   DirectHandle<Smi> two(Smi::FromInt(2), isolate);
@@ -1399,7 +1399,7 @@ UNINITIALIZED_TEST(Regress12777) {
     // generation, however, there would not be the overhead of promotions so the
     // callback may not be triggered again during the generation of the heap
     // snapshot. In that case we only need to check that the callback is called
-    // and it can perform GC-triggering operations jsut fine there.
+    // and it can perform GC-triggering operations just fine there.
     size_t minimum_callback_invocation_count =
         v8_flags.single_generation ? 1 : 2;
     CHECK_GE(near_heap_limit_invocation_count,
@@ -1644,11 +1644,11 @@ TEST(CompilationCacheCachingBehaviorRetainScript) {
 namespace {
 
 template <typename T>
-Handle<SharedFunctionInfo> GetSharedFunctionInfo(
+DirectHandle<SharedFunctionInfo> GetSharedFunctionInfo(
     v8::Local<T> function_or_script) {
   DirectHandle<JSFunction> i_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(*function_or_script));
-  return handle(i_function->shared(), CcTest::i_isolate());
+  return direct_handle(i_function->shared(), CcTest::i_isolate());
 }
 
 template <typename T>
@@ -4715,7 +4715,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
   CHECK(code->embedded_objects_cleared());
 }
 
-static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
+static DirectHandle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
   uint8_t buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, sizeof(buffer)));
@@ -4731,7 +4731,7 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
 #endif
   masm.Drop(2);
   masm.GetCode(isolate, &desc);
-  Handle<InstructionStream> code(
+  DirectHandle<InstructionStream> code(
       Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN_JS)
           .set_self_reference(masm.CodeObject())
           .set_empty_source_position_table()
@@ -5010,9 +5010,9 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
       " })();");
 }
 
-Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
+DirectHandle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
   DirectHandle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> obj =
+  DirectHandle<Object> obj =
       Object::GetProperty(isolate, isolate->global_object(), str)
           .ToHandleChecked();
   return Cast<JSFunction>(obj);
@@ -6033,7 +6033,7 @@ TEST(Regress598319) {
   }
 }
 
-Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
+DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // Make sure there is no garbage and the compilation cache is empty.
   for (int i = 0; i < 5; i++) {
     heap::InvokeMajorGC(heap);
@@ -6043,7 +6043,7 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // are correct.
   heap->DisableInlineAllocation();
   size_t size_before_allocation = heap->SizeOfObjects();
-  Handle<FixedArray> array =
+  DirectHandle<FixedArray> array =
       heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld);
   size_t size_after_allocation = heap->SizeOfObjects();
   CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
@@ -6051,7 +6051,7 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   size_t size_after_shrinking = heap->SizeOfObjects();
   // Shrinking does not change the space size immediately.
   CHECK_EQ(size_after_allocation, size_after_shrinking);
-  // GC and sweeping updates the size to acccount for shrinking.
+  // GC and sweeping updates the size to account for shrinking.
   heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   intptr_t size_after_gc = heap->SizeOfObjects();

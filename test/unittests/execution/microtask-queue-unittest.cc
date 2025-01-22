@@ -81,7 +81,7 @@ class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
                            public ::testing::WithParamInterface<bool> {
  public:
   template <typename F>
-  Handle<Microtask> NewMicrotask(F&& f) {
+  DirectHandle<Microtask> NewMicrotask(F&& f) {
     DirectHandle<Foreign> runner = factory()->NewForeign<kMicrotaskCallbackTag>(
         reinterpret_cast<Address>(&RunStdFunction));
     DirectHandle<Foreign> data =
@@ -116,7 +116,7 @@ class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
   }
 
   template <size_t N>
-  Handle<Name> NameFromChars(const char (&chars)[N]) {
+  DirectHandle<Name> NameFromChars(const char (&chars)[N]) {
     return isolate()->factory()->NewStringFromStaticChars(chars);
   }
 
@@ -521,7 +521,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_HandlerContext) {
         "  results[label] = true;"
         "}");
   }
-  // DetachGlobal() cancells all microtasks associated to the context.
+  // DetachGlobal() cancels all microtasks associated to the context.
   sub_context->DetachGlobal();
   sub_context.Clear();
 

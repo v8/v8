@@ -960,11 +960,11 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
 
 namespace {
 
-Handle<TrustedPodArray<InliningPosition>> CreateInliningPositions(
+DirectHandle<TrustedPodArray<InliningPosition>> CreateInliningPositions(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   const OptimizedCompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
-  Handle<TrustedPodArray<InliningPosition>> inl_positions =
+  DirectHandle<TrustedPodArray<InliningPosition>> inl_positions =
       TrustedPodArray<InliningPosition>::New(
           isolate, static_cast<int>(inlined_functions.size()));
   for (size_t i = 0; i < inlined_functions.size(); ++i) {

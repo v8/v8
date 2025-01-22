@@ -29,7 +29,7 @@ class RegExpUtils : public AllStatic {
   // Last index (RegExp.lastIndex) accessors.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLastIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetLastIndex(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> GetLastIndex(
       Isolate* isolate, DirectHandle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -49,7 +49,7 @@ class RegExpUtils : public AllStatic {
   // AdvanceStringIndex ( S, index, unicode )
   static uint64_t AdvanceStringIndex(Tagged<String> string, uint64_t index,
                                      bool unicode);
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> SetAdvancedStringIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, DirectHandle<String> string,
       bool unicode);
 };

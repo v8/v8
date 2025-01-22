@@ -41,13 +41,13 @@ static MaybeDirectHandle<SharedFunctionInfo> GetFunctionInfo(
 }
 }  // namespace
 
-MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
-                                          Handle<String> source,
-                                          debug::EvaluateGlobalMode mode,
-                                          REPLMode repl_mode) {
+MaybeDirectHandle<Object> DebugEvaluate::Global(Isolate* isolate,
+                                                Handle<String> source,
+                                                debug::EvaluateGlobalMode mode,
+                                                REPLMode repl_mode) {
   DirectHandle<SharedFunctionInfo> shared_info;
   if (!GetFunctionInfo(isolate, source, repl_mode).ToHandle(&shared_info)) {
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
 
   DirectHandle<NativeContext> context = isolate->native_context();
@@ -67,7 +67,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   DirectHandle<FixedArray> host_defined_options(
       Cast<Script>(function->shared()->script())->host_defined_options(),
       isolate);
-  MaybeHandle<Object> result = Execution::CallScript(
+  MaybeDirectHandle<Object> result = Execution::CallScript(
       isolate, function,
       DirectHandle<JSObject>(context->global_proxy(), isolate),
       host_defined_options);
@@ -77,11 +77,11 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   return result;
 }
 
-MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
-                                         StackFrameId frame_id,
-                                         int inlined_jsframe_index,
-                                         Handle<String> source,
-                                         bool throw_on_side_effect) {
+MaybeDirectHandle<Object> DebugEvaluate::Local(Isolate* isolate,
+                                               StackFrameId frame_id,
+                                               int inlined_jsframe_index,
+                                               DirectHandle<String> source,
+                                               bool throw_on_side_effect) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
 
@@ -94,7 +94,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
     if (it.is_wasm_interpreter_entry()) return {};
 #endif  // V8_ENABLE_DRUMBRAKE
     WasmFrame* frame = WasmFrame::cast(it.frame());
-    Handle<SharedFunctionInfo> outer_info(
+    DirectHandle<SharedFunctionInfo> outer_info(
         isolate->native_context()->empty_function()->shared(), isolate);
     DirectHandle<JSObject> context_extension = GetWasmDebugProxy(frame);
     DirectHandle<ScopeInfo> scope_info =
@@ -119,15 +119,15 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 
   DirectHandle<Context> context = context_builder.evaluation_context();
   DirectHandle<JSObject> receiver(context->global_proxy(), isolate);
-  MaybeHandle<Object> maybe_result =
+  MaybeDirectHandle<Object> maybe_result =
       Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
                throw_on_side_effect);
   if (!maybe_result.is_null()) context_builder.UpdateValues();
   return maybe_result;
 }
 
-MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
-                                                        Handle<String> source) {
+MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
+    Isolate* isolate, DirectHandle<String> source) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
   Factory* factory = isolate->factory();
@@ -161,11 +161,11 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   scope_info->SetIsDebugEvaluateScope();
   DirectHandle<Context> evaluation_context = factory->NewDebugEvaluateContext(
       native_context, scope_info, materialized, DirectHandle<Context>());
-  Handle<SharedFunctionInfo> outer_info(
+  DirectHandle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
   DirectHandle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
-  MaybeHandle<Object> maybe_result =
+  MaybeDirectHandle<Object> maybe_result =
       Evaluate(isolate, outer_info, evaluation_context, receiver, source,
                throw_on_side_effect);
   return maybe_result;
@@ -173,9 +173,9 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
-    Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, DirectHandle<Object> receiver,
-    Handle<String> source, bool throw_on_side_effect) {
+    DirectHandle<String> source, bool throw_on_side_effect) {
   DirectHandle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,

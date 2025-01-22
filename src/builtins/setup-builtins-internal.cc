@@ -104,7 +104,7 @@ using TurboshaftAssemblerGenerator =
 using CodeAssemblerGenerator = compiler::Pipeline::CodeAssemblerGenerator;
 using CodeAssemblerInstaller = compiler::Pipeline::CodeAssemblerInstaller;
 
-Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
+DirectHandle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   HandleScope scope(isolate);
   uint8_t buffer[kBufferSize];
   MacroAssembler masm(isolate, CodeObjectRequired::kYes,

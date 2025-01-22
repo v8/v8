@@ -113,8 +113,8 @@ class V8_EXPORT_PRIVATE MapUpdater {
   };
 
   // Updates map to the most up-to-date non-deprecated version.
-  static inline Handle<Map> UpdateMapNoLock(Isolate* isolate,
-                                            Handle<Map> old_map);
+  static inline DirectHandle<Map> UpdateMapNoLock(Isolate* isolate,
+                                                  Handle<Map> old_map);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.
@@ -147,13 +147,13 @@ class V8_EXPORT_PRIVATE MapUpdater {
   //   descriptor array of the |target_map_|.
   // - Generalize the |modified_descriptor_| using |new_representation| and
   //   |new_field_type_|.
-  Handle<DescriptorArray> BuildDescriptorArray();
+  DirectHandle<DescriptorArray> BuildDescriptorArray();
 
   // Step 4.
   // - Walk the tree again starting from the root towards |target_map|. Stop at
   //   |split_map|, the first map whose descriptor array does not match the
   //   merged descriptor array.
-  Handle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
+  DirectHandle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
 
   // Step 5.
   // - If |target_map| == |split_map|, |target_map| is in the expected state.

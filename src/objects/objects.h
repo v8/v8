@@ -293,26 +293,25 @@ class Object : public AllStatic {
   ToIndex(Isolate* isolate, HandleType<T> input, MessageTemplate error_index);
 
   // ES6 section 7.3.9 GetMethod
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetMethod(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> GetMethod(
       Isolate* isolate, DirectHandle<JSReceiver> receiver,
       DirectHandle<Name> name);
 
   // ES6 section 7.3.17 CreateListFromArrayLike
-  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> CreateListFromArrayLike(
-      Isolate* isolate, DirectHandle<Object> object,
-      ElementTypes element_types);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<FixedArray>
+  CreateListFromArrayLike(Isolate* isolate, DirectHandle<Object> object,
+                          ElementTypes element_types);
 
   // Get length property and apply ToLength.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetLengthFromArrayLike(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> GetLengthFromArrayLike(
       Isolate* isolate, DirectHandle<JSReceiver> object);
 
   // ES6 section 12.5.6 The typeof Operator
   static Handle<String> TypeOf(Isolate* isolate, DirectHandle<Object> object);
 
   // ES6 section 12.7 Additive Operators
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Add(Isolate* isolate,
-                                                       Handle<Object> lhs,
-                                                       Handle<Object> rhs);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Add(
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs);
 
   // ES6 section 12.9 Relational Operators
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> GreaterThan(
@@ -352,11 +351,11 @@ class Object : public AllStatic {
               DirectHandle<Name> name, DirectHandle<Object> value,
               StoreOrigin store_origin = StoreOrigin::kMaybeKeyed,
               Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
-      Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name,
-      DirectHandle<Object> value,
-      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
-      StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
+  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<Object>
+  SetPropertyOrElement(Isolate* isolate, DirectHandle<JSAny> object,
+                       DirectHandle<Name> name, DirectHandle<Object> value,
+                       Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
+                       StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, DirectHandle<Object> value, StoreOrigin store_origin,
@@ -389,9 +388,9 @@ class Object : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name);
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      DirectHandle<JSAny> receiver, DirectHandle<Name> name,
-      DirectHandle<JSReceiver> holder);
+  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<Object>
+  GetPropertyOrElement(DirectHandle<JSAny> receiver, DirectHandle<Name> name,
+                       DirectHandle<JSReceiver> holder);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name);
 
@@ -410,9 +409,9 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate, DirectHandle<JSAny> object, uint32_t index);
 
-  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetElement(
+  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<Object> SetElement(
       Isolate* isolate, DirectHandle<JSAny> object, uint32_t index,
-      Handle<Object> value, ShouldThrow should_throw);
+      DirectHandle<Object> value, ShouldThrow should_throw);
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
@@ -441,13 +440,13 @@ class Object : public AllStatic {
   static bool SameValueZero(Tagged<Object> obj, Tagged<Object> other);
 
   // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
-      Isolate* isolate, DirectHandle<JSAny> original_array);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
+  ArraySpeciesConstructor(Isolate* isolate, DirectHandle<JSAny> original_array);
 
   // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SpeciesConstructor(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> SpeciesConstructor(
       Isolate* isolate, DirectHandle<JSReceiver> recv,
-      Handle<JSFunction> default_ctor);
+      DirectHandle<JSFunction> default_ctor);
 
   // Tries to convert an object to an array length. Returns true and sets the
   // output parameter if it succeeds.

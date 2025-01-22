@@ -125,7 +125,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
     return next_bytecode;
   }
   OperandScale current_operand_scale() const { return operand_scale_; }
-  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  DirectHandle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
   uint32_t GetFlag8Operand(int operand_index) const;
   uint32_t GetFlag16Operand(int operand_index) const;

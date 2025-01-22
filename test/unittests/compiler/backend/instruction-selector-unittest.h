@@ -219,7 +219,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+    DirectHandle<HeapObject> ToHeapObject(
+        const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 

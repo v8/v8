@@ -44,7 +44,7 @@ namespace internal {
   } while (false)
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
-MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
+MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
     MaybeHandle<Object> maybe_continuation_error,
     DisposableStackResourcesType resources_type) {
@@ -126,7 +126,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
 
           disposable_stack->set_has_awaited(true);
 
-          MaybeHandle<JSReceiver> resolved_promise =
+          MaybeDirectHandle<JSReceiver> resolved_promise =
               ResolveAPromiseWithValueAndReturnIt(isolate, result_handle);
 
           if (resolved_promise.is_null()) {
@@ -198,7 +198,7 @@ MaybeHandle<Object> JSDisposableStackBase::DisposeResources(
     } else {
       isolate->ReThrow(*existing_error_handle, *existing_error_message_handle);
     }
-    return MaybeHandle<Object>();
+    return MaybeDirectHandle<Object>();
   }
   return isolate->factory()->true_value();
 }

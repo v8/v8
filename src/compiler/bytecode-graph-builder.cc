@@ -1000,7 +1000,7 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BytecodeOffset bailout_id, OutputFrameStateCombine combine,
     const BytecodeLivenessState* liveness) {
   if (parameter_count() == register_count()) {
-    // Re-use the state-value cache if the number of local registers happens
+    // Reuse the state-value cache if the number of local registers happens
     // to match the parameter count.
     parameters_state_values_ =
         GetStateValuesFromCache(&values()->at(0), parameter_count(), nullptr);

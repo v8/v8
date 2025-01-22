@@ -470,7 +470,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     }
   }
   // We should only get here if the new_map is different from the old map,
-  // otherwise we would have falled through to the is_identical_to check above.
+  // otherwise we would have fallen through to the is_identical_to check above.
   DCHECK_NE(*old_map, *new_map);
 
   JSObject::MigrateToMap(isolate_, holder_obj, new_map);
@@ -792,7 +792,7 @@ void LookupIterator::TransitionToAccessorProperty(
   }
 
   if (!IsElement(*receiver) && !receiver->map(isolate_)->is_dictionary_map()) {
-    Handle<Map> old_map(receiver->map(isolate_), isolate_);
+    DirectHandle<Map> old_map(receiver->map(isolate_), isolate_);
 
     if (!holder_.is_identical_to(receiver)) {
       holder_ = receiver;
@@ -1065,7 +1065,7 @@ Handle<Object> LookupIterator::GetDataValue(
   return indirect_handle(FetchValue(allocation_policy), isolate_);
 }
 
-Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
+DirectHandle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
   DCHECK_EQ(DATA, state_);
   // Currently only shared structs and arrays support sequentially consistent
   // access.
@@ -1164,8 +1164,8 @@ void LookupIterator::WriteDataValue(DirectHandle<Object> value,
   holder->FastPropertyAtPut(field_index, *value, tag);
 }
 
-Handle<Object> LookupIterator::SwapDataValue(DirectHandle<Object> value,
-                                             SeqCstAccessTag tag) {
+DirectHandle<Object> LookupIterator::SwapDataValue(DirectHandle<Object> value,
+                                                   SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
   // Currently only shared structs and arrays support sequentially consistent
   // access.
@@ -1182,11 +1182,11 @@ Handle<Object> LookupIterator::SwapDataValue(DirectHandle<Object> value,
   DisallowGarbageCollection no_gc;
   FieldIndex field_index =
       FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
-                isolate_);
+  return direct_handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                       isolate_);
 }
 
-Handle<Object> LookupIterator::CompareAndSwapDataValue(
+DirectHandle<Object> LookupIterator::CompareAndSwapDataValue(
     DirectHandle<Object> expected, DirectHandle<Object> value,
     SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
@@ -1205,9 +1205,9 @@ Handle<Object> LookupIterator::CompareAndSwapDataValue(
   DCHECK_EQ(PropertyKind::kData, property_details_.kind());
   FieldIndex field_index =
       FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-  return handle(holder->RawFastPropertyAtCompareAndSwap(field_index, *expected,
-                                                        *value, tag),
-                isolate_);
+  return direct_handle(holder->RawFastPropertyAtCompareAndSwap(
+                           field_index, *expected, *value, tag),
+                       isolate_);
 }
 
 template <bool is_element>

@@ -58,7 +58,7 @@ BUILTIN(ShadowRealmConstructor) {
 namespace {
 
 // https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
-MaybeHandle<Object> GetWrappedValue(
+MaybeDirectHandle<Object> GetWrappedValue(
     Isolate* isolate, DirectHandle<NativeContext> creation_context,
     Handle<Object> value) {
   // 1. If Type(value) is Object, then
@@ -120,7 +120,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   // https://tc39.es/proposal-shadowrealm/#sec-performshadowrealmeval
   // 1. Perform ? HostEnsureCanCompileStrings(callerRealm, evalRealm).
   // Run embedder pre-checks before executing the source code.
-  MaybeHandle<String> validated_source;
+  MaybeDirectHandle<String> validated_source;
   bool unhandled_object;
   std::tie(validated_source, unhandled_object) =
       Compiler::ValidateDynamicCompilationSource(isolate, eval_context,

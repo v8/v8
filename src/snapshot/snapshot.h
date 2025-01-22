@@ -199,7 +199,7 @@ class SnapshotCreatorImpl final {
 
   void InitInternal(const StartupData*);
 
-  Handle<NativeContext> context_at(size_t i) const;
+  DirectHandle<NativeContext> context_at(size_t i) const;
   bool created() const { return contexts_.size() == 0; }
 
   const bool owns_isolate_;

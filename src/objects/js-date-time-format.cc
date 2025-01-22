@@ -521,8 +521,8 @@ std::string JSDateTimeFormat::CanonicalizeTimeZoneID(const std::string& input) {
 }
 
 namespace {
-Handle<String> DateTimeStyleAsString(Isolate* isolate,
-                                     JSDateTimeFormat::DateTimeStyle style) {
+DirectHandle<String> DateTimeStyleAsString(
+    Isolate* isolate, JSDateTimeFormat::DateTimeStyle style) {
   switch (style) {
     case JSDateTimeFormat::DateTimeStyle::kFull:
       return isolate->factory()->full_string();
@@ -620,24 +620,25 @@ Handle<Object> GetTimeZone(Isolate* isolate,
 }
 }  // namespace
 
-Handle<String> JSDateTimeFormat::Calendar(
+DirectHandle<String> JSDateTimeFormat::Calendar(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   return GetCalendar(isolate,
                      *(date_time_format->icu_simple_date_format()->raw()));
 }
 
-Handle<Object> JSDateTimeFormat::TimeZone(
+DirectHandle<Object> JSDateTimeFormat::TimeZone(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   return GetTimeZone(isolate,
                      *(date_time_format->icu_simple_date_format()->raw()));
 }
 
 // ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
-MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
+MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
-  Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> options =
+      factory->NewJSObject(isolate->object_function());
 
   DirectHandle<Object> resolved_obj;
 
@@ -1617,14 +1618,14 @@ MaybeDirectHandle<String> JSDateTimeFormat::TemporalToLocaleString(
                                            method_name);
 }
 
-MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
+MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   DirectHandle<Context> native_context(isolate->context()->native_context(),
                                        isolate);
   DirectHandle<JSFunction> constructor(
       Cast<JSFunction>(native_context->intl_date_time_format_function()),
       isolate);
-  Handle<Object> dtf;
+  DirectHandle<Object> dtf;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, dtf,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
@@ -2165,7 +2166,7 @@ class DateTimePatternGeneratorCache {
 enum FormatMatcherOption { kBestFit, kBasic };
 
 // ecma402/#sec-initializedatetimeformat
-MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
+MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, const char* service) {
   return JSDateTimeFormat::CreateDateTimeFormat(
@@ -2666,7 +2667,8 @@ namespace {
 // The list comes from third_party/icu/source/i18n/unicode/udat.h.
 // They're mapped to DateTimeFormat components listed at
 // https://tc39.github.io/ecma402/#sec-datetimeformat-abstracts .
-Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
+DirectHandle<String> IcuDateFieldIdToDateType(int32_t field_id,
+                                              Isolate* isolate) {
   switch (field_id) {
     case -1:
       return isolate->factory()->literal_string();
@@ -2725,7 +2727,7 @@ MaybeHandle<JSArray> FieldPositionIteratorToArray(
     Isolate* isolate, const icu::UnicodeString& formatted,
     icu::FieldPositionIterator fp_iter, bool output_source);
 
-MaybeHandle<JSArray> FormatMillisecondsByKindToArray(
+MaybeDirectHandle<JSArray> FormatMillisecondsByKindToArray(
     Isolate* isolate, const icu::SimpleDateFormat& date_format,
     PatternKind kind, double x, bool output_source) {
   icu::FieldPositionIterator fp_iter;
@@ -3141,15 +3143,15 @@ MaybeDirectHandle<T> FormatRangeCommon(
 MaybeDirectHandle<String> JSDateTimeFormat::FormatRange(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x, DirectHandle<Object> y, const char* method_name) {
-  // Track newer feature formateRange and formatRangeToParts
+  // Track newer feature formatRange and formatRangeToParts.
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
   if (v8_flags.harmony_temporal) {
-    // For Temporal enable support
+    // For Temporal enable support.
     return FormatRangeCommonWithTemporalSupport<
         String, FormattedToString, FormatMillisecondsByKindToString>(
         isolate, date_time_format, x, y, method_name);
   }
-  // Pre Temporal implementation
+  // Pre Temporal implementation.
   return FormatRangeCommon<String, FormattedToString, FormatDateTime>(
       isolate, date_time_format, x, y, method_name);
 }
@@ -3157,16 +3159,16 @@ MaybeDirectHandle<String> JSDateTimeFormat::FormatRange(
 MaybeDirectHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x, DirectHandle<Object> y, const char* method_name) {
-  // Track newer feature formateRange and formatRangeToParts
+  // Track newer feature formatRange and formatRangeToParts.
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
   if (v8_flags.harmony_temporal) {
-    // For Temporal enable support
+    // For Temporal enable support.
     return FormatRangeCommonWithTemporalSupport<
         JSArray, FormattedDateIntervalToJSArray,
         FormatMillisecondsByKindToArrayOutputSource>(isolate, date_time_format,
                                                      x, y, method_name);
   }
-  // Pre Temporal implementation
+  // Pre Temporal implementation.
   return FormatRangeCommon<JSArray, FormattedDateIntervalToJSArray,
                            FormatMillisecondsToArrayOutputSource>(
       isolate, date_time_format, x, y, method_name);

@@ -145,9 +145,8 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   CanonicalTypeIndex sig_index() const { return sig_index_; }
 
   // Run a compilation unit synchronously.
-  static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
-                                             const CanonicalSig* sig,
-                                             CanonicalTypeIndex sig_index);
+  static DirectHandle<Code> CompileJSToWasmWrapper(
+      Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the

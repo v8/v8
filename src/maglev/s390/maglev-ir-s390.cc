@@ -821,7 +821,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   Register actual_params_size = r6;
 
   // Compute the size of the actual parameters + receiver (in bytes).
-  // TODO(leszeks): Consider making this an input into Return to re-use the
+  // TODO(leszeks): Consider making this an input into Return to reuse the
   // incoming argc's register (if it's still valid).
   __ LoadU64(actual_params_size,
              MemOperand(fp, StandardFrameConstants::kArgCOffset));

@@ -250,7 +250,9 @@ class WeakScriptHandle {
 
   WeakScriptHandle(WeakScriptHandle&&) V8_NOEXCEPT = default;
 
-  Handle<Script> handle() const { return Handle<Script>(*location_); }
+  DirectHandle<Script> handle() const {
+    return IndirectHandle<Script>(*location_);
+  }
 
   // Called by ~IsolateInfo. When the Isolate is shutting down, cleaning
   // up properly is both no longer necessary and no longer safe to do.

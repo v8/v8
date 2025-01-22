@@ -41,7 +41,7 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-Handle<Object> HeapTester::TestAllocateAfterFailures() {
+DirectHandle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the factory's retrying logic does in the last-resort case,
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
@@ -92,7 +92,6 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   return CcTest::i_isolate()->factory()->true_value();
 }
 
-
 HEAP_TEST(StressHandles) {
   // For TestAllocateAfterFailures.
   v8_flags.stress_concurrent_allocation = false;
@@ -119,14 +118,12 @@ void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
   UNREACHABLE();
 }
 
-
-Handle<AccessorInfo> TestAccessorInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+DirectHandle<AccessorInfo> TestAccessorInfo(Isolate* isolate,
+                                            PropertyAttributes attributes) {
   DirectHandle<String> name =
       isolate->factory()->NewStringFromStaticChars("get");
   return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
 }
-
 
 TEST(StressJS) {
   // For TestAllocateAfterFailures in TestGetter.

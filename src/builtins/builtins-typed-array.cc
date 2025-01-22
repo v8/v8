@@ -329,7 +329,7 @@ namespace {
 
 template <typename T>
 Maybe<T> MapOptionToEnum(
-    Isolate* isolate, Handle<String> option_string,
+    Isolate* isolate, DirectHandle<String> option_string,
     const std::vector<std::tuple<const char*, size_t, T>>& allowed_options) {
   option_string = String::Flatten(isolate, option_string);
 
@@ -385,7 +385,7 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
     Isolate* isolate, T input_vector, size_t input_length,
     size_t& output_length, simdutf::base64_options alphabet,
     simdutf::last_chunk_handling_options last_chunk_handling,
-    Handle<JSArrayBuffer>& buffer) {
+    DirectHandle<JSArrayBuffer>& buffer) {
   const char method_name[] = "Uint8Array.fromBase64";
 
   output_length = simdutf::maximal_binary_length_from_base64(
@@ -397,7 +397,7 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
 
   {
     AllowGarbageCollection gc;
-    MaybeHandle<JSArrayBuffer> result_buffer =
+    MaybeDirectHandle<JSArrayBuffer> result_buffer =
         isolate->factory()->NewJSArrayBufferAndBackingStore(
             output_length, InitializedFlag::kUninitialized);
     if (!result_buffer.ToHandle(&buffer)) {
@@ -419,20 +419,21 @@ BUILTIN(Uint8ArrayFromBase64) {
   HandleScope scope(isolate);
 
   // 1. If string is not a String, throw a TypeError exception.
-  Handle<Object> input = args.atOrUndefined(isolate, 1);
+  DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
   if (!IsString(*input)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kArgumentIsNonString,
                               isolate->factory()->input_string()));
   }
 
-  Handle<String> input_string = String::Flatten(isolate, Cast<String>(input));
+  DirectHandle<String> input_string =
+      String::Flatten(isolate, Cast<String>(input));
 
   // 2. Let opts be ? GetOptionsObject(options).
-  Handle<Object> options = args.atOrUndefined(isolate, 2);
+  DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Let alphabet be ? Get(opts, "alphabet").
-  Handle<Object> opt_alphabet;
+  DirectHandle<Object> opt_alphabet;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, opt_alphabet,
       JSObject::ReadFromOptionsBag(
@@ -448,7 +449,7 @@ BUILTIN(Uint8ArrayFromBase64) {
   } else {
     // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError
     // exception.
-    Handle<String> alphabet_string = Cast<String>(opt_alphabet);
+    DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
 
     std::vector<std::tuple<const char*, size_t, simdutf::base64_options>>
         alphabet_vector = {
@@ -460,7 +461,7 @@ BUILTIN(Uint8ArrayFromBase64) {
   }
 
   // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
-  Handle<Object> opt_last_chunk_handling;
+  DirectHandle<Object> opt_last_chunk_handling;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, opt_last_chunk_handling,
       JSObject::ReadFromOptionsBag(
@@ -477,7 +478,7 @@ BUILTIN(Uint8ArrayFromBase64) {
   } else {
     // 8. If lastChunkHandling is not one of "loose", "strict", or
     // "stop-before-partial", throw a TypeError exception.
-    Handle<String> last_chunk_handling_string =
+    DirectHandle<String> last_chunk_handling_string =
         Cast<String>(opt_last_chunk_handling);
 
     std::vector<
@@ -497,7 +498,7 @@ BUILTIN(Uint8ArrayFromBase64) {
   size_t input_length;
   size_t output_length;
   simdutf::result simd_result;
-  Handle<JSArrayBuffer> buffer;
+  DirectHandle<JSArrayBuffer> buffer;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent input_content = input_string->GetFlatContent(no_gc);
@@ -537,8 +538,9 @@ BUILTIN(Uint8ArrayFromBase64) {
   // ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the
   // corresponding index of result.[[Bytes]].
   // 14. Return ta.
-  Handle<JSTypedArray> result_typed_array = isolate->factory()->NewJSTypedArray(
-      kExternalUint8Array, buffer, 0, output_length);
+  DirectHandle<JSTypedArray> result_typed_array =
+      isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
+                                          output_length);
   return *result_typed_array;
 }
 

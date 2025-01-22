@@ -326,10 +326,10 @@ Tagged<MaybeObject> FeedbackVector::Get(PtrComprCageBase cage_base,
   return value;
 }
 
-Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(Isolate* isolate,
-                                                            int index) const {
+DirectHandle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(
+    Isolate* isolate, int index) const {
   DCHECK_GE(index, 0);
-  return handle(closure_feedback_cell_array()->get(index), isolate);
+  return direct_handle(closure_feedback_cell_array()->get(index), isolate);
 }
 
 Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
@@ -456,7 +456,7 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
   UNREACHABLE();
 }
 
-Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
+DirectHandle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->uninitialized_symbol();
 }
 
@@ -464,7 +464,7 @@ Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
 
-Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
+DirectHandle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
   return isolate->factory()->mega_dom_symbol();
 }
 
@@ -583,7 +583,7 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   // TODO(370727490): Make the FeedbackIterator GC safe (e.g. look up
   // map/handler in the feedback array on-demand).
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
-    Handle<Map> map = config()->NewHandle(it.map());
+    DirectHandle<Map> map = config()->NewHandle(it.map());
     if (!it.handler().IsCleared()) {
       function(map);
     }

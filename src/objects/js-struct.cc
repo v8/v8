@@ -290,7 +290,7 @@ bool JSSharedStruct::IsRegistryKeyDescriptor(Isolate* isolate,
 }
 
 // static
-MaybeHandle<NumberDictionary> JSSharedStruct::GetElementsTemplate(
+MaybeDirectHandle<NumberDictionary> JSSharedStruct::GetElementsTemplate(
     Isolate* isolate, Tagged<Map> instance_map) {
   return GetSpecialSlotValue<NumberDictionary>(
       isolate, instance_map,
@@ -480,11 +480,11 @@ MaybeHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
   }
 }
 
-MaybeHandle<Map> SharedStructTypeRegistry::Register(
+MaybeDirectHandle<Map> SharedStructTypeRegistry::Register(
     Isolate* isolate, Handle<String> key,
     const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names) {
-  MaybeHandle<Map> canonical_map =
+  MaybeDirectHandle<Map> canonical_map =
       RegisterNoThrow(isolate, key, field_names, element_names);
   if (canonical_map.is_null()) {
     THROW_NEW_ERROR(

@@ -75,9 +75,9 @@ class JSDisposableStackBase
                   DirectHandle<JSDisposableStackBase> disposable_stack,
                   DirectHandle<Object> value, DirectHandle<Object> method,
                   DisposeMethodCallType type, DisposeMethodHint hint);
-  static MaybeHandle<Object> CheckValueAndGetDisposeMethod(
+  static MaybeDirectHandle<Object> CheckValueAndGetDisposeMethod(
       Isolate* isolate, DirectHandle<JSAny> value, DisposeMethodHint hint);
-  static MaybeHandle<Object> DisposeResources(
+  static MaybeDirectHandle<Object> DisposeResources(
       Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
       MaybeHandle<Object> maybe_continuation_error,
       DisposableStackResourcesType resources_type);

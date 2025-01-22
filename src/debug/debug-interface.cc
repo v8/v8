@@ -206,7 +206,7 @@ void ForEachContextLocal(i::Isolate* isolate,
                          const FlagFilter& flag_filter,
                          const ContextLocalIterator& context_local_it) {
   DCHECK_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
+  i::DirectHandle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
   for (auto it : i::ScopeInfo::IterateLocalNames(scope_info)) {
     i::Handle<i::String> name(it->name(), isolate);
     i::VariableMode mode = scope_info->ContextLocalMode(it->index());
@@ -1234,7 +1234,8 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
   for (int i = 0; i < table->length(kAcquireLoad); i++) {
     i::DirectHandle<i::Context> script_context(table->get(i), isolate);
     DCHECK(script_context->IsScriptContext());
-    i::Handle<i::ScopeInfo> scope_info(script_context->scope_info(), isolate);
+    i::DirectHandle<i::ScopeInfo> scope_info(script_context->scope_info(),
+                                             isolate);
     for (auto it : i::ScopeInfo::IterateLocalNames(scope_info)) {
       if (i::ScopeInfo::VariableIsSynthetic(it->name())) continue;
       names->emplace_back(reinterpret_cast<Isolate*>(isolate),

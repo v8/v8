@@ -1252,7 +1252,7 @@ bool CheckBreakPoint(Isolate* isolate, DirectHandle<BreakPoint> break_point,
   if (break_point->condition()->length() == 0) return true;
 
   HandleScope scope(isolate);
-  Handle<String> condition(break_point->condition(), isolate);
+  DirectHandle<String> condition(break_point->condition(), isolate);
   DirectHandle<Object> result;
   // The Wasm engine doesn't perform any sort of inlining.
   const int inlined_jsframe_index = 0;
@@ -1269,7 +1269,7 @@ bool CheckBreakPoint(Isolate* isolate, DirectHandle<BreakPoint> break_point,
 }  // namespace
 
 // static
-MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(
+MaybeDirectHandle<FixedArray> WasmScript::CheckBreakPoints(
     Isolate* isolate, DirectHandle<Script> script, int position,
     StackFrameId frame_id) {
   if (!script->has_wasm_breakpoint_infos()) return {};
@@ -1296,13 +1296,14 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(
     }
     // If breakpoint does fire, clear any prior muting behavior.
     isolate->debug()->ClearMutedLocation();
-    Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
+    DirectHandle<FixedArray> break_points_hit =
+        isolate->factory()->NewFixedArray(1);
     break_points_hit->set(0, *break_points);
     return break_points_hit;
   }
 
   auto array = Cast<FixedArray>(break_points);
-  Handle<FixedArray> break_points_hit =
+  DirectHandle<FixedArray> break_points_hit =
       isolate->factory()->NewFixedArray(array->length());
   int break_points_hit_count = 0;
   for (int i = 0; i < array->length(); ++i) {

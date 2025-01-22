@@ -46,8 +46,8 @@ class FunctionTester {
   }
 
   template <typename T, typename... Args>
-  Handle<T> CallChecked(Args... args) {
-    Handle<Object> result = Call(args...).ToHandleChecked();
+  DirectHandle<T> CallChecked(Args... args) {
+    DirectHandle<Object> result = Call(args...).ToHandleChecked();
     return Cast<T>(result);
   }
 
@@ -114,8 +114,8 @@ class FunctionTester {
 
   Handle<String> NewString(const char* string);
   Handle<Object> NewNumber(double value);
-  Handle<Object> infinity();
-  Handle<Object> minus_infinity();
+  DirectHandle<Object> infinity();
+  DirectHandle<Object> minus_infinity();
   Handle<Object> nan();
   Handle<Object> undefined();
   Handle<Object> null();

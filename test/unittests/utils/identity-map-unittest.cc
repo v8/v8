@@ -186,8 +186,8 @@ class IdentityMapTester {
 
 class IdentityMapTest : public TestWithIsolateAndZone {
  public:
-  Handle<Smi> smi(int value) {
-    return Handle<Smi>(Smi::FromInt(value), isolate());
+  DirectHandle<Smi> smi(int value) {
+    return DirectHandle<Smi>(Smi::FromInt(value), isolate());
   }
 
   Handle<Object> num(double value) {

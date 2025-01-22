@@ -38,7 +38,7 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
 BUILTIN(ObjectDefineProperties) {
   HandleScope scope(isolate);
   DCHECK_LE(3, args.length());
-  Handle<Object> target = args.at(1);
+  DirectHandle<Object> target = args.at(1);
   DirectHandle<Object> properties = args.at(2);
 
   RETURN_RESULT_OR_FAILURE(

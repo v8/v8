@@ -92,8 +92,8 @@ class JSWeakCollection
                                     DirectHandle<Object> value, int32_t hash);
   static bool Delete(DirectHandle<JSWeakCollection> collection,
                      DirectHandle<Object> key, int32_t hash);
-  static Handle<JSArray> GetEntries(DirectHandle<JSWeakCollection> holder,
-                                    int max_entries);
+  static DirectHandle<JSArray> GetEntries(DirectHandle<JSWeakCollection> holder,
+                                          int max_entries);
 
   static const int kAddFunctionDescriptorIndex = 3;
 

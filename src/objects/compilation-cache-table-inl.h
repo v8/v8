@@ -70,8 +70,8 @@ class ScriptCacheKey : public HashTableKey {
   bool IsMatch(Tagged<Object> other) override;
   bool MatchesScript(Tagged<Script> script);
 
-  Handle<Object> AsHandle(Isolate* isolate,
-                          DirectHandle<SharedFunctionInfo> shared);
+  DirectHandle<Object> AsHandle(Isolate* isolate,
+                                DirectHandle<SharedFunctionInfo> shared);
 
   static std::optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;

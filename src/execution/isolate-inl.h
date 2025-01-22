@@ -63,7 +63,7 @@ void Isolate::clear_topmost_script_having_context() {
   thread_local_top()->topmost_script_having_context_ = Context();
 }
 
-Handle<NativeContext> Isolate::GetIncumbentContext() {
+DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
   Tagged<Context> maybe_topmost_script_having_context =
       topmost_script_having_context();
   if (V8_LIKELY(!maybe_topmost_script_having_context.is_null())) {
@@ -77,7 +77,7 @@ Handle<NativeContext> Isolate::GetIncumbentContext() {
     Tagged<NativeContext> incumbent_context =
         maybe_topmost_script_having_context->native_context();
     DCHECK_EQ(incumbent_context, *GetIncumbentContextSlow());
-    return handle(incumbent_context, this);
+    return direct_handle(incumbent_context, this);
   }
   return GetIncumbentContextSlow();
 }

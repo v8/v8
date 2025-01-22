@@ -130,13 +130,13 @@ void CreateDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
 }  // namespace
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
-Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
+DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
   if (IsRegularAccessorProperty()) {
     // Fast case for regular accessor properties.
-    Handle<JSObject> result = factory->NewJSObjectFromMap(
+    DirectHandle<JSObject> result = factory->NewJSObjectFromMap(
         isolate->accessor_property_descriptor_map());
     result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
                                   *get());
@@ -152,7 +152,7 @@ Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   }
   if (IsRegularDataProperty()) {
     // Fast case for regular data properties.
-    Handle<JSObject> result =
+    DirectHandle<JSObject> result =
         factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
     result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
                                   *value());
@@ -164,7 +164,8 @@ Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
                                   isolate->heap()->ToBoolean(configurable()));
     return result;
   }
-  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> result =
+      factory->NewJSObject(isolate->object_function());
   if (has_value()) {
     CreateDataProperty(isolate, result, factory->value_string(), value());
   }
@@ -351,9 +352,9 @@ void PropertyDescriptor::CompletePropertyDescriptor(Isolate* isolate,
   // 8. Return Desc.
 }
 
-Handle<PropertyDescriptorObject> PropertyDescriptor::ToPropertyDescriptorObject(
-    Isolate* isolate) {
-  Handle<PropertyDescriptorObject> obj =
+DirectHandle<PropertyDescriptorObject>
+PropertyDescriptor::ToPropertyDescriptorObject(Isolate* isolate) {
+  DirectHandle<PropertyDescriptorObject> obj =
       isolate->factory()->NewPropertyDescriptorObject();
 
   int flags =

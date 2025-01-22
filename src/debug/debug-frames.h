@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE FrameInspector {
   Handle<Object> GetContext();
   Handle<Object> GetReceiver() { return receiver_; }
 
-  Handle<String> GetFunctionName();
+  DirectHandle<String> GetFunctionName();
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();

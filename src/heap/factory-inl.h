@@ -127,7 +127,7 @@ Handle<Foreign> Factory::NewForeign(Address addr,
   return handle(foreign, isolate());
 }
 
-Handle<Object> Factory::NewURIError() {
+DirectHandle<Object> Factory::NewURIError() {
   return NewError(isolate()->uri_error_function(),
                   MessageTemplate::kURIMalformed);
 }

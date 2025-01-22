@@ -297,16 +297,16 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
   ids_->UpdateObjectSize(addr, size);
 }
 
-Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
+DirectHandle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   CombinedHeapObjectIterator iterator(heap(),
                                       HeapObjectIterator::kFilterUnreachable);
   // Make sure that the object with the given id is still reachable.
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (ids_->FindEntry(obj.address()) == id)
-      return Handle<HeapObject>(obj, isolate());
+      return DirectHandle<HeapObject>(obj, isolate());
   }
-  return Handle<HeapObject>();
+  return DirectHandle<HeapObject>();
 }
 
 void HeapProfiler::ClearHeapObjectMap() {

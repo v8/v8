@@ -45,7 +45,7 @@ bool CachedTemplateMatches(Isolate* isolate,
 }  // namespace
 
 // static
-Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
+DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
     DirectHandle<TemplateObjectDescription> description,
     DirectHandle<SharedFunctionInfo> shared_info, int slot_id) {
@@ -81,7 +81,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
             Cast<JSArray>(cached_templates->get(i));
         if (CachedTemplateMatches(isolate, *native_context, template_object,
                                   function_literal_id, slot_id, no_gc)) {
-          return handle(template_object, isolate);
+          return direct_handle(template_object, isolate);
         }
       }
     }
@@ -91,7 +91,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   DirectHandle<FixedArray> raw_strings(description->raw_strings(), isolate);
   DirectHandle<FixedArray> cooked_strings(description->cooked_strings(),
                                           isolate);
-  Handle<JSArray> template_object =
+  DirectHandle<JSArray> template_object =
       isolate->factory()->NewJSArrayForTemplateLiteralArray(
           cooked_strings, raw_strings, function_literal_id, slot_id);
 

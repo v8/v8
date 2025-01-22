@@ -202,11 +202,12 @@ bool BreakLocation::IsPausedInJsFunctionEntry(JavaScriptFrame* frame) {
   return summary.code_offset() == kFunctionEntryBytecodeOffset;
 }
 
-MaybeHandle<FixedArray> Debug::CheckBreakPointsForLocations(
+MaybeDirectHandle<FixedArray> Debug::CheckBreakPointsForLocations(
     Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
     bool* has_break_points) {
-  Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(
-      debug_info->GetBreakPointCount(isolate_));
+  DirectHandle<FixedArray> break_points_hit =
+      isolate_->factory()->NewFixedArray(
+          debug_info->GetBreakPointCount(isolate_));
   int break_points_hit_count = 0;
   bool has_break_points_at_all = false;
   for (size_t i = 0; i < break_locations.size(); i++) {
@@ -775,7 +776,7 @@ void Debug::Break(JavaScriptFrame* frame,
               summary.SourceStatementPosition();
       // If we stayed on the same frame and reached the same bytecode offset
       // since the last step, we are in a loop and should pause. Otherwise
-      // we keep "stepping" through the loop without ever acutally pausing.
+      // we keep "stepping" through the loop without ever actually pausing.
       const bool potential_single_statement_loop =
           current_frame_count == last_frame_count &&
           thread_local_.last_bytecode_offset_ == summary.code_offset();
@@ -931,7 +932,7 @@ bool Debug::CheckBreakPoint(DirectHandle<BreakPoint> break_point,
   }
 
   if (!break_point->condition()->length()) return true;
-  Handle<String> condition(break_point->condition(), isolate_);
+  DirectHandle<String> condition(break_point->condition(), isolate_);
   MaybeDirectHandle<Object> maybe_result;
   DirectHandle<Object> result;
 
@@ -1611,7 +1612,7 @@ void Debug::PrepareStep(StepAction step_action) {
 
 // Simple function for returning the source positions for active break points.
 // static
-Handle<Object> Debug::GetSourceBreakLocations(
+DirectHandle<Object> Debug::GetSourceBreakLocations(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDebugger);
   if (!shared->HasBreakInfo(isolate)) {
@@ -1623,7 +1624,7 @@ Handle<Object> Debug::GetSourceBreakLocations(
   if (debug_info->GetBreakPointCount(isolate) == 0) {
     return isolate->factory()->undefined_value();
   }
-  Handle<FixedArray> locations = isolate->factory()->NewFixedArray(
+  DirectHandle<FixedArray> locations = isolate->factory()->NewFixedArray(
       debug_info->GetBreakPointCount(isolate));
   int count = 0;
   for (int i = 0; i < debug_info->break_points()->length(); ++i) {
@@ -2198,7 +2199,7 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
   UNREACHABLE();
 }
 
-MaybeHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
+MaybeDirectHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
     Handle<Script> script, bool* did_compile) {
   DCHECK_LE(kFunctionLiteralIdTopLevel, script->infos()->length());
   Tagged<MaybeObject> maybeToplevel =
@@ -2208,7 +2209,7 @@ MaybeHandle<SharedFunctionInfo> Debug::GetTopLevelWithRecompile(
       maybeToplevel.GetHeapObject(&heap_object) && !IsUndefined(heap_object);
   if (topLevelInfoExists) {
     if (did_compile) *did_compile = false;
-    return handle(Cast<SharedFunctionInfo>(heap_object), isolate_);
+    return direct_handle(Cast<SharedFunctionInfo>(heap_object), isolate_);
   }
 
   MaybeHandle<SharedFunctionInfo> shared;
@@ -2394,7 +2395,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   return location.IsReturn();
 }
 
-Handle<FixedArray> Debug::GetLoadedScripts() {
+DirectHandle<FixedArray> Debug::GetLoadedScripts() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   isolate_->heap()->CollectAllGarbage(GCFlag::kNoFlags,
                                       GarbageCollectionReason::kDebugger);
@@ -2463,7 +2464,7 @@ std::optional<Tagged<Object>> Debug::OnThrow(DirectHandle<Object> exception) {
   }
   PrepareStepOnThrow();
   // If the OnException handler requested termination, then indicated this to
-  // our caller Isolate::Throw so it can deal with it immediatelly instead of
+  // our caller Isolate::Throw so it can deal with it immediately instead of
   // throwing the original exception.
   if (isolate_->stack_guard()->CheckTerminateExecution()) {
     isolate_->stack_guard()->ClearTerminateExecution();

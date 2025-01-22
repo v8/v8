@@ -706,7 +706,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
@@ -730,7 +730,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   Tagged<WasmTrustedInstanceData> trusted_data = func_data->instance_data();
   int func_index = func_data->function_index();
@@ -881,7 +881,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -901,7 +901,7 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -920,7 +920,7 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -939,7 +939,7 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
   uint32_t func_index = data->function_index();
@@ -1009,7 +1009,7 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
       !WasmExportedFunction::IsWasmExportedFunction(args[0])) {
     return CrashUnlessFuzzing(isolate);
   }
-  Handle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
+  DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto func_data = exp_fun->shared()->wasm_exported_function_data();
   const wasm::WasmModule* module =
       func_data->instance_data()->native_module()->module();

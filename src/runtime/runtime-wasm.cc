@@ -48,7 +48,7 @@ class RuntimeArgumentsWithoutHandles : public RuntimeArguments {
  private:
   // Disallowing the superclass method.
   template <class S = Object>
-  V8_INLINE Handle<S> at(int index) const;
+  V8_INLINE DirectHandle<S> at(int index) const;
 };
 
 #define RuntimeArguments RuntimeArgumentsWithoutHandles

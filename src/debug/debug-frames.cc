@@ -74,7 +74,7 @@ Handle<Object> FrameInspector::GetContext() {
                             : handle(frame_->context(), isolate_);
 }
 
-Handle<String> FrameInspector::GetFunctionName() {
+DirectHandle<String> FrameInspector::GetFunctionName() {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
 #if V8_ENABLE_DRUMBRAKE

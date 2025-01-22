@@ -647,13 +647,14 @@ class ContextInitializer {
 
 // Create new JSRegExp object with only necessary fields (for this tests)
 // initialized.
-static Handle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
-                                       DirectHandle<Code> code,
-                                       bool is_unicode = false) {
+static DirectHandle<JSRegExp> CreateJSRegExp(DirectHandle<String> source,
+                                             DirectHandle<Code> code,
+                                             bool is_unicode = false) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
   Factory* factory = isolate->factory();
   DirectHandle<JSFunction> constructor = isolate->regexp_function();
-  Handle<JSRegExp> regexp = Cast<JSRegExp>(factory->NewJSObject(constructor));
+  DirectHandle<JSRegExp> regexp =
+      Cast<JSRegExp>(factory->NewJSObject(constructor));
   regexp->set_source(*source);
   regexp->set_flags(Smi::FromInt(0));
 
@@ -1695,7 +1696,7 @@ TEST_F(RegExpTestWithContext, UseCountRegExp) {
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultSticky->IsUndefined());
 
-  // re.sticky has approriate value and doesn't touch UseCounter
+  // re.sticky has appropriate value and doesn't touch UseCounter
   v8::Local<v8::Value> resultReSticky = RunJS("/a/.sticky");
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
@@ -2370,7 +2371,7 @@ struct RegExpExecData {
   i::Handle<i::String> subject;
 };
 
-i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
+i::DirectHandle<i::Object> RegExpExec(const RegExpExecData* d) {
   return i::RegExp::Exec_Single(d->isolate, d->regexp, d->subject, 0,
                                 d->isolate->regexp_last_match_info())
       .ToHandleChecked();

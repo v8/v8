@@ -47,8 +47,8 @@ class Tuple2 : public TorqueGeneratedTuple2<Tuple2, Struct> {
 class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  static Handle<AccessorPair> Copy(Isolate* isolate,
-                                   DirectHandle<AccessorPair> pair);
+  static DirectHandle<AccessorPair> Copy(Isolate* isolate,
+                                         DirectHandle<AccessorPair> pair);
 
   inline Tagged<Object> get(AccessorComponent component);
   inline void set(AccessorComponent component, Tagged<Object> value);

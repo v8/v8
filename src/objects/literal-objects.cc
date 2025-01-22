@@ -27,7 +27,7 @@ namespace {
 
 // The enumeration order index in the property details is unused if they are
 // stored in a SwissNameDictionary or NumberDictionary (because they handle
-// propery ordering differently). We then use this dummy value instead.
+// property ordering differently). We then use this dummy value instead.
 constexpr int kDummyEnumerationIndex = 0;
 
 inline int EncodeComputedEntry(ClassBoilerplate::ValueKind value_kind,
@@ -134,9 +134,9 @@ void AddToDescriptorArrayTemplate(
 
 template <typename IsolateT>
 Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    IsolateT* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
-    Handle<Object> value, PropertyDetails details,
-    InternalIndex* entry_out = nullptr) {
+    IsolateT* isolate, Handle<NameDictionary> dictionary,
+    DirectHandle<Name> name, DirectHandle<Object> value,
+    PropertyDetails details, InternalIndex* entry_out = nullptr) {
   return NameDictionary::AddNoUpdateNextEnumerationIndex(
       isolate, dictionary, name, value, details, entry_out);
 }
@@ -144,8 +144,8 @@ Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 template <typename IsolateT>
 Handle<SwissNameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     IsolateT* isolate, Handle<SwissNameDictionary> dictionary,
-    Handle<Name> name, Handle<Object> value, PropertyDetails details,
-    InternalIndex* entry_out = nullptr) {
+    DirectHandle<Name> name, DirectHandle<Object> value,
+    PropertyDetails details, InternalIndex* entry_out = nullptr) {
   // SwissNameDictionary does not maintain the enumeration order in property
   // details, so it's a normal Add().
   return SwissNameDictionary::Add(isolate, dictionary, name, value, details);
@@ -154,7 +154,7 @@ Handle<SwissNameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
 template <typename IsolateT>
 Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     IsolateT* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
-    Handle<Object> value, PropertyDetails details,
+    DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out = nullptr) {
   // NumberDictionary does not maintain the enumeration order, so it's
   // a normal Add().
@@ -215,24 +215,24 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         Dictionary::kIsOrderedDictionaryType || is_elements_dictionary
             ? kDummyEnumerationIndex
             : ComputeEnumerationIndex(key_index);
-    Handle<Object> value_handle;
+    DirectHandle<Object> value_handle;
     PropertyDetails details(
         value_kind != ClassBoilerplate::kData ? PropertyKind::kAccessor
                                               : PropertyKind::kData,
         DONT_ENUM, PropertyDetails::kConstIfDictConstnessTracking, enum_order);
     if (value_kind == ClassBoilerplate::kData) {
-      value_handle = handle(value, isolate);
+      value_handle = direct_handle(value, isolate);
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
              value_kind == ClassBoilerplate::kSetter ||
              value_kind == ClassBoilerplate::kAutoAccessor);
-      Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
+      DirectHandle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
       SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(value));
       value_handle = pair;
     }
 
     // Add value to the dictionary without updating next enumeration index.
-    Handle<Dictionary> dict = DictionaryAddNoUpdateNextEnumerationIndex(
+    DirectHandle<Dictionary> dict = DictionaryAddNoUpdateNextEnumerationIndex(
         isolate, dictionary, key, value_handle, details, &entry);
     // It is crucial to avoid dictionary reallocations because it may remove
     // potential gaps in enumeration indices values that are necessary for
@@ -531,8 +531,8 @@ class ObjectDescriptor {
     temp_handle_ = handle(Smi::zero(), isolate);
   }
 
-  void AddConstant(IsolateT* isolate, Handle<Name> name, Handle<Object> value,
-                   PropertyAttributes attribs) {
+  void AddConstant(IsolateT* isolate, DirectHandle<Name> name,
+                   DirectHandle<Object> value, PropertyAttributes attribs) {
     bool is_accessor = IsAccessorInfo(*value);
     DCHECK(!IsAccessorPair(*value));
     if (HasDictionaryProperties()) {
@@ -733,7 +733,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
                             factory->function_prototype_accessor(), attribs);
   }
   {
-    Handle<ClassPositions> class_positions = factory->NewClassPositions(
+    DirectHandle<ClassPositions> class_positions = factory->NewClassPositions(
         expr->start_position(), expr->end_position());
     static_desc.AddConstant(isolate, factory->class_positions_symbol(),
                             class_positions, DONT_ENUM);
@@ -744,7 +744,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::New(IsolateT* isolate,
   //
   instance_desc.CreateTemplates(isolate);
   {
-    Handle<Object> value(
+    DirectHandle<Object> value(
         Smi::FromInt(ClassBoilerplate::kConstructorArgumentIndex), isolate);
     instance_desc.AddConstant(isolate, factory->constructor_string(), value,
                               DONT_ENUM);

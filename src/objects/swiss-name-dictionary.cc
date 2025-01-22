@@ -120,7 +120,7 @@ DirectHandle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
   // TODO(v8:11388) Consider doing some cleanup during copying: For example, we
   // could turn kDeleted into kEmpty in certain situations. But this would
   // require tidying up the enumeration table in a similar fashion as would be
-  // required when trying to re-use deleted entries.
+  // required when trying to reuse deleted entries.
 
   if (table->Capacity() == 0) {
     return table;

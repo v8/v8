@@ -107,7 +107,7 @@ own<Trap> FibonacciC(void* env, const vec<Val>& args, vec<Val>& results) {
   }
   WasmCapiTest* self = reinterpret_cast<WasmCapiTest*>(env);
   Func* fibo_wasm = self->GetExportedFunction(0);
-  // Aggressively re-use existing arrays. That's maybe not great coding
+  // Aggressively reuse existing arrays. That's maybe not great coding
   // style, but this test intentionally ensures that it works if someone
   // insists on doing it.
   vec<Val> recursive_args = vec<Val>::make(Val::i32(x - 1));

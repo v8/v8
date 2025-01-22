@@ -2802,7 +2802,7 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   B(le, &regular_invoke);
 
   // The stack pointer in arm64 needs to be 16-byte aligned. We might need to
-  // (1) add an extra padding or (2) remove (re-use) the extra padding already
+  // (1) add an extra padding or (2) remove (reuse) the extra padding already
   // in the stack. Let {slots_to_copy} be the number of slots (arguments) to
   // move up in the stack and let {slots_to_claim} be the number of extra stack
   // slots to claim.

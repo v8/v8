@@ -369,8 +369,9 @@ class ConcurrentInternalizationThread final
 
 namespace {
 
-std::pair<Handle<String>, MaybeHandle<String>> CreateSharedOneByteString(
-    Isolate* isolate, Factory* factory, int length, bool internalize) {
+std::pair<DirectHandle<String>, MaybeDirectHandle<String>>
+CreateSharedOneByteString(Isolate* isolate, Factory* factory, int length,
+                          bool internalize) {
   char* ascii = new char[length + 1];
   // Don't make single character strings, which will end up deduplicating to
   // an RO string and mess up the string table hit test.

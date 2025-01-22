@@ -426,7 +426,7 @@ void MaglevAssembler::TestTypeOf(
     case LiteralFlag::kUndefined: {
       MaglevAssembler::TemporaryRegisterScope temps(this);
       Register map = temps.AcquireScratch();
-      // Make sure `object` isn't a valid temp here, since we re-use it.
+      // Make sure `object` isn't a valid temp here, since we reuse it.
       DCHECK(!temps.Available().has(object));
       JumpIfSmi(object, is_false, false_distance);
       // Check it has the undetectable bit set and it is not null.

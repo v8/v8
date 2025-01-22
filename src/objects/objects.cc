@@ -1012,8 +1012,8 @@ Handle<String> Object::TypeOf(Isolate* isolate, DirectHandle<Object> object) {
 }
 
 // static
-MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
-                                Handle<Object> rhs) {
+MaybeDirectHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
+                                      Handle<Object> rhs) {
   if (IsNumber(*lhs) && IsNumber(*rhs)) {
     return isolate->factory()->NewNumber(
         Object::NumberValue(Cast<Number>(*lhs)) +
@@ -1121,9 +1121,9 @@ MaybeHandle<Object> Object::InstanceOf(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::GetMethod(Isolate* isolate,
-                                      DirectHandle<JSReceiver> receiver,
-                                      DirectHandle<Name> name) {
+MaybeDirectHandle<Object> Object::GetMethod(Isolate* isolate,
+                                            DirectHandle<JSReceiver> receiver,
+                                            DirectHandle<Name> name) {
   Handle<Object> func;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
                              JSReceiver::GetProperty(isolate, receiver, name));
@@ -1172,10 +1172,10 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
 }  // namespace
 
 // static
-MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
+MaybeDirectHandle<FixedArray> Object::CreateListFromArrayLike(
     Isolate* isolate, DirectHandle<Object> object, ElementTypes element_types) {
   // Fast-path for JSArray and JSTypedArray.
-  MaybeHandle<FixedArray> fast_result =
+  MaybeDirectHandle<FixedArray> fast_result =
       CreateListFromArrayLikeFastPath(isolate, object, element_types);
   if (!fast_result.is_null()) return fast_result;
   // 1. ReturnIfAbrupt(object).
@@ -1200,7 +1200,7 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
                     NewRangeError(MessageTemplate::kInvalidArrayLength));
   }
   // 5. Let list be an empty List.
-  Handle<FixedArray> list = isolate->factory()->NewFixedArray(len);
+  DirectHandle<FixedArray> list = isolate->factory()->NewFixedArray(len);
   // 6. Let index be 0.
   // 7. Repeat while index < len:
   for (uint32_t index = 0; index < len; ++index) {
@@ -1234,7 +1234,7 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
 }
 
 // static
-MaybeHandle<Object> Object::GetLengthFromArrayLike(
+MaybeDirectHandle<Object> Object::GetLengthFromArrayLike(
     Isolate* isolate, DirectHandle<JSReceiver> object) {
   DirectHandle<Object> val;
   DirectHandle<Name> key = isolate->factory()->length_string();
@@ -1541,7 +1541,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    Just(kDontThrow));
-    Handle<JSAny> result = args.CallAccessorGetter(info, name);
+    DirectHandle<JSAny> result = args.CallAccessorGetter(info, name);
     RETURN_EXCEPTION_IF_EXCEPTION(isolate);
     Handle<JSAny> reboxed_result(*result, isolate);
     if (info->replace_on_access() && IsJSReceiver(*receiver)) {
@@ -1738,16 +1738,16 @@ bool Object::SameValueZero(Tagged<Object> obj, Tagged<Object> other) {
   return false;
 }
 
-MaybeHandle<Object> Object::ArraySpeciesConstructor(
+MaybeDirectHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, DirectHandle<JSAny> original_array) {
-  Handle<Object> default_species = isolate->array_function();
+  DirectHandle<Object> default_species = isolate->array_function();
   if (!v8_flags.builtin_subclassing) return default_species;
   if (IsJSArray(*original_array) &&
       Cast<JSArray>(original_array)->HasArrayPrototype(isolate) &&
       Protectors::IsArraySpeciesLookupChainIntact(isolate)) {
     return default_species;
   }
-  Handle<Object> constructor = isolate->factory()->undefined_value();
+  DirectHandle<Object> constructor = isolate->factory()->undefined_value();
   Maybe<bool> is_array = IsArray(original_array);
   MAYBE_RETURN_NULL(is_array);
   if (is_array.FromJust()) {
@@ -1787,9 +1787,9 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
 }
 
 // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
-V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Object::SpeciesConstructor(
     Isolate* isolate, DirectHandle<JSReceiver> recv,
-    Handle<JSFunction> default_ctor) {
+    DirectHandle<JSFunction> default_ctor) {
   DirectHandle<Object> ctor_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, ctor_obj,
@@ -1805,7 +1805,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Object::SpeciesConstructor(
 
   DirectHandle<JSReceiver> ctor = Cast<JSReceiver>(ctor_obj);
 
-  Handle<Object> species;
+  DirectHandle<Object> species;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, species,
       JSObject::GetProperty(isolate, ctor,
@@ -3077,8 +3077,9 @@ Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, DirectHandle<Name> name,
 }
 
 // static
-MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, DirectHandle<Object> target,
-                                  DirectHandle<Object> handler) {
+MaybeDirectHandle<JSProxy> JSProxy::New(Isolate* isolate,
+                                        DirectHandle<Object> target,
+                                        DirectHandle<Object> handler) {
   if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject));
   }
@@ -3697,7 +3698,7 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
   return target_result;
 }
 
-Handle<DescriptorArray> DescriptorArray::CopyUpTo(
+DirectHandle<DescriptorArray> DescriptorArray::CopyUpTo(
     Isolate* isolate, DirectHandle<DescriptorArray> desc, int enumeration_index,
     int slack) {
   return DescriptorArray::CopyUpToAddAttributes(isolate, desc,
@@ -3997,9 +3998,9 @@ void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
   }
 }
 
-Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
-                                        DirectHandle<AccessorPair> pair) {
-  Handle<AccessorPair> copy = isolate->factory()->NewAccessorPair();
+DirectHandle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
+                                              DirectHandle<AccessorPair> pair) {
+  DirectHandle<AccessorPair> copy = isolate->factory()->NewAccessorPair();
   DisallowGarbageCollection no_gc;
   Tagged<AccessorPair> raw_src = *pair;
   Tagged<AccessorPair> raw_copy = *copy;
@@ -4142,8 +4143,8 @@ void WriteFixedArrayToFlat(Tagged<FixedArray> fixed_array, int length,
     const bool element_is_special = IsSmi(element);
 
     // If element is a positive Smi, it represents the number of separators to
-    // write. If it is a negative Smi, it reprsents the number of times the last
-    // string is repeated.
+    // write. If it is a negative Smi, it represents the number of times the
+    // last string is repeated.
     if (V8_UNLIKELY(element_is_special)) {
       int count;
       CHECK(Object::ToInt32(element, &count));
@@ -6263,7 +6264,7 @@ bool JSWeakCollection::Delete(DirectHandle<JSWeakCollection> weak_collection,
   return was_present;
 }
 
-Handle<JSArray> JSWeakCollection::GetEntries(
+DirectHandle<JSArray> JSWeakCollection::GetEntries(
     DirectHandle<JSWeakCollection> holder, int max_entries) {
   Isolate* isolate = holder->GetIsolate();
   DirectHandle<EphemeronHashTable> table(

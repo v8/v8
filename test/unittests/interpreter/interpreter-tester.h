@@ -67,7 +67,7 @@ class InterpreterCallableWithReceiver : public InterpreterCallable<A...> {
   InterpreterCallableWithReceiver(Isolate* isolate, Handle<JSFunction> function)
       : InterpreterCallable<A...>(isolate, function) {}
 
-  MaybeHandle<Object> operator()(Handle<Object> receiver, A... args) {
+  MaybeHandle<Object> operator()(DirectHandle<Object> receiver, A... args) {
     return CallInterpreter(this->isolate_, this->function_, receiver, args...);
   }
 };

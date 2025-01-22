@@ -36,19 +36,19 @@ inline v8::internal::Address ToCData(
 }
 
 template <internal::ExternalPointerTag tag, typename T>
-inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
+  if (obj == nullptr) return direct_handle(v8::internal::Smi::zero(), isolate);
   return isolate->factory()->NewForeign<tag>(
       reinterpret_cast<v8::internal::Address>(obj));
 }
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
-    return handle(v8::internal::Smi::zero(), isolate);
+    return direct_handle(v8::internal::Smi::zero(), isolate);
   }
   return isolate->factory()->NewForeign<tag>(obj);
 }
@@ -339,9 +339,9 @@ void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
   entered_contexts_.push_back(context);
 }
 
-Handle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
+DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
   if (entered_contexts_.empty()) return {};
-  return handle(entered_contexts_.back(), isolate_);
+  return direct_handle(entered_contexts_.back(), isolate_);
 }
 
 }  // namespace internal

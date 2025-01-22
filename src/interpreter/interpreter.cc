@@ -386,8 +386,8 @@ uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
                                            to_index];
 }
 
-Handle<JSObject> Interpreter::GetDispatchCountersObject() {
-  Handle<JSObject> counters_map =
+DirectHandle<JSObject> Interpreter::GetDispatchCountersObject() {
+  DirectHandle<JSObject> counters_map =
       isolate_->factory()->NewJSObjectWithNullProto();
 
   // Output is a JSON-encoded object of objects.

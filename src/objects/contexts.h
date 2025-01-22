@@ -632,7 +632,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
-  Handle<Object> ErrorMessageForWasmCodeGeneration();
+  DirectHandle<Object> ErrorMessageForWasmCodeGeneration();
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
   inline void set_##name(Tagged<UNPAREN(type)> value);      \

@@ -450,7 +450,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<AbstractCode> abstract_code() const { return abstract_code_; }
     int code_offset() const { return code_offset_; }
     bool is_constructor() const { return is_constructor_; }
-    Handle<FixedArray> parameters() const { return parameters_; }
+    DirectHandle<FixedArray> parameters() const { return parameters_; }
     bool is_subject_to_debugging() const;
     int SourcePosition() const;
     int SourceStatementPosition() const;
@@ -485,8 +485,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
-    Handle<WasmInstanceObject> wasm_instance() const;
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+    DirectHandle<WasmInstanceObject> wasm_instance() const;
+    DirectHandle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
       return instance_data_;
     }
     Handle<Context> native_context() const;
@@ -509,8 +509,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
                             Handle<WasmTrustedInstanceData> instance_data,
                             int function_index, int op_wire_bytes_offset);
 
-    Handle<WasmInstanceObject> wasm_instance() const;
-    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
+    DirectHandle<WasmInstanceObject> wasm_instance() const;
+    DirectHandle<WasmTrustedInstanceData> wasm_trusted_instance_data() const {
       return instance_data_;
     }
     Handle<Object> receiver() const;
@@ -601,8 +601,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
   Handle<Object> script() const;
   int SourcePosition() const;
   int SourceStatementPosition() const;
-  Handle<Context> native_context() const;
-  Handle<StackFrameInfo> CreateStackFrameInfo() const;
+  DirectHandle<Context> native_context() const;
+  DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
 #define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \
   bool Is##desc() const { return base_.kind() == kind_; } \
@@ -723,7 +723,7 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   virtual Tagged<Object> receiver() const;
   virtual Tagged<Object> GetParameter(int index) const;
   virtual int ComputeParametersCount() const;
-  Handle<FixedArray> GetParameters() const;
+  DirectHandle<FixedArray> GetParameters() const;
   virtual int GetActualArgumentCount() const;
 
   Tagged<HeapObject> unchecked_code() const override;
@@ -940,7 +940,7 @@ class BuiltinExitFrame : public ExitFrame {
   Tagged<Object> receiver() const;
   Tagged<Object> GetParameter(int i) const;
   int ComputeParametersCount() const;
-  Handle<FixedArray> GetParameters() const;
+  DirectHandle<FixedArray> GetParameters() const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
@@ -974,14 +974,14 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   // In case function slot contains FunctionTemplateInfo, instantiate the
   // function, stores it in the function slot and returns JSFunction handle.
-  Handle<JSFunction> GetFunction() const;
+  DirectHandle<JSFunction> GetFunction() const;
 
-  Handle<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
+  DirectHandle<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
 
   inline Tagged<Object> receiver() const;
   inline Tagged<Object> GetParameter(int i) const;
   inline int ComputeParametersCount() const;
-  Handle<FixedArray> GetParameters() const;
+  DirectHandle<FixedArray> GetParameters() const;
 
   inline Tagged<Object> context() const override;
 
@@ -1206,7 +1206,7 @@ class MaglevFrame : public OptimizedJSFrame {
   int FindReturnPCForTrampoline(Tagged<Code> code,
                                 int trampoline_pc) const override;
 
-  Handle<JSFunction> GetInnermostFunction() const;
+  DirectHandle<JSFunction> GetInnermostFunction() const;
   BytecodeOffset GetBytecodeOffsetForOSR() const;
 
   static intptr_t StackGuardFrameSize(int register_input_count);
@@ -1885,7 +1885,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
 };
 
 // We cannot export 'StackFrameIteratorForProfiler' for cctests since the
-// linker inserted symbol stub may cuase a stack overflow
+// linker inserted symbol stub may cause a stack overflow
 // (https://crbug.com/1449195).
 // We subclass it and export the subclass instead.
 class V8_EXPORT_PRIVATE StackFrameIteratorForProfilerForTesting
@@ -1894,7 +1894,7 @@ class V8_EXPORT_PRIVATE StackFrameIteratorForProfilerForTesting
   StackFrameIteratorForProfilerForTesting(Isolate* isolate, Address pc,
                                           Address fp, Address sp, Address lr,
                                           Address js_entry_sp);
-  // Re-declare methods needed by the test. Otherwise we'd have to
+  // Redeclare methods needed by the test. Otherwise we'd have to
   // export individual methods on the base class (which we don't want to risk).
   void Advance();
 };

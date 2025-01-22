@@ -82,7 +82,7 @@ Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 }
 
-Handle<JSObject> FunctionTester::NewObject(const char* source) {
+DirectHandle<JSObject> FunctionTester::NewObject(const char* source) {
   return Cast<JSObject>(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(CompileRun(source))));
 }
@@ -95,19 +95,23 @@ Handle<Object> FunctionTester::Val(double value) {
   return isolate->factory()->NewNumber(value);
 }
 
-Handle<Object> FunctionTester::infinity() {
+DirectHandle<Object> FunctionTester::infinity() {
   return isolate->factory()->infinity_value();
 }
 
-Handle<Object> FunctionTester::minus_infinity() { return Val(-V8_INFINITY); }
+DirectHandle<Object> FunctionTester::minus_infinity() {
+  return Val(-V8_INFINITY);
+}
 
-Handle<Object> FunctionTester::nan() { return isolate->factory()->nan_value(); }
+DirectHandle<Object> FunctionTester::nan() {
+  return isolate->factory()->nan_value();
+}
 
 Handle<Object> FunctionTester::undefined() {
   return isolate->factory()->undefined_value();
 }
 
-Handle<Object> FunctionTester::null() {
+DirectHandle<Object> FunctionTester::null() {
   return isolate->factory()->null_value();
 }
 

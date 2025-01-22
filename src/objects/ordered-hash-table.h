@@ -659,7 +659,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, DirectHandle<Object> key);
 
   static inline bool Is(DirectHandle<HeapObject> table);
-  static inline Handle<Map> GetMap(RootsTable& roots);
+  static inline DirectHandle<Map> GetMap(RootsTable& roots);
   static Handle<SmallOrderedHashSet> Rehash(Isolate* isolate,
                                             Handle<SmallOrderedHashSet> table,
                                             int new_capacity);
@@ -691,7 +691,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                        Tagged<Object> key);
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, DirectHandle<Object> key);
   static inline bool Is(DirectHandle<HeapObject> table);
-  static inline Handle<Map> GetMap(RootsTable& roots);
+  static inline DirectHandle<Map> GetMap(RootsTable& roots);
 
   static Handle<SmallOrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<SmallOrderedHashMap> table,
@@ -833,11 +833,12 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
                                      DirectHandle<Name> key,
                                      DirectHandle<Object> value,
                                      PropertyDetails details);
-  static Handle<HeapObject> Shrink(Isolate* isolate, Handle<HeapObject> table);
+  static DirectHandle<HeapObject> Shrink(Isolate* isolate,
+                                         Handle<HeapObject> table);
 
-  static Handle<HeapObject> DeleteEntry(Isolate* isolate,
-                                        Handle<HeapObject> table,
-                                        InternalIndex entry);
+  static DirectHandle<HeapObject> DeleteEntry(Isolate* isolate,
+                                              Handle<HeapObject> table,
+                                              InternalIndex entry);
   static InternalIndex FindEntry(Isolate* isolate, Tagged<HeapObject> table,
                                  Tagged<Name> key);
   static void SetEntry(Tagged<HeapObject> table, InternalIndex entry,
@@ -919,7 +920,7 @@ class SmallOrderedNameDictionary
                                   Tagged<Object> value,
                                   PropertyDetails details);
 
-  static inline Handle<Map> GetMap(RootsTable& roots);
+  static inline DirectHandle<Map> GetMap(RootsTable& roots);
   static inline bool Is(DirectHandle<HeapObject> table);
 
   OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,

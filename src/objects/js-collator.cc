@@ -84,9 +84,9 @@ void CreateDataPropertyForOptions(Isolate* isolate,
 }  // anonymous namespace
 
 // static
-Handle<JSObject> JSCollator::ResolvedOptions(
+DirectHandle<JSObject> JSCollator::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSCollator> collator) {
-  Handle<JSObject> options =
+  DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   icu::Collator* icu_collator = collator->icu_collator()->raw();

@@ -177,7 +177,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 #endif  // DEBUG
 
   // Returns the handle from root index table for read only heap objects.
-  Handle<Object> GetRootHandle(Tagged<Object> object);
+  DirectHandle<Object> GetRootHandle(Tagged<Object> object);
 
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object> object,

@@ -118,7 +118,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
 
-  Handle<Code> GetCode() {
+  DirectHandle<Code> GetCode() {
     Generate();
     return code_.ToHandleChecked();
   }
@@ -190,7 +190,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     Block* start_block = NewBlock();
     Bind(start_block);
 
-    // We emit the parameters now so that they appear at the begining of the
+    // We emit the parameters now so that they appear at the beginning of the
     // graph (because the register allocator doesn't like it when Parameters are
     // not in the 1st block). Subsequent calls to `m.Parameter()` will reuse the
     // Parameters created here, thanks to Turboshaft's parameter cache (see

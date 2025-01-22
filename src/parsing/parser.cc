@@ -2461,7 +2461,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     }
 
     // Make statement: labels: for (; flag == 1; flag = 0, temp_x = x)
-    // Note that we re-use the original loop node, which retains its labels
+    // Note that we reuse the original loop node, which retains its labels
     // and ensures that any break or continue statements in body point to
     // the right place.
     loop->Initialize(nullptr, flag_cond, compound_next_statement, body);

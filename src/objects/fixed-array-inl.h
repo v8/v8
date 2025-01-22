@@ -809,7 +809,7 @@ void TrustedByteArray::set_int(int offset, uint32_t value) {
 template <typename Base>
 template <typename... MoreArgs>
 // static
-Handle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
+DirectHandle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
     Isolate* isolate, int length, MoreArgs&&... more_args) {
   return Cast<FixedAddressArrayBase>(
       Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
@@ -903,8 +903,8 @@ Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
 
 // static
 template <class T>
-Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
-                                                   int length) {
+DirectHandle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
+                                                         int length) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Cast<TrustedPodArray<T>>(

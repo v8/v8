@@ -78,7 +78,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Flushes memory chunk data.
   void FlushMemoryChunkData();
   // This function is called for a new space page that was cleared after
-  // scavenge and is going to be re-used.
+  // scavenge and is going to be reused.
   void ClearMemoryChunkData(MutablePageMetadata* chunk);
   // Flushes pretenuring feedback.
   void FlushPretenuringFeedback();

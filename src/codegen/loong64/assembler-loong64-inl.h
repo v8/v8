@@ -122,7 +122,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   }
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_)) {
     return origin->code_target_object_handle_at(pc_, constant_pool_);
   } else if (IsFullEmbeddedObject(rmode_)) {

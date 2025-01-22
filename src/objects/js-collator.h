@@ -39,8 +39,8 @@ class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
       DirectHandle<Object> options, const char* service);
 
   // ecma402/#sec-intl.collator.prototype.resolvedoptions
-  static Handle<JSObject> ResolvedOptions(Isolate* isolate,
-                                          DirectHandle<JSCollator> collator);
+  static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSCollator> collator);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 

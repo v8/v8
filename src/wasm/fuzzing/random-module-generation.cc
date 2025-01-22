@@ -2264,7 +2264,7 @@ class BodyGen {
                          data);
   }
 
-  // Returns true if it had succesfully generated a randomly chosen expression
+  // Returns true if it had successfully generated a randomly chosen expression
   // from the `alternatives`.
   template <typename Arr>
     requires requires(const Arr& arr) {

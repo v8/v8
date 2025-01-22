@@ -56,9 +56,9 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
 }
 
 // Setup function, which calls "caller".
-Handle<Code> BuildSetupFunction(Isolate* isolate,
-                                CallDescriptor* caller_descriptor,
-                                CallDescriptor* callee_descriptor) {
+DirectHandle<Code> BuildSetupFunction(Isolate* isolate,
+                                      CallDescriptor* caller_descriptor,
+                                      CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, JSParameterCount(0));
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;

@@ -79,7 +79,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
   }
 
   bool has_asm_wasm_data() const { return !asm_wasm_data_.is_null(); }
-  Handle<AsmWasmData> asm_wasm_data() const { return asm_wasm_data_; }
+  DirectHandle<AsmWasmData> asm_wasm_data() const { return asm_wasm_data_; }
   void SetAsmWasmData(Handle<AsmWasmData> asm_wasm_data) {
     asm_wasm_data_ = asm_wasm_data;
   }

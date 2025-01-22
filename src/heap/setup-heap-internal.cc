@@ -65,10 +65,10 @@ namespace internal {
 
 namespace {
 
-Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
+DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate, Builtin builtin, int len,
     FunctionKind kind = FunctionKind::kNormalFunction) {
-  Handle<SharedFunctionInfo> shared =
+  DirectHandle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), builtin, len, kAdapt, kind);
   return shared;

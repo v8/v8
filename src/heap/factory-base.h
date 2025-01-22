@@ -103,7 +103,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
   Handle<Code> NewCode(const NewCodeOptions& options);
 
-  Handle<CodeWrapper> NewCodeWrapper();
+  DirectHandle<CodeWrapper> NewCodeWrapper();
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Boolean> ToBoolean(bool value);
@@ -166,7 +166,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new fixed array with Tagged<Smi>(0) entries.
-  Handle<FixedArray> NewFixedArrayWithZeroes(
+  DirectHandle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocate a new uninitialized fixed double array.
@@ -203,7 +203,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<TrustedByteArray> NewTrustedByteArray(
       int length, AllocationType allocation_type = AllocationType::kTrusted);
 
-  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+  DirectHandle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(
+      int length);
   Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
       int length);
 
@@ -214,7 +215,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       DirectHandle<TrustedByteArray> handler_table,
       AllocationType allocation = AllocationType::kTrusted);
 
-  Handle<BytecodeWrapper> NewBytecodeWrapper(
+  DirectHandle<BytecodeWrapper> NewBytecodeWrapper(
       AllocationType allocation = AllocationType::kOld);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
@@ -226,9 +227,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, DirectHandle<FixedArrayBase> constant_values);
 
-  Handle<RegExpDataWrapper> NewRegExpDataWrapper();
+  DirectHandle<RegExpDataWrapper> NewRegExpDataWrapper();
 
-  Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
+  DirectHandle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
       DirectHandle<RegExpData> data, DirectHandle<String> source,
       Tagged<Smi> flags);
 
@@ -244,7 +245,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       DirectHandle<UnionOf<String, Undefined>> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
-  Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(
+  DirectHandle<SloppyArgumentsElements> NewSloppyArgumentsElements(
       int length, DirectHandle<Context> context,
       DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
@@ -259,7 +260,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
       DirectHandle<SharedFunctionInfo> other);
 
-  Handle<SharedFunctionInfoWrapper> NewSharedFunctionInfoWrapper(
+  DirectHandle<SharedFunctionInfoWrapper> NewSharedFunctionInfoWrapper(
       DirectHandle<SharedFunctionInfo> sfi);
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
@@ -303,7 +304,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       base::Vector<const uint8_t> str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
-  Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
+  DirectHandle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
       base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
@@ -387,7 +388,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SwissNameDictionary> NewSwissNameDictionaryWithCapacity(
       int capacity, AllocationType allocation);
 
-  Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
+  DirectHandle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
   MaybeDirectHandle<Map> GetInPlaceInternalizedStringMap(
       Tagged<Map> from_string_map);

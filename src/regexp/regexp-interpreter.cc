@@ -287,8 +287,8 @@ IrregexpInterpreter::Result HandleInterrupts(
     DCHECK(call_origin == RegExp::CallOrigin::kFromRuntime);
     // Prepare for possible GC.
     HandleScope handles(isolate);
-    Handle<TrustedByteArray> code_handle(*code_array_out, isolate);
-    Handle<String> subject_handle(*subject_string_out, isolate);
+    DirectHandle<TrustedByteArray> code_handle(*code_array_out, isolate);
+    DirectHandle<String> subject_handle(*subject_string_out, isolate);
 
     if (js_has_overflowed) {
       return ThrowStackOverflow(isolate, call_origin);

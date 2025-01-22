@@ -290,7 +290,7 @@ void CopyDoubleToObjectElements(Isolate* isolate,
                          to_base->length() - to_start);
     // Also initialize the area that will be copied over since HeapNumber
     // allocation below can cause an incremental marking step, requiring all
-    // existing heap objects to be propertly initialized.
+    // existing heap objects to be properly initialized.
     int start = to_start;
     int length = to_base->length() - start;
     if (length > 0) {
@@ -3334,7 +3334,7 @@ class TypedElementsAccessor
     // The JavaScript memory model allows for racy reads and writes to a
     // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
     // required for JavaScript, but will avoid undefined behaviour in C++ and is
-    // unlikely to introduce noticable overhead.
+    // unlikely to introduce noticeable overhead.
     if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic store.
@@ -3380,9 +3380,9 @@ class TypedElementsAccessor
     return ToHandle(isolate, elem);
   }
 
-  static Handle<Object> GetImpl(Isolate* isolate,
-                                Tagged<FixedArrayBase> backing_store,
-                                InternalIndex entry) {
+  static DirectHandle<Object> GetImpl(Isolate* isolate,
+                                      Tagged<FixedArrayBase> backing_store,
+                                      InternalIndex entry) {
     UNREACHABLE();
   }
 
@@ -3398,7 +3398,7 @@ class TypedElementsAccessor
     // The JavaScript memory model allows for racy reads and writes to a
     // SharedArrayBuffer's backing store. Using relaxed atomics is not strictly
     // required for JavaScript, but will avoid undefined behaviour in C++ and is
-    // unlikely to introduce noticable overhead.
+    // unlikely to introduce noticeable overhead.
     if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic load.
@@ -5347,9 +5347,9 @@ class StringWrapperElementsAccessor
                                          entry.adjust_down(length));
   }
 
-  static Handle<Object> GetImpl(Isolate* isolate,
-                                Tagged<FixedArrayBase> elements,
-                                InternalIndex entry) {
+  static DirectHandle<Object> GetImpl(Isolate* isolate,
+                                      Tagged<FixedArrayBase> elements,
+                                      InternalIndex entry) {
     UNREACHABLE();
   }
 

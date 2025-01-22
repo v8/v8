@@ -355,7 +355,7 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
 }
 
 // Return the style as a String.
-Handle<String> StyleAsString(Isolate* isolate, Style style) {
+DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
     case Style::PERCENT:
       return isolate->factory()->percent_string();
@@ -370,8 +370,8 @@ Handle<String> StyleAsString(Isolate* isolate, Style style) {
 }
 
 // Parse the 'currencyDisplay' from the skeleton.
-Handle<String> CurrencyDisplayString(Isolate* isolate,
-                                     const icu::UnicodeString& skeleton) {
+DirectHandle<String> CurrencyDisplayString(Isolate* isolate,
+                                           const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up unit-width-iso-code"
   if (skeleton.indexOf("unit-width-iso-code") >= 0) {
@@ -391,8 +391,8 @@ Handle<String> CurrencyDisplayString(Isolate* isolate,
   return isolate->factory()->symbol_string();
 }
 
-Handle<Object> UseGroupingFromSkeleton(Isolate* isolate,
-                                       const icu::UnicodeString& skeleton) {
+DirectHandle<Object> UseGroupingFromSkeleton(
+    Isolate* isolate, const icu::UnicodeString& skeleton) {
   Factory* factory = isolate->factory();
   static const char* group = "group-";
   int32_t start = skeleton.indexOf(group);
@@ -447,8 +447,8 @@ const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
 namespace {
 
 // Return CurrencySign as string based on skeleton.
-Handle<String> CurrencySignString(Isolate* isolate,
-                                  const icu::UnicodeString& skeleton) {
+DirectHandle<String> CurrencySignString(Isolate* isolate,
+                                        const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-always" OR
   // "currency/TWD .00 rounding-mode-half-up sign-accounting-except-zero"
@@ -459,8 +459,8 @@ Handle<String> CurrencySignString(Isolate* isolate,
 }
 
 // Return UnitDisplay as string based on skeleton.
-Handle<String> UnitDisplayString(Isolate* isolate,
-                                 const icu::UnicodeString& skeleton) {
+DirectHandle<String> UnitDisplayString(Isolate* isolate,
+                                       const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "unit/length-meter .### rounding-mode-half-up unit-width-full-name"
   if (skeleton.indexOf("unit-width-full-name") >= 0) {
@@ -499,7 +499,7 @@ Notation NotationFromSkeleton(const icu::UnicodeString& skeleton) {
   return Notation::STANDARD;
 }
 
-Handle<String> NotationAsString(Isolate* isolate, Notation notation) {
+DirectHandle<String> NotationAsString(Isolate* isolate, Notation notation) {
   switch (notation) {
     case Notation::SCIENTIFIC:
       return isolate->factory()->scientific_string();
@@ -514,8 +514,8 @@ Handle<String> NotationAsString(Isolate* isolate, Notation notation) {
 }
 
 // Return CompactString as string based on skeleton.
-Handle<String> CompactDisplayString(Isolate* isolate,
-                                    const icu::UnicodeString& skeleton) {
+DirectHandle<String> CompactDisplayString(Isolate* isolate,
+                                          const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "compact-long .### rounding-mode-half-up"
   if (skeleton.indexOf("compact-long") >= 0) {
@@ -528,8 +528,8 @@ Handle<String> CompactDisplayString(Isolate* isolate,
 }
 
 // Return SignDisplay as string based on skeleton.
-Handle<String> SignDisplayString(Isolate* isolate,
-                                 const icu::UnicodeString& skeleton) {
+DirectHandle<String> SignDisplayString(Isolate* isolate,
+                                       const icu::UnicodeString& skeleton) {
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up sign-never"
   if (skeleton.indexOf("sign-never") >= 0) {
@@ -562,7 +562,7 @@ Handle<String> SignDisplayString(Isolate* isolate,
 }  // anonymous namespace
 
 // Return RoundingMode as string based on skeleton.
-Handle<String> JSNumberFormat::RoundingModeString(
+DirectHandle<String> JSNumberFormat::RoundingModeString(
     Isolate* isolate, const icu::UnicodeString& skeleton) {
   static const char* rounding_mode = "rounding-mode-";
   int32_t start = skeleton.indexOf(rounding_mode);
@@ -616,7 +616,7 @@ Handle<String> JSNumberFormat::RoundingModeString(
   return isolate->factory()->halfEven_string();
 }
 
-Handle<Object> JSNumberFormat::RoundingIncrement(
+DirectHandle<Object> JSNumberFormat::RoundingIncrement(
     Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t cur = skeleton.indexOf(u"precision-increment/");
   if (cur < 0) return isolate->factory()->NewNumberFromInt(1);
@@ -632,7 +632,7 @@ Handle<Object> JSNumberFormat::RoundingIncrement(
 }
 
 // Return RoundingPriority as string based on skeleton.
-Handle<String> JSNumberFormat::RoundingPriorityString(
+DirectHandle<String> JSNumberFormat::RoundingPriorityString(
     Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t found;
   // If #r or @r is followed by a SPACE or in the end of line.
@@ -653,7 +653,7 @@ Handle<String> JSNumberFormat::RoundingPriorityString(
 }
 
 // Return trailingZeroDisplay as string based on skeleton.
-Handle<String> JSNumberFormat::TrailingZeroDisplayString(
+DirectHandle<String> JSNumberFormat::TrailingZeroDisplayString(
     Isolate* isolate, const icu::UnicodeString& skeleton) {
   int32_t found;
   if ((found = skeleton.indexOf("/w")) >= 0) {
@@ -877,7 +877,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
 
 // static
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
-Handle<JSObject> JSNumberFormat::ResolvedOptions(
+DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format) {
   Factory* factory = isolate->factory();
 
@@ -888,7 +888,8 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   DCHECK(U_SUCCESS(status));
 
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
-  Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> options =
+      factory->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale =
       DirectHandle<String>(number_format->locale(), isolate);
@@ -1039,7 +1040,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 }
 
 // ecma402/#sec-unwrapnumberformat
-MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
+MaybeDirectHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   // old code copy from NumberFormat::Unwrap that has no spec comment and
   // compiled but fail unit tests.
@@ -1047,7 +1048,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
                                        isolate);
   DirectHandle<JSFunction> constructor(
       Cast<JSFunction>(native_context->intl_number_format_function()), isolate);
-  Handle<Object> object;
+  DirectHandle<Object> object;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
@@ -2126,7 +2127,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
   return FormatToString(isolate, formatted, number_format, IsNaN(*numeric_obj));
 }
 
-MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
+MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> value) {
   icu::number::LocalizedNumberFormatter* fmt =
@@ -2137,19 +2138,19 @@ MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
   IntlMathematicalValue x;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, x, IntlMathematicalValue::From(isolate, value),
-      Handle<String>());
+      DirectHandle<String>());
 
   // 5. Return FormatNumeric(nf, x).
   Maybe<icu::number::FormattedNumber> maybe_formatted =
       IntlMathematicalValue::FormatNumeric(isolate, *fmt, x);
-  MAYBE_RETURN(maybe_formatted, Handle<String>());
+  MAYBE_RETURN(maybe_formatted, DirectHandle<String>());
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
   return FormatToString(isolate, formatted, *fmt, x.IsNaN());
 }
 
-MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
+MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> numeric_obj) {
   icu::number::LocalizedNumberFormatter* fmt =
@@ -2158,11 +2159,11 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
   IntlMathematicalValue value;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, IntlMathematicalValue::From(isolate, numeric_obj),
-      Handle<JSArray>());
+      DirectHandle<JSArray>());
 
   Maybe<icu::number::FormattedNumber> maybe_formatted =
       IntlMathematicalValue::FormatNumeric(isolate, *fmt, value);
-  MAYBE_RETURN(maybe_formatted, Handle<JSArray>());
+  MAYBE_RETURN(maybe_formatted, DirectHandle<JSArray>());
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
@@ -2171,7 +2172,7 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
 
 // #sec-number-format-functions
 
-MaybeHandle<String> JSNumberFormat::FormatNumericRange(
+MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
   return PartitionNumberRangePattern<String, FormatToString>(
@@ -2179,7 +2180,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumericRange(
       "Intl.NumberFormat.prototype.formatRange");
 }
 
-MaybeHandle<JSArray> JSNumberFormat::FormatNumericRangeToParts(
+MaybeDirectHandle<JSArray> JSNumberFormat::FormatNumericRangeToParts(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
   return PartitionNumberRangePattern<JSArray, FormatRangeToJSArray>(

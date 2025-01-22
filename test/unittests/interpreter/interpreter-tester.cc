@@ -12,8 +12,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                    DirectHandle<JSFunction> function) {
+MaybeDirectHandle<Object> CallInterpreter(Isolate* isolate,
+                                          DirectHandle<JSFunction> function) {
   return Execution::Call(isolate, function,
                          isolate->factory()->undefined_value(), {});
 }

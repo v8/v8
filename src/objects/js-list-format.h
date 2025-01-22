@@ -36,20 +36,21 @@ class JSListFormat
  public:
   // Creates relative time format object with properties derived from input
   // locales and options.
-  static MaybeHandle<JSListFormat> New(Isolate* isolate, DirectHandle<Map> map,
-                                       DirectHandle<Object> locales,
-                                       DirectHandle<Object> options);
+  static MaybeDirectHandle<JSListFormat> New(Isolate* isolate,
+                                             DirectHandle<Map> map,
+                                             DirectHandle<Object> locales,
+                                             DirectHandle<Object> options);
 
-  static Handle<JSObject> ResolvedOptions(
+  static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder);
 
   // ecma402 #sec-formatlist
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatList(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatList(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
 
   // ecma42 #sec-formatlisttoparts
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatListToParts(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatListToParts(
       Isolate* isolate, DirectHandle<JSListFormat> format_holder,
       DirectHandle<FixedArray> list);
 

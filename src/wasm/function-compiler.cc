@@ -250,7 +250,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 }
 
 // static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+DirectHandle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index) {
   // Run the compilation unit synchronously.
   JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index);

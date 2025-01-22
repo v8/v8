@@ -1248,15 +1248,15 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobDetachedArrayBuffer) {
   FreeCurrentEmbeddedBlob();
 }
 
-i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
+i::DirectHandle<i::JSArrayBuffer> GetBufferFromTypedArray(
     v8::Local<v8::Value> typed_array) {
   CHECK(typed_array->IsTypedArray());
 
   i::DirectHandle<i::JSArrayBufferView> view =
       i::Cast<i::JSArrayBufferView>(v8::Utils::OpenDirectHandle(*typed_array));
 
-  return i::handle(i::Cast<i::JSArrayBuffer>(view->buffer()),
-                   view->GetIsolate());
+  return i::direct_handle(i::Cast<i::JSArrayBuffer>(view->buffer()),
+                          view->GetIsolate());
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {

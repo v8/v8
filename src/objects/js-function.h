@@ -56,7 +56,7 @@ class JSBoundFunction
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(DirectHandle<JSBoundFunction> function);
+  static DirectHandle<String> ToString(DirectHandle<JSBoundFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
@@ -81,7 +81,8 @@ class JSWrappedFunction
 
   // The wrapped function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(DirectHandle<JSWrappedFunction> function);
+  static DirectHandle<String> ToString(
+      DirectHandle<JSWrappedFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
 };
@@ -350,14 +351,16 @@ class JSFunction : public TorqueGeneratedJSFunction<
       DirectHandle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabTypedArrayMap(
-      Isolate* isolate, DirectHandle<JSFunction> constructor,
-      DirectHandle<JSReceiver> new_target);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map>
+  GetDerivedRabGsabTypedArrayMap(Isolate* isolate,
+                                 DirectHandle<JSFunction> constructor,
+                                 DirectHandle<JSReceiver> new_target);
 
   // Like GetDerivedMap, but can be used for DataViews for retrieving / creating
   // a map with a JS_RAB_GSAB_DATA_VIEW instance type.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedRabGsabDataViewMap(
-      Isolate* isolate, DirectHandle<JSReceiver> new_target);
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map>
+  GetDerivedRabGsabDataViewMap(Isolate* isolate,
+                               DirectHandle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -398,7 +401,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  static Handle<String> GetName(DirectHandle<JSFunction> function);
+  static DirectHandle<String> GetName(DirectHandle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
   // Because of the way this abstract operation is used in the spec,
@@ -414,7 +417,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(DirectHandle<JSFunction> function);
+  static DirectHandle<String> ToString(DirectHandle<JSFunction> function);
 
   class BodyDescriptor;
 

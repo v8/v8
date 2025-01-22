@@ -146,7 +146,8 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
@@ -160,7 +161,7 @@ struct SharedSwissTableTests {
       s.CheckDataAtKey(key1, kIndexUnknown, value1, details1);
       s.CheckCounts(4, 1, 0);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -181,8 +182,9 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
-      Handle<String> value1 =
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -190,7 +192,7 @@ struct SharedSwissTableTests {
 
       s.Add(key1, value1, details1);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -225,8 +227,9 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
-      Handle<String> value1 =
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -234,7 +237,7 @@ struct SharedSwissTableTests {
 
       s.Add(key1, value1, details1);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -712,7 +715,7 @@ struct SharedSwissTableTests {
 
   // Check that we correctly "wrap around" when probing the control table. This
   // means that when we probe a group starting at a bucket such that there are
-  // fewer than kGroupWidth bucktets before the end of the control table, we
+  // fewer than kGroupWidth buckets before the end of the control table, we
   // (logically) continue at bucket 0. Note that actually, we use the copy of
   // first group at the end of the control table.
   MEMBER_TEST(WrapAround) {

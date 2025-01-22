@@ -232,7 +232,7 @@ class KeyValueDisplayNames : public LocaleDisplayNamesCommon {
     locale_display_names()->keyValueDisplayName(key_.c_str(), code_str.c_str(),
                                                 result);
     // Work around the issue that the keyValueDisplayNames ignore no
-    // substituion and always fallback.
+    // substitution and always fallback.
     if (prevent_fallback_ && (result.length() == 3) &&
         (code_str.length() == 3) &&
         (result == icu::UnicodeString(code_str.c_str(), -1, US_INV))) {
@@ -401,7 +401,7 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
 }  // anonymous namespace
 
 // ecma402 #sec-Intl.DisplayNames
-MaybeHandle<JSDisplayNames> JSDisplayNames::New(
+MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options) {
   const char* service = "Intl.DisplayNames";
@@ -411,7 +411,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
-  MAYBE_RETURN(maybe_requested_locales, Handle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_requested_locales, DirectHandle<JSDisplayNames>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
 
@@ -428,7 +428,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
   // "lookup", "best fit" », "best fit").
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
       Intl::GetLocaleMatcher(isolate, options, service);
-  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_locale_matcher, MaybeDirectHandle<JSDisplayNames>());
 
   // 8. Set opt.[[localeMatcher]] to matcher.
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
@@ -454,7 +454,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
   Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
-  MAYBE_RETURN(maybe_style, MaybeHandle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_style, MaybeDirectHandle<JSDisplayNames>());
   Style style_enum = maybe_style.FromJust();
 
   // 11. Set displayNames.[[Style]] to style.
@@ -468,7 +468,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
       {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
        Type::kCalendar, Type::kDateTimeField},
       Type::kUndefined);
-  MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
   // 13. If type is undefined, throw a TypeError exception.
@@ -483,7 +483,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
   Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
       isolate, options, "fallback", service, {"code", "none"},
       {Fallback::kCode, Fallback::kNone}, Fallback::kCode);
-  MAYBE_RETURN(maybe_fallback, MaybeHandle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_fallback, MaybeDirectHandle<JSDisplayNames>());
   Fallback fallback_enum = maybe_fallback.FromJust();
 
   // 16. Set displayNames.[[Fallback]] to fallback.
@@ -496,7 +496,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
           isolate, options, "languageDisplay", service, {"dialect", "standard"},
           {LanguageDisplay::kDialect, LanguageDisplay::kStandard},
           LanguageDisplay::kDialect);
-  MAYBE_RETURN(maybe_language_display, MaybeHandle<JSDisplayNames>());
+  MAYBE_RETURN(maybe_language_display, MaybeDirectHandle<JSDisplayNames>());
   // 25. If type is "language", then
   if (type_enum == Type::kLanguage) {
     // a. Set displayNames.[[LanguageDisplay]] to languageDisplay.
@@ -535,7 +535,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
   DirectHandle<Managed<DisplayNamesInternal>> managed_internal =
       Managed<DisplayNamesInternal>::From(isolate, 0, std::move(internal));
 
-  Handle<JSDisplayNames> display_names =
+  DirectHandle<JSDisplayNames> display_names =
       Cast<JSDisplayNames>(factory->NewFastOrSlowJSObjectFromMap(map));
   display_names->set_flags(0);
   display_names->set_style(style_enum);
@@ -550,11 +550,12 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(
 }
 
 // ecma402 #sec-Intl.DisplayNames.prototype.resolvedOptions
-Handle<JSObject> JSDisplayNames::ResolvedOptions(
+DirectHandle<JSObject> JSDisplayNames::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names) {
   Factory* factory = isolate->factory();
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
-  Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> options =
+      factory->NewJSObject(isolate->object_function());
 
   DisplayNamesInternal* internal = display_names->internal()->raw();
 
@@ -602,7 +603,7 @@ Handle<JSObject> JSDisplayNames::ResolvedOptions(
 }
 
 // ecma402 #sec-Intl.DisplayNames.prototype.of
-MaybeHandle<Object> JSDisplayNames::Of(
+MaybeDirectHandle<Object> JSDisplayNames::Of(
     Isolate* isolate, DirectHandle<JSDisplayNames> display_names,
     Handle<Object> code_obj) {
   DirectHandle<String> code;
@@ -611,7 +612,7 @@ MaybeHandle<Object> JSDisplayNames::Of(
   DisplayNamesInternal* internal = display_names->internal()->raw();
   Maybe<icu::UnicodeString> maybe_result =
       internal->of(isolate, code->ToCString().get());
-  MAYBE_RETURN(maybe_result, Handle<Object>());
+  MAYBE_RETURN(maybe_result, DirectHandle<Object>());
   icu::UnicodeString result = maybe_result.FromJust();
   if (result.isBogus()) {
     return isolate->factory()->undefined_value();
@@ -656,7 +657,8 @@ Handle<String> JSDisplayNames::FallbackAsString(Isolate* isolate) const {
   UNREACHABLE();
 }
 
-Handle<String> JSDisplayNames::LanguageDisplayAsString(Isolate* isolate) const {
+DirectHandle<String> JSDisplayNames::LanguageDisplayAsString(
+    Isolate* isolate) const {
   switch (language_display()) {
     case LanguageDisplay::kDialect:
       return isolate->factory()->dialect_string();
