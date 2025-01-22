@@ -728,7 +728,7 @@ void JSObject::PrintElements(std::ostream& os) {
                                   Cast<SloppyArgumentsElements>(elements()));
       break;
     case WASM_ARRAY_ELEMENTS:
-      // WasmArrayPrint() should be called intead.
+      // WasmArrayPrint() should be called instead.
       UNREACHABLE();
     case NO_ELEMENTS:
       break;
@@ -1265,7 +1265,7 @@ using DataPrinter = std::function<void(InternalIndex)>;
 // that index, like just the value (in case of a hash map), or value and
 // property details (in case of a property dictionary). No leading space
 // required or trailing newline required. It can be null/non-callable
-// std::function to indicate that there is no associcated data to be printed
+// std::function to indicate that there is no associated data to be printed
 // (for example in case of a hash set).
 template <typename T>
 void PrintTableContentsGeneric(std::ostream& os, T* dict,
