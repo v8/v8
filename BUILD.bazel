@@ -3544,8 +3544,6 @@ filegroup(
             "src/compiler/wasm-gc-operator-reducer.h",
             "src/compiler/wasm-graph-assembler.cc",
             "src/compiler/wasm-graph-assembler.h",
-            "src/compiler/wasm-inlining.cc",
-            "src/compiler/wasm-inlining.h",
             "src/compiler/wasm-inlining-into-js.cc",
             "src/compiler/wasm-inlining-into-js.h",
             "src/compiler/wasm-load-elimination.cc",

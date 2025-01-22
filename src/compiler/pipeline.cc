@@ -139,7 +139,6 @@
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-gc-lowering.h"
 #include "src/compiler/wasm-gc-operator-reducer.h"
-#include "src/compiler/wasm-inlining.h"
 #include "src/compiler/wasm-js-lowering.h"
 #include "src/compiler/wasm-load-elimination.h"
 #include "src/compiler/wasm-loop-peeling.h"
@@ -1272,32 +1271,6 @@ struct LoopPeelingPhase {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
-
-  void Run(TFPipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
-           WasmCompilationData& compilation_data,
-           ZoneVector<WasmInliningPosition>* inlining_positions,
-           wasm::WasmDetectedFeatures* detected) {
-    if (!WasmInliner::graph_size_allows_inlining(
-            env->module, data->graph()->NodeCount(),
-            v8_flags.wasm_inlining_budget)) {
-      return;
-    }
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    DeadCodeElimination dead(&graph_reducer, data->graph(), data->common(),
-                             temp_zone);
-    std::unique_ptr<char[]> debug_name = data->info()->GetDebugName();
-    WasmInliner inliner(&graph_reducer, env, compilation_data, data->mcgraph(),
-                        debug_name.get(), inlining_positions, detected);
-    AddReducer(data, &graph_reducer, &dead);
-    AddReducer(data, &graph_reducer, &inliner);
-    graph_reducer.ReduceGraph();
-  }
-};
-
 namespace {
 void EliminateLoopExits(std::vector<compiler::WasmLoopInfo>* loop_infos) {
   for (WasmLoopInfo& loop_info : *loop_infos) {
