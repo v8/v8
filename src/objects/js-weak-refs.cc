@@ -103,7 +103,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Tagged<HeapObject> unregister_token = weak_cell->unregister_token();
     uint32_t key = Smi::ToInt(Object::GetHash(unregister_token));
     InternalIndex entry = key_map->FindEntry(isolate, key);
-    DCHECK(entry.is_found());
+    CHECK(entry.is_found());
 
     if (IsUndefined(weak_cell->key_list_next(), isolate)) {
       // weak_cell is the only one associated with its key; remove the key
