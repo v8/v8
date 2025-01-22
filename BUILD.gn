@@ -4341,7 +4341,6 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/wasm-gc-operator-reducer.h",
       "src/compiler/wasm-graph-assembler.h",
       "src/compiler/wasm-inlining-into-js.h",
-      "src/compiler/wasm-js-lowering.h",
       "src/compiler/wasm-load-elimination.h",
       "src/compiler/wasm-typer.h",
       "src/debug/debug-wasm-objects-inl.h",
@@ -5132,7 +5131,6 @@ if (v8_enable_webassembly) {
     "src/compiler/wasm-gc-operator-reducer.cc",
     "src/compiler/wasm-graph-assembler.cc",
     "src/compiler/wasm-inlining-into-js.cc",
-    "src/compiler/wasm-js-lowering.cc",
     "src/compiler/wasm-load-elimination.cc",
     "src/compiler/wasm-typer.cc",
   ]

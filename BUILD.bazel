@@ -3546,8 +3546,6 @@ filegroup(
             "src/compiler/wasm-inlining-into-js.h",
             "src/compiler/wasm-load-elimination.cc",
             "src/compiler/wasm-load-elimination.h",
-            "src/compiler/wasm-js-lowering.cc",
-            "src/compiler/wasm-js-lowering.h",
             "src/compiler/wasm-typer.cc",
             "src/compiler/wasm-typer.h",
         ],
