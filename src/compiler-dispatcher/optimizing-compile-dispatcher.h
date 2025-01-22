@@ -53,11 +53,15 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
     return job;
   }
 
-  void Enqueue(TurbofanCompilationJob* job) {
+  bool Enqueue(std::unique_ptr<TurbofanCompilationJob>& job) {
     base::SpinningMutexGuard access(&mutex_);
-    DCHECK_LT(length_, capacity_);
-    queue_[QueueIndex(length_)] = job;
-    length_++;
+    if (length_ < capacity_) {
+      queue_[QueueIndex(length_)] = job.release();
+      length_++;
+      return true;
+    } else {
+      return false;
+    }
   }
 
   void Flush(Isolate* isolate);
@@ -88,7 +92,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void Stop();
   void Flush(BlockingBehavior blocking_behavior);
   // Takes ownership of |job|.
-  void QueueForOptimization(TurbofanCompilationJob* job);
+  bool TryQueueForOptimization(std::unique_ptr<TurbofanCompilationJob>& job);
   void AwaitCompileTasks();
   void InstallOptimizedFunctions();
 

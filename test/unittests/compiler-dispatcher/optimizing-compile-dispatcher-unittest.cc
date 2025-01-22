@@ -4,6 +4,8 @@
 
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
+#include <memory>
+
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/semaphore.h"
@@ -82,7 +84,8 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   OptimizingCompileDispatcher dispatcher(i_isolate());
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
-  dispatcher.QueueForOptimization(job);
+  std::unique_ptr<TurbofanCompilationJob> compilation_job(job);
+  ASSERT_TRUE(dispatcher.TryQueueForOptimization(compilation_job));
 
   // Busy-wait for the job to run on a background thread.
   while (!job->IsBlocking()) {

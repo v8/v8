@@ -194,10 +194,9 @@ void CodeAssembler::BuiltinCompilationScheduler::QueueJob(
   if (v8_flags.concurrent_builtin_generation) {
     auto* dispatcher = isolate->optimizing_compile_dispatcher();
     // Spin until we can queue the job.
-    while (!dispatcher->IsQueueAvailable()) {
+    while (!dispatcher->TryQueueForOptimization(job)) {
       std::this_thread::yield();
     }
-    dispatcher->QueueForOptimization(job.release());
   } else {
     CHECK_EQ(CompilationJob::SUCCEEDED,
              job->ExecuteJob(isolate->counters()->runtime_call_stats(),

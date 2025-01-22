@@ -1168,7 +1168,16 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   }
 
   // The background recompile will own this job.
-  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.release());
+  if (!isolate->optimizing_compile_dispatcher()->TryQueueForOptimization(job)) {
+    function->SetTieringInProgress(false, compilation_info->osr_offset());
+
+    if (v8_flags.trace_concurrent_recompilation) {
+      PrintF("  ** Compilation queue full, will retry optimizing ");
+      ShortPrint(*function);
+      PrintF(" later.\n");
+    }
+    return false;
+  }
 
   if (v8_flags.trace_concurrent_recompilation) {
     PrintF("  ** Queued ");

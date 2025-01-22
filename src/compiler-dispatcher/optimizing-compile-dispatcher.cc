@@ -238,16 +238,19 @@ bool OptimizingCompileDispatcher::HasJobs() {
   return job_handle_->IsActive() || !output_queue_.empty();
 }
 
-void OptimizingCompileDispatcher::QueueForOptimization(
-    TurbofanCompilationJob* job) {
-  DCHECK(input_queue_.IsAvailable());
-  input_queue_.Enqueue(job);
-  if (job_handle_->UpdatePriorityEnabled()) {
-    job_handle_->UpdatePriority(isolate_->EfficiencyModeEnabledForTiering()
-                                    ? kEfficiencyTaskPriority
-                                    : kTaskPriority);
+bool OptimizingCompileDispatcher::TryQueueForOptimization(
+    std::unique_ptr<TurbofanCompilationJob>& job) {
+  if (input_queue_.Enqueue(job)) {
+    if (job_handle_->UpdatePriorityEnabled()) {
+      job_handle_->UpdatePriority(isolate_->EfficiencyModeEnabledForTiering()
+                                      ? kEfficiencyTaskPriority
+                                      : kTaskPriority);
+    }
+    job_handle_->NotifyConcurrencyIncrease();
+    return true;
+  } else {
+    return false;
   }
-  job_handle_->NotifyConcurrencyIncrease();
 }
 
 void OptimizingCompileDispatcherQueue::Prioritize(
