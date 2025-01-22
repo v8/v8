@@ -570,6 +570,10 @@ class MoveListenerImpl final : public HeapProfilerNativeMoveListener,
 }  // namespace
 
 void CppHeap::AttachIsolate(Isolate* isolate) {
+#if DEBUG
+  // Since a new isolate is attached, we are also allowed to detach it again.
+  is_detached_ = false;
+#endif  // DEBUG
   CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
@@ -603,8 +607,8 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
 
 void CppHeap::StartDetachingIsolate() {
 #if DEBUG
-  DCHECK(!detach_started_);
-  detach_started_ = true;
+  DCHECK(!is_detached_);
+  is_detached_ = true;
 #endif  // DEBUG
   // TODO(chromium:1056170): Investigate whether this can be enforced with a
   // CHECK across all relevant embedders and setups.
