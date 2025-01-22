@@ -1653,6 +1653,10 @@
   # Tests calling quit are not supported: https://crbug.com/341021498
   'harmony/weakrefs/clearkeptobjects-on-quit': [SKIP],
   'd8/d8-finalization-registry-quit': [SKIP],
+
+  # This waits for background compilation to finish, thus times out in
+  # predictable mode.
+  'wasm/recognize-imports': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################
