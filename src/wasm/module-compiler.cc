@@ -657,6 +657,7 @@ class CompilationStateImpl {
     // Reset the stored priority; otherwise triggers might be ignored if the
     // priority is not bumped to the next power of two.
     TypeFeedbackStorage* feedback = &native_module_->module()->type_feedback;
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback->mutex);
     feedback->feedback_for_function[func_index].tierup_priority = 0;
   }
 
@@ -664,6 +665,8 @@ class CompilationStateImpl {
     const WasmModule* module = native_module_->module();
     uint32_t fn_start = module->num_imported_functions;
     uint32_t fn_end = fn_start + module->num_declared_functions;
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+        &module->type_feedback.mutex);
     std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_map =
         module->type_feedback.feedback_for_function;
     for (uint32_t i = fn_start; i < fn_end; i++) {
