@@ -246,12 +246,24 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register temp = temps.AcquireScratch();
+  Condition cond = overflow;
+  if (!CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    DCHECK(!AreAliased(r0, temp));
+    __ lgfr(r0, left);
+    __ lgfr(temp, right);
+    __ MulS64(r0, temp);
+  }
   __ Or(temp, left, right);
   __ MulS32(out, left, right);
   __ LoadS32(out, out);
+  if (!CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    // Test whether {high} is a sign-extension of {result}.
+    __ CmpU64(r0, out);
+    cond = ne;
+  }
   DCHECK_REGLIST_EMPTY(RegList{temp, out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ EmitEagerDeoptIf(overflow, DeoptimizeReason::kOverflow, this);
+  __ EmitEagerDeoptIf(cond, DeoptimizeReason::kOverflow, this);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
