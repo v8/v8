@@ -217,13 +217,13 @@ void MacroAssembler::StoreSandboxedPointerField(Register value,
 
 void MacroAssembler::LoadExternalPointerField(Register destination,
                                               MemOperand field_operand,
-                                              ExternalPointerTag tag,
+                                              ExternalPointerTagRange tag_range,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(tag));
+  DCHECK(!tag_range.IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(tag_range));
   UseScratchRegisterScope temps(this);
   Register external_table = temps.Acquire();
   if (isolate_root == no_reg) {
@@ -238,12 +238,29 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   srli_d(destination, destination, kExternalPointerIndexShift);
   slli_d(destination, destination, kExternalPointerTableEntrySizeLog2);
   Ld_d(destination, MemOperand(external_table, destination));
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range));
+
   // We need another scratch register for the 64-bit tag constant. Instead of
   // forcing the `And` to allocate a new temp register (which we may not have),
   // reuse the temp register that we used for the external pointer table base.
-  Register tag_reg = external_table;
-  li(tag_reg, Operand(~tag));
-  And(destination, destination, tag_reg);
+  Register scratch = external_table;
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    static_assert(kExternalPointerShiftedTagMask == 0x7f);
+    bstrpick_d(scratch, destination, kExternalPointerTagShift + 7,
+               kExternalPointerTagShift);
+    SbxCheck(eq, AbortReason::kExternalPointerTagMismatch, scratch,
+             Operand(tag_range.first));
+    And(destination, destination, Operand(kExternalPointerPayloadMask));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
 #else
   Ld_d(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
