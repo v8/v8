@@ -6694,10 +6694,8 @@ HEAP_TEST(Regress670675) {
   Isolate* isolate = heap->isolate();
   heap::InvokeMajorGC(heap);
 
-  if (heap->sweeping_in_progress()) {
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
-  }
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   heap->tracer()->StopFullCycleIfNeeded();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
