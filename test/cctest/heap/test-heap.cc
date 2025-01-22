@@ -7203,10 +7203,10 @@ TEST(Regress8617) {
 HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
   ManualGCScope manual_gc_scope;
-  LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   CHECK_EQ(heap->memory_reducer()->state_.id(), MemoryReducer::kUninit);
+  LocalContext env;
   HandleScope scope(isolate);
   const size_t kActivationThreshold = 1 * MB;
   size_t initial_capacity = heap->OldGenerationCapacity();
