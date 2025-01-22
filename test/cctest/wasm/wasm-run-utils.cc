@@ -13,7 +13,6 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
-#include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-instantiate.h"

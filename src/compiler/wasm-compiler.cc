@@ -51,7 +51,6 @@
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
-#include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/object-access.h"
