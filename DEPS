@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8fe56cd1b654eeb75096141dc8fbd353cb1b9e21',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '64008a452d5c9b788eaa698b57c3b43bfae6ba4b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a660247d3c14a172b74b8e832ba1066b30183c97',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2b1cab22672ba9ca530d5d1ef3f1c80d26ab4c41',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a4131b94475c8c023304993678b6f7d0e347fe0c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '6d542c4b7b900162a2550bba1a2b74466a6ea174',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '230b3f8c82c8c1603cc8d8da154a6e40c01eab3d',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'a4e44a8e44108e417730f9345808dbe1944917a0',
   'third_party/re2/src':
@@ -484,11 +484,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5634698162b2182c350e4cb360a0f4dd7706afec',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '594fb4f80bdb25c17f45e69888dc04316111efec',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'facb7d1306976fc5a2f0660814549d1920679f88',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '5cc19c9883171bbbdc28a142b1ece17c18bd09bc',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '3c286827884f16f0f8a6f3c4fc1f6e11f637c2fc',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
