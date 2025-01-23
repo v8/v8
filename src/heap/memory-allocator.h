@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <utility>
 
+#include "absl/container/btree_set.h"
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
@@ -439,9 +441,9 @@ class MemoryAllocator {
 
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning.
-  std::unordered_set<const MemoryChunk*, base::hash<const MemoryChunk*>>
+  absl::flat_hash_set<const MemoryChunk*, base::hash<const MemoryChunk*>>
       normal_pages_;
-  std::set<const MemoryChunk*> large_pages_;
+  absl::btree_set<const MemoryChunk*> large_pages_;
 
   mutable base::SpinningMutex chunks_mutex_;
 

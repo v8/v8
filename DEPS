@@ -518,6 +518,7 @@ include_rules = [
   '+absl/container/flat_hash_map.h',
   '+absl/container/flat_hash_set.h',
   '+absl/container/btree_map.h',
+  '+absl/container/btree_set.h',
   '+absl/status',
   '+absl/synchronization/mutex.h',
   # Some abseil features are explicitly banned.
