@@ -534,6 +534,17 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     static_cast<int>(Root::kNumberOfRoots) * HeapObjectsMap::kObjectIdStep;
 const SnapshotObjectId HeapObjectsMap::kFirstAvailableNativeId = 2;
 
+namespace {
+
+int SizeForSnapshot(Tagged<HeapObject> object, PtrComprCageBase cage_base) {
+  // Since read-only space can be shared among Isolates, and JS developers have
+  // no control over the size of read-only space, we represent read-only objects
+  // as having zero size.
+  return HeapLayout::InReadOnlySpace(object) ? 0 : object->Size(cage_base);
+}
+
+}  // namespace
+
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
     : next_id_(kFirstAvailableObjectId),
       next_native_id_(kFirstAvailableNativeId),
@@ -667,9 +678,9 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
   CombinedHeapObjectIterator iterator(heap_);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    int object_size = obj->Size(cage_base);
-    FindOrAddEntry(obj.address(), object_size);
+    FindOrAddEntry(obj.address(), SizeForSnapshot(obj, cage_base));
     if (v8_flags.heap_profiler_trace_objects) {
+      int object_size = obj->Size(cage_base);
       PrintF("Update object      : %p %6d. Next address is %p\n",
              reinterpret_cast<void*>(obj.address()), object_size,
              reinterpret_cast<void*>(obj.address() + object_size));
@@ -935,23 +946,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     const char* name = names_->GetCopy(sb.start());
     return AddEntry(object, HeapEntry::kObject, name);
   }
-  if (InstanceTypeChecker::IsWasmNull(instance_type)) {
-    // Inlined copies of {GetSystemEntryType}, {GetSystemEntryName}, and
-    // {AddEntry}, allowing us to override the size.
-    // The actual object's size is fairly large (at the time of this writing,
-    // just over 64 KB) and mostly includes a guard region. We report it as
-    // much smaller to avoid confusion.
-    static constexpr size_t kSize = WasmNull::kHeaderSize;
-    return AddEntry(object.address(), HeapEntry::kHidden, "system / WasmNull",
-                    kSize);
-  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (InstanceTypeChecker::IsForeign(instance_type)) {
     Tagged<Foreign> foreign = Cast<Foreign>(object);
     ExternalPointerTag tag = foreign->GetTag();
 
-    size_t size = object->Size();
+    size_t size = SizeForSnapshot(object, cage_base);
     const char* name = nullptr;
     // TODO(saelo): consider creating a global mapping of ExternalPointerTags
     // for Managed objects to their name if we need this anywhere else.
@@ -1024,7 +1025,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
 HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object,
                                     HeapEntry::Type type, const char* name) {
   PtrComprCageBase cage_base(isolate());
-  return AddEntry(object.address(), type, name, object->Size(cage_base));
+  return AddEntry(object.address(), type, name,
+                  SizeForSnapshot(object, cage_base));
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(Address address, HeapEntry::Type type,
