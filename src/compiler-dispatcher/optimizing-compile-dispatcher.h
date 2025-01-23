@@ -52,6 +52,7 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
   ~OptimizingCompileDispatcherQueue() { DeleteArray(queue_); }
 
   TurbofanCompilationJob* Dequeue(OptimizingCompileTaskState& task_state);
+  TurbofanCompilationJob* DequeueIfIsolateMatches(Isolate* isolate);
 
   bool Enqueue(std::unique_ptr<TurbofanCompilationJob>& job) {
     base::MutexGuard access(&mutex_);
@@ -139,6 +140,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void FlushOutputQueue();
   void CompileNext(TurbofanCompilationJob* job, LocalIsolate* local_isolate);
   TurbofanCompilationJob* NextInput(OptimizingCompileTaskState& task_state);
+  TurbofanCompilationJob* NextInputIfIsolateMatches(Isolate* isolate);
   void ClearTaskState(OptimizingCompileTaskState& task_state);
   bool IsTaskRunningForIsolate(Isolate* isolate);
 

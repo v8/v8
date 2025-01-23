@@ -35,8 +35,9 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
     DCHECK_LT(delegate->GetTaskId(), dispatcher_->task_states_.size());
     OptimizingCompileTaskState& task_state =
         dispatcher_->task_states_[delegate->GetTaskId()];
+    bool should_yield = delegate->ShouldYield();
 
-    while (!delegate->ShouldYield()) {
+    while (!should_yield) {
       // NextInput() sets the isolate for task_state to job->isolate() while
       // holding the lock.
       TurbofanCompilationJob* job = dispatcher_->NextInput(task_state);
@@ -51,21 +52,16 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
         LocalIsolate local_isolate(isolate, ThreadKind::kBackground);
         DCHECK(local_isolate.heap()->IsParked());
 
-        TRACE_EVENT_WITH_FLOW0(
-            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
-            job->trace_id(),
-            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-        TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
+        do {
+          RunCompilationJob(isolate, local_isolate, job);
 
-        if (dispatcher_->recompilation_delay_ != 0) {
-          base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-              dispatcher_->recompilation_delay_));
-        }
+          should_yield = delegate->ShouldYield();
+          if (should_yield) break;
 
-        RCS_SCOPE(&local_isolate,
-                  RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
-
-        dispatcher_->CompileNext(job, &local_isolate);
+          // Reuse the LocalIsolate if the next worklist item has the same
+          // isolate.
+          job = dispatcher_->NextInputIfIsolateMatches(isolate);
+        } while (job);
       }
 
       // Reset the isolate in the task state to nullptr. Only do this after the
@@ -79,6 +75,24 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
     // only this thread here will ever change this field and the main thread
     // will only ever read it.
     DCHECK_NULL(task_state.isolate);
+  }
+
+  void RunCompilationJob(Isolate* isolate, LocalIsolate& local_isolate,
+                         TurbofanCompilationJob* job) {
+    TRACE_EVENT_WITH_FLOW0(
+        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
+        job->trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
+
+    if (dispatcher_->recompilation_delay_ != 0) {
+      base::OS::Sleep(
+          base::TimeDelta::FromMilliseconds(dispatcher_->recompilation_delay_));
+    }
+
+    RCS_SCOPE(&local_isolate,
+              RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
+
+    dispatcher_->CompileNext(job, &local_isolate);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -126,6 +140,11 @@ OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
 TurbofanCompilationJob* OptimizingCompileDispatcher::NextInput(
     OptimizingCompileTaskState& task_state) {
   return input_queue_.Dequeue(task_state);
+}
+
+TurbofanCompilationJob* OptimizingCompileDispatcher::NextInputIfIsolateMatches(
+    Isolate* isolate) {
+  return input_queue_.DequeueIfIsolateMatches(isolate);
 }
 
 void OptimizingCompileDispatcher::ClearTaskState(
@@ -191,6 +210,18 @@ TurbofanCompilationJob* OptimizingCompileDispatcherQueue::Dequeue(
   shift_ = QueueIndex(1);
   length_--;
   task_state.isolate = job->isolate();
+  return job;
+}
+
+TurbofanCompilationJob*
+OptimizingCompileDispatcherQueue::DequeueIfIsolateMatches(Isolate* isolate) {
+  base::MutexGuard access(&mutex_);
+  if (length_ == 0) return nullptr;
+  TurbofanCompilationJob* job = queue_[QueueIndex(0)];
+  DCHECK_NOT_NULL(job);
+  if (job->isolate() != isolate) return nullptr;
+  shift_ = QueueIndex(1);
+  length_--;
   return job;
 }
 
