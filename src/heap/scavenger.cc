@@ -1275,8 +1275,16 @@ void Scavenger::Finalize() {
   heap()->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
   for (const auto& it : local_ephemeron_remembered_set_) {
-    DCHECK_IMPLIES(!MemoryChunk::FromHeapObject(it.first)->IsLargePage(),
-                   !HeapLayout::InYoungGeneration(it.first));
+    // The ephemeron objects in the remembered set should be either large
+    // objects, promoted to old space, or pinned objects on quarantined pages
+    // that will be promoted.
+    DCHECK_IMPLIES(
+        !MemoryChunk::FromHeapObject(it.first)->IsLargePage(),
+        !HeapLayout::InYoungGeneration(it.first) ||
+            (HeapLayout::IsSelfForwarded(it.first) &&
+             MemoryChunk::FromHeapObject(it.first)->IsQuarantined() &&
+             heap()->semi_space_new_space()->ShouldPageBePromoted(
+                 it.first->address())));
     heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
         it.first, std::move(it.second));
   }
