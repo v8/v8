@@ -90,6 +90,7 @@ const SOFT_SKIPPED_FILES = [
     'regress-74474-003.js',
     // V8:
     'object-literal.js',
+    'regress-390568195.js',
 ];
 
 // Used with a lower probability if paths match.
