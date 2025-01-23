@@ -908,6 +908,10 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string result_name =
       DefinitionToVariable(instruction.GetValueDefinition());
 
@@ -926,6 +930,10 @@ void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string value = stack->Pop();
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
