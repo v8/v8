@@ -103,9 +103,10 @@ const DISALLOWED_FLAGS = [
     // stabilized yet and would cause too much noise when enabled.
     /^--experimental-.*/,
 
-    // Disallowed due to noise. We explicitly add --harmony to job
-    // definitions, and all of these features are staged before launch.
-    /^--harmony-.*/,
+    // Disallowed due to noise. We explicitly add --harmony and --js-staging
+    // to trials, and all of these features are staged before launch.
+    /^--harmony-(?!shipping)/,
+    /^--js-(?!staging|shipping)/,
 
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
@@ -115,7 +116,6 @@ const DISALLOWED_FLAGS = [
     '--expose-gc',
     '--expose_gc',
     '--fuzzing',
-    '--harmony',
     '--omit-quit',
     '--disable-in-process-stack-traces',
     '--invoke-weak-callbacks',

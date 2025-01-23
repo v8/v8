@@ -14,10 +14,12 @@ EXTRA_FLAGS = [
     (0.1, '--cache=code'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
+    (0.5, '--harmony'),
     # TODO(v8:13524): Enable when issue is fixed
     # TODO(v8:13528): Enable when issue is fixed
     # (0.1, '--harmony-struct'),
     (0.1, '--jit-fuzzing'),
+    (0.5, '--js-staging'),
     (0.1, '--liftoff'),
     (0.1, '--maglev'),
     (0.1, '--maglev-future'),
@@ -58,6 +60,7 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-pinning-objects-random'),
+    (0.25, '--wasm-staging'),
 ]
 
 MIN_DEOPT = 1
