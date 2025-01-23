@@ -81,9 +81,12 @@ class PrintV8InternalHandleCommand(PrintV8HandleCommand):
     # Indirect handles contain a location_.
     if gdb.types.has_field(value.type, "location_"):
       return self.print_indirect(value["location_"], from_tty)
-    # Direct handles contain a obj_.
+    # With v8_enable_direct_handle=true, Direct handles contain a obj_.
     if gdb.types.has_field(value.type, "obj_"):
       return self.print_direct(value["obj_"], from_tty)
+    # Without v8_enable_direct_handle=true, Direct handles contain a handle_.
+    if gdb.types.has_field(value.type, "handle_"):
+      return self.print_handle(value["handle_"], from_tty)
     # We don't know how to print this...
     return False
 
