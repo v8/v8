@@ -96,7 +96,8 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
 
   // Unblock the job & finish.
   job->Signal();
-  dispatcher.Stop();
+  dispatcher.StartTearDown();
+  dispatcher.FinishTearDown();
 }
 
 }  // namespace internal

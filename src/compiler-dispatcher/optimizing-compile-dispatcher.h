@@ -10,6 +10,7 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/parked-scope.h"
@@ -23,16 +24,23 @@ class TurbofanCompilationJob;
 class RuntimeCallStats;
 class SharedFunctionInfo;
 
+// Align the structure to the cache line size to prevent false sharing. While a
+// task state is owned by a single thread, all tasks states are kept in a vector
+// in OptimizingCompileDispatcher::task_states.
+struct alignas(PROCESSOR_CACHE_LINE_SIZE) OptimizingCompileTaskState {
+  Isolate* isolate;
+};
+
 // Circular queue of incoming recompilation tasks (including OSR).
 class V8_EXPORT OptimizingCompileDispatcherQueue {
  public:
   inline bool IsAvailable() {
-    base::SpinningMutexGuard access(&mutex_);
+    base::MutexGuard access(&mutex_);
     return length_ < capacity_;
   }
 
   inline int Length() {
-    base::SpinningMutexGuard access_queue(&mutex_);
+    base::MutexGuard access_queue(&mutex_);
     return length_;
   }
 
@@ -43,18 +51,10 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
 
   ~OptimizingCompileDispatcherQueue() { DeleteArray(queue_); }
 
-  TurbofanCompilationJob* Dequeue() {
-    base::SpinningMutexGuard access(&mutex_);
-    if (length_ == 0) return nullptr;
-    TurbofanCompilationJob* job = queue_[QueueIndex(0)];
-    DCHECK_NOT_NULL(job);
-    shift_ = QueueIndex(1);
-    length_--;
-    return job;
-  }
+  TurbofanCompilationJob* Dequeue(OptimizingCompileTaskState& task_state);
 
   bool Enqueue(std::unique_ptr<TurbofanCompilationJob>& job) {
-    base::SpinningMutexGuard access(&mutex_);
+    base::MutexGuard access(&mutex_);
     if (length_ < capacity_) {
       queue_[QueueIndex(length_)] = job.release();
       length_++;
@@ -80,7 +80,10 @@ class V8_EXPORT OptimizingCompileDispatcherQueue {
   int capacity_;
   int length_;
   int shift_;
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
+  base::ConditionVariable task_finished_;
+
+  friend class OptimizingCompileDispatcher;
 };
 
 class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
@@ -89,7 +92,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   ~OptimizingCompileDispatcher();
 
-  void Stop();
   void Flush(BlockingBehavior blocking_behavior);
   // Takes ownership of |job|.
   bool TryQueueForOptimization(std::unique_ptr<TurbofanCompilationJob>& job);
@@ -121,6 +123,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   void Prioritize(Tagged<SharedFunctionInfo> function);
 
+  void StartTearDown();
+  void FinishTearDown();
+
  private:
   class CompileTask;
 
@@ -133,7 +138,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   void FlushInputQueue();
   void FlushOutputQueue();
   void CompileNext(TurbofanCompilationJob* job, LocalIsolate* local_isolate);
-  TurbofanCompilationJob* NextInput();
+  TurbofanCompilationJob* NextInput(OptimizingCompileTaskState& task_state);
+  void ClearTaskState(OptimizingCompileTaskState& task_state);
+  bool IsTaskRunningForIsolate(Isolate* isolate);
 
   Isolate* isolate_;
 
@@ -146,6 +153,8 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   base::SpinningMutex output_queue_mutex_;
 
   std::unique_ptr<JobHandle> job_handle_;
+
+  base::OwnedVector<OptimizingCompileTaskState> task_states_;
 
   // Copy of v8_flags.concurrent_recompilation_delay that will be used from the
   // background thread.

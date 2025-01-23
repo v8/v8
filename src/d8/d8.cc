@@ -5835,7 +5835,8 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
     i::DirectHandle<i::Context> i_context = Utils::OpenDirectHandle(*context);
     // Stop concurrent compiles before mutating the heap.
     if (i_isolate->concurrent_recompilation_enabled()) {
-      i_isolate->optimizing_compile_dispatcher()->Stop();
+      i_isolate->optimizing_compile_dispatcher()->StartTearDown();
+      i_isolate->optimizing_compile_dispatcher()->FinishTearDown();
     }
 #if V8_ENABLE_MAGLEV
     if (i_isolate->maglev_concurrent_dispatcher()->is_enabled()) {

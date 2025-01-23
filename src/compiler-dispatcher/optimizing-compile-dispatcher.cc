@@ -5,6 +5,9 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
+#include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
@@ -29,46 +32,90 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
 
   void Run(JobDelegate* delegate) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.TurbofanTask");
+    DCHECK_LT(delegate->GetTaskId(), dispatcher_->task_states_.size());
+    OptimizingCompileTaskState& task_state =
+        dispatcher_->task_states_[delegate->GetTaskId()];
 
     while (!delegate->ShouldYield()) {
-      TurbofanCompilationJob* job = dispatcher_->NextInput();
+      // NextInput() sets the isolate for task_state to job->isolate() while
+      // holding the lock.
+      TurbofanCompilationJob* job = dispatcher_->NextInput(task_state);
       if (!job) break;
-      TRACE_EVENT_WITH_FLOW0(
-          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
-          job->trace_id(),
-          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-      TimerEventScope<TimerEventRecompileConcurrent> timer(job->isolate());
 
-      if (dispatcher_->recompilation_delay_ != 0) {
-        base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-            dispatcher_->recompilation_delay_));
+      Isolate* const isolate = job->isolate();
+
+      {
+        // Note that LocalIsolate's lifetime is shorter than the isolate value
+        // in task_state which is only cleared after this LocalIsolate instance
+        // was destroyed.
+        LocalIsolate local_isolate(isolate, ThreadKind::kBackground);
+        DCHECK(local_isolate.heap()->IsParked());
+
+        TRACE_EVENT_WITH_FLOW0(
+            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
+            job->trace_id(),
+            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+        TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
+
+        if (dispatcher_->recompilation_delay_ != 0) {
+          base::OS::Sleep(base::TimeDelta::FromMilliseconds(
+              dispatcher_->recompilation_delay_));
+        }
+
+        RCS_SCOPE(&local_isolate,
+                  RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
+
+        dispatcher_->CompileNext(job, &local_isolate);
       }
 
-      LocalIsolate local_isolate(job->isolate(), ThreadKind::kBackground);
-      DCHECK(local_isolate.heap()->IsParked());
-
-      RCS_SCOPE(&local_isolate,
-                RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
-
-      dispatcher_->CompileNext(job, &local_isolate);
+      // Reset the isolate in the task state to nullptr. Only do this after the
+      // LocalIsolate was destroyed. This invariant is used by
+      // WaitUntilTasksStoppedForIsolate() to ensure all tasks are stopped for
+      // an isolate.
+      dispatcher_->ClearTaskState(task_state);
     }
+
+    // Here we are allowed to read the isolate without holding a lock because
+    // only this thread here will ever change this field and the main thread
+    // will only ever read it.
+    DCHECK_NULL(task_state.isolate);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     size_t num_tasks = dispatcher_->input_queue_.Length() + worker_count;
-    size_t max_threads = v8_flags.concurrent_turbofan_max_threads;
-    if (max_threads > 0) {
-      return std::min(max_threads, num_tasks);
-    }
-    return num_tasks;
+    return std::min(num_tasks, dispatcher_->task_states_.size());
   }
 
  private:
   OptimizingCompileDispatcher* dispatcher_;
 };
 
+OptimizingCompileDispatcher::OptimizingCompileDispatcher(Isolate* isolate)
+    : isolate_(isolate),
+      input_queue_(v8_flags.concurrent_recompilation_queue_length),
+      recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
+  if (v8_flags.concurrent_recompilation ||
+      (v8_flags.concurrent_builtin_generation &&
+       isolate->IsGeneratingEmbeddedBuiltins())) {
+    int max_tasks;
+
+    if (v8_flags.concurrent_turbofan_max_threads == 0) {
+      max_tasks = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
+    } else {
+      max_tasks = v8_flags.concurrent_turbofan_max_threads;
+    }
+
+    task_states_ =
+        base::OwnedVector<OptimizingCompileTaskState>::New(max_tasks);
+    job_handle_ = V8::GetCurrentPlatform()->PostJob(
+        kTaskPriority, std::make_unique<CompileTask>(this));
+  }
+}
+
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
   DCHECK_EQ(0, input_queue_.Length());
+  DCHECK_EQ(output_queue_.size(), 0);
+
   if (job_handle_ && job_handle_->IsValid()) {
     // Wait for the job handle to complete, so that we know the queue
     // pointers are safe.
@@ -76,8 +123,17 @@ OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
   }
 }
 
-TurbofanCompilationJob* OptimizingCompileDispatcher::NextInput() {
-  return input_queue_.Dequeue();
+TurbofanCompilationJob* OptimizingCompileDispatcher::NextInput(
+    OptimizingCompileTaskState& task_state) {
+  return input_queue_.Dequeue(task_state);
+}
+
+void OptimizingCompileDispatcher::ClearTaskState(
+    OptimizingCompileTaskState& task_state) {
+  base::MutexGuard guard(&input_queue_.mutex_);
+  DCHECK_NOT_NULL(task_state.isolate);
+  task_state.isolate = nullptr;
+  input_queue_.task_finished_.NotifyAll();
 }
 
 void OptimizingCompileDispatcher::CompileNext(TurbofanCompilationJob* job,
@@ -115,7 +171,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
 }
 
 void OptimizingCompileDispatcherQueue::Flush(Isolate* isolate) {
-  base::SpinningMutexGuard access(&mutex_);
+  base::MutexGuard access(&mutex_);
   while (length_ > 0) {
     std::unique_ptr<TurbofanCompilationJob> job(queue_[QueueIndex(0)]);
     DCHECK_NOT_NULL(job);
@@ -123,6 +179,48 @@ void OptimizingCompileDispatcherQueue::Flush(Isolate* isolate) {
     length_--;
     Compiler::DisposeTurbofanCompilationJob(isolate, job.get());
   }
+}
+
+TurbofanCompilationJob* OptimizingCompileDispatcherQueue::Dequeue(
+    OptimizingCompileTaskState& task_state) {
+  base::MutexGuard access(&mutex_);
+  DCHECK_NULL(task_state.isolate);
+  if (length_ == 0) return nullptr;
+  TurbofanCompilationJob* job = queue_[QueueIndex(0)];
+  DCHECK_NOT_NULL(job);
+  shift_ = QueueIndex(1);
+  length_--;
+  task_state.isolate = job->isolate();
+  return job;
+}
+
+void OptimizingCompileDispatcher::FinishTearDown() {
+  // Once we have ensured that no task is working on the given isolate, we also
+  // know that there are no more LocalHeaps for this isolate from CompileTask.
+  // This is because CompileTask::Run() only updates the isolate once the
+  // LocalIsolate/LocalHeap for it was destroyed.
+  {
+    base::MutexGuard guard(&input_queue_.mutex_);
+
+    while (IsTaskRunningForIsolate(isolate_)) {
+      input_queue_.task_finished_.Wait(&input_queue_.mutex_);
+    }
+  }
+
+  HandleScope handle_scope(isolate_);
+  FlushOutputQueue();
+}
+
+bool OptimizingCompileDispatcher::IsTaskRunningForIsolate(Isolate* isolate) {
+  input_queue_.mutex_.AssertHeld();
+
+  for (auto& task_state : task_states_) {
+    if (task_state.isolate == isolate) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void OptimizingCompileDispatcher::FlushInputQueue() {
@@ -161,12 +259,9 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
   }
 }
 
-void OptimizingCompileDispatcher::Stop() {
+void OptimizingCompileDispatcher::StartTearDown() {
   HandleScope handle_scope(isolate_);
-  FlushQueues(BlockingBehavior::kBlock);
-  // At this point the optimizing compiler thread's event loop has stopped.
-  // There is no need for a mutex when reading input_queue_length_.
-  DCHECK_EQ(input_queue_.Length(), 0);
+  FlushInputQueue();
 }
 
 void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
@@ -255,7 +350,7 @@ bool OptimizingCompileDispatcher::TryQueueForOptimization(
 
 void OptimizingCompileDispatcherQueue::Prioritize(
     Tagged<SharedFunctionInfo> function) {
-  base::SpinningMutexGuard access(&mutex_);
+  base::MutexGuard access(&mutex_);
   if (length_ > 1) {
     for (int i = length_ - 1; i > 1; --i) {
       if (*queue_[QueueIndex(i)]->compilation_info()->shared_info() ==
@@ -270,18 +365,6 @@ void OptimizingCompileDispatcherQueue::Prioritize(
 void OptimizingCompileDispatcher::Prioritize(
     Tagged<SharedFunctionInfo> function) {
   input_queue_.Prioritize(function);
-}
-
-OptimizingCompileDispatcher::OptimizingCompileDispatcher(Isolate* isolate)
-    : isolate_(isolate),
-      input_queue_(v8_flags.concurrent_recompilation_queue_length),
-      recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
-  if (v8_flags.concurrent_recompilation ||
-      (v8_flags.concurrent_builtin_generation &&
-       isolate->IsGeneratingEmbeddedBuiltins())) {
-    job_handle_ = V8::GetCurrentPlatform()->PostJob(
-        kTaskPriority, std::make_unique<CompileTask>(this));
-  }
 }
 
 }  // namespace internal

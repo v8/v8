@@ -4403,9 +4403,7 @@ void Isolate::Deinit() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (concurrent_recompilation_enabled()) {
-    optimizing_compile_dispatcher_->Stop();
-    delete optimizing_compile_dispatcher_;
-    optimizing_compile_dispatcher_ = nullptr;
+    optimizing_compile_dispatcher_->StartTearDown();
   }
 
   if (v8_flags.print_deopt_stress) {
@@ -4443,6 +4441,12 @@ void Isolate::Deinit() {
   if (lazy_compile_dispatcher_) {
     lazy_compile_dispatcher_->AbortAll();
     lazy_compile_dispatcher_.reset();
+  }
+
+  if (concurrent_recompilation_enabled()) {
+    optimizing_compile_dispatcher_->FinishTearDown();
+    delete optimizing_compile_dispatcher_;
+    optimizing_compile_dispatcher_ = nullptr;
   }
 
   // At this point there are no more background threads left in this isolate.
