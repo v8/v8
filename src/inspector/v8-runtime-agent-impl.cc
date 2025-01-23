@@ -37,6 +37,7 @@
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "include/v8-container.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
@@ -851,11 +852,21 @@ Response V8RuntimeAgentImpl::getIsolateId(String16* outIsolateId) {
 }
 
 Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
-                                          double* out_totalSize) {
+                                          double* out_totalSize,
+                                          double* out_embedderHeapUsedSize,
+                                          double* out_backingStorageSize) {
   v8::HeapStatistics stats;
   m_inspector->isolate()->GetHeapStatistics(&stats);
   *out_usedSize = stats.used_heap_size();
   *out_totalSize = stats.total_heap_size();
+  *out_backingStorageSize = stats.external_memory();
+  if (v8::CppHeap* cppHeap = m_inspector->isolate()->GetCppHeap()) {
+    cppgc::HeapStatistics cppStats =
+        cppHeap->CollectStatistics(cppgc::HeapStatistics::DetailLevel::kBrief);
+    *out_embedderHeapUsedSize = cppStats.used_size_bytes;
+  } else {
+    *out_embedderHeapUsedSize = 0;
+  }
   return Response::Success();
 }
 

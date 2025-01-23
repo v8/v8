@@ -137,7 +137,9 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
       std::optional<int> executionContextId,
       std::unique_ptr<protocol::Array<String16>>* outNames) override;
   Response getIsolateId(String16* outIsolateId) override;
-  Response getHeapUsage(double* out_usedSize, double* out_totalSize) override;
+  Response getHeapUsage(double* out_usedSize, double* out_totalSize,
+                        double* out_embedderHeapUsedSize,
+                        double* out_backingStorageSize) override;
   void terminateExecution(
       std::unique_ptr<TerminateExecutionCallback> callback) override;
 
