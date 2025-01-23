@@ -524,6 +524,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                            : ToBooleanMode::kConvertToBoolean;
   }
 
+  inline Register incoming_new_target() const;
   inline Register generator_object() const;
 
   inline BytecodeArrayBuilder* builder() { return &builder_; }
@@ -586,6 +587,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   }
 
   Register current_disposables_stack() const {
+    SBXCHECK(current_disposables_stack_.is_valid());
     return current_disposables_stack_;
   }
   void set_current_disposables_stack(Register disposables_stack) {

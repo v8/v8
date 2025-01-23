@@ -1311,13 +1311,13 @@ class V8_NODISCARD BytecodeGenerator::DisposablesStackScope final {
   explicit DisposablesStackScope(BytecodeGenerator* bytecode_generator)
       : bytecode_generator_(bytecode_generator),
         prev_disposables_stack_(
-            bytecode_generator_->current_disposables_stack()) {
-    bytecode_generator_->current_disposables_stack_ =
-        bytecode_generator->register_allocator()->NewRegister();
+            bytecode_generator_->current_disposables_stack_) {
+    bytecode_generator_->set_current_disposables_stack(
+        bytecode_generator->register_allocator()->NewRegister());
     bytecode_generator->builder()->CallRuntime(
         Runtime::kInitializeDisposableStack);
     bytecode_generator->builder()->StoreAccumulatorInRegister(
-        bytecode_generator_->current_disposables_stack_);
+        bytecode_generator_->current_disposables_stack());
   }
 
   ~DisposablesStackScope() {
@@ -1997,7 +1997,6 @@ void BytecodeGenerator::AllocateTopLevelRegisters() {
 
 void BytecodeGenerator::BuildGeneratorPrologue() {
   DCHECK_GT(info()->literal()->suspend_count(), 0);
-  DCHECK(generator_object().is_valid());
   generator_jump_table_ =
       builder()->AllocateJumpTable(info()->literal()->suspend_count(), 0);
 
@@ -2835,7 +2834,7 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
           Register result_register = register_allocator()->NewRegister();
           Register disposable_stack_register =
               register_allocator()->NewRegister();
-          builder()->MoveRegister(current_disposables_stack_,
+          builder()->MoveRegister(current_disposables_stack(),
                                   disposable_stack_register);
           LoopBuilder loop_builder(builder(), nullptr, nullptr,
                                    feedback_spec());
@@ -2867,7 +2866,7 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
               [&](Register context) {
                 RegisterList args = register_allocator()->NewRegisterList(3);
                 builder()
-                    ->MoveRegister(current_disposables_stack_, args[0])
+                    ->MoveRegister(current_disposables_stack(), args[0])
                     .StoreAccumulatorInRegister(args[1])  // exception
                     .LoadTheHole()
                     .SetPendingMessage()
@@ -2885,7 +2884,7 @@ void BytecodeGenerator::BuildDisposeScope(WrappedFunc wrapped_func,
         } else {
           RegisterList args = register_allocator()->NewRegisterList(4);
           builder()
-              ->MoveRegister(current_disposables_stack_, args[0])
+              ->MoveRegister(current_disposables_stack(), args[0])
               .MoveRegister(body_continuation_token, args[1])
               .MoveRegister(body_continuation_result, args[2])
               .LoadLiteral(
@@ -4722,13 +4721,13 @@ void BytecodeGenerator::BuildVariableAssignment(
           if (mode == VariableMode::kUsing) {
             RegisterList args = register_allocator()->NewRegisterList(2);
             builder()
-                ->MoveRegister(current_disposables_stack_, args[0])
+                ->MoveRegister(current_disposables_stack(), args[0])
                 .StoreAccumulatorInRegister(args[1])
                 .CallRuntime(Runtime::kAddDisposableValue, args);
           } else if (mode == VariableMode::kAwaitUsing) {
             RegisterList args = register_allocator()->NewRegisterList(2);
             builder()
-                ->MoveRegister(current_disposables_stack_, args[0])
+                ->MoveRegister(current_disposables_stack(), args[0])
                 .StoreAccumulatorInRegister(args[1])
                 .CallRuntime(Runtime::kAddAsyncDisposableValue, args);
           }
@@ -8269,13 +8268,13 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
   if (variable->location() == VariableLocation::LOCAL) {
     // The new.target register was already assigned by entry trampoline.
-    DCHECK_EQ(incoming_new_target_or_generator_.index(),
+    DCHECK_EQ(incoming_new_target().index(),
               GetRegisterForLocalVariable(variable).index());
     return;
   }
 
   // Store the new target we were called with in the given variable.
-  builder()->LoadAccumulatorWithRegister(incoming_new_target_or_generator_);
+  builder()->LoadAccumulatorWithRegister(incoming_new_target());
   BuildVariableAssignment(variable, Token::kInit, HoleCheckMode::kElided);
 }
 
@@ -8548,8 +8547,15 @@ LanguageMode BytecodeGenerator::language_mode() const {
   return current_scope()->language_mode();
 }
 
+Register BytecodeGenerator::incoming_new_target() const {
+  DCHECK(!IsResumableFunction(info()->literal()->kind()));
+  SBXCHECK(incoming_new_target_or_generator_.is_valid());
+  return incoming_new_target_or_generator_;
+}
+
 Register BytecodeGenerator::generator_object() const {
   DCHECK(IsResumableFunction(info()->literal()->kind()));
+  SBXCHECK(incoming_new_target_or_generator_.is_valid());
   return incoming_new_target_or_generator_;
 }
 
