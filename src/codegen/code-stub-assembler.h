@@ -143,7 +143,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
   TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
-  // TODO(v8:10047): Get rid of these convertions eventually.
+  // TODO(v8:10047): Get rid of these conversions eventually.
   TNode<Smi> TaggedIndexToSmi(TNode<TaggedIndex> value);
   TNode<TaggedIndex> SmiToTaggedIndex(TNode<Smi> value);
 
@@ -2482,7 +2482,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // * |source_map| is the map of |source|. It will be used as the map of the
   // target array if the target can stay a FixedDoubleArray. Otherwise if the
   // target array needs to be a FixedArray, the FixedArrayMap will be used.
-  // * |var_holes_converted| is used to signal whether a FixedAray
+  // * |var_holes_converted| is used to signal whether a FixedArray
   // is produced or not.
   // * |allocation_flags| and |extract_flags| influence how the target array is
   // allocated.
@@ -4740,9 +4740,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
                     TNode<TIndex> index, TNode<Float64T> value);
 
-  // Converts {input} to a number if {input} is a plain primitve (i.e. String or
-  // Oddball) and stores the result in {var_result}. Otherwise, it bails out to
-  // {if_bailout}.
+  // Converts {input} to a number if {input} is a plain primitive (i.e. String
+  // or Oddball) and stores the result in {var_result}. Otherwise, it bails out
+  // to {if_bailout}.
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);

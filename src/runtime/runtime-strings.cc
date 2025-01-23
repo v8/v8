@@ -301,7 +301,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
-    // Use pre-initialized single characters to intialize all the elements.
+    // Use pre-initialized single characters to initialize all the elements.
     // This can be false if the string is sliced from an externalized
     // two-byte string that has only one-byte chars, in that case we will do
     // a LookupSingleCharacterStringFromCode for each of the characters.

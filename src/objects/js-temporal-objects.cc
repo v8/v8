@@ -18555,7 +18555,7 @@ MaybeDirectHandle<JSTemporalCalendar> GetBuiltinCalendar(
                                          CONSTRUCTOR(calendar), id);
 }
 
-// A simple conviention function to avoid the need to unnecessarily exposing
+// A simple convenient function to avoid the need to unnecessarily exposing
 // the definition of enum Disambiguation.
 MaybeDirectHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
     Isolate* isolate, DirectHandle<JSReceiver> time_zone,

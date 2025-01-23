@@ -4877,7 +4877,7 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
   // Finalize the instance size.
   BIND(&complete);
   {
-    // ComplextInobjectSlackTracking doesn't allocate and thus doesn't need a
+    // CompleteInobjectSlackTracking doesn't allocate and thus doesn't need a
     // context.
     CallRuntime(Runtime::kCompleteInobjectSlackTrackingForMap,
                 NoContextConstant(), map);
@@ -5234,7 +5234,7 @@ TNode<JSArray> CodeStubAssembler::CloneFastJSArray(
   Goto(&allocate_jsarray_main);
 
   BIND(&allocate_jsarray_main);
-  // Use the cannonical map for the chosen elements kind.
+  // Use the canonical map for the chosen elements kind.
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
@@ -9810,7 +9810,7 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
           BIND(&if_external);
           {
             // We know nothing about external forwarding indices, so load the
-            // forwarded hash and check all possiblities again.
+            // forwarded hash and check all possibilities again.
             TNode<ExternalReference> function = ExternalConstant(
                 ExternalReference::raw_hash_from_forward_table());
             const TNode<ExternalReference> isolate_ptr =
@@ -13535,7 +13535,7 @@ void CodeStubAssembler::EmitElementStore(
   // TODO(ishell): introduce TryToIntPtrOrSmi() and use BInt.
   TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
-  // TODO(rmcilroy): TNodify the converted value once this funciton and
+  // TODO(rmcilroy): TNodify the converted value once this function and
   // StoreElement are templated based on the type elements_kind type.
   if (IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind)) {
     TNode<JSTypedArray> typed_array = CAST(object);
@@ -18414,7 +18414,7 @@ CodeStubAssembler::AllocateSwissNameDictionaryWithCapacity(
   TNode<IntPtrT> ctrl_table_end_ptr =
       IntPtrAdd(ctrl_table_start_ptr, ctrl_table_size_bytes);
 
-  // |ctrl_table_size_bytes| (= capacity + kGroupWidth) is divisble by four:
+  // |ctrl_table_size_bytes| (= capacity + kGroupWidth) is divisible by four:
   static_assert(SwissNameDictionary::kGroupWidth % 4 == 0);
   static_assert(SwissNameDictionary::kInitialCapacity % 4 == 0);
 

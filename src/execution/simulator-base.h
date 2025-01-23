@@ -115,7 +115,7 @@ class SimulatorBase {
     using signed_t = typename std::make_signed<T>::type;
     return static_cast<intptr_t>(static_cast<signed_t>(arg));
 #else
-    // Standard C++ convertion: Sign-extend signed values, zero-extend unsigned
+    // Standard C++ conversion: Sign-extend signed values, zero-extend unsigned
     // values.
     return static_cast<intptr_t>(arg);
 #endif

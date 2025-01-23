@@ -1159,7 +1159,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 }
 
 FunctionLiteral* Parser::ParseClassForMemberInitialization(
-    FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
+    FunctionKind initializer_kind, int initializer_pos, int initializer_id,
     int initializer_end_pos, const AstRawString* class_name) {
   // When the function is a class members initializer function, we record the
   // source range of the entire class body as its positions in its SFI, so at
@@ -1221,7 +1221,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
     ParseClassLiteralBody(class_info, class_name, class_token_pos, Token::kEos);
 
-    if (initalizer_kind == FunctionKind::kClassMembersInitializerFunction) {
+    if (initializer_kind == FunctionKind::kClassMembersInitializerFunction) {
       DCHECK_EQ(class_info.instance_members_function_id, initializer_id);
       initializer = CreateInstanceMembersInitializer(class_name, &class_info);
     } else {
@@ -1233,11 +1233,11 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
   if (has_error()) return nullptr;
 
-  DCHECK(IsClassMembersInitializerFunction(initalizer_kind));
+  DCHECK(IsClassMembersInitializerFunction(initializer_kind));
 
   no_expression_scope.ValidateExpression();
 
-  DCHECK_EQ(initializer->kind(), initalizer_kind);
+  DCHECK_EQ(initializer->kind(), initializer_kind);
   DCHECK_EQ(initializer->function_literal_id(), initializer_id);
   DCHECK_EQ(initializer->end_position(), initializer_end_pos);
 
@@ -2470,7 +2470,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // Make statement: {{if (flag == 1) break;}}
     {
       Expression* compare = nullptr;
-      // Make compare expresion: flag == 1.
+      // Make compare expression: flag == 1.
       {
         Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
         VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);

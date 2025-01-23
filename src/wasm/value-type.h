@@ -1309,7 +1309,7 @@ class StoreType {
 #undef DEF_ENUM
   };
 
-  // Allow implicit convertion of the enum value to this wrapper.
+  // Allow implicit conversion of the enum value to this wrapper.
   constexpr StoreType(StoreTypeValue val)  // NOLINT(runtime/explicit)
       : val_(val) {}
 

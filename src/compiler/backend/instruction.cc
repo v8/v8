@@ -720,7 +720,7 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(block->loop_header()), GetLoopEndRpo(block),
       GetRpo(block->dominator()), block->deferred(), is_handler);
-  // Map successors and precessors
+  // Map successors and predecessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
     instr_block->successors().push_back(GetRpo(successor));
@@ -1227,7 +1227,7 @@ FrameStateDescriptor::FrameStateDescriptor(
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     uint16_t max_arguments, size_t locals_count, size_t stack_count,
     MaybeIndirectHandle<SharedFunctionInfo> shared_info,
-    MaybeIndirectHandle<BytecodeArray> bytecode_aray,
+    MaybeIndirectHandle<BytecodeArray> bytecode_array,
     FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
     uint32_t wasm_function_index)
     : type_(type),
@@ -1243,7 +1243,7 @@ FrameStateDescriptor::FrameStateDescriptor(
               wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
-      bytecode_array_(bytecode_aray),
+      bytecode_array_(bytecode_array),
       outer_state_(outer_state),
       wasm_function_index_(wasm_function_index) {}
 

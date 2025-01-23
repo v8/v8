@@ -115,16 +115,16 @@ namespace internal {
 //   integrity is independent of an outer object.
 // - In cases where the InstanceType is too generic (e.g. FixedArray) the
 //   XXXVerify of the outer method has to do recursive verification.
-// - If the corresponding objects have inheritence the parent's Verify method
+// - If the corresponding objects have inheritance the parent's Verify method
 //   is called as well.
-// - For any field containing pointes VerifyPointer(...) should be called.
+// - For any field containing pointers VerifyPointer(...) should be called.
 //
 // Caveats
 // -------
 // - Assume that any of the verify methods is incomplete!
 // - Some integrity checks are only partially done due to objects being in
 //   partially initialized states when a gc happens, for instance when outer
-//   objects are allocted before inner ones.
+//   objects are allocated before inner ones.
 //
 
 #ifdef VERIFY_HEAP
@@ -438,7 +438,7 @@ void VerifyJSObjectElements(Isolate* isolate, Tagged<JSObject> object) {
   // Only TypedArrays can have these specialized elements.
   if (IsJSTypedArray(object)) {
     // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
-    // the object or propertly initialize it on errors during construction.
+    // the object or properly initialize it on errors during construction.
     /* CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements()); */
     return;
   }
@@ -684,7 +684,7 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
 
-    // Check constuctor value in JSFunction's maps.
+    // Check constructor value in JSFunction's maps.
     if (IsJSFunctionMap(*this) && !IsMap(constructor_or_back_pointer())) {
       Tagged<Object> maybe_constructor = constructor_or_back_pointer();
       // Constructor field might still contain a tuple if this map used to
@@ -1226,7 +1226,7 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   if (!isolate->has_turbofan_string_builders()) {
     // Turbofan's string builder optimization can introduce SlicedString that
     // are less than SlicedString::kMinLength characters. Their live range and
-    // scope are pretty limitted, but they can be visible to the GC, which
+    // scope are pretty limited, but they can be visible to the GC, which
     // shouldn't treat them as invalid.
     CHECK_GE(length(), SlicedString::kMinLength);
   }

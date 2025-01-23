@@ -74,7 +74,7 @@ assertEarlyError('/\\P{RGI_Emoji_Tag_Sequence}/v');
 assertEarlyError('/\\P{RGI_Emoji_ZWJ_Sequence}/v');
 assertEarlyError('/\\P{RGI_Emoji}/v');
 
-// Invalid identity escape in string disjunciton.
+// Invalid identity escape in string disjunction.
 assertEarlyError('/[\\q{\\w}]/v');
 
 const allAscii = Array.from(

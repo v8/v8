@@ -264,7 +264,7 @@ class MemoryAllocator {
   static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
   // Internal allocation method for all pages/memory chunks. Returns data about
-  // the unintialized memory region.
+  // the uninitialized memory region.
   V8_WARN_UNUSED_RESULT std::optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
                              Executability executable, PageSize page_size) {

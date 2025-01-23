@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    const AstRawString* raw_name);
 
   FunctionLiteral* ParseClassForMemberInitialization(
-      FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
+      FunctionKind initializer_kind, int initializer_pos, int initializer_id,
       int initializer_end_pos, const AstRawString* class_name);
 
   // Called by ParseProgram after setting up the scanner.
@@ -886,7 +886,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // If the parameter list is simple, declare the parameters normally with
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
-      // BuildParamerterInitializationBlock.
+      // BuildParameterInitializationBlock.
       scope->DeclareParameter(
           is_simple ? parameter->name() : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,

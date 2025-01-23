@@ -239,7 +239,7 @@ class V8_EXPORT ArrayBuffer : public Object {
   /**
    * Returns a new standalone BackingStore that is allocated using the array
    * buffer allocator of the isolate. The allocation can either be zero
-   * intialized, or uninitialized. The result can be later passed to
+   * initialized, or uninitialized. The result can be later passed to
    * ArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
@@ -496,7 +496,7 @@ class V8_EXPORT SharedArrayBuffer : public Object {
   /**
    * Returns a new standalone BackingStore that is allocated using the array
    * buffer allocator of the isolate. The allocation can either be zero
-   * intialized, or uninitialized. The result can be later passed to
+   * initialized, or uninitialized. The result can be later passed to
    * SharedArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
