@@ -72,3 +72,11 @@ describe('SpiderMonkey dependencies', () => {
         'spidermonkey/test/load_expected.js');
   });
 });
+
+describe('Sandbox dependencies', () => {
+  it('test', () => {
+    testLoad(
+        'sandbox/load.js',
+        'sandbox/load_expected.js');
+  });
+});

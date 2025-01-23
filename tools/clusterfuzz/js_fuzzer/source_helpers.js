@@ -145,14 +145,17 @@ function _findDependentCodePath(filePath, baseDirectory, caseSensitive=true) {
 }
 
 /**
- * Removes V8/Spidermonkey/Chakra load expressions in a source AST and returns
- * their string values in an array.
+ * Resolves dependencies calculated from the sources and returns their string
+ * values in an array.
+ *
+ * Removes V8/Spidermonkey/Chakra load expressions in a source AST. Calculates
+ * if a Sandbox stub is needed.
  *
  * @param {string} originalFilePath Absolute path to file.
  * @param {AST} ast Babel AST of the sources.
  */
-function resolveLoads(originalFilePath, ast) {
-  const dependencies = [];
+function resolveDependencies(originalFilePath, ast) {
+  const dependencies = new Set();
 
   babelTraverse(ast, {
     CallExpression(path) {
@@ -196,10 +199,18 @@ function resolveLoads(originalFilePath, ast) {
       }
 
       // Add the dependency path.
-      dependencies.push(resolvedPath);
+      dependencies.add(resolvedPath);
+    },
+
+    MemberExpression(path) {
+      const object = path.node.object;
+      if (babelTypes.isIdentifier(object) && object.name == 'Sandbox') {
+        dependencies.add(
+            fsPath.join(__dirname, 'resources', 'sandbox.js'));
+      }
     }
   });
-  return dependencies;
+  return Array.from(dependencies);
 }
 
 function isStrictDirective(directive) {
@@ -388,7 +399,7 @@ function loadSource(corpus, relPath, parseStrict=false) {
   annotateWithOriginalPath(ast, relPath);
 
   const flags = corpus.loadFlags(relPath, data);
-  const dependentPaths = resolveLoads(absPath, ast);
+  const dependentPaths = resolveDependencies(absPath, ast);
 
   return new ParsedSource(ast, corpus, relPath, flags, dependentPaths);
 }
