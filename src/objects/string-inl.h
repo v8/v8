@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_INL_H_
 
 #include <optional>
+#include <type_traits>
 
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -14,6 +15,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-body-descriptors.h"
@@ -247,9 +249,10 @@ static_assert(kExternalTwoByteStringTag ==
 
 static_assert(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
-template <typename TDispatcher, typename TResult, typename... TArgs>
-inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
-  switch (representation_and_encoding_tag()) {
+template <typename TDispatcher, typename... TArgs>
+inline auto String::DispatchToSpecificTypeWithoutCast(
+    InstanceType instance_type, TArgs&&... args) {
+  switch (StringShape(instance_type).representation_and_encoding_tag()) {
     case kSeqStringTag | kOneByteStringTag:
       return TDispatcher::HandleSeqOneByteString(std::forward<TArgs>(args)...);
     case kSeqStringTag | kTwoByteStringTag:
@@ -284,27 +287,74 @@ inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
   V(SlicedString)             \
   V(ThinString)
 
-template <typename TDispatcher, typename TResult, typename... TArgs>
-inline TResult StringShape::DispatchToSpecificType(Tagged<String> str,
-                                                   TArgs&&... args) {
-  class CastingDispatcher : public AllStatic {
-   public:
-#define DEFINE_METHOD(Type)                                                 \
-  static inline TResult Handle##Type(Tagged<String> str, TArgs&&... args) { \
-    return TDispatcher::Handle##Type(Cast<Type>(str),                       \
-                                     std::forward<TArgs>(args)...);         \
-  }
-    STRING_CLASS_TYPES(DEFINE_METHOD)
-#undef DEFINE_METHOD
-    static inline TResult HandleInvalidString(Tagged<String> str,
-                                              TArgs&&... args) {
-      return TDispatcher::HandleInvalidString(str,
-                                              std::forward<TArgs>(args)...);
-    }
-  };
+template <typename TDispatcher>
+V8_INLINE auto String::DispatchToSpecificType(TDispatcher&& dispatcher) const
+    -> std::common_type_t<decltype(dispatcher(Tagged<SeqOneByteString>{})),
+                          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
+                          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
+                          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
+                          decltype(dispatcher(Tagged<ThinString>{})),
+                          decltype(dispatcher(Tagged<ConsString>{})),
+                          decltype(dispatcher(Tagged<SlicedString>{}))> {
+  // The following code inlines the dispatcher calls with V8_INLINE_STATEMENT.
+  // This is so that this behaves, as far as the caller is concerned, like an
+  // inlined type switch.
 
-  return DispatchToSpecificTypeWithoutCast<CastingDispatcher, TResult>(
-      str, std::forward<TArgs>(args)...);
+#if V8_STATIC_ROOTS_BOOL
+  Tagged<Map> map = this->map(kAcquireLoad);
+  if (InstanceTypeChecker::IsSeqString(map)) {
+    if (InstanceTypeChecker::IsOneByteString(map)) {
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<SeqOneByteString>(this));
+    } else {
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<SeqTwoByteString>(this));
+    }
+  } else if (InstanceTypeChecker::IsExternalString(map)) {
+    if (InstanceTypeChecker::IsOneByteString(map)) {
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<ExternalOneByteString>(this));
+    } else {
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<ExternalTwoByteString>(this));
+    }
+  } else if (InstanceTypeChecker::IsThinString(map)) {
+    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ThinString>(this));
+  } else if (InstanceTypeChecker::IsConsString(map)) {
+    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ConsString>(this));
+  } else if (InstanceTypeChecker::IsSlicedString(map)) {
+    V8_INLINE_STATEMENT return dispatcher(UncheckedCast<SlicedString>(this));
+  }
+  UNREACHABLE();
+
+#else
+  switch (StringShape(Tagged(this)).representation_and_encoding_tag()) {
+    case kSeqStringTag | kOneByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<SeqOneByteString>(this));
+    case kSeqStringTag | kTwoByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<SeqTwoByteString>(this));
+    case kConsStringTag | kOneByteStringTag:
+    case kConsStringTag | kTwoByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ConsString>(this));
+    case kExternalStringTag | kOneByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<ExternalOneByteString>(this));
+    case kExternalStringTag | kTwoByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(
+          UncheckedCast<ExternalTwoByteString>(this));
+    case kSlicedStringTag | kOneByteStringTag:
+    case kSlicedStringTag | kTwoByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(UncheckedCast<SlicedString>(this));
+    case kThinStringTag | kOneByteStringTag:
+    case kThinStringTag | kTwoByteStringTag:
+      V8_INLINE_STATEMENT return dispatcher(UncheckedCast<ThinString>(this));
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+#endif
 }
 
 bool String::IsOneByteRepresentation() const {
@@ -913,26 +963,8 @@ uint16_t String::GetImpl(
     uint32_t index, const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(index >= 0 && index < length());
 
-  class StringGetDispatcher : public AllStatic {
-   public:
-#define DEFINE_METHOD(Type)                                  \
-  static inline uint16_t Handle##Type(                       \
-      Tagged<Type> str, int index,                           \
-      const SharedStringAccessGuardIfNeeded& access_guard) { \
-    return str->Get(index, access_guard);                    \
-  }
-    STRING_CLASS_TYPES(DEFINE_METHOD)
-#undef DEFINE_METHOD
-    static inline uint16_t HandleInvalidString(
-        Tagged<String> str, int index,
-        const SharedStringAccessGuardIfNeeded& access_guard) {
-      UNREACHABLE();
-    }
-  };
-
-  return StringShape(Tagged<String>(this))
-      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(this, index,
-                                                             access_guard);
+  return DispatchToSpecificType(
+      [&](auto str) { return str->Get(index, access_guard); });
 }
 
 void String::Set(uint32_t index, uint16_t value) {

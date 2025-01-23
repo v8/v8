@@ -92,9 +92,8 @@ TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type,
     }
   };
 
-  return i::StringShape(type)
-      .DispatchToSpecificTypeWithoutCast<StringGetDispatcher, TypedObject>(
-          address, type_source);
+  return String::DispatchToSpecificTypeWithoutCast<StringGetDispatcher>(
+      type, address, type_source);
 }
 
 TypedObject GetTypedObjectByInstanceType(uintptr_t address,

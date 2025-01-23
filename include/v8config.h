@@ -499,6 +499,16 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE inline
 #endif
 
+// A macro to force better inlining of calls in a statement. Don't bother for
+// debug builds.
+// Use like:
+//   V8_INLINE_STATEMENT foo = bar(); // Will force inlining the bar() call.
+#if !defined(DEBUG) && defined(__clang__) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
+# define V8_INLINE_STATEMENT [[clang::always_inline]]
+#else
+# define V8_INLINE_STATEMENT
+#endif
+
 #if V8_HAS_BUILTIN_ASSUME
 #ifdef DEBUG
 // In debug mode, check assumptions in addition to adding annotations.

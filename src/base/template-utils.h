@@ -39,6 +39,22 @@ constexpr auto make_array(Function f) {
   return detail::make_array_helper(f, std::make_index_sequence<Size>{});
 }
 
+// base::overloaded: Create a callable which wraps a collection of other
+// callables, and treats them as an overload set. A typical use case would
+// be passing a collection of lambda functions to templated code which could
+// call them with different argument types, e.g.
+//
+//   CallWithIntOrDouble(base::overloaded{
+//     [&] (int val) { process_int(val); }
+//     [&] (double val) { process_double(val); }
+//   });
+template <class... Ts>
+struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
 // Helper to determine how to pass values: Pass scalars and arrays by value,
 // others by const reference (even if it was a non-const ref before; this is
 // disallowed by the style guide anyway).

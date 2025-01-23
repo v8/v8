@@ -90,13 +90,6 @@ class StringShape {
     return that.type_ == this->type_;
   }
 
-  // Run different behavior for each concrete string class type, as defined by
-  // the dispatcher.
-  template <typename TDispatcher, typename TResult, typename... TArgs>
-  inline TResult DispatchToSpecificTypeWithoutCast(TArgs&&... args);
-  template <typename TDispatcher, typename TResult, typename... TArgs>
-  inline TResult DispatchToSpecificType(Tagged<String> str, TArgs&&... args);
-
  private:
   uint32_t type_;
 #ifdef DEBUG
@@ -652,6 +645,28 @@ V8_OBJECT class String : public Name {
 
   static inline bool IsInPlaceInternalizableExcludingExternal(
       InstanceType instance_type);
+
+  // Run different behavior for each concrete string class type, to a
+  // dispatcher which is overloaded on that class.
+  template <typename TDispatcher>
+  V8_INLINE auto DispatchToSpecificType(TDispatcher&& dispatcher) const
+      // Help out the type deduction in case TDispatcher returns different
+      // types for different strings.
+      -> std::common_type_t<
+          decltype(dispatcher(Tagged<SeqOneByteString>{})),
+          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
+          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
+          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
+          decltype(dispatcher(Tagged<ThinString>{})),
+          decltype(dispatcher(Tagged<ConsString>{})),
+          decltype(dispatcher(Tagged<SlicedString>{}))>;
+
+  // Similar to the above, but using instance type. Since there is no
+  // string to cast, the dispatcher has static methods for handling
+  // each concrete type.
+  template <typename TDispatcher, typename... TArgs>
+  static inline auto DispatchToSpecificTypeWithoutCast(
+      InstanceType instance_type, TArgs&&... args);
 
  private:
   friend class Name;
