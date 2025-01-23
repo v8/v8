@@ -15,9 +15,14 @@ const sinon = require('sinon');
 const tempfile = require('tempfile');
 const tempy = require('tempy');
 
+const db = require('../db.js');
 const exceptions = require('../exceptions.js');
 const helpers = require('./helpers.js');
+const random = require('../random.js');
 const scriptMutator = require('../script_mutator.js');
+const sourceHelpers = require('../source_helpers.js');
+
+const {CrossOverMutator} = require('../mutators/crossover_mutator.js');
 
 const sandbox = sinon.createSandbox();
 
@@ -120,5 +125,42 @@ describe('Regression tests', () => {
         ['v8/regress/contradictions/input1.js',
          'v8/regress/contradictions/input2.js']);
     assert.deepEqual(['--flag1'], flags);
+  });
+
+  function testSuper(settings, db_path, expected) {
+    // Enforce mutations at every possible location.
+    settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
+    // Choose the only-super-statments path.
+    sandbox.stub(random, 'randInt').callsFake(() => { return 0; });
+
+    const fakeDb = new db.MutateDb(db_path);
+    const mutator = new CrossOverMutator(settings, fakeDb);
+
+    // An input with a couple of insertion spots in constructors and
+    // methods of two classes. One root and one a subclass.
+    const source = helpers.loadTestData('regress/super/input.js')
+    mutator.mutate(source);
+
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(expected, mutated);
+  }
+
+  it('mutates super call', () => {
+    // TODO(389069288): Super insertion is buggy. The super() call expression
+    // leads to a syntax error if it is added to a non-constructor class member
+    // or to a root class.
+    testSuper(
+        this.settings,
+        'test_data/regress/super/super_call_db',
+        'regress/super/call_expected.js');
+  });
+
+  it('mutates super member expression', () => {
+    // TODO(389069288): Super insertion is buggy. The super.x member expression
+    // leads to a syntax error if it is added to a root class.
+    testSuper(
+        this.settings,
+        'test_data/regress/super/super_member_db',
+        'regress/super/member_expected.js');
   });
 });
