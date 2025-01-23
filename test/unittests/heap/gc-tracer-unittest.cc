@@ -66,8 +66,9 @@ void StartTracing(GCTracer* tracer, GarbageCollector collector,
   }
 }
 
-void StopTracing(GCTracer* tracer, GarbageCollector collector,
+void StopTracing(Heap* heap, GarbageCollector collector,
                  std::optional<base::TimeTicks> time = {}) {
+  GCTracer* tracer = heap->tracer();
   tracer->StopAtomicPause();
   tracer->StopObservablePause(collector, time.value_or(base::TimeTicks::Now()));
   switch (collector) {
@@ -78,6 +79,17 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector,
       tracer->NotifyYoungSweepingCompleted();
       break;
     case GarbageCollector::MARK_COMPACTOR:
+      if (heap->cpp_heap()) {
+        using namespace cppgc::internal;
+        StatsCollector* stats_collector =
+            CppHeap::From(heap->cpp_heap())->stats_collector();
+        stats_collector->NotifyMarkingStarted(
+            CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
+            MarkingConfig::IsForcedGC::kNotForced);
+        stats_collector->NotifyMarkingCompleted(0);
+        stats_collector->NotifySweepingCompleted(
+            cppgc::Heap::SweepingType::kAtomic);
+      }
       tracer->NotifyFullSweepingCompleted();
       break;
   }
@@ -145,7 +157,7 @@ TEST_F(GCTracerTest, RegularScope) {
                StartTracingMode::kAtomic);
   tracer->AddScopeSample(GCTracer::Scope::MC_MARK,
                          base::TimeDelta::FromMilliseconds(100));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
             tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
 }
@@ -164,7 +176,7 @@ TEST_F(GCTracerTest, IncrementalScope) {
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
                          base::TimeDelta::FromMilliseconds(100));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(200),
             tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 }
@@ -179,12 +191,12 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
                          base::TimeDelta::FromMilliseconds(50));
   // Scavenger has no impact on incremental marking details.
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
-  StopTracing(tracer, GarbageCollector::SCAVENGER);
+  StopTracing(i_isolate()->heap(), GarbageCollector::SCAVENGER);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
                          base::TimeDelta::FromMilliseconds(100));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
             tracer->current_
                 .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
@@ -208,7 +220,7 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
                          base::TimeDelta::FromMilliseconds(122));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(122),
             tracer->current_
                 .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
@@ -246,7 +258,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
     // Scavenger has no impact on incremental marking details.
     StartTracing(tracer, GarbageCollector::SCAVENGER,
                  StartTracingMode::kAtomic);
-    StopTracing(tracer, GarbageCollector::SCAVENGER);
+    StopTracing(i_isolate()->heap(), GarbageCollector::SCAVENGER);
   }
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
@@ -263,7 +275,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncrementalEnterPause,
                base::TimeTicks::FromMsTicksForTesting(500));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR,
               base::TimeTicks::FromMsTicksForTesting(600));
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
             tracer->current_.incremental_marking_duration);
@@ -279,7 +291,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncrementalEnterPause,
                base::TimeTicks::FromMsTicksForTesting(3000));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR,
               base::TimeTicks::FromMsTicksForTesting(3100));
   EXPECT_DOUBLE_EQ((4000000.0 / 400 + 1000.0 / 2000) / 2,
                    static_cast<double>(
@@ -338,7 +350,7 @@ TEST_F(GCTracerTest, BackgroundScavengerScope) {
   tracer->AddScopeSample(
       GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
       base::TimeDelta::FromMilliseconds(1));
-  StopTracing(tracer, GarbageCollector::SCAVENGER);
+  StopTracing(i_isolate()->heap(), GarbageCollector::SCAVENGER);
   EXPECT_EQ(
       base::TimeDelta::FromMilliseconds(11),
       tracer->current_
@@ -355,7 +367,7 @@ TEST_F(GCTracerTest, BackgroundMinorMSScope) {
                          base::TimeDelta::FromMilliseconds(10));
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
                          base::TimeDelta::FromMilliseconds(1));
-  StopTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MINOR_MARK_SWEEPER);
   EXPECT_EQ(
       base::TimeDelta::FromMilliseconds(11),
       tracer->current_.scopes[GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING]);
@@ -377,7 +389,7 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
     // Scavenger should not affect the major mark-compact scopes.
     StartTracing(tracer, GarbageCollector::SCAVENGER,
                  StartTracingMode::kAtomic);
-    StopTracing(tracer, GarbageCollector::SCAVENGER);
+    StopTracing(i_isolate()->heap(), GarbageCollector::SCAVENGER);
   }
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
                          base::TimeDelta::FromMilliseconds(20));
@@ -397,7 +409,7 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
   tracer->AddScopeSample(
       GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
       base::TimeDelta::FromMilliseconds(4));
-  StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
+  StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(111),
             tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(222),
