@@ -286,20 +286,28 @@ DirectHandle<T> LookupIterator::GetHolder() const {
 
 bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
-  if (receiver->map(isolate_)->is_extensible()) {
+  DisallowGarbageCollection no_gc;
+  Tagged<Map> receiver_map = receiver->map(isolate_);
+  if (receiver_map->is_extensible()) {
     return false;
   }
   // Extending with elements and non-private properties is not allowed.
   if (IsElement() || !name_->IsPrivate()) {
     return true;
   }
+  // These JSObject types are wrappers around a set of primitive values
+  // and exist only for the purpose of passing the data across V8 Api.
+  // They are not supposed to be ever leaked to user JS code.
+  CHECK(!IsJSMessageObjectMap(receiver_map) &&
+        !IsJSExternalObjectMap(receiver_map));
+
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.
-  if (IsAlwaysSharedSpaceJSObject(*receiver)) {
+  if (IsAlwaysSharedSpaceJSObjectMap(receiver_map)) {
     return true;
   }
   // Extending non-extensible objects with private fields is allowed.
-  DCHECK(!receiver->map(isolate_)->is_extensible());
+  DCHECK(!receiver_map->is_extensible());
   DCHECK(name_->IsPrivate());
   if (name_->IsPrivateName()) {
     isolate()->CountUsage(v8::Isolate::kExtendingNonExtensibleWithPrivate);

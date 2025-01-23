@@ -1001,6 +1001,9 @@ class FastCApiObject {
     CHECK_SELF_OR_THROW_FAST_OPTIONS(nullptr);
     self->fast_call_count_++;
 
+    if (i::v8_flags.fuzzing) {
+      return nullptr;
+    }
     return static_cast<void*>(self);
   }
 
@@ -1011,6 +1014,10 @@ class FastCApiObject {
     CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
+    if (i::v8_flags.fuzzing) {
+      info.GetReturnValue().Set(v8::Null(isolate));
+      return;
+    }
     info.GetReturnValue().Set(External::New(isolate, static_cast<void*>(self)));
   }
 

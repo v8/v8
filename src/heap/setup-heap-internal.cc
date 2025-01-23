@@ -227,6 +227,8 @@ bool Heap::CreateMutableHeapObjects() {
   {  // Map allocation
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
                  message_object)
+    message_object_map()->set_is_extensible(false);
+
     ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
                  external)
     external_map()->set_is_extensible(false);

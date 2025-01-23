@@ -243,7 +243,9 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
               isolate, GetShouldThrow(isolate, Nothing<ShouldThrow>()),
               NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                            name_string, it->GetReceiver()));
-        } else if (IsAlwaysSharedSpaceJSObject(*it->GetReceiver())) {
+
+        } else if (it->ExtendingNonExtensible(
+                       it->GetStoreTarget<JSReceiver>())) {
           RETURN_FAILURE(
               isolate, kThrowOnError,
               NewTypeError(MessageTemplate::kDefineDisallowed, name_string));
