@@ -499,6 +499,8 @@ struct WasmEngine::IsolateInfo {
   // the respective source URL.
   struct CodeToLogPerScript {
     std::vector<WasmCode*> code;
+    // Keep the NativeModule alive while code logging is outstanding.
+    std::shared_ptr<NativeModule> native_module;
     std::shared_ptr<const char[]> source_url;
   };
   std::unordered_map<int, CodeToLogPerScript> code_to_log;
@@ -1301,8 +1303,7 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   // deadlock when code actually dies, as that requires taking the {mutex_}.
   // Also, keep the NativeModules themselves alive. The isolate is shutting
   // down, so the heap will not do that any more.
-  std::map<NativeModule*, std::shared_ptr<NativeModule>>
-      native_modules_with_code_to_log;
+  std::set<std::shared_ptr<NativeModule>> native_modules_with_code_to_log;
   WasmCodeRefScope code_ref_scope_for_dead_code;
 
   base::SpinningMutexGuard guard(&mutex_);
@@ -1348,22 +1349,13 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
   // Clear the {code_to_log} vector.
   for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
+    if (code_to_log.native_module == nullptr) {
+      // Wrapper code objects have neither Script nor NativeModule.
+      DCHECK_EQ(script_id, -1);
+      continue;
+    }
+    native_modules_with_code_to_log.insert(code_to_log.native_module);
     for (WasmCode* code : code_to_log.code) {
-      if (code->native_module() == nullptr) {
-        // Wrapper code objects have neither Script nor NativeModule.
-        DCHECK_EQ(script_id, -1);
-      } else if (!native_modules_with_code_to_log.count(
-                     code->native_module())) {
-        std::shared_ptr<NativeModule> shared_native_module =
-            native_modules_[code->native_module()]->weak_ptr.lock();
-        if (!shared_native_module) {
-          // The module is dying already; there's no need to decrement the ref
-          // count and add the code to the WasmCodeRefScope.
-          continue;
-        }
-        native_modules_with_code_to_log.insert(std::make_pair(
-            code->native_module(), std::move(shared_native_module)));
-      }
       // Keep a reference in the {code_ref_scope_for_dead_code} such that the
       // code cannot become dead immediately.
       WasmCodeRefScope::AddRef(code);
@@ -1388,6 +1380,10 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
     DCHECK_EQ(1, native_modules_.count(native_module));
     NativeModuleInfo* native_module_info =
         native_modules_.find(native_module)->second.get();
+    std::shared_ptr<NativeModule> shared_native_module =
+        native_module_info->weak_ptr.lock();
+    // The NativeModule cannot be dying already at this point.
+    DCHECK_NOT_NULL(shared_native_module);
     for (Isolate* isolate : native_module_info->isolates) {
       DCHECK_EQ(1, isolates_.count(isolate));
       IsolateInfo* info = isolates_[isolate].get();
@@ -1409,6 +1405,9 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
 
       WeakScriptHandle& weak_script_handle = script_it->second;
       auto& log_entry = info->code_to_log[weak_script_handle.script_id()];
+      if (!log_entry.native_module) {
+        log_entry.native_module = shared_native_module;
+      }
       if (!log_entry.source_url) {
         log_entry.source_url = weak_script_handle.source_url();
       }
@@ -1533,8 +1532,8 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 
   TRACE_EVENT0("v8.wasm", "wasm.LogCode");
   for (auto& [script_id, code_to_log] : code_to_log_map) {
-    for (WasmCode* code : code_to_log.code) {
-      if (should_log) {
+    if (should_log) {
+      for (WasmCode* code : code_to_log.code) {
         const char* source_url = code_to_log.source_url.get();
         // The source URL can be empty for eval()'ed scripts.
         if (!source_url) source_url = "";
@@ -1712,24 +1711,15 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     // Managed<wasm::NativeModule> object is no longer referenced).
     GetWasmCodeManager()->FlushCodeLookupCache(isolate);
 
-    // If there are {WasmCode} objects of the deleted {NativeModule}
-    // outstanding to be logged in this isolate, remove them. Decrementing the
-    // ref count is not needed, since the {NativeModule} dies anyway.
+    // {CodeToLogPerScript} keeps the NativeModule alive, so if it dies, there
+    // can not be any outstanding code to be logged.
+#ifdef DEBUG
     for (auto& log_entry : info->code_to_log) {
-      std::vector<WasmCode*>& code = log_entry.second.code;
-      auto new_end =
-          std::remove_if(code.begin(), code.end(), part_of_native_module);
-      code.erase(new_end, code.end());
-    }
-    // Now remove empty entries in {code_to_log}.
-    for (auto it = info->code_to_log.begin(), end = info->code_to_log.end();
-         it != end;) {
-      if (it->second.code.empty()) {
-        it = info->code_to_log.erase(it);
-      } else {
-        ++it;
+      for (WasmCode* code : log_entry.second.code) {
+        DCHECK_NE(native_module, code->native_module());
       }
     }
+#endif
   }
   // If there is a GC running which has references to code contained in the
   // deleted {NativeModule}, remove those references.
