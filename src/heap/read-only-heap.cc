@@ -44,9 +44,9 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
                          bool can_rehash) {
   DCHECK_NOT_NULL(isolate);
   IsolateGroup* group = isolate->isolate_group();
+  group->mutex()->AssertHeld();
   if (read_only_snapshot_data != nullptr) {
     bool read_only_heap_created = false;
-    base::SpinningMutexGuard guard(group->read_only_heap_creation_mutex());
     ReadOnlyArtifacts* artifacts = group->read_only_artifacts();
     if (!artifacts) {
       artifacts = group->InitializeReadOnlyArtifacts();
@@ -77,16 +77,6 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
     // Ensure the first read-only page ends up first in the cage.
     artifacts->read_only_heap()->read_only_space()->EnsurePage();
     artifacts->VerifyChecksum(read_only_snapshot_data, true);
-  }
-}
-
-// static
-void ReadOnlyHeap::TearDown(Isolate* isolate) {
-  IsolateGroup* group = isolate->isolate_group();
-  if (group->DecrementIsolateCount() == 0) {
-    base::SpinningMutexGuard guard(group->read_only_heap_creation_mutex());
-    if (isolate->is_shared_space_isolate()) group->ClearSharedSpaceIsolate();
-    group->ClearReadOnlyArtifacts();
   }
 }
 

@@ -39,6 +39,7 @@ class CodeRange;
 class Isolate;
 class ReadOnlyHeap;
 class ReadOnlyArtifacts;
+class SnapshotData;
 
 // An IsolateGroup allows an API user to control which isolates get allocated
 // together in a shared pointer cage.
@@ -95,9 +96,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   // resources.
   void Release();
 
-  int IncrementIsolateCount() { return ++isolate_count_; }
-  int DecrementIsolateCount() { return --isolate_count_; }
-
   v8::PageAllocator* page_allocator() const { return page_allocator_; }
 
 #ifdef V8_COMPRESS_POINTERS
@@ -137,7 +135,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   }
 
   Isolate* shared_space_isolate() const {
-    DCHECK(has_shared_space_isolate());
     return shared_space_isolate_;
   }
 
@@ -146,16 +143,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     shared_space_isolate_ = isolate;
   }
 
-  void ClearSharedSpaceIsolate();
-
   ReadOnlyHeap* shared_read_only_heap() const { return shared_read_only_heap_; }
   void set_shared_read_only_heap(ReadOnlyHeap* heap) {
     shared_read_only_heap_ = heap;
   }
 
-  base::SpinningMutex* read_only_heap_creation_mutex() {
-    return &read_only_heap_creation_mutex_;
-  }
+  base::Mutex* mutex() { return &mutex_; }
 
   ReadOnlyArtifacts* read_only_artifacts() {
     return read_only_artifacts_.get();
@@ -177,6 +170,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
 #endif  // V8_ENABLE_LEAPTIERING
+
+  void SetupReadOnlyHeap(Isolate* isolate,
+                         SnapshotData* read_only_snapshot_data,
+                         bool can_rehash);
+  void AddIsolate(Isolate* isolate);
+  void RemoveIsolate(Isolate* isolate);
 
  private:
   friend class base::LeakyObject<IsolateGroup>;
@@ -208,10 +207,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static void set_current_non_inlined(IsolateGroup* group);
 #endif
 
-  int IsolateCount() const { return isolate_count_.load(); }
-
   std::atomic<int> reference_count_{1};
-  std::atomic<int> isolate_count_{0};
+  int isolate_count_{0};
   v8::PageAllocator* page_allocator_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS
@@ -231,8 +228,9 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   bool process_wide_;
 
-  // Mutex used to ensure that ReadOnlyArtifacts creation is only done once.
-  base::SpinningMutex read_only_heap_creation_mutex_;
+  // Mutex used to synchronize adding and removing of isolates to this group. It
+  // is also used to ensure that ReadOnlyArtifacts creation is only done once.
+  base::Mutex mutex_;
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;

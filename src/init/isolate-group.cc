@@ -6,9 +6,11 @@
 
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/memory.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
 #include "src/sandbox/code-pointer-table-inl.h"
@@ -67,7 +69,7 @@ struct PtrComprCageReservationParams
 IsolateGroup::IsolateGroup() {}
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
-  DCHECK_EQ(isolate_count_.load(), 0);
+  DCHECK_EQ(isolate_count_, 0);
   // If pointer compression is enabled but the external code space is disabled,
   // the pointer cage's page allocator is used for the CodeRange, whose
   // destructor calls it via VirtualMemory::Free.  Therefore we explicitly clear
@@ -202,21 +204,55 @@ CodeRange* IsolateGroup::EnsureCodeRange(size_t requested_size) {
   return code_range_.get();
 }
 
-void IsolateGroup::ClearSharedSpaceIsolate() {
-  DCHECK_EQ(0, IsolateCount());
-  DCHECK(has_shared_space_isolate());
-  shared_space_isolate_ = nullptr;
-}
-
-void IsolateGroup::ClearReadOnlyArtifacts() {
-  DCHECK_EQ(0, IsolateCount());
-  read_only_artifacts_.reset();
-}
-
 ReadOnlyArtifacts* IsolateGroup::InitializeReadOnlyArtifacts() {
+  mutex_.AssertHeld();
   DCHECK(!read_only_artifacts_);
   read_only_artifacts_ = std::make_unique<ReadOnlyArtifacts>();
   return read_only_artifacts_.get();
+}
+
+void IsolateGroup::SetupReadOnlyHeap(Isolate* isolate,
+                                     SnapshotData* read_only_snapshot_data,
+                                     bool can_rehash) {
+  DCHECK_EQ(isolate->isolate_group(), this);
+  base::MutexGuard guard(&mutex_);
+  ReadOnlyHeap::SetUp(isolate, read_only_snapshot_data, can_rehash);
+}
+
+void IsolateGroup::AddIsolate(Isolate* isolate) {
+  DCHECK_EQ(isolate->isolate_group(), this);
+  base::MutexGuard guard(&mutex_);
+  ++isolate_count_;
+
+  if (v8_flags.shared_heap) {
+    if (has_shared_space_isolate()) {
+      isolate->owns_shareable_data_ = false;
+    } else {
+      init_shared_space_isolate(isolate);
+      isolate->is_shared_space_isolate_ = true;
+      DCHECK(isolate->owns_shareable_data_);
+    }
+  }
+}
+
+void IsolateGroup::RemoveIsolate(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+
+  if (--isolate_count_ == 0) {
+    read_only_artifacts_.reset();
+
+    // We are removing the last isolate from the group. If this group has a
+    // shared heap, the last isolate has to be the shared space isolate.
+    DCHECK_EQ(has_shared_space_isolate(), isolate->is_shared_space_isolate());
+
+    if (isolate->is_shared_space_isolate()) {
+      CHECK_EQ(isolate, shared_space_isolate_);
+      shared_space_isolate_ = nullptr;
+    }
+  } else {
+    // The shared space isolate needs to be removed last.
+    DCHECK(!isolate->is_shared_space_isolate());
+  }
 }
 
 // static

@@ -2886,12 +2886,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool is_frozen_ = false;
 
-  friend class heap::HeapTester;
   friend class GlobalSafepoint;
-  friend class TestSerializer;
-  friend class SharedHeapNoClientsTest;
+  friend class heap::HeapTester;
   friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
+  friend class IsolateGroup;
+  friend class TestSerializer;
+  friend class SharedHeapNoClientsTest;
 };
 
 // The current entered Isolate and its thread data. Do not access these

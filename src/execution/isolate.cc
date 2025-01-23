@@ -4143,8 +4143,6 @@ Isolate::Isolate(IsolateGroup* isolate_group)
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
-  isolate_group->IncrementIsolateCount();
-
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
   thread_manager_ = new ThreadManager(this);
@@ -4489,7 +4487,7 @@ void Isolate::Deinit() {
   DumpAndResetStats();
 
   heap_.TearDown();
-  ReadOnlyHeap::TearDown(this);
+  isolate_group()->RemoveIsolate(this);
 
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = nullptr;
@@ -5404,19 +5402,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
-  Isolate* use_shared_space_isolate = nullptr;
-
-  if (v8_flags.shared_heap) {
-    if (isolate_group_->has_shared_space_isolate()) {
-      owns_shareable_data_ = false;
-      use_shared_space_isolate = isolate_group_->shared_space_isolate();
-    } else {
-      isolate_group_->init_shared_space_isolate(this);
-      use_shared_space_isolate = isolate_group_->shared_space_isolate();
-      is_shared_space_isolate_ = true;
-      DCHECK(owns_shareable_data_);
-    }
-  }
+  isolate_group()->AddIsolate(this);
+  Isolate* const use_shared_space_isolate =
+      isolate_group()->shared_space_isolate();
 
   CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
@@ -5559,7 +5547,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     trusted_pointer_table().InitializeSpace(heap()->trusted_pointer_space());
 #endif  // V8_ENABLE_SANDBOX
   }
-  ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
+  isolate_group()->SetupReadOnlyHeap(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces(isolate_data_.new_allocation_info_,
                     isolate_data_.old_allocation_info_);
 
