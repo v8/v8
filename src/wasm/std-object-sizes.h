@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "include/v8config.h"
+#include "src/base/vector.h"
 
 namespace v8::internal::wasm {
 
@@ -28,6 +29,11 @@ inline size_t ContentSize(const std::vector<T>& vector) {
   // We use {capacity()} rather than {size()} because we want to compute
   // actual memory consumption.
   return vector.capacity() * sizeof(T);
+}
+
+template <typename T>
+inline size_t ContentSize(const base::OwnedVector<T>& vector) {
+  return vector.size() * sizeof(T);
 }
 
 template <typename Key, typename T>

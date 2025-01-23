@@ -116,7 +116,9 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
     // Deserialize {feedback_vector}.
     uint32_t feedback_vector_size =
         decoder.consume_u32v("feedback vector size");
-    function_feedback.feedback_vector.resize(feedback_vector_size);
+    function_feedback.feedback_vector =
+        base::OwnedVector<CallSiteFeedback>::NewForOverwrite(
+            feedback_vector_size);
     for (CallSiteFeedback& feedback : function_feedback.feedback_vector) {
       int num_cases = decoder.consume_i32v("num cases");
       if (num_cases == 0) continue;  // no feedback

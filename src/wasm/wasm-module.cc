@@ -742,7 +742,7 @@ size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
 
 size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 104);
-  UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
+  UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 40);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
   base::SharedMutexGuard<base::kShared> lock(&mutex);
   size_t result = ContentSize(feedback_for_function);

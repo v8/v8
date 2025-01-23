@@ -210,9 +210,10 @@ void InliningTree::Inline() {
   auto feedback_it = feedback_map.find(function_index_);
   if (feedback_it == feedback_map.end()) return;
   const FunctionTypeFeedback& feedback = feedback_it->second;
-  if (feedback.call_targets.empty()) return;
-  if (feedback.feedback_vector.size() != feedback.call_targets.size()) return;
-  const std::vector<CallSiteFeedback>& type_feedback = feedback.feedback_vector;
+  base::Vector<CallSiteFeedback> type_feedback =
+      feedback.feedback_vector.as_vector();
+  if (type_feedback.empty()) return;  // No feedback yet.
+  DCHECK_EQ(type_feedback.size(), feedback.call_targets.size());
   feedback_found_ = true;
   function_calls_ =
       data_->zone->AllocateVector<CasesPerCallSite>(type_feedback.size());

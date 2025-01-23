@@ -1317,9 +1317,8 @@ class TransitiveTypeFeedbackProcessor {
 
   void ProcessFunction(int func_index);
 
-  void EnqueueCallees(const std::vector<CallSiteFeedback>& feedback) {
-    for (size_t i = 0; i < feedback.size(); i++) {
-      const CallSiteFeedback& csf = feedback[i];
+  void EnqueueCallees(base::Vector<CallSiteFeedback> feedback) {
+    for (const CallSiteFeedback& csf : feedback) {
       for (int j = 0; j < csf.num_cases(); j++) {
         int func = csf.function_index(j);
         // Don't spend time on calls that have never been executed.
@@ -1361,11 +1360,11 @@ class FeedbackMaker {
                 int func_index, int num_calls)
       : isolate_(isolate),
         instance_data_(trusted_instance_data),
+        result_(
+            base::OwnedVector<CallSiteFeedback>::NewForOverwrite(num_calls)),
         num_imported_functions_(static_cast<int>(
             trusted_instance_data->module()->num_imported_functions)),
-        func_index_(func_index) {
-    result_.reserve(num_calls);
-  }
+        func_index_(func_index) {}
 
   void AddCallRefCandidate(Tagged<WasmFuncRef> funcref, int count) {
     Tagged<WasmInternalFunction> internal_function =
@@ -1446,25 +1445,31 @@ class FeedbackMaker {
     return std::find(targets_cache_.begin(), end, target) != end;
   }
 
+  void AddResult(CallSiteFeedback feedback) {
+    DCHECK_LT(seen_calls_, result_.size());
+    result_[seen_calls_] = feedback;
+    ++seen_calls_;
+  }
+
   void FinalizeCall() {
     if (is_megamorphic_) {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call #%zu: megamorphic]\n", func_index_,
-               result_.size());
+        PrintF("[function %d: call #%d: megamorphic]\n", func_index_,
+               seen_calls_);
       }
-      result_.push_back(CallSiteFeedback::CreateMegamorphic());
+      AddResult(CallSiteFeedback::CreateMegamorphic());
     } else if (cache_usage_ == 0) {
-      result_.emplace_back();
+      AddResult(CallSiteFeedback{});
     } else if (cache_usage_ == 1) {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call #%zu inlineable (monomorphic)]\n",
-               func_index_, result_.size());
+        PrintF("[function %d: call #%d inlineable (monomorphic)]\n",
+               func_index_, seen_calls_);
       }
-      result_.emplace_back(targets_cache_[0], counts_cache_[0]);
+      AddResult(CallSiteFeedback{targets_cache_[0], counts_cache_[0]});
     } else {
       if (v8_flags.trace_wasm_inlining) {
-        PrintF("[function %d: call #%zu inlineable (polymorphic %d)]\n",
-               func_index_, result_.size(), cache_usage_);
+        PrintF("[function %d: call #%d inlineable (polymorphic %d)]\n",
+               func_index_, seen_calls_, cache_usage_);
       }
       DCHECK_LE(cache_usage_, kMaxPolymorphism);
       CallSiteFeedback::PolymorphicCase* polymorphic =
@@ -1473,9 +1478,10 @@ class FeedbackMaker {
         polymorphic[i].function_index = targets_cache_[i];
         polymorphic[i].absolute_call_frequency = counts_cache_[i];
       }
-      result_.emplace_back(polymorphic, cache_usage_);
+      AddResult(CallSiteFeedback{polymorphic, cache_usage_});
     }
-    result_.back().set_has_non_inlineable_targets(has_non_inlineable_targets_);
+    result_[seen_calls_ - 1].set_has_non_inlineable_targets(
+        has_non_inlineable_targets_);
     // TODO(mliedtke): Have a better representation that merges these properties
     // into one object.
     has_non_inlineable_targets_ = false;
@@ -1488,12 +1494,15 @@ class FeedbackMaker {
 
   // {GetResult} can only be called on a r-value reference to make it more
   // obvious at call sites that {this} should not be used after this operation.
-  std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
+  base::OwnedVector<CallSiteFeedback> GetResult() && {
+    return std::move(result_);
+  }
 
  private:
   Isolate* const isolate_;
   const Tagged<WasmTrustedInstanceData> instance_data_;
-  std::vector<CallSiteFeedback> result_;
+  base::OwnedVector<CallSiteFeedback> result_;
+  int seen_calls_ = 0;
   const int num_imported_functions_;
   const int func_index_;
   int cache_usage_{0};
@@ -1606,7 +1615,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
       // feedback to prevent deopt loops where two different instantiations
       // (which have their own on-heap feedback vector) to "flip-flop" between
       // their inlining decisions potentially causing deopt loops.
-      const std::vector<CallSiteFeedback>& existing =
+      const base::OwnedVector<CallSiteFeedback>& existing =
           feedback_for_function_[func_index].feedback_vector;
       size_t feedback_index = i / 2;
       if (feedback_index < existing.size()) {
@@ -1636,8 +1645,10 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 
     fm.FinalizeCall();
   }
-  std::vector<CallSiteFeedback> result = std::move(fm).GetResult();
-  EnqueueCallees(result);
+  base::OwnedVector<CallSiteFeedback> result = std::move(fm).GetResult();
+  EnqueueCallees(result.as_vector());
+  DCHECK_EQ(result.size(),
+            feedback_for_function_[func_index].call_targets.size());
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }
 

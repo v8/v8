@@ -614,7 +614,7 @@ class CallSiteFeedback {
 struct FunctionTypeFeedback {
   // {feedback_vector} is computed from {call_targets} and the instance-specific
   // feedback vector by {TransitiveTypeFeedbackProcessor}.
-  std::vector<CallSiteFeedback> feedback_vector;
+  base::OwnedVector<CallSiteFeedback> feedback_vector;
 
   // {call_targets} has one entry per "call", "call_indirect", and "call_ref" in
   // the function.
