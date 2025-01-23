@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '64008a452d5c9b788eaa698b57c3b43bfae6ba4b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4f2f7fb19f8869797879f9991348957ce33174e8',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a660247d3c14a172b74b8e832ba1066b30183c97',
   'buildtools/linux64': {
@@ -226,7 +226,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9325732da8a5f0ef3d6110013026db9d4fb1bc30',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6fba8f15dc8c3c406209c1214928601249091b4c',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a4131b94475c8c023304993678b6f7d0e347fe0c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '49e10123debf46066fc85b28b8b159ea6a132621',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -300,7 +300,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e55d8cf51c6db1fdd4bb56c158945ec59772c8ee',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'a485ddbbb2ffe528c3ebf82b9d72a7297916531f',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '7fb16ccf18668c4b0146bf27143933cbcbe5a421',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -462,9 +462,9 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '230b3f8c82c8c1603cc8d8da154a6e40c01eab3d',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '5ba5d519003b7c04a2219f40d9e1e2031d6ec7ed',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'a4e44a8e44108e417730f9345808dbe1944917a0',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6f49850910a5160e9f8c3f35f4e07b6fc02feae0',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6dcd83d60f7944926bfd308cc13979fc53dd69ca',
   'third_party/requests': {
