@@ -246,6 +246,7 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 #if V8_ENABLE_WEBASSEMBLY
       case Runtime::kWasmArray:
       case Runtime::kWasmStruct:
+      case Runtime::kWasmTierUpFunction:
       case Runtime::kWasmTriggerTierUpForTesting:
 #endif  // V8_ENABLE_WEBASSEMBLY
         return true;
