@@ -69,8 +69,6 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
 #endif  // V8_COMPRESS_POINTERS
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
-  // TODO(379788114): Have a fast filter for read only pages based on static
-  // roots or a read only reservation.
   // TODO(379788114): Consider introducing a bloom filter for pages.
   const MemoryChunk* chunk =
       allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
