@@ -316,7 +316,6 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
-
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
