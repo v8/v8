@@ -2004,15 +2004,6 @@ void V8DebuggerAgentImpl::didParseSource(
     return;
   }
 
-  m_frontend.scriptParsed(
-      scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-      scriptRef->endLine(), scriptRef->endColumn(), contextId,
-      scriptRef->hash(), scriptRef->buildId(),
-      std::move(executionContextAuxData), isLiveEditParam,
-      std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
-      scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
-      std::move(scriptLanguage), std::move(debugSymbols), embedderName);
-
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
   if (!scriptURL.isEmpty()) {
     protocol::DictionaryValue* breakpointsByUrl =
@@ -2031,6 +2022,8 @@ void V8DebuggerAgentImpl::didParseSource(
   }
   protocol::DictionaryValue* breakpointHints =
       m_state->getObject(DebuggerAgentState::breakpointHints);
+  std::map<String16, std::unique_ptr<protocol::Debugger::Location>>
+      resolvedBreakpoints;
   for (auto breakpoints : potentialBreakpoints) {
     if (!breakpoints) continue;
     for (size_t i = 0; i < breakpoints->size(); ++i) {
@@ -2060,9 +2053,37 @@ void V8DebuggerAgentImpl::didParseSource(
           setBreakpointImpl(breakpointId, scriptId, condition, lineNumber,
                             columnNumber);
       if (location)
-        m_frontend.breakpointResolved(breakpointId, std::move(location));
+        resolvedBreakpoints.emplace(breakpointId, std::move(location));
     }
   }
+
+  auto resolvedBreakpointObjects =
+      !resolvedBreakpoints.empty()
+          ? std::make_unique<std::vector<
+                std::unique_ptr<protocol::Debugger::ResolvedBreakpoint>>>()
+          : nullptr;
+  for (const auto& pair : resolvedBreakpoints) {
+    resolvedBreakpointObjects->emplace_back(
+        protocol::Debugger::ResolvedBreakpoint::create()
+            .setBreakpointId(pair.first)
+            .setLocation(pair.second->Clone())
+            .build());
+  }
+
+  m_frontend.scriptParsed(
+      scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+      scriptRef->endLine(), scriptRef->endColumn(), contextId,
+      scriptRef->hash(), scriptRef->buildId(),
+      std::move(executionContextAuxData), isLiveEditParam,
+      std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
+      scriptRef->length(), std::move(stackTrace), std::move(codeOffset),
+      std::move(scriptLanguage), std::move(debugSymbols), embedderName,
+      std::move(resolvedBreakpointObjects));
+
+  for (auto& pair : resolvedBreakpoints) {
+    m_frontend.breakpointResolved(pair.first, std::move(pair.second));
+  }
+
   setScriptInstrumentationBreakpointIfNeeded(scriptRef);
 }
 

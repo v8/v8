@@ -564,7 +564,8 @@ domain Debugger
       experimental optional array of LocationRange skipList
 
   # Fired when breakpoint is resolved to an actual script and location.
-  event breakpointResolved
+  # Deprecated in favor of `resolvedBreakpoints` in the `scriptParsed` event.
+  deprecated event breakpointResolved
     parameters
       # Breakpoint unique identifier.
       BreakpointId breakpointId
@@ -621,6 +622,13 @@ domain Debugger
         ExternalDWARF
       # URL of the external symbol source.
       optional string externalURL
+
+  type ResolvedBreakpoint extends object
+    properties
+      # Breakpoint unique identifier.
+      BreakpointId breakpointId
+      # Actual breakpoint location.
+      Location location
 
   # Fired when virtual machine fails to parse the script.
   event scriptFailedToParse
@@ -706,6 +714,10 @@ domain Debugger
       experimental optional array of Debugger.DebugSymbols debugSymbols
       # The name the embedder supplied for this script.
       experimental optional string embedderName
+      # The list of set breakpoints in this script if calls to `setBreakpointByUrl`
+      # matches this script's URL or hash. Clients that use this list can ignore the
+      # `breakpointResolved` event. They are equivalent.
+      experimental optional array of ResolvedBreakpoint resolvedBreakpoints
 
 experimental domain HeapProfiler
   depends on Runtime
