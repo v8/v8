@@ -2414,11 +2414,15 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
     Tagged<Object> implicit_arg = old_table->implicit_arg(i);
     if (IsWasmImportData(implicit_arg)) {
       Tagged<WasmImportData> import_data = Cast<WasmImportData>(implicit_arg);
-      // After installing a compiled wrapper, we don't set a call origin
-      // any more.
+      // After installing a compiled wrapper, we don't set or update
+      // call origins any more.
       if (import_data->has_call_origin()) {
-        DCHECK_EQ(*old_table, import_data->call_origin());
-        import_data->set_call_origin(*new_table);
+        if (import_data->call_origin() == *old_table) {
+          import_data->set_call_origin(*new_table);
+        } else {
+          DCHECK_NOT_NULL(
+              wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+        }
       }
     }
 
