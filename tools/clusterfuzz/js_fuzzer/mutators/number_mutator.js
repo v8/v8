@@ -18,9 +18,10 @@ const MIN_SAFE_INTEGER = -9007199254740991;
 const MAX_SAFE_INTEGER = 9007199254740991;
 
 
-function isObjectKey(path) {
+function isMethodOrObjectKey(path) {
   return (path.parent &&
-          babelTypes.isObjectMember(path.parent) &&
+          (babelTypes.isObjectMember(path.parent) ||
+           babelTypes.isClassMethod(path.parent)) &&
           path.parent.key === path.node);
 }
 
@@ -81,7 +82,7 @@ class NumberMutator extends mutator.Mutator {
 
         // Enfore positive numbers if the literal is the key of an object
         // property or method. Negative keys cause syntax errors.
-        const forcePositive = isObjectKey(path);
+        const forcePositive = isMethodOrObjectKey(path);
 
         thisMutator.randomReplace(path, path.node.value, forcePositive);
       },

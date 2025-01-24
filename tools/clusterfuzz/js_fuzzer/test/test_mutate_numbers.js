@@ -51,4 +51,19 @@ describe('Mutate numbers', () => {
     helpers.assertExpectedResult(
         'mutate_numbers_expected.js', mutated);
   });
+
+  it('test getters and setters', () => {
+    // Ensure that numbers in getters and setters stay positive.
+    const source = helpers.loadTestData('mutate_numbers_class.js');
+
+    const settings = scriptMutator.defaultSettings();
+    settings['MUTATE_NUMBERS'] = 1.0;
+
+    const mutator = new numberMutator.NumberMutator(settings);
+    mutator.mutate(source);
+
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'mutate_numbers_class_expected.js', mutated);
+  });
 });
