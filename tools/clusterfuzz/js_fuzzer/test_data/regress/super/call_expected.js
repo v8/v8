@@ -6,33 +6,23 @@
 class A {
   constructor() {
     console.log(42);
-
-    /* CrossOverMutator: Crossover from foo */
-    super();
   }
 
   method() {
     console.log(42);
-
-    /* CrossOverMutator: Crossover from foo */
-    super();
   }
 
 }
 
 class B extends A {
   constructor() {
-    console.log(42);
-
     /* CrossOverMutator: Crossover from foo */
     super();
+    console.log(42);
   }
 
   method() {
     console.log(42);
-
-    /* CrossOverMutator: Crossover from foo */
-    super();
   }
 
 }

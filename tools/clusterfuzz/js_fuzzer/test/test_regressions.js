@@ -130,8 +130,9 @@ describe('Regression tests', () => {
   function testSuper(settings, db_path, expected) {
     // Enforce mutations at every possible location.
     settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
-    // Choose the only-super-statments path.
-    sandbox.stub(random, 'randInt').callsFake(() => { return 0; });
+    // Choose the only-super-statments path. This also fixed the insertion
+    // order to only insert before a statement.
+    sandbox.stub(random, 'choose').callsFake(() => { return true; });
 
     const fakeDb = new db.MutateDb(db_path);
     const mutator = new CrossOverMutator(settings, fakeDb);
@@ -146,9 +147,8 @@ describe('Regression tests', () => {
   }
 
   it('mutates super call', () => {
-    // TODO(389069288): Super insertion is buggy. The super() call expression
-    // leads to a syntax error if it is added to a non-constructor class member
-    // or to a root class.
+    // Ensure that a super() call expression isn't added to a
+    // non-constructor class member or to a root class.
     testSuper(
         this.settings,
         'test_data/regress/super/super_call_db',
@@ -156,8 +156,8 @@ describe('Regression tests', () => {
   });
 
   it('mutates super member expression', () => {
-    // TODO(389069288): Super insertion is buggy. The super.x member expression
-    // leads to a syntax error if it is added to a root class.
+    // Ensure that a super.x member expression isn't added to a
+    // root class.
     testSuper(
         this.settings,
         'test_data/regress/super/super_member_db',
