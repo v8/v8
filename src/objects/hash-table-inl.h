@@ -255,8 +255,8 @@ bool ObjectHashSet::Has(Isolate* isolate, DirectHandle<Object> key) {
       .is_found();
 }
 
-bool ObjectHashTableShape::IsMatch(DirectHandle<Object> key,
-                                   Tagged<Object> other) {
+bool ObjectHashTableShapeBase::IsMatch(DirectHandle<Object> key,
+                                       Tagged<Object> other) {
   return Object::SameValue(*key, other);
 }
 
@@ -289,13 +289,13 @@ uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, DirectHandle<Name> key) {
   return key->hash();
 }
 
-uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots,
-                                    DirectHandle<Object> key) {
+uint32_t ObjectHashTableShapeBase::Hash(ReadOnlyRoots roots,
+                                        DirectHandle<Object> key) {
   return Smi::ToInt(Object::GetHash(*key));
 }
 
-uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
-                                             Tagged<Object> other) {
+uint32_t ObjectHashTableShapeBase::HashForObject(ReadOnlyRoots roots,
+                                                 Tagged<Object> other) {
   return Smi::ToInt(Object::GetHash(other));
 }
 

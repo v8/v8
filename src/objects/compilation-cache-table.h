@@ -45,6 +45,8 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   // Why 3 slots? Because of the eval cache.
   static const int kEntrySize = 3;
   static const bool kMatchNeedsHoleCheck = true;
+  static const bool kDoHashSpreading = false;
+  static const uint32_t kHashBits = 0;
 };
 
 class InfoCellPair {

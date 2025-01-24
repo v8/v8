@@ -150,6 +150,8 @@ class BaseDictionaryShape : public BaseShape<Key> {
   template <typename Dictionary>
   static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
                                   PropertyDetails value);
+  static const bool kDoHashSpreading = false;
+  static const uint32_t kHashBits = 0;
 };
 
 class BaseNameDictionaryShape : public BaseDictionaryShape<DirectHandle<Name>> {

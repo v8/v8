@@ -5242,6 +5242,9 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
   return isolate->factory()->undefined_value();
 }
 
+const uint32_t EphemeronHashTableShape::kHashBits =
+    PropertyArray::HashField::kSize;
+
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {
   BodyDescriptorBase::IteratePointers(this, 0, kElementsStartOffset, v);
@@ -6016,7 +6019,7 @@ void RehashObjectHashTableAndGCIfNeeded(Isolate* isolate, HandleType<T> table) {
   // isn't enough to avoid a crash.
   if (!table->HasSufficientCapacityToAdd(1)) {
     int nof = table->NumberOfElements() + 1;
-    int capacity = T::ComputeCapacity(nof * 2);
+    int capacity = T::ComputeCapacity(nof);
     if (capacity > T::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
@@ -6750,7 +6753,8 @@ EXTERN_DEFINE_HASH_TABLE(NameToIndexHashTable, NameToIndexShape)
 EXTERN_DEFINE_HASH_TABLE(RegisteredSymbolTable, RegisteredSymbolTableShape)
 
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
-EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                     EphemeronHashTableShape)
 
 EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 

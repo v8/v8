@@ -10279,6 +10279,7 @@ void CodeStubAssembler::NameDictionaryLookup(
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
+  static_assert(!NameDictionaryShape::kDoHashSpreading);
 
   Label if_not_computed(this, Label::kDeferred);
 
@@ -10445,6 +10446,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   CSA_DCHECK(this, IsNumberDictionary(dictionary));
   DCHECK_EQ(MachineType::PointerRepresentation(), var_entry->rep());
   Comment("NumberDictionaryLookup");
+  static_assert(!NumberDictionaryShape::kDoHashSpreading);
 
   TNode<IntPtrT> capacity =
       PositiveSmiUntag(GetCapacity<NumberDictionary>(dictionary));

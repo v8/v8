@@ -1878,7 +1878,8 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
   return IsSymbol(obj) && !Cast<Symbol>(obj)->is_in_public_symbol_table();
 }
 
-DirectHandle<Object> ObjectHashTableShape::AsHandle(DirectHandle<Object> key) {
+DirectHandle<Object> ObjectHashTableShapeBase::AsHandle(
+    DirectHandle<Object> key) {
   return key;
 }
 

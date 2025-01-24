@@ -23,6 +23,8 @@ class StringSetShape : public BaseShape<Tagged<String>> {
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
   static const bool kMatchNeedsHoleCheck = true;
+  static const bool kDoHashSpreading = false;
+  static const uint32_t kHashBits = 0;
 };
 
 EXTERN_DECLARE_HASH_TABLE(StringSet, StringSetShape)
