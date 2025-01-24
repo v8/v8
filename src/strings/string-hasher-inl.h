@@ -5,7 +5,14 @@
 #ifndef V8_STRINGS_STRING_HASHER_INL_H_
 #define V8_STRINGS_STRING_HASHER_INL_H_
 
+#include "src/common/globals.h"
 #include "src/strings/string-hasher.h"
+
+#ifdef __SSE2__
+#include <emmintrin.h>
+#elif defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
 
 // Comment inserted to prevent header reordering.
 #include <type_traits>
@@ -14,17 +21,55 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils-inl.h"
+#include "third_party/rapidhash-v8/rapidhash.h"
 
 namespace v8 {
 namespace internal {
 
+namespace detail {
+V8_EXPORT_PRIVATE uint64_t HashConvertingTo8Bit(const uint16_t* chars,
+                                                uint32_t length, uint64_t seed);
+}
+
 namespace {
-// static
-uint32_t ConvertRawHashToUsableHash(uint32_t raw_hash) {
+template <typename T>
+uint32_t ConvertRawHashToUsableHash(T raw_hash) {
   // Limit to the supported bits.
   const int32_t hash = static_cast<int32_t>(raw_hash & String::HashBits::kMax);
   // Ensure that the hash is kZeroHash, if the computed value is 0.
   return hash == 0 ? StringHasher::kZeroHash : hash;
+}
+
+V8_INLINE bool IsOnly8Bit(const uint16_t* chars, unsigned len) {
+  // TODO(leszeks): This could be SIMD for efficiency on large strings, if we
+  // need it.
+  for (unsigned i = 0; i < len; ++i) {
+    if (chars[i] > 255) {
+      return false;
+    }
+  }
+  return true;
+}
+
+V8_INLINE uint64_t GetRapidHash(const uint8_t* chars, uint32_t length,
+                                uint64_t seed) {
+  return rapidhash(chars, length, seed);
+}
+
+V8_INLINE uint64_t GetRapidHash(const uint16_t* chars, uint32_t length,
+                                uint64_t seed) {
+  // For 2-byte strings we need to preserve the same hash for strings in just
+  // the latin-1 range.
+  if (V8_UNLIKELY(IsOnly8Bit(chars, length))) {
+    return detail::HashConvertingTo8Bit(chars, length, seed);
+  }
+  return rapidhash(reinterpret_cast<const uint8_t*>(chars), 2 * length, seed);
+}
+
+template <typename uchar>
+V8_INLINE uint32_t GetUsableRapidHash(const uchar* chars, uint32_t length,
+                                      uint64_t seed) {
+  return ConvertRawHashToUsableHash(GetRapidHash(chars, length, seed));
 }
 }  // namespace
 
@@ -132,38 +177,42 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
       // No "else" here: if the block above was entered and fell through,
       // we have something that's not an array index but might still have
       // been all digits and therefore a valid in-range integer index.
-      // Perform a regular hash computation, and additionally check if
-      // there are non-digit characters.
-      String::HashFieldType type = String::HashFieldType::kIntegerIndex;
+      // Check if there are any remaining non-digit characters, and if
+      // we fit inside the overflow.
       uint64_t index_big = index;
-      RunningStringHasher hasher(static_cast<uint32_t>(seed));
-      for (uint32_t j = 0; j < i; j++) {
-        hasher.AddCharacter(chars[j]);
-      }
       for (; i < length; i++) {
         char_t c = chars[i];
-        hasher.AddCharacter(c);
-        // TODO(leszeks): Split this into a safe length iteration.
-        if (!IsDecimalDigit(c) || !TryAddIntegerIndexChar(&index_big, c)) {
-          for (i = i + 1; i < length; i++) {
-            hasher.AddCharacter(chars[i]);
-          }
-          type = String::HashFieldType::kHash;
-          break;
+        if (!IsDecimalDigit(c)) {
+          // If there is a non-decimal digit, we can skip doing anything
+          // else and emit a non-index hash.
+          goto non_index_hash;
         }
+        // We should never be anywhere near overflowing, so we can just do
+        // one range check at the end.
+        static_assert(kMaxSafeIntegerUint64 < (kMaxUInt64 / 100));
+        DCHECK_LT(index_big, kMaxUInt64 / 100);
+
+        index_big = (10 * index_big) + (c - '0');
       }
-      DCHECK_EQ(i, length);
-      uint32_t hash = String::CreateHashFieldValue(hasher.Finalize(), type);
-      if (Name::ContainsCachedArrayIndex(hash)) {
-        DCHECK_EQ(type, String::HashFieldType::kIntegerIndex);
-        // The hash accidentally looks like a cached index. Fix that by
-        // setting a bit that looks like a longer-than-cacheable string
-        // length.
-        hash |= (String::kMaxCachedArrayIndexLength + 1)
-                << String::ArrayIndexLengthBits::kShift;
+      if (index_big <= kMaxSafeIntegerUint64) {
+        uint32_t hash = String::CreateHashFieldValue(
+            GetUsableRapidHash(chars, length, seed),
+            String::HashFieldType::kIntegerIndex);
+        if (Name::ContainsCachedArrayIndex(hash)) {
+          // The hash accidentally looks like a cached index. Fix that by
+          // setting a bit that looks like a longer-than-cacheable string
+          // length.
+          hash |= (String::kMaxCachedArrayIndexLength + 1)
+                  << String::ArrayIndexLengthBits::kShift;
+        }
+        DCHECK(!Name::ContainsCachedArrayIndex(hash));
+        return hash;
       }
-      DCHECK(!Name::ContainsCachedArrayIndex(hash));
-      return hash;
+      // If the range check fails, this falls through into the non-index
+      // hash case.
+      // TODO(leszeks): Since we've bounded the length here to 16 or less,
+      // we could consider calling rapidhash directly, as it special cases
+      // small strings.
 #endif
     } else if (length > String::kMaxHashCalcLength) {
       // We should never go down this path if we might have an index value.
@@ -175,12 +224,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
 non_index_hash:
   // Non-index hash.
-  RunningStringHasher hasher(static_cast<uint32_t>(seed));
-  const uchar* end = &chars[length];
-  while (chars != end) {
-    hasher.AddCharacter(*chars++);
-  }
-  return String::CreateHashFieldValue(hasher.Finalize(),
+  return String::CreateHashFieldValue(GetUsableRapidHash(chars, length, seed),
                                       String::HashFieldType::kHash);
 }
 
