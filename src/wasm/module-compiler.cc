@@ -111,8 +111,10 @@ class CompilationUnitQueues {
     bool ShouldPublish(int num_processed_units) const;
   };
 
-  explicit CompilationUnitQueues(int num_declared_functions)
-      : num_declared_functions_(num_declared_functions) {
+  explicit CompilationUnitQueues(int num_imported_functions,
+                                 int num_declared_functions)
+      : num_imported_functions_(num_imported_functions),
+        num_declared_functions_(num_declared_functions) {
     // Add one first queue, to add units to.
     queues_.emplace_back(std::make_unique<QueueImpl>(0));
 
@@ -265,7 +267,8 @@ class CompilationUnitQueues {
   }
 
   void AllowAnotherTopTierJob(uint32_t func_index) {
-    top_tier_compiled_[func_index].store(false, std::memory_order_relaxed);
+    top_tier_compiled_[declared_function_index(func_index)].store(
+        false, std::memory_order_relaxed);
   }
 
   size_t EstimateCurrentMemoryConsumption() const;
@@ -414,8 +417,8 @@ class CompilationUnitQueues {
         queue->top_tier_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
-        if (!top_tier_compiled_[unit.func_index()].exchange(
-                true, std::memory_order_relaxed)) {
+        if (!top_tier_compiled_[declared_function_index(unit.func_index())]
+                 .exchange(true, std::memory_order_relaxed)) {
           return unit;
         }
         num_units_[CompilationTier::kTopTier].fetch_sub(
@@ -488,8 +491,8 @@ class CompilationUnitQueues {
         steal_queue->top_tier_priority_units.pop();
         num_priority_units_.fetch_sub(1, std::memory_order_relaxed);
 
-        if (!top_tier_compiled_[unit.func_index()].exchange(
-                true, std::memory_order_relaxed)) {
+        if (!top_tier_compiled_[declared_function_index(unit.func_index())]
+                 .exchange(true, std::memory_order_relaxed)) {
           returned_unit = unit;
           break;
         }
@@ -502,10 +505,17 @@ class CompilationUnitQueues {
     return returned_unit;
   }
 
+  int declared_function_index(int func_index) const {
+    DCHECK_LE(num_imported_functions_, func_index);
+    DCHECK_LT(func_index, num_imported_functions_ + num_declared_functions_);
+    return func_index - num_imported_functions_;
+  }
+
   // {queues_mutex_} protectes {queues_};
   mutable base::SharedMutex queues_mutex_;
   std::vector<std::unique_ptr<QueueImpl>> queues_;
 
+  const int num_imported_functions_;
   const int num_declared_functions_;
 
   BigUnitsQueue big_units_queue_;
@@ -3576,7 +3586,8 @@ CompilationStateImpl::CompilationStateImpl(
     : native_module_(native_module.get()),
       native_module_weak_(std::move(native_module)),
       async_counters_(std::move(async_counters)),
-      compilation_unit_queues_(native_module->num_functions()),
+      compilation_unit_queues_(native_module->num_imported_functions(),
+                               native_module->num_declared_functions()),
       dynamic_tiering_(dynamic_tiering),
       detected_features_(detected_features) {}
 
