@@ -959,6 +959,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
 
   } else if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
+  } else if (InstanceTypeChecker::IsOddball(instance_type)) {
+    Tagged<String> name = Cast<Oddball>(object)->to_string();
+    return AddEntry(object, HeapEntry::kHidden, names_->GetName(name));
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
