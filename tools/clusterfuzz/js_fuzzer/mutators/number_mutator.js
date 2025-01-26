@@ -10,12 +10,18 @@
 
 const babelTypes = require('@babel/types');
 
+const arrayMutator = require('./array_mutator.js');
 const common = require('./common.js');
 const random = require('../random.js');
 const mutator = require('./mutator.js');
 
 const MIN_SAFE_INTEGER = -9007199254740991;
 const MAX_SAFE_INTEGER = 9007199254740991;
+
+// Large arrays cause too many mutations, which also wastes time in this
+// visitor. Often, large arrays are output from Binaryen, which gets
+// invalidated easily.
+const SKIP_LARGE_ARRAYS_PROB = 0.9;
 
 
 function isMethodOrObjectKey(path) {
@@ -68,6 +74,12 @@ class NumberMutator extends mutator.Mutator {
     const thisMutator = this;
 
     return {
+      ArrayExpression(path) {
+        if (path.node.elements.length > arrayMutator.MAX_ARRAY_LENGTH &&
+            random.choose(module.exports.SKIP_LARGE_ARRAYS_PROB)) {
+          path.skip();
+        }
+      },
       NumericLiteral(path) {
         if (thisMutator.ignore(path)) {
           return;
@@ -102,5 +114,6 @@ class NumberMutator extends mutator.Mutator {
 }
 
 module.exports = {
+  SKIP_LARGE_ARRAYS_PROB: SKIP_LARGE_ARRAYS_PROB,
   NumberMutator: NumberMutator,
 };

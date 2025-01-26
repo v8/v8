@@ -44,3 +44,9 @@ var a = {
 var b =
 /* NumberMutator: Replaced -10 with -4 */
 -4;
+let c = [
+/* NumberMutator: Replaced 0 with -3 */
+-3,
+/* NumberMutator: Replaced 1 with -5 */
+-5];
+let d = [0, 1, 2];

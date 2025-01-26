@@ -11,6 +11,7 @@
 const babelTypes = require('@babel/types');
 const sinon = require('sinon');
 
+const arrayMutator = require('../mutators/array_mutator.js');
 const common = require('../mutators/common.js');
 const helpers = require('./helpers.js');
 const scriptMutator = require('../script_mutator.js');
@@ -38,7 +39,11 @@ describe('Mutate numbers', () => {
     sandbox.restore();
   });
 
-  it('test', () => {
+  it('test multiple mutations', () => {
+    // Ensure large arrays are not mutated. For testing make arrays > 2 large.
+    sandbox.stub(arrayMutator, 'MAX_ARRAY_LENGTH').value(2);
+    sandbox.stub(numberMutator, 'SKIP_LARGE_ARRAYS_PROB').value(1);
+
     const source = helpers.loadTestData('mutate_numbers.js');
 
     const settings = scriptMutator.defaultSettings();
