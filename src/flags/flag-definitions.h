@@ -3015,6 +3015,9 @@ DEFINE_SIZE_T(minor_ms_min_lab_size_kb, 0,
 
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
 DEFINE_BOOL(print_flag_values, false, "Print all flag values of V8")
+DEFINE_BOOL(print_feature_flags_json, false,
+            "Print JS and Wasm feature flags grouped by in-progress, staged, "
+            "and shipped")
 
 // Slow histograms are also enabled via --dump-counters in d8.
 DEFINE_BOOL(slow_histograms, false,

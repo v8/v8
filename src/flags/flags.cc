@@ -743,6 +743,13 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
     }
   }
 
+  if (v8_flags.print_feature_flags_json) {
+    PrintFeatureFlagsJSON();
+    if (help_options.ShouldExit()) {
+      exit(0);
+    }
+  }
+
   if (remove_flags) {
     // Shrink the argument list.
     int j = 1;
@@ -860,6 +867,121 @@ void FlagList::PrintValues() {
   for (const Flag& f : flags) {
     os << f << "\n";
   }
+}
+
+namespace {
+
+void PrintFlagsJSONArray(std::ostream& os,
+                         const std::vector<const char*>& flags) {
+  if (flags.empty()) {
+    os << "[]";
+  } else {
+    os << "[\n";
+    bool first = true;
+    for (const auto& flag : flags) {
+      if (!first) os << ",\n";
+      os << "      \"" << flag << "\"";
+      first = false;
+    }
+    os << "\n" << "    ]";
+  }
+}
+
+void PrintFeatureFlagsJSONObject(
+    std::ostream& os, const std::vector<const char*>& inprogress_flags,
+    const std::vector<const char*>& staged_flags,
+    const std::vector<const char*>& shipping_flags) {
+  os << "{\n";
+
+  os << "    \"in-progress\": ";
+  PrintFlagsJSONArray(os, inprogress_flags);
+  os << ",\n";
+
+  os << "    \"staged\": ";
+  PrintFlagsJSONArray(os, staged_flags);
+  os << ",\n";
+
+  os << "    \"shipping\": ";
+  PrintFlagsJSONArray(os, shipping_flags);
+  os << "\n";
+
+  os << "  }";
+}
+
+}  // namespace
+
+// static
+void FlagList::PrintFeatureFlagsJSON() {
+  StdoutStream os;
+
+  os << "{\n";
+
+  {
+    std::vector<const char*> inprogress_flags;
+    std::vector<const char*> staged_flags;
+    std::vector<const char*> shipping_flags;
+
+#define ADD_JS_INPROGRESS_FLAG(name, desc) inprogress_flags.push_back(#name);
+#define ADD_JS_STAGED_FLAG(name, desc) staged_flags.push_back(#name);
+#define ADD_JS_SHIPPING_FLAG(name, desc) shipping_flags.push_back(#name);
+
+    JAVASCRIPT_INPROGRESS_FEATURES(ADD_JS_INPROGRESS_FLAG)
+    JAVASCRIPT_STAGED_FEATURES(ADD_JS_STAGED_FLAG)
+    JAVASCRIPT_SHIPPING_FEATURES(ADD_JS_SHIPPING_FLAG)
+
+    os << "  \"js\": ";
+    PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
+                                shipping_flags);
+    os << ",\n";
+  }
+
+  {
+    std::vector<const char*> inprogress_flags;
+    std::vector<const char*> staged_flags;
+    std::vector<const char*> shipping_flags;
+
+    HARMONY_INPROGRESS(ADD_JS_INPROGRESS_FLAG)
+    HARMONY_STAGED(ADD_JS_STAGED_FLAG)
+    HARMONY_SHIPPING(ADD_JS_SHIPPING_FLAG)
+
+    os << "  \"harmony\": ";
+    PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
+                                shipping_flags);
+    os << ",\n";
+  }
+
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    std::vector<const char*> inprogress_flags;
+    std::vector<const char*> staged_flags;
+    std::vector<const char*> shipping_flags;
+
+#define ADD_WASM_INPROGRESS_FLAG(name, desc, val) \
+  inprogress_flags.push_back("experimental_wasm_" #name);
+#define ADD_WASM_STAGED_FLAG(name, desc, val) \
+  staged_flags.push_back("experimental_wasm_" #name);
+#define ADD_WASM_SHIPPED_FLAG(name, desc, val) \
+  shipping_flags.push_back("experimental_wasm_" #name);
+
+    FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(ADD_WASM_INPROGRESS_FLAG)
+    FOREACH_WASM_STAGING_FEATURE_FLAG(ADD_WASM_STAGED_FLAG)
+    FOREACH_WASM_SHIPPED_FEATURE_FLAG(ADD_WASM_SHIPPED_FLAG)
+
+    os << "  \"wasm\": ";
+    PrintFeatureFlagsJSONObject(os, inprogress_flags, staged_flags,
+                                shipping_flags);
+    os << "\n";
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  os << "}\n";
+
+#undef ADD_JS_INPROGRESS_FLAG
+#undef ADD_JS_STAGED_FLAG
+#undef ADD_JS_SHIPPING_FLAG
+#undef ADD_WASM_INPROGRESS_FLAG
+#undef ADD_WASM_STAGED_FLAG
+#undef ADD_WASM_SHIPPED_FLAG
 }
 
 namespace {
