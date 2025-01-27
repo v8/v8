@@ -234,7 +234,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason,
   if (v8_flags.heap_snapshot_on_oom) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
-    isolate->heap_profiler()->WriteSnapshotToDiskAfterGC(
+    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC(
         v8::HeapProfiler::HeapSnapshotMode::kExposeInternals);
   }
   V8::FatalProcessOutOfMemory(isolate, reason.c_str());
@@ -580,7 +580,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   heap_ = isolate->heap();
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
-  if (auto* heap_profiler = isolate_->heap_profiler()) {
+  if (auto* heap_profiler = heap()->heap_profiler()) {
     heap_profiler->AddBuildEmbedderGraphCallback(&CppGraphBuilder::Run, this);
     heap_profiler->set_native_move_listener(
         std::make_unique<MoveListenerImpl>(heap_profiler, this));
@@ -625,7 +625,7 @@ void CppHeap::StartDetachingIsolate() {
 void CppHeap::DetachIsolate() {
   sweeping_on_mutator_thread_observer_.reset();
 
-  if (auto* heap_profiler = isolate_->heap_profiler()) {
+  if (auto* heap_profiler = heap()->heap_profiler()) {
     heap_profiler->RemoveBuildEmbedderGraphCallback(&CppGraphBuilder::Run,
                                                     this);
     heap_profiler->set_native_move_listener(nullptr);

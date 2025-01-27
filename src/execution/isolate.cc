@@ -4335,12 +4335,12 @@ void Isolate::ClearSerializerData() {
 // When profiling status changes, call this function to update the single bool
 // cache.
 void Isolate::UpdateLogObjectRelocation() {
-  log_object_relocation_ = v8_flags.verify_predictable ||
-                           IsLoggingCodeCreation() ||
-                           v8_file_logger()->is_logging() ||
-                           (heap_profiler() != nullptr &&
-                            heap_profiler()->is_tracking_object_moves()) ||
-                           heap()->has_heap_object_allocation_tracker();
+  log_object_relocation_ =
+      v8_flags.verify_predictable || IsLoggingCodeCreation() ||
+      v8_file_logger()->is_logging() ||
+      (heap()->heap_profiler() != nullptr &&
+       heap()->heap_profiler()->is_tracking_object_moves()) ||
+      heap()->has_heap_object_allocation_tracker();
 }
 
 void Isolate::Deinit() {
@@ -4381,7 +4381,7 @@ void Isolate::Deinit() {
 
   tracing_cpu_profiler_.reset();
   if (v8_flags.stress_sampling_allocation_profiler > 0) {
-    heap_profiler()->StopSamplingHeapProfiler();
+    heap()->heap_profiler()->StopSamplingHeapProfiler();
   }
 
   metrics_recorder_->NotifyIsolateDisposal();
@@ -4479,9 +4479,6 @@ void Isolate::Deinit() {
     delete tiering_manager_;
     tiering_manager_ = nullptr;
   }
-
-  delete heap_profiler_;
-  heap_profiler_ = nullptr;
 
 #if USE_SIMULATOR
   delete simulator_data_;
@@ -5446,7 +5443,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data()->set_regexp_static_result_offsets_vector(
       jsregexp_static_offsets_vector());
   date_cache_ = new DateCache();
-  heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
@@ -5791,8 +5787,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     int stack_depth = 128;
     v8::HeapProfiler::SamplingFlags sampling_flags =
         v8::HeapProfiler::SamplingFlags::kSamplingForceGC;
-    heap_profiler()->StartSamplingHeapProfiler(sample_interval, stack_depth,
-                                               sampling_flags);
+    heap()->heap_profiler()->StartSamplingHeapProfiler(
+        sample_interval, stack_depth, sampling_flags);
   }
 
   if (create_heap_objects && v8_flags.profile_deserialization) {

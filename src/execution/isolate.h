@@ -1495,7 +1495,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Logger* logger() const { return logger_; }
-  HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
   static size_t non_disposed_isolates() { return non_disposed_isolates_; }
@@ -2652,7 +2651,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif
 
   Debug* debug_ = nullptr;
-  HeapProfiler* heap_profiler_ = nullptr;
   Logger* logger_ = nullptr;
 
   const AstStringConstants* ast_string_constants_ = nullptr;

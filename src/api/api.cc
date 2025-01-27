@@ -9803,7 +9803,7 @@ IsolateGroup& v8::IsolateGroup::operator=(IsolateGroup&& other) {
 
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
-      reinterpret_cast<i::Isolate*>(this)->heap_profiler();
+      reinterpret_cast<i::Isolate*>(this)->heap()->heap_profiler();
   return reinterpret_cast<HeapProfiler*>(heap_profiler);
 }
 
@@ -11725,12 +11725,12 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 
 void HeapSnapshot::Delete() {
   i::Isolate* i_isolate = ToInternal(this)->profiler()->isolate();
-  if (i_isolate->heap_profiler()->GetSnapshotsCount() > 1 ||
-      i_isolate->heap_profiler()->IsTakingSnapshot()) {
+  if (i_isolate->heap()->heap_profiler()->GetSnapshotsCount() > 1 ||
+      i_isolate->heap()->heap_profiler()->IsTakingSnapshot()) {
     ToInternal(this)->Delete();
   } else {
     // If this is the last snapshot, clean up all accessory data as well.
-    i_isolate->heap_profiler()->DeleteAllSnapshots();
+    i_isolate->heap()->heap_profiler()->DeleteAllSnapshots();
   }
 }
 

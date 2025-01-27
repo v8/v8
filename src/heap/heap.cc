@@ -1410,7 +1410,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
       v8_flags.heap_snapshot_on_oom) {
-    isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+    heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
 }
 
@@ -1739,7 +1739,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
     if (v8_flags.heap_snapshot_on_gc > 0 &&
         static_cast<size_t>(v8_flags.heap_snapshot_on_gc) == ms_count_) {
-      isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+      heap_profiler()->WriteSnapshotToDiskAfterGC();
     }
   } else {
     // Start incremental marking for the next cycle. We do this only for
@@ -1753,7 +1753,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     InvokeNearHeapLimitCallback();
     if (!CanExpandOldGeneration(0)) {
       if (v8_flags.heap_snapshot_on_oom) {
-        isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+        heap_profiler()->WriteSnapshotToDiskAfterGC();
       }
       FatalProcessOutOfMemory("Reached heap limit");
     }
@@ -3256,7 +3256,7 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
   }
 
   // Sampling heap profiler may have a reference to the object.
-  if (isolate()->heap_profiler()->is_sampling_allocations()) {
+  if (heap_profiler()->is_sampling_allocations()) {
     return false;
   }
 
@@ -3351,10 +3351,10 @@ bool MayContainRecordedSlots(Tagged<HeapObject> object) {
 
 void Heap::OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
                        int size_in_bytes) {
-  HeapProfiler* heap_profiler = isolate_->heap_profiler();
-  if (heap_profiler->is_tracking_object_moves()) {
-    heap_profiler->ObjectMoveEvent(source.address(), target.address(),
-                                   size_in_bytes, /*is_embedder_object=*/false);
+  if (heap_profiler()->is_tracking_object_moves()) {
+    heap_profiler()->ObjectMoveEvent(source.address(), target.address(),
+                                     size_in_bytes,
+                                     /*is_embedder_object=*/false);
   }
   for (auto& tracker : allocation_trackers_) {
     tracker->MoveEvent(source.address(), target.address(), size_in_bytes);
@@ -3743,7 +3743,7 @@ void Heap::CheckIneffectiveMarkCompact(size_t old_generation_size,
       return;
     }
     if (v8_flags.heap_snapshot_on_oom) {
-      isolate()->heap_profiler()->WriteSnapshotToDiskAfterGC();
+      heap_profiler()->WriteSnapshotToDiskAfterGC();
     }
     FatalProcessOutOfMemory("Ineffective mark-compacts near heap limit");
   }
@@ -5018,6 +5018,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
 
   code_range_size_ = constraints.code_range_size_in_bytes();
 
+  heap_profiler_ = std::make_unique<HeapProfiler>(this);
   if (cpp_heap) {
     AttachCppHeap(cpp_heap);
     owning_cpp_heap_.reset(CppHeap::From(cpp_heap));
@@ -6168,6 +6169,8 @@ void Heap::TearDown() {
   strong_roots_head_ = nullptr;
 
   memory_allocator_.reset();
+
+  heap_profiler_.reset();
 }
 
 // static

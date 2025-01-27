@@ -539,8 +539,9 @@ class CppGraphBuilderImpl final {
     }
     back_state.get_node()->SetWrapperNode(v8_node);
 
-    auto* profiler =
-        reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
+    auto* profiler = reinterpret_cast<Isolate*>(cpp_heap_.isolate())
+                         ->heap()
+                         ->heap_profiler();
     if (profiler->HasGetDetachednessCallback()) {
       back_state.get_node()->SetDetachedness(
           profiler->GetDetachedness(v8_data.As<v8::Value>(), 0));

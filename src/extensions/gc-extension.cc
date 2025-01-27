@@ -216,8 +216,7 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
       heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      HeapProfiler* heap_profiler = i_isolate->heap_profiler();
+      HeapProfiler* heap_profiler = heap->heap_profiler();
       // Since this API is intended for V8 devs, we do not treat globals as
       // roots here on purpose.
       v8::HeapProfiler::HeapSnapshotOptions options;

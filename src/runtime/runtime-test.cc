@@ -1271,7 +1271,7 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
     filename = std::string(buffer.get());
   }
 
-  HeapProfiler* heap_profiler = isolate->heap_profiler();
+  HeapProfiler* heap_profiler = isolate->heap()->heap_profiler();
   // Since this API is intended for V8 devs, we do not treat globals as roots
   // here on purpose.
   v8::HeapProfiler::HeapSnapshotOptions options;

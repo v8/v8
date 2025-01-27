@@ -91,6 +91,7 @@ class IncrementalMarking;
 class IsolateSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
+class HeapProfiler;
 class HeapStats;
 class Isolate;
 class JSArrayBuffer;
@@ -363,6 +364,8 @@ class Heap final {
   EphemeronRememberedSet* ephemeron_remembered_set() {
     return ephemeron_remembered_set_.get();
   }
+
+  HeapProfiler* heap_profiler() const { return heap_profiler_.get(); }
 
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
@@ -2259,6 +2262,7 @@ class Heap final {
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
   std::unique_ptr<EphemeronRememberedSet> ephemeron_remembered_set_;
+  std::unique_ptr<HeapProfiler> heap_profiler_;
 
   std::shared_ptr<v8::TaskRunner> task_runner_;
 
