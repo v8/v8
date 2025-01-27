@@ -5703,6 +5703,22 @@ int Function::GetScriptColumnNumber() const {
   return kLineOffsetNotFound;
 }
 
+Location Function::GetScriptLocation() const {
+  auto self = *Utils::OpenDirectHandle(this);
+  if (!IsJSFunction(self)) {
+    return {-1, -1};
+  }
+  auto func = i::Cast<i::JSFunction>(self);
+  auto shared = func->shared();
+  if (i::IsScript(shared->script())) {
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
+                                      func->GetIsolate());
+    return {i::Script::GetLineNumber(script, shared->StartPosition()),
+            i::Script::GetColumnNumber(script, shared->StartPosition())};
+  }
+  return {-1, -1};
+}
+
 int Function::GetScriptStartPosition() const {
   auto self = *Utils::OpenDirectHandle(this);
   if (!IsJSFunction(self)) {

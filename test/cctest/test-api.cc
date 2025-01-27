@@ -17870,6 +17870,30 @@ THREADED_TEST(ScriptColumnNumber) {
   CHECK_EQ(17, bar->GetScriptColumnNumber());
 }
 
+THREADED_TEST(ScriptLocation) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str("test"), 0, 0);
+  v8::Local<v8::String> script =
+      v8_str("function foo() {}\n\n     function bar() {}");
+  v8::Script::Compile(env.local(), script, &origin)
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked());
+  v8::Location location_foo = foo->GetScriptLocation();
+  CHECK_EQ(0, location_foo.GetLineNumber());
+  CHECK_EQ(12, location_foo.GetColumnNumber());
+
+  v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env.local(), v8_str("bar")).ToLocalChecked());
+  v8::Location location_bar = bar->GetScriptLocation();
+  CHECK_EQ(2, location_bar.GetLineNumber());
+  CHECK_EQ(17, location_bar.GetColumnNumber());
+}
+
 THREADED_TEST(ScriptStartPosition) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
