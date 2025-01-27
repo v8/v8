@@ -337,6 +337,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());
         field_access.map = field_map;
+        field_access.type = Type::For(*field_map, broker());
       }
     }
   }
