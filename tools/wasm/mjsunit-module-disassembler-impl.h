@@ -178,7 +178,7 @@ class MjsunitNamesProvider {
     }
     WasmName name = wire_bytes_.GetNameOrNull(function_variable_names_[index]);
     if (name.size() > 0) {
-      out << name << index;
+      out << name;
     } else {
       out << "$func" << index;
     }
@@ -427,10 +427,10 @@ class MjsunitNamesProvider {
       char uc = c | 0x20;
       if (uc >= 'a' && uc <= 'z') continue;
       if (c == '$' || c == '_') continue;
-      if (c >= '0' && c <= '9') continue;
+      if (i > 0 && c >= '0' && c <= '9') continue;
       return false;
     }
-    // Check for clashes with auto-generated names.
+    // Check for clashes with auto-generated names and reserved words.
     // This isn't perfect: any collision with a function (e.g. "makeSig")
     // or constant (e.g. "kFooRefCode") would also break the generated test,
     // but it doesn't seem feasible to accurately guard against all of those.
@@ -451,6 +451,7 @@ class MjsunitNamesProvider {
       if (memcmp(name.begin(), "kExpr", 5) == 0) return false;
       if (memcmp(name.begin(), "kSig_", 5) == 0) return false;
       if (memcmp(name.begin(), "kWasm", 5) == 0) return false;
+      if (memcmp(name.begin(), "throw", 5) == 0) return false;
     }
     if (name.length() >= 4) {
       if (memcmp(name.begin(), "$mem", 4) == 0) return false;

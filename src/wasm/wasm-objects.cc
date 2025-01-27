@@ -2393,13 +2393,14 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
   // time.
   uint32_t limit =
       std::min<uint32_t>(WasmDispatchTable::kMaxLength, wasm::max_table_size());
-  uint32_t max_grow = limit - old_length;
+  uint32_t max_grow = limit - old_capacity;
   uint32_t min_grow = new_length - old_capacity;
   CHECK_LE(min_grow, max_grow);
   // Grow by old capacity, and at least by 8. Clamp to min_grow and max_grow.
   uint32_t exponential_grow = std::max(old_capacity, 8u);
   uint32_t grow = std::clamp(exponential_grow, min_grow, max_grow);
   uint32_t new_capacity = old_capacity + grow;
+  DCHECK_LE(new_capacity, limit);
   Handle<WasmDispatchTable> new_table =
       WasmDispatchTable::New(isolate, new_capacity, old_table->table_type());
 
