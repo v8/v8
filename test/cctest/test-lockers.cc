@@ -711,10 +711,11 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
       thread.reset(new LockIsolateAndCalculateFibSharedContextThread(isolate1_,
                                                                      context1));
     }
-    v8::Locker lock2(isolate2_);
-    CHECK(v8::Locker::IsLocked(isolate1_));
-    CHECK(v8::Locker::IsLocked(isolate2_));
     {
+      v8::Unlocker unlock1(isolate1_);
+      v8::Locker lock2(isolate2_);
+      CHECK(!v8::Locker::IsLocked(isolate1_));
+      CHECK(v8::Locker::IsLocked(isolate2_));
       v8::Isolate::Scope isolate_scope(isolate2_);
       v8::HandleScope handle_scope(isolate2_);
       v8::Local<v8::Context> context2 = v8::Context::New(isolate2_);
@@ -722,7 +723,6 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
         v8::Context::Scope context_scope(context2);
         CalcFibAndCheck(context2);
       }
-      v8::Unlocker unlock1(isolate1_);
       CHECK(!v8::Locker::IsLocked(isolate1_));
       CHECK(v8::Locker::IsLocked(isolate2_));
       v8::Context::Scope context_scope(context2);

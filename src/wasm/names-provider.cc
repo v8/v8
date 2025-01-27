@@ -429,7 +429,7 @@ size_t StringMapSize(const std::map<uint32_t, std::string>& map) {
 }  // namespace
 
 size_t NamesProvider::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 160);
+  UPDATE_WHEN_CLASS_CHANGES(NamesProvider, 168);
   size_t result = sizeof(NamesProvider);
   if (name_section_names_) {
     DecodedNameSection* names = name_section_names_.get();

@@ -685,7 +685,7 @@ size_t WasmModule::EstimateStoredSize() const {
 #if V8_ENABLE_DRUMBRAKE
                             816
 #else   // V8_ENABLE_DRUMBRAKE
-                            744
+                            752
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -764,7 +764,7 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
 #if V8_ENABLE_DRUMBRAKE
                             816
 #else   // V8_ENABLE_DRUMBRAKE
-                            744
+                            752
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();

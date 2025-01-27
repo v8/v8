@@ -527,9 +527,9 @@ class CompilationUnitQueues {
 };
 
 size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 152);
-  UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 96);
-  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 72);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 160);
+  UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 104);
+  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 80);
   // Not including sizeof(CompilationUnitQueues) because that's included in
   // sizeof(CompilationStateImpl).
   size_t result = 0;
@@ -847,7 +847,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 408);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 424);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -4076,7 +4076,7 @@ void CompilationStateImpl::OnFinishedUnits(
       // Allow another top tier compilation if deopts are enabled and the
       // currently installed code object is a liftoff object.
       // Ideally, this would be done only if the code->tier() ==
-      // ExeuctionTier::Liftoff as the code object for which we run this
+      // ExecutionTier::Liftoff as the code object for which we run this
       // function should be the same as the one installed on the native_module.
       // This is unfortunately not the case as installing a code object on the
       // native module and updating the compilation_progress_ and the
