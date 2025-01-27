@@ -734,6 +734,9 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   registers_[lr] = bad_lr;
 
   last_debugger_input_ = nullptr;
+
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 Simulator::~Simulator() {

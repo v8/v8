@@ -356,6 +356,9 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
     decoder_->InsertVisitorBefore(print_disasm_, this);
     log_parameters_ = LOG_ALL;
   }
+
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 Simulator::Simulator()
