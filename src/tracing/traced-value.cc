@@ -92,6 +92,12 @@ void TracedValue::SetInteger(const char* name, int value) {
   data_ += std::to_string(value);
 }
 
+void TracedValue::SetUnsignedInteger(const char* name, uint64_t value) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
+  WriteName(name);
+  data_ += std::to_string(value);
+}
+
 void TracedValue::SetDouble(const char* name, double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
