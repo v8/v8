@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_FLOAT16_LOWERING_REDUCER_H_
 
 #include "src/base/vector.h"
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -24,7 +25,12 @@ class Float16LoweringReducer : public Next {
       if (SupportedOperations::float64_to_float16_raw_bits()) {
         return __ TruncateFloat64ToFloat16RawBits(V<Float64>::Cast(input));
       } else {
-        if (Is64()) {
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+        constexpr bool supports_fp_params_in_c_linkage = Is64();
+#else
+        constexpr bool supports_fp_params_in_c_linkage = false;
+#endif
+        if constexpr (supports_fp_params_in_c_linkage) {
           MachineSignature::Builder builder(__ graph_zone(), 1, 1);
           builder.AddReturn(MachineType::Uint32());
           builder.AddParam(MachineType::Float64());
