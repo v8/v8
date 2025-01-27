@@ -12,6 +12,7 @@
 #include "include/v8-profiler.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/time.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -459,9 +460,19 @@ void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
 #ifdef V8_USE_PERFETTO
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeStamp",
               "data", ([&](perfetto::TracedValue context) {
+                auto dict = std::move(context).WriteDictionary();
+
+                uint64_t name_hash =
+                    std::hash<std::string>{}("V8Console::TimeStamp");
+                uint64_t timestamp_hash = std::hash<uint64_t>{}(
+                    v8::base::TimeTicks::Now().ToInternalValue());
+                uint64_t hash =
+                    v8::base::hash_combine(name_hash, timestamp_hash);
+                v8::CpuProfiler::CpuProfiler::CollectSample(
+                    m_inspector->isolate(), hash);
+                dict.Add("sampleTraceId", hash);
                 static const char* kNames[] = {"name",  "start",      "end",
                                                "track", "trackGroup", "color"};
-                auto dict = std::move(context).WriteDictionary();
                 for (int i = 0; i < info.Length() &&
                                 i < static_cast<int>(std::size(kNames));
                      ++i) {
@@ -555,13 +566,25 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
   TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
-  // This has to happen BEFORE the `TRACE_EVENTx` macro.
-  v8::CpuProfiler::CpuProfiler::CollectSample(isolate);
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
   {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                 "V8Console::runTask");
+#ifdef V8_USE_PERFETTO
+    TRACE_EVENT(
+        TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::runTask", "data",
+        ([&](perfetto::TracedValue context) {
+          auto dict = std::move(context).WriteDictionary();
+          uint64_t task_id_hash =
+              std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(taskInfo->Id()));
+          uint64_t timestamp_hash = std::hash<uint64_t>{}(
+              v8::base::TimeTicks::Now().ToInternalValue());
+          uint64_t hash = v8::base::hash_combine(task_id_hash, timestamp_hash);
+
+          v8::CpuProfiler::CpuProfiler::CollectSample(isolate, hash);
+          dict.Add("sampleTraceId", hash);
+        }));
+#endif  // V8_USE_PERFETTO
+
     v8::Local<v8::Value> result;
     if (function
             ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
