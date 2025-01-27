@@ -599,7 +599,7 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)  \
   V(Boolean, (1 << 7) | kOddball | kNumberOrBoolean)        \
   V(Name, (1 << 8) | kAnyHeapObject)                        \
-  V(StringOrStringWrapper, (1 << 9))                        \
+  V(StringOrStringWrapper, (1 << 9) | kAnyHeapObject)       \
   V(String, (1 << 10) | kName | kStringOrStringWrapper)     \
   V(InternalizedString, (1 << 11) | kString)                \
   V(Symbol, (1 << 12) | kName)                              \
