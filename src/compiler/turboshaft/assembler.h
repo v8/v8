@@ -2170,6 +2170,7 @@ class TurboshaftAssemblerOpInterface
   }
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertIntPtrToNumber, Number, WordPtr, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertWord32ToBoolean, Boolean, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertCharCodeToString, String, Word32, CharCode)
 #undef CONVERT_PRIMITIVE_TO_OBJECT
@@ -2471,6 +2472,8 @@ class TurboshaftAssemblerOpInterface
   DECL_CHANGE_V(ReversibleUint64ToFloat64, kUnsignedToFloat, kReversible,
                 Word64, Float64)
   DECL_CHANGE_V(ChangeUint32ToFloat64, kUnsignedToFloat, kNoAssumption, Word32,
+                Float64)
+  DECL_CHANGE_V(ChangeIntPtrToFloat64, kSignedToFloat, kNoAssumption, WordPtr,
                 Float64)
   DECL_CHANGE_V(TruncateFloat64ToFloat32, kFloatConversion, kNoAssumption,
                 Float64, Float32)

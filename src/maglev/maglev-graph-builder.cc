@@ -9517,6 +9517,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceMathAbs(
   switch (arg->value_representation()) {
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+      // TODO(388844115): Rename IntPtr to make it clear it's non-negative.
       return arg;
     case ValueRepresentation::kInt32:
       if (!CanSpeculateCall()) return {};

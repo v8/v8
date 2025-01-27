@@ -1674,6 +1674,7 @@ void UnsafeSmiTagIntPtr::SetValueLocationConstraints() {
 void UnsafeSmiTagIntPtr::GenerateCode(MaglevAssembler* masm,
                                       const ProcessingState& state) {
   // If the IntPtr is guaranteed to be a SMI, we can treat it as Int32.
+  // TODO(388844115): Rename IntPtr to make it clear it's non-negative.
   __ UncheckedSmiTagInt32(ToRegister(input()));
 }
 

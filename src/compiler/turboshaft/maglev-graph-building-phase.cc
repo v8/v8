@@ -790,7 +790,8 @@ class GraphBuildingNodeProcessor {
                                             ConversionMode::kCanonicalizeSmi));
           break;
         case maglev::ValueRepresentation::kIntPtr:
-          UNREACHABLE();
+          __ SetVariable(var,
+                         __ ConvertIntPtrToNumber(V<WordPtr>::Cast(ts_idx)));
       }
     });
   }
@@ -2225,8 +2226,14 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckIntPtrIsSmi* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    __ DeoptimizeIfNot(
+        __ UintPtrLessThanOrEqual(Map(node->input()), Smi::kMaxValue),
+        frame_state, DeoptimizeReason::kNotASmi,
+        node->eager_deopt_info()->feedback_to_update());
+    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
+    // non-negative.
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::CheckHoleyFloat64IsSmi* node,
@@ -3461,8 +3468,11 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::BranchIfIntPtrToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    V<Word32> condition =
+        __ Equal(Map(node->condition_input()), __ IntPtrConstant(0),
+                 RegisterRepresentation::WordPtr());
+    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::BranchIfFloat64ToBooleanTrue* node,
@@ -3654,8 +3664,16 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckedSmiTagIntPtr* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    SetMap(
+        node,
+        __ ConvertUntaggedToJSPrimitiveOrDeopt(
+            Map(node->input()), frame_state,
+            ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi,
+            RegisterRepresentation::WordPtr(),
+            ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned,
+            node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::CheckedSmiTagFloat64* node,
@@ -3688,8 +3706,10 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::UnsafeSmiTagIntPtr* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
+    // non-negative.
+    SetMap(node, __ TagSmi(__ TruncateWordPtrToWord32(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
   }
 
 #define PROCESS_BINOP_WITH_OVERFLOW(MaglevName, TurboshaftName,                \
@@ -4002,8 +4022,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::IntPtrToBoolean* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    SetMap(node, ConvertWordPtrToJSBool(Map(node->value()), node->flip()));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::Float64ToBoolean* node,
@@ -4025,8 +4045,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::IntPtrToNumber* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    SetMap(node, __ ConvertIntPtrToNumber(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::Float64ToTagged* node,
@@ -4118,8 +4138,17 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckedIntPtrToUint32* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
+    // non-negative.
+    __ DeoptimizeIfNot(
+        __ UintPtrLessThanOrEqual(Map(node->input()),
+                                  std::numeric_limits<uint32_t>::max()),
+        frame_state, DeoptimizeReason::kNotUint32,
+        node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, __ Word32SignHintUnsigned(
+                     __ TruncateWordPtrToWord32(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::CheckedUint32ToInt32* node,
@@ -4134,8 +4163,17 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckedIntPtrToInt32* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    // TODO(388844115): Rename the IntPtr in Maglev to make it clear it's
+    // non-negative.
+    __ DeoptimizeIfNot(
+        __ UintPtrLessThanOrEqual(Map(node->input()),
+                                  std::numeric_limits<int32_t>::max()),
+        frame_state, DeoptimizeReason::kNotInt32,
+        node->eager_deopt_info()->feedback_to_update());
+    SetMap(node, __ Word32SignHintSigned(
+                     __ TruncateWordPtrToWord32(Map(node->input()))));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::UnsafeInt32ToUint32* node,
@@ -4178,8 +4216,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::ChangeIntPtrToFloat64* node,
                                 const maglev::ProcessingState& state) {
-    // TODO(388844115): Implement.
-    UNIMPLEMENTED();
+    SetMap(node, __ ChangeIntPtrToFloat64(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
   }
 
   maglev::ProcessResult Process(maglev::CheckedTruncateFloat64ToInt32* node,
@@ -5463,6 +5501,15 @@ class GraphBuildingNodeProcessor {
     V<Boolean> false_idx = __ HeapConstant(local_factory_->false_value());
     if (flip) std::swap(true_idx, false_idx);
     return __ Select(b, true_idx, false_idx, RegisterRepresentation::Tagged(),
+                     BranchHint::kNone, SelectOp::Implementation::kBranch);
+  }
+
+  V<Boolean> ConvertWordPtrToJSBool(V<WordPtr> b, bool flip = false) {
+    V<Boolean> true_idx = __ HeapConstant(local_factory_->true_value());
+    V<Boolean> false_idx = __ HeapConstant(local_factory_->false_value());
+    if (flip) std::swap(true_idx, false_idx);
+    return __ Select(__ WordPtrEqual(b, __ WordPtrConstant(0)), false_idx,
+                     true_idx, RegisterRepresentation::Tagged(),
                      BranchHint::kNone, SelectOp::Implementation::kBranch);
   }
 
