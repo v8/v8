@@ -202,30 +202,42 @@ TEST(ArrayBuffer_MaxSize) {
 class TotalAllocator final : public v8::ArrayBuffer::Allocator {
  public:
   explicit TotalAllocator(size_t limit) : limit_(limit), remaining_(limit) {}
-  ~TotalAllocator() { delete underlying_allocator_; }
+  ~TotalAllocator() {
+    CHECK(remaining_.load() == limit_);
+    delete underlying_allocator_;
+  }
 
   void* Allocate(size_t length) override {
-    if (length > remaining_) return nullptr;
+    if (length > remaining_.load()) return nullptr;
     void* result = underlying_allocator_->Allocate(length);
-    remaining_ -= length;
+    Update(0 - length);
     return result;
   }
   void* AllocateUninitialized(size_t length) override {
-    if (length > remaining_) return nullptr;
+    if (length > remaining_.load()) return nullptr;
     void* result = underlying_allocator_->AllocateUninitialized(length);
-    remaining_ -= length;
+    Update(0 - length);
     return result;
   }
   void Free(void* data, size_t length) override {
-    remaining_ += length;
+    Update(length);
     underlying_allocator_->Free(data, length);
   }
 
   size_t MaxAllocationSize() const override { return limit_; }
 
  private:
+  void Update(intptr_t difference) {
+    while (true) {
+      size_t previous = remaining_.load();
+      size_t next = previous + difference;
+      bool success = remaining_.compare_exchange_weak(previous, next);
+      if (success) return;
+    }
+  }
+
   size_t limit_;
-  size_t remaining_;
+  std::atomic<size_t> remaining_;
   v8::ArrayBuffer::Allocator* underlying_allocator_ =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 };
