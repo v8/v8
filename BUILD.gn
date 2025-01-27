@@ -1406,7 +1406,7 @@ config("features") {
     defines += [ "V8_WASM_RANDOM_FUZZERS" ]
   }
   if (v8_lower_limits_mode) {
-    defines += [ "V8_ENABLE_LOWER_LIMITS_MODE" ]
+    defines += [ "V8_LOWER_LIMITS_MODE" ]
   }
 }
 
