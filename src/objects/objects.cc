@@ -5242,8 +5242,12 @@ Handle<Object> JSPromise::TriggerPromiseReactions(
   return isolate->factory()->undefined_value();
 }
 
+#ifdef V8_LOWER_LIMITS_MODE
+const uint32_t EphemeronHashTableShape::kHashBits = 10;
+#else
 const uint32_t EphemeronHashTableShape::kHashBits =
     PropertyArray::HashField::kSize;
+#endif  // V8_LOWER_LIMITS_MODE
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {

@@ -480,6 +480,9 @@ declare_args() {
   # Some fuzzers depend on fuzzing functionality linked into the v8 library.
   # For binary size reasons this functionality is not always available.
   v8_wasm_random_fuzzers = ""
+
+  # Experimental testing mode where various limits are artificially set lower.
+  v8_lower_limits_mode = false
 }
 
 # Derived defaults.
@@ -1401,6 +1404,9 @@ config("features") {
   }
   if (v8_wasm_random_fuzzers) {
     defines += [ "V8_WASM_RANDOM_FUZZERS" ]
+  }
+  if (v8_lower_limits_mode) {
+    defines += [ "V8_ENABLE_LOWER_LIMITS_MODE" ]
   }
 }
 
@@ -2761,6 +2767,7 @@ action("v8_dump_build_config") {
     "wasm_random_fuzzers=$v8_wasm_random_fuzzers",
     "memory_corruption_api=$v8_enable_memory_corruption_api",
     "leaptiering=$v8_enable_leaptiering",
+    "lower_limits_mode=$v8_lower_limits_mode",
 
     # Please add new switches also in `build_config_content` in `bazel/defs.bzl`
     # so that the switches also work for tests triggered by bazel.
