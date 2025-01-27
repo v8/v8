@@ -230,8 +230,9 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
 
   if (input_reprs.contains(ValueRepresentation::kTagged) ||
       input_reprs.contains(ValueRepresentation::kUint32) ||
+      input_reprs.contains(ValueRepresentation::kIntPtr) ||
       input_reprs.empty()) {
-    TRACE_UNTAGGING("  => Leaving tagged [tagged or uint32 inputs]");
+    TRACE_UNTAGGING("  => Leaving tagged [tagged, uint32 or intptr inputs]");
     EnsurePhiInputsTagged(node);
     return default_result;
   }
