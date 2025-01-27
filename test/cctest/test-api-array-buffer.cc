@@ -243,16 +243,27 @@ TEST(ArrayBuffer_TotalSize) {
     int gc_count = heap->gc_count();
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
+    // When some allocation below fails, we need to invoke GC without stack,
+    // otherwise some objects may not be reclaimed because of conservative
+    // stack scanning (CSS). Objects that are to be retained from this GC must
+    // be placed in the array of globals, as CSS is disabled.
+    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    std::vector<v8::Global<v8::ArrayBuffer>> globals;
 
     // Too big.
-    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab =
-        v8::ArrayBuffer::MaybeNew(isolate, 32769);
-    CHECK(maybe_ab.IsEmpty());
+    {
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab1 =
+          v8::ArrayBuffer::MaybeNew(isolate, 32769);
+      CHECK(maybe_ab1.IsEmpty());
+    }
 
     // Take half size.
-    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab2 =
-        v8::ArrayBuffer::MaybeNew(isolate, 16384);
-    CHECK(!maybe_ab2.IsEmpty());
+    {
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab2 =
+          v8::ArrayBuffer::MaybeNew(isolate, 16384);
+      CHECK(!maybe_ab2.IsEmpty());
+      globals.emplace_back(isolate, maybe_ab2.ToLocalChecked());
+    }
 
     // The large allocations should be rejected without running a GC first.
     CHECK_EQ(gc_count, heap->gc_count());
@@ -272,18 +283,23 @@ TEST(ArrayBuffer_TotalSize) {
     }
 
     // We exit the inner scope and the last array buffer can be GCed.
-    // Take second half size again
-    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab5 =
-        v8::ArrayBuffer::MaybeNew(isolate, 16384);
-    CHECK(!maybe_ab5.IsEmpty());
+    // Take second half size again.
+    {
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab5 =
+          v8::ArrayBuffer::MaybeNew(isolate, 16384);
+      CHECK(!maybe_ab5.IsEmpty());
+      globals.emplace_back(isolate, maybe_ab5.ToLocalChecked());
+    }
 
     // The last allocation can't be done without a GC.
     CHECK_LT(gc_count, heap->gc_count());
 
     // Fails because of total size
-    v8::MaybeLocal<v8::ArrayBuffer> maybe_ab6 =
-        v8::ArrayBuffer::MaybeNew(isolate, 16384);
-    CHECK(maybe_ab6.IsEmpty());
+    {
+      v8::MaybeLocal<v8::ArrayBuffer> maybe_ab6 =
+          v8::ArrayBuffer::MaybeNew(isolate, 16384);
+      CHECK(maybe_ab6.IsEmpty());
+    }
   }
 
   isolate->Exit();
