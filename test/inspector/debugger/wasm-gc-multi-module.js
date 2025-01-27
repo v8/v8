@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
+// Flags: --wasm-staging
 
 // Test debugger type name resolution for ref types with multiple modules.
 // Due to type canonicalization, for any given canonicalized type there is only

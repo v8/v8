@@ -4,6 +4,5 @@
 //
 // MODULE
 //
-// Flags: --harmony-import-attributes
 
 import "modules-skip-3-import-attributes-fail.json"

@@ -4,6 +4,5 @@
 //
 // MODULE
 //
-// Flags: --harmony-import-attributes
 
 import "modules-skip-1-import-attributes-fail.mjs" with { type: "notARealType"}

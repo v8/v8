@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --js-explicit-resource-management --ignore-unhandled-promises
+// Flags: --ignore-unhandled-promises --stack-size=100 --js-staging
 
 async function loop() {
   function disposal() {}

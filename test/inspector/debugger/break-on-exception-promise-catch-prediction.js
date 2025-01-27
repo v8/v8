@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-explicit-resource-management
+// Flags: --js-staging
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks when promise rejections are predicted to be caught.');
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-explicit-resource-management
+// Flags: --js-staging
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Checks if catch prediction works on new `using` and `await using` syntax.');

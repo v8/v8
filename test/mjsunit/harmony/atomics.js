@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --js-float16array
+// Flags: --js-staging
 
 function toRangeWrapper(is_big) {
   return function _toRangeWrapped(raw_value) {

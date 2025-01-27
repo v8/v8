@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --no-liftoff --allow-natives-syntax
-// Flags: --experimental-wasm-imported-strings --experimental-wasm-jspi
+// Flags: --wasm-staging
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

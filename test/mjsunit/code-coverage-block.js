@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-always-turbofan --no-stress-flush-code
-// Flags: --expose-gc --js-explicit-resource-management
+// Flags: --expose-gc --js-staging
 // Files: test/mjsunit/code-coverage-utils.js
 
 (async function () {

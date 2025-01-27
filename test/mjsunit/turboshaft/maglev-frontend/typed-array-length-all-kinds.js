@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --turbolev --turbofan --no-always-turbofan
-// Flags: --js-float16array
+// Flags: --js-staging
 // Flags: --typed-array-length-loading
 
 function test_int8(size) {
