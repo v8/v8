@@ -1608,6 +1608,9 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   registers_[sp] = reinterpret_cast<intptr_t>(stack_) + UsableStackSize();
 
   last_debugger_input_ = nullptr;
+
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 Simulator::~Simulator() { base::Free(stack_); }
