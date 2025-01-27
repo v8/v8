@@ -4469,7 +4469,61 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
 #if V8_ENABLE_WEBASSEMBLY
 void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
-  __ Trap();
+  using ER = ExternalReference;
+  Register frame_base = WasmHandleStackOverflowDescriptor::FrameBaseRegister();
+  Register gap = WasmHandleStackOverflowDescriptor::GapRegister();
+  {
+    DCHECK_NE(kCArgRegs[1], frame_base);
+    DCHECK_NE(kCArgRegs[3], frame_base);
+    __ mr(kCArgRegs[3], gap);
+    __ mr(kCArgRegs[1], sp);
+    __ SubS64(kCArgRegs[2], frame_base, kCArgRegs[1]);
+    __ mr(kCArgRegs[4], fp);
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(kCArgRegs[3]);
+    __ PrepareCallCFunction(5, r0);
+    __ Move(kCArgRegs[0], ER::isolate_address());
+    __ CallCFunction(ER::wasm_grow_stack(), 5);
+    __ pop(gap);
+    DCHECK_NE(kReturnRegister0, gap);
+  }
+  Label call_runtime;
+  // wasm_grow_stack returns zero if it cannot grow a stack.
+  __ CmpU64(kReturnRegister0, Operand(0), r0);
+  __ beq(&call_runtime);
+
+  // Calculate old FP - SP offset to adjust FP accordingly to new SP.
+  __ SubS64(fp, fp, sp);
+  __ AddS64(fp, fp, kReturnRegister0);
+  __ mr(sp, kReturnRegister0);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ mov(scratch,
+           Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    __ StoreU64(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+  }
+  __ Ret();
+
+  __ bind(&call_runtime);
+  // If wasm_grow_stack returns zero interruption or stack overflow
+  // should be handled by runtime call.
+  {
+    __ LoadU64(kWasmImplicitArgRegister,
+               MemOperand(fp, WasmFrameConstants::kWasmInstanceDataOffset));
+    __ LoadTaggedField(
+        cp,
+        FieldMemOperand(kWasmImplicitArgRegister,
+                        WasmTrustedInstanceData::kNativeContextOffset),
+        r0);
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterFrame(StackFrame::INTERNAL);
+    __ SmiTag(gap);
+    __ push(gap);
+    __ CallRuntime(Runtime::kWasmStackGuard);
+    __ LeaveFrame(StackFrame::INTERNAL);
+    __ Ret();
+  }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -5,6 +5,7 @@
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
@@ -15,6 +16,7 @@
 #include "src/heap/mutable-page-metadata.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3155,13 +3157,38 @@ void CodeGenerator::AssembleConstructFrame() {
         __ bge(&done);
       }
 
-      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-              RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) __ stop();
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        __ MultiPush(regs_to_save);
+        DoubleRegList fp_regs_to_save;
+        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+        __ MultiPushF64AndV128(fp_regs_to_save,
+                               Simd128RegList::FromBits(fp_regs_to_save.bits()),
+                               ip, r0);
+        __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
+               Operand(required_slots * kSystemPointerSize));
+        __ AddS64(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ MultiPopF64AndV128(fp_regs_to_save,
+                              Simd128RegList::FromBits(fp_regs_to_save.bits()),
+                              ip, r0);
+        __ MultiPop(regs_to_save);
+      } else {
+        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        if (v8_flags.debug_code) __ stop();
+      }
 
       __ bind(&done);
     }
@@ -3240,6 +3267,43 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
       __ Assert(eq, AbortReason::kUnexpectedAdditionalPopValue);
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ LoadU64(scratch,
+                 MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      __ CmpU64(
+          scratch,
+          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)),
+          r0);
+    }
+    Label done;
+    __ bne(&done);
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ MultiPush(regs_to_save);
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+    __ MultiPushF64AndV128(fp_regs_to_save,
+                           Simd128RegList::FromBits(fp_regs_to_save.bits()), ip,
+                           r0);
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ PrepareCallCFunction(1, r0);
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    // Restore old FP. We don't need to restore old SP explicitly, because
+    // it will be restored from FP in LeaveFrame before return.
+    __ mr(fp, kReturnRegister0);
+    __ MultiPopF64AndV128(fp_regs_to_save,
+                          Simd128RegList::FromBits(fp_regs_to_save.bits()), ip,
+                          r0);
+    __ MultiPop(regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = r6;
   // Functions with JS linkage have at least one parameter (the receiver).
