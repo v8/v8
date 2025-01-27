@@ -138,6 +138,7 @@
       'V8 Linux64 UBSan - builder': 'release_x64_ubsan',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
+      'V8 Linux64 - lower limits - builder': 'release_x64_lower_limits',
       'V8 Linux64 - predictable - builder': 'release_x64_predictable',
       'V8 Linux64 - verify builtins': 'release_x64_verify_builtins',
       'V8 Linux64 - verify deterministic': 'release_x64_verify_deterministic',
@@ -310,6 +311,7 @@
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
+      'v8_linux64_lower_limits_compile_rel': 'release_x64_lower_limits',
       'v8_linux64_msan_compile_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux_riscv32_compile_rel': 'release_simulate_riscv32',
       'v8_linux64_riscv64_compile_rel': 'release_simulate_riscv64',
@@ -624,6 +626,8 @@
       'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_snapshot_internal'],
+    'release_x64_lower_limits': [
+      'release_bot', 'x64', 'v8_lower_limits_mode'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_minimal_symbols_reclient': [
@@ -1159,6 +1163,10 @@
 
     'v8_is_on_release_branch': {
       'gn_args': 'v8_is_on_release_branch=true',
+    },
+
+    'v8_lower_limits_mode': {
+      'gn_args': 'v8_lower_limits_mode=true',
     },
 
     'v8_optimized_debug': {
