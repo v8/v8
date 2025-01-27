@@ -18,6 +18,8 @@
 
 namespace v8::internal::wasm {
 
+class CanonicalTypeNamesProvider;
+
 // We use ValueType instances constructed from canonical type indices, so we
 // can't let them get bigger than what we have storage space for.
 // TODO(jkummerow): Raise this limit. Possible options:
@@ -79,8 +81,12 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE CanonicalTypeIndex
   AddRecursiveGroup(const FunctionSig* sig);
 
-  // Retrieve back a function signature from a canonical index later.
+  // Retrieve back a type from a canonical index later.
   V8_EXPORT_PRIVATE const CanonicalSig* LookupFunctionSignature(
+      CanonicalTypeIndex index) const;
+  V8_EXPORT_PRIVATE const CanonicalStructType* LookupStruct(
+      CanonicalTypeIndex index) const;
+  V8_EXPORT_PRIVATE const CanonicalArrayType* LookupArray(
       CanonicalTypeIndex index) const;
 
   // Returns if {canonical_sub_index} is a canonical subtype of
@@ -113,6 +119,8 @@ class TypeCanonicalizer {
       Isolate* isolate);
 
   bool IsFunctionSignature(CanonicalTypeIndex index) const;
+  bool IsStruct(CanonicalTypeIndex index) const;
+  bool IsArray(CanonicalTypeIndex index) const;
 
   CanonicalTypeIndex FindIndex_Slow(const CanonicalSig* sig) const;
 
@@ -406,14 +414,18 @@ class TypeCanonicalizer {
 
   void CheckMaxCanonicalIndex() const;
 
+  const CanonicalType* get(CanonicalTypeIndex index) const {
+    return canonical_types_[index.index];
+  }
+
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.
   std::unordered_set<CanonicalGroup> canonical_groups_;
   // Set of all known canonical recgroups of size 1.
   std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
-  // Maps canonical indices back to the function signature.
-  std::unordered_map<CanonicalTypeIndex, const CanonicalSig*>
-      canonical_function_sigs_;
+  // Maps canonical indices back to the types.
+  std::vector<const CanonicalType*> canonical_types_;
+  std::unique_ptr<CanonicalTypeNamesProvider> names_provider_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   mutable base::SpinningMutex mutex_;

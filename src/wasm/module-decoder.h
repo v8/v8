@@ -138,6 +138,16 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 // are resolved by choosing the last name read.
 void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names);
+// Decode the type names from the type section, store them in the provided
+// vector/map indexed by *canonical* index.
+// The vector {typenames} must have sufficient size.
+// Existing non-empty names won't be overwritten.
+// The number of allocated characters will be added to {total_allocated_size}.
+void DecodeCanonicalTypeNames(
+    base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
+    std::vector<base::OwnedVector<char>>& typenames,
+    std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
+    size_t* total_allocated_size);
 
 // Validate specific functions in the module. Return the first validation error
 // (deterministically), or an empty {WasmError} if all validated functions are

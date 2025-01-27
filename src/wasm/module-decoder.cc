@@ -370,7 +370,8 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder,
   uint32_t outer_count = decoder.consume_u32v("outer count");
   for (uint32_t i = 0; i < outer_count; ++i) {
     uint32_t outer_index = decoder.consume_u32v("outer index");
-    if (outer_index > IndirectNameMap::kMaxKey) continue;
+    // TODO(jkummerow): Should we try to skip only the invalid entry?
+    if (outer_index > IndirectNameMap::kMaxKey) break;
     NameMap names;
     DecodeNameMapInternal(names, decoder);
     target.Put(outer_index, std::move(names));
@@ -384,27 +385,122 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder,
 void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names) {
   Decoder decoder(wire_bytes);
-  if (FindNameSection(&decoder)) {
-    while (decoder.ok() && decoder.more()) {
-      uint8_t name_type = decoder.consume_u8("name type");
-      if (name_type & 0x80) break;  // no varuint7
+  if (!FindNameSection(&decoder)) return;
+  while (decoder.ok() && decoder.more()) {
+    uint8_t name_type = decoder.consume_u8("name type");
+    if (name_type & 0x80) break;  // no varuint7
 
-      uint32_t name_payload_len = decoder.consume_u32v("name payload length");
-      if (!decoder.checkAvailable(name_payload_len)) break;
+    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+    if (!decoder.checkAvailable(name_payload_len)) break;
 
-      if (name_type != NameSectionKindCode::kFunctionCode) {
+    if (name_type != NameSectionKindCode::kFunctionCode) {
+      decoder.consume_bytes(name_payload_len, "name subsection payload");
+      continue;
+    }
+    // We need to allow empty function names for spec-conformant stack traces.
+    DecodeNameMapInternal(names, decoder, EmptyNames::kAllow);
+    // The spec allows only one occurrence of each subsection. We could be
+    // more permissive and allow repeated subsections; in that case we'd
+    // have to delay calling {target.FinishInitialization()} on the function
+    // names map until we've seen them all.
+    // For now, we stop decoding after finding the first function names
+    // subsection.
+    return;
+  }
+}
+
+// This follows the decoding logic of DecodeNameMap/DecodeIndirectNameMap, but
+// processes the results differently, according to the needs of canonical
+// type names:
+// - all type indices are canonicalized.
+// - multiple modules' name sections are merged into the output data structures
+//   {typenames} and {fieldnames}; existing entries are not overwritten.
+// - all name payloads are copied out of the wire bytes.
+void DecodeCanonicalTypeNames(
+    base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
+    std::vector<base::OwnedVector<char>>& typenames,
+    std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
+    size_t* total_allocated_size) {
+  bool types_done = false;
+  bool fields_done = false;
+  Decoder decoder(wire_bytes);
+  if (!FindNameSection(&decoder)) return;
+  const char* base = reinterpret_cast<const char*>(wire_bytes.begin());
+  while (decoder.ok() && decoder.more()) {
+    uint8_t name_type = decoder.consume_u8("name type");
+    if (name_type & 0x80) break;  // no varuint7
+    uint32_t name_payload_len = decoder.consume_u32v("name payload length");
+    if (!decoder.checkAvailable(name_payload_len)) break;
+    if (name_type == NameSectionKindCode::kTypeCode) {
+      if (types_done) {
         decoder.consume_bytes(name_payload_len, "name subsection payload");
-        continue;
+        continue;  // The spec allows only one occurrence.
       }
-      // We need to allow empty function names for spec-conformant stack traces.
-      DecodeNameMapInternal(names, decoder, EmptyNames::kAllow);
-      // The spec allows only one occurrence of each subsection. We could be
-      // more permissive and allow repeated subsections; in that case we'd
-      // have to delay calling {target.FinishInitialization()} on the function
-      // names map until we've seen them all.
-      // For now, we stop decoding after finding the first function names
-      // subsection.
-      return;
+      types_done = true;
+      uint32_t count = decoder.consume_u32v("names count");
+      for (uint32_t i = 0; i < count; i++) {
+        ModuleTypeIndex module_index{decoder.consume_u32v("index")};
+        WireBytesRef name =
+            consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name");
+        if (!decoder.ok()) break;
+        if (!module->has_type(module_index)) continue;
+        if (name.is_empty()) continue;
+        CanonicalTypeIndex canonical_index =
+            module->canonical_type_id(module_index);
+        uint32_t index = canonical_index.index;
+        // Callers should have pre-sized the target vector appropriately.
+        DCHECK_LT(index, typenames.size());
+        // TODO(jkummerow): Consider implementing a more refined strategy
+        // for conflict resolution than "first definition wins", if we
+        // encounter that situation in practice. Note that we'll also have
+        // to deal with multiple field names then (in the loop below).
+        if (!typenames[index].empty()) continue;  // We already have a name.
+        if (!validate_utf8(&decoder, name)) continue;
+        uint32_t length = name.length();
+        typenames[index] =
+            base::OwnedVector<char>::NewByCopying(base + name.offset(), length);
+        *total_allocated_size += length;
+      }
+    } else if (name_type == NameSectionKindCode::kFieldCode) {
+      if (fields_done) {
+        decoder.consume_bytes(name_payload_len, "name subsection payload");
+        continue;  // The spec allows only one occurrence.
+      }
+      fields_done = true;
+      uint32_t types_count = decoder.consume_u32v("types count");
+      for (uint32_t i = 0; i < types_count; ++i) {
+        ModuleTypeIndex module_index{decoder.consume_u32v("type index")};
+        // TODO(jkummerow): Should we try to skip only the invalid entry?
+        if (!module->has_struct(module_index)) return;
+        CanonicalTypeIndex canonical_index =
+            module->canonical_type_id(module_index);
+        uint32_t struct_index = canonical_index.index;
+        if (struct_index >= typenames.size()) return;
+        // Due to {module->has_struct()}, this is guaranteed to succeed.
+        const CanonicalStructType* struct_type =
+            GetTypeCanonicalizer()->LookupStruct(canonical_index);
+        auto const& entry = fieldnames.try_emplace(
+            struct_index, size_t{struct_type->field_count()});
+        std::vector<base::OwnedVector<char>>& field_names = entry.first->second;
+        uint32_t fields_count = decoder.consume_u32v("fields count");
+        for (uint32_t j = 0; j < fields_count; j++) {
+          uint32_t field_index = decoder.consume_u32v("field index");
+          WireBytesRef name = consume_string(
+              &decoder, unibrow::Utf8Variant::kLossyUtf8, "field name");
+          if (!decoder.ok()) break;
+          if (field_index >= field_names.size()) continue;
+          if (!field_names[field_index].empty()) continue;
+          if (!validate_utf8(&decoder, name)) continue;
+          uint32_t length = name.length();
+          field_names[field_index] = base::OwnedVector<char>::NewByCopying(
+              base + name.offset(), length);
+          *total_allocated_size += length;
+        }
+        if (!decoder.ok()) break;
+      }
+    } else {
+      // We don't care about this subsection here.
+      decoder.consume_bytes(name_payload_len, "name subsection payload");
     }
   }
 }

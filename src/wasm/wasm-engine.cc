@@ -29,6 +29,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/names-provider.h"
 #include "src/wasm/pgo.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/std-object-sizes.h"
@@ -2006,12 +2007,20 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
   if (next_gc_sequence_index != 0) TriggerGC(next_gc_sequence_index);
 }
 
+void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
+  base::SpinningMutexGuard lock(&mutex_);
+  for (const auto& [native_module, native_module_info] : native_modules_) {
+    target->DecodeNames(native_module);
+  }
+}
+
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 728);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 720);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);
   size_t result = sizeof(WasmEngine);
+  result += GetCanonicalTypeNamesProvider()->EstimateCurrentMemoryConsumption();
   result += type_canonicalizer_.EstimateCurrentMemoryConsumption();
   {
     base::SpinningMutexGuard lock(&mutex_);
@@ -2074,6 +2083,7 @@ struct GlobalWasmState {
   WasmCodeManager code_manager;
   WasmImportWrapperCache import_wrapper_cache;
   WasmEngine engine;
+  CanonicalTypeNamesProvider type_names_provider;
 };
 
 GlobalWasmState* global_wasm_state = nullptr;
@@ -2124,6 +2134,11 @@ WasmCodeManager* GetWasmCodeManager() {
 WasmImportWrapperCache* GetWasmImportWrapperCache() {
   DCHECK_NOT_NULL(global_wasm_state);
   return &global_wasm_state->import_wrapper_cache;
+}
+
+CanonicalTypeNamesProvider* GetCanonicalTypeNamesProvider() {
+  DCHECK_NOT_NULL(global_wasm_state);
+  return &global_wasm_state->type_names_provider;
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.
