@@ -587,46 +587,63 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 }
 
 /*
- * The intersection (using `&`) of any two NodeTypes must be a valid NodeType
- * (possibly "kUnknown", modulo heap object bit).
+ * NodeType lattice.
  *
- * All heap object types include the heap object bit, so that they can be
- * checked for AnyHeapObject with a single bit check.
+ * Maglev node types are intersection types. As an example consider
  *
- * Here is a diagram of the relations between the types, where (*) means that
- * they have the kAnyHeapObject bit set.
+ *     Boolen = Oddball & NumberOrBoolean
  *
- *      NumberOrOddball
- *       /     |      \
- *      /      |       NumberOrBoolean
- *      |      |   ___/  /                     StringOrStringWrapper
- *      |      \ /      /                             |
- *      |       X      /         JSReceiver*          |      Name*
- *     /       / \    |          /       \            |     /    \
- *  Oddball*  /  Number      Callable* JSArray*     String*  Symbol*
- *    |      /   /    \                                |
- *  Boolean*    Smi   HeapNumber*              InternalizedString*
+ * The individual bits can be thought of as atomic propositions. An object of
+ * type boolean is an object for which the Oddball as well as the
+ * NumberOrBoolean proposition holds.
  *
+ * The literals in the NODE_TYPE_LIST form a semi-lattice.
+ *
+ * For efficiency often used intersections (i.e., the join operation using `&`)
+ * should be added as NodeType.
+ *
+ * Here is a diagram of the relations between the types:
+ *
+ *
+ *            .----------- Unknown ---------------------.
+ *            |                                         |
+ *            |              .---.-----.------- AnyHeapObject ---------.
+ *            |             /   /      |                |              |
+ *            |            /   /       |                |              |
+ *      NumberOrOddball   /   /   JSReceiver   StringOrStringWrapper  Name
+ *         /      \      /   /   /     |    \       /         \       /  \
+ *        /        \    /   /   /      |     \     /           \     /    \
+ * NumberOrBoolean Oddball / Callable JSArray String            String   Symbol
+ *      /      \   /      /                   Wrapper            |
+ *   Number   Boolean    /                                   Internalized
+ *    /  \              /                                      String
+ * Smi    \            /
+ *          HeapNumber
+ *
+ * Ensure that each super-type mentioned in the following NODE_TYPE_LIST
+ * corresponds to exactly one arrow in the above diagram.
+ *
+ * TODO(olivf): Rename Unknown to Any.
  */
-
-#define NODE_TYPE_LIST(V)                                   \
-  V(Unknown, 0)                                             \
-  V(NumberOrOddball, (1 << 1))                              \
-  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)           \
-  V(Number, (1 << 3) | kNumberOrOddball | kNumberOrBoolean) \
-  V(Smi, (1 << 4) | kNumber)                                \
-  V(AnyHeapObject, (1 << 5))                                \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)  \
-  V(Boolean, kOddball | kNumberOrBoolean)                   \
-  V(Name, (1 << 7) | kAnyHeapObject)                        \
-  V(StringOrStringWrapper, (1 << 8) | kAnyHeapObject)       \
-  V(String, (1 << 9) | kName | kStringOrStringWrapper)      \
-  V(InternalizedString, (1 << 10) | kString)                \
-  V(Symbol, (1 << 11) | kName)                              \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                 \
-  V(JSArray, (1 << 13) | kJSReceiver)                       \
-  V(Callable, (1 << 14) | kJSReceiver)                      \
-  V(HeapNumber, kAnyHeapObject | kNumber)
+#define NODE_TYPE_LIST(V)                                  \
+  V(Unknown, 0)                                            \
+  V(NumberOrOddball, (1 << 1) | kUnknown)                  \
+  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)          \
+  V(Number, (1 << 3) | kNumberOrBoolean)                   \
+  V(Smi, (1 << 4) | kNumber)                               \
+  V(AnyHeapObject, (1 << 5) | kUnknown)                    \
+  V(HeapNumber, kAnyHeapObject | kNumber)                  \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball) \
+  V(Boolean, kOddball | kNumberOrBoolean)                  \
+  V(Name, (1 << 7) | kAnyHeapObject)                       \
+  V(StringOrStringWrapper, (1 << 8) | kAnyHeapObject)      \
+  V(String, kName | kStringOrStringWrapper)                \
+  V(InternalizedString, (1 << 9) | kString)                \
+  V(Symbol, (1 << 10) | kName)                             \
+  V(JSReceiver, (1 << 11) | kAnyHeapObject)                \
+  V(JSArray, (1 << 12) | kJSReceiver)                      \
+  V(Callable, (1 << 13) | kJSReceiver)                     \
+  V(StringWrapper, kStringOrStringWrapper | kJSReceiver)
 
 enum class NodeType : uint32_t {
 #define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
@@ -634,15 +651,15 @@ enum class NodeType : uint32_t {
 #undef DEFINE_NODE_TYPE
 };
 
-inline NodeType CombineType(NodeType left, NodeType right) {
+inline constexpr NodeType CombineType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<int>(left) |
                                static_cast<int>(right));
 }
-inline NodeType IntersectType(NodeType left, NodeType right) {
+inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<int>(left) &
                                static_cast<int>(right));
 }
-inline bool NodeTypeIs(NodeType type, NodeType to_check) {
+inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
   int right = static_cast<int>(to_check);
   return (static_cast<int>(type) & right) == right;
 }
@@ -651,11 +668,13 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
                                  compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
-  if (map.IsStringMap()) return NodeType::kString;
+  if (map.IsStringMap()) {
+    return NodeType::kString;
+  }
   if (map.IsNameMap()) return NodeType::kName;
   if (map.IsJSPrimitiveWrapperMap() &&
       IsStringWrapperElementsKind(map.elements_kind())) {
-    return NodeType::kStringOrStringWrapper;
+    return NodeType::kStringWrapper;
   }
   if (map.IsSymbolMap()) return NodeType::kSymbol;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
@@ -666,10 +685,36 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   return NodeType::kAnyHeapObject;
 }
 
+// Conservatively find types which are guaranteed to have no instances.
+// Currently we search for some common contradicting properties.
+// TODO(olivf): Find a better way of doing this. Alternatives considered are,
+// * ensure that every inhabited type is also a NodeType. This would blow up the
+//   lattice quite a bit.
+// * ensure that every possible leaf type exists in the lattice and check if the
+//   type is reachable from a leaf. This is difficult to test for correctness
+//   and also more expensive to compute.
+constexpr static std::initializer_list<std::pair<NodeType, NodeType>>
+    kNodeTypeExclusivePairs{
+        {NodeType::kAnyHeapObject, NodeType::kSmi},
+        {NodeType::kNumberOrOddball, NodeType::kName},
+        {NodeType::kNumberOrOddball, NodeType::kJSReceiver},
+        {NodeType::kJSReceiver, NodeType::kName},
+    };
+inline constexpr bool NodeTypeCannotHaveInstances(NodeType type) {
+  for (auto types : kNodeTypeExclusivePairs) {
+    if (NodeTypeIs(type, types.first) && NodeTypeIs(type, types.second)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
                                       compiler::ObjectRef ref) {
   if (ref.IsSmi()) return NodeType::kSmi;
-  return StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
+  NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
+  DCHECK(!NodeTypeCannotHaveInstances(type));
+  return type;
 }
 
 inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
@@ -696,6 +741,9 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsNameMap();
     case NodeType::kString:
       return map.IsStringMap();
+    case NodeType::kStringWrapper:
+      return map.IsJSPrimitiveWrapperMap() &&
+             IsStringWrapperElementsKind(map.elements_kind());
     case NodeType::kStringOrStringWrapper:
       return map.IsStringMap() ||
              (map.IsJSPrimitiveWrapperMap() &&
@@ -734,9 +782,11 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
     NODE_TYPE_LIST(CASE)
 #undef CASE
     default:
-#define CASE(Name, _)                        \
-  if (NodeTypeIs(type, NodeType::k##Name)) { \
-    out << #Name ",";                        \
+#define CASE(Name, _)                                        \
+  if (NodeTypeIs(type, NodeType::k##Name)) {                 \
+    if constexpr (NodeType::k##Name != NodeType::kUnknown) { \
+      out << #Name ",";                                      \
+    }                                                        \
   }
       NODE_TYPE_LIST(CASE)
 #undef CASE

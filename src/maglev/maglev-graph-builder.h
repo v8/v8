@@ -451,10 +451,10 @@ class MaglevGraphBuilder {
                                                    local_isolate());
   }
 
-  // Returns true if we statically know that {lhs} and {rhs} have different
+  // Returns true if we statically know that {lhs} and {rhs} have disjoint
   // types.
-  bool HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs);
-  bool HasDifferentType(ValueNode* lhs, NodeType rhs_type);
+  bool HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs);
+  bool HasDisjointType(ValueNode* lhs, NodeType rhs_type);
 
   template <typename Function>
   bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);

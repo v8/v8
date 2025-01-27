@@ -3559,7 +3559,7 @@ ValueNode* MaglevGraphBuilder::BuildTaggedEqual(ValueNode* lhs,
   if (tagged_lhs == tagged_rhs) {
     return GetBooleanConstant(true);
   }
-  if (HaveDifferentTypes(tagged_lhs, tagged_rhs)) {
+  if (HaveDisjointTypes(tagged_lhs, tagged_rhs)) {
     return GetBooleanConstant(false);
   }
   // TODO(victorgomes): We could retrieve the HeapObjectRef in Constant and
@@ -4512,18 +4512,16 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   return actual_type;
 }
 
-bool MaglevGraphBuilder::HaveDifferentTypes(ValueNode* lhs, ValueNode* rhs) {
-  return HasDifferentType(lhs, GetType(rhs));
+bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
+  return HasDisjointType(lhs, GetType(rhs));
 }
 
 // Note: this is conservative, ie, returns true if {lhs} cannot be {rhs}.
 // It might return false even if {lhs} is not {rhs}.
-bool MaglevGraphBuilder::HasDifferentType(ValueNode* lhs, NodeType rhs_type) {
+bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
-  if (lhs_type == NodeType::kUnknown || rhs_type == NodeType::kUnknown) {
-    return false;
-  }
-  return IntersectType(lhs_type, rhs_type) == NodeType::kUnknown;
+  NodeType meet = CombineType(lhs_type, rhs_type);
+  return NodeTypeCannotHaveInstances(meet);
 }
 
 bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
@@ -13496,7 +13494,7 @@ MaglevGraphBuilder::BuildBranchIfUndefinedOrNull(BranchBuilder& builder,
     }
     return builder.AlwaysFalse();
   }
-  if (HasDifferentType(node, NodeType::kOddball)) {
+  if (HasDisjointType(node, NodeType::kOddball)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfUndefinedOrNull>({node});
@@ -13674,7 +13672,7 @@ MaglevGraphBuilder::BranchResult MaglevGraphBuilder::BuildBranchIfJSReceiver(
   }
   if (CheckType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysTrue();
-  } else if (HasDifferentType(value, NodeType::kJSReceiver)) {
+  } else if (HasDisjointType(value, NodeType::kJSReceiver)) {
     return builder.AlwaysFalse();
   }
   return builder.Build<BranchIfJSReceiver>({value});
