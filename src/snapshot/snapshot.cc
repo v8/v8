@@ -1008,7 +1008,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
 }
 
 DirectHandle<NativeContext> SnapshotCreatorImpl::context_at(size_t i) const {
-  return IndirectHandle<NativeContext>(contexts_[i].handle_location);
+  return DirectHandle<NativeContext>::FromSlot(contexts_[i].handle_location);
 }
 
 namespace {

@@ -99,7 +99,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
 
 DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_)) {
-    return IndirectHandle<HeapObject>(reinterpret_cast<Address*>(
+    return DirectHandle<HeapObject>::FromSlot(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc_, constant_pool_)));
   }
   DCHECK(IsRelativeCodeTarget(rmode_));

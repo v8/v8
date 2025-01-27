@@ -1333,7 +1333,7 @@ static_assert(FC::kFunctionCallbackInfoArgsLength == FCA::kArgsLength);
 DirectHandle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   Tagged<HeapObject> maybe_function = target();
   if (IsJSFunction(maybe_function)) {
-    return IndirectHandle<JSFunction>(target_slot().location());
+    return DirectHandle<JSFunction>::FromSlot(target_slot().location());
   }
   DCHECK(IsFunctionTemplateInfo(maybe_function));
   DirectHandle<FunctionTemplateInfo> function_template_info(

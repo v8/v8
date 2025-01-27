@@ -123,7 +123,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
            Is##To(v8::internal::Tagged<v8::internal::Object>(                \
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
-    return v8::internal::DirectHandle<v8::internal::To>(                     \
+    return v8::internal::DirectHandle<v8::internal::To>::FromAddress(        \
         v8::internal::ValueHelper::ValueAsAddress(that));                    \
   }                                                                          \
                                                                              \
