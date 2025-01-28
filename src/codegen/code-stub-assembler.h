@@ -2327,8 +2327,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr);
 
-  void JumpIfPointersFromHereAreInteresting(TNode<Object> object,
-                                            Label* interesting);
+  void TrySkipWriteBarrier(TNode<Object> object, Label* if_needs_write_barrier);
 
   // Efficiently copy elements within a single array. The regions
   // [src_index, src_index + length) and [dst_index, dst_index + length)
