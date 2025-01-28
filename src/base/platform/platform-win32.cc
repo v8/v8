@@ -1254,8 +1254,11 @@ void OS::Abort() {
       break;
   }
 
+  // Make the MSVCRT do a silent abort.
+  raise(SIGABRT);
+
   // Make sure function doesn't return.
-  ExitProcess(3);
+  ExitProcess(-1);
 }
 
 
