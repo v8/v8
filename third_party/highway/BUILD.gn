@@ -29,6 +29,10 @@ config("libhwy_external_config") {
     # Start using `-march=z14 -mzvector` once ready.
     defines += [ "HWY_BROKEN_EMU128=0" ]
   }
+  if (current_os == "aix") {
+    # enable emulation until highway aix support is ready.
+    defines += [ "HWY_BROKEN_EMU128=0" ]
+  }
 }
 
 source_set("libhwy") {
