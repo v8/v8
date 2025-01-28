@@ -1245,9 +1245,9 @@ void OS::Abort() {
 
   switch (g_abort_mode) {
     case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
-      ExitProcess(0);
+      _exit(0);
     case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
-      ExitProcess(-1);
+      _exit(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
@@ -1258,7 +1258,7 @@ void OS::Abort() {
   raise(SIGABRT);
 
   // Make sure function doesn't return.
-  ExitProcess(-1);
+  abort();
 }
 
 

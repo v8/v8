@@ -4276,7 +4276,7 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     copts = ["-Wno-implicit-fallthrough"],
-    deps = ["@abseil-cpp//absl/synchronization", "@abseil-cpp//absl/time"],
+    deps = ["@abseil-cpp//absl/synchronization"],
 )
 
 cc_library(

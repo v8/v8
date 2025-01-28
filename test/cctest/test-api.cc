@@ -3009,8 +3009,8 @@ THREADED_TEST(FunctionPrototype) {
 bool internal_field_check_called = false;
 void OnInternalFieldCheck(const char* location, const char* message) {
   internal_field_check_called = true;
-  v8::base::OS::ExitProcess(strcmp(location, "v8::Value::Cast") +
-                            strcmp(message, "Data is not a Value"));
+  exit(strcmp(location, "v8::Value::Cast") +
+       strcmp(message, "Data is not a Value"));
 }
 
 // The fatal error handler would call exit() so this should not be run in
