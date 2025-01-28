@@ -160,12 +160,12 @@ std::vector<ExecutionResult> PerformReferenceRun(
     std::unique_ptr<const char[]> exception;
     int32_t result = testing::CallWasmFunctionForTesting(
         isolate, instance, "main", base::VectorOf(arguments), &exception);
-    // Reached max steps, do not try to execute the test module as it might
-    // never terminate.
-    if (max_steps < 0) break;
     // If there is nondeterminism, we cannot guarantee the behavior of the test
     // module, and in particular it may not terminate.
     if (WasmEngine::clear_nondeterminism()) break;
+    // Reached max steps, do not try to execute the test module as it might
+    // never terminate.
+    if (max_steps < 0) break;
     // Similar to max steps reached, also discard modules that need too much
     // memory.
     if (near_heap_limit.heap_limit_reached()) {
