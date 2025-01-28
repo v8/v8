@@ -11,6 +11,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
@@ -75,7 +76,10 @@ enum CountersMode { kNoCounters, kEnableCounters };
 // all client Isolates.
 class IsolateWrapper final {
  public:
-  explicit IsolateWrapper(CountersMode counters_mode);
+  // `use_statically_set_cpp_heap` exists to avoid TSAN issues, see the comment
+  // on `cpp_heap_`.
+  explicit IsolateWrapper(CountersMode counters_mode,
+                          bool use_statically_set_cpp_heap = true);
 
   ~IsolateWrapper();
   IsolateWrapper(const IsolateWrapper&) = delete;
@@ -86,16 +90,29 @@ class IsolateWrapper final {
     return reinterpret_cast<i::Isolate*>(isolate_);
   }
 
+  static void set_cpp_heap_for_next_isolate(std::unique_ptr<CppHeap> cpp_heap) {
+    cpp_heap_ = std::move(cpp_heap);
+  }
+
  private:
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<CounterMap> counter_map_;
   v8::Isolate* isolate_;
+
+  // `cpp_heap_` is a side channel to pass a custom CppHeap to isolate creation.
+  // Ideally it could be passes as a parameter to the constructor, but with the
+  // MixIn design pattern, that's not possible. Using a static variable as a
+  // side channel causes problems with TSAN, however, when multiple
+  // IsolateWrapper are used at the same time in different threads. The
+  // parameter `use_statically_set_cpp_heap` of the constructor solves the TSAN
+  // issue by providing a way to avoid using `cpp_heap_`.
+  static std::unique_ptr<CppHeap> cpp_heap_;
 };
 
 class IsolateWithContextWrapper final {
  public:
   IsolateWithContextWrapper()
-      : isolate_wrapper_(kNoCounters),
+      : isolate_wrapper_(kNoCounters, false),
         isolate_scope_(isolate_wrapper_.isolate()),
         handle_scope_(isolate_wrapper_.isolate()),
         context_(v8::Context::New(isolate_wrapper_.isolate())),

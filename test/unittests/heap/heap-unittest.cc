@@ -243,7 +243,8 @@ void ShrinkNewSpace(NewSpace* new_space) {
   // which we just shrink without marking or sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause(base::TimeTicks::Now());
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
@@ -275,6 +276,17 @@ void ShrinkNewSpace(NewSpace* new_space) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                               base::TimeTicks::Now());
+  if (heap->cpp_heap()) {
+    using namespace cppgc::internal;
+    StatsCollector* stats_collector =
+        CppHeap::From(heap->cpp_heap())->stats_collector();
+    stats_collector->NotifyMarkingStarted(
+        CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
+        MarkingConfig::IsForcedGC::kNotForced);
+    stats_collector->NotifyMarkingCompleted(0);
+    stats_collector->NotifySweepingCompleted(
+        cppgc::Heap::SweepingType::kAtomic);
+  }
   tracer->NotifyFullSweepingCompleted();
 }
 }  // namespace

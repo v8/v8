@@ -145,22 +145,41 @@ TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
   EXPECT_TRUE(local->IsObject());
 }
 
-TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
-  auto heap =
-      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
-  auto* object =
-      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
-  cppgc::WeakPersistent<Wrappable> weak_holder{object};
+template <typename TMixin>
+class WithCppHeapWithAllocationBeforeConfigureHeap : public TMixin {
+ public:
+  WithCppHeapWithAllocationBeforeConfigureHeap() {
+    auto heap =
+        v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
+    auto* object =
+        cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
+    weak_holder_ = cppgc::WeakPersistent<Wrappable>{object};
 
+    IsolateWrapper::set_cpp_heap_for_next_isolate(std::move(heap));
+  }
+  cppgc::WeakPersistent<Wrappable> weak_holder_;
+};
+
+using UnifiedHeapTestWithAllocationBeforeConfigureHeap = WithUnifiedHeap<  //
+    WithContextMixin<                                                      //
+        WithHeapInternals<                                                 //
+            WithInternalIsolateMixin<                                      //
+                WithIsolateScopeMixin<                                     //
+                    WithIsolateMixin<                                      //
+                        WithCppHeapWithAllocationBeforeConfigureHeap<      //
+                            WithDefaultPlatformMixin<                      //
+                                ::testing::Test>>>>>>>>;
+
+TEST_F(UnifiedHeapTestWithAllocationBeforeConfigureHeap,
+       AllocationBeforeConfigureHeap) {
   auto& js_heap = *isolate()->heap();
-  js_heap.AttachCppHeap(heap.get());
   auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
+  auto weak_holder = std::move(weak_holder_);
   {
     InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_TRUE(weak_holder);
   }
-  USE(object);
   {
     EmbedderStackStateScope stack_scope(
         &js_heap, EmbedderStackStateOrigin::kExplicitInvocation,
@@ -273,7 +292,8 @@ namespace v8::internal {
 
 namespace {
 
-class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
+template <typename TMixin>
+class WithCppHeapWithCustomSpace : public TMixin {
  public:
   static std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>
   GetCustomSpaces() {
@@ -281,9 +301,22 @@ class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
     custom_spaces.emplace_back(std::make_unique<cppgc::CustomSpaceForTest>());
     return custom_spaces;
   }
-  UnifiedHeapWithCustomSpaceTest() : UnifiedHeapTest(GetCustomSpaces()) {}
+
+  WithCppHeapWithCustomSpace() {
+    IsolateWrapper::set_cpp_heap_for_next_isolate(v8::CppHeap::Create(
+        V8::GetCurrentPlatform(), CppHeapCreateParams{GetCustomSpaces()}));
+  }
 };
 
+using UnifiedHeapWithCustomSpaceTest = WithUnifiedHeap<  //
+    WithContextMixin<                                    //
+        WithHeapInternals<                               //
+            WithInternalIsolateMixin<                    //
+                WithIsolateScopeMixin<                   //
+                    WithIsolateMixin<                    //
+                        WithCppHeapWithCustomSpace<      //
+                            WithDefaultPlatformMixin<    //
+                                ::testing::Test>>>>>>>>;
 }  // namespace
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
@@ -832,8 +865,9 @@ TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
 
 namespace {
 using UnifiedHeapMinimalTest = WithIsolateMixin<  //
-    WithDefaultPlatformMixin<                     //
-        ::testing::Test>>;
+    WithCppHeap<                                  //
+        WithDefaultPlatformMixin<                 //
+            ::testing::Test>>>;
 
 class ThreadUsingV8Locker final : public v8::base::Thread {
  public:
@@ -865,12 +899,8 @@ class ThreadUsingV8Locker final : public v8::base::Thread {
 }  // anonymous namespace
 
 TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
-  auto heap =
-      CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
-  isolate->heap()->AttachCppHeap(heap.get());
-  auto* cpp_heap = CppHeap::From(isolate->heap()->cpp_heap());
-
+  i::CppHeap* cpp_heap = i::CppHeap::From(isolate->heap()->cpp_heap());
   // The use of v8::Locker in this test should suppress DCHECKs and CHECKS
   // that enforce that the current thread is the creation thread of the heap
   // or of a persistent.

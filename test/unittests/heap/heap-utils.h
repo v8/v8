@@ -133,13 +133,23 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   void EmptyNewSpaceUsingGC() { InvokeMajorGC(); }
 };
 
-using TestWithHeapInternals =                  //
-    WithHeapInternals<                         //
-        WithInternalIsolateMixin<              //
-            WithIsolateScopeMixin<             //
-                WithIsolateMixin<              //
-                    WithDefaultPlatformMixin<  //
-                        ::testing::Test>>>>>;
+template <typename TMixin>
+class WithCppHeap : public TMixin {
+ public:
+  WithCppHeap() {
+    IsolateWrapper::set_cpp_heap_for_next_isolate(
+        v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}}));
+  }
+};
+
+using TestWithHeapInternals =                      //
+    WithHeapInternals<                             //
+        WithInternalIsolateMixin<                  //
+            WithIsolateScopeMixin<                 //
+                WithIsolateMixin<                  //
+                    WithCppHeap<                   //
+                        WithDefaultPlatformMixin<  //
+                            ::testing::Test>>>>>>;
 
 using TestWithHeapInternalsAndContext =  //
     WithContextMixin<                    //
