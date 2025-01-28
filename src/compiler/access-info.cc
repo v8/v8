@@ -1098,7 +1098,8 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
   if (v8_flags.typed_array_length_loading && IsJSTypedArrayMap(*map.object()) &&
       !IsRabGsabTypedArrayElementsKind(map.elements_kind()) &&
       Name::Equals(isolate(), name.object(),
-                   isolate()->factory()->length_string())) {
+                   isolate()->factory()->length_string()) &&
+      broker_->dependencies()->DependOnTypedArrayLengthProtector()) {
     return PropertyAccessInfo::TypedArrayLength(zone(), map);
   }
   // Check for special JSObject field accessors.

@@ -1829,6 +1829,12 @@ RUNTIME_FUNCTION(Runtime_IsConcatSpreadableProtector) {
       Protectors::IsIsConcatSpreadableLookupChainIntact(isolate));
 }
 
+RUNTIME_FUNCTION(Runtime_TypedArrayLengthProtector) {
+  SealHandleScope shs(isolate);
+  return isolate->heap()->ToBoolean(
+      Protectors::IsTypedArrayLengthLookupChainIntact(isolate));
+}
+
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
   SealHandleScope shs(isolate);
   return isolate->heap()->ToBoolean(

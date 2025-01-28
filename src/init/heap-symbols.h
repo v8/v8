@@ -160,7 +160,6 @@
 
 // Internalized strings to be allocated early on the read only heap
 #define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, length_string, "length")                            \
   V(_, prototype_string, "prototype")                      \
   V(_, name_string, "name")                                \
   V(_, enumerable_string, "enumerable")                    \
@@ -553,6 +552,7 @@
 // These Names have to be allocated consecutively for fast checks,
 #define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, constructor_string, "constructor")                      \
+  V(_, length_string, "length")                                \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")                                    \

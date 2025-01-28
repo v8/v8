@@ -1382,6 +1382,11 @@ bool CompilationDependencies::DependOnStringWrapperToPrimitiveProtector() {
       broker_->isolate()->factory()->string_wrapper_to_primitive_protector()));
 }
 
+bool CompilationDependencies::DependOnTypedArrayLengthProtector() {
+  return DependOnProtector(MakeRef(
+      broker_, broker_->isolate()->factory()->typed_array_length_protector()));
+}
+
 void CompilationDependencies::DependOnElementsKind(AllocationSiteRef site) {
   ElementsKind kind =
       site.PointsToLiteral()
