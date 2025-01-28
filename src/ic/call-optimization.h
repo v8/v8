@@ -49,7 +49,7 @@ class CallOptimization {
     return expected_receiver_type_;
   }
 
-  Handle<FunctionTemplateInfo> api_call_info() const {
+  DirectHandle<FunctionTemplateInfo> api_call_info() const {
     DCHECK(is_simple_api_call());
     return api_call_info_;
   }

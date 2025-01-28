@@ -248,7 +248,7 @@ bool IC::ShouldRecomputeHandler(DirectHandle<String> name) {
   // monomorphic.
   if (IsGlobalIC()) return true;
 
-  MaybeObjectHandle maybe_handler =
+  MaybeObjectDirectHandle maybe_handler =
       nexus()->FindHandlerForMap(lookup_start_object_map());
 
   // The current map wasn't handled yet. There's no reason to stay monomorphic,
@@ -352,12 +352,12 @@ bool IC::ConfigureVectorState(IC::State new_state, DirectHandle<Object> key) {
 }
 
 void IC::ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
-                              Handle<Object> handler) {
-  ConfigureVectorState(name, map, MaybeObjectHandle(handler));
+                              DirectHandle<Object> handler) {
+  ConfigureVectorState(name, map, MaybeObjectDirectHandle(handler));
 }
 
 void IC::ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
-                              const MaybeObjectHandle& handler) {
+                              const MaybeObjectDirectHandle& handler) {
   if (IsGlobalIC()) {
     nexus()->ConfigureHandlerMode(handler);
   } else {
@@ -560,7 +560,7 @@ bool AddOneReceiverMapIfMissing(MapsAndHandlers* receiver_maps_and_handlers,
   return true;
 }
 
-Handle<NativeContext> GetAccessorContext(
+DirectHandle<NativeContext> GetAccessorContext(
     const CallOptimization& call_optimization, Tagged<Map> holder_map,
     Isolate* isolate) {
   std::optional<Tagged<NativeContext>> maybe_context =
@@ -568,12 +568,12 @@ Handle<NativeContext> GetAccessorContext(
 
   // Holders which are remote objects are not expected in the IC system.
   CHECK(maybe_context.has_value());
-  return handle(maybe_context.value(), isolate);
+  return direct_handle(maybe_context.value(), isolate);
 }
 
 }  // namespace
 
-bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler,
+bool IC::UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                          DirectHandle<Name> name) {
   if (!v8_flags.mega_dom_ic) return false;
 
@@ -613,20 +613,22 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler,
   call_optimization.LookupHolderOfExpectedType(isolate(), map, &holder_lookup);
   if (holder_lookup != CallOptimization::kHolderIsReceiver) return false;
 
-  Handle<NativeContext> accessor_context =
+  DirectHandle<NativeContext> accessor_context =
       GetAccessorContext(call_optimization, *map, isolate());
 
-  Handle<FunctionTemplateInfo> fti;
+  DirectHandle<FunctionTemplateInfo> fti;
   if (IsJSFunction(*accessor_obj)) {
-    fti = handle(Cast<JSFunction>(*accessor_obj)->shared()->api_func_data(),
-                 isolate());
+    fti = direct_handle(
+        Cast<JSFunction>(*accessor_obj)->shared()->api_func_data(), isolate());
   } else {
     fti = Cast<FunctionTemplateInfo>(accessor_obj);
   }
 
-  Handle<MegaDomHandler> new_handler = isolate()->factory()->NewMegaDomHandler(
-      MaybeObjectHandle::Weak(fti), MaybeObjectHandle::Weak(accessor_context));
-  nexus()->ConfigureMegaDOM(MaybeObjectHandle(new_handler));
+  DirectHandle<MegaDomHandler> new_handler =
+      isolate()->factory()->NewMegaDomHandler(
+          MaybeObjectDirectHandle::Weak(fti),
+          MaybeObjectDirectHandle::Weak(accessor_context));
+  nexus()->ConfigureMegaDOM(MaybeObjectDirectHandle(new_handler));
   return true;
 }
 
@@ -717,7 +719,7 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
   return true;
 }
 
-void IC::UpdateMonomorphicIC(const MaybeObjectHandle& handler,
+void IC::UpdateMonomorphicIC(const MaybeObjectDirectHandle& handler,
                              DirectHandle<Name> name) {
   DCHECK(IsHandler(*handler));
   ConfigureVectorState(name, lookup_start_object_map(), handler);
@@ -801,7 +803,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
       handler = MaybeObjectHandle(LoadHandler::LoadFullChain(
           isolate(), lookup_start_object_map(),
-          MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler));
+          MaybeObjectDirectHandle(isolate()->factory()->null_value()),
+          smi_handler));
     }
   } else if (IsLoadGlobalIC() && lookup->state() == LookupIterator::JSPROXY) {
     // If there is proxy just install the slow stub since we need to call the
@@ -850,7 +853,7 @@ StubCache* IC::stub_cache() {
 }
 
 void IC::UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
-                                const MaybeObjectHandle& handler) {
+                                const MaybeObjectDirectHandle& handler) {
   if (!IsAnyHas()) {
     stub_cache()->Set(*name, *map, *handler);
   }
@@ -895,14 +898,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
-      Handle<JSObject> holder =
+      DirectHandle<JSObject> holder =
           indirect_handle(lookup->GetHolder<JSObject>(), isolate());
       Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
 
       if (holder->GetNamedInterceptor()->non_masking()) {
-        MaybeObjectHandle holder_ref(isolate()->factory()->null_value());
+        MaybeObjectDirectHandle holder_ref(isolate()->factory()->null_value());
         if (!holder_is_lookup_start_object || IsLoadGlobalIC()) {
-          holder_ref = MaybeObjectHandle::Weak(holder);
+          holder_ref = MaybeObjectDirectHandle::Weak(holder);
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonMaskingInterceptorDH);
         return MaybeObjectHandle(LoadHandler::LoadFullChain(
@@ -997,14 +1000,14 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           smi_handler = LoadHandler::LoadApiGetter(
               isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
 
-          Handle<NativeContext> accessor_context =
+          DirectHandle<NativeContext> accessor_context =
               GetAccessorContext(call_optimization, holder->map(), isolate());
 
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder, *smi_handler,
-              MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-              MaybeObjectHandle::Weak(accessor_context)));
+              MaybeObjectDirectHandle::Weak(call_optimization.api_call_info()),
+              MaybeObjectDirectHandle::Weak(accessor_context)));
         }
 
         if (holder->HasFastProperties()) {
@@ -1018,7 +1021,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder,
               *LoadHandler::LoadAccessorFromPrototype(isolate()),
-              MaybeObjectHandle::Weak(getter)));
+              MaybeObjectDirectHandle::Weak(getter)));
         }
 
         if (IsJSGlobalObject(*holder)) {
@@ -1026,8 +1029,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           smi_handler = LoadHandler::LoadGlobal(isolate());
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder, *smi_handler,
-              MaybeObjectHandle::Weak(
-                  indirect_handle(lookup->GetPropertyCell(), isolate()))));
+              MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell())));
         } else {
           smi_handler = LoadHandler::LoadNormal(isolate());
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
@@ -1066,8 +1068,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::DATA: {
-      Handle<JSReceiver> holder =
-          indirect_handle(lookup->GetHolder<JSReceiver>(), isolate());
+      DirectHandle<JSReceiver> holder = lookup->GetHolder<JSReceiver>();
       DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       Handle<Smi> smi_handler;
       if (lookup->is_dictionary_holder()) {
@@ -1078,8 +1079,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
           smi_handler = LoadHandler::LoadGlobal(isolate());
           return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
               isolate(), map, holder, *smi_handler,
-              MaybeObjectHandle::Weak(
-                  indirect_handle(lookup->GetPropertyCell(), isolate()))));
+              MaybeObjectDirectHandle::Weak(lookup->GetPropertyCell())));
         }
         smi_handler = LoadHandler::LoadNormal(isolate());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
@@ -1118,7 +1118,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         // not, then the weak reference could be missed.
         if (!IsString(*value) ||
             (IsString(*value) && IsInternalizedString(*value))) {
-          MaybeObjectHandle weak_value =
+          MaybeObjectDirectHandle weak_value =
               IsSmi(*value) ? MaybeObjectHandle(*value, isolate())
                             : MaybeObjectHandle::Weak(*value, isolate());
 
@@ -1143,8 +1143,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       Handle<Smi> smi_handler = LoadHandler::LoadProxy(isolate());
       if (holder_is_lookup_start_object) return MaybeObjectHandle(smi_handler);
 
-      Handle<JSProxy> holder_proxy =
-          indirect_handle(lookup->GetHolder<JSProxy>(), isolate());
+      DirectHandle<JSProxy> holder_proxy = lookup->GetHolder<JSProxy>();
       return MaybeObjectHandle(LoadHandler::LoadFromPrototype(
           isolate(), map, holder_proxy, *smi_handler));
     }
@@ -1162,7 +1161,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
 KeyedAccessLoadMode KeyedLoadIC::GetKeyedAccessLoadModeFor(
     DirectHandle<Map> receiver_map) const {
-  const MaybeObjectHandle& handler = nexus()->FindHandlerForMap(receiver_map);
+  const MaybeObjectDirectHandle& handler =
+      nexus()->FindHandlerForMap(receiver_map);
   if (handler.is_null()) return KeyedAccessLoadMode::kInBounds;
   return LoadHandler::GetKeyedAccessLoadMode(*handler);
 }
@@ -1187,7 +1187,8 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.empty()) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
+    DirectHandle<Object> handler =
+        LoadElementHandler(receiver_map, new_load_mode);
     return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   }
 
@@ -1216,7 +1217,8 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
              target_receiver_maps.at(0)->elements_kind(),
              Cast<JSObject>(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
-      Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
+      DirectHandle<Object> handler =
+          LoadElementHandler(receiver_map, new_load_mode);
       return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
     }
   }
@@ -1248,7 +1250,8 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
       GeneralizeKeyedAccessLoadMode(old_load_mode, new_load_mode);
   LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
   if (target_receiver_maps.empty()) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
+    DirectHandle<Object> handler =
+        LoadElementHandler(receiver_map, new_load_mode);
     ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(DirectHandle<Name>(), target_receiver_maps[0],
@@ -1989,8 +1992,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
 MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
-      Handle<JSObject> store_target =
-          indirect_handle(lookup->GetStoreTarget<JSObject>(), isolate());
+      DirectHandle<JSObject> store_target = lookup->GetStoreTarget<JSObject>();
       if (IsJSGlobalObject(*store_target)) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
@@ -2016,8 +2018,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
             StoreHandler::StoreGlobalProxy(isolate());
         Handle<Object> handler = StoreHandler::StoreThroughPrototype(
             isolate(), lookup_start_object_map(), store_target, *smi_handler,
-            MaybeObjectHandle::Weak(
-                indirect_handle(lookup->transition_cell(), isolate())));
+            MaybeObjectDirectHandle::Weak(lookup->transition_cell()));
         return MaybeObjectHandle(handler);
       }
       // Dictionary-to-fast transitions are not expected and not supported.
@@ -2034,8 +2035,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::INTERCEPTOR: {
-      Handle<JSObject> holder =
-          indirect_handle(lookup->GetHolder<JSObject>(), isolate());
+      DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
       Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
 
       // If the interceptor is on the receiver...
@@ -2138,14 +2138,15 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                 isolate(),
                 holder_lookup == CallOptimization::kHolderIsReceiver);
 
-            Handle<NativeContext> accessor_context =
+            DirectHandle<NativeContext> accessor_context =
                 GetAccessorContext(call_optimization, holder->map(), isolate());
 
             TRACE_HANDLER_STATS(isolate(), StoreIC_StoreApiSetterOnPrototypeDH);
             return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
                 isolate(), lookup_start_object_map(), holder, *smi_handler,
-                MaybeObjectHandle::Weak(call_optimization.api_call_info()),
-                MaybeObjectHandle::Weak(accessor_context)));
+                MaybeObjectDirectHandle::Weak(
+                    call_optimization.api_call_info()),
+                MaybeObjectDirectHandle::Weak(accessor_context)));
           }
           set_slow_stub_reason("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
@@ -2167,7 +2168,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
             isolate(), lookup_start_object_map(), holder,
             *StoreHandler::StoreAccessorFromPrototype(isolate()),
-            MaybeObjectHandle::Weak(setter)));
+            MaybeObjectDirectHandle::Weak(setter)));
       }
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
@@ -2272,7 +2273,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     if (IsTransitionOfMonomorphicTarget(*receiver_map, *new_receiver_map)) {
       monomorphic_map = new_receiver_map;
     }
-    Handle<Object> handler = StoreElementHandler(monomorphic_map, store_mode);
+    DirectHandle<Object> handler =
+        StoreElementHandler(monomorphic_map, store_mode);
     return ConfigureVectorState(DirectHandle<Name>(), monomorphic_map, handler);
   }
 
@@ -2298,7 +2300,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // If the "old" and "new" maps are in the same elements map family, or
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
-      Handle<Object> handler =
+      DirectHandle<Object> handler =
           StoreElementHandler(transitioned_receiver_map, store_mode);
       ConfigureVectorState(DirectHandle<Name>(), transitioned_receiver_map,
                            handler);
@@ -2319,7 +2321,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
+      DirectHandle<Object> handler =
+          StoreElementHandler(receiver_map, store_mode);
       return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
     }
   }
@@ -2387,7 +2390,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   StoreElementPolymorphicHandlers(&target_maps_and_handlers, store_mode);
   if (target_maps_and_handlers.empty()) {
-    Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
+    DirectHandle<Object> handler =
+        StoreElementHandler(receiver_map, store_mode);
     ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   } else if (target_maps_and_handlers.size() == 1) {
     ConfigureVectorState(DirectHandle<Name>(),
@@ -2486,7 +2490,8 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
   for (size_t i = 0; i < receiver_maps_and_handlers->size(); i++) {
     Handle<Map> receiver_map = receiver_maps_and_handlers->at(i).first;
     DCHECK(!receiver_map->is_deprecated());
-    MaybeObjectHandle old_handler = receiver_maps_and_handlers->at(i).second;
+    MaybeObjectDirectHandle old_handler =
+        receiver_maps_and_handlers->at(i).second;
     Handle<Object> handler;
     DirectHandle<Map> transition;
 

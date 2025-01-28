@@ -29,8 +29,8 @@ template <typename ICHandler, bool fill_handler = true>
 int InitPrototypeChecksImpl(Isolate* isolate, DirectHandle<ICHandler> handler,
                             Tagged<Smi>* smi_handler,
                             DirectHandle<Map> lookup_start_object_map,
-                            MaybeObjectHandle data1,
-                            MaybeObjectHandle maybe_data2) {
+                            MaybeObjectDirectHandle data1,
+                            MaybeObjectDirectHandle maybe_data2) {
   int data_size = 1;
   // Holder-is-receiver case itself does not add entries unless there is an
   // optional data2 value provided.
@@ -90,10 +90,10 @@ int InitPrototypeChecksImpl(Isolate* isolate, DirectHandle<ICHandler> handler,
 // If the |holder| is an empty handle then the full prototype chain is
 // checked.
 template <typename ICHandler>
-int GetHandlerDataSize(Isolate* isolate, Tagged<Smi>* smi_handler,
-                       DirectHandle<Map> lookup_start_object_map,
-                       MaybeObjectHandle data1,
-                       MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
+int GetHandlerDataSize(
+    Isolate* isolate, Tagged<Smi>* smi_handler,
+    DirectHandle<Map> lookup_start_object_map, MaybeObjectDirectHandle data1,
+    MaybeObjectDirectHandle maybe_data2 = MaybeObjectDirectHandle()) {
   DCHECK_NOT_NULL(smi_handler);
   return InitPrototypeChecksImpl<ICHandler, false>(
       isolate, DirectHandle<ICHandler>(), smi_handler, lookup_start_object_map,
@@ -101,10 +101,10 @@ int GetHandlerDataSize(Isolate* isolate, Tagged<Smi>* smi_handler,
 }
 
 template <typename ICHandler>
-void InitPrototypeChecks(Isolate* isolate, DirectHandle<ICHandler> handler,
-                         DirectHandle<Map> lookup_start_object_map,
-                         MaybeObjectHandle data1,
-                         MaybeObjectHandle maybe_data2 = MaybeObjectHandle()) {
+void InitPrototypeChecks(
+    Isolate* isolate, DirectHandle<ICHandler> handler,
+    DirectHandle<Map> lookup_start_object_map, MaybeObjectDirectHandle data1,
+    MaybeObjectDirectHandle maybe_data2 = MaybeObjectDirectHandle()) {
   InitPrototypeChecksImpl<ICHandler, true>(
       isolate, handler, nullptr, lookup_start_object_map, data1, maybe_data2);
 }
@@ -114,11 +114,11 @@ void InitPrototypeChecks(Isolate* isolate, DirectHandle<ICHandler> handler,
 // static
 Handle<Object> LoadHandler::LoadFromPrototype(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
-    Handle<JSReceiver> holder, Tagged<Smi> smi_handler,
-    MaybeObjectHandle maybe_data1, MaybeObjectHandle maybe_data2) {
-  MaybeObjectHandle data1;
+    DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
+    MaybeObjectDirectHandle maybe_data1, MaybeObjectDirectHandle maybe_data2) {
+  MaybeObjectDirectHandle data1;
   if (maybe_data1.is_null()) {
-    data1 = MaybeObjectHandle::Weak(holder);
+    data1 = MaybeObjectDirectHandle::Weak(holder);
   } else {
     data1 = maybe_data1;
   }
@@ -142,9 +142,9 @@ Handle<Object> LoadHandler::LoadFromPrototype(
 // static
 Handle<Object> LoadHandler::LoadFullChain(
     Isolate* isolate, DirectHandle<Map> lookup_start_object_map,
-    const MaybeObjectHandle& holder, Handle<Smi> smi_handler_handle) {
+    const MaybeObjectDirectHandle& holder, Handle<Smi> smi_handler_handle) {
   Tagged<Smi> smi_handler = *smi_handler_handle;
-  MaybeObjectHandle data1 = holder;
+  MaybeObjectDirectHandle data1 = holder;
   int data_size = GetHandlerDataSize<LoadHandler>(
       isolate, &smi_handler, lookup_start_object_map, data1);
 
@@ -311,12 +311,12 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
 
 // static
 Handle<Object> StoreHandler::StoreThroughPrototype(
-    Isolate* isolate, DirectHandle<Map> receiver_map, Handle<JSReceiver> holder,
-    Tagged<Smi> smi_handler, MaybeObjectHandle maybe_data1,
-    MaybeObjectHandle maybe_data2) {
-  MaybeObjectHandle data1;
+    Isolate* isolate, DirectHandle<Map> receiver_map,
+    DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
+    MaybeObjectDirectHandle maybe_data1, MaybeObjectDirectHandle maybe_data2) {
+  MaybeObjectDirectHandle data1;
   if (maybe_data1.is_null()) {
-    data1 = MaybeObjectHandle::Weak(holder);
+    data1 = MaybeObjectDirectHandle::Weak(holder);
   } else {
     data1 = maybe_data1;
   }
@@ -349,7 +349,7 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
   Handle<Smi> smi_handler = StoreProxy(isolate);
   if (receiver.is_identical_to(proxy)) return smi_handler;
   return StoreThroughPrototype(isolate, receiver_map, proxy, *smi_handler,
-                               MaybeObjectHandle::Weak(proxy));
+                               MaybeObjectDirectHandle::Weak(proxy));
 }
 
 bool LoadHandler::CanHandleHolderNotLookupStart(Tagged<Object> handler) {

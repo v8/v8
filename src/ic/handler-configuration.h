@@ -198,16 +198,16 @@ class LoadHandler final : public DataHandler {
   // needed (e.g., for "nonexistent"), null_value() may be passed in.
   static Handle<Object> LoadFullChain(Isolate* isolate,
                                       DirectHandle<Map> receiver_map,
-                                      const MaybeObjectHandle& holder,
+                                      const MaybeObjectDirectHandle& holder,
                                       Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, DirectHandle<Map> receiver_map,
-      Handle<JSReceiver> holder, Tagged<Smi> smi_handler,
-      MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
-      MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
+      DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
+      MaybeObjectDirectHandle maybe_data1 = MaybeObjectDirectHandle(),
+      MaybeObjectDirectHandle maybe_data2 = MaybeObjectDirectHandle());
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
@@ -329,9 +329,9 @@ class StoreHandler final : public DataHandler {
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, DirectHandle<Map> receiver_map,
-      Handle<JSReceiver> holder, Tagged<Smi> smi_handler,
-      MaybeObjectHandle maybe_data1 = MaybeObjectHandle(),
-      MaybeObjectHandle maybe_data2 = MaybeObjectHandle());
+      DirectHandle<JSReceiver> holder, Tagged<Smi> smi_handler,
+      MaybeObjectDirectHandle maybe_data1 = MaybeObjectDirectHandle(),
+      MaybeObjectDirectHandle maybe_data2 = MaybeObjectDirectHandle());
 
   static Handle<Object> StoreElementTransition(
       Isolate* isolate, DirectHandle<Map> receiver_map,

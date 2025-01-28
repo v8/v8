@@ -879,7 +879,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   int ExtractMapsAndHandlers(
       MapsAndHandlers* maps_and_handlers,
       TryUpdateHandler map_handler = TryUpdateHandler()) const;
-  MaybeObjectHandle FindHandlerForMap(DirectHandle<Map> map) const;
+  MaybeObjectDirectHandle FindHandlerForMap(DirectHandle<Map> map) const;
   // Used to obtain maps. This is used by compilers to get all the feedback
   // stored in the vector.
   template <typename F>
@@ -905,12 +905,12 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   void ConfigureMonomorphic(DirectHandle<Name> name,
                             DirectHandle<Map> receiver_map,
-                            const MaybeObjectHandle& handler);
+                            const MaybeObjectDirectHandle& handler);
 
   void ConfigurePolymorphic(DirectHandle<Name> name,
                             MapsAndHandlers const& maps_and_handlers);
 
-  void ConfigureMegaDOM(const MaybeObjectHandle& handler);
+  void ConfigureMegaDOM(const MaybeObjectDirectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
@@ -950,7 +950,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // Returns false if given combination of indices is not allowed.
   bool ConfigureLexicalVarMode(int script_context_index, int context_slot_index,
                                bool immutable);
-  void ConfigureHandlerMode(const MaybeObjectHandle& handler);
+  void ConfigureHandlerMode(const MaybeObjectDirectHandle& handler);
 
   // For CloneObject ICs
   static constexpr int kCloneObjectPolymorphicEntrySize = 2;
@@ -986,7 +986,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   DirectHandle<WeakFixedArray> CreateArrayOfSize(int length);
 
   // Helpers to maintain feedback_cache_.
-  inline Tagged<MaybeObject> FromHandle(MaybeObjectHandle slot) const;
+  inline Tagged<MaybeObject> FromHandle(MaybeObjectDirectHandle slot) const;
   inline MaybeObjectHandle ToHandle(Tagged<MaybeObject> value) const;
 
   // The reason for having a vector handle and a raw pointer is that we can and

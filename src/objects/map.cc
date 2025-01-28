@@ -529,7 +529,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
         isolate, map->instance_type(), &representation, &type);
   }
 
-  MaybeObjectHandle wrapped_type = WrapFieldType(type);
+  MaybeObjectDirectHandle wrapped_type = WrapFieldType(type);
 
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);

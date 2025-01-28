@@ -6006,8 +6006,9 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
 void Genesis::InitializeGlobal_js_base_64() {
   if (!v8_flags.js_base_64) return;
 
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSObject> uint8array_function =
+  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
+                                      isolate());
+  DirectHandle<JSObject> uint8array_function =
       Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
                          .ToHandleChecked());
   SimpleInstallFunction(isolate(), uint8array_function, "fromBase64",

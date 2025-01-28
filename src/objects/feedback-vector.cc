@@ -712,7 +712,7 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
-void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectHandle& handler) {
+void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegaDOMSentinel();
 
@@ -961,7 +961,8 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
   return true;
 }
 
-void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
+void FeedbackNexus::ConfigureHandlerMode(
+    const MaybeObjectDirectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
   SetFeedback(ClearedValue(config()->isolate()), UPDATE_WRITE_BARRIER, *handler,
@@ -1107,9 +1108,9 @@ float FeedbackNexus::ComputeCallFrequency() {
   return static_cast<float>(call_count / invocation_count);
 }
 
-void FeedbackNexus::ConfigureMonomorphic(DirectHandle<Name> name,
-                                         DirectHandle<Map> receiver_map,
-                                         const MaybeObjectHandle& handler) {
+void FeedbackNexus::ConfigureMonomorphic(
+    DirectHandle<Name> name, DirectHandle<Map> receiver_map,
+    const MaybeObjectDirectHandle& handler) {
   DCHECK(handler.is_null() || IC::IsHandler(*handler));
   if (kind() == FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral) {
     SetFeedback(MakeWeak(*receiver_map), UPDATE_WRITE_BARRIER, *name);
@@ -1134,7 +1135,7 @@ void FeedbackNexus::ConfigurePolymorphic(
   for (int current = 0; current < receiver_count; ++current) {
     DirectHandle<Map> map = maps_and_handlers[current].first;
     array->set(current * 2, MakeWeak(*map));
-    MaybeObjectHandle handler = maps_and_handlers[current].second;
+    MaybeObjectDirectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
     array->set(current * 2 + 1, *handler);
   }
@@ -1195,7 +1196,7 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,
   return found;
 }
 
-MaybeObjectHandle FeedbackNexus::FindHandlerForMap(
+MaybeObjectDirectHandle FeedbackNexus::FindHandlerForMap(
     DirectHandle<Map> map) const {
   DCHECK(!IsStoreInArrayLiteralICKind(kind()));
 
@@ -1204,7 +1205,7 @@ MaybeObjectHandle FeedbackNexus::FindHandlerForMap(
       return config()->NewHandle(it.handler());
     }
   }
-  return MaybeObjectHandle();
+  return MaybeObjectDirectHandle();
 }
 
 Tagged<Name> FeedbackNexus::GetName() const {

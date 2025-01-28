@@ -521,7 +521,8 @@ Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
   return *FeedbackVector::MegaDOMSentinel(config()->isolate());
 }
 
-Tagged<MaybeObject> FeedbackNexus::FromHandle(MaybeObjectHandle slot) const {
+Tagged<MaybeObject> FeedbackNexus::FromHandle(
+    MaybeObjectDirectHandle slot) const {
   return slot.is_null() ? ClearedValue(config()->isolate()) : *slot;
 }
 

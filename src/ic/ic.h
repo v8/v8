@@ -84,9 +84,9 @@ class IC {
   bool ConfigureVectorState(IC::State new_state, DirectHandle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
-                            Handle<Object> handler);
+                            DirectHandle<Object> handler);
   void ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
-                            const MaybeObjectHandle& handler);
+                            const MaybeObjectDirectHandle& handler);
   // Configure the vector for POLYMORPHIC.
   void ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
@@ -102,14 +102,14 @@ class IC {
                                       Handle<Object> key);
   MaybeDirectHandle<Object> ReferenceError(Handle<Name> name);
 
-  void UpdateMonomorphicIC(const MaybeObjectHandle& handler,
+  void UpdateMonomorphicIC(const MaybeObjectDirectHandle& handler,
                            DirectHandle<Name> name);
-  bool UpdateMegaDOMIC(const MaybeObjectHandle& handler,
+  bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                        DirectHandle<Name> name);
   bool UpdatePolymorphicIC(DirectHandle<Name> name,
                            const MaybeObjectHandle& handler);
   void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
-                              const MaybeObjectHandle& handler);
+                              const MaybeObjectDirectHandle& handler);
 
   StubCache* stub_cache();
 

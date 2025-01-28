@@ -1005,7 +1005,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
       if (IsUniqueName(*name)) {
         nexus.ConfigureMonomorphic(Cast<Name>(name),
                                    direct_handle(object->map(), isolate),
-                                   MaybeObjectHandle());
+                                   MaybeObjectDirectHandle());
       } else {
         nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }

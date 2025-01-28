@@ -924,7 +924,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
           isolate_, instance_type, &next_representation, &next_field_type);
 
-      MaybeObjectHandle wrapped_type(Map::WrapFieldType(next_field_type));
+      MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
@@ -970,7 +970,7 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           is_transitionable_fast_elements_kind_,
           Map::IsMostGeneralFieldType(next_representation, *next_field_type));
 
-      MaybeObjectHandle wrapped_type(Map::WrapFieldType(next_field_type));
+      MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
@@ -1271,7 +1271,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
     }
 
     DCHECK_IMPLIES(IsClass(*new_type), new_representation.IsHeapObject());
-    MaybeObjectHandle wrapped_type(Map::WrapFieldType(new_type));
+    MaybeObjectDirectHandle wrapped_type(Map::WrapFieldType(new_type));
     Descriptor d = Descriptor::DataField(
         name, descriptors->GetFieldIndex(descriptor), details.attributes(),
         new_constness, new_representation, wrapped_type);

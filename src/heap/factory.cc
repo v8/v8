@@ -4096,15 +4096,15 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(
   return map;
 }
 
-Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
-                                                  MaybeObjectHandle context) {
+DirectHandle<MegaDomHandler> Factory::NewMegaDomHandler(
+    MaybeObjectDirectHandle accessor, MaybeObjectDirectHandle context) {
   DirectHandle<Map> map = mega_dom_handler_map();
   Tagged<MegaDomHandler> handler =
       Cast<MegaDomHandler>(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   handler->set_accessor(*accessor, kReleaseStore);
   handler->set_context(*context);
-  return handle(handler, isolate());
+  return direct_handle(handler, isolate());
 }
 
 Handle<LoadHandler> Factory::NewLoadHandler(int data_count,
