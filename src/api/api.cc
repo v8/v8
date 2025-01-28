@@ -9154,7 +9154,7 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
   size_t max = i_isolate->array_buffer_allocator()->MaxAllocationSize();
   DCHECK(max <= ArrayBuffer::kMaxByteLength);
   if (byte_length > max) {
-    return MaybeLocal<ArrayBuffer>();
+    return {};
   }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::MaybeDirectHandle<i::JSArrayBuffer> result =
@@ -9163,7 +9163,7 @@ MaybeLocal<ArrayBuffer> v8::ArrayBuffer::MaybeNew(
 
   i::DirectHandle<i::JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) {
-    return MaybeLocal<ArrayBuffer>();
+    return {};
   }
 
   return Utils::ToLocal(array_buffer);
@@ -9206,18 +9206,29 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
 
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     Isolate* v8_isolate, size_t byte_length,
-    BackingStoreInitializationMode initialization_mode) {
+    BackingStoreInitializationMode initialization_mode,
+    BackingStoreOnFailureMode on_failure) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, ArrayBuffer, NewBackingStore);
-  CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
+  if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
+    CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
+  } else if (byte_length > i::JSArrayBuffer::kMaxByteLength) {
+    DCHECK(on_failure == BackingStoreOnFailureMode::kReturnNull);
+    return {};
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length,
                                 i::SharedFlag::kNotShared,
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
-    i::V8::FatalProcessOutOfMemory(i_isolate,
-                                   "v8::ArrayBuffer::NewBackingStore");
+    if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
+      i::V8::FatalProcessOutOfMemory(i_isolate,
+                                     "v8::ArrayBuffer::NewBackingStore");
+    } else {
+      DCHECK(on_failure == BackingStoreOnFailureMode::kReturnNull);
+      return {};
+    }
   }
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
@@ -9516,10 +9527,26 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
                                 GetInitializedFlag(initialization_mode));
 
   if (!backing_store) {
-    // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
-    // version that throws an exception or otherwise does not crash.
     i::V8::FatalProcessOutOfMemory(i_isolate, "v8::SharedArrayBuffer::New");
   }
+
+  i::DirectHandle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+  return Utils::ToLocalShared(obj);
+}
+
+MaybeLocal<SharedArrayBuffer> v8::SharedArrayBuffer::MaybeNew(
+    Isolate* v8_isolate, size_t byte_length,
+    BackingStoreInitializationMode initialization_mode) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+  std::unique_ptr<i::BackingStore> backing_store =
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+                                GetInitializedFlag(initialization_mode));
+
+  if (!backing_store) return {};
 
   i::DirectHandle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
@@ -9544,20 +9571,31 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
 
 std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
     Isolate* v8_isolate, size_t byte_length,
-    BackingStoreInitializationMode initialization_mode) {
+    BackingStoreInitializationMode initialization_mode,
+    BackingStoreOnFailureMode on_failure) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, SharedArrayBuffer, NewBackingStore);
-  Utils::ApiCheck(
-      byte_length <= i::JSArrayBuffer::kMaxByteLength,
-      "v8::SharedArrayBuffer::NewBackingStore",
-      "Cannot construct SharedArrayBuffer, requested length is too big");
+  if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
+    Utils::ApiCheck(
+        byte_length <= i::JSArrayBuffer::kMaxByteLength,
+        "v8::SharedArrayBuffer::NewBackingStore",
+        "Cannot construct SharedArrayBuffer, requested length is too big");
+  } else {
+    DCHECK(on_failure == BackingStoreOnFailureMode::kReturnNull);
+    if (byte_length > i::JSArrayBuffer::kMaxByteLength) return {};
+  }
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
                                 GetInitializedFlag(initialization_mode));
   if (!backing_store) {
-    i::V8::FatalProcessOutOfMemory(i_isolate,
-                                   "v8::SharedArrayBuffer::NewBackingStore");
+    if (on_failure == BackingStoreOnFailureMode::kOutOfMemory) {
+      i::V8::FatalProcessOutOfMemory(i_isolate,
+                                     "v8::SharedArrayBuffer::NewBackingStore");
+    } else {
+      DCHECK(on_failure == BackingStoreOnFailureMode::kReturnNull);
+      return {};
+    }
   }
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));

@@ -206,6 +206,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
   void* buffer_start = nullptr;
   auto allocator = isolate->array_buffer_allocator();
   CHECK_NOT_NULL(allocator);
+  if (byte_length > allocator->MaxAllocationSize()) return {};
   if (byte_length != 0) {
     auto counters = isolate->counters();
     int mb_length = static_cast<int>(byte_length / MB);

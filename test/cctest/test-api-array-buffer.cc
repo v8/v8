@@ -20,6 +20,13 @@ using ::v8::Value;
 
 namespace {
 
+// Too large ArrayBuffer.
+#if V8_TARGET_ARCH_64_BIT
+size_t kUnreasonableSize = size_t{1} << 53;
+#else
+size_t kUnreasonableSize = size_t{1} << 31;
+#endif
+
 void CheckDataViewIsDetached(v8::Local<v8::DataView> dv) {
   CHECK_EQ(0, static_cast<int>(dv->ByteLength()));
   CHECK_EQ(0, static_cast<int>(dv->ByteOffset()));
@@ -122,15 +129,8 @@ THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
   v8::Local<v8::Value> result = CompileRun("ab.byteLength");
   CHECK_EQ(1024, result->Int32Value(env.local()).FromJust());
 
-  // Too large ArrayBuffer.
-  size_t unreasonable_size = 1;
-#if V8_TARGET_ARCH_64_BIT
-  unreasonable_size <<= 53;
-#else
-  unreasonable_size <<= 31;
-#endif
   v8::MaybeLocal<v8::ArrayBuffer> maybe_ab_2 =
-      v8::ArrayBuffer::MaybeNew(isolate, unreasonable_size);
+      v8::ArrayBuffer::MaybeNew(isolate, kUnreasonableSize);
   CHECK(maybe_ab_2.IsEmpty());
 }
 
@@ -268,6 +268,27 @@ TEST(ArrayBuffer_TotalSize) {
           v8::ArrayBuffer::MaybeNew(isolate, 32769);
       CHECK(maybe_ab1.IsEmpty());
     }
+
+    // Too big shared.
+    v8::MaybeLocal<v8::SharedArrayBuffer> maybe_sab =
+        v8::SharedArrayBuffer::MaybeNew(isolate, 32769);
+    CHECK(maybe_sab.IsEmpty());
+
+    // Too big backing store.
+    std::unique_ptr<v8::BackingStore> backing_store =
+        v8::ArrayBuffer::NewBackingStore(
+            isolate, 32769,
+            v8::BackingStoreInitializationMode::kZeroInitialized,
+            v8::BackingStoreOnFailureMode::kReturnNull);
+    CHECK(!backing_store);
+
+    // Too big shared backing store.
+    std::unique_ptr<v8::BackingStore> shared_backing_store =
+        v8::SharedArrayBuffer::NewBackingStore(
+            isolate, 32769,
+            v8::BackingStoreInitializationMode::kZeroInitialized,
+            v8::BackingStoreOnFailureMode::kReturnNull);
+    CHECK(!shared_backing_store);
 
     // Take half size.
     {
@@ -702,6 +723,30 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
       v8::SharedArrayBuffer::New(isolate, backing_store);
   CHECK_EQ(backing_store.get(), ab->GetBackingStore().get());
   CHECK_EQ(backing_store->Data(), ab->Data());
+}
+
+THREADED_TEST(SharedArrayBuffer_NewBackingStore_Unreasonable) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::SharedArrayBuffer::NewBackingStore(
+          isolate, kUnreasonableSize,
+          v8::BackingStoreInitializationMode::kZeroInitialized,
+          v8::BackingStoreOnFailureMode::kReturnNull);
+  CHECK(!backing_store);
+}
+
+THREADED_TEST(ArrayBuffer_NewBackingStore_Unreasonable) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(
+          isolate, kUnreasonableSize,
+          v8::BackingStoreInitializationMode::kZeroInitialized,
+          v8::BackingStoreOnFailureMode::kReturnNull);
+  CHECK(!backing_store);
 }
 
 static void* backing_store_custom_data = nullptr;

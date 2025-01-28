@@ -25,6 +25,7 @@ class SharedArrayBuffer;
 
 enum class ArrayBufferCreationMode { kInternalized, kExternalized };
 enum class BackingStoreInitializationMode { kZeroInitialized, kUninitialized };
+enum class BackingStoreOnFailureMode { kReturnNull, kOutOfMemory };
 
 /**
  * A wrapper around the backing store (i.e. the raw memory) of an array buffer.
@@ -243,13 +244,21 @@ class V8_EXPORT ArrayBuffer : public Object {
    * ArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
-   * given isolate and re-try the allocation. If GCs do not help, then the
+   * given isolate and re-try the allocation.
+   *
+   * If GCs do not help and on_failure is kOutOfMemory, then the
    * function will crash with an out-of-memory error.
+   *
+   * Otherwise if GCs do not help (or the allocation is too large for GCs to
+   * help) and on_failure is kReturnNull, then a null result is returned.
    */
   static std::unique_ptr<BackingStore> NewBackingStore(
       Isolate* isolate, size_t byte_length,
       BackingStoreInitializationMode initialization_mode =
-          BackingStoreInitializationMode::kZeroInitialized);
+          BackingStoreInitializationMode::kZeroInitialized,
+      BackingStoreOnFailureMode on_failure =
+          BackingStoreOnFailureMode::kOutOfMemory);
+
   /**
    * Returns a new standalone BackingStore that takes over the ownership of
    * the given buffer. The destructor of the BackingStore invokes the given
@@ -479,6 +488,18 @@ class V8_EXPORT SharedArrayBuffer : public Object {
           BackingStoreInitializationMode::kZeroInitialized);
 
   /**
+   * Create a new SharedArrayBuffer. Allocate |byte_length| bytes, which are
+   * either zero-initialized or uninitialized. Allocated memory will be owned by
+   * a created SharedArrayBuffer and will be deallocated when it is
+   * garbage-collected, unless the object is externalized.  If allocation
+   * fails, the Maybe returned will be empty.
+   */
+  static MaybeLocal<SharedArrayBuffer> MaybeNew(
+      Isolate* isolate, size_t byte_length,
+      BackingStoreInitializationMode initialization_mode =
+          BackingStoreInitializationMode::kZeroInitialized);
+
+  /**
    * Create a new SharedArrayBuffer with an existing backing store.
    * The created array keeps a reference to the backing store until the array
    * is garbage collected. Note that the IsExternal bit does not affect this
@@ -500,13 +521,22 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * SharedArrayBuffer::New.
    *
    * If the allocator returns nullptr, then the function may cause GCs in the
-   * given isolate and re-try the allocation. If GCs do not help, then the
-   * function will crash with an out-of-memory error.
+   * given isolate and re-try the allocation.
+   *
+   * If on_failure is kOutOfMemory and GCs do not help, then the function will
+   * crash with an out-of-memory error.
+   *
+   * Otherwise, if on_failure is kReturnNull and GCs do not help (or the
+   * byte_length is so large that the allocation cannot succeed), then a null
+   * result is returned.
    */
   static std::unique_ptr<BackingStore> NewBackingStore(
       Isolate* isolate, size_t byte_length,
       BackingStoreInitializationMode initialization_mode =
-          BackingStoreInitializationMode::kZeroInitialized);
+          BackingStoreInitializationMode::kZeroInitialized,
+      BackingStoreOnFailureMode on_failure =
+          BackingStoreOnFailureMode::kOutOfMemory);
+
   /**
    * Returns a new standalone BackingStore that takes over the ownership of
    * the given buffer. The destructor of the BackingStore invokes the given
