@@ -604,6 +604,7 @@ namespace internal {
   F(IsEfficiencyModeEnabled, 0, 1)            \
   F(IsInPlaceInternalizableString, 1, 1)      \
   F(IsInternalizedString, 1, 1)               \
+  F(IsNoWriteBarrierNeeded, 1, 1)             \
   F(StringToCString, 1, 1)                    \
   F(StringUtf8Value, 1, 1)                    \
   F(IsMaglevEnabled, 0, 1)                    \
