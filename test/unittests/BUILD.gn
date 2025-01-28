@@ -662,7 +662,10 @@ v8_source_set("v8_unittests_sources") {
       "assembler/macro-assembler-arm-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/arm/instruction-selector-arm-unittest.cc" ]
+      sources += [
+        "compiler/arm/instruction-selector-arm-unittest.cc",
+        "compiler/arm/turboshaft-instruction-selector-arm-unittest.cc",
+      ]
     }
   } else if (v8_current_cpu == "arm64") {
     sources += [

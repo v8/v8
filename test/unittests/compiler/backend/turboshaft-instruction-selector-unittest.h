@@ -91,9 +91,13 @@ namespace v8::internal::compiler::turboshaft {
   V(Uint64GreaterThanOrEqual)   \
   V(Uint64GreaterThan)          \
   V(Float64Add)                 \
+  V(Float32Add)                 \
   V(Float64Sub)                 \
+  V(Float32Sub)                 \
   V(Float64Mul)                 \
+  V(Float32Mul)                 \
   V(Float64Div)                 \
+  V(Float32Div)                 \
   V(Float64Equal)               \
   V(Float64LessThan)            \
   V(Float64LessThanOrEqual)     \
