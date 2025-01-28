@@ -53,6 +53,8 @@ class StringEscapeAnalyzer {
   Zone* zone_;
 
   void ProcessBlock(const Block& block);
+  void ProcessFrameState(V<FrameState> index, const FrameStateOp& framestate);
+  void MarkNextFrameStateInputAsEscaping(FrameStateData::Iterator* it);
   void MarkAllInputsAsEscaping(const Operation& op);
   void RecursivelyMarkAllStringConcatInputsAsEscaping(
       const StringConcatOp* concat);

@@ -29,23 +29,59 @@ void StringEscapeAnalyzer::Run() {
   ComputeFrameStatesToReconstruct();
 }
 
+void StringEscapeAnalyzer::MarkNextFrameStateInputAsEscaping(
+    FrameStateData::Iterator* it) {
+  switch (it->current_instr()) {
+    using Instr = FrameStateData::Instr;
+    case Instr::kInput: {
+      MachineType type;
+      OpIndex input;
+      it->ConsumeInput(&type, &input);
+      MarkAsEscaping(input);
+      return;
+    }
+    case Instr::kArgumentsElements:
+    case Instr::kArgumentsLength:
+    case Instr::kRestLength:
+    case Instr::kDematerializedObjectReference:
+    case Instr::kDematerializedObject:
+    case Instr::kDematerializedStringConcat:
+    case Instr::kDematerializedStringConcatReference:
+    case Instr::kUnusedRegister:
+      return;
+  }
+}
+
+void StringEscapeAnalyzer::ProcessFrameState(V<FrameState> index,
+                                             const FrameStateOp& framestate) {
+  max_frame_state_input_count_ =
+      std::max<uint32_t>(max_frame_state_input_count_, framestate.input_count);
+  for (V<Any> input_idx : framestate.inputs()) {
+    if (graph_.Get(input_idx).Is<StringConcatOp>()) {
+      // This FrameState has a StringConcat as input, so we might need to
+      // recreate it in the reducer.
+      maybe_to_reconstruct_frame_states_.push_back(index);
+      break;
+    }
+  }
+
+  // We need to mark the Function and the Receiver as escaping. See
+  // https://crbug.com/40059369.
+  auto it = framestate.data->iterator(framestate.state_values());
+  // Function
+  MarkNextFrameStateInputAsEscaping(&it);
+  // 1st parameter = receiver
+  MarkNextFrameStateInputAsEscaping(&it);
+
+  // Other FrameState uses are not considered as escaping.
+}
+
 void StringEscapeAnalyzer::ProcessBlock(const Block& block) {
   for (V<Any> index : base::Reversed(graph_.OperationIndices(block))) {
     const Operation& op = graph_.Get(index);
     switch (op.opcode) {
       case Opcode::kFrameState:
-        // FrameState uses are not considered as escaping.
-        max_frame_state_input_count_ =
-            std::max<uint32_t>(max_frame_state_input_count_, op.input_count);
-        for (V<Any> input_idx : op.inputs()) {
-          if (graph_.Get(input_idx).Is<StringConcatOp>()) {
-            // This FrameState has a StringConcat as input, so we might need to
-            // recreate it in the reducer.
-            maybe_to_reconstruct_frame_states_.push_back(
-                V<FrameState>::Cast(index));
-            break;
-          }
-        }
+        ProcessFrameState(V<FrameState>::Cast(index), op.Cast<FrameStateOp>());
         break;
       case Opcode::kStringConcat:
         // The inputs of a StringConcat are only escaping if the StringConcat
