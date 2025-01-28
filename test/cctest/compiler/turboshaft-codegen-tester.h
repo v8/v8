@@ -42,13 +42,6 @@ class DataHolder {
         descriptor_(Linkage::GetSimplifiedCDescriptor(
             zone, CSignature::New(zone, return_type, p...),
             CallDescriptor::kInitializeRootRegister)) {
-    // TODO(dmercadier): remove once turboshaft_instruction_selection is the
-    // default. We currently set it manually so that
-    // LoadStoreSimplificationReducer triggers lowering of Stores/Loads (and
-    // anyways, these tests always go through GenerateTurboshaftCodeForTesting,
-    // which uses the Turboshaft instruction selector without even checking
-    // v8_flags.turboshaft_instruction_selection).
-    v8_flags.turboshaft_instruction_selection = true;
     ts_pipeline_data_.InitializeGraphComponent(nullptr);
   }
 

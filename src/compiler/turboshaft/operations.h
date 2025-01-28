@@ -111,9 +111,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 //   representation of the outputs and inputs of this operations.
 // After defining the struct here, you'll also need to integrate it in
 // Turboshaft:
-// - If Foo is not in not lowered before reaching the instruction selector, add
-//   a overload of ProcessOperation for FooOp in recreate-schedule.cc, and
-//   handle Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
+// - If Foo is not lowered before reaching the instruction selector, handle
+//   Opcode::kFoo in the Turboshaft VisitNode of instruction-selector.cc.
 
 #ifdef V8_INTL_SUPPORT
 #define TURBOSHAFT_INTL_OPERATION_LIST(V) V(StringToCaseIntl)

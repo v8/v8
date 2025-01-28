@@ -7,18 +7,8 @@
 #include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/turboshaft/csa-optimize-phase.h"
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.h"
-#include "src/compiler/turboshaft/recreate-schedule-phase.h"
 
 namespace v8::internal::compiler::turboshaft {
-
-void Pipeline::RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
-                                     Linkage* linkage) {
-  Run<turboshaft::DecompressionOptimizationPhase>();
-
-  Run<turboshaft::RecreateSchedulePhase>(turbofan_data, linkage);
-  TraceSchedule(turbofan_data->info(), turbofan_data, turbofan_data->schedule(),
-                turboshaft::RecreateSchedulePhase::phase_name());
-}
 
 [[nodiscard]] bool Pipeline::GenerateCode(
     Linkage* linkage, std::shared_ptr<OsrHelper> osr_helper,

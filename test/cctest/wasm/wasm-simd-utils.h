@@ -20,14 +20,6 @@ namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-#define SKIP_TEST_IF_NO_TURBOSHAFT                                  \
-  do {                                                              \
-    if (!v8_flags.turboshaft_wasm_instruction_selection_staged) {   \
-      /* This pattern is only implemented for turboshaft_wasm and*/ \
-      /* turboshaft_wasm_instruction_selection*/                    \
-      return;                                                       \
-    }                                                               \
-  } while (0);
 
 enum class ExpectedResult {
   kFail,
@@ -80,7 +72,6 @@ class TSSimd256VerifyScope {
           TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
       ExpectedResult expected = ExpectedResult::kPass)
       : expected_(expected) {
-    SKIP_TEST_IF_NO_TURBOSHAFT;
 
     std::function<void(const compiler::turboshaft::Graph&)> handler =
         [raw_handler, this](const compiler::turboshaft::Graph& graph) {
@@ -95,7 +86,6 @@ class TSSimd256VerifyScope {
   }
 
   ~TSSimd256VerifyScope() {
-    SKIP_TEST_IF_NO_TURBOSHAFT;
     isolate_->set_wasm_revec_verifier_for_test(nullptr);
     CHECK_EQ(expected_ == ExpectedResult::kPass, check_pass_);
   }

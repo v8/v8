@@ -519,9 +519,6 @@ class Pipeline {
       JumpOptimizationInfo* jump_optimization_info = nullptr,
       const ProfileDataFromFile* profile = nullptr, int initial_graph_hash = 0);
 
-  void RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
-                             Linkage* linkage);
-
   OptimizedCompilationInfo* info() { return data_->info(); }
 
   MaybeIndirectHandle<Code> FinalizeCode(bool retire_broker = true) {

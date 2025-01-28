@@ -1498,9 +1498,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turboshaft)
 DEFINE_IMPLICATION(turboshaft_wasm_in_js_inlining, turbo_inline_js_wasm_calls)
 
-DEFINE_BOOL(turboshaft_instruction_selection, true,
-            "run instruction selection on Turboshaft IR directly")
-
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
 DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
@@ -1513,9 +1510,6 @@ DEFINE_WEAK_IMPLICATION(future, turboshaft_string_concat_escape_analysis)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
-DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, true,
-            "run instruction selection on Turboshaft IR directly for wasm, on "
-            "architectures where we are staging the feature")
 DEFINE_EXPERIMENTAL_FEATURE(turbolev, "use Maglev as a frontend for Turboshaft")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
 DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)

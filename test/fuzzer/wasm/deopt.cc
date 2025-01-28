@@ -213,8 +213,6 @@ void ConfigureFlags(v8::Isolate* isolate) {
       v8_flags.wasm_inlining_budget = v8_flags.wasm_inlining_budget * 5;
       v8_flags.wasm_inlining_max_size = v8_flags.wasm_inlining_max_size * 5;
       v8_flags.wasm_inlining_factor = v8_flags.wasm_inlining_factor * 5;
-      // Force new instruction selection.
-      v8_flags.turboshaft_wasm_instruction_selection_staged = true;
       // Enable other staged or experimental features and enforce flag
       // implications.
       EnableExperimentalWasmFeatures(isolate);
