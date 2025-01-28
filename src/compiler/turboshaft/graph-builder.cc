@@ -35,6 +35,7 @@
 #include "src/compiler/turboshaft/explicit-truncation-reducer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -49,6 +50,13 @@ namespace v8::internal::compiler::turboshaft {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 namespace {
+
+bool IsValidSmi(intptr_t c) {
+  Tagged<Object> as_obj = Tagged<Object>(c);
+  if (!IsSmi(as_obj)) return false;
+
+  return Smi::FromInt(Smi::ToInt(as_obj)).ptr() == static_cast<uintptr_t>(c);
+}
 
 struct GraphBuilder {
   Zone* phase_zone;
@@ -1534,6 +1542,18 @@ OpIndex GraphBuilder::Process(
 
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
+
+      if (const ConstantOp* value_cst =
+              __ Get(value).TryCast<Opmask::kWord64Constant>()) {
+        if (rep.value() == any_of(MemoryRepresentation::Enum::kAnyTagged,
+                                  MemoryRepresentation::Enum::kTaggedSigned)) {
+          // This is storing a Smi as a raw Word64. Instead, we'll convert the
+          // raw Word64 to a proper Smi.
+          if (IsValidSmi(value_cst->signed_integral())) {
+            value = __ SmiConstant(Tagged<Smi>(value_cst->signed_integral()));
+          }
+        }
+      }
 
       __ Store(object, value, kind, rep, access.write_barrier_kind,
                access.offset, initializing_transitioning,

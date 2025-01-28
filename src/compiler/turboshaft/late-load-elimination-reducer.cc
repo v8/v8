@@ -348,7 +348,9 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
       replacements_[op_idx] = Replacement::LoadElimination(existing);
       return;
     } else {
-      TRACE(">>> Replacement has wrong representation");
+      TRACE(">>> Replacement has wrong representation: "
+            << replacement.outputs_rep()[0] << " instead of "
+            << load.outputs_rep()[0]);
     }
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
