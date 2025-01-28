@@ -31,6 +31,13 @@ function isMethodOrObjectKey(path) {
           path.parent.key === path.node);
 }
 
+function isExponentiationBase(path) {
+  return (path.parent &&
+          babelTypes.isBinaryExpression(path.parent) &&
+          path.parent.operator === '**' &&
+          path.parent.left === path.node);
+}
+
 function createRandomNumber(value) {
   // TODO(ochang): Maybe replace with variable.
   const probability = random.random();
@@ -94,7 +101,13 @@ class NumberMutator extends mutator.Mutator {
 
         // Enfore positive numbers if the literal is the key of an object
         // property or method. Negative keys cause syntax errors.
-        const forcePositive = isMethodOrObjectKey(path);
+        // TODO(389069288): We also enforce a positive base for
+        // exponentiations as stand-alone negative numbers cause syntax errors.
+        // We could support this case by constructing a negative number as an
+        // UnaryExpression (with -) wrapping a number, which should get
+        // Babel to parenthesize the expression.
+        const forcePositive = (
+            isMethodOrObjectKey(path) || isExponentiationBase(path));
 
         thisMutator.randomReplace(path, path.node.value, forcePositive);
       },
