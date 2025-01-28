@@ -19,6 +19,26 @@ TEST_SUITES = [
 TEST_EXTENSIONS = ('.js', '.mjs')
 HAS_FLAGS_RE = re.compile("//\s*Flags:.*\n")
 EXTRACT_FLAGS_RE = re.compile("//\s*Flags:\s+((--[A-z0-9-_=]+\s*)+).*")
+FEATURE_FLAG_PREFIXES = {
+    'js': ('--js-', '--js_'),
+    'harmony': ('--harmony-', '--harmony_'),
+    'wasm': ('--experimental-wasm-', '--experimental_wasm_')
+}
+NEG_FEATURE_FLAG_PREFIXES = {
+    'js': ('--no-js-', '--no_js_'),
+    'harmony': ('--no-harmony-', '--no_harmony_'),
+    'wasm': ('--no-experimental-wasm-', '--no_experimental_wasm_')
+}
+STAGING_FLAGS = {
+    'js': '--js-staging',
+    'harmony': '--harmony',
+    'wasm': '--wasm-staging'
+}
+SHIPPING_FLAGS = {
+    'js': '--js-shipping',
+    'harmony': '--harmony-shipping',
+    'wasm': ''  # Wasm doesn't have a shipping flag
+}
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -46,7 +66,7 @@ def get_feature_flags():
   return {key: raw_flags_to_cli_flags(val) for key, val in raw_flags.items()}
 
 
-def clean_up_feature_flags(contents, all_flags_by_lang, staging_flags):
+def clean_up_feature_flags(contents, all_flags_by_lang):
   # Returns a (bool, string) pair, where the bool says whether the contents
   # changed due to a flag being cleaned up.
 
@@ -68,11 +88,23 @@ def clean_up_feature_flags(contents, all_flags_by_lang, staging_flags):
         # do so once per file.
         if (inprogress_flags_no_staged
             != inprogress_flags) and (lang not in emitted_staging_flags):
-          inprogress_flags_no_staged.add(staging_flags[lang])
+          inprogress_flags_no_staged.add(STAGING_FLAGS[lang])
           emitted_staging_flags.add(lang)
         inprogress_flags = inprogress_flags_no_staged
         # Remove flags that are shipping.
         inprogress_flags -= lang_flags['shipping']
+        # Heuristically remove flags that look like feature flags (prefixed by
+        # one of the known prefixes) that don't exist anymore.
+        for flag in inprogress_flags.copy():
+          if flag == STAGING_FLAGS[lang] or flag == SHIPPING_FLAGS[lang]:
+            continue
+          if flag.startswith(FEATURE_FLAG_PREFIXES[lang]) and (
+              flag not in lang_flags['in-progress']):
+            inprogress_flags.remove(flag)
+          elif flag.startswith(NEG_FEATURE_FLAG_PREFIXES[lang]) and (
+              f"--{flag[5:]}" not in lang_flags['in-progress']):
+            inprogress_flags.remove(flag)
+
       if inprogress_flags != original_flags:
         dirty = True
         if len(inprogress_flags) > 0:
@@ -90,11 +122,6 @@ def clean_up_feature_flags(contents, all_flags_by_lang, staging_flags):
 
 if __name__ == '__main__':
   flags = get_feature_flags()
-  staging_flags = {
-      'js': '--js-staging',
-      'harmony': '--harmony',
-      'wasm': '--wasm-staging'
-  }
 
   # Walk test files.
   for suite_dir in TEST_SUITES:
@@ -114,8 +141,7 @@ if __name__ == '__main__':
           except:
             encoding = 'ISO-8859-1'
             contents = fh.read().decode(encoding)
-          contents_changed, contents = clean_up_feature_flags(
-              contents, flags, staging_flags)
+          contents_changed, contents = clean_up_feature_flags(contents, flags)
         if contents_changed:
           with open(abspath, 'w', encoding=encoding) as fh:
             fh.write(contents)
