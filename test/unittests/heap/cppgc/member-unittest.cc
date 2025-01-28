@@ -700,5 +700,64 @@ TEST_F(MemberTest, CompressDecompress) {
 
 #endif  // V8_ENABLE_CHECKS
 
+#if defined(CPPGC_CAGED_HEAP)
+
+TEST_F(MemberTest, CompressedPointerFindCandidates) {
+  auto try_find = [](const void* candidate, const void* needle) {
+    bool found = false;
+    CompressedPointer::VisitPossiblePointers(
+        needle, [candidate, &found](const void* address) {
+          if (candidate == address) {
+            found = true;
+          }
+        });
+    return found;
+  };
+  auto compress_in_lower_halfword = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address)));
+  };
+  auto compress_in_upper_halfword = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address))
+        << (sizeof(CompressedPointer::IntegralType) * CHAR_BIT));
+  };
+  auto decompress_partially = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address))
+        << api_constants::kPointerCompressionShift);
+  };
+
+  const uintptr_t base = CagedHeapBase::GetBase();
+
+  // There's at least one page that is not used in the beginning of the cage.
+  static constexpr auto kAssumedCageRedZone = kPageSize;
+  const auto begin_needle = reinterpret_cast<void*>(base + kAssumedCageRedZone);
+  EXPECT_TRUE(try_find(begin_needle, begin_needle));
+  EXPECT_TRUE(try_find(begin_needle, compress_in_lower_halfword(begin_needle)));
+  EXPECT_TRUE(try_find(begin_needle, compress_in_upper_halfword(begin_needle)));
+  EXPECT_TRUE(try_find(begin_needle, decompress_partially(begin_needle)));
+
+  static constexpr auto kReservationSize =
+      api_constants::kCagedHeapMaxReservationSize;
+  static_assert(kReservationSize % kAllocationGranularity == 0);
+  const auto end_needle =
+      reinterpret_cast<void*>(base + kReservationSize - kAllocationGranularity);
+  EXPECT_TRUE(try_find(end_needle, end_needle));
+  EXPECT_TRUE(try_find(end_needle, compress_in_lower_halfword(end_needle)));
+  EXPECT_TRUE(try_find(end_needle, compress_in_upper_halfword(end_needle)));
+  EXPECT_TRUE(try_find(end_needle, decompress_partially(end_needle)));
+
+  static constexpr auto kMidOffset = kReservationSize / 2;
+  static_assert(kMidOffset % kAllocationGranularity == 0);
+  const auto mid_needle = reinterpret_cast<void*>(base + kMidOffset);
+  EXPECT_TRUE(try_find(mid_needle, mid_needle));
+  EXPECT_TRUE(try_find(mid_needle, compress_in_lower_halfword(mid_needle)));
+  EXPECT_TRUE(try_find(mid_needle, compress_in_upper_halfword(mid_needle)));
+  EXPECT_TRUE(try_find(mid_needle, decompress_partially(mid_needle)));
+}
+
+#endif  // defined(CPPGC_CAGED_HEAP)
+
 }  // namespace internal
 }  // namespace cppgc

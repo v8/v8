@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include "cppgc/internal/api-constants.h"
+#include "cppgc/internal/caged-heap.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/sentinel-pointer.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -177,6 +178,13 @@ class V8_TRIVIAL_ABI CompressedPointer final {
     return reinterpret_cast<void*>(mask & base);
   }
 
+  // For a given memory `address`, this method iterates all possible pointers
+  // that can be reasonably recovered with the current compression scheme and
+  // passes them to `callback`.
+  template <typename Callback>
+  static V8_INLINE void VisitPossiblePointers(const void* address,
+                                              Callback callback);
+
  private:
   static constexpr IntegralType kCompressedSentinel =
       SentinelPointer::kSentinelValue >>
@@ -186,6 +194,34 @@ class V8_TRIVIAL_ABI CompressedPointer final {
   // of the constructor is used.
   IntegralType value_;
 };
+
+template <typename Callback>
+// static
+void CompressedPointer::VisitPossiblePointers(const void* address,
+                                              Callback callback) {
+  const uintptr_t base = CageBaseGlobal::Get();
+  CPPGC_DCHECK(base);
+  // We may have random compressed pointers on stack (e.g. due to inlined
+  // collections). These could be present in both halfwords.
+  const uint32_t compressed_low =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(address));
+  callback(CompressedPointer::Decompress(compressed_low, base));
+  const uint32_t compressed_high = static_cast<uint32_t>(
+      reinterpret_cast<uintptr_t>(address) >> (sizeof(uint32_t) * CHAR_BIT));
+  callback(CompressedPointer::Decompress(compressed_high, base));
+  // Iterate possible intermediate values, see `Decompress()`. The intermediate
+  // value of decompressing is a 64-bit value where 35 bits are the offset. We
+  // don't assume sign extension is stored and recover that part.
+  //
+  // Note that this case conveniently also recovers the full pointer.
+  static constexpr uintptr_t kBitForIntermediateValue =
+      (sizeof(uint32_t) * CHAR_BIT) + api_constants::kPointerCompressionShift;
+  static constexpr uintptr_t kSignExtensionMask =
+      ~((uintptr_t{1} << kBitForIntermediateValue) - 1);
+  const uintptr_t intermediate_sign_extended =
+      reinterpret_cast<uintptr_t>(address) | kSignExtensionMask;
+  callback(reinterpret_cast<void*>(intermediate_sign_extended & base));
+}
 
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
@@ -241,6 +277,13 @@ class V8_TRIVIAL_ABI RawPointer final {
   }
   V8_INLINE friend bool operator>=(RawPointer a, RawPointer b) {
     return a.ptr_ >= b.ptr_;
+  }
+
+  template <typename Callback>
+  static V8_INLINE void VisitPossiblePointers(const void* address,
+                                              Callback callback) {
+    // Pass along the full pointer.
+    return callback(const_cast<void*>(address));
   }
 
  private:

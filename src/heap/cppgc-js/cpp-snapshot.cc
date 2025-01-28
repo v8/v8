@@ -974,7 +974,7 @@ class GraphBuildingStackVisitor
   }
 
  private:
-  void VisitConservatively(HeapObjectHeader& header) {
+  void VisitConservatively(const HeapObjectHeader& header) {
     root_visitor_.VisitRoot(header.ObjectStart(),
                             {header.ObjectStart(), nullptr},
                             cppgc::SourceLocation());
