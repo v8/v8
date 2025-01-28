@@ -250,27 +250,6 @@ bool TryReleaseSharedMutex(SharedMutex* shared_mutex) {
 
 #if V8_OS_POSIX
 
-static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
-  int result;
-#if defined(DEBUG)
-  // Use an error checking mutex in debug mode.
-  pthread_mutexattr_t attr;
-  result = pthread_mutexattr_init(&attr);
-  DCHECK_EQ(0, result);
-  result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-  DCHECK_EQ(0, result);
-  result = pthread_mutex_init(mutex, &attr);
-  DCHECK_EQ(0, result);
-  result = pthread_mutexattr_destroy(&attr);
-#else
-  // Use a fast mutex (default attributes).
-  result = pthread_mutex_init(mutex, nullptr);
-#endif  // defined(DEBUG)
-  DCHECK_EQ(0, result);
-  USE(result);
-}
-
-
 static V8_INLINE void InitializeRecursiveNativeHandle(pthread_mutex_t* mutex) {
   pthread_mutexattr_t attr;
   int result = pthread_mutexattr_init(&attr);
@@ -322,40 +301,6 @@ SpinningMutex::SpinningMutex() = default;
 #else
 SpinningMutex::SpinningMutex() : lock_(PTHREAD_MUTEX_INITIALIZER) {}
 #endif
-
-Mutex::Mutex() {
-  InitializeNativeHandle(&native_handle_);
-#ifdef DEBUG
-  level_ = 0;
-#endif
-}
-
-
-Mutex::~Mutex() {
-  DestroyNativeHandle(&native_handle_);
-  DCHECK_EQ(0, level_);
-}
-
-
-void Mutex::Lock() {
-  LockNativeHandle(&native_handle_);
-  AssertUnheldAndMark();
-}
-
-
-void Mutex::Unlock() {
-  AssertHeldAndUnmark();
-  UnlockNativeHandle(&native_handle_);
-}
-
-
-bool Mutex::TryLock() {
-  if (!TryLockNativeHandle(&native_handle_)) {
-    return false;
-  }
-  AssertUnheldAndMark();
-  return true;
-}
 
 RecursiveMutex::RecursiveMutex() {
   InitializeRecursiveNativeHandle(&native_handle_);
@@ -416,38 +361,6 @@ void SpinningMutex::Unlock() {
 
 SpinningMutex::SpinningMutex() : lock_(SRWLOCK_INIT) {}
 
-Mutex::Mutex() : native_handle_(SRWLOCK_INIT) {
-#ifdef DEBUG
-  level_ = 0;
-#endif
-}
-
-
-Mutex::~Mutex() {
-  DCHECK_EQ(0, level_);
-}
-
-
-void Mutex::Lock() {
-  AcquireSRWLockExclusive(V8ToWindowsType(&native_handle_));
-  AssertUnheldAndMark();
-}
-
-
-void Mutex::Unlock() {
-  AssertHeldAndUnmark();
-  ReleaseSRWLockExclusive(V8ToWindowsType(&native_handle_));
-}
-
-
-bool Mutex::TryLock() {
-  if (!TryAcquireSRWLockExclusive(V8ToWindowsType(&native_handle_))) {
-    return false;
-  }
-  AssertUnheldAndMark();
-  return true;
-}
-
 RecursiveMutex::RecursiveMutex() {
   InitializeCriticalSection(V8ToWindowsType(&native_handle_));
 #ifdef DEBUG
@@ -494,14 +407,6 @@ bool RecursiveMutex::TryLock() {
 #elif V8_OS_STARBOARD
 
 SpinningMutex::SpinningMutex() = default;
-
-Mutex::Mutex() { SbMutexCreate(&native_handle_); }
-
-Mutex::~Mutex() { SbMutexDestroy(&native_handle_); }
-
-void Mutex::Lock() { SbMutexAcquire(&native_handle_); }
-
-void Mutex::Unlock() { SbMutexRelease(&native_handle_); }
 
 RecursiveMutex::RecursiveMutex() {}
 
@@ -552,6 +457,30 @@ bool SharedMutex::TryLockExclusive()
   bool result = native_handle_.TryLock();
   if (result) DCHECK(TryHoldSharedMutex(this));
   return result;
+}
+
+Mutex::Mutex() {
+#ifdef DEBUG
+  level_ = 0;
+#endif
+}
+
+Mutex::~Mutex() { DCHECK_EQ(0, level_); }
+
+void Mutex::Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(native_handle_) {
+  native_handle_.Lock();
+  AssertUnheldAndMark();
+}
+
+void Mutex::Unlock() ABSL_UNLOCK_FUNCTION(native_handle_) {
+  AssertHeldAndUnmark();
+  native_handle_.Unlock();
+}
+
+bool Mutex::TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true, native_handle_) {
+  if (!native_handle_.TryLock()) return false;
+  AssertUnheldAndMark();
+  return true;
 }
 
 }  // namespace base
