@@ -1679,7 +1679,6 @@
   'built-ins/TypedArray/prototype/includes/index-compared-against-initial-length': [FAIL],
   'built-ins/TypedArray/prototype/values/make-in-bounds-after-exhausted': [FAIL],
   'built-ins/TypedArray/prototype/values/make-out-of-bounds-after-exhausted': [FAIL],
-  'built-ins/TypedArray/prototype/with/index-validated-against-current-length': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
 }],
@@ -2583,8 +2582,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/TypedArray/prototype/with/order-of-evaluation': [SKIP],
-  'built-ins/TypedArray/prototype/with/valid-typedarray-index-checked-after-coercions': [SKIP],
   'intl402/DurationFormat/prototype/format/digital-style-with-hours-display-auto-with-zero-hour': [SKIP],
   'staging/sm/Temporal/PlainDate/from-indian': [SKIP],
   'staging/sm/Temporal/PlainDate/from-islamic-umalqura': [SKIP],
