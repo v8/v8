@@ -4595,7 +4595,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       // succeed.
       FixedArrayRef bound_arguments = function.bound_arguments(broker());
       const uint32_t bound_arguments_length = bound_arguments.length();
-      if (arity + bound_arguments_length > Code::kMaxArguments) {
+      if (arity + bound_arguments_length + /* receiver */ 1 >
+          Code::kMaxArguments) {
         return NoChange();
       }
       static constexpr int kInlineSize = 16;  // Arbitrary.
