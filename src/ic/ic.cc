@@ -3084,7 +3084,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
                               name));
       }
     }
-    if (v8_flags.const_tracking_let) {
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
       Context::StoreScriptContextAndUpdateSlotProperty(
           script_context, lookup_result.slot_index, value, isolate);
     } else {

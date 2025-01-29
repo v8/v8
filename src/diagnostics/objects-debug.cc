@@ -928,7 +928,11 @@ void Context::ContextVerify(Isolate* isolate) {
     Tagged<Object> side_data = get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
     CHECK(IsFixedArray(side_data));
     Tagged<FixedArray> side_data_array = Cast<FixedArray>(side_data);
-    if (v8_flags.const_tracking_let) {
+    // The array might not be empty if the script context is deserialized from
+    // snapshot. However, as long as the flags are enabled the feedback slots
+    // must be initialized properly.
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
       for (int i = 0; i < side_data_array->length(); i++) {
         Tagged<Object> element = side_data_array->get(i);
         if (IsSmi(element)) {
@@ -940,8 +944,6 @@ void Context::ContextVerify(Isolate* isolate) {
           CHECK(IsUndefined(element) || IsContextSidePropertyCell(element));
         }
       }
-    } else {
-      CHECK_EQ(0, side_data_array->length());
     }
   }
 }

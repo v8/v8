@@ -3211,7 +3211,11 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     return cached_value;
   }
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
-  if (context_kind == ContextKind::kScriptContext) {
+  if (context_kind == ContextKind::kScriptContext &&
+      (v8_flags.script_context_mutable_heap_number ||
+       v8_flags.const_tracking_let) &&
+      slot_mutability == kMutable) {
+    // We collect feedback only for mutable context slots.
     cached_value = TrySpecializeLoadScriptContextSlot(context, index);
     if (cached_value) return cached_value;
     return cached_value =

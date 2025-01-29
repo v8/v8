@@ -1322,14 +1322,18 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     Node* value;
-    if (feedback.immutable()) {
-      value = effect = graph()->NewNode(
-          javascript()->LoadContext(0, feedback.slot_index(), true),
-          script_context, effect);
-    } else {
+    if ((v8_flags.script_context_mutable_heap_number ||
+         v8_flags.const_tracking_let) &&
+        !feedback.immutable()) {
+      // We collect feedback only for mutable context slots.
       value = effect = graph()->NewNode(
           javascript()->LoadScriptContext(0, feedback.slot_index()),
           script_context, effect, control);
+    } else {
+      value = effect =
+          graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index(),
+                                                     feedback.immutable()),
+                           script_context, effect);
     }
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
@@ -1360,9 +1364,16 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* control = n.control();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
-    effect = control = graph()->NewNode(
-        javascript()->StoreScriptContext(0, feedback.slot_index()), value,
-        script_context, effect, control);
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
+      effect = control = graph()->NewNode(
+          javascript()->StoreScriptContext(0, feedback.slot_index()), value,
+          script_context, effect, control);
+    } else {
+      effect =
+          graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
+                           value, script_context, effect, control);
+    }
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {

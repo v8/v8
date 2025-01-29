@@ -293,16 +293,19 @@ macro StoreScriptContextAndUpdateSlotProperty(
     c: Context, index: intptr, newValue: Object): void {
   const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
 
-  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
   const sideData: Object = *ContextSlot(
       scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
 
-  const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise return;
-  if (sideDataFixedArray.length == 0) {
-    // No side data (maybe the const tracking let flag is not on).
+  if (sideData == kEmptyFixedArray) {
+    // No side data (maybe the context was created while the side data
+    // collection was disabled).
+    c.elements[index] = newValue;
     return;
   }
+
+  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
+  const sideDataFixedArray: FixedArray =
+      Cast<FixedArray>(sideData) otherwise unreachable;
 
   const oldValue = c.elements[index];
   if (oldValue == TheHole) {
@@ -485,16 +488,18 @@ macro TryLoadMutableHeapNumber(
   if (!Is<HeapNumber>(val)) return val;
   const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
 
-  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
   const sideData: Object = *ContextSlot(
       scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
 
-  const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise return val;
-  if (sideDataFixedArray.length == 0) {
-    // No side data (maybe the const tracking let flag is not on).
+  if (sideData == kEmptyFixedArray) {
+    // No side data (maybe the context was created while the side data
+    // collection was disabled).
     return val;
   }
+
+  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
+  const sideDataFixedArray: FixedArray =
+      Cast<FixedArray>(sideData) otherwise unreachable;
 
   let property: intptr;
   typeswitch (sideDataFixedArray.objects[sideDataIndex]) {

@@ -1047,7 +1047,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   // VariableMode::kConst. This is because such variables can be accessed
   // by functions using the LdaContextSlot bytecode, and such accesses are not
   // regarded as "immutable" when optimizing.
-  if (v8_flags.const_tracking_let) {
+  if (v8_flags.script_context_mutable_heap_number ||
+      v8_flags.const_tracking_let) {
     Context::StoreScriptContextAndUpdateSlotProperty(
         script_context, lookup_result.slot_index, value, isolate);
   } else {

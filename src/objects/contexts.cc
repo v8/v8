@@ -542,8 +542,13 @@ DirectHandle<Object> TryLoadMutableHeapNumber(
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
   Tagged<FixedArray> side_data_table = Cast<FixedArray>(
       script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+  if (side_data_table == ReadOnlyRoots(isolate).empty_fixed_array()) {
+    // No side data (maybe the context was created while the side data
+    // collection was disabled).
+    return value;
+  }
+
   Tagged<Object> data = side_data_table->get(side_data_index);
-  if (IsUndefined(data)) return value;
   ContextSidePropertyCell::Property property;
   if (IsSmi(data)) {
     property =
@@ -575,16 +580,23 @@ DirectHandle<Object> Context::LoadScriptContextElement(
 void Context::StoreScriptContextAndUpdateSlotProperty(
     DirectHandle<Context> script_context, int index,
     DirectHandle<Object> new_value, Isolate* isolate) {
-  DCHECK(v8_flags.const_tracking_let);
+  DCHECK(v8_flags.script_context_mutable_heap_number ||
+         v8_flags.const_tracking_let);
   DCHECK(script_context->IsScriptContext());
 
-  DirectHandle<Object> old_value(script_context->get(index), isolate);
   const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
   DirectHandle<FixedArray> side_data(
       Cast<FixedArray>(
           script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
       isolate);
+  if (*side_data == ReadOnlyRoots(isolate).empty_fixed_array()) {
+    // No side data (maybe the context was created while the side data
+    // collection was disabled).
+    script_context->set(index, *new_value);
+    return;
+  }
 
+  DirectHandle<Object> old_value(script_context->get(index), isolate);
   if (IsTheHole(*old_value)) {
     // Setting the initial value. Here we cannot assert the corresponding side
     // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
@@ -613,12 +625,12 @@ void Context::StoreScriptContextAndUpdateSlotProperty(
   std::optional<Tagged<ContextSidePropertyCell>> maybe_cell;
   ContextSidePropertyCell::Property property;
 
-  if (IsContextSidePropertyCell(data)) {
+  if (IsSmi(data)) {
+    property = ContextSidePropertyCell::FromSmi(data.ToSmi());
+  } else {
+    CHECK(Is<ContextSidePropertyCell>(data));
     maybe_cell = Cast<ContextSidePropertyCell>(data);
     property = maybe_cell.value()->context_side_property();
-  } else {
-    CHECK(IsSmi(data));
-    property = ContextSidePropertyCell::FromSmi(data.ToSmi());
   }
 
   switch (property) {
