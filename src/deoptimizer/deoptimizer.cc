@@ -1701,7 +1701,7 @@ void Deoptimizer::DoComputeOutputFrames() {
             CachedTieringDecision::kNormal);
       }
     }
-    function_->ResetTieringRequests(isolate_);
+    function_->ResetTieringRequests();
     // This allows us to quickly re-spawn a new compilation request even if
     // there is already one running. In particular it helps to squeeze in a
     // maglev compilation when there is a long running turbofan one that was

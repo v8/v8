@@ -244,11 +244,11 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   inline bool tiering_in_progress() const;
   // NB: Tiering includes Optimization and Logging requests.
-  inline bool IsTieringRequestedOrInProgress(Isolate* isolate) const;
+  inline bool IsTieringRequestedOrInProgress() const;
 
   inline void SetTieringInProgress(
       bool in_progress, BytecodeOffset osr_offset = BytecodeOffset::None());
-  inline void ResetTieringRequests(Isolate* isolate);
+  inline void ResetTieringRequests();
 
   inline bool osr_tiering_in_progress();
 

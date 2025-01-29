@@ -134,8 +134,7 @@ bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
                            static_cast<Builtin>(builtin));
 }
 
-void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle,
-                                          Isolate* isolate) {
+void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
   DCHECK_GE(index, kEndOfInternalReadOnlySegment);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");

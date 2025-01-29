@@ -191,7 +191,7 @@ int InterruptBudgetFor(Isolate* isolate, std::optional<CodeKind> code_kind,
     return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
   }
   if (TiersUpToMaglev(code_kind) &&
-      !function->IsTieringRequestedOrInProgress(isolate)) {
+      !function->IsTieringRequestedOrInProgress()) {
     if (v8_flags.profile_guided_optimization) {
       switch (cached_tiering_decision) {
         case CachedTieringDecision::kDelayMaglev:

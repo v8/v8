@@ -1357,7 +1357,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
   // Clear the optimization marker on the function so that we don't try to
   // re-optimize.
   if (!IsOSR(osr_offset)) {
-    function->ResetTieringRequests(isolate);
+    function->ResetTieringRequests();
     // Always reset the OSR urgency to ensure we reset it on function entry.
     int invocation_count =
         function->feedback_vector()->invocation_count(kRelaxedLoad);
@@ -2992,7 +2992,7 @@ bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
   // optimized.
   DCHECK(!function->is_compiled(isolate));
   DCHECK_IMPLIES(function->has_feedback_vector() &&
-                     function->IsTieringRequestedOrInProgress(isolate),
+                     function->IsTieringRequestedOrInProgress(),
                  function->shared()->is_compiled());
   DCHECK_IMPLIES(function->HasAvailableOptimizedCode(isolate),
                  function->shared()->is_compiled());
@@ -3020,7 +3020,7 @@ bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
   // TODO(verwaest/mythria): Investigate if allocating feedback vector
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
-  function->ResetTieringRequests(isolate);
+  function->ResetTieringRequests();
 
   function->UpdateCode(*code);
 
@@ -3208,7 +3208,7 @@ void Compiler::CompileOptimized(Isolate* isolate,
   DCHECK(function->is_compiled(isolate));
   DCHECK(function->shared()->HasBytecodeArray());
 
-  DCHECK_IMPLIES(function->IsTieringRequestedOrInProgress(isolate) &&
+  DCHECK_IMPLIES(function->IsTieringRequestedOrInProgress() &&
                      !function->IsLoggingRequested(isolate),
                  function->tiering_in_progress());
   if (!v8_flags.always_turbofan) {

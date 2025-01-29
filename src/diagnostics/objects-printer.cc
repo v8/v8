@@ -2257,7 +2257,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
     os << "\n - canonical feedback cell dispatch_handle: 0x" << std::hex
        << raw_feedback_cell()->dispatch_handle() << std::dec;
   }
-  if (IsTieringRequestedOrInProgress(GetIsolate())) {
+  if (IsTieringRequestedOrInProgress()) {
     os << "\n - tiering request ";
     if (tiering_in_progress()) {
       os << "in_progress ";

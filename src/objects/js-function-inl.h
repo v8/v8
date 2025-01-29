@@ -263,7 +263,7 @@ bool JSFunction::tiering_in_progress() const {
 #endif
 }
 
-bool JSFunction::IsTieringRequestedOrInProgress(Isolate* isolate) const {
+bool JSFunction::IsTieringRequestedOrInProgress() const {
 #ifdef V8_ENABLE_LEAPTIERING
   if (!has_feedback_vector()) return false;
   return tiering_in_progress() ||
@@ -363,10 +363,10 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
   return {};
 }
 
-void JSFunction::ResetTieringRequests(Isolate* isolate) {
+void JSFunction::ResetTieringRequests() {
 #ifdef V8_ENABLE_LEAPTIERING
   IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
-      dispatch_handle(), isolate);
+      dispatch_handle());
 #else
   if (has_feedback_vector() && !tiering_in_progress()) {
     feedback_vector()->reset_tiering_state();
@@ -527,7 +527,9 @@ bool JSFunction::NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate) {
   Tagged<Code> code = Cast<Code>(maybe_code);
 
   Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
-  return !shared->is_compiled() && code->builtin_id() != Builtin::kCompileLazy;
+  return !shared->is_compiled() &&
+         (code->builtin_id() != Builtin::kCompileLazy ||
+          IsTieringRequestedOrInProgress());
 }
 
 bool JSFunction::NeedsResetDueToFlushedBaselineCode(IsolateForSandbox isolate) {
@@ -550,7 +552,7 @@ void JSFunction::ResetIfCodeFlushed(
   if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode(isolate)) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
-    ResetTieringRequests(isolate);
+    ResetTieringRequests();
     UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
     raw_feedback_cell()->reset_feedback_vector(gc_notify_updated_slot);
     return;
@@ -560,7 +562,7 @@ void JSFunction::ResetIfCodeFlushed(
                  kBaselineCodeCanFlush);
   if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
-    ResetTieringRequests(isolate);
+    ResetTieringRequests();
     UpdateCode(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 }

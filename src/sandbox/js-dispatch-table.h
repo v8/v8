@@ -219,7 +219,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   inline void SetCodeKeepTieringRequestNoWriteBarrier(JSDispatchHandle handle,
                                                       Tagged<Code> new_code);
   // Resets the entrypoint to the code's entrypoint.
-  inline void ResetTieringRequest(JSDispatchHandle handle, Isolate* isolate);
+  inline void ResetTieringRequest(JSDispatchHandle handle);
   // Check if and/or which tiering builtin is installed.
   inline bool IsTieringRequested(JSDispatchHandle handle);
   inline bool IsTieringRequested(JSDispatchHandle handle,

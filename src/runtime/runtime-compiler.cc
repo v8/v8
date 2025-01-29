@@ -28,7 +28,7 @@ void LogExecution(Isolate* isolate, DirectHandle<JSFunction> function) {
 #ifdef V8_ENABLE_LEAPTIERING
   DCHECK(function->IsLoggingRequested(isolate));
   IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
-      function->dispatch_handle(), isolate);
+      function->dispatch_handle());
 #else
   if (!function->feedback_vector()->log_next_execution()) return;
 #endif
@@ -148,25 +148,21 @@ namespace {
 void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
                       CodeKind target_kind, Isolate* isolate) {
   // Ensure that the tiering request is reset even if compilation fails.
-  function->ResetTieringRequests(isolate);
+  function->ResetTieringRequests();
 
   // As a pre- and post-condition of CompileOptimized, the function *must* be
   // compiled, i.e. the installed InstructionStream object must not be
   // CompileLazy.
   IsCompiledScope is_compiled_scope(function->shared(), isolate);
-
   if (V8_UNLIKELY(!is_compiled_scope.is_compiled())) {
-    StackLimitCheck check(isolate);
-    if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-      return;
-    }
-    if (!Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
-                           &is_compiled_scope)) {
-      return;
-    }
-    JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+    // This happens if the code is flushed while we still have an optimization
+    // request pending (or if manually an optimization is requested on an
+    // uncompiled function).
+    // Instead of calling into Compiler::Compile and having to do exception
+    // handling here, we reset and return and thus tail-call into CompileLazy.
+    function->ResetIfCodeFlushed(isolate);
+    return;
   }
-  DCHECK(is_compiled_scope.is_compiled());
 
   if (mode == ConcurrencyMode::kConcurrent) {
     // No need to start another compile job.
@@ -254,7 +250,7 @@ RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
     reoptimize = false;
   }
 
-  function->ResetTieringRequests(isolate);
+  function->ResetTieringRequests();
   if (reoptimize) {
     // Set the budget such that we have one invocation which allows us to detect
     // if any ICs need updating before re-optimization.
