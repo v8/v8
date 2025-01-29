@@ -195,8 +195,6 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeLoadStoreShiftImmediate(node_t node, MachineRepresentation rep) {
-    // TODO(arm64): Load and Store on 128 bit Q registers is not supported yet.
-    DCHECK_GT(MachineRepresentation::kSimd128, rep);
     if (!selector()->is_constant(node)) return false;
     auto constant = selector()->constant_view(node);
     return IsIntegerConstant(constant) &&
