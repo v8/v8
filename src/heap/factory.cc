@@ -755,7 +755,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
 MaybeDirectHandle<String> Factory::NewStringFromUtf8(
     DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
     unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
-  DCHECK_EQ(sizeof(uint8_t), array->type()->element_type().value_kind_size());
+  DCHECK_EQ(sizeof(uint8_t), WasmArray::DecodeElementSizeFromMap(array->map()));
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
   // {end - start} can never be more than what the Utf8Decoder can handle.
@@ -804,7 +804,8 @@ struct Wtf16Decoder {
 MaybeDirectHandle<String> Factory::NewStringFromUtf16(
     DirectHandle<WasmArray> array, uint32_t start, uint32_t end,
     AllocationType allocation) {
-  DCHECK_EQ(sizeof(uint16_t), array->type()->element_type().value_kind_size());
+  DCHECK_EQ(sizeof(uint16_t),
+            WasmArray::DecodeElementSizeFromMap(array->map()));
   DCHECK_LE(start, end);
   DCHECK_LE(end, array->length());
   // {end - start} can never be more than what the Utf8Decoder can handle.

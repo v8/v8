@@ -1048,6 +1048,12 @@ class CanonicalValueType : public ValueTypeBase {
     return CanonicalValueType{ValueTypeBase::RefNull(heap_type)};
   }
 
+  static constexpr CanonicalValueType RefMaybeNull(
+      HeapType::Representation heap_type, Nullability nullability) {
+    return CanonicalValueType{
+        ValueTypeBase::RefMaybeNull(heap_type, nullability)};
+  }
+
   static constexpr CanonicalValueType FromIndex(ValueKind kind,
                                                 CanonicalTypeIndex index) {
     DCHECK(kind == kRefNull || kind == kRef);
@@ -1140,10 +1146,15 @@ constexpr ValueType kWasmNullExternRef =
 constexpr ValueType kWasmNullExnRef = ValueType::RefNull(HeapType::kNoExn);
 constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
+constexpr CanonicalValueType kCanonicalI8 = CanonicalValueType::Primitive(kI8);
+constexpr CanonicalValueType kCanonicalI16 =
+    CanonicalValueType::Primitive(kI16);
 constexpr CanonicalValueType kCanonicalI32 =
     CanonicalValueType::Primitive(kI32);
 constexpr CanonicalValueType kCanonicalI64 =
     CanonicalValueType::Primitive(kI64);
+constexpr CanonicalValueType kCanonicalF16 =
+    CanonicalValueType::Primitive(kF16);
 constexpr CanonicalValueType kCanonicalF32 =
     CanonicalValueType::Primitive(kF32);
 constexpr CanonicalValueType kCanonicalF64 =

@@ -488,7 +488,7 @@ CanonicalTypeIndex TypeCanonicalizer::FindCanonicalGroup(
 }
 
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 248);
+  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 240);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
   base::SpinningMutexGuard mutex_guard(&mutex_);

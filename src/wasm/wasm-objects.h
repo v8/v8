@@ -215,6 +215,8 @@ class WasmTableObject
   class BodyDescriptor;
 
   inline wasm::ValueType type(const wasm::WasmModule* module);
+  inline wasm::CanonicalValueType canonical_type(
+      const wasm::WasmModule* module);
   // Use this when you don't care whether the type stored on the in-sandbox
   // object might have been corrupted to contain an invalid type index.
   // That implies that you can't even canonicalize the type!
@@ -1370,6 +1372,7 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   inline wasm::StructType* type() const;
   static inline wasm::StructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
+  static inline int Size(const wasm::CanonicalStructType* type);
   static inline int GcSafeSize(Tagged<Map> map);
   inline const wasm::WasmModule* module();
   static inline void EncodeInstanceSizeInMap(int instance_size,
@@ -1395,6 +1398,15 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
 };
 
 int WasmStruct::Size(const wasm::StructType* type) {
+  // Object size must fit into a Smi (because of filler objects), and its
+  // computation must not overflow.
+  static_assert(Smi::kMaxValue <= kMaxInt);
+  DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
+  return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
+                  Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
+}
+
+int WasmStruct::Size(const wasm::CanonicalStructType* type) {
   // Object size must fit into a Smi (because of filler objects), and its
   // computation must not overflow.
   static_assert(Smi::kMaxValue <= kMaxInt);

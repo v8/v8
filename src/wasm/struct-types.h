@@ -234,6 +234,10 @@ class CanonicalStructType : public StructTypeBase {
                       const CanonicalValueType* reps, const bool* mutabilities)
       : StructTypeBase(field_count, field_offsets, reps, mutabilities) {}
 
+  CanonicalValueType field(uint32_t index) const {
+    return CanonicalValueType{StructTypeBase::field(index)};
+  }
+
   bool operator==(const CanonicalStructType& other) const {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;

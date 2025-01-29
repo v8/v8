@@ -1439,14 +1439,14 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   MessageTemplate illegal_cast = MessageTemplate::kWasmTrapIllegalCast;
   if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
   Tagged<WasmArray> obj = Cast<WasmArray>(args[0]);
-  Tagged<WasmTypeInfo> wti = obj->map()->wasm_type_info();
-  const wasm::WasmModule* module = wti->trusted_data(isolate)->module();
-  wasm::ModuleTypeIndex type_index = wti->type_index();
-  DCHECK(module->has_array(type_index));
   wasm::CanonicalTypeIndex expected =
       bits == 8 ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
                 : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
-  if (module->canonical_type_id(type_index) != expected) {
+  Tagged<Object> expected_map =
+      MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(expected.index));
+  // If the expected_map has been cleared or never even created, then there's
+  // no chance of a match anyway.
+  if (obj->map() != expected_map) {
     return ThrowWasmError(isolate, illegal_cast);
   }
   return obj;

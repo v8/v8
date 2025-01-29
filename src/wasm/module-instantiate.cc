@@ -2083,11 +2083,11 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   }
 
   wasm::ValueType actual_type = global_object->type();
-  const WasmModule* global_type_module = nullptr;
+  const WasmModule* source_module = nullptr;
   if (global_object->has_trusted_data()) {
-    global_type_module = global_object->trusted_data(isolate_)->module();
+    source_module = global_object->trusted_data(isolate_)->module();
     SBXCHECK(!actual_type.has_index() ||
-             global_type_module->has_type(actual_type.ref_index()));
+             source_module->has_type(actual_type.ref_index()));
   } else {
     // We don't have a module, so we wouldn't know what to do with a
     // module-relative type index.
@@ -2099,10 +2099,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
 
   bool valid_type =
       global.mutability
-          ? EquivalentTypes(actual_type, global.type, global_type_module,
-                            trusted_instance_data->module())
-          : IsSubtypeOf(actual_type, global.type, global_type_module,
-                        trusted_instance_data->module());
+          ? EquivalentTypes(actual_type, global.type, source_module, module_)
+          : IsSubtypeOf(actual_type, global.type, source_module, module_);
 
   if (!valid_type) {
     thrower_->LinkError("%s: imported global does not match the expected type",
@@ -2137,7 +2135,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   }
 
   WasmValue value;
-  switch (global_object->type().kind()) {
+  switch (global.type.kind()) {
     case kI32:
       value = WasmValue(global_object->GetI32());
       break;

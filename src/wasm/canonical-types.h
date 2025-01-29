@@ -435,7 +435,6 @@ class TypeCanonicalizer {
   std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
   // Maps canonical indices back to the types.
   std::vector<const CanonicalType*> canonical_types_;
-  std::unique_ptr<CanonicalTypeNamesProvider> names_provider_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   mutable base::SpinningMutex mutex_;

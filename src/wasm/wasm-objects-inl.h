@@ -587,6 +587,14 @@ wasm::ValueType WasmTableObject::type(const wasm::WasmModule* module) {
   return type;
 }
 
+wasm::CanonicalValueType WasmTableObject::canonical_type(
+    const wasm::WasmModule* module) {
+  wasm::ValueType unsafe = unsafe_type();
+  if (!unsafe.has_index()) return wasm::CanonicalValueType{unsafe};
+  SBXCHECK(module != nullptr && module->has_type(unsafe.ref_index()));
+  return module->canonical_type(unsafe);
+}
+
 wasm::ValueType WasmTableObject::unsafe_type() {
   // Various consumers of ValueKind (e.g. ValueKind::name()) use the raw enum
   // value as index into a global array. As such, if the index is corrupted
@@ -797,8 +805,8 @@ int WasmArray::SizeFor(Tagged<Map> map, int length) {
 
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());
-  return WasmArray::kHeaderSize +
-         index * type()->element_type().value_kind_size();
+  int element_size = DecodeElementSizeFromMap(map());
+  return WasmArray::kHeaderSize + index * element_size;
 }
 
 Address WasmArray::ElementAddress(uint32_t index) {
