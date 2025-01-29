@@ -238,6 +238,15 @@ HeapType::Representation MaybeShared(HeapType::Representation base,
       UNREACHABLE();
   }
 }
+
+// Same as WasmModule::canonical_type, but robust to {module == nullptr}, which
+// is okay when {type} isn't an indexed type.
+CanonicalValueType Canonicalize(ValueType type, const WasmModule* module) {
+  if (!type.has_index()) return CanonicalValueType{type};
+  DCHECK_NOT_NULL(module);
+  return CanonicalValueType::FromIndex(
+      type.kind(), module->canonical_type_id(type.ref_index()));
+}
 }  // namespace
 
 V8_EXPORT_PRIVATE bool IsShared(ValueType type, const WasmModule* module) {
@@ -292,124 +301,31 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   DCHECK(supertype.is_object_reference());
 
   // Now check that sub_heap and super_heap are subtype-related.
+  return GetTypeCanonicalizer()->IsHeapSubtype(
+      Canonicalize(subtype, sub_module), Canonicalize(supertype, super_module));
+}
 
-  HeapType sub_heap = subtype.heap_type();
-  HeapType super_heap = supertype.heap_type();
+V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
+    CanonicalValueType subtype, CanonicalValueType supertype) {
+  DCHECK_NE(subtype, supertype);  // Caller has checked.
+  if (supertype.kind() == kTop) return true;
+  if (subtype.kind() == kBottom) return true;
+  // For all other kinds, the types would have needed to be equal.
+  if (!subtype.is_object_reference()) return false;
+  if (!supertype.is_object_reference()) return false;
 
-  return IsHeapSubtypeOfImpl(sub_heap, super_heap, sub_module, super_module);
+  if (subtype.is_nullable() && !supertype.is_nullable()) return false;
+  return GetTypeCanonicalizer()->IsHeapSubtype(subtype, supertype);
 }
 
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     HeapType sub_heap, HeapType super_heap, const WasmModule* sub_module,
     const WasmModule* super_module) {
-  if (IsShared(sub_heap, sub_module) != IsShared(super_heap, super_module)) {
-    return false;
-  }
-  HeapType::Representation sub_repr_non_shared =
-      sub_heap.representation_non_shared();
-  HeapType::Representation super_repr_non_shared =
-      super_heap.representation_non_shared();
-  switch (sub_repr_non_shared) {
-    case HeapType::kFunc:
-    case HeapType::kAny:
-    case HeapType::kExtern:
-    case HeapType::kExn:
-    case HeapType::kStringViewWtf8:
-    case HeapType::kStringViewWtf16:
-    case HeapType::kStringViewIter:
-      return sub_repr_non_shared == super_repr_non_shared;
-    case HeapType::kEq:
-    case HeapType::kString:
-      return sub_repr_non_shared == super_repr_non_shared ||
-             super_repr_non_shared == HeapType::kAny;
-    case HeapType::kExternString:
-      return super_repr_non_shared == sub_repr_non_shared ||
-             super_repr_non_shared == HeapType::kExtern;
-    case HeapType::kI31:
-    case HeapType::kStruct:
-    case HeapType::kArray:
-      return super_repr_non_shared == sub_repr_non_shared ||
-             super_repr_non_shared == HeapType::kEq ||
-             super_repr_non_shared == HeapType::kAny;
-    case HeapType::kBottom:
-    case HeapType::kTop:
-      UNREACHABLE();
-    case HeapType::kNone:
-      // none is a subtype of every non-func, non-extern and non-exn reference
-      // type under wasm-gc.
-      if (super_heap.is_index()) {
-        return !super_module->has_signature(super_heap.ref_index());
-      }
-      return super_repr_non_shared == HeapType::kAny ||
-             super_repr_non_shared == HeapType::kEq ||
-             super_repr_non_shared == HeapType::kI31 ||
-             super_repr_non_shared == HeapType::kArray ||
-             super_repr_non_shared == HeapType::kStruct ||
-             super_repr_non_shared == HeapType::kString ||
-             super_repr_non_shared == HeapType::kStringViewWtf16 ||
-             super_repr_non_shared == HeapType::kStringViewWtf8 ||
-             super_repr_non_shared == HeapType::kStringViewIter ||
-             super_repr_non_shared == HeapType::kNone;
-    case HeapType::kNoExtern:
-      return super_repr_non_shared == HeapType::kNoExtern ||
-             super_repr_non_shared == HeapType::kExtern ||
-             super_repr_non_shared == HeapType::kExternString;
-    case HeapType::kNoExn:
-      return super_repr_non_shared == HeapType::kExn ||
-             super_repr_non_shared == HeapType::kNoExn;
-    case HeapType::kNoFunc:
-      // nofunc is a subtype of every funcref type under wasm-gc.
-      if (super_heap.is_index()) {
-        return super_module->has_signature(super_heap.ref_index());
-      }
-      return super_repr_non_shared == HeapType::kNoFunc ||
-             super_repr_non_shared == HeapType::kFunc;
-    default:
-      break;
-  }
-
-  DCHECK(sub_heap.is_index());
-  ModuleTypeIndex sub_index = sub_heap.ref_index();
-  DCHECK(sub_module->has_type(sub_index));
-
-  switch (super_repr_non_shared) {
-    case HeapType::kFunc:
-      return sub_module->has_signature(sub_index);
-    case HeapType::kStruct:
-      return sub_module->has_struct(sub_index);
-    case HeapType::kEq:
-    case HeapType::kAny:
-      return !sub_module->has_signature(sub_index);
-    case HeapType::kArray:
-      return sub_module->has_array(sub_index);
-    case HeapType::kI31:
-    case HeapType::kExtern:
-    case HeapType::kExternString:
-    case HeapType::kExn:
-    case HeapType::kString:
-    case HeapType::kStringViewWtf8:
-    case HeapType::kStringViewWtf16:
-    case HeapType::kStringViewIter:
-    case HeapType::kNone:
-    case HeapType::kNoExtern:
-    case HeapType::kNoFunc:
-    case HeapType::kNoExn:
-      return false;
-    case HeapType::kBottom:
-    case HeapType::kTop:
-      UNREACHABLE();
-    default:
-      break;
-  }
-
-  DCHECK(super_heap.is_index());
-  ModuleTypeIndex super_index = super_heap.ref_index();
-  DCHECK(super_module->has_type(super_index));
-  // The {IsSubtypeOf} entry point already has a fast path checking ValueType
-  // equality; here we catch (ref $x) being a subtype of (ref null $x).
-  if (sub_module == super_module && sub_index == super_index) return true;
-  return GetTypeCanonicalizer()->IsCanonicalSubtype(sub_index, super_index,
-                                                    sub_module, super_module);
+  CanonicalValueType sub_canon =
+      Canonicalize(ValueType::Ref(sub_heap), sub_module);
+  CanonicalValueType super_canon =
+      Canonicalize(ValueType::Ref(super_heap), super_module);
+  return GetTypeCanonicalizer()->IsHeapSubtype(sub_canon, super_canon);
 }
 
 V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,

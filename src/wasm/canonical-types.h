@@ -122,6 +122,10 @@ class TypeCanonicalizer {
   bool IsStruct(CanonicalTypeIndex index) const;
   bool IsArray(CanonicalTypeIndex index) const;
 
+  bool IsHeapSubtype(CanonicalValueType sub, CanonicalValueType super) const;
+  bool IsCanonicalSubtype_Locked(CanonicalTypeIndex sub_index,
+                                 CanonicalTypeIndex super_index) const;
+
   CanonicalTypeIndex FindIndex_Slow(const CanonicalSig* sig) const;
 
 #if DEBUG
@@ -417,6 +421,12 @@ class TypeCanonicalizer {
   const CanonicalType* get(CanonicalTypeIndex index) const {
     return canonical_types_[index.index];
   }
+  const CanonicalType* get(CanonicalValueType type) const {
+    DCHECK(type.has_index());
+    return get(type.ref_index());
+  }
+
+  bool IsShared(CanonicalValueType type) const;
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.

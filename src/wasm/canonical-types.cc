@@ -243,8 +243,16 @@ bool TypeCanonicalizer::IsCanonicalSubtype(CanonicalTypeIndex sub_index,
   // concurrently.
   // TODO(manoskouk): Investigate if we can improve this synchronization.
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  return IsCanonicalSubtype_Locked(sub_index, super_index);
+}
+bool TypeCanonicalizer::IsCanonicalSubtype_Locked(
+    CanonicalTypeIndex sub_index, CanonicalTypeIndex super_index) const {
   while (sub_index.valid()) {
     if (sub_index == super_index) return true;
+    // TODO(jkummerow): Investigate if replacing this with
+    // `sub_index = get(sub_index).supertype;`
+    // has acceptable performance, which would allow us to save the memory
+    // cost of storing {canonical_supertypes_}.
     sub_index = canonical_supertypes_[sub_index.index];
   }
   return false;
@@ -258,6 +266,122 @@ bool TypeCanonicalizer::IsCanonicalSubtype(ModuleTypeIndex sub_index,
       super_module->canonical_type_id(super_index);
   CanonicalTypeIndex canonical_sub = sub_module->canonical_type_id(sub_index);
   return IsCanonicalSubtype(canonical_sub, canonical_super);
+}
+
+bool TypeCanonicalizer::IsShared(CanonicalValueType type) const {
+  return HeapType(type.heap_representation()).is_abstract_shared() ||
+         (type.has_index() && get(type)->is_shared);
+}
+
+bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
+                                      CanonicalValueType super) const {
+  DCHECK(sub.is_object_reference() && super.is_object_reference());
+
+  base::SpinningMutexGuard mutex_guard(&mutex_);
+  if (IsShared(sub) != IsShared(super)) return false;
+
+  HeapType::Representation sub_repr_non_shared =
+      sub.heap_representation_non_shared();
+  HeapType::Representation super_repr_non_shared =
+      super.heap_representation_non_shared();
+  switch (sub_repr_non_shared) {
+    case HeapType::kFunc:
+    case HeapType::kAny:
+    case HeapType::kExtern:
+    case HeapType::kExn:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+      return sub_repr_non_shared == super_repr_non_shared;
+    case HeapType::kEq:
+    case HeapType::kString:
+      return sub_repr_non_shared == super_repr_non_shared ||
+             super_repr_non_shared == HeapType::kAny;
+    case HeapType::kExternString:
+      return super_repr_non_shared == sub_repr_non_shared ||
+             super_repr_non_shared == HeapType::kExtern;
+    case HeapType::kI31:
+    case HeapType::kStruct:
+    case HeapType::kArray:
+      return super_repr_non_shared == sub_repr_non_shared ||
+             super_repr_non_shared == HeapType::kEq ||
+             super_repr_non_shared == HeapType::kAny;
+    case HeapType::kBottom:
+    case HeapType::kTop:
+      UNREACHABLE();
+    case HeapType::kNone:
+      // none is a subtype of every non-func, non-extern and non-exn reference
+      // type under wasm-gc.
+      if (super.has_index()) {
+        return get(super)->kind != CanonicalType::kFunction;
+      }
+      return super_repr_non_shared == HeapType::kAny ||
+             super_repr_non_shared == HeapType::kEq ||
+             super_repr_non_shared == HeapType::kI31 ||
+             super_repr_non_shared == HeapType::kArray ||
+             super_repr_non_shared == HeapType::kStruct ||
+             super_repr_non_shared == HeapType::kString ||
+             super_repr_non_shared == HeapType::kStringViewWtf16 ||
+             super_repr_non_shared == HeapType::kStringViewWtf8 ||
+             super_repr_non_shared == HeapType::kStringViewIter ||
+             super_repr_non_shared == HeapType::kNone;
+    case HeapType::kNoExtern:
+      return super_repr_non_shared == HeapType::kNoExtern ||
+             super_repr_non_shared == HeapType::kExtern ||
+             super_repr_non_shared == HeapType::kExternString;
+    case HeapType::kNoExn:
+      return super_repr_non_shared == HeapType::kExn ||
+             super_repr_non_shared == HeapType::kNoExn;
+    case HeapType::kNoFunc:
+      // nofunc is a subtype of every funcref type under wasm-gc.
+      if (super.has_index()) {
+        return get(super)->kind == CanonicalType::kFunction;
+      }
+      return super_repr_non_shared == HeapType::kNoFunc ||
+             super_repr_non_shared == HeapType::kFunc;
+    default:
+      break;
+  }
+
+  DCHECK(sub.has_index());
+  CanonicalTypeIndex sub_index = sub.ref_index();
+
+  switch (super_repr_non_shared) {
+    case HeapType::kFunc:
+      return get(sub_index)->kind == CanonicalType::kFunction;
+    case HeapType::kStruct:
+      return get(sub_index)->kind == CanonicalType::kStruct;
+    case HeapType::kEq:
+    case HeapType::kAny:
+      return get(sub_index)->kind != CanonicalType::kFunction;
+    case HeapType::kArray:
+      return get(sub_index)->kind == CanonicalType::kArray;
+    case HeapType::kI31:
+    case HeapType::kExtern:
+    case HeapType::kExternString:
+    case HeapType::kExn:
+    case HeapType::kString:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+    case HeapType::kNone:
+    case HeapType::kNoExtern:
+    case HeapType::kNoFunc:
+    case HeapType::kNoExn:
+      return false;
+    case HeapType::kBottom:
+    case HeapType::kTop:
+      UNREACHABLE();
+    default:
+      break;
+  }
+
+  DCHECK(super.has_index());
+  CanonicalTypeIndex super_index = super.ref_index();
+  // The {IsSubtypeOf} entry point already has a fast path checking full type
+  // equality; here we catch (ref $x) being a subtype of (ref null $x).
+  if (sub_index == super_index) return true;
+  return IsCanonicalSubtype_Locked(sub_index, super_index);
 }
 
 void TypeCanonicalizer::EmptyStorageForTesting() {

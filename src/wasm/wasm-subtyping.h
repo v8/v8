@@ -21,6 +21,8 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
 V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     HeapType sub_heap, HeapType super_heap, const WasmModule* sub_module,
     const WasmModule* super_module);
+V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
+    CanonicalValueType subtype, CanonicalValueType supertype);
 
 // Checks if type1, defined in module1, is equivalent with type2, defined in
 // module2.
@@ -77,6 +79,12 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   // If the types are trivially identical, exit early.
   if (V8_LIKELY(subtype == supertype)) return true;
   return IsSubtypeOfImpl(subtype, supertype, module, module);
+}
+
+V8_INLINE bool IsSubtypeOf(CanonicalValueType subtype,
+                           CanonicalValueType supertype) {
+  if (subtype == supertype) return true;
+  return IsSubtypeOfImpl(subtype, supertype);
 }
 
 V8_INLINE bool TypesUnrelated(ValueType type1, ValueType type2,
