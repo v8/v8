@@ -1742,8 +1742,9 @@ void JsonStringifier::ChangeEncoding() {
 template <typename Char>
 class OutBuffer {
  public:
-  explicit OutBuffer(Zone* zone) : zone_(zone), segments_(1, zone_) {
-    Extend();
+  explicit OutBuffer(AccountingAllocator* allocator) : allocator_(allocator) {
+    cur_ = stack_buffer_;
+    segment_end_ = cur_ + kStackBufferSize;
   }
   template <typename SrcChar>
     requires(sizeof(Char) >= sizeof(SrcChar))
@@ -1778,37 +1779,64 @@ class OutBuffer {
     if (SegmentFreeChars() <= 0) Extend();
   }
   int length() const {
-    return (segments_.length() - 1) * kSegmentLength + CurSegmentLength();
+    if (ZoneUsed()) {
+      return kStackBufferSize + (segments_->length() - 1) * kSegmentLength +
+             CurSegmentLength();
+    } else {
+      return StackBufferLength();
+    }
   }
   template <typename Dst>
   void CopyTo(Dst* dst) {
-    // Copy full segments.
-    for (int i = 0; i < segments_.length() - 1; i++) {
-      CopyChars(dst, segments_[i].begin(), kSegmentLength);
-      dst += kSegmentLength;
+    if (ZoneUsed()) {
+      // Copy stack segment.
+      CopyChars(dst, stack_buffer_, kStackBufferSize);
+      dst += kStackBufferSize;
+      // Copy full segments.
+      for (int i = 0; i < segments_->length() - 1; i++) {
+        CopyChars(dst, segments_.value()[i].begin(), kSegmentLength);
+        dst += kSegmentLength;
+      }
+      // Copy last (partially filled) segment.
+      base::Vector<Char> segment = segments_->last();
+      CopyChars(dst, segment.begin(), CurSegmentLength());
+    } else {
+      // Copy (partially filled) stack segment.
+      CopyChars(dst, stack_buffer_, StackBufferLength());
     }
-    // Copy last (partially filled) segment.
-    base::Vector<Char> segment = segments_.last();
-    CopyChars(dst, segment.begin(), CurSegmentLength());
   }
 
  private:
   static constexpr int kSegmentLength = 2048;
+  static constexpr int kStackBufferSize = 256;
+
   void Extend() {
-    segments_.Add(zone_->AllocateVector<Char>(kSegmentLength), zone_);
-    cur_ = segments_.last().begin();
-    segment_end_ = segments_.last().end();
+    if (!ZoneUsed()) {
+      zone_.emplace(allocator_, kJsonStringifierZoneName);
+      segments_.emplace(1, &zone_.value());
+    }
+    segments_->Add(zone_->AllocateVector<Char>(kSegmentLength), &zone_.value());
+    cur_ = segments_->last().begin();
+    segment_end_ = segments_->last().end();
   }
   V8_INLINE int SegmentFreeChars() const {
     return static_cast<int>(segment_end_ - cur_);
   }
-  V8_INLINE int CurSegmentLength() const {
-    return static_cast<int>(cur_ - segments_.last().begin());
+  V8_INLINE int StackBufferLength() const {
+    DCHECK(!ZoneUsed());
+    return static_cast<int>(cur_ - stack_buffer_);
   }
-  Zone* zone_;
-  ZoneList<base::Vector<Char>> segments_;
+  V8_INLINE int CurSegmentLength() const {
+    DCHECK(ZoneUsed());
+    return static_cast<int>(cur_ - segments_->last().begin());
+  }
+  V8_INLINE bool ZoneUsed() const { return zone_.has_value(); }
+  AccountingAllocator* allocator_;
+  Char stack_buffer_[kStackBufferSize];
   Char* cur_;
   Char* segment_end_;
+  std::optional<Zone> zone_;
+  std::optional<ZoneList<base::Vector<Char>>> segments_;
 };
 
 struct ContinuationRecord {
@@ -1960,7 +1988,6 @@ class FastJsonStringifier {
   static constexpr uint32_t kArrayInterruptLength = 4000;
 
   Isolate* isolate_;
-  Zone zone_;
   OutBuffer<Char> buffer_;
   std::vector<ContinuationRecord> stack_;
 
@@ -2018,9 +2045,7 @@ V8_INLINE bool CanFastSerializeJSObjectFastPath(Tagged<JSObject> object,
 
 template <typename Char>
 FastJsonStringifier<Char>::FastJsonStringifier(Isolate* isolate)
-    : isolate_(isolate),
-      zone_(isolate->allocator(), kJsonStringifierZoneName),
-      buffer_(&zone_) {}
+    : isolate_(isolate), buffer_(isolate->allocator()) {}
 
 template <typename Char>
 void FastJsonStringifier<Char>::SerializeSmi(Tagged<Smi> object) {
