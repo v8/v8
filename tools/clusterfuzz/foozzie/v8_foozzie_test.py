@@ -28,7 +28,7 @@ KNOWN_BUILDS = [
   'clang_x86/d8',
   'clang_x86_v8_arm/d8',
   'clang_x64_v8_arm64/d8',
-  'clang_x64_pointer_compression/d8',
+  'clang_x64_fuzzer_experiments/d8',
 ]
 
 

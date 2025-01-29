@@ -538,13 +538,14 @@ if (v8_enable_black_allocated_pages == "") {
   v8_enable_black_allocated_pages = !v8_enable_sticky_mark_bits
 }
 
-# Toggle pointer compression for correctness fuzzing when building the
-# clang_x64_pointer_compression toolchain. We'll correctness-compare the
-# default build with the clang_x64_pointer_compression build.
+# Toggle certain build flags for correctness fuzzing when building the
+# clang_x64_fuzzer_experiments toolchain. We'll correctness-compare the
+# default build with the experiments build.
 if (v8_multi_arch_build &&
     rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
-    "clang_x64_pointer_compression") {
+    "clang_x64_fuzzer_experiments") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
+  v8_lower_limits_mode = !v8_lower_limits_mode
 }
 
 # Ensure the sandbox is on/off in the same way as pointer compression for
@@ -7402,7 +7403,7 @@ group("v8_clusterfuzz") {
       ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
       ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
-      ":d8(tools/clusterfuzz/foozzie/toolchain:clang_x64_pointer_compression)",
+      ":d8(tools/clusterfuzz/foozzie/toolchain:clang_x64_fuzzer_experiments)",
     ]
   }
 }
