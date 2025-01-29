@@ -1099,8 +1099,6 @@ class Heap final {
   V8_EXPORT_PRIVATE void AttachCppHeap(v8::CppHeap* cpp_heap);
   V8_EXPORT_PRIVATE void DetachCppHeap();
 
-  V8_EXPORT_PRIVATE std::unique_ptr<v8::CppHeap> ReleaseCppHeapForTesting();
-
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
   std::optional<StackState> overridden_stack_state() const;

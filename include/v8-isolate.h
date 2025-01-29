@@ -1191,15 +1191,14 @@ class V8_EXPORT Isolate {
       "Set the heap on Isolate creation using CreateParams instead.")
   void DetachCppHeap();
 
+  using ReleaseCppHeapCallback = void (*)(std::unique_ptr<CppHeap>);
+
   /**
-   * The `CppHeap` is typically owned by the isolate, and therefore gets
-   * terminated together with the isolate. However, for testing it may be more
-   * efficient to use the same `CppHeap` for multiple isolates.
-   * `ReleaseCppHeapForTesting` allows to take ownership of the `CppHeap` from
-   * the isolate so that the `CppHeap` does not terminate when the isolate
-   * terminates.
+   * Sets a callback on the isolate that gets called when the CppHeap gets
+   * detached. The callback can then either take ownership of the CppHeap, or
+   * the CppHeap gets deallocated.
    */
-  std::unique_ptr<CppHeap> ReleaseCppHeapForTesting();
+  void SetReleaseCppHeapCallbackForTesting(ReleaseCppHeapCallback callback);
 
   /**
    * \returns the C++ heap managed by V8. Only available if such a heap has been

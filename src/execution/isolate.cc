@@ -6784,6 +6784,17 @@ void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
   AddCrashKeysForIsolateAndHeapPointers();
 }
 
+void Isolate::SetReleaseCppHeapCallback(
+    v8::Isolate::ReleaseCppHeapCallback callback) {
+  release_cpp_heap_callback_ = callback;
+}
+
+void Isolate::RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap) {
+  if (release_cpp_heap_callback_) {
+    release_cpp_heap_callback_(std::move(cpp_heap));
+  }
+}
+
 void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
                                      void* data) {
   atomics_wait_callback_ = callback;

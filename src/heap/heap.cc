@@ -5998,10 +5998,6 @@ void Heap::DetachCppHeap() {
   cpp_heap_ = nullptr;
 }
 
-std::unique_ptr<v8::CppHeap> Heap::ReleaseCppHeapForTesting() {
-  return std::move(owning_cpp_heap_);
-}
-
 std::optional<StackState> Heap::overridden_stack_state() const {
   if (!embedder_stack_state_origin_) return {};
   return embedder_stack_state_;
@@ -6097,7 +6093,7 @@ void Heap::TearDown() {
   if (cpp_heap_) {
     CppHeap::From(cpp_heap_)->DetachIsolate();
     cpp_heap_ = nullptr;
-    owning_cpp_heap_.reset();
+    isolate_->RunReleaseCppHeapCallback(std::move(owning_cpp_heap_));
   }
 
   minor_gc_job_.reset();
