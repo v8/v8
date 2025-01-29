@@ -140,9 +140,12 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   return *array;
 }
 
+// ES#sec-%typedarray%.prototype.fill
 BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 
+  // 1. Let O be the this value.
+  // 2. Let taRecord be ? ValidateTypedArray(O, seq-cst).
   DirectHandle<JSTypedArray> array;
   const char* method_name = "%TypedArray%.prototype.fill";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -150,35 +153,51 @@ BUILTIN(TypedArrayPrototypeFill) {
       JSTypedArray::Validate(isolate, args.receiver(), method_name));
   ElementsKind kind = array->GetElementsKind();
 
+  // 3. Let len be TypedArrayLength(taRecord).
+  int64_t len = array->GetLength();
+
   DirectHandle<Object> obj_value = args.atOrUndefined(isolate, 1);
   if (IsBigIntTypedArrayElementsKind(kind)) {
+    // 4. If O.[[ContentType]] is bigint, set value to ? ToBigInt(value).
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
                                        BigInt::FromObject(isolate, obj_value));
   } else {
+    // 5. Otherwise, set value to ? ToNumber(value).
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
                                        Object::ToNumber(isolate, obj_value));
   }
 
-  int64_t len = array->GetLength();
   int64_t start = 0;
   int64_t end = len;
 
   if (args.length() > 2) {
+    // 6. Let relativeStart be ? ToIntegerOrInfinity(start).
     DirectHandle<Object> num = args.atOrUndefined(isolate, 2);
-    if (!IsUndefined(*num, isolate)) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, num, Object::ToInteger(isolate, num));
-      start = CapRelativeIndex(num, 0, len);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
+                                       Object::ToInteger(isolate, num));
 
-      num = args.atOrUndefined(isolate, 3);
-      if (!IsUndefined(*num, isolate)) {
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, num, Object::ToInteger(isolate, num));
-        end = CapRelativeIndex(num, 0, len);
-      }
+    // 7. If relativeStart = -∞, let startIndex be 0.
+    // 8. Else if relativeStart < 0, let startIndex be max(len + relativeStart,
+    //    0).
+    // 9. Else, let startIndex be min(relativeStart, len).
+    start = CapRelativeIndex(num, 0, len);
+
+    // 10. If end is undefined, let relativeEnd be len; else let relativeEnd be
+    //     ? ToIntegerOrInfinity(end).
+    num = args.atOrUndefined(isolate, 3);
+    if (!IsUndefined(*num, isolate)) {
+      // 11. If relativeEnd = -∞, let endIndex be 0.
+      // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
+      // 13. Else, let endIndex be min(relativeEnd, len).
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
+                                         Object::ToInteger(isolate, num));
+      end = CapRelativeIndex(num, 0, len);
     }
   }
 
+  // 14. Set taRecord to MakeTypedArrayWithBufferWitnessRecord(O, seq-cst).
+  // 15. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError
+  // exception.
   if (V8_UNLIKELY(array->WasDetached())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
@@ -193,6 +212,8 @@ BUILTIN(TypedArrayPrototypeFill) {
           isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
+    // 16. Set len to TypedArrayLength(taRecord).
+    // 17. Set endIndex to min(endIndex, len).
     end = std::min(end, static_cast<int64_t>(array->GetLength()));
   }
 
@@ -206,6 +227,11 @@ BUILTIN(TypedArrayPrototypeFill) {
   DCHECK_LE(end, len);
   DCHECK_LE(count, len);
 
+  // 19. Repeat, while k < endIndex,
+  //  a. Let Pk be ! ToString(𝔽(k)).
+  //   b. Perform ! Set(O, Pk, value, true).
+  //   c. Set k to k + 1.
+  // 20. Return O.
   RETURN_RESULT_OR_FAILURE(isolate, ElementsAccessor::ForKind(kind)->Fill(
                                         array, obj_value, start, end));
 }
