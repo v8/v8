@@ -414,13 +414,22 @@ void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
 Digits RecursionLevel::GetInverse(int dividend_length) {
   DCHECK(inverse_.len() != 0);
   int inverse_len = dividend_length - divisor_.len();
-  DCHECK(inverse_len <= inverse_.len());
+  // If the bits in memory are reliable, then we always have enough digits
+  // in the inverse available. This is a Release-mode CHECK because malicious
+  // concurrent heap mutation can throw off the decisions made by the recursive
+  // procedure, and this is a good bottleneck to catch them.
+  CHECK(inverse_len <= inverse_.len());
   return inverse_ + (inverse_.len() - inverse_len);
 }
 
 void ToStringFormatter::Fast() {
+  // As a sandbox proofing measure, we round up here. Using {BitLength(digits_)}
+  // would be technically optimal, but vulnerable to a malicious worker that
+  // uses an in-sandbox corruption primitive to concurrently toggle the MSD bits
+  // between the invocations of {CreateLevels} and {ProcessLevel}.
+  int target_bit_length = digits_.len() * kDigitBits;
   std::unique_ptr<RecursionLevel> recursion_levels(RecursionLevel::CreateLevels(
-      chunk_divisor_, chunk_chars_, BitLength(digits_), processor_));
+      chunk_divisor_, chunk_chars_, target_bit_length, processor_));
   if (processor_->should_terminate()) return;
   out_ = ProcessLevel(recursion_levels.get(), digits_, out_, true);
 }
