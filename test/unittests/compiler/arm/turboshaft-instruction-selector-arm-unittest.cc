@@ -936,13 +936,6 @@ TEST_P(TurboshaftInstructionSelectorODPITest, BranchWithImmediate) {
   }
 }
 
-#if 0
-
-// TODO(dmercadier): Fix these teste, which are currently broken because
-// projections in Turboshaft are scheduled eagerly after the operation, which
-// prevents Branch-if-overflow fusion in the instruction selector. (this is
-// broken on all architectures, not just ARM).
-
 TEST_P(TurboshaftInstructionSelectorODPITest, BranchIfZeroWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
@@ -984,8 +977,6 @@ TEST_P(TurboshaftInstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
   EXPECT_EQ(kOverflow, s[0]->flags_condition());
 }
-
-#endif
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorODPITest,

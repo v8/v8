@@ -2179,11 +2179,6 @@ static void VisitBinop(InstructionSelectorT<Adapter>* selector,
     }
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   outputs[output_count++] = g.DefineSameAsFirst(node);
 
   DCHECK_NE(0u, input_count);
@@ -4946,23 +4941,20 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         // of the actual value, or was already defined, which means it is
         // scheduled *AFTER* this branch).
         OpIndex node = projection->input();
-        OpIndex result = FindProjection(node, 0);
-        if (!result.valid() || IsDefined(result)) {
-          if (const OverflowCheckedBinopOp* binop =
-                  this->TryCast<OverflowCheckedBinopOp>(node)) {
-            const bool is64 = binop->rep == WordRepresentation::Word64();
-            cont->OverwriteAndNegateIfEqual(kOverflow);
-            switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                return VisitBinop(this, node, is64 ? kX64Add : kX64Add32, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
-                return VisitBinop(this, node, is64 ? kX64Sub : kX64Sub32, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
-                return VisitBinop(this, node, is64 ? kX64Imul : kX64Imul32,
-                                  cont);
-            }
-            UNREACHABLE();
+        if (const OverflowCheckedBinopOp* binop =
+                this->TryCast<OverflowCheckedBinopOp>(node);
+            binop && CanDoBranchIfOverflowFusion(node)) {
+          const bool is64 = binop->rep == WordRepresentation::Word64();
+          cont->OverwriteAndNegateIfEqual(kOverflow);
+          switch (binop->kind) {
+            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              return VisitBinop(this, node, is64 ? kX64Add : kX64Add32, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              return VisitBinop(this, node, is64 ? kX64Sub : kX64Sub32, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedMul:
+              return VisitBinop(this, node, is64 ? kX64Imul : kX64Imul32, cont);
           }
+          UNREACHABLE();
         }
       }
     } else if (value_op.Is<StackPointerGreaterThanOp>()) {

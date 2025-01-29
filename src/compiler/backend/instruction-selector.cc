@@ -2607,6 +2607,87 @@ void InstructionSelectorT<TurbofanAdapter>::VisitProjection(Node* node) {
   }
 }
 
+template <>
+bool InstructionSelectorT<TurbofanAdapter>::CanDoBranchIfOverflowFusion(
+    Node* binop) {
+  // This function is only called in the Turboshaft ISEL.
+  UNREACHABLE();
+}
+
+template <>
+bool InstructionSelectorT<TurboshaftAdapter>::CanDoBranchIfOverflowFusion(
+    turboshaft::OpIndex binop) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const turboshaft::Graph* graph = this->turboshaft_graph();
+  DCHECK(graph->Get(binop).template Is<OverflowCheckedBinopOp>());
+
+  // Getting the 1st projection. Projections are always emitted right after the
+  // operation, in ascending order.
+  OpIndex projection0_index = graph->NextIndex(binop);
+  const ProjectionOp& projection0 =
+      graph->Get(projection0_index).Cast<ProjectionOp>();
+  DCHECK_EQ(projection0.index, 0);
+
+  if (projection0.saturated_use_count.IsOne()) {
+    // If the projection has a single use, it is the following tuple, so we
+    // don't care about the value, and can do branch-if-overflow fusion.
+    DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
+           graph->Get(turboshaft_uses(projection0_index)[0]).Is<TupleOp>());
+    return true;
+  }
+
+  if (this->block(schedule_, binop) != current_block_) {
+    // {binop} is not supposed to be defined in the current block, so let's not
+    // pull it in this block (the checks would need to be stronger, and it's
+    // unlikely that it's doable because of effect levels and all).
+    return false;
+  }
+
+  // We now need to make sure that all uses of {projection0} are already
+  // defined, which will imply that it's fine to define {projection0} and
+  // {binop} now.
+  for (OpIndex use : turboshaft_uses(projection0_index)) {
+    if (this->Get(use).template Is<TupleOp>()) {
+      // The Tuple won't have any uses since it would have to be accessed
+      // through Projections, and Projections on Tuples return the original
+      // Projection instead (see Assembler::ReduceProjection in
+      // turboshaft/assembler.h).
+      DCHECK(this->Get(use).saturated_use_count.IsZero());
+      continue;
+    }
+    if (IsDefined(use)) continue;
+    if (this->block(schedule_, use) != current_block_) {
+      // {use} is in a later block, so it should already have been visited. Note
+      // that operations that don't produce values are not marked as Defined,
+      // like Return for instance, so it's possible that {use} has been visited
+      // but the previous `IsDefined` check didn't match.
+
+#ifdef DEBUG
+      if (this->block(schedule_, use)->index() < current_block_->index()) {
+        // If {use} is in a previous block, then it has to be a loop Phi that
+        // uses {projection0} as its backedge input. In that case, it's fine to
+        // schedule the binop right now, even though it's after the use of its
+        // 1st projection (since the use is conceptually after rather than
+        // before because it goes through a backedge).
+        DCHECK(this->Get(use).template Is<PhiOp>());
+        DCHECK_EQ(this->Get(use).template Cast<PhiOp>().input(1),
+                  projection0_index);
+      }
+#endif
+
+      continue;
+    }
+
+    // {use} is not defined yet (and is not a special case), which means that
+    // {projection0} has a use that comes before {binop}, and we thus can't fuse
+    // binop with a branch to do a branch-if-overflow.
+    return false;
+  }
+
+  VisitProjection(projection0_index);
+  return true;
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitConstant(node_t node) {
   // We must emit a NOP here because every live range needs a defining

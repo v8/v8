@@ -5977,42 +5977,40 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         // actual value, or was already defined, which means it is scheduled
         // *AFTER* this branch).
         OpIndex node = projection->input();
-        OpIndex result = FindProjection(node, 0);
-        if (!result.valid() || IsDefined(result)) {
-          if (const OverflowCheckedBinopOp* binop =
-                  TryCast<OverflowCheckedBinopOp>(node)) {
-            const bool is64 = binop->rep == WordRepresentation::Word64();
-            switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, binop->rep,
-                                  is64 ? kArm64Add : kArm64Add32,
-                                  kArithmeticImm, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, binop->rep,
-                                  is64 ? kArm64Sub : kArm64Sub32,
-                                  kArithmeticImm, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
-                if (is64) {
-                  // ARM64 doesn't set the overflow flag for multiplication, so
-                  // we need to test on kNotEqual. Here is the code sequence
-                  // used:
-                  //   mul result, left, right
-                  //   smulh high, left, right
-                  //   cmp high, result, asr 63
-                  cont->OverwriteAndNegateIfEqual(kNotEqual);
-                  return EmitInt64MulWithOverflow(this, node, cont);
-                } else {
-                  // ARM64 doesn't set the overflow flag for multiplication, so
-                  // we need to test on kNotEqual. Here is the code sequence
-                  // used:
-                  //   smull result, left, right
-                  //   cmp result.X(), Operand(result, SXTW)
-                  cont->OverwriteAndNegateIfEqual(kNotEqual);
-                  return EmitInt32MulWithOverflow(this, node, cont);
-                }
-            }
+        if (const OverflowCheckedBinopOp* binop =
+                TryCast<OverflowCheckedBinopOp>(node);
+            binop && CanDoBranchIfOverflowFusion(node)) {
+          const bool is64 = binop->rep == WordRepresentation::Word64();
+          switch (binop->kind) {
+            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              return VisitBinop(this, node, binop->rep,
+                                is64 ? kArm64Add : kArm64Add32, kArithmeticImm,
+                                cont);
+            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              return VisitBinop(this, node, binop->rep,
+                                is64 ? kArm64Sub : kArm64Sub32, kArithmeticImm,
+                                cont);
+            case OverflowCheckedBinopOp::Kind::kSignedMul:
+              if (is64) {
+                // ARM64 doesn't set the overflow flag for multiplication, so
+                // we need to test on kNotEqual. Here is the code sequence
+                // used:
+                //   mul result, left, right
+                //   smulh high, left, right
+                //   cmp high, result, asr 63
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
+              } else {
+                // ARM64 doesn't set the overflow flag for multiplication, so
+                // we need to test on kNotEqual. Here is the code sequence
+                // used:
+                //   smull result, left, right
+                //   cmp result.X(), Operand(result, SXTW)
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(this, node, cont);
+              }
           }
         }
       }

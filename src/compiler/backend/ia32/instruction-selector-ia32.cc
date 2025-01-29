@@ -2601,22 +2601,20 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         // of the actual value, or was already defined, which means it is
         // scheduled *AFTER* this branch).
         OpIndex node = projection->input();
-        OpIndex result = FindProjection(node, 0);
-        if (!result.valid() || IsDefined(result)) {
-          if (const OverflowCheckedBinopOp* binop =
-                  this->TryCast<OverflowCheckedBinopOp>(node)) {
-            DCHECK_EQ(binop->rep, WordRepresentation::Word32());
-            cont->OverwriteAndNegateIfEqual(kOverflow);
-            switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                return VisitBinop(this, node, kIA32Add, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
-                return VisitBinop(this, node, kIA32Sub, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
-                return VisitBinop(this, node, kIA32Imul, cont);
-            }
-            UNREACHABLE();
+        if (const OverflowCheckedBinopOp* binop =
+                this->TryCast<OverflowCheckedBinopOp>(node);
+            binop && CanDoBranchIfOverflowFusion(node)) {
+          DCHECK_EQ(binop->rep, WordRepresentation::Word32());
+          cont->OverwriteAndNegateIfEqual(kOverflow);
+          switch (binop->kind) {
+            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              return VisitBinop(this, node, kIA32Add, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              return VisitBinop(this, node, kIA32Sub, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedMul:
+              return VisitBinop(this, node, kIA32Imul, cont);
           }
+          UNREACHABLE();
         }
       }
     } else if (value_op.Is<StackPointerGreaterThanOp>()) {

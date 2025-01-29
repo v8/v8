@@ -666,6 +666,15 @@ class InstructionSelectorT final : public Adapter {
 
   node_t FindProjection(node_t node, size_t projection_index);
 
+  // When we want to do branch-if-overflow fusion, we need to be mindful of the
+  // 1st projection of the OverflowBinop:
+  //   - If it has no uses, all good, we can do the fusion.
+  //   - If it has any uses, then they must all be already defined: doing the
+  //     fusion will lead to emitting the 1st projection, and any non-defined
+  //     operation is earlier in the graph by construction, which means that it
+  //     won't be able to use the 1st projection that will now be defined later.
+  bool CanDoBranchIfOverflowFusion(node_t node);
+
   // Records that this ProtectedLoad node can be deleted if not used, even
   // though it has a required_when_unused effect.
   void SetProtectedLoadToRemove(node_t node) {

@@ -70,6 +70,8 @@ namespace v8::internal::compiler::turboshaft {
   V(Int64AddCheckOverflow)      \
   V(Int32SubCheckOverflow)      \
   V(Int64SubCheckOverflow)      \
+  V(Int32MulCheckOverflow)      \
+  V(Int64MulCheckOverflow)      \
   V(Word32Equal)                \
   V(Word64Equal)                \
   V(Word32NotEqual)             \
