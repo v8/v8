@@ -23,7 +23,7 @@ const { DifferentialFuzzMutator, DifferentialFuzzSuppressions } = require(
 const { ScriptMutator } = require('./script_mutator.js');
 
 
-const USE_ORIGINAL_FLAGS_PROB = 0.2;
+const USE_ORIGINAL_FLAGS_PROB = 0.5;
 
 /**
  * Randomly chooses a configuration from experiments. The configuration
