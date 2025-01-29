@@ -366,11 +366,9 @@ class StateStorage final {
   }
 
   template <typename Callback>
-  void ForAllVisibleStates(Callback callback) {
+  void ForAllStates(Callback callback) {
     for (auto& state : states_) {
-      if (state.second->IsVisibleNotDependent()) {
-        callback(state.second.get());
-      }
+      callback(state.second.get());
     }
   }
 
@@ -467,9 +465,15 @@ class CppGraphBuilderImpl final {
   }
 
   EmbedderNode* AddNode(const HeapObjectHeader& header) {
-    return static_cast<EmbedderNode*>(graph_.AddNode(
-        std::unique_ptr<v8::EmbedderGraph::Node>{new EmbedderNode(
-            &header, header.GetName(), header.AllocatedSize())}));
+    size_t size = header.AllocatedSize();
+    EmbedderNode* node = static_cast<EmbedderNode*>(
+        graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
+            new EmbedderNode(&header, header.GetName(), size)}));
+    size_t node_size = node->SizeInBytes();
+    if (size > node_size) {
+      graph_.AddNativeSize(size - node_size);
+    }
+    return node;
   }
 
   void AddEdge(State& parent, const HeapObjectHeader& header,
@@ -998,9 +1002,14 @@ void CppGraphBuilderImpl::Run() {
   LiveObjectsForVisibilityIterator visitor(*this);
   visitor.Traverse(cpp_heap_.raw_heap());
   // Second pass: Add graph nodes for objects that must be shown.
-  states_.ForAllVisibleStates([this](StateBase* state_base) {
+  states_.ForAllStates([this](StateBase* state_base) {
     // No roots have been created so far, so all StateBase objects are State.
     State& state = *static_cast<State*>(state_base);
+
+    if (!state.IsVisibleNotDependent()) {
+      graph_.AddNativeSize(state.header()->AllocatedSize());
+      return;
+    }
 
     // Emit no edges for the contents of the weak containers. For both, fully
     // weak and ephemeron containers, the contents should be retained from

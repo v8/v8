@@ -940,6 +940,15 @@ class V8_EXPORT EmbedderGraph {
    */
   virtual void AddEdge(Node* from, Node* to, const char* name = nullptr) = 0;
 
+  /**
+   * Adds a count of bytes that are not associated with any particular Node.
+   * An embedder may use this to represent the size of nodes which were omitted
+   * from this EmbedderGraph despite being retained by the graph, or other
+   * overhead costs. This number will contribute to the total size in a heap
+   * snapshot, without being represented in the object graph.
+   */
+  virtual void AddNativeSize(size_t size) {}
+
   virtual ~EmbedderGraph() = default;
 };
 

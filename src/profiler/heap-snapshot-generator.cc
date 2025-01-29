@@ -2949,12 +2949,16 @@ class EmbedderGraphImpl : public EmbedderGraph {
     edges_.push_back({from, to, name});
   }
 
+  void AddNativeSize(size_t size) final { native_size_ += size; }
+  size_t native_size() const { return native_size_; }
+
   const std::vector<std::unique_ptr<Node>>& nodes() { return nodes_; }
   const std::vector<Edge>& edges() { return edges_; }
 
  private:
   std::vector<std::unique_ptr<Node>> nodes_;
   std::vector<Edge> edges_;
+  size_t native_size_ = 0;
 };
 
 class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
@@ -3139,6 +3143,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
                                 HeapEntry::kOffHeapPointer);
       }
     }
+    snapshot_->set_extra_native_bytes(graph.native_size());
   }
   generator_ = nullptr;
   return true;
@@ -3552,11 +3557,13 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 #undef JSON_S
 #undef JSON_A
   writer_->AddString(",\"node_count\":");
-  writer_->AddNumber(static_cast<unsigned>(snapshot_->entries().size()));
+  writer_->AddSize(snapshot_->entries().size());
   writer_->AddString(",\"edge_count\":");
-  writer_->AddNumber(static_cast<double>(snapshot_->edges().size()));
+  writer_->AddSize(snapshot_->edges().size());
   writer_->AddString(",\"trace_function_count\":");
   writer_->AddNumber(trace_function_count_);
+  writer_->AddString(",\"extra_native_bytes\":");
+  writer_->AddSize(snapshot_->extra_native_bytes());
 }
 
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {

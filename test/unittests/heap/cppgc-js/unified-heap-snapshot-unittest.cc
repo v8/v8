@@ -206,6 +206,34 @@ constexpr const char* GetExpectedName() {
   }
 }
 
+size_t GetExtraNativeBytes(const v8::HeapSnapshot* snapshot) {
+  return reinterpret_cast<const HeapSnapshot*>(snapshot)->extra_native_bytes();
+}
+
+template <typename Callback>
+void ForEachEntryWithName(const v8::HeapSnapshot* snapshot, const char* name,
+                          Callback callback) {
+  const HeapSnapshot* heap_snapshot =
+      reinterpret_cast<const HeapSnapshot*>(snapshot);
+  for (const HeapEntry& entry : heap_snapshot->entries()) {
+    if (strcmp(entry.name(), name) == 0) {
+      callback(entry);
+    }
+  }
+}
+
+void CheckSize(const v8::HeapSnapshot* snapshot, const char* name,
+               size_t size) {
+  ForEachEntryWithName(snapshot, name, [size](const HeapEntry& entry) {
+    EXPECT_EQ(size, entry.self_size());
+  });
+}
+
+template <typename T>
+size_t GetCppSize(T* object) {
+  return cppgc::internal::HeapObjectHeader::FromObject(object).AllocatedSize();
+}
+
 }  // namespace
 
 TEST_F(UnifiedHeapSnapshotTest, EmptySnapshot) {
@@ -360,6 +388,9 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithInternalDetails) {
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot, {kExpectedCppRootsName, GetExpectedName<BaseWithoutName>()}));
+  CheckSize(snapshot, GetExpectedName<BaseWithoutName>(),
+            GetCppSize(base_without_name.Get()));
+  EXPECT_EQ(0u, GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithoutInternalDetails) {
@@ -373,6 +404,7 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedTypeWithoutInternalDetails) {
       *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName}));
   EXPECT_FALSE(ContainsRetainingPath(
       *snapshot, {kExpectedCppRootsName, GetExpectedName<BaseWithoutName>()}));
+  EXPECT_EQ(GetCppSize(base_without_name.Get()), GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, RetainingNamedThroughUnnamed) {
@@ -387,6 +419,10 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingNamedThroughUnnamed) {
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName,
                   GetExpectedName<GCed>()}));
+  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+  CheckSize(snapshot, GetExpectedName<GCed>(),
+            GetCppSize(base_without_name->next.Get()));
+  EXPECT_EQ(GetCppSize(base_without_name.Get()), GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
@@ -416,6 +452,10 @@ TEST_F(UnifiedHeapSnapshotTest, PendingCallStack) {
   EXPECT_TRUE(ContainsRetainingPath(
       *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName,
                   cppgc::NameProvider::kHiddenName, GetExpectedName<GCed>()}));
+  CheckSize(snapshot, cppgc::NameProvider::kHiddenName, 0);
+  CheckSize(snapshot, GetExpectedName<GCed>(), GetCppSize(third));
+  EXPECT_EQ(GetCppSize(first) + GetCppSize(second),
+            GetExtraNativeBytes(snapshot));
 }
 
 TEST_F(UnifiedHeapSnapshotTest, ReferenceToFinishedSCC) {
@@ -516,18 +556,6 @@ cppgc::Persistent<GCedWithJSRef> SetupWrapperWrappablePair(
   return gc_w_js_ref;
 }
 
-template <typename Callback>
-void ForEachEntryWithName(const v8::HeapSnapshot* snapshot, const char* needle,
-                          Callback callback) {
-  const HeapSnapshot* heap_snapshot =
-      reinterpret_cast<const HeapSnapshot*>(snapshot);
-  for (const HeapEntry& entry : heap_snapshot->entries()) {
-    if (strcmp(entry.name(), needle) == 0) {
-      callback(entry);
-    }
-  }
-}
-
 }  // namespace
 
 TEST_F(UnifiedHeapSnapshotTest, JSReferenceForcesVisibleObject) {
@@ -585,18 +613,10 @@ void WithUnifiedHeapSnapshot<TMixin>::TestMergedWrapperNode(
        "NextObject"}));
   const size_t js_size = Utils::OpenDirectHandle(*wrapper_object)->Size();
   if (snapshot_mode == v8::HeapProfiler::HeapSnapshotMode::kExposeInternals) {
-    const size_t cpp_size =
-        cppgc::internal::HeapObjectHeader::FromObject(gc_w_js_ref.Get())
-            .AllocatedSize();
-    ForEachEntryWithName(snapshot, kExpectedName,
-                         [cpp_size, js_size](const HeapEntry& entry) {
-                           EXPECT_EQ(cpp_size + js_size, entry.self_size());
-                         });
+    const size_t cpp_size = GetCppSize(gc_w_js_ref.Get());
+    CheckSize(snapshot, kExpectedName, cpp_size + js_size);
   } else {
-    ForEachEntryWithName(snapshot, kExpectedName,
-                         [js_size](const HeapEntry& entry) {
-                           EXPECT_EQ(js_size, entry.self_size());
-                         });
+    CheckSize(snapshot, kExpectedName, js_size);
   }
 }
 

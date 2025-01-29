@@ -254,6 +254,8 @@ class HeapSnapshot {
     return snapshot_mode_ ==
            v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
   }
+  size_t extra_native_bytes() const { return extra_native_bytes_; }
+  void set_extra_native_bytes(size_t bytes) { extra_native_bytes_ = bytes; }
 
   void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
@@ -290,6 +292,7 @@ class HeapSnapshot {
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
   v8::HeapProfiler::NumericsMode numerics_mode_;
+  size_t extra_native_bytes_ = 0;
 
   // The ScriptsLineEndsMap instance stores the line ends of scripts that did
   // not get their line_ends() information populated in heap.
