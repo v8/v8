@@ -1418,6 +1418,7 @@ RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
     return CrashUnlessFuzzing(isolate);
   }
 
+  if (!IsString(args[0])) return CrashUnlessFuzzing(isolate);
   auto name = Cast<String>(args[0]);
 
   PrintF(" * ");
