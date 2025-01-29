@@ -1397,8 +1397,8 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
   CachedStackFrameKey key{scriptId, lineNumber, columnNumber};
   auto functionName = toProtocolString(isolate(), v8Frame->GetFunctionName());
   auto it = m_cachedStackFrames.find(key);
-  if (it != m_cachedStackFrames.end() && !it->second.expired()) {
-    auto stackFrame = it->second.lock();
+  std::shared_ptr<StackFrame> stackFrame;
+  if (it != m_cachedStackFrames.end() && (stackFrame = it->second.lock())) {
     if (stackFrame->functionName() == functionName) {
       DCHECK_EQ(
           stackFrame->sourceURL(),
@@ -1410,9 +1410,9 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
       toProtocolString(isolate(), v8Frame->GetScriptNameOrSourceURL());
   auto hasSourceURLComment =
       v8Frame->GetScriptName() != v8Frame->GetScriptNameOrSourceURL();
-  auto stackFrame = std::make_shared<StackFrame>(
-      std::move(functionName), scriptId, std::move(sourceURL), lineNumber,
-      columnNumber, hasSourceURLComment);
+  stackFrame = std::make_shared<StackFrame>(std::move(functionName), scriptId,
+                                            std::move(sourceURL), lineNumber,
+                                            columnNumber, hasSourceURLComment);
   m_cachedStackFrames.emplace(key, stackFrame);
   return stackFrame;
 }
