@@ -1097,8 +1097,10 @@ namespace internal {
   TFJ(TypedArrayPrototypeToStringTag, kJSArgcReceiverSlots, kReceiver)         \
   /* ES6 %TypedArray%.prototype.map */                                         \
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
-  /* #sec-uint8array.frombase64*/                                              \
+  /* proposal-arraybuffer-base64 #sec-uint8array.frombase64 */                 \
   CPP(Uint8ArrayFromBase64, kDontAdaptArgumentsSentinel)                       \
+  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
+  CPP(Uint8ArrayToBase64, kDontAdaptArgumentsSentinel)                         \
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
@@ -1575,7 +1577,7 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeMillisecond, JSParameterCount(0))              \
   /* Temporal #sec-get-temporal.plaintime.prototype.microsecond */             \
   CPP(TemporalPlainTimePrototypeMicrosecond, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaintime.prototype.nanosecond */               \
+  /* Temporal #sec-get-temporal.plaintime.prototype.nanosecond */              \
   CPP(TemporalPlainTimePrototypeNanosecond, JSParameterCount(0))               \
   /* Temporal #sec-temporal.plaintime.prototype.add */                         \
   CPP(TemporalPlainTimePrototypeAdd, kDontAdaptArgumentsSentinel)              \

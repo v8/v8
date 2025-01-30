@@ -353,6 +353,12 @@ BUILTIN(TypedArrayPrototypeReverse) {
 
 namespace {
 
+std::vector<std::tuple<const char*, size_t, simdutf::base64_options>>
+SimdutfBase64OptionsVector() {
+  return {{"base64", 6, simdutf::base64_options::base64_default},
+          {"base64url", 9, simdutf::base64_options::base64_url}};
+}
+
 template <typename T>
 Maybe<T> MapOptionToEnum(
     Isolate* isolate, DirectHandle<String> option_string,
@@ -477,13 +483,10 @@ BUILTIN(Uint8ArrayFromBase64) {
     // exception.
     DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
 
-    std::vector<std::tuple<const char*, size_t, simdutf::base64_options>>
-        alphabet_vector = {
-            {"base64", 6, simdutf::base64_options::base64_default},
-            {"base64url", 9, simdutf::base64_options::base64_url}};
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, alphabet,
-        MapOptionToEnum(isolate, alphabet_string, alphabet_vector));
+        MapOptionToEnum(isolate, alphabet_string,
+                        SimdutfBase64OptionsVector()));
   }
 
   // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
@@ -568,6 +571,120 @@ BUILTIN(Uint8ArrayFromBase64) {
       isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                           output_length);
   return *result_typed_array;
+}
+
+// https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
+BUILTIN(Uint8ArrayToBase64) {
+  HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.prototype.toBase64";
+
+  // 1. Let O be the this value.
+  // 2. Perform ? ValidateUint8Array(O).
+  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  // 3. Let opts be ? GetOptionsObject(options).
+  DirectHandle<Object> options = args.atOrUndefined(isolate, 1);
+
+  // 4. Let alphabet be ? Get(opts, "alphabet").
+  DirectHandle<Object> opt_alphabet;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, opt_alphabet,
+      JSObject::ReadFromOptionsBag(
+          options, isolate->factory()->alphabet_string(), isolate));
+
+  // 5. If alphabet is undefined, set alphabet to "base64".
+  simdutf::base64_options alphabet;
+  if (IsUndefined(*opt_alphabet)) {
+    alphabet = simdutf::base64_options::base64_default;
+  } else if (!IsString(*opt_alphabet)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidOption, opt_alphabet));
+  } else {
+    // 6. If alphabet is neither "base64" nor "base64url", throw a TypeError
+    // exception.
+    DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
+
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, alphabet,
+        MapOptionToEnum(isolate, alphabet_string,
+                        SimdutfBase64OptionsVector()));
+  }
+
+  // 7. Let omitPadding be ToBoolean(? Get(opts, "omitPadding")).
+  DirectHandle<Object> omit_padding_object;
+  bool omit_padding = false;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, omit_padding_object,
+      JSObject::ReadFromOptionsBag(
+          options, isolate->factory()->NewStringFromAsciiChecked("omitPadding"),
+          isolate));
+
+  if (Object::BooleanValue(*omit_padding_object, isolate)) {
+    omit_padding = true;
+  }
+
+  if (uint8array->IsDetachedOrOutOfBounds()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  if (alphabet == simdutf::base64_options::base64_default &&
+      omit_padding == true) {
+    alphabet = simdutf::base64_options::base64_default_no_padding;
+  } else if (alphabet == simdutf::base64_options::base64_url &&
+             omit_padding == false) {
+    alphabet = simdutf::base64_options::base64_url_with_padding;
+  }
+
+  size_t output_length =
+      simdutf::base64_length_from_binary(uint8array->byte_length(), alphabet);
+
+  if (output_length == 0) {
+    return *isolate->factory()->empty_string();
+  }
+
+  Handle<SeqOneByteString> output;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, output,
+      isolate->factory()->NewRawOneByteString(static_cast<int>(output_length)));
+  {
+    DisallowGarbageCollection no_gc;
+    // 8. Let toEncode be ? GetUint8ArrayBytes(O).
+    // 9. If alphabet is "base64", then
+    //    a. Let outAscii be the sequence of code points which results from
+    //    encoding toEncode according to the base64 encoding specified in
+    //    section 4 of RFC 4648. Padding is included if and only if omitPadding
+    //    is false.
+    // 10. Else,
+    //    a. Assert: alphabet is "base64url".
+    //    b. Let outAscii be the sequence of code points which results from
+    //    encoding toEncode according to the base64url encoding specified in
+    //    section 5 of RFC 4648. Padding is included if and only if omitPadding
+    //    is false.
+    // 11. Return CodePointsToString(outAscii).
+
+    // TODO(rezvan): Make sure to add a path for SharedArrayBuffers when
+    // simdutf library got updated. Also, add a test for it.
+    size_t simd_result_size = simdutf::binary_to_base64(
+        std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
+        uint8array->byte_length(),
+        reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+    DCHECK_EQ(simd_result_size, output_length);
+    USE(simd_result_size);
+  }
+
+  // output_length is the correct length of the output, with padding or
+  // without padding, so we do not need to modify the output based on
+  // padding here.
+  return *output;
 }
 
 }  // namespace internal

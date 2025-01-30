@@ -25,6 +25,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects.h"
 #include "src/sandbox/testing.h"
 #ifdef ENABLE_VTUNE_TRACEMARK
@@ -6006,13 +6007,19 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
 void Genesis::InitializeGlobal_js_base_64() {
   if (!v8_flags.js_base_64) return;
 
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> uint8array_function =
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSObject> uint8_array_function =
       Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
                          .ToHandleChecked());
-  SimpleInstallFunction(isolate(), uint8array_function, "fromBase64",
+  SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
                         Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
+
+  DirectHandle<JSObject> uint8_array_prototype(
+      Cast<JSObject>(
+          Cast<JSFunction>(uint8_array_function)->instance_prototype()),
+      isolate());
+  SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
+                        Builtin::kUint8ArrayToBase64, 0, kDontAdapt);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
