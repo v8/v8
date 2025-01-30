@@ -229,7 +229,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
       if (!VALIDATE(enabled.has_shared())) {
         DecodeError<ValidationTag>(
             decoder, pc,
-            "invalid heap type 0x%x, enable with --experimental-wasm-shared",
+            "invalid heap type 0x%hhx, enable with --experimental-wasm-shared",
             kSharedFlagCode);
         return {HeapType(HeapType::kBottom), length};
       }
@@ -401,7 +401,7 @@ bool ValidateHeapType(Decoder* decoder, const uint8_t* pc,
   if (!ValidationTag::validate && module == nullptr) return true;
   if (!VALIDATE(type.ref_index().index < module->types.size())) {
     DecodeError<ValidationTag>(decoder, pc, "Type index %u is out of bounds",
-                               type.ref_index());
+                               type.ref_index().index);
     return false;
   }
   return true;
@@ -4787,7 +4787,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             if (!VALIDATE(ftype.is_defaultable())) {
               this->DecodeError(
                   "%s: struct type %d has field %d of non-defaultable type %s",
-                  WasmOpcodes::OpcodeName(opcode), imm.index, i,
+                  WasmOpcodes::OpcodeName(opcode), imm.index.index, i,
                   ftype.name().c_str());
               return 0;
             }
@@ -4807,7 +4807,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "struct.get: Immediate field %d of type %d has packed type %s. "
               "Use struct.get_s or struct.get_u instead.",
-              field.field_imm.index, field.struct_imm.index,
+              field.field_imm.index, field.struct_imm.index.index,
               field_type.name().c_str());
           return 0;
         }
@@ -4845,7 +4845,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         const StructType* struct_type = field.struct_imm.struct_type;
         if (!VALIDATE(struct_type->mutability(field.field_imm.index))) {
           this->DecodeError("struct.set: Field %d of type %d is immutable.",
-                            field.field_imm.index, field.struct_imm.index);
+                            field.field_imm.index,
+                            field.struct_imm.index.index);
           return 0;
         }
         auto [struct_obj, field_value] =
@@ -4871,7 +4872,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!VALIDATE(imm.array_type->element_type().is_defaultable())) {
           this->DecodeError(
               "%s: array type %d has non-defaultable element type %s",
-              WasmOpcodes::OpcodeName(opcode), imm.index,
+              WasmOpcodes::OpcodeName(opcode), imm.index.index,
               imm.array_type->element_type().name().c_str());
           return 0;
         }
@@ -5067,7 +5068,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.array_type->mutability())) {
           this->DecodeError("array.set: immediate array type %d is immutable",
-                            imm.index);
+                            imm.index.index);
           return 0;
         }
         auto [array_obj, index, value] =
@@ -5091,7 +5092,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!VALIDATE(dst_imm.array_type->mutability())) {
           this->DecodeError(
               "array.copy: immediate destination array type #%d is immutable",
-              dst_imm.index);
+              dst_imm.index.index);
           return 0;
         }
         ArrayIndexImmediate src_imm(
@@ -5122,7 +5123,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
         if (!VALIDATE(array_imm.array_type->mutability())) {
           this->DecodeError("array.init: immediate array type #%d is immutable",
-                            array_imm.index);
+                            array_imm.index.index);
           return 0;
         }
 

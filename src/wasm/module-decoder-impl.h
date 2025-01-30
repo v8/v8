@@ -1884,7 +1884,7 @@ class ModuleDecoderImpl : public Decoder {
     ModuleTypeIndex sig_index{consume_u32v("signature index")};
     if (tracer_) tracer_->Bytes(pos, static_cast<uint32_t>(pc_ - pos));
     if (!module->has_signature(sig_index)) {
-      errorf(pos, "no signature at index %u (%d types)", sig_index,
+      errorf(pos, "no signature at index %u (%d types)", sig_index.index,
              static_cast<int>(module->types.size()));
       *sig = nullptr;
       return {};
