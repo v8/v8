@@ -22,6 +22,7 @@
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -1558,34 +1559,69 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
+  enum class StringEncoding { kOneByte, kTwoByte, kUnknown };
+  StringEncoding GetStringEncoding(V<String> string) {
+    const ConstantOp* constant =
+        __ Get(string).template TryCast<Opmask::kHeapConstant>();
+    if (!constant) return StringEncoding::kUnknown;
+
+    UnparkedScopeIfNeeded unpark(broker_);
+    HeapObjectRef ref = MakeRef(broker_, constant->handle());
+    CHECK(ref.IsString());
+
+    return ref.AsString().IsOneByteRepresentation() ? StringEncoding::kOneByte
+                                                    : StringEncoding::kTwoByte;
+  }
+
   V<ConsString> REDUCE(NewConsString)(V<Word32> length, V<String> first,
                                       V<String> second) {
-    // Determine the instance types of {first} and {second}.
-    V<Map> first_map = __ LoadMapField(first);
-    V<Word32> first_type = __ LoadInstanceTypeField(first_map);
-    V<Map> second_map = __ LoadMapField(second);
-    V<Word32> second_type = __ LoadInstanceTypeField(second_map);
+    ScopedVar<Map> map(this);
 
-    Label<Map> allocate_string(this);
+    // Determine the instance types of {first} and {second}.
+    StringEncoding first_encoding = GetStringEncoding(first);
+    StringEncoding second_encoding = GetStringEncoding(second);
+
     // Determine the proper map for the resulting ConsString.
-    // If both {first} and {second} are one-byte strings, we
-    // create a new ConsOneByteString, otherwise we create a
-    // new ConsString instead.
-    static_assert(kOneByteStringTag != 0);
-    static_assert(kTwoByteStringTag == 0);
-    V<Word32> instance_type = __ Word32BitwiseAnd(first_type, second_type);
-    V<Word32> encoding =
-        __ Word32BitwiseAnd(instance_type, kStringEncodingMask);
-    IF (__ Word32Equal(encoding, kTwoByteStringTag)) {
-      GOTO(allocate_string,
-           __ HeapConstant(factory_->cons_two_byte_string_map()));
-    } ELSE {
-      GOTO(allocate_string,
-           __ HeapConstant(factory_->cons_one_byte_string_map()));
+    // If either of {first} or {second} is a 2-byte string, then we create a
+    // 2-byte string. If both {first} and {second} are one-byte strings, we
+    // create a new 1-byte string.
+    if (first_encoding == StringEncoding::kTwoByte ||
+        second_encoding == StringEncoding::kTwoByte) {
+      map = __ HeapConstant(factory_->cons_two_byte_string_map());
+    } else if (first_encoding == StringEncoding::kOneByte &&
+               second_encoding == StringEncoding::kOneByte) {
+      map = __ HeapConstant(factory_->cons_one_byte_string_map());
+    } else {
+      V<Word32> first_type, second_type;
+      constexpr int kAllOnesMask = -1;
+      if (first_encoding == StringEncoding::kUnknown) {
+        V<Map> first_map = __ LoadMapField(first);
+        first_type = __ LoadInstanceTypeField(first_map);
+      } else {
+        DCHECK_EQ(first_encoding, StringEncoding::kOneByte);
+        first_type = __ Word32Constant(kAllOnesMask);
+      }
+      if (second_encoding == StringEncoding::kUnknown) {
+        V<Map> second_map = __ LoadMapField(second);
+        second_type = __ LoadInstanceTypeField(second_map);
+      } else {
+        DCHECK_EQ(second_encoding, StringEncoding::kOneByte);
+        second_type = __ Word32Constant(kAllOnesMask);
+      }
+
+      static_assert(kOneByteStringTag != 0);
+      static_assert(kTwoByteStringTag == 0);
+      V<Word32> instance_type = __ Word32BitwiseAnd(first_type, second_type);
+      V<Word32> encoding =
+          __ Word32BitwiseAnd(instance_type, kStringEncodingMask);
+      IF (__ Word32Equal(encoding, kTwoByteStringTag)) {
+        map = __ HeapConstant(factory_->cons_two_byte_string_map());
+      } ELSE {
+        map = __ HeapConstant(factory_->cons_one_byte_string_map());
+      }
     }
 
     // Allocate the resulting ConsString.
-    BIND(allocate_string, map);
     auto string = __ template Allocate<ConsString>(
         __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung);
     __ InitializeField(string, AccessBuilder::ForMap(), map);

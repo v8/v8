@@ -24,6 +24,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-types.h"
@@ -145,6 +146,14 @@ class JSBinopReduction final {
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
     DCHECK(OneInputIs(Type::String()));
+    if (node_->InputAt(1)->opcode() == IrOpcode::kNewConsString) {
+      // If the right hand side is a ConsString, then we can create a
+      // ConsString. This doesn't work with the left hand side, since the right
+      // hand side of a ConsString cannot be the empty string except when the
+      // left hand side is a SeqString or External string, but we don't know
+      // that here.
+      return true;
+    }
     if (BothInputsAre(Type::String()) ||
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
