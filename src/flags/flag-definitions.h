@@ -1503,9 +1503,8 @@ DEFINE_BOOL(turboshaft_load_elimination, true,
 DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
 DEFINE_BOOL(turboshaft_loop_unrolling, true,
             "enable Turboshaft's loop unrolling")
-DEFINE_BOOL(turboshaft_string_concat_escape_analysis, false,
+DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
-DEFINE_WEAK_IMPLICATION(future, turboshaft_string_concat_escape_analysis)
 
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
