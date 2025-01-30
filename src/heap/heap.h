@@ -2090,8 +2090,8 @@ class Heap final {
   // first full GC this field is only ever reset for top context disposals.
   std::atomic<bool> using_initial_limit_ = true;
 
-  // True if initial limits were provided by the embedder.
-  bool initial_limit_overwritten_ = false;
+  // True if initial heap size was provided by the embedder.
+  bool initial_size_overwritten_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;

@@ -3111,7 +3111,7 @@ void* Heap::AllocateExternalBackingStore(
 // GC), this method shrinks the initial very large old generation size. This
 // method can only shrink allocation limits but not increase it again.
 void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
-  if (using_initial_limit() && !initial_limit_overwritten_ &&
+  if (using_initial_limit() && !initial_size_overwritten_ &&
       tracer()->SurvivalEventsRecorded()) {
     const size_t minimum_growing_step =
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
@@ -4987,7 +4987,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     return std::nullopt;
   }();
   if (initial_old_generation_size.has_value()) {
-    initial_limit_overwritten_ = true;
+    initial_size_overwritten_ = true;
     initial_old_generation_size_ = *initial_old_generation_size;
   } else {
     initial_old_generation_size_ = kMaxInitialOldGenerationSize;
@@ -5000,7 +5000,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       std::min(initial_old_generation_size_, max_old_generation_size() / 2);
   initial_old_generation_size_ =
       RoundDown<PageMetadata::kPageSize>(initial_old_generation_size_);
-  if (initial_limit_overwritten_) {
+  if (initial_size_overwritten_) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
     min_old_generation_size_ = initial_old_generation_size_;
