@@ -73,12 +73,8 @@ bool SemiSpace::EnsureCapacity(size_t capacity) {
                        memory_chunk_list_.size() + quarantined_pages);
   if (num_pages >= 0) {
     for (int pages_added = 0; pages_added < num_pages; pages_added++) {
-      // Pages in the new spaces can be moved to the old space by the full
-      // collector. Therefore, they must be initialized with the same FreeList
-      // as old pages.
       if (!AllocateFreshPage()) {
         if (pages_added) RewindPages(pages_added);
-        DCHECK(!IsCommitted());
         return false;
       }
     }
@@ -129,7 +125,10 @@ size_t SemiSpace::CommittedPhysicalMemory() const {
 
 bool SemiSpace::GrowTo(size_t new_capacity) {
   if (!IsCommitted()) {
-    if (!Commit()) return false;
+    if (!Commit()) {
+      DCHECK(!IsCommitted());
+      return false;
+    }
   }
   DCHECK(MemoryChunk::IsAligned(new_capacity));
   DCHECK_LE(new_capacity, maximum_capacity_);
@@ -452,6 +451,7 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
                   max_semispace_capacity) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
   if (!to_space_.Commit()) {
+    DCHECK(!to_space_.IsCommitted());
     V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
   }
   DCHECK(!from_space_.IsCommitted());  // No need to use memory yet.
