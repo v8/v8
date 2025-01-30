@@ -5216,7 +5216,7 @@ void MacroAssembler::BailoutIfDeoptimized(Register scratch) {
   }
 #ifdef V8_ENABLE_LEAPTIERING
   if (v8_flags.debug_code) {
-    Assert(kZero, AbortReason::kInvalidDeoptimizedCode);
+    Assert(to_condition(kZero), AbortReason::kInvalidDeoptimizedCode);
   }
 #else
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
