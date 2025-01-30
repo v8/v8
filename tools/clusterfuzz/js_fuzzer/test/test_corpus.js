@@ -125,6 +125,26 @@ describe('Loading corpus', () => {
          'mjsunit_softskipped/regress/binaryen-123.js'],
         Array.from(mjsunit.relFiles()));
   });
+
+  it('drops discouraged files', () => {
+    // Test that files with dropped flags are also dropped. This
+    // test sets this probability to 1.
+    sandbox.stub(Math, 'random').callsFake(() => 0.9);
+    sandbox.stub(corpus, 'DROP_DISCOURAGED_FILES_PROB').value(1);
+    const v8 = corpus.create('test_data/flags/corpus', 'v8');
+    const cases = v8.getRandomTestcases(3).map(x => x.relPath);
+    assert.deepEqual(['v8/input3.js'], cases);
+  })
+
+  it('keeps discouraged files', () => {
+    // Test that files with dropped flags are sometimes kept. This
+    // test sets this probability to 0.
+    sandbox.stub(Math, 'random').callsFake(() => 0.9);
+    sandbox.stub(corpus, 'DROP_DISCOURAGED_FILES_PROB').value(0);
+    const v8 = corpus.create('test_data/flags/corpus', 'v8');
+    const cases = v8.getRandomTestcases(3).map(x => x.relPath);
+    assert.deepEqual(['v8/input2.js', 'v8/input1.js', 'v8/input3.js'], cases);
+  })
 });
 
 
@@ -133,10 +153,17 @@ describe('Fuzzilli corpus', () => {
     sandbox.restore();
   });
 
-  it('loads sources with flags', () => {
+  it('loads sources with all flags', () => {
     const fuzzilli = corpus.create(helpers.BASE_DIR, 'fuzzilli');
     const source = sourceHelpers.loadSource(
         fuzzilli, 'fuzzilli/fuzzdir-1/corpus/program_1.js');
-    assert.deepEqual(['--fuzzilli-flag1', '--fuzzilli-flag2'], source.flags);
+    const expectedFlags = [
+      '--expose-gc',
+      '--fuzzing',
+      '--fuzzilli-flag1',
+      '--random-seed=123',
+      '--fuzzilli-flag2'
+    ];
+    assert.deepEqual(expectedFlags, source.flags);
   });
 });

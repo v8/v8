@@ -98,16 +98,27 @@ const SOFT_SKIPPED_PATHS = [
     /webgl/,
 ];
 
+// Flags that lead to false positives. Furthermore choose files using these
+// flags with a lower probability, as the absence of the flags typically
+// renders the tests useless.
+const DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES = [
+    // Disallowed due to noise. We explicitly add --harmony and --js-staging
+    // to trials, and all of these features are staged before launch.
+    /^--harmony-(?!shipping)/,
+    /^--js-(?!staging|shipping)/,
+
+    /^--icu-data-file.*/,
+
+    // Disallowed due to false positives.
+    '--correctness-fuzzer-suppressions',
+    '--expose-trigger-failure',
+];
+
 // Flags that lead to false positives or that are already passed by default.
 const DISALLOWED_FLAGS = [
     // Disallowed because features prefixed with "experimental" are not
     // stabilized yet and would cause too much noise when enabled.
     /^--experimental-.*/,
-
-    // Disallowed due to noise. We explicitly add --harmony and --js-staging
-    // to trials, and all of these features are staged before launch.
-    /^--harmony-(?!shipping)/,
-    /^--js-(?!staging|shipping)/,
 
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
@@ -122,15 +133,12 @@ const DISALLOWED_FLAGS = [
     '--invoke-weak-callbacks',
     '--verify-heap',
 
-    /^--icu-data-file.*/,
     /^--random-seed.*/,
 
     // Disallowed due to false positives.
     '--check-handle-count',
-    '--correctness-fuzzer-suppressions',
     '--expose-debug-as',
     '--expose-natives-as',
-    '--expose-trigger-failure',
     '--mock-arraybuffer-allocator',
     'natives',  // Used in conjunction with --expose-natives-as.
     /^--trace-path.*/,
@@ -264,9 +272,16 @@ function isTestSloppyRel(relPath) {
 function filterFlags(flags) {
   return flags.filter(flag => {
     return (
+        _doesntMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag) &&
         _doesntMatch(DISALLOWED_FLAGS, flag) &&
         (_doesntMatch(LOW_PROB_FLAGS, flag) ||
          random.choose(LOW_PROB_FLAGS_PROB)));
+  });
+}
+
+function hasFlagsDiscouragingFiles(flags) {
+  return flags.some(flag => {
+    return _findMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag);
   });
 }
 
@@ -298,6 +313,7 @@ module.exports = {
   getGeneratedSloppy: getGeneratedSloppy,
   getSoftSkipped: getSoftSkipped,
   getSoftSkippedPaths: getSoftSkippedPaths,
+  hasFlagsDiscouragingFiles: hasFlagsDiscouragingFiles,
   isTestSkippedAbs: isTestSkippedAbs,
   isTestSkippedRel: isTestSkippedRel,
   isTestSoftSkippedAbs: isTestSoftSkippedAbs,

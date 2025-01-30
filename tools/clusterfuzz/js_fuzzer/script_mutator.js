@@ -251,12 +251,14 @@ class ScriptMutator {
     // 1) Compute dependencies from inputs.
     // 2) Normalize, combine and mutate inputs.
     // 3) Generate code with dependency code prepended.
+    // 4) Combine and filter flags from inputs.
     const dependencies = this.resolveDependencies(inputs);
     const combinedSource = this.mutateInputs(inputs);
     const code = sourceHelpers.generateCode(combinedSource, dependencies);
-    const flags = exceptions.resolveContradictoryFlags(
-        common.concatFlags(dependencies.concat([combinedSource])));
-    return new Result(code, flags);
+    const allFlags = common.concatFlags(dependencies.concat([combinedSource]));
+    const filteredFlags = exceptions.resolveContradictoryFlags(
+        exceptions.filterFlags(allFlags));
+    return new Result(code, filteredFlags);
   }
 }
 

@@ -16,6 +16,9 @@ const exceptions = require('./exceptions.js');
 const random = require('./random.js');
 const sourceHelpers = require('./source_helpers.js');
 
+// We drop files containing dropped flags with a high probability.
+DROP_DISCOURAGED_FILES_PROB = 0.8;
+
 function* walkDirectory(directory, filter) {
   // Generator for recursively walk a directory.
   for (const filePath of fs.readdirSync(directory)) {
@@ -106,6 +109,10 @@ class Corpus extends sourceHelpers.BaseCorpus {
         const duration = Date.now() - start;
         console.log(`Parsing ${relPath} ${label} took ${duration} ms.`);
       }
+      if (exceptions.hasFlagsDiscouragingFiles(source.flags) &&
+          random.choose(module.exports.DROP_DISCOURAGED_FILES_PROB)) {
+        return undefined
+      }
       return source;
     } catch (e) {
       console.log(`WARNING: failed to ${label} parse ${relPath}`);
@@ -165,7 +172,7 @@ class FuzzilliCorpus extends Corpus {
     if (flags == undefined) {
       assert(fs.existsSync(settingsPath));
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      flags = exceptions.filterFlags(settings["processArguments"]);
+      flags = settings["processArguments"];
       this.flagMap.set(settingsPath, flags);
     }
     return flags;
@@ -186,7 +193,7 @@ class V8Corpus extends Corpus {
       if (!match) {
         continue;
       }
-      for (const flag of exceptions.filterFlags(match[1].split(/\s+/))) {
+      for (const flag of match[1].split(/\s+/)) {
         result.push(flag);
       }
     }
@@ -205,6 +212,7 @@ function create(inputDir, corpusName, extraStrict=false) {
 }
 
 module.exports = {
+  DROP_DISCOURAGED_FILES_PROB: DROP_DISCOURAGED_FILES_PROB,
   create: create,
   walkDirectory: walkDirectory,
 }
