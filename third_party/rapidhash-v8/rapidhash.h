@@ -109,7 +109,14 @@ struct PlainHashReader {
   // supported.
   static inline uint64_t Read64(const uint8_t* p) {
     uint64_t v;
+#ifdef V8_TARGET_BIG_ENDIAN
+    uint8_t* dst = reinterpret_cast<uint8_t*>(&v);
+    for (size_t i = 0; i < sizeof(v); i++) {
+      dst[i] = p[sizeof(v) - i - 1];
+    }
+#else
     memcpy(&v, p, 8);
+#endif
     return v;
   }
 
@@ -118,7 +125,14 @@ struct PlainHashReader {
   // it can freely shift such numbers up and down.
   static inline uint64_t Read32(const uint8_t* p) {
     uint32_t v;
+#ifdef V8_TARGET_BIG_ENDIAN
+    uint8_t* dst = reinterpret_cast<uint8_t*>(&v);
+    for (size_t i = 0; i < sizeof(v); i++) {
+      dst[i] = p[sizeof(v) - i - 1];
+    }
+#else
     memcpy(&v, p, 4);
+#endif
     return v;
   }
 
