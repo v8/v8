@@ -1692,7 +1692,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       if (kMode == kModeValueIsAnyNumber) {
         if (valueSmi < 0) goto IfLessThanZero;
       } else {
-        dcheck(valueSmi >= 0);
+        sbxcheck(valueSmi >= 0);
       }
       const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
       // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
@@ -1703,11 +1703,11 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       dcheck(IsNumberNormalized(valueHeapNumber));
       const valueDouble: float64 = Convert<float64>(valueHeapNumber);
       // NaNs must be handled outside.
-      dcheck(!Float64IsNaN(valueDouble));
+      sbxcheck(!Float64IsNaN(valueDouble));
       if (kMode == kModeValueIsAnyNumber) {
         if (valueDouble < 0) goto IfLessThanZero;
       } else {
-        dcheck(valueDouble >= 0);
+        sbxcheck(valueDouble >= 0);
       }
 
       if constexpr (Is64()) {
@@ -1716,7 +1716,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
         if (kMode == kModeValueIsAnyNumber) {
           if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
         } else {
-          dcheck(valueDouble <= kMaxSafeInteger);
+          sbxcheck(valueDouble <= kMaxSafeInteger);
         }
       } else {
         // On 32-bit architectures uintptr range is smaller than safe integer
@@ -1725,7 +1725,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
             kMode == kModeValueIsSafeInteger) {
           if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
         } else {
-          dcheck(valueDouble <= kMaxUInt32Double);
+          sbxcheck(valueDouble <= kMaxUInt32Double);
         }
       }
       return ChangeFloat64ToUintPtr(valueDouble);
