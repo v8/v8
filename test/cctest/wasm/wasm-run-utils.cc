@@ -292,6 +292,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   }
 
   if (function_indexes) {
+    WasmCodeRefScope code_ref_scope;
     for (uint32_t i = 0; i < table_size; ++i) {
       uint32_t function_index = function_indexes[i];
       WasmFunction& function = test_module_->functions[function_index];

@@ -566,6 +566,7 @@ void WasmTableObject::UpdateDispatchTable(
   }
   if (target_instance_data->dispatch_table_for_imports()->IsAWrapper(
           func->func_index)) {
+    wasm::WasmCodeRefScope code_ref_scope;
     uint64_t signature_hash = wasm::GetTypeCanonicalizer()
                                   ->LookupFunctionSignature(sig_id)
                                   ->signature_hash();
@@ -2240,7 +2241,7 @@ void WasmDispatchTable::SetForWrapper(int index, Tagged<Object> implicit_arg,
                                       wasm::WasmCode* compiled_wrapper,
                                       NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
-
+  SBXCHECK(!compiled_wrapper || !compiled_wrapper->is_dying());
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
@@ -2435,8 +2436,11 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
         if (import_data->call_origin() == *old_table) {
           import_data->set_call_origin(*new_table);
         } else {
+#if DEBUG
+          wasm::WasmCodeRefScope code_ref_scope;
           DCHECK_NOT_NULL(
               wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+#endif  // DEBUG
         }
       }
     }
