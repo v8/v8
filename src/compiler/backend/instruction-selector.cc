@@ -2629,6 +2629,13 @@ bool InstructionSelectorT<TurboshaftAdapter>::CanDoBranchIfOverflowFusion(
       graph->Get(projection0_index).Cast<ProjectionOp>();
   DCHECK_EQ(projection0.index, 0);
 
+  if (IsDefined(projection0_index)) {
+    // In Turboshaft, this can only happen if {projection0_index} has already
+    // been eagerly scheduled somewhere else, like in
+    // TryPrepareScheduleFirstProjection.
+    return true;
+  }
+
   if (projection0.saturated_use_count.IsOne()) {
     // If the projection has a single use, it is the following tuple, so we
     // don't care about the value, and can do branch-if-overflow fusion.
@@ -2676,6 +2683,16 @@ bool InstructionSelectorT<TurboshaftAdapter>::CanDoBranchIfOverflowFusion(
       }
 #endif
 
+      continue;
+    }
+
+    if (this->Get(use).template Is<PhiOp>()) {
+      DCHECK_EQ(this->block(schedule_, use), current_block_);
+      // If {projection0} is used by a Phi in the current block, then it has to
+      // be a loop phi, and {projection0} has to be its backedge value. This
+      // doesn't prevent scheduling {projection0} now, since anyways it
+      // necessarily needs to be scheduled after the Phi.
+      DCHECK(current_block_->IsLoop());
       continue;
     }
 

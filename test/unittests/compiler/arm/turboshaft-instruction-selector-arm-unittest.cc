@@ -978,6 +978,41 @@ TEST_P(TurboshaftInstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   EXPECT_EQ(kOverflow, s[0]->flags_condition());
 }
 
+TEST_P(TurboshaftInstructionSelectorODPITest, BranchIfOverflowWithLoop) {
+  const ODPI ovf_binop = GetParam();
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+
+  WordRepresentation phi_repr = WordRepresentation::Word32();
+
+  Block* loop_header = m.NewLoopHeader();
+  Block *b1 = m.NewBlock(), *b2 = m.NewBlock();
+
+  OpIndex v1 = m.Parameter(0);
+  OpIndex v2 = m.Parameter(0);
+
+  m.Goto(loop_header);
+  m.Bind(loop_header);
+  OpIndex phi = m.PendingLoopPhi(v1, phi_repr);
+  OpIndex binop = m.Emit(ovf_binop.op, v1, v2);
+  m.Branch(m.Word32Equal(m.Projection(binop, 1), m.Word32Constant(0)), b1, b2);
+  m.Bind(b2);
+  m.Goto(loop_header);
+  m.Bind(b1);
+  m.Return(v1);
+
+  m.output_graph().Replace<PhiOp>(
+      phi, base::VectorOf<OpIndex>({v1, m.Projection(binop, 0)}), phi_repr);
+
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(ovf_binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kNotOverflow, s[0]->flags_condition());
+}
+
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorODPITest,
                          ::testing::ValuesIn(kODPIs));
