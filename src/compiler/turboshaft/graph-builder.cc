@@ -304,7 +304,7 @@ std::optional<BailoutReason> GraphBuilder::Run() {
         dominating_frame_state;
   }
 
-  if (source_positions->IsEnabled()) {
+  if (source_positions && source_positions->IsEnabled()) {
     for (OpIndex index : __ output_graph().AllOperationIndices()) {
       compiler::NodeId origin =
           __ output_graph().operation_origins()[index].DecodeTurbofanNodeId();
@@ -1153,6 +1153,11 @@ OpIndex GraphBuilder::Process(
       return __ Select(
           Map<Word32>(node->InputAt(0)), Map<Word64>(node->InputAt(1)),
           Map<Word64>(node->InputAt(2)), RegisterRepresentation::Word64(),
+          BranchHint::kNone, SelectOp::Implementation::kCMove);
+    case IrOpcode::kFloat32Select:
+      return __ Select(
+          Map<Word32>(node->InputAt(0)), Map<Float32>(node->InputAt(1)),
+          Map<Float32>(node->InputAt(2)), RegisterRepresentation::Float32(),
           BranchHint::kNone, SelectOp::Implementation::kCMove);
 
     case IrOpcode::kLoad:
@@ -2359,12 +2364,28 @@ OpIndex GraphBuilder::Process(
           kind = LoadOp::Kind::RawAligned().Atomic().Protected();
           break;
       }
+      RegisterRepresentation result_rep =
+          RegisterRepresentation::FromMachineType(p.representation());
+      if (result_rep == RegisterRepresentation::Tagged()) {
+        // TODO(nicohartmann): Tagged loads are currently not supported by the
+        // instruction selectors, but are emitted by some tests.. We work around
+        // this using bitcasts, which is safe because atomic loads are not
+        // load-eliminated. We still should try to properly support tagged
+        // atomic loads eventually and remove this workaround.
+        result_rep = node->opcode() == IrOpcode::kWord32AtomicLoad
+                         ? RegisterRepresentation::Word32()
+                         : RegisterRepresentation::Word64();
+        return __ TaggedBitcast(
+            __ Load(base, offset, kind,
+                    MemoryRepresentation::FromRegisterRepresentation(result_rep,
+                                                                     true),
+                    result_rep, 0, 0),
+            result_rep, RegisterRepresentation::Tagged(),
+            TaggedBitcastOp::Kind::kAny);
+      }
       return __ Load(base, offset, kind,
                      MemoryRepresentation::FromMachineType(p.representation()),
-                     node->opcode() == IrOpcode::kWord32AtomicLoad
-                         ? RegisterRepresentation::Word32()
-                         : RegisterRepresentation::Word64(),
-                     0, 0);
+                     result_rep, 0, 0);
     }
 
     case IrOpcode::kWord32AtomicStore:

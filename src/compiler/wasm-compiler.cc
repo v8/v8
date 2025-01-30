@@ -474,21 +474,27 @@ const Operator* WasmGraphBuilder::GetSafeLoadOperator(
   return mcgraph()->machine()->UnalignedLoad(mach_type);
 }
 
-const Operator* WasmGraphBuilder::GetSafeStoreOperator(
-    int offset, wasm::ValueTypeBase type) {
+Node* WasmGraphBuilder::BuildSafeStore(int offset, wasm::ValueTypeBase type,
+                                       Node* arg_buffer, Node* value,
+                                       Node* effect, Node* control) {
   int alignment = offset % type.value_kind_size();
   MachineRepresentation rep = type.machine_representation();
   if (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep)) {
     // We are storing tagged value to off-heap location, so we need to store
     // it as a full word otherwise we will not be able to decompress it.
     rep = MachineType::PointerRepresentation();
+    value = effect = graph()->NewNode(
+        mcgraph()->machine()->BitcastTaggedToWord(), value, effect, control);
   }
   if (alignment == 0 || mcgraph()->machine()->UnalignedStoreSupported(rep)) {
     StoreRepresentation store_rep(rep, WriteBarrierKind::kNoWriteBarrier);
-    return mcgraph()->machine()->Store(store_rep);
+    return graph()->NewNode(mcgraph()->machine()->Store(store_rep), arg_buffer,
+                            Int32Constant(offset), value, effect, control);
   }
   UnalignedStoreRepresentation store_rep(rep);
-  return mcgraph()->machine()->UnalignedStore(store_rep);
+  return graph()->NewNode(mcgraph()->machine()->UnalignedStore(store_rep),
+                          arg_buffer, Int32Constant(offset), value, effect,
+                          control);
 }
 
 Graph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
@@ -1632,9 +1638,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         ? call
                         : graph()->NewNode(mcgraph()->common()->Projection(pos),
                                            call, control());
-      SetEffect(graph()->NewNode(GetSafeStoreOperator(offset, type), arg_buffer,
-                                 Int32Constant(offset), value, effect(),
-                                 control()));
+      SetEffect(
+          BuildSafeStore(offset, type, arg_buffer, value, effect(), control()));
       offset += type.value_kind_size();
       pos++;
     }

@@ -5571,10 +5571,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           return VisitUnalignedStore(node);
         }
       } else if (store.kind.is_atomic) {
-        if (store.stored_rep == MemoryRepresentation::Int64() ||
-            store.stored_rep == MemoryRepresentation::Uint64()) {
+        if (store.stored_rep.SizeInBytes() == 8) {
           return VisitWord64AtomicStore(node);
         } else {
+          DCHECK_LE(store.stored_rep.SizeInBytes(), 4);
           return VisitWord32AtomicStore(node);
         }
       } else if (store.kind.with_trap_handler) {

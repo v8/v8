@@ -598,8 +598,8 @@ class Int64LoweringReducer : public Next {
     if (const TupleOp* tuple = matcher_.TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
       RegisterRepresentation word32 = RegisterRepresentation::Word32();
-      DCHECK(ValidOpInputRep(__ output_graph(), tuple->input(0), word32));
-      DCHECK(ValidOpInputRep(__ output_graph(), tuple->input(1), word32));
+      ValidateOpInputRep(__ output_graph(), tuple->input(0), word32);
+      ValidateOpInputRep(__ output_graph(), tuple->input(1), word32);
     } else if (const DidntThrowOp* didnt_throw =
                    matcher_.TryCast<DidntThrowOp>(input)) {
       // If it's a call, it must be a call that returns exactly one i64.

@@ -39,6 +39,12 @@ namespace v8::internal::compiler::turboshaft {
 
 inline constexpr char kTempZoneName[] = "temp-zone";
 
+struct SimplificationAndNormalizationPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(SimplificationAndNormalization)
+
+  void Run(PipelineData* data, Zone* temp_zone);
+};
+
 class Pipeline {
  public:
   explicit Pipeline(PipelineData* data) : data_(data) {}
@@ -150,7 +156,6 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
-    DCHECK(!v8_flags.turbolev || IsBuiltinPipeline());
     if (std::optional<BailoutReason> bailout =
             Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
       info()->AbortOptimization(*bailout);
@@ -226,6 +231,10 @@ class Pipeline {
 #endif  // V8_ENABLE_DEBUG_CODE
 
     return true;
+  }
+
+  void RunSimplificationAndNormalizationPhase() {
+    Run<SimplificationAndNormalizationPhase>();
   }
 
   void PrepareForInstructionSelection(

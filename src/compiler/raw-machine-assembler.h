@@ -865,6 +865,13 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeInt32ToInt64(Node* a) {
     return AddNode(machine()->ChangeInt32ToInt64(), a);
   }
+  Node* ChangeInt32ToIntPtr(Node* a) {
+    if (kSystemPointerSize == 8) {
+      return ChangeInt32ToInt64(a);
+    } else {
+      return a;
+    }
+  }
   Node* ChangeUint32ToUint64(Node* a) {
     return AddNode(machine()->ChangeUint32ToUint64(), a);
   }

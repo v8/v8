@@ -1140,8 +1140,8 @@ struct OperationT : Operation {
     size_t end = std::min<size_t>(expected.size(), result->input_count);
     for (size_t i = 0; i < end; ++i) {
       if (expected[i] == MaybeRegisterRepresentation::None()) continue;
-      DCHECK(ValidOpInputRep(*graph, result->inputs()[i],
-                             RegisterRepresentation(expected[i])));
+      ValidateOpInputRep(*graph, result->inputs()[i],
+                         RegisterRepresentation(expected[i]), result);
     }
 #endif
     // If this DCHECK fails, then the number of inputs specified in the
@@ -1369,12 +1369,14 @@ base::Vector<const MaybeRegisterRepresentation> MaybeRepVector() {
 }
 
 #if DEBUG
-V8_EXPORT_PRIVATE bool ValidOpInputRep(
+V8_EXPORT_PRIVATE void ValidateOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_rep,
+    const Operation* checked_op = nullptr,
     std::optional<size_t> projection_index = {});
-V8_EXPORT_PRIVATE bool ValidOpInputRep(
+V8_EXPORT_PRIVATE void ValidateOpInputRep(
     const Graph& graph, OpIndex input, RegisterRepresentation expected_rep,
+    const Operation* checked_op = nullptr,
     std::optional<size_t> projection_index = {});
 #endif  // DEBUG
 
@@ -2110,8 +2112,10 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
         input_rep = RegisterRepresentation::Compressed();
       }
 #endif  // V8_COMPRESS_POINTERS
-      DCHECK(ValidOpInputRep(graph, left(), input_rep));
-      DCHECK(ValidOpInputRep(graph, right(), input_rep));
+#ifdef DEBUG
+      ValidateOpInputRep(graph, left(), input_rep);
+      ValidateOpInputRep(graph, right(), input_rep);
+#endif  // DEBUG
       USE(input_rep);
     } else {
       DCHECK_EQ(rep, any_of(RegisterRepresentation::Word32(),
@@ -4535,7 +4539,9 @@ struct ProjectionOp : FixedArityOperationT<1, ProjectionOp> {
       : Base(input), index(index), rep(rep) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, input(), rep, index));
+#ifdef DEBUG
+    ValidateOpInputRep(graph, input(), rep, this, index);
+#endif  // DEBUG
   }
   auto options() const { return std::tuple{index, rep}; }
 };

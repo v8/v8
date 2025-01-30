@@ -213,7 +213,8 @@ class WasmGraphBuilder {
   Node* UndefinedValue();
 
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueTypeBase type);
-  const Operator* GetSafeStoreOperator(int offset, wasm::ValueTypeBase type);
+  Node* BuildSafeStore(int offset, wasm::ValueTypeBase type, Node* arg_buffer,
+                       Node* value, Node* effect, Node* control);
 
   Node* BuildCallNode(size_t param_count, base::Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
