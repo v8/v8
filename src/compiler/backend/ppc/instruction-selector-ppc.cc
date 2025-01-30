@@ -2769,31 +2769,29 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         // actual value, or was already defined, which means it is scheduled
         // *AFTER* this branch).
         OpIndex node = projection->input();
-        OpIndex result = FindProjection(node, 0);
-        if (!result.valid() || IsDefined(result)) {
-          if (const OverflowCheckedBinopOp* binop =
-                  TryCast<OverflowCheckedBinopOp>(node)) {
-            const bool is64 = binop->rep == WordRepresentation::Word64();
-            switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node,
-                                  is64 ? kPPC_Add64 : kPPC_AddWithOverflow32,
-                                  kInt16Imm, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node,
-                                  is64 ? kPPC_Sub : kPPC_SubWithOverflow32,
-                                  kInt16Imm_Negate, cont);
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
-                if (is64) {
-                  cont->OverwriteAndNegateIfEqual(kNotEqual);
-                  return EmitInt64MulWithOverflow(this, node, cont);
-                } else {
-                  cont->OverwriteAndNegateIfEqual(kNotEqual);
-                  return EmitInt32MulWithOverflow(this, node, cont);
-                }
-            }
+        if (const OverflowCheckedBinopOp* binop =
+                TryCast<OverflowCheckedBinopOp>(node);
+            binop && CanDoBranchIfOverflowFusion(node)) {
+          const bool is64 = binop->rep == WordRepresentation::Word64();
+          switch (binop->kind) {
+            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              return VisitBinop(this, node,
+                                is64 ? kPPC_Add64 : kPPC_AddWithOverflow32,
+                                kInt16Imm, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              return VisitBinop(this, node,
+                                is64 ? kPPC_Sub : kPPC_SubWithOverflow32,
+                                kInt16Imm_Negate, cont);
+            case OverflowCheckedBinopOp::Kind::kSignedMul:
+              if (is64) {
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
+              } else {
+                cont->OverwriteAndNegateIfEqual(kNotEqual);
+                return EmitInt32MulWithOverflow(this, node, cont);
+              }
           }
         }
       }

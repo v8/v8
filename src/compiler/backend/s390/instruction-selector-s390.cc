@@ -2866,71 +2866,70 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitWordCompareZero(
         // actual value, or was already defined, which means it is scheduled
         // *AFTER* this branch).
         OpIndex node = projection->input();
-        OpIndex result = FindProjection(node, 0);
-        if (!result.valid() || IsDefined(result)) {
-          if (const OverflowCheckedBinopOp* binop =
-                  TryCast<OverflowCheckedBinopOp>(node)) {
-            const bool is64 = binop->rep == WordRepresentation::Word64();
-            switch (binop->kind) {
-              case OverflowCheckedBinopOp::Kind::kSignedAdd:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                if (is64) {
-                  return VisitWord64BinOp(this, node, kS390_Add64,
-                                          AddOperandMode, cont);
-                } else {
-                  return VisitWord32BinOp(this, node, kS390_Add32,
-                                          AddOperandMode, cont);
-                }
-              case OverflowCheckedBinopOp::Kind::kSignedSub:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                if (is64) {
-                  return VisitWord64BinOp(this, node, kS390_Sub64,
-                                          AddOperandMode, cont);
-                } else {
-                  return VisitWord32BinOp(this, node, kS390_Sub32,
-                                          AddOperandMode, cont);
-                }
-              case OverflowCheckedBinopOp::Kind::kSignedMul:
-                if (is64) {
-                  cont->OverwriteAndNegateIfEqual(
-                      CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow
-                                                                : kNotEqual);
-                  return EmitInt64MulWithOverflow(this, node, cont);
+        if (const OverflowCheckedBinopOp* binop =
+                TryCast<OverflowCheckedBinopOp>(node);
+            binop && CanDoBranchIfOverflowFusion(node)) {
+          const bool is64 = binop->rep == WordRepresentation::Word64();
+          switch (binop->kind) {
+            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              if (is64) {
+                return VisitWord64BinOp(this, node, kS390_Add64, AddOperandMode,
+                                        cont);
+              } else {
+                return VisitWord32BinOp(this, node, kS390_Add32, AddOperandMode,
+                                        cont);
+              }
+            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              cont->OverwriteAndNegateIfEqual(kOverflow);
+              if (is64) {
+                return VisitWord64BinOp(this, node, kS390_Sub64, AddOperandMode,
+                                        cont);
+              } else {
+                return VisitWord32BinOp(this, node, kS390_Sub32, AddOperandMode,
+                                        cont);
+              }
+            case OverflowCheckedBinopOp::Kind::kSignedMul:
+              if (is64) {
+                cont->OverwriteAndNegateIfEqual(
+                    CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow
+                                                              : kNotEqual);
+                return EmitInt64MulWithOverflow(this, node, cont);
 
-                } else {
-                  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
-                    cont->OverwriteAndNegateIfEqual(kOverflow);
-                    return VisitWord32BinOp(
-                        this, node, kS390_Mul32,
-                        OperandMode::kAllowRRR | OperandMode::kAllowRM, cont);
-                  } else {
-                    cont->OverwriteAndNegateIfEqual(kNotEqual);
-                    return VisitWord32BinOp(
-                        this, node, kS390_Mul32WithOverflow,
-                        OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                        cont);
-                  }
-                }
-              default:
-                break;
-            }
-          } else if (const OverflowCheckedUnaryOp* unop =
-                         TryCast<OverflowCheckedUnaryOp>(node)) {
-            const bool is64 = unop->rep == WordRepresentation::Word64();
-            switch (unop->kind) {
-              case OverflowCheckedUnaryOp::Kind::kAbs:
-                if (is64) {
+              } else {
+                if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
                   cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitWord64UnaryOp(this, node, kS390_Abs64,
-                                            OperandMode::kNone, cont);
+                  return VisitWord32BinOp(
+                      this, node, kS390_Mul32,
+                      OperandMode::kAllowRRR | OperandMode::kAllowRM, cont);
                 } else {
-                  cont->OverwriteAndNegateIfEqual(kOverflow);
-                  return VisitWord32UnaryOp(this, node, kS390_Abs32,
-                                            OperandMode::kNone, cont);
+                  cont->OverwriteAndNegateIfEqual(kNotEqual);
+                  return VisitWord32BinOp(
+                      this, node, kS390_Mul32WithOverflow,
+                      OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
+                      cont);
                 }
-              default:
-                break;
-            }
+              }
+            default:
+              break;
+          }
+        } else if (const OverflowCheckedUnaryOp* unop =
+                       TryCast<OverflowCheckedUnaryOp>(node);
+                   unop && CanDoBranchIfOverflowFusion(node)) {
+          const bool is64 = unop->rep == WordRepresentation::Word64();
+          switch (unop->kind) {
+            case OverflowCheckedUnaryOp::Kind::kAbs:
+              if (is64) {
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitWord64UnaryOp(this, node, kS390_Abs64,
+                                          OperandMode::kNone, cont);
+              } else {
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitWord32UnaryOp(this, node, kS390_Abs32,
+                                          OperandMode::kNone, cont);
+              }
+            default:
+              break;
           }
         }
       }

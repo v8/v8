@@ -2619,7 +2619,8 @@ bool InstructionSelectorT<TurboshaftAdapter>::CanDoBranchIfOverflowFusion(
     turboshaft::OpIndex binop) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const turboshaft::Graph* graph = this->turboshaft_graph();
-  DCHECK(graph->Get(binop).template Is<OverflowCheckedBinopOp>());
+  DCHECK(graph->Get(binop).template Is<OverflowCheckedBinopOp>() ||
+         graph->Get(binop).template Is<OverflowCheckedUnaryOp>());
 
   // Getting the 1st projection. Projections are always emitted right after the
   // operation, in ascending order.
