@@ -538,11 +538,36 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableNativeId = 2;
 
 namespace {
 
+int ExternalStringSizeForSnapshot(Tagged<ExternalString> object,
+                                  PtrComprCageBase cage_base) {
+  int external_size = 0;
+  if (IsExternalOneByteString(object, cage_base)) {
+    const ExternalOneByteString::Resource* resource =
+        Cast<ExternalOneByteString>(object)->resource();
+    if (resource) {
+      external_size = resource->EstimateMemoryUsage();
+    }
+  } else {
+    const ExternalTwoByteString::Resource* resource =
+        Cast<ExternalTwoByteString>(object)->resource();
+    if (resource) {
+      external_size = resource->EstimateMemoryUsage();
+    }
+  }
+  return external_size == -1 ? object->ExternalPayloadSize() : external_size;
+}
+
 int SizeForSnapshot(Tagged<HeapObject> object, PtrComprCageBase cage_base) {
   // Since read-only space can be shared among Isolates, and JS developers have
   // no control over the size of read-only space, we represent read-only objects
   // as having zero size.
-  return HeapLayout::InReadOnlySpace(object) ? 0 : object->Size(cage_base);
+  if (HeapLayout::InReadOnlySpace(object)) return 0;
+  int size = object->Size(cage_base);
+  if (IsExternalString(object, cage_base)) {
+    size +=
+        ExternalStringSizeForSnapshot(Cast<ExternalString>(object), cage_base);
+  }
+  return size;
 }
 
 }  // namespace

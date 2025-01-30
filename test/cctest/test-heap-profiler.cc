@@ -633,6 +633,76 @@ TEST(HeapSnapshotSlicedString) {
   heap_profiler->DeleteAllHeapSnapshots();
 }
 
+namespace {
+
+class StringResourceNotReportingSize
+    : public v8::String::ExternalStringResource {
+ public:
+  static constexpr char16_t kString[] = u"external string not reporting size";
+  static constexpr char kNarrowString[] = "external string not reporting size";
+  const uint16_t* data() const final {
+    return reinterpret_cast<const uint16_t*>(kString);
+  }
+  size_t length() const final {
+    return std::char_traits<char16_t>::length(kString);
+  }
+};
+
+class StringResourceReportingSize
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  static constexpr char kString[] = "external string reporting size";
+  static const int kMemoryUsage = 5;
+  const char* data() const final { return kString; }
+  size_t length() const final { return strlen(kString); }
+  int EstimateMemoryUsage() const final { return kMemoryUsage; }
+};
+
+}  // namespace
+
+TEST(HeapSnapshotExternalString) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      CompileRun("(function (name, value) { globalThis[name] = value; })"));
+
+  constexpr char kPropertyName1[] = "first external string";
+  v8::Local<v8::String> property_name_1 = v8_str(kPropertyName1);
+  v8::Local<v8::String> external_string_1 =
+      v8::String::NewExternalTwoByte(isolate,
+                                     new StringResourceNotReportingSize())
+          .ToLocalChecked();
+  v8::Local<v8::Value> args[2] = {property_name_1, external_string_1};
+  f->Call(env.local(), env->Global(), 2, args).ToLocalChecked();
+
+  constexpr char kPropertyName2[] = "second external string";
+  v8::Local<v8::String> property_name_2 = v8_str(kPropertyName2);
+  v8::Local<v8::String> external_string_2 =
+      v8::String::NewExternalOneByte(isolate, new StringResourceReportingSize())
+          .ToLocalChecked();
+  args[0] = property_name_2;
+  args[1] = external_string_2;
+  f->Call(env.local(), env->Global(), 2, args).ToLocalChecked();
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* string_1 = GetProperty(
+      isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName1);
+  CHECK(string_1);
+  CHECK_EQ(GetSize(string_1),
+           sizeof(i::ExternalTwoByteString) +
+               2 * strlen(StringResourceNotReportingSize::kNarrowString));
+  const v8::HeapGraphNode* string_2 = GetProperty(
+      isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName2);
+  CHECK(string_2);
+  CHECK_EQ(GetSize(string_2), sizeof(i::ExternalOneByteString) +
+                                  StringResourceReportingSize::kMemoryUsage);
+  heap_profiler->DeleteAllHeapSnapshots();
+}
+
 // Allow usages of v8::Object::GetPrototype() for now.
 // TODO(https://crbug.com/333672197): remove.
 START_ALLOW_USE_DEPRECATED()

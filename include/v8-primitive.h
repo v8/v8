@@ -307,6 +307,13 @@ class V8_EXPORT String : public Name {
      */
     virtual void Unaccount(Isolate* isolate) {}
 
+    /**
+     * Returns an estimate of the memory occupied by this external string, to be
+     * used by V8 when producing a heap snapshot. If this function returns -1,
+     * then V8 will estimate the external size based on the string length.
+     */
+    virtual int EstimateMemoryUsage() const { return -1; }
+
     // Disallow copying and assigning.
     ExternalStringResourceBase(const ExternalStringResourceBase&) = delete;
     void operator=(const ExternalStringResourceBase&) = delete;
