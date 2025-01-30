@@ -46,8 +46,10 @@
 #include "src/profiler/output-stream-writer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -936,12 +938,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     Tagged<WasmTypeInfo> info = object->map()->wasm_type_info();
-    // Getting the trusted data is safe; structs and arrays always have their
-    // trusted data defined.
-    wasm::NamesProvider* names =
-        info->trusted_data(isolate())->native_module()->GetNamesProvider();
     wasm::StringBuilder sb;
-    names->PrintTypeName(sb, info->type_index());
+    wasm::GetCanonicalTypeNamesProvider()->PrintTypeName(sb,
+                                                         info->type_index());
     sb << " (wasm)" << '\0';
     const char* name = names_->GetCopy(sb.start());
     return AddEntry(object, HeapEntry::kObject, name);
@@ -2226,16 +2225,15 @@ void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
 
 void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
                                                  HeapEntry* entry) {
-  wasm::StructType* type = obj->type();
   Tagged<WasmTypeInfo> info = obj->map()->wasm_type_info();
-  // Getting the trusted data is safe; structs always have their trusted data
-  // defined.
-  wasm::NamesProvider* names =
-      info->trusted_data(isolate())->native_module()->GetNamesProvider();
+  const wasm::CanonicalStructType* type =
+      wasm::GetTypeCanonicalizer()->LookupStruct(info->type_index());
+  wasm::CanonicalTypeNamesProvider* names =
+      wasm::GetCanonicalTypeNamesProvider();
   Isolate* isolate = heap_->isolate();
   for (uint32_t i = 0; i < type->field_count(); i++) {
     wasm::StringBuilder sb;
-    names->PrintFieldName(sb, info->module_type_index(), i);
+    names->PrintFieldName(sb, info->type_index(), i);
     sb << '\0';
     const char* field_name = names_->GetCopy(sb.start());
     switch (type->field(i).kind()) {
@@ -2282,7 +2280,9 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
 
 void V8HeapExplorer::ExtractWasmArrayReferences(Tagged<WasmArray> obj,
                                                 HeapEntry* entry) {
-  if (!obj->type()->element_type().is_reference()) return;
+  const wasm::CanonicalValueType element_type =
+      obj->map()->wasm_type_info()->element_type();
+  if (!element_type.is_reference()) return;
   Isolate* isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
   for (uint32_t i = 0; i < obj->length(); i++) {

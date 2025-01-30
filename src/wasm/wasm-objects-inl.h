@@ -559,14 +559,13 @@ Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
 }
 
 // WasmTypeInfo
-EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
-                           kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
-wasm::ModuleTypeIndex WasmTypeInfo::type_index() const {
-  return wasm::ModuleTypeIndex{module_type_index()};
+wasm::CanonicalTypeIndex WasmTypeInfo::type_index() const {
+  return wasm::CanonicalTypeIndex{canonical_type_index()};
 }
-TRUSTED_POINTER_ACCESSORS(WasmTypeInfo, trusted_data, WasmTrustedInstanceData,
-                          kTrustedDataOffset,
-                          kWasmTrustedInstanceDataIndirectPointerTag)
+
+wasm::CanonicalValueType WasmTypeInfo::element_type() const {
+  return wasm::CanonicalValueType::FromRawBitField(canonical_element_type());
+}
 
 #undef OPTIONAL_ACCESSORS
 #undef READ_PRIMITIVE_FIELD
@@ -645,7 +644,7 @@ bool WasmMemoryObject::is_memory64() const {
 // static
 DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
                                              DirectHandle<HeapObject> obj,
-                                             wasm::ValueType type,
+                                             wasm::CanonicalValueType type,
                                              uint32_t offset) {
   Address field_address = obj->GetFieldAddress(offset);
   switch (type.kind()) {
@@ -720,26 +719,6 @@ ElementType WasmObject::FromNumber(Tagged<Object> value) {
   UNREACHABLE();
 }
 
-wasm::StructType* WasmStruct::type(Tagged<Map> map) {
-  Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
-  return reinterpret_cast<wasm::StructType*>(type_info->native_type());
-}
-
-const wasm::WasmModule* WasmStruct::module() {
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  return map()->wasm_type_info()->trusted_data(isolate)->module();
-}
-
-wasm::StructType* WasmStruct::GcSafeType(Tagged<Map> map) {
-  DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
-  Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
-  // The {WasmTypeInfo} might be in the middle of being moved, which is why we
-  // can't read its map for a checked cast. But we can rely on its native type
-  // pointer being intact in the old location.
-  Tagged<WasmTypeInfo> type_info = UncheckedCast<WasmTypeInfo>(raw);
-  return reinterpret_cast<wasm::StructType*>(type_info->native_type());
-}
-
 // static
 void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Tagged<Map> map) {
   // WasmStructs can be bigger than the {map.instance_size_in_words} field
@@ -764,8 +743,6 @@ int WasmStruct::GcSafeSize(Tagged<Map> map) {
   return DecodeInstanceSizeFromMap(map);
 }
 
-wasm::StructType* WasmStruct::type() const { return type(map()); }
-
 Address WasmStruct::RawFieldAddress(int raw_offset) {
   int offset = WasmStruct::kHeaderSize + raw_offset;
   return FIELD_ADDR(*this, offset);
@@ -775,27 +752,20 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
 }
 
-wasm::ArrayType* WasmArray::type(Tagged<Map> map) {
+wasm::CanonicalTypeIndex WasmArray::type_index(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
   Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
-  return reinterpret_cast<wasm::ArrayType*>(type_info->native_type());
+  return type_info->type_index();
 }
 
-wasm::ArrayType* WasmArray::GcSafeType(Tagged<Map> map) {
+const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
   Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
   // The {WasmTypeInfo} might be in the middle of being moved, which is why we
   // can't read its map for a checked cast. But we can rely on its native type
   // pointer being intact in the old location.
   Tagged<WasmTypeInfo> type_info = UncheckedCast<WasmTypeInfo>(raw);
-  return reinterpret_cast<wasm::ArrayType*>(type_info->native_type());
-}
-
-wasm::ArrayType* WasmArray::type() const { return type(map()); }
-
-const wasm::WasmModule* WasmArray::module() {
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  return map()->wasm_type_info()->trusted_data(isolate)->module();
+  return type_info->element_type();
 }
 
 int WasmArray::SizeFor(Tagged<Map> map, int length) {
@@ -815,7 +785,7 @@ Address WasmArray::ElementAddress(uint32_t index) {
 
 ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   DCHECK_LE(index, length());
-  DCHECK(type()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_reference());
   return RawField(kHeaderSize + kTaggedSize * index);
 }
 
@@ -826,7 +796,8 @@ DirectHandle<Object> WasmArray::GetElement(Isolate* isolate,
   if (index >= array->length()) {
     return isolate->factory()->undefined_value();
   }
-  wasm::ValueType element_type = array->type()->element_type();
+  wasm::CanonicalValueType element_type =
+      array->map()->wasm_type_info()->element_type();
   return ReadValueAt(isolate, array, element_type,
                      array->element_offset(index));
 }

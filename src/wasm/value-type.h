@@ -1043,6 +1043,10 @@ class CanonicalValueType : public ValueTypeBase {
     return CanonicalValueType{ValueTypeBase::Primitive(kind)};
   }
 
+  static constexpr CanonicalValueType Ref(HeapType::Representation heap_type) {
+    return CanonicalValueType{ValueTypeBase::Ref(heap_type)};
+  }
+
   static constexpr CanonicalValueType RefNull(
       HeapType::Representation heap_type) {
     return CanonicalValueType{ValueTypeBase::RefNull(heap_type)};

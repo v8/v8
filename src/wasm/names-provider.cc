@@ -502,7 +502,7 @@ void CanonicalTypeNamesProvider::PrintTypeName(
   // {index} should now always be in range, but let's be robust towards
   // invalid parameter values.
   if (index > type_names_.size() || type_names_[index].empty()) {
-    out << "$type" << index;
+    out << "$canon" << index;
     return;
   }
   StringT& name = type_names_[index];

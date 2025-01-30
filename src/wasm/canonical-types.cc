@@ -190,6 +190,7 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
 const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
     CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
   DCHECK_EQ(type->kind, CanonicalType::kFunction);
   return type->function_sig;
@@ -198,6 +199,7 @@ const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
 const CanonicalStructType* TypeCanonicalizer::LookupStruct(
     CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
   DCHECK_EQ(type->kind, CanonicalType::kStruct);
   return type->struct_type;
@@ -206,6 +208,7 @@ const CanonicalStructType* TypeCanonicalizer::LookupStruct(
 const CanonicalArrayType* TypeCanonicalizer::LookupArray(
     CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
   DCHECK_EQ(type->kind, CanonicalType::kArray);
   return type->array_type;
@@ -562,14 +565,17 @@ void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
 
 bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   return get(index)->kind == CanonicalType::kFunction;
 }
 bool TypeCanonicalizer::IsStruct(CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   return get(index)->kind == CanonicalType::kStruct;
 }
 bool TypeCanonicalizer::IsArray(CanonicalTypeIndex index) const {
   base::SpinningMutexGuard mutex_guard(&mutex_);
+  SBXCHECK(index.index < canonical_types_.size());
   return get(index)->kind == CanonicalType::kArray;
 }
 

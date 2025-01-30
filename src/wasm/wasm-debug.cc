@@ -655,7 +655,9 @@ class DebugInfoImpl {
           Handle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);
-          return WasmValue(obj, value->type, value->module);
+          // TODO(jkummerow): Consider changing {value->type} to be a
+          // CanonicalValueType.
+          return WasmValue(obj, value->module->canonical_type(value->type));
         } else {
           UNREACHABLE();
         }
@@ -701,7 +703,7 @@ class DebugInfoImpl {
         Handle<Object> obj(
             Tagged<Object>(ReadUnalignedValue<Address>(stack_address)),
             isolate);
-        return WasmValue(obj, value->type, value->module);
+        return WasmValue(obj, value->module->canonical_type(value->type));
       }
       case kI8:
       case kI16:

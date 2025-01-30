@@ -79,14 +79,14 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
   WasmValue computed_value() const {
     DCHECK(generate_value());
     // The value has to be initialized.
-    DCHECK_NE(computed_value_.type(), kWasmVoid);
+    DCHECK_NE(computed_value_.type(), CanonicalValueType::Primitive(kVoid));
     return computed_value_;
   }
   bool end_found() const { return end_found_; }
   bool has_error() const { return error_ != MessageTemplate::kNone; }
   MessageTemplate error() const {
     DCHECK(has_error());
-    DCHECK_EQ(computed_value_.type(), kWasmVoid);
+    DCHECK_EQ(computed_value_.type(), CanonicalValueType::Primitive(kVoid));
     return error_;
   }
 

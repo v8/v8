@@ -51,12 +51,12 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
          offset;
 }
 
-DirectHandle<Map> CreateStructMap(
-    Isolate* isolate, const WasmModule* module, ModuleTypeIndex struct_index,
-    Handle<Map> opt_rtt_parent,
-    DirectHandle<WasmTrustedInstanceData> trusted_data,
-    DirectHandle<WasmInstanceObject> instance) {
-  const wasm::StructType* type = module->struct_type(struct_index);
+DirectHandle<Map> CreateStructMap(Isolate* isolate,
+                                  CanonicalTypeIndex struct_index,
+                                  Handle<Map> opt_rtt_parent,
+                                  DirectHandle<WasmInstanceObject> instance) {
+  const wasm::CanonicalStructType* type =
+      wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
   // stored directly in a Map is capped at 255 pointer sizes.
@@ -64,9 +64,10 @@ DirectHandle<Map> CreateStructMap(
   const InstanceType instance_type = WASM_STRUCT_TYPE;
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const wasm::CanonicalValueType no_array_element =
+      wasm::CanonicalValueType::Primitive(wasm::kBottom);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, trusted_data,
-      struct_index);
+      struct_index, no_array_element, opt_rtt_parent);
   DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, map_instance_size, elements_kind,
       inobject_properties);
@@ -80,19 +81,19 @@ DirectHandle<Map> CreateStructMap(
   return map;
 }
 
-DirectHandle<Map> CreateArrayMap(
-    Isolate* isolate, const WasmModule* module, ModuleTypeIndex array_index,
-    Handle<Map> opt_rtt_parent,
-    DirectHandle<WasmTrustedInstanceData> trusted_data,
-    DirectHandle<WasmInstanceObject> instance) {
-  const wasm::ArrayType* type = module->array_type(array_index);
+DirectHandle<Map> CreateArrayMap(Isolate* isolate,
+                                 CanonicalTypeIndex array_index,
+                                 Handle<Map> opt_rtt_parent,
+                                 DirectHandle<WasmInstanceObject> instance) {
+  const wasm::CanonicalArrayType* type =
+      wasm::GetTypeCanonicalizer()->LookupArray(array_index);
+  wasm::CanonicalValueType element_type = type->element_type();
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, trusted_data,
-      array_index);
+      array_index, element_type, opt_rtt_parent);
   DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
       instance, instance_type, instance_size, elements_kind,
       inobject_properties);
@@ -101,8 +102,7 @@ DirectHandle<Map> CreateArrayMap(
                               *isolate->factory()->empty_descriptor_array(), 0,
                               SKIP_WRITE_BARRIER);
   map->set_is_extensible(false);
-  WasmArray::EncodeElementSizeInMap(type->element_type().value_kind_size(),
-                                    *map);
+  WasmArray::EncodeElementSizeInMap(element_type.value_kind_size(), *map);
   return map;
 }
 
@@ -110,7 +110,6 @@ DirectHandle<Map> CreateArrayMap(
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       ModuleTypeIndex type_index,
-                      Handle<WasmTrustedInstanceData> trusted_data,
                       Handle<WasmInstanceObject> instance,
                       Handle<FixedArray> maybe_shared_maps) {
   // Recursive calls for supertypes may already have created this map.
@@ -140,8 +139,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   if (supertype.valid()) {
     // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
     // number of recursive steps, so we won't overflow the stack.
-    CreateMapForType(isolate, module, supertype, trusted_data, instance,
-                     maybe_shared_maps);
+    CreateMapForType(isolate, module, supertype, instance, maybe_shared_maps);
     // We look up the supertype in {maybe_shared_maps} as a shared type can only
     // inherit from a shared type and vice verca.
     rtt_parent =
@@ -150,15 +148,14 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   DirectHandle<Map> map;
   switch (module->type(type_index).kind) {
     case TypeDefinition::kStruct:
-      map = CreateStructMap(isolate, module, type_index, rtt_parent,
-                            trusted_data, instance);
+      map =
+          CreateStructMap(isolate, canonical_type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kArray:
-      map = CreateArrayMap(isolate, module, type_index, rtt_parent,
-                           trusted_data, instance);
+      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, rtt_parent);
+      map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent);
       break;
   }
   canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
@@ -1320,7 +1317,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (uint32_t index = 0; index < module_->types.size(); index++) {
     bool type_is_shared = module_->types[index].is_shared;
     CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
-                     type_is_shared ? shared_trusted_data : trusted_data,
                      instance_object,
                      type_is_shared ? shared_maps : non_shared_maps);
   }
@@ -1692,10 +1688,9 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
             ? reinterpret_cast<uint8_t*>(tagged_globals_->address())
             : raw_buffer_ptr(untagged_globals_, 0),
         global.offset, value.to_string().c_str(), global.type.name().c_str());
-  DCHECK(
-      global.mutability
-          ? EquivalentTypes(value.type(), global.type, value.module(), module_)
-          : IsSubtypeOf(value.type(), global.type, value.module(), module_));
+  DCHECK(global.mutability
+             ? (value.type() == module_->canonical_type(global.type))
+             : IsSubtypeOf(value.type(), module_->canonical_type(global.type)));
   if (global.type.is_numeric()) {
     value.CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
   } else {
@@ -2149,11 +2144,12 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       value = WasmValue(global_object->GetF64());
       break;
     case kS128:
-      value = WasmValue(global_object->GetS128RawBytes(), kWasmS128);
+      value = WasmValue(global_object->GetS128RawBytes(), kCanonicalS128);
       break;
     case kRef:
     case kRefNull:
-      value = WasmValue(global_object->GetRef(), global.type, module_);
+      value = WasmValue(global_object->GetRef(),
+                        module_->canonical_type(global.type));
       break;
     case kVoid:
     case kTop:
@@ -2236,7 +2232,8 @@ bool InstanceBuilder::ProcessImportedGlobal(
                           error_message);
       return false;
     }
-    WriteGlobalValue(global, WasmValue(wasm_value, global.type, module_));
+    WriteGlobalValue(
+        global, WasmValue(wasm_value, module_->canonical_type(global.type)));
     return true;
   }
 
@@ -2975,7 +2972,7 @@ void InstanceBuilder::LoadTableSegments(
 
         WasmValue computed_value = to_value(computed_element);
 
-        if (computed_value.type() == kWasmI32) {
+        if (computed_value.type() == kCanonicalI32) {
           if (computed_value.to_i32() >= 0) {
             SetFunctionTablePlaceholder(isolate_, trusted_instance_data,
                                         table_object, entry_index,

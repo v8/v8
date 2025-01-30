@@ -1182,7 +1182,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
       dst_array.ptr() == src_array.ptr() &&
       (dst_index < src_index ? dst_index + length > src_index
                              : src_index + length > dst_index);
-  wasm::ValueType element_type = src_array->type()->element_type();
+  wasm::CanonicalValueType element_type =
+      src_array->map()->wasm_type_info()->element_type();
   if (element_type.is_reference()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
@@ -1217,16 +1218,15 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   uint32_t length = args.positive_smi_value_at(3);
   DirectHandle<Map> rtt(Cast<Map>(args[4]), isolate);
 
-  wasm::ArrayType* type =
-      reinterpret_cast<wasm::ArrayType*>(rtt->wasm_type_info()->native_type());
+  wasm::CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
 
-  uint32_t element_size = type->element_type().value_kind_size();
+  uint32_t element_size = element_type.value_kind_size();
   // This check also implies no overflow.
   if (length > static_cast<uint32_t>(WasmArray::MaxLength(element_size))) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
 
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     // No chance of overflow due to the check above.
     uint32_t length_in_bytes = length * element_size;
 
@@ -1240,7 +1240,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     Address source =
         trusted_instance_data->data_segment_starts()->get(segment_index) +
         offset;
-    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
+    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt,
+                                                       element_type, source);
   } else {
     DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
@@ -1260,7 +1261,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     DirectHandle<Object> result =
         isolate->factory()->NewWasmArrayFromElementSegment(
             trusted_instance_data, trusted_instance_data, segment_index, offset,
-            length, rtt);
+            length, rtt, element_type);
     if (IsSmi(*result)) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(Cast<Smi>(*result).value()));
@@ -1282,12 +1283,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
   uint32_t segment_offset = args.positive_smi_value_at(4);
   uint32_t length = args.positive_smi_value_at(5);
 
-  wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
-      array->map()->wasm_type_info()->native_type());
+  wasm::CanonicalValueType element_type =
+      array->map()->wasm_type_info()->element_type();
 
-  uint32_t element_size = type->element_type().value_kind_size();
-
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     if (!base::IsInBounds<uint32_t>(array_index, length, array->length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1295,7 +1294,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     // No chance of overflow, due to the check above and the limit in array
     // length.
-    uint32_t length_in_bytes = length * element_size;
+    uint32_t length_in_bytes = length * element_type.value_kind_size();
 
     if (!base::IsInBounds<uint32_t>(
             segment_offset, length_in_bytes,

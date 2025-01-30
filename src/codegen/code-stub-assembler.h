@@ -1065,11 +1065,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(implicit_arg);
   }
 
-  TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {
-    return LoadExternalPointerFromObject(
-        object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);
-  }
-
   TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
       TNode<WasmFuncRef> func_ref) {
     return CAST(LoadTrustedPointerFromObject(

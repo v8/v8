@@ -1978,7 +1978,7 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) = GetGlobalBufferAndIndex(global);
     return wasm::WasmValue(handle(global_buffer->get(global_index), isolate),
-                           global.type, module());
+                           module()->canonical_type(global.type));
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(global));
   switch (global.type.kind()) {
@@ -1992,9 +1992,22 @@ wasm::WasmValue WasmTrustedInstanceData::GetGlobalValue(
   }
 }
 
+const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
+  DCHECK_EQ(WASM_STRUCT_TYPE, map->instance_type());
+  Tagged<HeapObject> raw = Cast<HeapObject>(map->constructor_or_back_pointer());
+  // The {WasmTypeInfo} might be in the middle of being moved, which is why we
+  // can't read its map for a checked cast. But we can rely on its native type
+  // pointer being intact in the old location.
+  Tagged<WasmTypeInfo> type_info = UncheckedCast<WasmTypeInfo>(raw);
+  return wasm::GetTypeCanonicalizer()->LookupStruct(type_info->type_index());
+}
+
 wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
-  wasm::ValueType field_type = type()->field(index);
-  int field_offset = WasmStruct::kHeaderSize + type()->field_offset(index);
+  const wasm::CanonicalStructType* type =
+      wasm::GetTypeCanonicalizer()->LookupStruct(
+          map()->wasm_type_info()->type_index());
+  wasm::CanonicalValueType field_type = type->field(index);
+  int field_offset = WasmStruct::kHeaderSize + type->field_offset(index);
   Address field_address = GetFieldAddress(field_offset);
   switch (field_type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
@@ -2011,7 +2024,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
                          GetIsolateFromWritableObject(*this));
-      return wasm::WasmValue(ref, field_type, module());
+      return wasm::WasmValue(ref, field_type);
     }
     case wasm::kRtt:
     case wasm::kVoid:
@@ -2022,7 +2035,8 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
 }
 
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
-  wasm::ValueType element_type = type()->element_type();
+  wasm::CanonicalValueType element_type =
+      map()->wasm_type_info()->element_type();
   int element_offset =
       WasmArray::kHeaderSize + index * element_type.value_kind_size();
   Address element_address = GetFieldAddress(element_offset);
@@ -2041,7 +2055,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
                          GetIsolateFromWritableObject(*this));
-      return wasm::WasmValue(ref, element_type, module());
+      return wasm::WasmValue(ref, element_type);
     }
     case wasm::kRtt:
     case wasm::kVoid:
@@ -2053,7 +2067,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
 
 void WasmArray::SetTaggedElement(uint32_t index, DirectHandle<Object> value,
                                  WriteBarrierMode mode) {
-  DCHECK(type()->element_type().is_reference());
+  DCHECK(map()->wasm_type_info()->element_type().is_reference());
   TaggedField<Object>::store(*this, element_offset(index), *value);
   CONDITIONAL_WRITE_BARRIER(*this, element_offset(index), *value, mode);
 }
@@ -2842,13 +2856,15 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
 }
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type,
                                    Handle<Map> opt_rtt_parent) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const wasm::CanonicalValueType no_array_element =
+      wasm::CanonicalValueType::Primitive(wasm::kBottom);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, DirectHandle<WasmTrustedInstanceData>(),
-      wasm::ModuleTypeIndex::Invalid());
+      type, no_array_element, opt_rtt_parent);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
@@ -2887,7 +2903,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     rtt = direct_handle(
         Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
-    rtt = CreateFuncRefMap(isolate, Handle<Map>());
+    rtt = CreateFuncRefMap(isolate, sig_id, Handle<Map>());
     canonical_rtts->set(sig_id.index, MakeWeak(*rtt));
   }
 
@@ -3269,14 +3285,10 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         }
         return handle(Cast<WasmExternalFunction>(*value)->func_ref(), isolate);
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
-        auto wasm_obj = Cast<WasmObject>(value);
+        Handle<WasmObject> wasm_obj = Cast<WasmObject>(value);
         Tagged<WasmTypeInfo> type_info = wasm_obj->map()->wasm_type_info();
-        ModuleTypeIndex real_idx = type_info->type_index();
-        const WasmModule* real_module =
-            type_info->trusted_data(isolate)->module();
-        CanonicalTypeIndex real_canonical_index =
-            real_module->canonical_type_id(real_idx);
-        if (!type_canonicalizer->IsCanonicalSubtype(real_canonical_index,
+        CanonicalTypeIndex actual_type = type_info->type_index();
+        if (!type_canonicalizer->IsCanonicalSubtype(actual_type,
                                                     canonical_index)) {
           *error_message = "object is not a subtype of expected type";
           return {};

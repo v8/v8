@@ -735,9 +735,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmDispatchTable> NewWasmDispatchTable(
       int length, wasm::CanonicalValueType table_type);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
-      Address type_address, Handle<Map> opt_parent,
-      DirectHandle<WasmTrustedInstanceData> opt_instance,
-      wasm::ModuleTypeIndex type_index);
+      wasm::CanonicalTypeIndex type_index,
+      wasm::CanonicalValueType element_type, Handle<Map> opt_parent);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index);
   Handle<WasmFuncRef> NewWasmFuncRef(
@@ -782,16 +781,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmArray> NewWasmArrayFromElements(
       const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
       DirectHandle<Map> map);
-  Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length,
-                                           DirectHandle<Map> map,
-                                           Address source);
+  Handle<WasmArray> NewWasmArrayFromMemory(
+      uint32_t length, DirectHandle<Map> map,
+      wasm::CanonicalValueType element_type, Address source);
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   Handle<Object> NewWasmArrayFromElementSegment(
       Handle<WasmTrustedInstanceData> trusted_instance_data,
       Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
-      DirectHandle<Map> map);
+      DirectHandle<Map> map, wasm::CanonicalValueType element_type);
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
       Address jmpbuf, wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
       AllocationType allocation = AllocationType::kYoung);

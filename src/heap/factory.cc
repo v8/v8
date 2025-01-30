@@ -1685,9 +1685,8 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(
 }
 
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
-    Address type_address, Handle<Map> opt_parent,
-    DirectHandle<WasmTrustedInstanceData> opt_trusted_data,
-    wasm::ModuleTypeIndex type_index) {
+    wasm::CanonicalTypeIndex type_index, wasm::CanonicalValueType element_type,
+    Handle<Map> opt_parent) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
@@ -1724,13 +1723,8 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   for (size_t i = 0; i < supertypes.size(); i++) {
     result->set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
-  result->init_native_type(isolate(), type_address);
-  if (opt_trusted_data.is_null()) {
-    result->clear_trusted_data();
-  } else {
-    result->set_trusted_data(*opt_trusted_data);
-  }
-  result->set_module_type_index(type_index.index);
+  result->set_canonical_type_index(type_index.index);
+  result->set_canonical_element_type(element_type.raw_bit_field());
   return direct_handle(result, isolate());
 }
 
@@ -2024,12 +2018,9 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
   return handle(result, isolate());
 }
 
-Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
-                                                  DirectHandle<Map> map,
-                                                  Address source) {
-  wasm::ValueType element_type =
-      reinterpret_cast<wasm::ArrayType*>(map->wasm_type_info()->native_type())
-          ->element_type();
+Handle<WasmArray> Factory::NewWasmArrayFromMemory(
+    uint32_t length, DirectHandle<Map> map,
+    wasm::CanonicalValueType element_type, Address source) {
   DCHECK(element_type.is_numeric());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
@@ -2050,8 +2041,8 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
-    DirectHandle<Map> map) {
-  DCHECK(WasmArray::type(*map)->element_type().is_reference());
+    DirectHandle<Map> map, wasm::CanonicalValueType element_type) {
+  DCHECK(element_type.is_reference());
 
   // If the element segment has not been initialized yet, lazily initialize it
   // now.

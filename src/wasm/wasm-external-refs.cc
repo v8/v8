@@ -835,7 +835,8 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
       dst_array.ptr() == src_array.ptr() &&
       (dst_index < src_index ? dst_index + length > src_index
                              : src_index + length > dst_index);
-  wasm::ValueType element_type = src_array->type()->element_type();
+  wasm::CanonicalValueType element_type =
+      src_array->map()->wasm_type_info()->element_type();
   if (element_type.is_reference()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);

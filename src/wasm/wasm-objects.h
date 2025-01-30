@@ -1339,9 +1339,8 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
 class WasmTypeInfo
     : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {
  public:
-  DECL_EXTERNAL_POINTER_ACCESSORS(native_type, Address)
-  inline wasm::ModuleTypeIndex type_index() const;
-  DECL_TRUSTED_POINTER_ACCESSORS(trusted_data, WasmTrustedInstanceData)
+  inline wasm::CanonicalTypeIndex type_index() const;
+  inline wasm::CanonicalValueType element_type() const;  // Only for WasmArrays.
 
   DECL_PRINTER(WasmTypeInfo)
 
@@ -1356,7 +1355,7 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
   // offset.
   static inline DirectHandle<Object> ReadValueAt(Isolate* isolate,
                                                  DirectHandle<HeapObject> obj,
-                                                 wasm::ValueType type,
+                                                 wasm::CanonicalValueType type,
                                                  uint32_t offset);
 
  private:
@@ -1368,13 +1367,10 @@ class WasmObject : public TorqueGeneratedWasmObject<WasmObject, JSReceiver> {
 
 class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
  public:
-  static inline wasm::StructType* type(Tagged<Map> map);
-  inline wasm::StructType* type() const;
-  static inline wasm::StructType* GcSafeType(Tagged<Map> map);
+  static const wasm::CanonicalStructType* GcSafeType(Tagged<Map> map);
   static inline int Size(const wasm::StructType* type);
   static inline int Size(const wasm::CanonicalStructType* type);
   static inline int GcSafeSize(Tagged<Map> map);
-  inline const wasm::WasmModule* module();
   static inline void EncodeInstanceSizeInMap(int instance_size,
                                              Tagged<Map> map);
   static inline int DecodeInstanceSizeFromMap(Tagged<Map> map);
@@ -1417,10 +1413,9 @@ int WasmStruct::Size(const wasm::CanonicalStructType* type) {
 
 class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
  public:
-  static inline wasm::ArrayType* type(Tagged<Map> map);
-  inline wasm::ArrayType* type() const;
-  static inline wasm::ArrayType* GcSafeType(Tagged<Map> map);
-  inline const wasm::WasmModule* module();
+  static inline wasm::CanonicalTypeIndex type_index(Tagged<Map> map);
+  static inline const wasm::CanonicalValueType GcSafeElementType(
+      Tagged<Map> map);
 
   // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
   // this is a reference array.
@@ -1541,6 +1536,7 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 #undef DECL_OPTIONAL_ACCESSORS
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type,
                                    Handle<Map> opt_rtt_parent);
 
 namespace wasm {

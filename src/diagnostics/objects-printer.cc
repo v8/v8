@@ -2585,23 +2585,24 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 }
 
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
   PrintHeader(os, "WasmTypeInfo");
-  os << "\n - type address: " << reinterpret_cast<void*>(native_type());
+  os << "\n - canonical type index: " << canonical_type_index();
+  os << "\n - element type: " << element_type().name();
   os << "\n - supertypes: ";
   for (int i = 0; i < supertypes_length(); i++) {
     os << "\n  - " << Brief(supertypes(i));
   }
-  os << "\n - trusted_data: " << Brief(trusted_data(isolate));
   os << "\n";
 }
 
 void WasmStruct::WasmStructPrint(std::ostream& os) {
   PrintHeader(os, "WasmStruct");
-  wasm::StructType* struct_type = type();
+  const wasm::CanonicalStructType* struct_type =
+      wasm::GetTypeCanonicalizer()->LookupStruct(
+          map()->wasm_type_info()->type_index());
   os << "\n - fields (" << struct_type->field_count() << "):";
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
-    wasm::ValueType field = struct_type->field(i);
+    wasm::CanonicalValueType field = struct_type->field(i);
     os << "\n   - " << field.short_name() << ": ";
     uint32_t field_offset = struct_type->field_offset(i);
     Address field_address = RawFieldAddress(field_offset);
@@ -2663,12 +2664,13 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
 
 void WasmArray::WasmArrayPrint(std::ostream& os) {
   PrintHeader(os, "WasmArray");
-  wasm::ArrayType* array_type = type();
+  const wasm::CanonicalValueType element_type =
+      map()->wasm_type_info()->element_type();
   uint32_t len = length();
-  os << "\n - element type: " << array_type->element_type().name();
+  os << "\n - element type: " << element_type.name();
   os << "\n - length: " << len;
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
-  switch (array_type->element_type().kind()) {
+  switch (element_type.kind()) {
     case wasm::kI32:
       PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
                               true);

@@ -232,7 +232,6 @@ void TestingModuleBuilder::InitializeWrapperCache() {
     // TODO(14616): Support shared types.
     CreateMapForType(
         isolate_, test_module_.get(), ModuleTypeIndex{index},
-        handle(instance_object_->trusted_data(isolate()), isolate()),
         instance_object_, maps);
   }
   trusted_instance_data_->set_managed_object_maps(*maps);

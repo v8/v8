@@ -1012,13 +1012,6 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    v->VisitExternalPointer(
-        obj, obj->RawExternalPointerField(kNativeTypeOffset,
-                                          kWasmTypeInfoNativeTypeTag));
-
-    IterateTrustedPointer(obj, kTrustedDataOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kWasmTrustedInstanceDataIndirectPointerTag);
     IteratePointers(obj, kSupertypesOffset, SizeOf(map, obj), v);
   }
 
@@ -1164,9 +1157,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // The type is safe to use because it's kept alive by the {map}'s
-    // WasmTypeInfo.
-    if (!WasmArray::GcSafeType(map)->element_type().is_reference()) return;
+    if (!WasmArray::GcSafeElementType(map).is_reference()) return;
     IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
   }
 
@@ -1181,9 +1172,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<WasmStruct> wasm_struct = UncheckedCast<WasmStruct>(obj);
-    // The {type} is safe to use because it's kept alive by the {map}'s
-    // WasmTypeInfo.
-    wasm::StructType* type = WasmStruct::GcSafeType(map);
+    const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
     for (uint32_t i = 0; i < type->field_count(); i++) {
       if (!type->field(i).is_reference()) continue;
       int offset = static_cast<int>(type->field_offset(i));
