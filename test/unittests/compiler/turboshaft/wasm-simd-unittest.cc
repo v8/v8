@@ -24,6 +24,7 @@ TEST_F(WasmSimdTest, UpperToLowerF32x4AddReduce) {
     auto SplatKind = Simd128SplatOp::Kind::kF32x4;
     auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
     auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 
     constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
         8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -32,10 +33,10 @@ TEST_F(WasmSimdTest, UpperToLowerF32x4AddReduce) {
 
     V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
     V<Simd128> first_shuffle =
-        __ Simd128Shuffle(input, input, upper_to_lower_1);
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
     V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
     V<Simd128> second_shuffle =
-        __ Simd128Shuffle(first_add, first_add, upper_to_lower_2);
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
     V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
     __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
   });
@@ -51,6 +52,7 @@ TEST_F(WasmSimdTest, AlmostUpperToLowerI16x8AddReduce) {
     auto SplatKind = Simd128SplatOp::Kind::kI16x8;
     auto AddKind = Simd128BinopOp::Kind::kI16x8Add;
     auto ExtractKind = Simd128ExtractLaneOp::Kind::kI16x8U;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 
     constexpr uint8_t almost_upper_to_lower_1[kSimd128Size] = {
         0, 0, 8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0,
@@ -62,13 +64,13 @@ TEST_F(WasmSimdTest, AlmostUpperToLowerI16x8AddReduce) {
 
     V<Simd128> input = __ Simd128Splat(Asm.GetParameter(0), SplatKind);
     V<Simd128> first_shuffle =
-        __ Simd128Shuffle(input, input, almost_upper_to_lower_1);
+        __ Simd128Shuffle(input, input, ShuffleKind, almost_upper_to_lower_1);
     V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
     V<Simd128> second_shuffle =
-        __ Simd128Shuffle(first_add, first_add, upper_to_lower_2);
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
     V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
-    V<Simd128> third_shuffle =
-        __ Simd128Shuffle(second_add, second_add, upper_to_lower_3);
+    V<Simd128> third_shuffle = __ Simd128Shuffle(second_add, second_add,
+                                                 ShuffleKind, upper_to_lower_3);
     V<Simd128> third_add = __ Simd128Binop(second_add, third_shuffle, AddKind);
     __ Return(__ Simd128ExtractLane(third_add, ExtractKind, 0));
   });
@@ -85,6 +87,7 @@ TEST_F(WasmSimdTest, UpperToLowerI32x4AddReduce) {
     auto SplatKind = Simd128SplatOp::Kind::kI32x4;
     auto AddKind = Simd128BinopOp::Kind::kI32x4Add;
     auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 
     constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
         8, 9, 10, 11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -93,10 +96,10 @@ TEST_F(WasmSimdTest, UpperToLowerI32x4AddReduce) {
 
     V<Simd128> input = __ Simd128Splat(Asm.GetParameter(0), SplatKind);
     V<Simd128> first_shuffle =
-        __ Simd128Shuffle(input, input, upper_to_lower_1);
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
     V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
     V<Simd128> second_shuffle =
-        __ Simd128Shuffle(first_add, first_add, upper_to_lower_2);
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
     V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
     __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
   });
@@ -118,6 +121,7 @@ TEST_F(WasmSimdTest, PairwiseF32x4AddReduce) {
     auto SplatKind = Simd128SplatOp::Kind::kF32x4;
     auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
     auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 
     constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
         4, 5, 6, 7, 0, 0, 0, 0, 12, 13, 14, 15, 0, 0, 0, 0};
@@ -126,10 +130,10 @@ TEST_F(WasmSimdTest, PairwiseF32x4AddReduce) {
 
     V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
     V<Simd128> first_shuffle =
-        __ Simd128Shuffle(input, input, upper_to_lower_1);
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
     V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
     V<Simd128> second_shuffle =
-        __ Simd128Shuffle(first_add, first_add, upper_to_lower_2);
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
     V<Simd128> second_add = __ Simd128Binop(first_add, second_shuffle, AddKind);
     __ Return(__ Simd128ExtractLane(second_add, ExtractKind, 0));
   });
@@ -151,6 +155,7 @@ TEST_F(WasmSimdTest, AlmostPairwiseF32x4AddReduce) {
     auto SplatKind = Simd128SplatOp::Kind::kF32x4;
     auto AddKind = Simd128BinopOp::Kind::kF32x4Add;
     auto ExtractKind = Simd128ExtractLaneOp::Kind::kF32x4;
+    auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
 
     constexpr uint8_t upper_to_lower_1[kSimd128Size] = {
         4, 5, 6, 7, 0, 0, 0, 0, 12, 13, 14, 15, 0, 0, 0, 0};
@@ -159,10 +164,10 @@ TEST_F(WasmSimdTest, AlmostPairwiseF32x4AddReduce) {
 
     V<Simd128> input = __ Simd128Splat(__ Float32Constant(1.0), SplatKind);
     V<Simd128> first_shuffle =
-        __ Simd128Shuffle(input, input, upper_to_lower_1);
+        __ Simd128Shuffle(input, input, ShuffleKind, upper_to_lower_1);
     V<Simd128> first_add = __ Simd128Binop(input, first_shuffle, AddKind);
     V<Simd128> second_shuffle =
-        __ Simd128Shuffle(first_add, first_add, upper_to_lower_2);
+        __ Simd128Shuffle(first_add, first_add, ShuffleKind, upper_to_lower_2);
     V<Simd128> tricksy_add = __ Simd128Binop(first_add, first_add, AddKind);
     V<Simd128> second_add =
         __ Simd128Binop(tricksy_add, second_shuffle, AddKind);

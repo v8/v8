@@ -986,6 +986,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (!p) {
       return Adapter::ReduceInputGraphSimd128Shuffle(ig_index, op);
     }
+    DCHECK_EQ(op.kind, Simd128ShuffleOp::Kind::kI8x16);
 
     ShufflePackNode* pnode = p->AsShufflePackNode();
     V<Simd256> og_index = pnode->RevectorizedNode();

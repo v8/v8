@@ -181,40 +181,62 @@ bool SimdShuffle::TryMatch64x2Shuffle(const uint8_t* shuffle,
   return true;
 }
 
-bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
-                                      uint8_t* shuffle32x4) {
-  for (int i = 0; i < 4; ++i) {
-    if (shuffle[i * 4] % 4 != 0) return false;
-    for (int j = 1; j < 4; ++j) {
-      if (shuffle[i * 4 + j] - shuffle[i * 4 + j - 1] != 1) return false;
+template <int kLanes, int kLaneBytes>
+bool MatchHelper(const uint8_t* input, uint8_t* output) {
+  for (int i = 0; i < kLanes; ++i) {
+    if (input[i * kLaneBytes] % kLaneBytes != 0) return false;
+    for (int j = 1; j < kLaneBytes; ++j) {
+      if (input[i * kLaneBytes + j] - input[i * kLaneBytes + j - 1] != 1)
+        return false;
     }
-    shuffle32x4[i] = shuffle[i * 4] / 4;
+    output[i] = input[i * kLaneBytes] / kLaneBytes;
   }
   return true;
+}
+
+bool SimdShuffle::TryMatch64x1Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle64x1) {
+  return MatchHelper<1, 8>(shuffle, shuffle64x1);
+}
+
+bool SimdShuffle::TryMatch32x1Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle32x1) {
+  return MatchHelper<1, 4>(shuffle, shuffle32x1);
+}
+
+bool SimdShuffle::TryMatch32x2Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle32x2) {
+  return MatchHelper<2, 4>(shuffle, shuffle32x2);
+}
+
+bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle32x4) {
+  return MatchHelper<4, 4>(shuffle, shuffle32x4);
 }
 
 bool SimdShuffle::TryMatch32x8Shuffle(const uint8_t* shuffle,
                                       uint8_t* shuffle32x8) {
-  for (int i = 0; i < 8; ++i) {
-    if (shuffle[i * 4] % 4 != 0) return false;
-    for (int j = 1; j < 4; ++j) {
-      if (shuffle[i * 4 + j] - shuffle[i * 4 + j - 1] != 1) return false;
-    }
-    shuffle32x8[i] = shuffle[i * 4] / 4;
-  }
-  return true;
+  return MatchHelper<8, 4>(shuffle, shuffle32x8);
+}
+
+bool SimdShuffle::TryMatch16x1Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle16x1) {
+  return MatchHelper<1, 2>(shuffle, shuffle16x1);
+}
+
+bool SimdShuffle::TryMatch16x2Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle16x2) {
+  return MatchHelper<2, 2>(shuffle, shuffle16x2);
+}
+
+bool SimdShuffle::TryMatch16x4Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle16x4) {
+  return MatchHelper<4, 2>(shuffle, shuffle16x4);
 }
 
 bool SimdShuffle::TryMatch16x8Shuffle(const uint8_t* shuffle,
                                       uint8_t* shuffle16x8) {
-  for (int i = 0; i < 8; ++i) {
-    if (shuffle[i * 2] % 2 != 0) return false;
-    for (int j = 1; j < 2; ++j) {
-      if (shuffle[i * 2 + j] - shuffle[i * 2 + j - 1] != 1) return false;
-    }
-    shuffle16x8[i] = shuffle[i * 2] / 2;
-  }
-  return true;
+  return MatchHelper<8, 2>(shuffle, shuffle16x8);
 }
 
 bool SimdShuffle::TryMatchConcat(const uint8_t* shuffle, uint8_t* offset) {

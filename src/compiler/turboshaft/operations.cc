@@ -1796,7 +1796,23 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 }
 
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  switch (kind) {
+    case Kind::kI8x2:
+      os << "I8x2, ";
+      break;
+    case Kind::kI8x4:
+      os << "I8x4, ";
+      break;
+    case Kind::kI8x8:
+      os << "I8x8, ";
+      break;
+    case Kind::kI8x16:
+      os << "I8x16, ";
+      break;
+  }
   PrintSimdValue(os, shuffle);
+  os << ']';
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
