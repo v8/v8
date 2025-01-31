@@ -86,7 +86,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:27.20250129.4.1',
+  'fuchsia_version': 'version:27.20250130.7.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '381f9f22a0732de757c510e4f73e86aff47ac0f5',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3ec76f733becfd04ebf68a3519784aa910a6882b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b4eaa1ed0f3a604f354b4098e4f676f7815f1da',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ce598256f20f74a5b9e321bda2ff60edf280ab10',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c88ad7af1a5c20b6788d52beb54f33203de492a8',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -300,7 +300,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e55d8cf51c6db1fdd4bb56c158945ec59772c8ee',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '0d8d089914eb6d1b8a893c20a696247ff52d2c01',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '4997b50ea0b0d0b863ca483fafa823efb1fb603b',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '36939399ed1feffd9b2547361b3dd0d1e8aec109',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '9e5b13befdb88a9467fc52f23960fe1a9d603f33',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6f49850910a5160e9f8c3f35f4e07b6fc02feae0',
   'third_party/re2/src':
