@@ -53,8 +53,7 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
 
 DirectHandle<Map> CreateStructMap(Isolate* isolate,
                                   CanonicalTypeIndex struct_index,
-                                  Handle<Map> opt_rtt_parent,
-                                  DirectHandle<WasmInstanceObject> instance) {
+                                  Handle<Map> opt_rtt_parent) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
   const int inobject_properties = 0;
@@ -68,9 +67,8 @@ DirectHandle<Map> CreateStructMap(Isolate* isolate,
       wasm::CanonicalValueType::Primitive(wasm::kBottom);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       struct_index, no_array_element, opt_rtt_parent);
-  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
-      instance, instance_type, map_instance_size, elements_kind,
-      inobject_properties);
+  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+      instance_type, map_instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0,
@@ -83,8 +81,7 @@ DirectHandle<Map> CreateStructMap(Isolate* isolate,
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  CanonicalTypeIndex array_index,
-                                 Handle<Map> opt_rtt_parent,
-                                 DirectHandle<WasmInstanceObject> instance) {
+                                 Handle<Map> opt_rtt_parent) {
   const wasm::CanonicalArrayType* type =
       wasm::GetTypeCanonicalizer()->LookupArray(array_index);
   wasm::CanonicalValueType element_type = type->element_type();
@@ -94,9 +91,8 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       array_index, element_type, opt_rtt_parent);
-  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
-      instance, instance_type, instance_size, elements_kind,
-      inobject_properties);
+  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0,
@@ -110,7 +106,6 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       ModuleTypeIndex type_index,
-                      Handle<WasmInstanceObject> instance,
                       Handle<FixedArray> maybe_shared_maps) {
   // Recursive calls for supertypes may already have created this map.
   if (IsMap(maybe_shared_maps->get(type_index.index))) return;
@@ -139,7 +134,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   if (supertype.valid()) {
     // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
     // number of recursive steps, so we won't overflow the stack.
-    CreateMapForType(isolate, module, supertype, instance, maybe_shared_maps);
+    CreateMapForType(isolate, module, supertype, maybe_shared_maps);
     // We look up the supertype in {maybe_shared_maps} as a shared type can only
     // inherit from a shared type and vice verca.
     rtt_parent =
@@ -148,11 +143,10 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   DirectHandle<Map> map;
   switch (module->type(type_index).kind) {
     case TypeDefinition::kStruct:
-      map =
-          CreateStructMap(isolate, canonical_type_index, rtt_parent, instance);
+      map = CreateStructMap(isolate, canonical_type_index, rtt_parent);
       break;
     case TypeDefinition::kArray:
-      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent, instance);
+      map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
       break;
     case TypeDefinition::kFunction:
       map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent);
@@ -1317,7 +1311,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (uint32_t index = 0; index < module_->types.size(); index++) {
     bool type_is_shared = module_->types[index].is_shared;
     CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
-                     instance_object,
                      type_is_shared ? shared_maps : non_shared_maps);
   }
   trusted_data->set_managed_object_maps(*non_shared_maps);

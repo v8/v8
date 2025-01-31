@@ -117,7 +117,6 @@ std::optional<MessageTemplate> InitializeElementSegment(
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, ModuleTypeIndex type_index,
-    Handle<WasmInstanceObject> instance_object,
     Handle<FixedArray> maybe_shared_maps);
 
 // Wrapper information required for graph building.
