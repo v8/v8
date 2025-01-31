@@ -1911,6 +1911,10 @@ class FastJsonStringifier {
   FastJsonStringifierResult SerializeObject(Tagged<JSAny> object,
                                             uint32_t obj_cont_idx,
                                             uint32_t array_cont_idx);
+  template <bool deferred_key>
+  FastJsonStringifierResult SerializeJSPrimitiveWrapper(
+      Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
+      const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult
   SerializeJSObject(Tagged<JSObject> obj, uint32_t start_idx,
                     const DisallowGarbageCollection& no_gc);
@@ -2271,11 +2275,152 @@ FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
       }
     case SYMBOL_TYPE:
       return UNDEFINED;
+    case JS_PRIMITIVE_WRAPPER_TYPE:
+      return SerializeJSPrimitiveWrapper<deferred_key>(
+          Cast<JSPrimitiveWrapper>(obj), comma, key, no_gc);
     case JS_OBJECT_TYPE:
     case JS_ARRAY_TYPE:
       return UNCHANGED;
     default:
       return SLOW_PATH;
+  }
+
+  UNREACHABLE();
+}
+
+namespace {
+
+Builtin GetBuiltin(Isolate* isolate, Tagged<JSObject> obj,
+                   DirectHandle<Name> name) {
+  HandleScope handle_scope(isolate);
+
+  DirectHandle<JSObject> obj_handle = direct_handle(obj, isolate);
+  LookupIterator it(isolate, obj_handle, name, obj_handle);
+  if (!it.IsFound()) {
+    return Builtin::kNoBuiltinId;
+  }
+  if (it.state() != LookupIterator::DATA) {
+    return Builtin::kNoBuiltinId;
+  }
+  DirectHandle<Object> fun = Object::GetProperty(&it).ToHandleChecked();
+  if (!IsJSFunction(*fun)) {
+    return Builtin::kNoBuiltinId;
+  }
+  return Cast<JSFunction>(*fun)->code(isolate)->builtin_id();
+}
+
+}  // namespace
+
+template <typename Char>
+template <bool deferred_key>
+FastJsonStringifierResult
+FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
+    Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
+    const DisallowGarbageCollection& no_gc) {
+  // TODO(pthier): Consider extending IsStringWrapperToPrimitive to also cover
+  // toString() and all JSPrimitiveWrappers to avoid some of the checks here.
+  if (V8_UNLIKELY(MayHaveInterestingProperties(isolate_, obj))) {
+    return SLOW_PATH;
+  }
+
+  Tagged<JSAny> raw = obj->value();
+  if (IsSymbol(raw)) {
+    // Symbol object wrapper is treated as a regular object.
+    Tagged<Map> map = obj->map();
+    // Check that object has no own properties.
+    if (V8_UNLIKELY(!obj->HasFastProperties())) return SLOW_PATH;
+    if (V8_UNLIKELY(map->NumberOfOwnDescriptors() != 0)) return SLOW_PATH;
+    // Check that object has no elements.
+    auto roots = ReadOnlyRoots(isolate_);
+    auto elements = obj->elements();
+    if (V8_UNLIKELY(elements != roots.empty_fixed_array() &&
+                    elements != roots.empty_slow_element_dictionary())) {
+      return SLOW_PATH;
+    }
+
+    if constexpr (deferred_key) {
+      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
+      if (V8_UNLIKELY(result != SUCCESS)) return result;
+    }
+    AppendCStringLiteral("{}");
+    return SUCCESS;
+  } else if (IsString(raw)) {
+    if (V8_UNLIKELY(!Protectors::IsStringWrapperToPrimitiveIntact(isolate_))) {
+      return SLOW_PATH;
+    }
+    // We only fetch data properties in GetBuiltin, but GCMole doesn't know
+    // that and assumes GCs can happen.
+    DisableGCMole no_gc_mole;
+    // Check that toString() on the prototype chain is the expected builtin.
+    if (V8_UNLIKELY(
+            GetBuiltin(isolate_, obj, isolate_->factory()->toString_string()) !=
+            Builtin::kStringPrototypeToString)) {
+      return SLOW_PATH;
+    }
+
+    Tagged<String> string = Cast<String>(raw);
+    while (true) {
+      FastJsonStringifierResult result =
+          string->DispatchToSpecificType(base::overloaded{
+              [&](Tagged<SeqOneByteString> str) {
+                return SerializeString<SeqOneByteString, deferred_key>(
+                    str, comma, key, no_gc);
+              },
+              [&](Tagged<SeqTwoByteString> str) {
+                return SerializeString<SeqTwoByteString, deferred_key>(
+                    str, comma, key, no_gc);
+              },
+              [&](Tagged<ExternalOneByteString> str) {
+                return SerializeString<ExternalOneByteString, deferred_key>(
+                    str, comma, key, no_gc);
+              },
+              [&](Tagged<ExternalTwoByteString> str) {
+                return SerializeString<ExternalTwoByteString, deferred_key>(
+                    str, comma, key, no_gc);
+              },
+              [&](Tagged<ThinString> str) {
+                string = str->actual();
+                return UNCHANGED;
+              },
+              [&](Tagged<ConsString> str) { return SLOW_PATH; },
+              [&](Tagged<SlicedString> str) { return SLOW_PATH; }});
+      if (V8_LIKELY(result != UNCHANGED)) return result;
+    }
+    UNREACHABLE();
+  } else if (IsNumber(raw)) {
+    // We only fetch data properties in GetBuiltin, but GCMole doesn't know
+    // that and assumes GCs can happen.
+    DisableGCMole no_gc_mole;
+    // Check that valueOf() on the prototype chain is the expected builtin.
+    if (V8_UNLIKELY(
+            GetBuiltin(isolate_, obj, isolate_->factory()->valueOf_string()) !=
+            Builtin::kNumberPrototypeValueOf)) {
+      return SLOW_PATH;
+    }
+    if constexpr (deferred_key) {
+      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
+      if (V8_UNLIKELY(result != SUCCESS)) return result;
+    }
+    if (IsSmi(raw)) {
+      SerializeSmi(Cast<Smi>(raw));
+      return SUCCESS;
+    }
+    DCHECK(IsHeapNumber(raw));
+    SerializeDouble(Cast<HeapNumber>(raw)->value());
+    return SUCCESS;
+  } else if (IsBoolean(raw)) {
+    if constexpr (deferred_key) {
+      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
+      if (V8_UNLIKELY(result != SUCCESS)) return result;
+    }
+    if (IsTrue(raw, isolate_)) {
+      AppendCStringLiteral("true");
+    } else {
+      AppendCStringLiteral("false");
+    }
+    return SUCCESS;
+  } else if (IsBigInt(raw)) {
+    return SLOW_PATH;
   }
 
   UNREACHABLE();
@@ -2583,7 +2728,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
     Tagged<JSAny> object, const DisallowGarbageCollection& no_gc) {
   FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
   if constexpr (is_one_byte) {
-    if (result == CHANGE_ENCODING) {
+    if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
       DCHECK(IsString(object));
       stack_.emplace_back(ContinuationRecord::kResumeFromOther, object, 0);
       return result;
