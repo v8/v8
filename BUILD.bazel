@@ -1568,7 +1568,7 @@ filegroup(
         "src/execution/protectors.cc",
         "src/execution/protectors.h",
         "src/execution/protectors-inl.h",
-        "src/execution/shared-mutex-guard-if-off-thread.h",
+        "src/execution/mutex-guard-if-off-thread.h",
         "src/execution/simulator.h",
         "src/execution/simulator-base.cc",
         "src/execution/simulator-base.h",

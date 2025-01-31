@@ -180,9 +180,8 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   DCHECK(descriptor.is_found());
   DCHECK(!old_map_->is_dictionary_map());
 
-  ParkedSharedMutexGuardIf<base::kExclusive> mutex_guard(
-      isolate_->main_thread_local_isolate(), isolate_->map_updater_access(),
-      true);
+  ParkedMutexGuardIf mutex_guard(isolate_->main_thread_local_isolate(),
+                                 isolate_->map_updater_access(), true);
 
   modified_descriptor_ = descriptor;
   new_kind_ = PropertyKind::kData;
@@ -273,8 +272,7 @@ DirectHandle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate,
 }
 
 Handle<Map> MapUpdater::Update() {
-  base::SharedMutexGuard<base::kExclusive> mutex_guard(
-      isolate_->map_updater_access());
+  base::SpinningMutexGuard mutex_guard(isolate_->map_updater_access());
   return UpdateImpl();
 }
 
@@ -493,8 +491,7 @@ void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
     // Note: Avoid locking the full_transition_array_access lock inside this
     // call to TraverseTransitionTree to prevent dependencies between the two
     // locks.
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(
-        isolate->map_updater_access());
+    base::SpinningMutexGuard guard(isolate->map_updater_access());
     transitions.TraverseTransitionTree(callback);
   }
 }

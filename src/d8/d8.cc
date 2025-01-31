@@ -520,7 +520,7 @@ class ExternalOwningOneByteStringResource
 
 // static variables:
 CounterMap* Shell::counter_map_;
-base::SharedMutex Shell::counter_mutex_;
+base::SpinningMutex Shell::counter_mutex_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = nullptr;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
@@ -3661,7 +3661,7 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
 Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   Counter* counter = nullptr;
   {
-    base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
+    base::SpinningMutexGuard mutex_guard(&counter_mutex_);
     auto map_entry = counter_map_->find(name);
     if (map_entry != counter_map_->end()) {
       counter = map_entry->second;
@@ -3669,7 +3669,7 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   }
 
   if (counter == nullptr) {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(&counter_mutex_);
+    base::SpinningMutexGuard mutex_guard(&counter_mutex_);
 
     counter = (*counter_map_)[name];
 
@@ -4370,7 +4370,7 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   }
 
   if (options.dump_counters || options.dump_counters_nvp) {
-    base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
+    base::SpinningMutexGuard mutex_guard(&counter_mutex_);
     std::vector<std::pair<std::string, Counter*>> counters(
         counter_map_->begin(), counter_map_->end());
     std::sort(counters.begin(), counters.end());

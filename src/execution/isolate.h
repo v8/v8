@@ -31,7 +31,7 @@
 #include "src/execution/futex-emulation.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/messages.h"
-#include "src/execution/shared-mutex-guard-if-off-thread.h"
+#include "src/execution/mutex-guard-if-off-thread.h"
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
@@ -725,30 +725,30 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::RecursiveMutex* break_access() { return &break_access_; }
 
   // Shared mutex for allowing thread-safe concurrent reads of FeedbackVectors.
-  base::SharedMutex* feedback_vector_access() {
+  base::SpinningMutex* feedback_vector_access() {
     return &feedback_vector_access_;
   }
 
   // Shared mutex for allowing thread-safe concurrent reads of
   // InternalizedStrings.
-  base::SharedMutex* internalized_string_access() {
+  base::SpinningMutex* internalized_string_access() {
     return &internalized_string_access_;
   }
 
   // Shared mutex for allowing thread-safe concurrent reads of TransitionArrays
   // of kind kFullTransitionArray.
-  base::SharedMutex* full_transition_array_access() {
+  base::SpinningMutex* full_transition_array_access() {
     return &full_transition_array_access_;
   }
 
   // Shared mutex for allowing thread-safe concurrent reads of
   // SharedFunctionInfos.
-  base::SharedMutex* shared_function_info_access() {
+  base::SpinningMutex* shared_function_info_access() {
     return &shared_function_info_access_;
   }
 
   // Protects (most) map update operations, see also MapUpdater.
-  base::SharedMutex* map_updater_access() { return &map_updater_access_; }
+  base::SpinningMutex* map_updater_access() { return &map_updater_access_; }
 
   // Protects JSObject boilerplate migrations (i.e. calls to MigrateInstance on
   // boilerplate objects; elements kind transitions are *not* protected).
@@ -758,7 +758,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // - if so, `boilerplate_migration_access` is locked before
   //   `map_updater_access`.
   // - backgrounds threads must use the same lock order to avoid deadlocks.
-  base::SharedMutex* boilerplate_migration_access() {
+  base::SpinningMutex* boilerplate_migration_access() {
     return &boilerplate_migration_access_;
   }
 
@@ -2532,12 +2532,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
-  base::SharedMutex feedback_vector_access_;
-  base::SharedMutex internalized_string_access_;
-  base::SharedMutex full_transition_array_access_;
-  base::SharedMutex shared_function_info_access_;
-  base::SharedMutex map_updater_access_;
-  base::SharedMutex boilerplate_migration_access_;
+  base::SpinningMutex feedback_vector_access_;
+  base::SpinningMutex internalized_string_access_;
+  base::SpinningMutex full_transition_array_access_;
+  base::SpinningMutex shared_function_info_access_;
+  base::SpinningMutex map_updater_access_;
+  base::SpinningMutex boilerplate_migration_access_;
   V8FileLogger* v8_file_logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
@@ -3074,18 +3074,17 @@ class StackTraceFailureMessage {
   uintptr_t end_marker_ = kEndMarker;
 };
 
-template <base::MutexSharedType kIsShared>
-class V8_NODISCARD SharedMutexGuardIfOffThread<Isolate, kIsShared> final {
+template <>
+class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
  public:
-  SharedMutexGuardIfOffThread(base::SharedMutex* mutex, Isolate* isolate) {
+  MutexGuardIfOffThread(base::SpinningMutex* mutex, Isolate* isolate) {
     DCHECK_NOT_NULL(mutex);
     DCHECK_NOT_NULL(isolate);
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   }
 
-  SharedMutexGuardIfOffThread(const SharedMutexGuardIfOffThread&) = delete;
-  SharedMutexGuardIfOffThread& operator=(const SharedMutexGuardIfOffThread&) =
-      delete;
+  MutexGuardIfOffThread(const MutexGuardIfOffThread&) = delete;
+  MutexGuardIfOffThread& operator=(const MutexGuardIfOffThread&) = delete;
 };
 
 }  // namespace internal

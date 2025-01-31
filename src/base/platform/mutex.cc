@@ -50,65 +50,6 @@ void SpinningMutex::Lock() ABSL_NO_THREAD_SAFETY_ANALYSIS { lock_.Lock(); }
 
 #endif
 
-#if DEBUG
-namespace {
-// Used for asserts to guarantee we are not re-locking a mutex on the same
-// thread. If this thread has only one held shared mutex (common case), we use
-// {single_held_shared_mutex}. If it has more than one we allocate a set for it.
-// Said set has to manually be constructed and destroyed.
-thread_local base::SharedMutex* single_held_shared_mutex = nullptr;
-using TSet = std::unordered_set<base::SharedMutex*>;
-thread_local TSet* held_shared_mutexes = nullptr;
-
-// Returns true iff {shared_mutex} is not a held mutex.
-bool SharedMutexNotHeld(SharedMutex* shared_mutex) {
-  DCHECK_NOT_NULL(shared_mutex);
-  return single_held_shared_mutex != shared_mutex &&
-         (!held_shared_mutexes ||
-          held_shared_mutexes->count(shared_mutex) == 0);
-}
-
-// Tries to hold {shared_mutex}. Returns true iff it hadn't been held prior to
-// this function call.
-bool TryHoldSharedMutex(SharedMutex* shared_mutex) {
-  DCHECK_NOT_NULL(shared_mutex);
-  if (single_held_shared_mutex) {
-    if (shared_mutex == single_held_shared_mutex) {
-      return false;
-    }
-    DCHECK_NULL(held_shared_mutexes);
-    held_shared_mutexes = new TSet({single_held_shared_mutex, shared_mutex});
-    single_held_shared_mutex = nullptr;
-    return true;
-  } else if (held_shared_mutexes) {
-    return held_shared_mutexes->insert(shared_mutex).second;
-  } else {
-    DCHECK_NULL(single_held_shared_mutex);
-    single_held_shared_mutex = shared_mutex;
-    return true;
-  }
-}
-
-// Tries to release {shared_mutex}. Returns true iff it had been held prior to
-// this function call.
-bool TryReleaseSharedMutex(SharedMutex* shared_mutex) {
-  DCHECK_NOT_NULL(shared_mutex);
-  if (single_held_shared_mutex == shared_mutex) {
-    single_held_shared_mutex = nullptr;
-    return true;
-  }
-  if (held_shared_mutexes && held_shared_mutexes->erase(shared_mutex)) {
-    if (held_shared_mutexes->empty()) {
-      delete held_shared_mutexes;
-      held_shared_mutexes = nullptr;
-    }
-    return true;
-  }
-  return false;
-}
-}  // namespace
-#endif  // DEBUG
-
 #if V8_OS_POSIX
 
 static V8_INLINE void InitializeRecursiveNativeHandle(pthread_mutex_t* mutex) {
@@ -256,45 +197,6 @@ void RecursiveMutex::Unlock() { native_handle_.Release(); }
 bool RecursiveMutex::TryLock() { return native_handle_.AcquireTry(); }
 
 #endif  // V8_OS_STARBOARD
-
-SharedMutex::SharedMutex() = default;
-SharedMutex::~SharedMutex() = default;
-
-void SharedMutex::LockShared() ABSL_SHARED_LOCK_FUNCTION(native_handle_) {
-  DCHECK(TryHoldSharedMutex(this));
-  native_handle_.ReaderLock();
-}
-
-void SharedMutex::LockExclusive() ABSL_EXCLUSIVE_LOCK_FUNCTION(native_handle_) {
-  DCHECK(TryHoldSharedMutex(this));
-  native_handle_.Lock();
-}
-
-void SharedMutex::UnlockShared() ABSL_UNLOCK_FUNCTION(native_handle_) {
-  DCHECK(TryReleaseSharedMutex(this));
-  native_handle_.ReaderUnlock();
-}
-
-void SharedMutex::UnlockExclusive() ABSL_UNLOCK_FUNCTION(native_handle_) {
-  DCHECK(TryReleaseSharedMutex(this));
-  native_handle_.Unlock();
-}
-
-bool SharedMutex::TryLockShared()
-    ABSL_SHARED_TRYLOCK_FUNCTION(true, native_handle_) {
-  DCHECK(SharedMutexNotHeld(this));
-  bool result = native_handle_.ReaderTryLock();
-  if (result) DCHECK(TryHoldSharedMutex(this));
-  return result;
-}
-
-bool SharedMutex::TryLockExclusive()
-    ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true, native_handle_) {
-  DCHECK(SharedMutexNotHeld(this));
-  bool result = native_handle_.TryLock();
-  if (result) DCHECK(TryHoldSharedMutex(this));
-  return result;
-}
 
 Mutex::Mutex() {
 #ifdef DEBUG

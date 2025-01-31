@@ -381,8 +381,8 @@ bool String::MakeExternal(Isolate* isolate,
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
-  base::SharedMutexGuardIf<base::kExclusive> shared_mutex_guard(
-      isolate->internalized_string_access(), is_internalized);
+  base::SpinningMutexGuardIf mutex_guard(isolate->internalized_string_access(),
+                                         is_internalized);
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we
@@ -475,8 +475,8 @@ bool String::MakeExternal(Isolate* isolate,
   bool is_internalized = IsInternalizedString(this);
   bool has_pointers = StringShape(this).IsIndirect();
 
-  base::SharedMutexGuardIf<base::kExclusive> shared_mutex_guard(
-      isolate->internalized_string_access(), is_internalized);
+  base::SpinningMutexGuardIf mutex_guard(isolate->internalized_string_access(),
+                                         is_internalized);
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
   // string occupies is too small for a regular external string.  Instead, we

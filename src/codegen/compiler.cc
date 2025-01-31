@@ -805,7 +805,7 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
 
     MaybeHandle<CoverageInfo> coverage_info;
     if (compilation_info->has_coverage_info()) {
-      SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
+      MutexGuardIfOffThread<IsolateT> mutex_guard(
           isolate->shared_function_info_access(), isolate);
       if (!shared_info->HasCoverageInfo(
               isolate->GetMainThreadIsolateUnsafe())) {

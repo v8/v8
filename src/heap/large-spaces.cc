@@ -341,7 +341,7 @@ void LargeObjectSpace::Print() {
 #endif  // DEBUG
 
 void LargeObjectSpace::UpdatePendingObject(Tagged<HeapObject> object) {
-  base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
+  base::SpinningMutexGuard guard(&pending_allocation_mutex_);
   pending_object_.store(object.address(), std::memory_order_release);
 }
 

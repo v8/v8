@@ -343,13 +343,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // Locks {mutex} through the duration of this scope iff it is the first
   // occurrence. This is done to have a recursive shared lock on {mutex}.
-  class V8_NODISCARD RecursiveSharedMutexGuardIfNeeded {
+  class V8_NODISCARD RecursiveMutexGuardIfNeeded {
    protected:
-    V8_INLINE RecursiveSharedMutexGuardIfNeeded(LocalIsolate* local_isolate,
-                                                base::SharedMutex* mutex,
-                                                int* mutex_depth_address);
+    V8_INLINE RecursiveMutexGuardIfNeeded(LocalIsolate* local_isolate,
+                                          base::SpinningMutex* mutex,
+                                          int* mutex_depth_address);
 
-    ~RecursiveSharedMutexGuardIfNeeded() {
+    ~RecursiveMutexGuardIfNeeded() {
       DCHECK_GE((*mutex_depth_address_), 1);
       (*mutex_depth_address_)--;
       DCHECK_EQ(initial_mutex_depth_, (*mutex_depth_address_));
@@ -358,17 +358,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
    private:
     int* const mutex_depth_address_;
     const int initial_mutex_depth_;
-    ParkedSharedMutexGuardIf<base::kShared> shared_mutex_guard_;
+    ParkedMutexGuardIf mutex_guard_;
   };
 
-  class MapUpdaterGuardIfNeeded final
-      : public RecursiveSharedMutexGuardIfNeeded {
+  class MapUpdaterGuardIfNeeded final : public RecursiveMutexGuardIfNeeded {
    public:
     V8_INLINE explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker);
   };
 
   class BoilerplateMigrationGuardIfNeeded final
-      : public RecursiveSharedMutexGuardIfNeeded {
+      : public RecursiveMutexGuardIfNeeded {
    public:
     V8_INLINE explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker);
   };

@@ -77,7 +77,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   }
 
   if (object->map(isolate)->is_deprecated()) {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+    base::SpinningMutexGuard mutex_guard(
         isolate->boilerplate_migration_access());
     JSObject::MigrateInstance(isolate, object);
   }

@@ -542,8 +542,8 @@ void TransitionsAccessor::ForEachTransitionWithKey(
       return;
     }
     case kFullTransitionArray: {
-      base::SharedMutexGuardIf<base::kShared> scope(
-          isolate_->full_transition_array_access(), concurrent_access_);
+      base::SpinningMutexGuardIf scope(isolate_->full_transition_array_access(),
+                                       concurrent_access_);
       Tagged<TransitionArray> transition_array = transitions();
       int num_transitions = transition_array->number_of_transitions();
       ReadOnlyRoots roots(isolate_);

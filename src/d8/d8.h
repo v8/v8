@@ -792,7 +792,7 @@ class Shell : public i::AllStatic {
 
   static const char* stringify_source_;
   static CounterMap* counter_map_;
-  static base::SharedMutex counter_mutex_;
+  static base::SpinningMutex counter_mutex_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;

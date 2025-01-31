@@ -250,73 +250,6 @@ using LazyRecursiveMutex =
 
 #define LAZY_RECURSIVE_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-// SharedMutex - a replacement for std::shared_mutex
-//
-// This class is a synchronization primitive that can be used to protect shared
-// data from being simultaneously accessed by multiple threads. In contrast to
-// other mutex types which facilitate exclusive access, a shared_mutex has two
-// levels of access:
-// - shared: several threads can share ownership of the same mutex.
-// - exclusive: only one thread can own the mutex.
-// Shared mutexes are usually used in situations when multiple readers can
-// access the same resource at the same time without causing data races, but
-// only one writer can do so.
-// The SharedMutex class is non-copyable.
-
-class V8_BASE_EXPORT SharedMutex final {
- public:
-  SharedMutex();
-  SharedMutex(const SharedMutex&) = delete;
-  SharedMutex& operator=(const SharedMutex&) = delete;
-  ~SharedMutex();
-
-  // Acquires shared ownership of the {SharedMutex}. If another thread is
-  // holding the mutex in exclusive ownership, a call to {LockShared()} will
-  // block execution until shared ownership can be acquired.
-  // If {LockShared()} is called by a thread that already owns the mutex in any
-  // mode (exclusive or shared), the behavior is undefined and outright fails
-  // with dchecks on.
-  void LockShared();
-
-  // Locks the SharedMutex. If another thread has already locked the mutex, a
-  // call to {LockExclusive()} will block execution until the lock is acquired.
-  // If {LockExclusive()} is called by a thread that already owns the mutex in
-  // any mode (shared or exclusive), the behavior is undefined and outright
-  // fails with dchecks on.
-  void LockExclusive();
-
-  // Releases the {SharedMutex} from shared ownership by the calling thread.
-  // The mutex must be locked by the current thread of execution in shared mode,
-  // otherwise, the behavior is undefined and outright fails with dchecks on.
-  void UnlockShared();
-
-  // Unlocks the {SharedMutex}. It must be locked by the current thread of
-  // execution, otherwise, the behavior is undefined and outright fails with
-  // dchecks on.
-  void UnlockExclusive();
-
-  // Tries to lock the {SharedMutex} in shared mode. Returns immediately. On
-  // successful lock acquisition returns true, otherwise returns false.
-  // This function is allowed to fail spuriously and return false even if the
-  // mutex is not currently exclusively locked by any other thread.
-  // If it is called by a thread that already owns the mutex in any mode
-  // (shared or exclusive), the behavior is undefined, and outright fails with
-  // dchecks on.
-  bool TryLockShared() V8_WARN_UNUSED_RESULT;
-
-  // Tries to lock the {SharedMutex}. Returns immediately. On successful lock
-  // acquisition returns true, otherwise returns false.
-  // This function is allowed to fail spuriously and return false even if the
-  // mutex is not currently locked by any other thread.
-  // If it is called by a thread that already owns the mutex in any mode
-  // (shared or exclusive), the behavior is undefined, and outright fails with
-  // dchecks on.
-  bool TryLockExclusive() V8_WARN_UNUSED_RESULT;
-
- private:
-  absl::Mutex native_handle_;
-};
-
 // LockGuard
 //
 // This class is a mutex wrapper that provides a convenient RAII-style mechanism
@@ -358,46 +291,18 @@ using MutexGuard = LockGuard<Mutex>;
 using SpinningMutexGuard = LockGuard<SpinningMutex>;
 using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
-enum MutexSharedType : bool { kShared = true, kExclusive = false };
-
-template <MutexSharedType kIsShared>
-class V8_NODISCARD SharedMutexGuard final {
+class V8_NODISCARD SpinningMutexGuardIf final {
  public:
-  explicit SharedMutexGuard(SharedMutex* mutex) : mutex_(mutex) {
-    DCHECK_NOT_NULL(mutex_);
-    if constexpr (kIsShared) {
-      mutex_->LockShared();
-    } else {
-      mutex_->LockExclusive();
-    }
-  }
-  SharedMutexGuard(const SharedMutexGuard&) = delete;
-  SharedMutexGuard& operator=(const SharedMutexGuard&) = delete;
-  ~SharedMutexGuard() {
-    if constexpr (kIsShared) {
-      mutex_->UnlockShared();
-    } else {
-      mutex_->UnlockExclusive();
-    }
-  }
-
- private:
-  SharedMutex* const mutex_;
-};
-
-template <MutexSharedType kIsShared>
-class V8_NODISCARD SharedMutexGuardIf final {
- public:
-  SharedMutexGuardIf(SharedMutex* mutex, bool enable_mutex) {
+  SpinningMutexGuardIf(SpinningMutex* mutex, bool enable_mutex) {
     if (enable_mutex) {
       mutex_.emplace(mutex);
     }
   }
-  SharedMutexGuardIf(const SharedMutexGuardIf&) = delete;
-  SharedMutexGuardIf& operator=(const SharedMutexGuardIf&) = delete;
+  SpinningMutexGuardIf(const SpinningMutexGuardIf&) = delete;
+  SpinningMutexGuardIf& operator=(const SpinningMutexGuardIf&) = delete;
 
  private:
-  std::optional<SharedMutexGuard<kIsShared>> mutex_;
+  std::optional<SpinningMutexGuard> mutex_;
 };
 
 }  // namespace base

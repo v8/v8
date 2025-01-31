@@ -101,8 +101,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   base::SpinningMutex& mutex() { return mutex_; }
   const base::SpinningMutex& mutex() const { return mutex_; }
-  base::SharedMutex& shared_mutex() { return shared_mutex_; }
-  const base::SharedMutex& shared_mutex() const { return shared_mutex_; }
+  base::SpinningMutex& object_mutex() { return object_mutex_; }
+  const base::SpinningMutex& object_mutex() const { return object_mutex_; }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -358,7 +358,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // in terms of Mutex size.
 
   base::SpinningMutex mutex_;
-  base::SharedMutex shared_mutex_;
+  base::SpinningMutex object_mutex_;
 
  private:
   static constexpr intptr_t MarkingBitmapOffset() {

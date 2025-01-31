@@ -139,14 +139,14 @@ class CompilationUnitQueues {
   Queue* GetQueueForTask(int task_id) {
     int required_queues = task_id + 1;
     {
-      base::SharedMutexGuard<base::kShared> queues_guard{&queues_mutex_};
+      base::SpinningMutexGuard queues_guard{&queues_mutex_};
       if (V8_LIKELY(static_cast<int>(queues_.size()) >= required_queues)) {
         return queues_[task_id].get();
       }
     }
 
     // Otherwise increase the number of queues.
-    base::SharedMutexGuard<base::kExclusive> queues_guard{&queues_mutex_};
+    base::SpinningMutexGuard queues_guard{&queues_mutex_};
     int num_queues = static_cast<int>(queues_.size());
     while (num_queues < required_queues) {
       int steal_from = num_queues + 1;
@@ -196,7 +196,7 @@ class CompilationUnitQueues {
     QueueImpl* queue;
     {
       int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
-      base::SharedMutexGuard<base::kShared> queues_guard{&queues_mutex_};
+      base::SpinningMutexGuard queues_guard{&queues_mutex_};
       while (!next_queue_to_add.compare_exchange_weak(
           queue_to_add, next_task_id(queue_to_add, queues_.size()),
           std::memory_order_relaxed)) {
@@ -231,7 +231,7 @@ class CompilationUnitQueues {
   }
 
   void AddTopTierPriorityUnit(WasmCompilationUnit unit, size_t priority) {
-    base::SharedMutexGuard<base::kShared> queues_guard{&queues_mutex_};
+    base::SpinningMutexGuard queues_guard{&queues_mutex_};
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
     // Priorities should only be seen as a hint here; without balancing, we
@@ -372,7 +372,7 @@ class CompilationUnitQueues {
     // Try to steal from all other queues. If this succeeds, return one of the
     // stolen units.
     {
-      base::SharedMutexGuard<base::kShared> guard{&queues_mutex_};
+      base::SpinningMutexGuard guard{&queues_mutex_};
       for (size_t steal_trials = 0; steal_trials < queues_.size();
            ++steal_trials, ++steal_task_id) {
         if (steal_task_id >= static_cast<int>(queues_.size())) {
@@ -430,7 +430,7 @@ class CompilationUnitQueues {
     // Try to steal from all other queues. If this succeeds, return one of the
     // stolen units.
     {
-      base::SharedMutexGuard<base::kShared> guard{&queues_mutex_};
+      base::SpinningMutexGuard guard{&queues_mutex_};
       for (size_t steal_trials = 0; steal_trials < queues_.size();
            ++steal_trials, ++steal_task_id) {
         if (steal_task_id >= static_cast<int>(queues_.size())) {
@@ -512,7 +512,7 @@ class CompilationUnitQueues {
   }
 
   // {queues_mutex_} protectes {queues_};
-  mutable base::SharedMutex queues_mutex_;
+  mutable base::SpinningMutex queues_mutex_;
   std::vector<std::unique_ptr<QueueImpl>> queues_;
 
   const int num_imported_functions_;
@@ -534,7 +534,7 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
   // sizeof(CompilationStateImpl).
   size_t result = 0;
   {
-    base::SharedMutexGuard<base::kShared> lock(&queues_mutex_);
+    base::SpinningMutexGuard mutex_guard(&queues_mutex_);
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
       base::SpinningMutexGuard guard(&q->mutex);
@@ -667,7 +667,7 @@ class CompilationStateImpl {
     // Reset the stored priority; otherwise triggers might be ignored if the
     // priority is not bumped to the next power of two.
     TypeFeedbackStorage* feedback = &native_module_->module()->type_feedback;
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(&feedback->mutex);
+    base::SpinningMutexGuard mutex_guard(&feedback->mutex);
     feedback->feedback_for_function[func_index].tierup_priority = 0;
   }
 
@@ -675,8 +675,7 @@ class CompilationStateImpl {
     const WasmModule* module = native_module_->module();
     uint32_t fn_start = module->num_imported_functions;
     uint32_t fn_end = fn_start + module->num_declared_functions;
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(
-        &module->type_feedback.mutex);
+    base::SpinningMutexGuard mutex_guard(&module->type_feedback.mutex);
     std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_map =
         module->type_feedback.feedback_for_function;
     for (uint32_t i = fn_start; i < fn_end; i++) {
@@ -1354,7 +1353,7 @@ class TransitiveTypeFeedbackProcessor {
   const WasmModule* const module_;
   // TODO(jkummerow): Check if it makes a difference to apply any updates
   // as a single batch at the end.
-  base::SharedMutexGuard<base::kExclusive> mutex_guard;
+  base::SpinningMutexGuard mutex_guard;
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
   std::set<int> queue_;
 };
@@ -1674,8 +1673,7 @@ void TriggerTierUp(Isolate* isolate,
   const WasmModule* module = native_module->module();
   int priority;
   {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(
-        &module->type_feedback.mutex);
+    base::SpinningMutexGuard mutex_guard(&module->type_feedback.mutex);
     int array_index = wasm::declared_function_index(module, func_index);
     trusted_instance_data->tiering_budget_array()[array_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);

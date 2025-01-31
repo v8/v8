@@ -7,6 +7,7 @@
 #include <bit>
 #include <optional>
 
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/code-tracer.h"
@@ -559,8 +560,7 @@ void NexusConfig::SetFeedbackPair(Tagged<FeedbackVector> vector,
                                   WriteBarrierMode mode_extra) const {
   CHECK(can_write());
   CHECK_GT(vector->length(), start_slot.WithOffset(1).ToInt());
-  base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-      isolate()->feedback_vector_access());
+  base::SpinningMutexGuard mutex_guard(isolate()->feedback_vector_access());
   vector->Set(start_slot, feedback, mode);
   vector->Set(start_slot.WithOffset(1), feedback_extra, mode_extra);
 }
@@ -568,8 +568,8 @@ void NexusConfig::SetFeedbackPair(Tagged<FeedbackVector> vector,
 std::pair<Tagged<MaybeObject>, Tagged<MaybeObject>>
 NexusConfig::GetFeedbackPair(Tagged<FeedbackVector> vector,
                              FeedbackSlot slot) const {
-  base::SharedMutexGuardIf<base::kShared> scope(
-      isolate()->feedback_vector_access(), mode() == BackgroundThread);
+  base::SpinningMutexGuardIf guard(isolate()->feedback_vector_access(),
+                                   mode() == BackgroundThread);
   Tagged<MaybeObject> feedback = vector->Get(slot);
   Tagged<MaybeObject> feedback_extra = vector->Get(slot.WithOffset(1));
   return std::make_pair(feedback, feedback_extra);

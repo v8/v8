@@ -744,7 +744,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 104);
   UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 40);
   // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
-  base::SharedMutexGuard<base::kShared> lock(&mutex);
+  base::SpinningMutexGuard guard(&mutex);
   size_t result = ContentSize(feedback_for_function);
   for (const auto& [func_idx, feedback] : feedback_for_function) {
     result += ContentSize(feedback.feedback_vector);
@@ -813,8 +813,7 @@ size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {
-  base::SharedMutexGuard<base::kShared> type_feedback_guard{
-      &module->type_feedback.mutex};
+  base::SpinningMutexGuard mutex_guard{&module->type_feedback.mutex};
   auto it = module->type_feedback.feedback_for_function.find(func_index);
   if (it == module->type_feedback.feedback_for_function.end()) return 0;
   // The number of call instructions is capped by max function size.

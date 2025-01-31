@@ -659,7 +659,7 @@ struct TypeFeedbackStorage {
   // - PGO deserializer: writes everything, currently not locked, relies on
   //   being called before multi-threading enters the picture.
   // - Deoptimizer: sets needs_reprocessing_after_deopt.
-  mutable base::SharedMutex mutex;
+  mutable base::SpinningMutex mutex;
 
   WellKnownImportsList well_known_imports;
 

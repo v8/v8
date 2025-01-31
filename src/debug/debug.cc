@@ -546,8 +546,7 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
 void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
                                  Tagged<DebugInfo> debug_info) {
   DisallowGarbageCollection no_gc;
-  base::SharedMutexGuard<base::kExclusive> mutex_guard(
-      isolate_->shared_function_info_access());
+  base::SpinningMutexGuard mutex_guard(isolate_->shared_function_info_access());
 
   DCHECK_EQ(sfi, debug_info->shared());
   DCHECK(!Contains(sfi));
@@ -592,8 +591,7 @@ Tagged<DebugInfo> DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
 }
 
 void DebugInfoCollection::DeleteIndex(size_t index) {
-  base::SharedMutexGuard<base::kExclusive> mutex_guard(
-      isolate_->shared_function_info_access());
+  base::SpinningMutexGuard mutex_guard(isolate_->shared_function_info_access());
 
   Tagged<DebugInfo> debug_info = EntryAsDebugInfo(index);
   Tagged<SharedFunctionInfo> sfi = debug_info->shared();

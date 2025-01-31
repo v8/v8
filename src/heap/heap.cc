@@ -3955,7 +3955,7 @@ void Heap::NotifyObjectLayoutChange(
     const Address clear_range_end = object.address() + new_size;
 
     if (incremental_marking()->IsMarking()) {
-      ExclusiveObjectLock::Lock(object);
+      ObjectLock::Lock(object);
       DCHECK_EQ(pending_layout_change_object_address, kNullAddress);
       pending_layout_change_object_address = object.address();
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
@@ -4019,7 +4019,7 @@ void Heap::NotifyObjectLayoutChange(
 void Heap::NotifyObjectLayoutChangeDone(Tagged<HeapObject> object) {
   if (pending_layout_change_object_address != kNullAddress) {
     DCHECK_EQ(pending_layout_change_object_address, object.address());
-    ExclusiveObjectLock::Unlock(object);
+    ObjectLock::Unlock(object);
     pending_layout_change_object_address = kNullAddress;
   }
 }

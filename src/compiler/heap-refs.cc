@@ -1748,7 +1748,7 @@ bool SharedFunctionInfoRef::HasBreakInfo(JSHeapBroker* broker) const {
     return object()->HasBreakInfo(broker->isolate());
   } else {
     LocalIsolate* local_isolate = broker->local_isolate();
-    SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
+    MutexGuardIfOffThread<LocalIsolate> mutex_guard(
         local_isolate->shared_function_info_access(), local_isolate);
     return object()->HasBreakInfo(local_isolate->GetMainThreadIsolateUnsafe());
   }

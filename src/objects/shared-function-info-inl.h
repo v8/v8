@@ -336,7 +336,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   }
 
   {
-    SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
+    MutexGuardIfOffThread<IsolateT> mutex_guard(
         isolate->shared_function_info_access(), isolate);
     if (HasBreakInfo(isolate->GetMainThreadIsolateUnsafe())) {
       return kMayContainBreakPoints;
@@ -713,7 +713,7 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
 template <typename IsolateT>
 Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
     IsolateT* isolate) const {
-  SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
+  MutexGuardIfOffThread<IsolateT> mutex_guard(
       isolate->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
