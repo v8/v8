@@ -146,6 +146,15 @@ class ScriptMutator {
         'jstest_stubs', sourceHelpers.loadResource('jstest_stubs.js'));
   }
 
+  _addChakraStubsIfNeeded(dependencies, input) {
+    if (dependencies.has('chakra_stubs') ||
+        !input.absPath.includes('chakra')) {
+      return;
+    }
+    dependencies.set(
+        'chakra_stubs', sourceHelpers.loadResource('chakra_stubs.js'));
+  }
+
   mutate(source) {
     let mutators = this.mutators.slice();
     let annotations = [];
@@ -185,6 +194,7 @@ class ScriptMutator {
         // that are not recursively resolved. We already remove them, but we
         // also need to load the dependencies they point to.
         this._addJSTestStubsIfNeeded(dependencies, input);
+        this._addChakraStubsIfNeeded(dependencies, input);
         this._addMjsunitIfNeeded(dependencies, input)
         this._addSpiderMonkeyShellIfNeeded(dependencies, input);
       } catch (e) {
