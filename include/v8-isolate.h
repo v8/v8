@@ -1177,8 +1177,7 @@ class V8_EXPORT Isolate {
    *
    * If a CppHeap is set via CreateParams, then this call is a noop.
    */
-  V8_DEPRECATE_SOON(
-      "Set the heap on Isolate creation using CreateParams instead.")
+  V8_DEPRECATED("Set the heap on Isolate creation using CreateParams instead.")
   void AttachCppHeap(CppHeap*);
 
   /**
@@ -1186,8 +1185,8 @@ class V8_EXPORT Isolate {
    *
    * If a CppHeap is set via CreateParams, then this call is a noop.
    */
-  V8_DEPRECATE_SOON(
-      "Set the heap on Isolate creation using CreateParams instead.")
+  V8_DEPRECATED(
+      "The CppHeap gets detached automatically during Isolate tear down.")
   void DetachCppHeap();
 
   using ReleaseCppHeapCallback = void (*)(std::unique_ptr<CppHeap>);
