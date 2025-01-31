@@ -1417,9 +1417,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
 void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
                                     GarbageCollectionReason gc_reason,
                                     const GCCallbackFlags gc_callback_flags) {
-  if (!incremental_marking()->IsStopped()) {
-    FinalizeIncrementalMarkingAtomically(gc_reason);
-  }
+  FinalizeIncrementalMarkingAtomicallyIfRunning(gc_reason);
   CollectAllGarbage(gc_flags, gc_reason, gc_callback_flags);
 }
 
@@ -3875,6 +3873,13 @@ void Heap::FinalizeIncrementalMarkingAtomically(
     GarbageCollectionReason gc_reason) {
   DCHECK(!incremental_marking()->IsStopped());
   CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
+}
+
+void Heap::FinalizeIncrementalMarkingAtomicallyIfRunning(
+    GarbageCollectionReason gc_reason) {
+  if (!incremental_marking()->IsStopped()) {
+    FinalizeIncrementalMarkingAtomically(gc_reason);
+  }
 }
 
 void Heap::InvokeIncrementalMarkingPrologueCallbacks() {

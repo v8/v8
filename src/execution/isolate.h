@@ -2402,7 +2402,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     if (v8_flags.memory_reducer_respects_frozen_state && IsFrozen()) {
       // We will either finalize an ongoing GC, or simply do a GC to reclaim
       // any unreachable memory.
-      heap()->FinalizeIncrementalMarkingAtomically(
+      heap()->FinalizeIncrementalMarkingAtomicallyIfRunning(
           i::GarbageCollectionReason::kFrozen);
       heap()->EnsureSweepingCompleted(
           Heap::SweepingForcedFinalizationMode::kUnifiedHeap);

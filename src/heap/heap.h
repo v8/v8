@@ -1040,6 +1040,10 @@ class Heap final {
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);
 
+  // Synchronously finalizes incremental marking if it is currently running.
+  V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomicallyIfRunning(
+      GarbageCollectionReason gc_reason);
+
   V8_EXPORT_PRIVATE void CompleteSweepingFull();
   void CompleteSweepingYoung();
 
