@@ -20,6 +20,26 @@
 [
   {
     "bisect_builder_group": "client.v8",
+    "bisect_buildername": "V8 Mac64 - debug builder",
+    "bug_url": "https://crbug.com/42204313",
+    "extra_args": [
+      "--framework=standard_runner",
+    ],
+    "isolated_name": "bot_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "pool:chromium.tests",
+      "os:Mac-14",
+    ],
+    "test_name": "cctest/test-concurrent-allocation/ConcurrentAllocationInOldSpace",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "future",
+  },
+  {
+    "bisect_builder_group": "client.v8",
     "bisect_buildername": "V8 Linux64 - predictable - builder",
     "bug_url": "https://crbug.com/v8/14228",
     "extra_args": [],
