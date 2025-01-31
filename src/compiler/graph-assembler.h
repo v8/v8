@@ -1061,6 +1061,12 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Number> ArrayBufferViewByteLength(
       TNode<JSArrayBufferView> array_buffer_view, InstanceType instance_type,
       std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context);
+  // Load just the detached bit on a TypedArray or DataView. For the full
+  // detached and out-of-bounds check on TypedArrays, please use
+  // CheckIfTypedArrayWasDetachedOrOutOfBounds.
+  TNode<Word32T> ArrayBufferDetachedBit(TNode<HeapObject> buffer);
+  TNode<Word32T> ArrayBufferViewDetachedBit(
+      TNode<JSArrayBufferView> array_buffer_view);
   // Computes the length for a given {typed_array}. If the set of possible
   // ElementsKinds is known statically pass as {elements_kinds_candidates} to
   // allow the assembler to generate more efficient code. Pass an empty
@@ -1071,7 +1077,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
       std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context);
   // Performs the full detached check. This includes fixed-length RABs whos
   // underlying buffer has been shrunk OOB.
-  void CheckIfTypedArrayWasDetached(
+  void CheckIfTypedArrayWasDetachedOrOutOfBounds(
       TNode<JSTypedArray> typed_array,
       std::set<ElementsKind> elements_kinds_candidates,
       const FeedbackSource& feedback);

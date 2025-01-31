@@ -193,6 +193,10 @@ function PrintBuffer(buffer) {
 }
 %NeverOptimizeFunction(PrintBuffer);
 
+// Detach a buffer to trip the protector up front, to prevent deopts in later
+// tests.
+%ArrayBufferDetach(new ArrayBuffer(8));
+
 (function() {
 for (let shared of [false, true]) {
   for (let length_tracking of [false, true]) {

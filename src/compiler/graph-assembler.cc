@@ -864,19 +864,15 @@ class ArrayBufferViewAccessBuilder {
         .Value();
   }
 
-  TNode<Word32T> BuildDetachedCheck(TNode<JSArrayBufferView> view) {
+  TNode<Word32T> BuildDetachedOrOutOfBoundsCheck(
+      TNode<JSArrayBufferView> view) {
     auto& a = *assembler_;
 
     // Load the underlying buffer and its bitfield.
     TNode<HeapObject> buffer = a.LoadField<HeapObject>(
         AccessBuilder::ForJSArrayBufferViewBuffer(), view);
-    TNode<Word32T> buffer_bit_field =
-        MachineLoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(),
-                                  buffer, UseInfo::TruncatingWord32());
     // Mask the detached bit.
-    TNode<Word32T> detached_bit =
-        a.Word32And(buffer_bit_field,
-                    a.Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+    TNode<Word32T> detached_bit = a.ArrayBufferDetachedBit(buffer);
 
     // If we statically know we cannot have rab/gsab backed, we are done here.
     if (!maybe_rab_gsab()) {
@@ -958,6 +954,22 @@ TNode<Number> JSGraphAssembler::ArrayBufferViewByteLength(
       TypeCache::Get()->kJSArrayBufferByteLengthType);
 }
 
+TNode<Word32T> JSGraphAssembler::ArrayBufferDetachedBit(
+    TNode<HeapObject> buffer) {
+  TNode<Word32T> bitfield = EnterMachineGraph<Word32T>(
+      LoadField<Word32T>(AccessBuilder::ForJSArrayBufferBitField(), buffer),
+      UseInfo::TruncatingWord32());
+  return Word32And(bitfield,
+                   Uint32Constant(JSArrayBuffer::WasDetachedBit::kMask));
+}
+
+TNode<Word32T> JSGraphAssembler::ArrayBufferViewDetachedBit(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  TNode<HeapObject> buffer = LoadField<HeapObject>(
+      AccessBuilder::ForJSArrayBufferViewBuffer(), array_buffer_view);
+  return ArrayBufferDetachedBit(buffer);
+}
+
 TNode<Number> JSGraphAssembler::TypedArrayLength(
     TNode<JSTypedArray> typed_array,
     std::set<ElementsKind> elements_kinds_candidates, TNode<Context> context) {
@@ -968,14 +980,15 @@ TNode<Number> JSGraphAssembler::TypedArrayLength(
                                   TypeCache::Get()->kJSTypedArrayLengthType);
 }
 
-void JSGraphAssembler::CheckIfTypedArrayWasDetached(
+void JSGraphAssembler::CheckIfTypedArrayWasDetachedOrOutOfBounds(
     TNode<JSTypedArray> typed_array,
     std::set<ElementsKind> elements_kinds_candidates,
     const FeedbackSource& feedback) {
   ArrayBufferViewAccessBuilder builder(this, JS_TYPED_ARRAY_TYPE,
                                        std::move(elements_kinds_candidates));
 
-  TNode<Word32T> detached_check = builder.BuildDetachedCheck(typed_array);
+  TNode<Word32T> detached_check =
+      builder.BuildDetachedOrOutOfBoundsCheck(typed_array);
   TNode<Boolean> is_not_detached =
       ExitMachineGraph<Boolean>(Word32Equal(detached_check, Uint32Constant(0)),
                                 MachineRepresentation::kBit, Type::Boolean());
