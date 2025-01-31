@@ -6056,21 +6056,6 @@ void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
   cpp_heap_ = cpp_heap;
 }
 
-void Heap::DetachCppHeap() {
-  // The API function should be a noop in case a CppHeap was passed on Isolate
-  // creation.
-  if (owning_cpp_heap_) {
-    return;
-  }
-
-  // The CppHeap may have been detached already.
-  if (!cpp_heap_) return;
-
-  CppHeap::From(cpp_heap_)->StartDetachingIsolate();
-  CppHeap::From(cpp_heap_)->DetachIsolate();
-  cpp_heap_ = nullptr;
-}
-
 std::optional<StackState> Heap::overridden_stack_state() const {
   if (!embedder_stack_state_origin_) return {};
   return embedder_stack_state_;

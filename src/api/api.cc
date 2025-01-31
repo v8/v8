@@ -9857,16 +9857,6 @@ void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
   i_isolate->heap()->SetEmbedderRootsHandler(handler);
 }
 
-void Isolate::AttachCppHeap(CppHeap* cpp_heap) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->heap()->AttachCppHeap(cpp_heap);
-}
-
-void Isolate::DetachCppHeap() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->heap()->DetachCppHeap();
-}
-
 CppHeap* Isolate::GetCppHeap() const {
   const i::Isolate* i_isolate = reinterpret_cast<const i::Isolate*>(this);
   return i_isolate->heap()->cpp_heap();

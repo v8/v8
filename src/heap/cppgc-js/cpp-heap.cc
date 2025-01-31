@@ -513,11 +513,6 @@ CppHeap::CppHeap(
 }
 
 CppHeap::~CppHeap() {
-  if (isolate_) {
-    // TODO(ahaas): Delete this code once `v8::Isolate::DetachCppHeap` has been
-    // deleted.
-    isolate_->heap()->DetachCppHeap();
-  }
   Terminate();
 }
 

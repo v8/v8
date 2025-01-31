@@ -1172,28 +1172,6 @@ class V8_EXPORT Isolate {
    */
   void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
 
-  /**
-   * Attaches a managed C++ heap as an extension to the JavaScript heap. The
-   * embedder maintains ownership of the CppHeap. At most one C++ heap can be
-   * attached to V8.
-   *
-   * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
-   * CppHeap.
-   *
-   * If a CppHeap is set via CreateParams, then this call is a noop.
-   */
-  V8_DEPRECATED("Set the heap on Isolate creation using CreateParams instead.")
-  void AttachCppHeap(CppHeap*);
-
-  /**
-   * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
-   *
-   * If a CppHeap is set via CreateParams, then this call is a noop.
-   */
-  V8_DEPRECATED(
-      "The CppHeap gets detached automatically during Isolate tear down.")
-  void DetachCppHeap();
-
   using ReleaseCppHeapCallback = void (*)(std::unique_ptr<CppHeap>);
 
   /**
@@ -1241,6 +1219,7 @@ class V8_EXPORT Isolate {
   class V8_DEPRECATED("AtomicsWaitWakeHandle is unused and will be removed.")
 #endif
   V8_EXPORT AtomicsWaitWakeHandle {
+
    public:
     /**
      * Stop this `Atomics.wait()` call and call the |AtomicsWaitCallback|

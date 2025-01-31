@@ -1104,9 +1104,6 @@ class Heap final {
   // Unified heap (C++) support. ===============================================
   // ===========================================================================
 
-  V8_EXPORT_PRIVATE void AttachCppHeap(v8::CppHeap* cpp_heap);
-  V8_EXPORT_PRIVATE void DetachCppHeap();
-
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
   std::optional<StackState> overridden_stack_state() const;
@@ -1647,6 +1644,8 @@ class Heap final {
 
  private:
   class AllocationTrackerForDebugging;
+
+  void AttachCppHeap(v8::CppHeap* cpp_heap);
 
   using ExternalStringTableUpdaterCallback =
       Tagged<String> (*)(Heap* heap, FullObjectSlot pointer);
