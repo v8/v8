@@ -262,6 +262,9 @@ var topFrameIsMaglevved;
 var topFrameIsTurboFanned;
 
 // Monkey-patchable all-purpose failure handler.
+var fail;
+
+// Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
 // Returns the formatted failure text.  Used by test-async.js.
@@ -414,7 +417,7 @@ var prettyPrinted;
     return message;
   }
 
-  function fail(expectedText, found, name_opt) {
+  fail = function fail(expectedText, found, name_opt) {
     throw new MjsUnitAssertionError(
         ()=>formatFailureText(expectedText, found, name_opt));
   }
