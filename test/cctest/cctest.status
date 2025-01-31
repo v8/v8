@@ -192,6 +192,9 @@
   # Apple silicon. See:
   # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
   'test-assembler-arm64/printf_no_preserve': [SKIP],
+
+  # https://crbug.com/42204313
+  'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [PASS, ['mode == debug', SKIP]],
 }],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
