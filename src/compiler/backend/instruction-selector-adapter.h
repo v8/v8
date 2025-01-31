@@ -426,10 +426,7 @@ struct TurbofanAdapter {
   class SimdShuffleView {
    public:
     explicit SimdShuffleView(node_t node) : node_(node) {
-      DCHECK(node_->opcode() == IrOpcode::kI8x2Shuffle ||
-             node_->opcode() == IrOpcode::kI8x4Shuffle ||
-             node_->opcode() == IrOpcode::kI8x8Shuffle ||
-             node_->opcode() == IrOpcode::kI8x16Shuffle ||
+      DCHECK(node_->opcode() == IrOpcode::kI8x16Shuffle ||
              node_->opcode() == IrOpcode::kI8x32Shuffle);
     }
 

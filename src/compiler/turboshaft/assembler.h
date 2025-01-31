@@ -5023,9 +5023,8 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<Simd128> Simd128Shuffle(V<Simd128> left, V<Simd128> right,
-                            Simd128ShuffleOp::Kind kind,
                             const uint8_t shuffle[kSimd128Size]) {
-    return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
+    return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
   }
 
   // SIMD256

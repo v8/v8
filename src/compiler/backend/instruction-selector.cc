@@ -2457,9 +2457,6 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I64x2AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, F32x4AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
 
-IF_WASM(VISIT_UNSUPPORTED_OP, I8x2Shuffle)
-IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
-IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 template <>
@@ -5868,20 +5865,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
 #undef VISIT_SIMD_SPLAT
       }
     }
-    case Opcode::kSimd128Shuffle: {
+    case Opcode::kSimd128Shuffle:
       MarkAsSimd128(node);
-      const Simd128ShuffleOp& shuffle = op.Cast<Simd128ShuffleOp>();
-      switch (shuffle.kind) {
-        case Simd128ShuffleOp::Kind::kI8x2:
-          return VisitI8x2Shuffle(node);
-        case Simd128ShuffleOp::Kind::kI8x4:
-          return VisitI8x4Shuffle(node);
-        case Simd128ShuffleOp::Kind::kI8x8:
-          return VisitI8x8Shuffle(node);
-        case Simd128ShuffleOp::Kind::kI8x16:
-          return VisitI8x16Shuffle(node);
-      }
-    }
+      return VisitI8x16Shuffle(node);
     case Opcode::kSimd128ReplaceLane: {
       const Simd128ReplaceLaneOp& replace = op.Cast<Simd128ReplaceLaneOp>();
       MarkAsSimd128(node);

@@ -146,11 +146,6 @@
 #include "src/wasm/wasm-builtin-list.h"
 #include "src/wasm/wasm-disassembler.h"
 #include "src/wasm/wasm-engine.h"
-
-#if V8_TARGET_ARCH_ARM64
-#include "src/compiler/turboshaft/wasm-simd-phase.h"
-#endif  // V8_TARGET_ARCH_ARM64
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
@@ -3233,7 +3228,6 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
     }
   }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
-
   const bool uses_wasm_gc_features =
       detected->has_gc() || detected->has_typed_funcref() ||
       detected->has_stringref() || detected->has_imported_strings() ||
@@ -3258,13 +3252,6 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   // TODO(384870251,dmercardier): Run a CopyingPhase with LoopFinder to
   // improve block ordering, independent of loop unrolling.
   turboshaft_pipeline.Run<turboshaft::WasmLoweringPhase>();
-
-#if V8_TARGET_ARCH_ARM64
-  if (v8_flags.experimental_wasm_simd_opt && v8_flags.wasm_opt &&
-      detected->has_simd()) {
-    turboshaft_pipeline.Run<turboshaft::WasmSimdPhase>();
-  }
-#endif  // V8_TARGET_ARCH_ARM64
 
   // TODO(14108): Do we need value numbering if wasm_opt is turned off?
   const bool is_asm_js = is_asmjs_module(module);

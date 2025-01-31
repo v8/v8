@@ -2069,8 +2069,7 @@ class MachineOptimizationReducer : public Next {
         [this](V<Simd128> maybe_shuffle) -> const Simd128ShuffleOp* {
       if (const Simd128ShuffleOp* shuffle =
               matcher_.TryCast<Simd128ShuffleOp>(maybe_shuffle)) {
-        if (shuffle->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-            shuffle->left() == shuffle->right()) {
+        if (shuffle->left() == shuffle->right()) {
           return shuffle;
         }
       }

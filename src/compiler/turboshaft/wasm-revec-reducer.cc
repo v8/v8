@@ -449,11 +449,6 @@ ShufflePackNode* SLPTree::Try256ShuffleMatchLoad8x8U(
   const Simd128ShuffleOp& op0 = graph_.Get(op_idx0).Cast<Simd128ShuffleOp>();
   const Simd128ShuffleOp& op1 = graph_.Get(op_idx1).Cast<Simd128ShuffleOp>();
 
-  if (op0.kind != Simd128ShuffleOp::Kind::kI8x16 ||
-      op1.kind != Simd128ShuffleOp::Kind::kI8x16) {
-    return nullptr;
-  }
-
   if (op0.left() == op0.right() || op1.left() == op1.right()) {
     // Here shuffle couldn't be swizzle
     return nullptr;
@@ -543,10 +538,6 @@ ShufflePackNode* SLPTree::X64TryMatch256Shuffle(const NodeGroup& node_group,
   OpIndex op_idx1 = node_group[1];
   const Simd128ShuffleOp& op0 = graph_.Get(op_idx0).Cast<Simd128ShuffleOp>();
   const Simd128ShuffleOp& op1 = graph_.Get(op_idx1).Cast<Simd128ShuffleOp>();
-  if (op0.kind != Simd128ShuffleOp::Kind::kI8x16 ||
-      op1.kind != Simd128ShuffleOp::Kind::kI8x16) {
-    return nullptr;
-  }
 
   uint8_t shuffle8x32[32];
 
@@ -1212,16 +1203,10 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     case Opcode::kSimd128Shuffle: {
-      const auto& shuffle_op0 = op0.Cast<Simd128ShuffleOp>();
-      const auto& shuffle_op1 = op1.Cast<Simd128ShuffleOp>();
-      if (shuffle_op0.kind != Simd128ShuffleOp::Kind::kI8x16 ||
-          shuffle_op1.kind != Simd128ShuffleOp::Kind::kI8x16) {
-        return nullptr;
-      }
       // We pack shuffles only if it can match specific patterns. We should
       // avoid packing general shuffles because it will cause regression.
-      const auto& shuffle0 = shuffle_op0.shuffle;
-      const auto& shuffle1 = shuffle_op1.shuffle;
+      const auto& shuffle0 = op0.Cast<Simd128ShuffleOp>().shuffle;
+      const auto& shuffle1 = op1.Cast<Simd128ShuffleOp>().shuffle;
 
       if (CompareCharsEqual(shuffle0, shuffle1, kSimd128Size)) {
         if (IsSplat(node_group)) {

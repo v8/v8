@@ -8278,15 +8278,7 @@ struct Simd128LoadTransformOp
 // both inputs are numbered 0-31, and each output 8-bit lane is selected from
 // among the input lanes according to `shuffle`.
 struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
-  enum class Kind : uint8_t {
-    kI8x2,
-    kI8x4,
-    kI8x8,
-    kI8x16,
-  };
-
-  uint8_t shuffle[kSimd128Size] = {0};
-  const Kind kind;
+  uint8_t shuffle[kSimd128Size];
 
   static constexpr OpEffects effects = OpEffects();
 
@@ -8300,27 +8292,10 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
                           RegisterRepresentation::Simd128()>();
   }
 
-  Simd128ShuffleOp(V<Simd128> left, V<Simd128> right, Kind kind,
+  Simd128ShuffleOp(V<Simd128> left, V<Simd128> right,
                    const uint8_t incoming_shuffle[kSimd128Size])
-      : Base(left, right), kind(kind) {
-    uint8_t count = 0;
-    switch (kind) {
-      default:
-        UNREACHABLE();
-      case Kind::kI8x2:
-        count = 2;
-        break;
-      case Kind::kI8x4:
-        count = 4;
-        break;
-      case Kind::kI8x8:
-        count = 8;
-        break;
-      case Kind::kI8x16:
-        count = 16;
-        break;
-    }
-    std::copy_n(incoming_shuffle, count, shuffle);
+      : Base(left, right) {
+    std::copy(incoming_shuffle, incoming_shuffle + kSimd128Size, shuffle);
   }
 
   V<Simd128> left() const { return input<Simd128>(0); }
@@ -8335,7 +8310,7 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
 #endif
   }
 
-  auto options() const { return std::tuple{kind, shuffle}; }
+  auto options() const { return std::tuple{shuffle}; }
   void PrintOptions(std::ostream& os) const;
 };
 

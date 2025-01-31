@@ -1509,11 +1509,6 @@ DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
-#if V8_TARGET_ARCH_ARM64
-DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
-                            "enable optimizations for Webassembly SIMD")
-#endif  // V8_TARGET_ARCH_ARM64
-
 DEFINE_EXPERIMENTAL_FEATURE(turbolev, "use Maglev as a frontend for Turboshaft")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
 DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)

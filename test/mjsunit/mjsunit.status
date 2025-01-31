@@ -778,12 +778,6 @@
  }],  # has_wasm_interpreter and variant == jitless and arch == arm64
 
 ##############################################################################
-# --experimental-wasm-simd-opt, only supported on arm64
-['arch != arm64', {
-  'wasm/redundant-shuffle-lanes': [SKIP],
-}],
-
-##############################################################################
 ['has_jitless', {
   # invocation_count maintenance is disabled.
   'code-coverage*': [SKIP],
@@ -2112,7 +2106,6 @@
   'wasm/multi-value-simd': [SKIP],
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
-  'wasm/redundant-shuffle-lanes': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'wasm/turboshaft/reduction-shuffle': [SKIP],
