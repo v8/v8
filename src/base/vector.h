@@ -62,7 +62,7 @@ class Vector {
   // Returns the length of the vector. Only use this if you really need an
   // integer return value. Use {size()} otherwise.
   int length() const {
-    DCHECK_GE(std::numeric_limits<int>::max(), length_);
+    CHECK_GE(std::numeric_limits<int>::max(), length_);
     return static_cast<int>(length_);
   }
 
