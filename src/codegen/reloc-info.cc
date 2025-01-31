@@ -420,10 +420,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
       os << " " << Builtins::name(target_code->builtin_id());
     }
     os << ")  (" << js_dispatch_handle() << ")";
+    break;
 #else
     UNREACHABLE();
 #endif
-    break;
     }
     default:
       if (IsCodeTargetMode(rmode_)) {
