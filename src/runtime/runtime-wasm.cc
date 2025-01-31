@@ -1310,7 +1310,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 #if V8_TARGET_BIG_ENDIAN
     MemCopyAndSwitchEndianness(reinterpret_cast<void*>(dest),
                                reinterpret_cast<void*>(source), length,
-                               element_size);
+                               element_type.value_kind_size());
 #else
     MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
             length_in_bytes);
