@@ -63,6 +63,12 @@ void ConservativeTracingVisitor::TraceConservatively(
         [this](const void* raw_pointer) {
           this->TraceConservativelyIfNeeded(raw_pointer);
         });
+    // We must also trace full pointers here as the conservative tracing visitor
+    // may be overridden to find pointers to other areas conservatively as well.
+    // E.g., v8::TracedReference points into a different memory region and is
+    // scanned conservatively when the GCed object is in construction. See
+    // `UnifiedHeapConservativeMarkingVisitor::TraceConservativelyIfNeeded()`.
+    this->TraceConservativelyIfNeeded(reinterpret_cast<void*>(maybe_full_ptr));
   }
 }
 
