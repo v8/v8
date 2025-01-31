@@ -82,7 +82,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   int bytecode_offset = -1;
   DirectHandle<Script> script_handle = isolate->factory()->empty_script();
   DirectHandle<SharedFunctionInfo> shared_info;
-  if (location != nullptr) {
+  if (location != nullptr && !v8_flags.correctness_fuzzer_suppressions) {
     start = location->start_pos();
     end = location->end_pos();
     script_handle = location->script();
