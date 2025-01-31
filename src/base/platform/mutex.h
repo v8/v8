@@ -118,22 +118,8 @@ class V8_BASE_EXPORT SpinningMutex final {
   void AssertHeld() const {}  // Not supported.
 
  private:
-#if V8_OS_DARWIN
-  os_unfair_lock lock_;
-#else
   absl::Mutex lock_;
-#endif
 };
-
-#if V8_OS_DARWIN
-
-V8_INLINE bool SpinningMutex::TryLock() {
-  return os_unfair_lock_trylock(&lock_);
-}
-
-V8_INLINE void SpinningMutex::Unlock() { return os_unfair_lock_unlock(&lock_); }
-
-#else
 
 V8_INLINE bool SpinningMutex::TryLock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   return lock_.TryLock();
@@ -142,8 +128,6 @@ V8_INLINE bool SpinningMutex::TryLock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
 V8_INLINE void SpinningMutex::Unlock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   lock_.Unlock();
 }
-
-#endif
 
 // POD Mutex initialized lazily (i.e. the first time Pointer() is called).
 // Usage:

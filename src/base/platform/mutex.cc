@@ -18,38 +18,6 @@
 namespace v8 {
 namespace base {
 
-#if V8_OS_DARWIN
-
-// TODO(verwaest): We should use the constants from the header, but they aren't
-// exposed until macOS 15.
-#define OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION 0x00010000
-#define OS_UNFAIR_LOCK_ADAPTIVE_SPIN 0x00040000
-
-typedef uint32_t os_unfair_lock_options_t;
-
-extern "C" {
-void __attribute__((weak))
-os_unfair_lock_lock_with_options(os_unfair_lock* lock,
-                                 os_unfair_lock_options_t);
-}
-
-void SpinningMutex::Lock() {
-  if (os_unfair_lock_lock_with_options) {
-    const os_unfair_lock_options_t options =
-        static_cast<os_unfair_lock_options_t>(
-            OS_UNFAIR_LOCK_DATA_SYNCHRONIZATION | OS_UNFAIR_LOCK_ADAPTIVE_SPIN);
-    os_unfair_lock_lock_with_options(&lock_, options);
-  } else {
-    os_unfair_lock_lock(&lock_);
-  }
-}
-
-#else
-
-void SpinningMutex::Lock() ABSL_NO_THREAD_SAFETY_ANALYSIS { lock_.Lock(); }
-
-#endif
-
 #if V8_OS_POSIX
 
 static V8_INLINE void InitializeRecursiveNativeHandle(pthread_mutex_t* mutex) {
@@ -222,11 +190,8 @@ bool Mutex::TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true, native_handle_) {
   return true;
 }
 
-#ifdef V8_OS_DARWIN
-SpinningMutex::SpinningMutex() : lock_(OS_UNFAIR_LOCK_INIT) {}
-#else
 SpinningMutex::SpinningMutex() = default;
-#endif
+void SpinningMutex::Lock() ABSL_NO_THREAD_SAFETY_ANALYSIS { lock_.Lock(); }
 
 }  // namespace base
 }  // namespace v8
