@@ -924,4 +924,47 @@ TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
   }
 }
 
+namespace {
+class WrappedWithConservativeGCInCtor final
+    : public cppgc::GarbageCollected<WrappedWithConservativeGCInCtor> {
+ public:
+  template <typename GCCallback>
+  WrappedWithConservativeGCInCtor(v8::Isolate* isolate,
+                                  v8::Local<v8::Private> data, GCCallback gc)
+      : data_(isolate, data) {
+    // A GC here means that the object is in construction and data_ will be
+    // traced conservatively. If we miss out on handling the TracedReference it
+    // will be zapped.
+    gc();
+  }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    // For completeness only as GC in ctor won't use the `Trace()` method.
+    visitor->Trace(data_);
+  }
+
+  v8::Local<v8::Private> data(v8::Isolate* isolate) {
+    return data_.Get(isolate);
+  }
+
+ private:
+  TracedReference<v8::Private> data_;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrappedWithConservativeGCInCtor) {
+  v8::Isolate* isolate = v8_isolate();
+  WrappedWithConservativeGCInCtor* object =
+      cppgc::MakeGarbageCollected<WrappedWithConservativeGCInCtor>(
+          allocation_handle(), isolate,
+          v8::Private::New(isolate,
+                           v8::String::NewFromUtf8Literal(isolate, "test")),
+          [this]() {
+            this->CollectGarbageWithEmbedderStack(
+                cppgc::Heap::SweepingType::kAtomic);
+          });
+  v8::Local<v8::Value> name = object->data(isolate)->Name();
+  CHECK(name->IsString());
+}
+
 }  // namespace v8::internal
