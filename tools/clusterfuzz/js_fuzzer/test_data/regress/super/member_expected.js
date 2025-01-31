@@ -17,13 +17,19 @@ class A {
 class B extends A {
   constructor() {
     /* CrossOverMutator: Crossover from foo */
-    super.baz();
+    try {
+      super.baz();
+    } catch (e) {}
+
     console.log(42);
   }
 
   method() {
     /* CrossOverMutator: Crossover from foo */
-    super.baz();
+    try {
+      super.baz();
+    } catch (e) {}
+
     console.log(42);
   }
 

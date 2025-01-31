@@ -163,4 +163,5 @@ class AddTryCatchMutator extends mutator.Mutator {
 
 module.exports = {
   AddTryCatchMutator: AddTryCatchMutator,
+  wrapTryCatch: wrapTryCatch,
 }
