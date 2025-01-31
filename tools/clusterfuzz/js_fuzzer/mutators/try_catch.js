@@ -14,11 +14,11 @@ const mutator = require('./mutator.js');
 const random = require('../random.js');
 
 // Default target probability for skipping try-catch completely.
-const DEFAULT_SKIP_PROB = 0.2;
+const DEFAULT_SKIP_PROB = 0.1;
 
 // Default target probability to wrap only on toplevel, i.e. to not nest
 // try-catch.
-const DEFAULT_TOPLEVEL_PROB = 0.3;
+const DEFAULT_TOPLEVEL_PROB = 0.4;
 
 // Probability to deviate from defaults and use extreme cases.
 const IGNORE_DEFAULT_PROB = 0.05;
@@ -79,7 +79,7 @@ class AddTryCatchMutator extends mutator.Mutator {
     if (probability < this.skipProb * this.loc) {
       // Entirely skip try-catch wrapper.
       path.skip();
-    } else if (probability < (this.skipProb + this.toplevelProb) * this.loc) {
+    } else if (probability < (this.skipProb + this.toplevelProb)) {
       // Only wrap on top-level.
       fun(path);
     }
@@ -107,7 +107,7 @@ class AddTryCatchMutator extends mutator.Mutator {
           thisMutator.toplevelProb = DEFAULT_TOPLEVEL_PROB;
           // Maybe deviate from target probability for the entire test.
           if (random.choose(IGNORE_DEFAULT_PROB)) {
-            thisMutator.skipProb = random.uniform(0, 1);
+            thisMutator.skipProb = random.uniform(0, 0.5);
             thisMutator.toplevelProb = random.uniform(0, 1);
             thisMutator.annotate(
                 path.node,
