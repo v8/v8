@@ -114,6 +114,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // - LeaveAtomicPause()
   void FinishMarking(StackState);
 
+  void ProcessCrossThreadWeaknessIfNeeded();
   void ProcessWeakness();
 
   bool JoinConcurrentMarkingIfNeeded();
@@ -206,6 +207,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};
+  bool processed_cross_thread_weakness_{false};
 };
 
 class V8_EXPORT_PRIVATE Marker final : public MarkerBase {

@@ -486,6 +486,11 @@ void MarkCompactCollector::CollectGarbage() {
   MaybeEnableBackgroundThreadsInCycle(CallOrigin::kAtomicGC);
 
   MarkLiveObjects();
+
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
+    cpp_heap->ProcessCrossThreadWeakness();
+  }
+
   // This will walk dead object graphs and so requires that all references are
   // still intact.
   RecordObjectStats();

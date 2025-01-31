@@ -318,11 +318,7 @@ void MarkerBase::LeaveAtomicPause() {
         schedule_->GetOverallMarkedBytes());
     is_marking_ = false;
   }
-  {
-    // Weakness callbacks are forbidden from allocating objects.
-    cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
-    ProcessWeakness();
-  }
+  ProcessWeakness();
   heap().SetStackStateOfPrevGC(config_.stack_state);
 }
 
@@ -375,20 +371,41 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
   LivenessBroker& broker_;
 };
 
-void MarkerBase::ProcessWeakness() {
+void MarkerBase::ProcessCrossThreadWeaknessIfNeeded() {
   DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
+
+  if (processed_cross_thread_weakness_) {
+    return;
+  }
 
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                            StatsCollector::kAtomicWeak);
+  // Weakness callbacks are forbidden from allocating objects.
+  cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
 
   RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
 
   // Processing cross-thread roots requires taking the global process lock.
   // Process these weak roots first to minimize the time the lock is held.
-  g_process_mutex.Get().AssertHeld();
+  ProcessGlobalLock::AssertHeld();
   CHECK(visited_cross_thread_persistents_in_atomic_pause_);
   heap().GetWeakCrossThreadPersistentRegion().Iterate(root_marking_visitor);
-  g_process_mutex.Pointer()->Unlock();
+  ProcessGlobalLock::Unlock<ProcessGlobalLock::Reason::kForGC>();
+  processed_cross_thread_weakness_ = true;
+}
+
+void MarkerBase::ProcessWeakness() {
+  DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
+
+  ProcessCrossThreadWeaknessIfNeeded();
+
+  // Weakness callbacks are forbidden from allocating objects.
+  cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_);
+
+  StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
+                                           StatsCollector::kAtomicWeak);
+
+  RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
 
   // Launch the parallel job before anything else to provide the maximum time
   // slice for processing.
@@ -512,7 +529,7 @@ void MarkerBase::VisitCrossThreadRoots() {
   // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
   // converted into a CrossThreadPersistent which requires that the handle
   // is either cleared or the object is retained.
-  g_process_mutex.Pointer()->Lock();
+  ProcessGlobalLock::Lock<ProcessGlobalLock::Reason::kForGC>();
   RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
   heap().GetStrongCrossThreadPersistentRegion().Iterate(root_marking_visitor);
   visited_cross_thread_persistents_in_atomic_pause_ = true;

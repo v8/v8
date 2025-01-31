@@ -896,6 +896,17 @@ void RecordEmbedderMarkingSpeed(GCTracer* tracer, base::TimeDelta marking_time,
 
 }  // namespace
 
+void CppHeap::ProcessCrossThreadWeakness() {
+  CHECK(in_atomic_pause_);
+  CHECK(marking_done_);
+
+  if (!TracingInitialized()) {
+    return;
+  }
+
+  marker_->ProcessCrossThreadWeaknessIfNeeded();
+}
+
 void CppHeap::FinishMarkingAndProcessWeakness() {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);

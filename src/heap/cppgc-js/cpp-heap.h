@@ -146,6 +146,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void StartMarking();
   bool AdvanceTracing(v8::base::TimeDelta max_duration);
   bool IsTracingDone() const;
+  void ProcessCrossThreadWeakness();
   void FinishMarkingAndProcessWeakness();
   void CompactAndSweep();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);

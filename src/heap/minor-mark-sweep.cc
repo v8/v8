@@ -437,6 +437,9 @@ void MinorMarkSweepCollector::CollectGarbage() {
   is_in_atomic_pause_.store(true, std::memory_order_relaxed);
 
   MarkLiveObjects();
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
+    cpp_heap->ProcessCrossThreadWeakness();
+  }
   ClearNonLiveReferences();
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {

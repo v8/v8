@@ -117,17 +117,17 @@ bool PersistentRegion::IsCreationThread() {
 }
 
 PersistentRegionLock::PersistentRegionLock() {
-  g_process_mutex.Pointer()->Lock();
+  ProcessGlobalLock::Lock<
+      ProcessGlobalLock::Reason::kForCrossThreadHandleCreation>();
 }
 
 PersistentRegionLock::~PersistentRegionLock() {
-  g_process_mutex.Pointer()->Unlock();
+  ProcessGlobalLock::Unlock<
+      ProcessGlobalLock::Reason::kForCrossThreadHandleCreation>();
 }
 
 // static
-void PersistentRegionLock::AssertLocked() {
-  return g_process_mutex.Pointer()->AssertHeld();
-}
+void PersistentRegionLock::AssertLocked() { ProcessGlobalLock::AssertHeld(); }
 
 CrossThreadPersistentRegion::CrossThreadPersistentRegion(
     const FatalOutOfMemoryHandler& oom_handler)
