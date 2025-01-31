@@ -3835,7 +3835,15 @@ static const MemoryAccess kMemoryAccesses[] = {
      kArm64LdrD,
      kArm64StrD,
      {-256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
-      256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760}}};
+      256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760}},
+#if V8_ENABLE_WEBASSEMBLY
+    {MachineType::Simd128(),
+     kArm64LdrQ,
+     kArm64StrQ,
+     {-256, -255, -3,   -2,   -1,   0,     1,     2,     3,     255,
+      256,  264,  4096, 8192, 8200, 16384, 16392, 32752, 65520, 65536}}
+#endif  // V8_ENABLE_WEBASSEMBLY
+};
 
 using TurboshaftInstructionSelectorMemoryAccessTest =
     TurboshaftInstructionSelectorTestWithParam<MemoryAccess>;
@@ -3861,11 +3869,17 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithImmediateIndex) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
+    if (memacc.type == MachineType::Simd128()) {
+      // We currently don't support immediate addressing.
+      EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+      ASSERT_NE(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    } else {
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+    }
   }
 }
 
@@ -3895,11 +3909,17 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
-    EXPECT_EQ(0U, s[0]->OutputCount());
+    if (memacc.type == MachineType::Simd128()) {
+      // We don't yet support immediate offsets.
+      EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+      ASSERT_NE(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+    } else {
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+      EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
+      EXPECT_EQ(0U, s[0]->OutputCount());
+    }
   }
 }
 
@@ -3924,36 +3944,50 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreZero) {
       case MachineRepresentation::kFloat64:
         zero = m.Float64Constant(0);
         break;
+#if V8_ENABLE_WEBASSEMBLY
+      case MachineRepresentation::kSimd128: {
+        uint8_t data[kSimd128Size] = {0};
+        zero = m.Simd128Constant(data);
+        break;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
     }
     m.Store(rep, m.Parameter(0), m.Int64Constant(index), zero, kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
-    ASSERT_EQ(3U, s[0]->InputCount());
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
-    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
-    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
-    switch (rep) {
-      case MachineRepresentation::kWord8:
-      case MachineRepresentation::kWord16:
-      case MachineRepresentation::kWord32:
-      case MachineRepresentation::kWord64:
-        EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
-        break;
-      case MachineRepresentation::kFloat32:
-        EXPECT_EQ(0, s.ToFloat32(s[0]->InputAt(0)));
-        break;
-      case MachineRepresentation::kFloat64:
-        EXPECT_EQ(0, s.ToFloat64(s[0]->InputAt(0)));
-        break;
-      default:
-        UNREACHABLE();
+    if (memacc.type == MachineType::Simd128()) {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
+      // We don't yet support immediate offsets.
+      EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
+    } else {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(2)->kind());
+      EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(2)));
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(0)->kind());
+      switch (rep) {
+        case MachineRepresentation::kWord8:
+        case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
+        case MachineRepresentation::kWord64:
+          EXPECT_EQ(0, s.ToInt64(s[0]->InputAt(0)));
+          break;
+        case MachineRepresentation::kFloat32:
+          EXPECT_EQ(0, s.ToFloat32(s[0]->InputAt(0)));
+          break;
+        case MachineRepresentation::kFloat64:
+          EXPECT_EQ(0, s.ToFloat64(s[0]->InputAt(0)));
+          break;
+        default:
+          UNREACHABLE();
+      }
+      EXPECT_EQ(0U, s[0]->OutputCount());
     }
-    EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
 
@@ -3975,6 +4009,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(1U, s[0]->OutputCount());
+      } else if (memacc.type == MachineType::Simd128()) {
+        ASSERT_EQ(2U, s.size());
+        EXPECT_EQ(memacc.ldr_opcode, s[1]->arch_opcode());
+        EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
       } else {
         // Make sure we haven't merged the shift into the load instruction.
         ASSERT_NE(1U, s.size());
@@ -3996,6 +4034,11 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, LoadWithShiftedIndex) {
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(1U, s[0]->OutputCount());
+      } else if (memacc.type == MachineType::Simd128()) {
+        // Make sure we haven't merged the shift into the load instruction.
+        ASSERT_EQ(2U, s.size());
+        EXPECT_EQ(memacc.ldr_opcode, s[1]->arch_opcode());
+        EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
       } else {
         // Make sure we haven't merged the shift into the load instruction.
         ASSERT_NE(1U, s.size());
@@ -4025,6 +4068,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(4U, s[0]->InputCount());
         EXPECT_EQ(0U, s[0]->OutputCount());
+      } else if (memacc.type == MachineType::Simd128()) {
+        ASSERT_EQ(2U, s.size());
+        EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
+        EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
       } else {
         // Make sure we haven't merged the shift into the store instruction.
         ASSERT_NE(1U, s.size());
@@ -4048,6 +4095,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
         EXPECT_EQ(kMode_Operand2_R_LSL_I, s[0]->addressing_mode());
         EXPECT_EQ(4U, s[0]->InputCount());
         EXPECT_EQ(0U, s[0]->OutputCount());
+      } else if (memacc.type == MachineType::Simd128()) {
+        ASSERT_EQ(2U, s.size());
+        EXPECT_EQ(memacc.str_opcode, s[1]->arch_opcode());
+        EXPECT_EQ(kMode_MRR, s[1]->addressing_mode());
       } else {
         // Make sure we haven't merged the shift into the store instruction.
         ASSERT_NE(1U, s.size());
