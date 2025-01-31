@@ -94,14 +94,21 @@ class SwitchInfoT {
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
+#ifdef V8_TARGET_ARCH_X64
+class OperandGeneratorT : public TurboshaftAdapter {
+  using Adapter = TurboshaftAdapter;
+  using selector_t = InstructionSelectorT;
+#else
 template <typename Adapter>
 class OperandGeneratorT : public Adapter {
+  using selector_t = InstructionSelectorT<Adapter>;
+#endif
  public:
   using block_t = typename Adapter::block_t;
   using node_t = typename Adapter::node_t;
   using optional_node_t = typename Adapter::optional_node_t;
 
-  explicit OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
+  explicit OperandGeneratorT(selector_t* selector)
       : Adapter(selector->schedule()), selector_(selector) {}
 
   InstructionOperand NoOutput() {
@@ -360,7 +367,7 @@ class OperandGeneratorT : public Adapter {
   }
 
  protected:
-  InstructionSelectorT<Adapter>* selector() const { return selector_; }
+  selector_t* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Zone* zone() const { return selector()->instruction_zone(); }
 
@@ -433,6 +440,9 @@ class OperandGeneratorT : public Adapter {
       }
       UNREACHABLE();
     } else {
+#ifdef V8_TARGET_ARCH_X64
+      UNREACHABLE();
+#else
       switch (node->opcode()) {
         case IrOpcode::kInt32Constant:
           return Constant(OpParameter<int32_t>(node->op()));
@@ -497,6 +507,7 @@ class OperandGeneratorT : public Adapter {
         default:
           break;
       }
+#endif
     }
     UNREACHABLE();
   }
@@ -560,7 +571,7 @@ class OperandGeneratorT : public Adapter {
                               location.AsRegister(), virtual_register);
   }
 
-  InstructionSelectorT<Adapter>* selector_;
+  selector_t* selector_;
 };
 
 }  // namespace compiler

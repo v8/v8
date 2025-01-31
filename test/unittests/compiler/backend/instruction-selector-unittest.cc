@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
+#ifndef V8_TARGET_ARCH_X64
 InstructionSelectorTest::InstructionSelectorTest()
     : TestWithNativeContextAndZone(kCompressGraphZone),
       rng_(v8_flags.random_seed) {}
@@ -614,7 +614,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
   EXPECT_EQ(index, s.size());
 }
-
+#endif
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

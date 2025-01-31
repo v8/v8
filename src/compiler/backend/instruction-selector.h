@@ -38,12 +38,18 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
+#ifndef V8_TARGET_ARCH_X64
 template <typename Adapter>
+#endif
 struct CallBufferT;  // TODO(bmeurer): Remove this.
+#ifndef V8_TARGET_ARCH_X64
 template <typename Adapter>
+#endif
 class InstructionSelectorT;
 class Linkage;
+#ifndef V8_TARGET_ARCH_X64
 template <typename Adapter>
+#endif
 class OperandGeneratorT;
 template <typename Adapter>
 class SwitchInfoT;
@@ -128,13 +134,21 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
  private:
+#ifdef V8_TARGET_ARCH_X64
+  InstructionSelector(std::nullptr_t, InstructionSelectorT* turboshaft_impl);
+#else
   InstructionSelector(InstructionSelectorT<TurbofanAdapter>* turbofan_impl,
                       InstructionSelectorT<TurboshaftAdapter>* turboshaft_impl);
+#endif
   InstructionSelector(const InstructionSelector&) = delete;
   InstructionSelector& operator=(const InstructionSelector&) = delete;
 
+#ifdef V8_TARGET_ARCH_X64
+  InstructionSelectorT* turboshaft_impl_;
+#else
   InstructionSelectorT<TurbofanAdapter>* turbofan_impl_;
   InstructionSelectorT<TurboshaftAdapter>* turboshaft_impl_;
+#endif
 };
 
 // The flags continuation is a way to combine a branch or a materialization
@@ -142,8 +156,14 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
+#ifdef V8_TARGET_ARCH_X64
+class FlagsContinuationT final {
+  using Adapter = TurboshaftAdapter;
+#else
 template <typename Adapter>
 class FlagsContinuationT final {
+#endif
+
  public:
   using block_t = typename Adapter::block_t;
   using node_t = typename Adapter::node_t;
@@ -452,6 +472,26 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
+#ifdef V8_TARGET_ARCH_X64
+class InstructionSelectorT final : public TurboshaftAdapter {
+  using Adapter = TurboshaftAdapter;
+
+ public:
+  using OperandGenerator = OperandGeneratorT;
+  using PushParameter = PushParameterT<Adapter>;
+  using CallBuffer = CallBufferT;
+  using FlagsContinuation = FlagsContinuationT;
+  using SwitchInfo = SwitchInfoT<Adapter>;
+  using CaseInfo = CaseInfoT<Adapter>;
+
+  using schedule_t = typename Adapter::schedule_t;
+  using block_t = typename Adapter::block_t;
+  using block_range_t = typename Adapter::block_range_t;
+  using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
+  using id_t = typename Adapter::id_t;
+  using source_position_table_t = typename Adapter::source_position_table_t;
+#else
 template <typename Adapter>
 class InstructionSelectorT final : public Adapter {
  public:
@@ -469,6 +509,7 @@ class InstructionSelectorT final : public Adapter {
   using optional_node_t = typename Adapter::optional_node_t;
   using id_t = typename Adapter::id_t;
   using source_position_table_t = typename Adapter::source_position_table_t;
+#endif
 
   using Features = InstructionSelector::Features;
 
@@ -649,7 +690,7 @@ class InstructionSelectorT final : public Adapter {
   int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
 
   int GetVirtualRegister(node_t node);
-  const std::map<id_t, int> GetVirtualRegistersForTesting() const;
+  const std::map<uint32_t, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
@@ -700,7 +741,7 @@ class InstructionSelectorT final : public Adapter {
   void UpdateSourcePosition(Instruction* instruction, node_t node);
 
  private:
-  friend class OperandGeneratorT<Adapter>;
+  friend OperandGenerator;
 
   bool UseInstructionScheduling() const {
     return (enable_scheduling_ == InstructionSelector::kEnableScheduling) &&

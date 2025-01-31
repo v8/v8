@@ -135,12 +135,13 @@
   # reenable this test.
   'test-torque/TestLoadEliminationVariable': [SKIP],
 
-  # TODO(nicohartmann): Currently broken with Turboshaft backend. Needs to be
-  # ported.
+  # TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
+  # Needs to be ported.
   'test-basic-block-profiler/*': [SKIP],
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
+  'test-instruction-scheduler/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
