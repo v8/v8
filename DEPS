@@ -274,7 +274,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'f96372c996f7d9d769f8d86d40d71c6ecaeb1488',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '2b6b042a77446ff322cd7522ca068d9f2a21c1d1',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'b4aae50ce1dfa3aeb885ef22c998119adef9c720',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '9e5b13befdb88a9467fc52f23960fe1a9d603f33',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'a18151a37839fc91e387bd2f33bb38eb2c043bcf',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6f49850910a5160e9f8c3f35f4e07b6fc02feae0',
   'third_party/re2/src':
@@ -484,7 +484,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5634698162b2182c350e4cb360a0f4dd7706afec',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '544050827ca72b26df5738d18ea9949def1bf3a8',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a037c8c5ad9a5591d9699730ed8c30f3e0a9a5ac',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
