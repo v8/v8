@@ -24,6 +24,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class TrustedPointerPublishingScope;
 
 #if V8_HOST_ARCH_64_BIT
 // In kSystemPointerSize.
@@ -171,7 +172,10 @@ struct JSBuiltinDispatchHandleRoot {
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)                                      \
   V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                 \
   V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table) \
-  V(SharedTrustedPointerTable, kSystemPointerSize, shared_trusted_pointer_table)
+  V(SharedTrustedPointerTable, kSystemPointerSize,                          \
+    shared_trusted_pointer_table)                                           \
+  V(TrustedPointerPublishingScope, kSystemPointerSize,                      \
+    trusted_pointer_publishing_scope)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -483,6 +487,7 @@ class IsolateData final {
 
   TrustedPointerTable trusted_pointer_table_;
   TrustedPointerTable* shared_trusted_pointer_table_ = nullptr;
+  TrustedPointerPublishingScope* trusted_pointer_publishing_scope_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk

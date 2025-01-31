@@ -2382,6 +2382,8 @@ filegroup(
         "src/sandbox/js-dispatch-table.cc",
         "src/sandbox/js-dispatch-table.h",
         "src/sandbox/js-dispatch-table-inl.h",
+        "src/sandbox/trusted-pointer-scope.cc",
+        "src/sandbox/trusted-pointer-scope.h",
         "src/sandbox/trusted-pointer-table.cc",
         "src/sandbox/trusted-pointer-table.h",
         "src/sandbox/trusted-pointer-table-inl.h",

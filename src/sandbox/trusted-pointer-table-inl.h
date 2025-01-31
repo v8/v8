@@ -7,6 +7,7 @@
 
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/sandbox.h"
+#include "src/sandbox/trusted-pointer-scope.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
 #ifdef V8_ENABLE_SANDBOX
@@ -122,11 +123,13 @@ void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
 }
 
 TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
-    Space* space, Address pointer, IndirectPointerTag tag) {
+    Space* space, Address pointer, IndirectPointerTag tag,
+    TrustedPointerPublishingScope* scope) {
   DCHECK(space->BelongsTo(this));
   Validate(pointer, tag);
   uint32_t index = AllocateEntry(space);
   at(index).MakeTrustedPointerEntry(pointer, tag, space->allocate_black());
+  if (scope != nullptr) scope->TrackPointer(&at(index));
   return IndexToHandle(index);
 }
 

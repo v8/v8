@@ -763,11 +763,10 @@ class LiftoffCompiler {
       input_idx_ = kFirstInputIdx;
       while (NextParam()) {
         LiftoffRegister reg = LoadToReg(param_regs_);
-        // In-sandbox corruption can replace one function's code with another's.
-        // That's mostly safe, but certain signature mismatches can violate
-        // security-relevant invariants later. To maintain such invariants,
-        // explicitly clear the high word of any i32 parameters in 64-bit
-        // registers.
+        // The sandbox's function signature checks don't care to distinguish
+        // i32 and i64 primitives. That's usually fine, but in a few cases
+        // i32 parameters with non-zero upper halves can violate security-
+        // relevant invariants, so we explicitly clear them here.
         // 'clear_i32_upper_half' is empty on LoongArch64, MIPS64 and riscv64,
         // because they will explicitly zero-extend their lower halves before
         // using them for memory accesses anyway.

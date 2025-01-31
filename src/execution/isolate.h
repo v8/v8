@@ -2248,6 +2248,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(
         &isolate_data_.shared_trusted_pointer_table_);
   }
+
+  TrustedPointerPublishingScope* trusted_pointer_publishing_scope() const {
+    return isolate_data_.trusted_pointer_publishing_scope_;
+  }
+  void set_trusted_pointer_publishing_scope(
+      TrustedPointerPublishingScope* scope) {
+    isolate_data_.trusted_pointer_publishing_scope_ = scope;
+  }
 #endif  // V8_ENABLE_SANDBOX
 
   Address continuation_preserved_embedder_data_address() {

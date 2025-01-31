@@ -2487,20 +2487,16 @@ void InstanceBuilder::ProcessExports(
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   std::unordered_map<int, IndirectHandle<Object>> imported_globals;
 
-  // If an imported WebAssembly function or global gets exported, the export
-  // has to be identical to to import. Therefore we cache all imported
-  // WebAssembly functions in the instance, and all imported globals in a map
-  // here.
+  // If an imported WebAssembly global gets exported, the export has to be
+  // identical to to import. Therefore we cache all re-exported globals
+  // in a map here.
+  // Note: re-exported functions must also preserve their identity; they
+  // have already been cached in the instance by {ProcessImportedFunction}.
   for (size_t index = 0, end = module_->import_table.size(); index < end;
        ++index) {
     const WasmImport& import = module_->import_table[index];
-    if (import.kind == kExternalFunction) {
-      DirectHandle<Object> value = sanitized_imports_[index];
-      if (WasmExternalFunction::IsWasmExternalFunction(*value)) {
-        trusted_instance_data->func_refs()->set(
-            import.index, Cast<WasmExternalFunction>(*value)->func_ref());
-      }
-    } else if (import.kind == kExternalGlobal) {
+    if (import.kind == kExternalGlobal &&
+        module_->globals[import.index].exported) {
       Handle<Object> value = sanitized_imports_[index];
       if (IsWasmGlobalObject(*value)) {
         imported_globals[import.index] = value;

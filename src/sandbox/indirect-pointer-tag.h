@@ -34,8 +34,8 @@ namespace internal {
 // guaranteed to work (similar for how we do it for ExternalPointerTags).
 
 constexpr int kIndirectPointerTagShift = 48;
-constexpr uint64_t kIndirectPointerTagMask = 0x7fff000000000000;
-constexpr uint64_t kTrustedPointerTableMarkBit = 0x8000000000000000;
+constexpr uint64_t kIndirectPointerTagMask = 0x7fff'0000'0000'0000;
+constexpr uint64_t kTrustedPointerTableMarkBit = 0x8000'0000'0000'0000;
 // We use a reserved bit for the free entry tag so that the
 // kUnknownIndirectPointerTag cannot untag free entries. Due to that, not all
 // tags in the kAllTagsForAndBasedTypeChecking are usable here (which is
@@ -46,9 +46,9 @@ constexpr uint64_t kTrustedPointerTableMarkBit = 0x8000000000000000;
 // Note that we use a bit in the 2nd most significant byte here due to top byte
 // ignore (TBI), which allows dereferencing pointers even if bits in the most
 // significant byte are set.
-constexpr uint64_t kTrustedPointerTableFreeEntryBit = 0x0080000000000000;
+constexpr uint64_t kTrustedPointerTableFreeEntryBit = 0x0080'0000'0000'0000;
 constexpr uint64_t kIndirectPointerTagMaskWithoutFreeEntryBit =
-    0x7f7f000000000000;
+    0x7f7f'0000'0000'0000;
 
 // TODO(saelo): Also switch the trusted pointer table to use a range-based type
 // checking mechanism instead of the AND-based one. This will allow us to

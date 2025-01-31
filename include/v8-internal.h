@@ -738,7 +738,7 @@ using TrustedPointerHandle = IndirectPointerHandle;
 // shifted indices allows omitting bounds checks.
 constexpr size_t kTrustedPointerTableReservationSize = 64 * MB;
 
-// The trusted pointer handles are stores shifted to the left by this amount
+// The trusted pointer handles are stored shifted to the left by this amount
 // to guarantee that they are smaller than the maximum table size.
 constexpr uint32_t kTrustedPointerHandleShift = 9;
 
@@ -935,8 +935,10 @@ class Internals {
       kIsolateTrustedCageBaseOffset + kApiSystemPointerSize;
   static const int kIsolateSharedTrustedPointerTableAddressOffset =
       kIsolateTrustedPointerTableOffset + kTrustedPointerTableSize;
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateTrustedPointerPublishingScopeOffset =
       kIsolateSharedTrustedPointerTableAddressOffset + kApiSystemPointerSize;
+  static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateTrustedPointerPublishingScopeOffset + kApiSystemPointerSize;
 #else
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateCppHeapPointerTableOffset + kExternalPointerTableSize;
