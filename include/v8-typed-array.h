@@ -249,10 +249,10 @@ class V8_EXPORT Int32Array : public TypedArray {
  * An instance of Float16Array constructor.
  */
 class V8_EXPORT Float16Array : public TypedArray {
+ public:
   static constexpr size_t kMaxLength =
       TypedArray::kMaxByteLength / sizeof(uint16_t);
 
- public:
   static Local<Float16Array> New(Local<ArrayBuffer> array_buffer,
                                  size_t byte_offset, size_t length);
   static Local<Float16Array> New(Local<SharedArrayBuffer> shared_array_buffer,
