@@ -7,11 +7,12 @@
 
 #include "src/sandbox/isolate.h"
 
-#ifdef V8_ENABLE_SANDBOX
-
 namespace v8::internal {
 
 class DisallowJavascriptExecution;
+
+#ifdef V8_ENABLE_SANDBOX
+
 struct TrustedPointerTableEntry;
 
 // A TrustedPointerPublishingScope is an optional facility for tracking
@@ -45,8 +46,18 @@ class TrustedPointerPublishingScope {
   IsolateForSandbox isolate_;
 };
 
-}  // namespace v8::internal
+#else  // V8_ENABLE_SANDBOX
+
+class TrustedPointerPublishingScope {
+ public:
+  TrustedPointerPublishingScope(IsolateForSandbox isolate,
+                                const DisallowJavascriptExecution& no_js) {}
+  void MarkSuccess() {}
+  void MarkFailure() {}
+};
 
 #endif  // V8_ENABLE_SANDBOX
+
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_TRUSTED_POINTER_SCOPE_H_

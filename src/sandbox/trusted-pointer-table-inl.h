@@ -56,6 +56,21 @@ bool TrustedPointerTableEntry::HasPointer(IndirectPointerTag tag) const {
   return tag == kUnknownIndirectPointerTag || payload.IsTaggedWith(tag);
 }
 
+void TrustedPointerTableEntry::OverwriteTag(IndirectPointerTag tag) {
+  // Changing tags could defeat security defenses, so guard this method
+  // against misuse by allow-listing specific operations.
+  CHECK_EQ(tag, kUnpublishedIndirectPointerTag);
+
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  auto new_payload = old_payload;
+  new_payload.SetTag(tag);
+  // Unpublishing entries is monotonic, so we don't need to loop here.
+  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
+                                                  std::memory_order_relaxed);
+  DCHECK(success || old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
+  USE(success);
+}
+
 bool TrustedPointerTableEntry::IsFreelistEntry() const {
   auto payload = payload_.load(std::memory_order_relaxed);
   return payload.ContainsFreelistLink();
@@ -112,6 +127,22 @@ Address TrustedPointerTable::Get(TrustedPointerHandle handle,
   DCHECK(index == 0 || at(index).HasPointer(tag));
 #endif
   return at(index).GetPointer(tag);
+}
+
+Address TrustedPointerTable::GetMaybeUnpublished(TrustedPointerHandle handle,
+                                                 IndirectPointerTag tag) const {
+  uint32_t index = HandleToIndex(handle);
+  const TrustedPointerTableEntry& entry = at(index);
+  if (entry.HasPointer(kUnpublishedIndirectPointerTag)) {
+    return entry.GetPointer(kUnpublishedIndirectPointerTag);
+  }
+#if defined(V8_USE_ADDRESS_SANITIZER)
+  // See comment above.
+  CHECK(index == 0 || entry.HasPointer(tag));
+#else
+  DCHECK(index == 0 || entry.HasPointer(tag));
+#endif
+  return entry.GetPointer(tag);
 }
 
 void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,

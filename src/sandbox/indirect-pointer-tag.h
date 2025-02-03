@@ -95,9 +95,10 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
   IF_WASM(V, kWasmDispatchTableIndirectPointerTag, 14)       \
   V(kLastPerIsolateTrustedTag, 14)
 
-#define INDIRECT_POINTER_TAG_LIST(V) \
-  SHARED_TRUSTED_POINTER_TAG_LIST(V) \
-  PER_ISOLATE_INDIRECT_POINTER_TAG_LIST(V)
+#define INDIRECT_POINTER_TAG_LIST(V)       \
+  SHARED_TRUSTED_POINTER_TAG_LIST(V)       \
+  PER_ISOLATE_INDIRECT_POINTER_TAG_LIST(V) \
+  V(kUnpublishedIndirectPointerTag, 34)
 
 #define MAKE_TAG(i) \
   (kAllTagsForAndBasedTypeChecking[i] << kIndirectPointerTagShift)

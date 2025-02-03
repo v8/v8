@@ -15,6 +15,7 @@
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/torque-defined-classes.h"
+#include "src/sandbox/trusted-pointer-scope.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
@@ -910,6 +911,34 @@ class InstanceBuilder {
 
   void SanitizeImports();
 
+  // Creation of a Wasm instance with {Build()} is split into several phases:
+  //
+  // First phase: initializes (trusted) objects, so if it fails halfway
+  // through (when validation errors are encountered), it must not leave
+  // pointers to half-initialized objects elsewhere in memory (e.g. it
+  // must not register the instance in "uses" lists, nor write active
+  // element segments into imported tables).
+  MaybeHandle<WasmTrustedInstanceData> Build_Phase1(
+      const DisallowJavascriptExecution& no_js);
+  // The last part of the first phase finalizes initialization of trusted
+  // objects and creates pointers from elsewhere to them. This sub-phase
+  // can never fail, but should still happen under the lifetime of the
+  // TrustedPointerPublishingScope.
+  // When reaching the end of this phase, all created objects (for the
+  // instance, tables, globals, etc) must be in fully initialized and
+  // self-consistent state, ready to execute user code (such as the "start"
+  // function, or fallible user-provided initializers).
+  void Build_Phase1_Infallible(
+      Handle<WasmTrustedInstanceData> trusted_data,
+      Handle<WasmTrustedInstanceData> shared_trusted_data);
+  // Second phase: runs module-provided initializers and as such can fail,
+  // but may assume that just-created objects have been initialized to a
+  // consistent state, and *must* assume that these objects are already
+  // reachable from elsewhere (so must no longer be made inaccessible on
+  // failure).
+  MaybeHandle<WasmTrustedInstanceData> Build_Phase2(
+      Handle<WasmTrustedInstanceData> trusted_data);
+
   // Allocate the memory.
   MaybeDirectHandle<WasmMemoryObject> AllocateMemory(uint32_t memory_index);
 
@@ -1061,6 +1090,41 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     timer.Start();
   }
   v8::metrics::WasmModuleInstantiated wasm_module_instantiated;
+
+  Handle<WasmTrustedInstanceData> instance_data;
+  // Phase 1: uses a {TrustedPointerPublishingScope} to make the new,
+  // partially-initialized instance inaccessible in case of failure.
+  if (!Build_Phase1(no_js).ToHandle(&instance_data)) return {};
+  // Phase 2: assumes that the new instance is already sufficiently
+  // consistently initialized to be exposed to user code.
+  if (!Build_Phase2(instance_data).ToHandle(&instance_data)) return {};
+
+  wasm_module_instantiated.success = true;
+  wasm_module_instantiated.imported_function_count =
+      module_->num_imported_functions;
+  if (timer.IsStarted()) {
+    base::TimeDelta instantiation_time = timer.Elapsed();
+    wasm_module_instantiated.wall_clock_duration_in_us =
+        instantiation_time.InMicroseconds();
+    SELECT_WASM_COUNTER(isolate_->counters(), module_->origin, wasm_instantiate,
+                        module_time)
+        ->AddTimedSample(instantiation_time);
+    isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
+                                                       context_id_);
+  }
+
+  return handle(instance_data->instance_object(), isolate_);
+}
+
+MaybeHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
+    const DisallowJavascriptExecution& no_js) {
+  // Any trusted pointers created here will be zapped unless instantiation
+  // successfully runs to completion, to prevent trusted objects that violate
+  // their own internal invariants because they're only partially-initialized
+  // from becoming accessible to untrusted code.
+  // We assume failure for now, and will update to success later.
+  TrustedPointerPublishingScope publish_trusted_objects(isolate_, no_js);
+  publish_trusted_objects.MarkFailure();
   NativeModule* native_module = module_object_->native_module();
 
   //--------------------------------------------------------------------------
@@ -1069,8 +1133,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmTrustedInstanceData> trusted_data =
       WasmTrustedInstanceData::New(isolate_, module_object_, false);
-  Handle<WasmInstanceObject> instance_object{trusted_data->instance_object(),
-                                             isolate_};
   bool shared = module_object_->module()->has_shared_part;
   Handle<WasmTrustedInstanceData> shared_trusted_data;
   if (shared) {
@@ -1110,8 +1172,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     DirectHandle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
         isolate_, buffer, maximum_pages, AddressType::kI32);
     constexpr int kMemoryIndexZero = 0;
-    WasmMemoryObject::UseInInstance(isolate_, memory_object, trusted_data,
-                                    shared_trusted_data, kMemoryIndexZero);
     trusted_data->memory_objects()->set(kMemoryIndexZero, *memory_object);
   } else {
     CHECK(asmjs_memory_buffer_.is_null());
@@ -1126,19 +1186,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
     for (uint32_t memory_index = 0; memory_index < num_memories;
          ++memory_index) {
+      if (!IsUndefined(memory_objects->get(memory_index))) continue;
       DirectHandle<WasmMemoryObject> memory_object;
-      if (!IsUndefined(memory_objects->get(memory_index))) {
-        memory_object = direct_handle(
-            Cast<WasmMemoryObject>(memory_objects->get(memory_index)),
-            isolate_);
-      } else if (AllocateMemory(memory_index).ToHandle(&memory_object)) {
+      if (AllocateMemory(memory_index).ToHandle(&memory_object)) {
         memory_objects->set(memory_index, *memory_object);
       } else {
         DCHECK(isolate_->has_exception() || thrower_->error());
         return {};
       }
-      WasmMemoryObject::UseInInstance(isolate_, memory_object, trusted_data,
-                                      shared_trusted_data, memory_index);
     }
   }
 
@@ -1268,15 +1323,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
           table.address_type);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
       if (table_obj->has_trusted_dispatch_table()) {
-        DirectHandle<WasmTrustedInstanceData> data_part =
-            table.shared ? shared_trusted_data : trusted_data;
-        DirectHandle<WasmDispatchTable> dispatch_table(
-            table_obj->trusted_dispatch_table(isolate_), isolate_);
-        WasmDispatchTable::AddUse(isolate_, dispatch_table, data_part, i);
+        Tagged<WasmDispatchTable> dispatch_table =
+            table_obj->trusted_dispatch_table(isolate_);
         (table.shared ? shared_dispatch_tables : dispatch_tables)
-            ->set(i, *dispatch_table);
+            ->set(i, dispatch_table);
         if (i == 0) {
-          data_part->set_dispatch_table0(*dispatch_table);
+          (table.shared ? shared_trusted_data : trusted_data)
+              ->set_dispatch_table0(dispatch_table);
         }
       }
     }
@@ -1289,7 +1342,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     int num_imported_functions =
         ProcessImports(trusted_data, shared_trusted_data);
     if (num_imported_functions < 0) return {};
-    wasm_module_instantiated.imported_function_count = num_imported_functions;
   }
 
   //--------------------------------------------------------------------------
@@ -1385,7 +1437,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         shared ? isolate_->factory()->NewFixedArray(
                      static_cast<int>(module_->elem_segments.size()))
                : Handle<FixedArray>();
-    for (int i = 0; i < static_cast<int>(module_->elem_segments.size()); i++) {
+    for (uint32_t i = 0; i < module_->elem_segments.size(); i++) {
       // Initialize declarative segments as empty. The rest remain
       // uninitialized.
       bool is_declarative = module_->elem_segments[i].status ==
@@ -1397,22 +1449,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     trusted_data->set_element_segments(*elements);
     if (shared) shared_trusted_data->set_element_segments(*shared_elements);
-  }
-
-  //--------------------------------------------------------------------------
-  // Load element segments into tables.
-  //--------------------------------------------------------------------------
-  if (table_count > 0) {
-    LoadTableSegments(trusted_data, shared_trusted_data);
-    if (thrower_->error()) return {};
-  }
-
-  //--------------------------------------------------------------------------
-  // Initialize the memory by loading data segments.
-  //--------------------------------------------------------------------------
-  if (!module_->data_segments.empty()) {
-    LoadDataSegments(trusted_data, shared_trusted_data);
-    if (thrower_->error()) return {};
   }
 
   //--------------------------------------------------------------------------
@@ -1451,17 +1487,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   DCHECK(!isolate_->has_exception());
   TRACE("Successfully built instance for module %p\n",
         module_object_->native_module());
-  wasm_module_instantiated.success = true;
-  if (timer.IsStarted()) {
-    base::TimeDelta instantiation_time = timer.Elapsed();
-    wasm_module_instantiated.wall_clock_duration_in_us =
-        instantiation_time.InMicroseconds();
-    SELECT_WASM_COUNTER(isolate_->counters(), module_->origin, wasm_instantiate,
-                        module_time)
-        ->AddTimedSample(instantiation_time);
-    isolate_->metrics_recorder()->DelayMainThreadEvent(wasm_module_instantiated,
-                                                       context_id_);
-  }
 
 #if V8_ENABLE_DRUMBRAKE
   // Skip this event because not (yet) supported by Chromium.
@@ -1472,7 +1497,67 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // context_id_);
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  return instance_object;
+  publish_trusted_objects.MarkSuccess();
+  Build_Phase1_Infallible(trusted_data, shared_trusted_data);
+  return trusted_data;
+}
+
+void InstanceBuilder::Build_Phase1_Infallible(
+    Handle<WasmTrustedInstanceData> trusted_data,
+    Handle<WasmTrustedInstanceData> shared_trusted_data) {
+  //--------------------------------------------------------------------------
+  // Register with memories.
+  //--------------------------------------------------------------------------
+  size_t num_memories = module_->memories.size();
+  DirectHandle<FixedArray> memory_objects{trusted_data->memory_objects(),
+                                          isolate_};
+  for (uint32_t i = 0; i < num_memories; i++) {
+    DirectHandle<WasmMemoryObject> memory{
+        Cast<WasmMemoryObject>(memory_objects->get(i)), isolate_};
+    WasmMemoryObject::UseInInstance(isolate_, memory, trusted_data,
+                                    shared_trusted_data, i);
+  }
+
+  //--------------------------------------------------------------------------
+  // Register with tables.
+  //--------------------------------------------------------------------------
+  size_t num_tables = module_->tables.size();
+  for (uint32_t i = 0; i < num_tables; i++) {
+    const WasmTable& table = module_->tables[i];
+    DirectHandle<WasmTrustedInstanceData> data_part =
+        table.shared ? shared_trusted_data : trusted_data;
+    Tagged<Object> maybe_dispatch_table = data_part->dispatch_tables()->get(i);
+    if (maybe_dispatch_table == Smi::zero()) continue;  // Not a function table.
+    DirectHandle<WasmDispatchTable> dispatch_table{
+        Cast<WasmDispatchTable>(maybe_dispatch_table), isolate_};
+    WasmDispatchTable::AddUse(isolate_, dispatch_table, data_part, i);
+  }
+}
+
+MaybeHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase2(
+    Handle<WasmTrustedInstanceData> trusted_data) {
+  Handle<WasmTrustedInstanceData> shared_trusted_data;
+  if (module_->has_shared_part) {
+    shared_trusted_data = handle(trusted_data->shared_part(), isolate_);
+  }
+
+  //--------------------------------------------------------------------------
+  // Load element segments into tables.
+  //--------------------------------------------------------------------------
+  if (module_->tables.size() > 0) {
+    LoadTableSegments(trusted_data, shared_trusted_data);
+    if (thrower_->error()) return {};
+  }
+
+  //--------------------------------------------------------------------------
+  // Initialize the memory by loading data segments.
+  //--------------------------------------------------------------------------
+  if (!module_->data_segments.empty()) {
+    LoadDataSegments(trusted_data, shared_trusted_data);
+    if (thrower_->error()) return {};
+  }
+
+  return trusted_data;
 }
 
 bool InstanceBuilder::ExecuteStartFunction() {
@@ -1965,8 +2050,6 @@ bool InstanceBuilder::ProcessImportedFunction(
       }
 
       DCHECK_NOT_NULL(wasm_code);
-      // Wasm math intrinsics are currently handled as wasm to JS wrappers. If
-      // this changes, they might need special handling here.
       CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
       // Wasm to JS wrappers are treated specially in the import table.
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
@@ -2041,16 +2124,14 @@ bool InstanceBuilder::ProcessImportedTable(
   // shared or non-shared part, depending on {table.shared}.
   trusted_instance_data->tables()->set(table_index, *table_object);
   if (table_object->has_trusted_dispatch_table()) {
-    DirectHandle<WasmDispatchTable> dispatch_table(
-        table_object->trusted_dispatch_table(isolate_), isolate_);
+    Tagged<WasmDispatchTable> dispatch_table =
+        table_object->trusted_dispatch_table(isolate_);
     SBXCHECK_EQ(dispatch_table->table_type(),
                 module_->canonical_type(table.type));
     SBXCHECK_GE(dispatch_table->length(), table.initial_size);
-    WasmDispatchTable::AddUse(isolate_, dispatch_table, trusted_instance_data,
-                              table_index);
-    trusted_instance_data->dispatch_tables()->set(table_index, *dispatch_table);
+    trusted_instance_data->dispatch_tables()->set(table_index, dispatch_table);
     if (table_index == 0) {
-      trusted_instance_data->set_dispatch_table0(*dispatch_table);
+      trusted_instance_data->set_dispatch_table0(dispatch_table);
     }
   } else {
     // Function tables are required to have a WasmDispatchTable.
@@ -2434,8 +2515,7 @@ void InstanceBuilder::InitGlobals(
     Handle<WasmTrustedInstanceData> trusted_instance_data,
     Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   for (const WasmGlobal& global : module_->globals) {
-    if (global.mutability && global.imported) continue;
-    // Happens with imported globals.
+    DCHECK_IMPLIES(global.imported, !global.init.is_set());
     if (!global.init.is_set()) continue;
 
     ValueOrError result = EvaluateConstantExpression(
@@ -2728,37 +2808,39 @@ void InstanceBuilder::SetTableInitialValues(
     const WasmTable& table = module_->tables[table_index];
     Handle<WasmTrustedInstanceData> maybe_shared_trusted_instance_data =
         table.shared ? shared_trusted_instance_data : trusted_instance_data;
-    if (table.initial_value.is_set()) {
-      auto table_object = handle(
-          Cast<WasmTableObject>(
-              maybe_shared_trusted_instance_data->tables()->get(table_index)),
-          isolate_);
-      bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
-      if (is_function_table &&
-          table.initial_value.kind() == ConstantExpression::Kind::kRefFunc) {
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          SetFunctionTablePlaceholder(
-              isolate_, maybe_shared_trusted_instance_data, table_object,
-              entry_index, table.initial_value.index());
-        }
-      } else if (is_function_table && table.initial_value.kind() ==
-                                          ConstantExpression::Kind::kRefNull) {
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          SetFunctionTableNullEntry(isolate_, table_object, entry_index);
-        }
-      } else {
-        ValueOrError result = EvaluateConstantExpression(
-            &init_expr_zone_, table.initial_value, table.type, module_,
-            isolate_, maybe_shared_trusted_instance_data,
-            shared_trusted_instance_data);
-        if (MaybeMarkError(result, thrower_)) return;
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          WasmTableObject::Set(isolate_, table_object, entry_index,
-                               to_value(result).to_ref());
-        }
+    // We must not modify imported tables yet when this is run, because
+    // we can't know yet whether the new instance can be successfully
+    // initialized.
+    DCHECK_IMPLIES(table.imported, !table.initial_value.is_set());
+    if (!table.initial_value.is_set()) continue;
+    auto table_object = handle(
+        Cast<WasmTableObject>(
+            maybe_shared_trusted_instance_data->tables()->get(table_index)),
+        isolate_);
+    bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
+    if (is_function_table &&
+        table.initial_value.kind() == ConstantExpression::Kind::kRefFunc) {
+      for (uint32_t entry_index = 0; entry_index < table.initial_size;
+           entry_index++) {
+        SetFunctionTablePlaceholder(
+            isolate_, maybe_shared_trusted_instance_data, table_object,
+            entry_index, table.initial_value.index());
+      }
+    } else if (is_function_table && table.initial_value.kind() ==
+                                        ConstantExpression::Kind::kRefNull) {
+      for (uint32_t entry_index = 0; entry_index < table.initial_size;
+           entry_index++) {
+        SetFunctionTableNullEntry(isolate_, table_object, entry_index);
+      }
+    } else {
+      ValueOrError result = EvaluateConstantExpression(
+          &init_expr_zone_, table.initial_value, table.type, module_, isolate_,
+          maybe_shared_trusted_instance_data, shared_trusted_instance_data);
+      if (MaybeMarkError(result, thrower_)) return;
+      for (uint32_t entry_index = 0; entry_index < table.initial_size;
+           entry_index++) {
+        WasmTableObject::Set(isolate_, table_object, entry_index,
+                             to_value(result).to_ref());
       }
     }
   }

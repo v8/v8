@@ -351,6 +351,12 @@ Tagged<Object> IndirectPointerSlot::Relaxed_Load(
   return ResolveHandle(handle, isolate);
 }
 
+Tagged<Object> IndirectPointerSlot::Relaxed_Load_AllowUnpublished(
+    IsolateForSandbox isolate) const {
+  IndirectPointerHandle handle = Relaxed_LoadHandle();
+  return ResolveHandle<kAllowUnpublishedEntries>(handle, isolate);
+}
+
 Tagged<Object> IndirectPointerSlot::Acquire_Load(
     IsolateForSandbox isolate) const {
   IndirectPointerHandle handle = Acquire_LoadHandle();
@@ -402,6 +408,7 @@ bool IndirectPointerSlot::IsEmpty() const {
   return Relaxed_LoadHandle() == kNullIndirectPointerHandle;
 }
 
+template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
 Tagged<Object> IndirectPointerSlot::ResolveHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
@@ -416,12 +423,12 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
     if (handle & kCodePointerHandleMarker) {
       return ResolveCodePointerHandle(handle);
     } else {
-      return ResolveTrustedPointerHandle(handle, isolate);
+      return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
     }
   } else if (tag_ == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
-    return ResolveTrustedPointerHandle(handle, isolate);
+    return ResolveTrustedPointerHandle<allow_unpublished>(handle, isolate);
   }
 #else
   UNREACHABLE();
@@ -429,10 +436,14 @@ Tagged<Object> IndirectPointerSlot::ResolveHandle(
 }
 
 #ifdef V8_ENABLE_SANDBOX
+template <IndirectPointerSlot::TagCheckStrictness allow_unpublished>
 Tagged<Object> IndirectPointerSlot::ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) const {
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag_);
+  if constexpr (allow_unpublished == kAllowUnpublishedEntries) {
+    return Tagged<Object>(table.GetMaybeUnpublished(handle, tag_));
+  }
   return Tagged<Object>(table.Get(handle, tag_));
 }
 

@@ -16,6 +16,9 @@ template <typename PayloadTaggingScheme>
 struct TaggedPayload {
   static_assert(PayloadTaggingScheme::kMarkBit != 0,
                 "Invalid kMarkBit specified in tagging scheme.");
+  // The mark bit does not overlap with the TagMask.
+  static_assert((PayloadTaggingScheme::kMarkBit &
+                 PayloadTaggingScheme::kTagMask) == 0);
 
   TaggedPayload(Address pointer, typename PayloadTaggingScheme::TagType tag)
       : encoded_word_(Tag(pointer, tag)) {}
@@ -30,13 +33,11 @@ struct TaggedPayload {
   }
 
   bool IsTaggedWith(typename PayloadTaggingScheme::TagType tag) const {
-    // We have to explicitly ignore the marking bit (which is part of the
-    // tag) since an unmarked entry with tag kXyzTag is still considered to
-    // be tagged with kXyzTag.
-    uint64_t expected = tag & ~PayloadTaggingScheme::kMarkBit;
-    uint64_t actual = (encoded_word_ & PayloadTaggingScheme::kTagMask) &
-                      ~PayloadTaggingScheme::kMarkBit;
-    return expected == actual;
+    return (encoded_word_ & PayloadTaggingScheme::kTagMask) == tag;
+  }
+
+  void SetTag(typename PayloadTaggingScheme::TagType new_tag) {
+    encoded_word_ = (encoded_word_ & ~PayloadTaggingScheme::kTagMask) | new_tag;
   }
 
   void SetMarkBit() { encoded_word_ |= PayloadTaggingScheme::kMarkBit; }

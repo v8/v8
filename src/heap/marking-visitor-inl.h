@@ -281,7 +281,9 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     // alive if necessary. Indirect pointers never have to be added to a
     // remembered set because the referenced object will update the pointer
     // table entry when it is relocated.
-    Tagged<Object> value = slot.Relaxed_Load(heap_->isolate());
+    // The marker might visit objects whose trusted pointers to each other
+    // are not yet or no longer accessible, so we must handle those here.
+    Tagged<Object> value = slot.Relaxed_Load_AllowUnpublished(heap_->isolate());
     if (IsHeapObject(value)) {
       Tagged<HeapObject> obj = Cast<HeapObject>(value);
       SynchronizePageAccess(obj);

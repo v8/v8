@@ -503,6 +503,8 @@ class IndirectPointerSlot
   // The isolate parameter is required unless using the kCodeTag tag, as these
   // object use a different pointer table.
   inline Tagged<Object> Relaxed_Load(IsolateForSandbox isolate) const;
+  inline Tagged<Object> Relaxed_Load_AllowUnpublished(
+      IsolateForSandbox isolate) const;
   inline Tagged<Object> Acquire_Load(IsolateForSandbox isolate) const;
 
   // Store a reference to the given object into this slot. The object must be
@@ -528,6 +530,10 @@ class IndirectPointerSlot
   // appropriate pointer table to use and loading the referenced entry in it.
   // This method is used internally by load() and related functions but can
   // also be used to manually implement indirect pointer accessors.
+  // {allow_unpublished}: allow the "unpublished" tag in addition to the
+  // tag specified by the slot.
+  enum TagCheckStrictness { kRequireExactMatch, kAllowUnpublishedEntries };
+  template <TagCheckStrictness allow_unpublished = kRequireExactMatch>
   inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
                                       IsolateForSandbox isolate) const;
 
@@ -535,6 +541,7 @@ class IndirectPointerSlot
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the object referenced through the given trusted pointer handle
   // from the trusted pointer table.
+  template <TagCheckStrictness allow_unpublished = kRequireExactMatch>
   inline Tagged<Object> ResolveTrustedPointerHandle(
       IndirectPointerHandle handle, IsolateForSandbox isolate) const;
   // Retrieve the Code object referenced through the given code pointer handle

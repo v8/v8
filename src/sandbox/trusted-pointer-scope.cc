@@ -21,17 +21,17 @@ TrustedPointerPublishingScope::TrustedPointerPublishingScope(
 TrustedPointerPublishingScope::~TrustedPointerPublishingScope() {
   if (state_ == State::kFailure) {
     if (storage_ == Storage::kSingleton) {
-      singleton_->MakeZappedEntry();
+      singleton_->OverwriteTag(kUnpublishedIndirectPointerTag);
     } else if (storage_ == Storage::kVector) {
       for (TrustedPointerTableEntry* entry : *vector_) {
-        entry->MakeZappedEntry();
+        entry->OverwriteTag(kUnpublishedIndirectPointerTag);
       }
-      delete vector_;
     }
   } else {
     // If this DCHECK fails, you probably forgot to call {MarkSuccess()}.
     DCHECK_EQ(state_, State::kSuccess);
   }
+  if (storage_ == Storage::kVector) delete vector_;
   DCHECK_EQ(this, isolate_.GetTrustedPointerPublishingScope());
   isolate_.SetTrustedPointerPublishingScope(nullptr);
 }
