@@ -1844,7 +1844,7 @@ struct ContinuationRecord {
     kObject,
     kArray,
     kResumeFromOther,  // Resume after encoding change or array serialization.
-                       // Either object, array or string.
+                       // Either object, array, string or string wrapper.
                        // |index| is ignored for this type.
     kObjectKey         // For encoding changes triggered by object keys.
                        // This is required (instead of simply resuming with the
@@ -2501,7 +2501,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
                                 comma);
             return result;
           }
-          DCHECK(IsString(property));
+          DCHECK(IsString(property) || IsStringWrapper(property));
           return result;
         case SLOW_PATH:
         case EXCEPTION:
@@ -2646,7 +2646,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
         AppendCStringLiteral("null");
         return SUCCESS;
       case CHANGE_ENCODING:
-        DCHECK(IsString(obj));
+        DCHECK(IsString(obj) || IsStringWrapper(obj));
         stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
         stack_.emplace_back(ContinuationRecord::kResumeFromOther, obj, 0);
         return result;
@@ -2678,7 +2678,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
          cont.type == ContinuationRecord::kObjectKey);
   Tagged<JSAny> object = cont.object;
   FastJsonStringifierResult result;
-  DCHECK(IsString(object));
+  DCHECK(IsString(object) || IsStringWrapper(object));
   if (cont.type == ContinuationRecord::kObjectKey) {
     // Serializing an object key caused an encoding change.
     result = SerializeObjectKey(Cast<String>(object), cont.index, no_gc);
@@ -2729,7 +2729,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
-      DCHECK(IsString(object));
+      DCHECK(IsString(object) || IsStringWrapper(object));
       stack_.emplace_back(ContinuationRecord::kResumeFromOther, object, 0);
       return result;
     }
