@@ -1481,7 +1481,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
     for (const char* function_name : {"a", "b", "c"}) {
       exported_functions.push_back(
           testing::GetExportedFunction(i_isolate, instance, function_name)
-              .ToHandleChecked(), );
+              .ToHandleChecked());
     }
   }
 
