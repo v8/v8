@@ -5644,21 +5644,18 @@ void CodeStubAssembler::FillFixedDoubleArrayWithZero(
                 std::make_pair(MachineType::UintPtr(), byte_length));
 }
 
-void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
-    TNode<Object> object, Label* interesting) {
-  Label finished(this);
-  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> object_page_header = MemoryChunkFromAddress(object_word);
-  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
-      Load(MachineType::IntPtr(), object_page_header,
-           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
-  Branch(
-      WordEqual(WordAnd(page_flags,
-                        IntPtrConstant(
-                            MemoryChunk::kPointersFromHereAreInterestingMask)),
-                IntPtrConstant(0)),
-      &finished, interesting);
-  BIND(&finished);
+void CodeStubAssembler::TrySkipWriteBarrier(TNode<Object> object,
+                                            Label* if_needs_write_barrier) {
+  TNode<BoolT> may_need_write_barrier =
+      IsPageFlagSet(BitcastTaggedToWord(object),
+                    MemoryChunk::kPointersFromHereAreInterestingMask);
+  // TODO(olivf): Also skip the WB with V8_ENABLE_STICKY_MARK_BITS if the mark
+  // bit is set.
+  GotoIf(may_need_write_barrier, if_needs_write_barrier);
+
+  CSA_DCHECK(this, TaggedEqual(CallRuntime(Runtime::kIsNoWriteBarrierNeeded,
+                                           NoContextConstant(), object),
+                               TrueConstant()));
 }
 
 void CodeStubAssembler::MoveElements(ElementsKind kind,
@@ -5686,7 +5683,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
   // The write barrier can be ignored if {dst_elements} is in new space, or if
   // the elements pointer is FixedDoubleArray.
   if (needs_barrier_check) {
-    JumpIfPointersFromHereAreInteresting(elements, &needs_barrier);
+    TrySkipWriteBarrier(elements, &needs_barrier);
   }
 
   const TNode<IntPtrT> source_byte_length =
@@ -5780,7 +5777,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
   // The write barrier can be ignored if {dst_elements} is in new space, or if
   // the elements pointer is FixedDoubleArray.
   if (needs_barrier_check) {
-    JumpIfPointersFromHereAreInteresting(dst_elements, &needs_barrier);
+    TrySkipWriteBarrier(dst_elements, &needs_barrier);
   }
 
   TNode<IntPtrT> source_byte_length =
