@@ -572,6 +572,7 @@ def build_config_content(cpu, icu):
         ("leaptiering", "true"),
         ("lite_mode", "false"),
         ("local_off_stack_check", "false"),
+        ("lower_limits_mode", "false"),
         ("memory_corruption_api", "false"),
         ("mips_arch_variant", '""'),
         ("mips_use_msa", "false"),
