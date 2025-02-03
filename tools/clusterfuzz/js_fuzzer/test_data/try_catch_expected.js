@@ -108,3 +108,7 @@ try {
     let complex5 = __wrapTC(() => new Map());
   }
 } catch (e) {}
+
+async function foo(a) {
+  let val = await __wrapTC(() => a);
+}

@@ -55,9 +55,17 @@ function skipReplaceVariableDeclarator(path) {
 }
 
 function replaceVariableDeclarator(path) {
-  path.replaceWith(babelTypes.variableDeclarator(
-      path.node.id,
-      WRAP_FUN({ID: path.node.init}).expression));
+  let wrapped;
+  if (babelTypes.isAwaitExpression(path.node.init)) {
+    // The await can't remain in the inner arrow function of WRAP_FUN,
+    // we pull it outside of the wrapper instead. E.g.
+    // "await x" becomes "await __wrapTC(() => x)".
+    wrapped = babelTypes.AwaitExpression(
+        WRAP_FUN({ID: path.node.init.argument}).expression);
+  } else {
+    wrapped = WRAP_FUN({ID: path.node.init}).expression;
+  }
+  path.replaceWith(babelTypes.variableDeclarator(path.node.id, wrapped));
   path.skip();
 }
 

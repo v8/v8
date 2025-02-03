@@ -50,3 +50,7 @@ let complex3 = (function () {
 if (true) {
   let complex5 = new Map();
 }
+
+async function foo(a) {
+  let val = await a;
+}
