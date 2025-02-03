@@ -902,13 +902,13 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
   }
 }
 
-MaglevGraphBuilder::MaglevGraphBuilder(
-    LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
-    Graph* graph, float call_frequency, BytecodeOffset caller_bytecode_offset,
-    bool caller_is_inside_loop, int inlining_id, MaglevGraphBuilder* parent)
+MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
+                                       MaglevCompilationUnit* compilation_unit,
+                                       Graph* graph, int inlining_id,
+                                       MaglevCallerDetails* caller_details)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
-      parent_(parent),
+      caller_details_(caller_details),
       graph_(graph),
       bytecode_analysis_(bytecode().object(), zone(),
                          compilation_unit->osr_offset(), true),
@@ -921,7 +921,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(
       current_source_position_(SourcePosition(
           compilation_unit_->shared_function_info().StartPosition(),
           inlining_id)),
-      call_frequency_(call_frequency),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->AllocateArray<BasicBlockRef>(
           bytecode().length() + (is_inline() ? 1 : 0))),
@@ -932,13 +931,11 @@ MaglevGraphBuilder::MaglevGraphBuilder(
           bytecode().length() + 1)),
       current_interpreter_frame_(
           *compilation_unit_,
-          is_inline() ? parent->current_interpreter_frame_.known_node_aspects()
+          is_inline() ? caller_details->known_node_aspects
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
                             compilation_unit_->zone()),
-          is_inline() ? parent->current_interpreter_frame_.virtual_objects()
+          is_inline() ? caller_details->virtual_objects
                       : VirtualObject::List()),
-      caller_bytecode_offset_(caller_bytecode_offset),
-      caller_is_inside_loop_(caller_is_inside_loop),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
@@ -954,18 +951,19 @@ MaglevGraphBuilder::MaglevGraphBuilder(
   }
 
   if (is_inline()) {
-    DCHECK_NOT_NULL(parent_);
+    DCHECK_NOT_NULL(caller_details);
     DCHECK_GT(compilation_unit->inlining_depth(), 0);
     // The allocation/initialisation logic here relies on inline_exit_offset
     // being the offset one past the end of the bytecode.
     DCHECK_EQ(inline_exit_offset(), bytecode().length());
     merge_states_[inline_exit_offset()] = nullptr;
     new (&jump_targets_[inline_exit_offset()]) BasicBlockRef();
-    if (parent_->loop_effects_) {
-      loop_effects_ = parent->loop_effects_;
+    if (caller_details->loop_effects) {
+      loop_effects_ = caller_details->loop_effects;
       loop_effects_stack_.push_back(loop_effects_);
     }
-    unobserved_context_slot_stores_ = parent_->unobserved_context_slot_stores_;
+    unobserved_context_slot_stores_ =
+        caller_details->unobserved_context_slot_stores;
   }
 
   CHECK_IMPLIES(compilation_unit_->is_osr(), graph_->is_osr());
@@ -1276,9 +1274,10 @@ bool MaglevGraphBuilder::HasOutputRegister(interpreter::Register reg) const {
 }
 #endif
 
-DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
-  if (parent_ == nullptr) return nullptr;
-  if (parent_deopt_frame_ == nullptr) {
+DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
+  // TODO(victorgomes): This should be computed eagerly in non-greedy inlining.
+  if (!is_inline()) return nullptr;
+  if (caller_details_->deopt_frame == nullptr) {
     // The parent resumes after the call, which is roughly equivalent to a lazy
     // deopt. Use the helper function directly so that we can mark the
     // accumulator as dead (since it'll be overwritten by this function's
@@ -1288,26 +1287,26 @@ DeoptFrame* MaglevGraphBuilder::GetParentDeoptFrame() {
     // isn't. We may need to store the relevant overwritten register in
     // LazyDeoptFrameScope.
     DCHECK(interpreter::Bytecodes::WritesAccumulator(
-        parent_->iterator_.current_bytecode()));
+        caller_details_->builder->iterator_.current_bytecode()));
 
-    parent_deopt_frame_ =
-        zone()->New<DeoptFrame>(parent_->GetDeoptFrameForLazyDeoptHelper(
+    caller_details_->deopt_frame = zone()->New<DeoptFrame>(
+        caller_details_->builder->GetDeoptFrameForLazyDeoptHelper(
             interpreter::Register::invalid_value(), 0,
-            parent_->current_deopt_scope_, true));
+            caller_details_->builder->current_deopt_scope_, true));
     // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
     // formal parameter and arguments count.
     if (HasMismatchedArgumentAndParameterCount()) {
-      parent_deopt_frame_ = zone()->New<InlinedArgumentsDeoptFrame>(
-          *compilation_unit_, caller_bytecode_offset_, GetClosure(),
-          inlined_arguments_, parent_deopt_frame_);
+      caller_details_->deopt_frame = zone()->New<InlinedArgumentsDeoptFrame>(
+          *compilation_unit_, caller_details_->bytecode_offset, GetClosure(),
+          inlined_arguments_, caller_details_->deopt_frame);
       AddDeoptUse(GetClosure());
       for (ValueNode* arg :
-           parent_deopt_frame_->as_inlined_arguments().arguments()) {
+           caller_details_->deopt_frame->as_inlined_arguments().arguments()) {
         AddDeoptUse(arg);
       }
     }
   }
-  return parent_deopt_frame_;
+  return caller_details_->deopt_frame;
 }
 
 DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
@@ -1321,7 +1320,7 @@ DeoptFrame MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        current_source_position_, GetParentDeoptFrame()));
+        current_source_position_, GetCallerDeoptFrame()));
 
     latest_checkpointed_frame_->as_interpreted().frame_state()->ForEachValue(
         *compilation_unit_,
@@ -1400,7 +1399,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
         zone()->New<CompactInterpreterFrameState>(*compilation_unit_, liveness,
                                                   current_interpreter_frame_),
         GetClosure(), BytecodeOffset(iterator_.current_offset()),
-        current_source_position_, GetParentDeoptFrame());
+        current_source_position_, GetCallerDeoptFrame());
     ret.frame_state()->ForEachValue(
         *compilation_unit_, [this](ValueNode* node, interpreter::Register reg) {
           // Receiver and closure values have to be materialized, even if
@@ -1456,7 +1455,7 @@ DeoptFrame MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
 InterpretedDeoptFrame MaglevGraphBuilder::GetDeoptFrameForEntryStackCheck() {
   if (entry_stack_check_frame_) return *entry_stack_check_frame_;
   DCHECK_EQ(iterator_.current_offset(), entrypoint_);
-  DCHECK_NULL(parent_);
+  DCHECK(!is_inline());
   entry_stack_check_frame_.emplace(
       *compilation_unit_,
       zone()->New<CompactInterpreterFrameState>(
@@ -4061,7 +4060,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
     ValueNode* depth =
         GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
     ValueNode* result;
-    if (parent_) {
+    if (is_inline()) {
       ValueNode* vector = GetConstant(feedback());
       result = BuildCallBuiltin<Builtin::kLookupGlobalIC>(
           {name_node, depth, slot, vector});
@@ -4113,7 +4112,7 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   ValueNode* depth =
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   ValueNode* result;
-  if (parent_) {
+  if (is_inline()) {
     ValueNode* vector = GetConstant(feedback());
     result = BuildCallBuiltin<Builtin::kLookupGlobalICInsideTypeof>(
         {name, depth, slot, vector});
@@ -8004,6 +8003,18 @@ bool MaglevGraphBuilder::ShouldInlineCall(
   return true;
 }
 
+MaglevCompilationUnit* MaglevGraphBuilder::GetTopLevelCompilationUnit() const {
+  if (!is_inline()) return compilation_unit_;
+  return caller_details()->builder->GetTopLevelCompilationUnit();
+}
+
+bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
+  return GetTopLevelCompilationUnit()
+      ->shared_function_info()
+      .object()
+      ->PassesFilter(v8_flags.maglev_print_filter);
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared,
@@ -8017,7 +8028,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     feedback_frequency =
         feedback.IsInsufficient() ? 0.0f : feedback.AsCall().frequency();
   }
-  float call_frequency = feedback_frequency * call_frequency_;
+  float call_frequency = feedback_frequency * GetCurrentCallFrequency();
   if (!ShouldInlineCall(shared, feedback_vector, call_frequency)) {
     return {};
   }
@@ -8046,29 +8057,37 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   }
   int inlining_id = static_cast<int>(graph()->inlined_functions().size() - 1);
 
-  // Create a new compilation unit and graph builder for the inlined
-  // function.
-  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_vector.value());
-  MaglevGraphBuilder inner_graph_builder(
-      local_isolate_, inner_unit, graph_, call_frequency,
-      BytecodeOffset(iterator_.current_offset()), IsInsideLoop(), inlining_id,
-      this);
-
   // Merge catch block state if needed.
-  CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
-  if (catch_block.ref && catch_block.state->exception_handler_was_used()) {
+  CatchBlockDetails catch_block_details = GetCurrentTryCatchBlock();
+  if (catch_block_details.ref &&
+      catch_block_details.state->exception_handler_was_used()) {
     // Merge the current state into the handler state.
-    catch_block.state->MergeThrow(
-        GetCurrentCatchBlockGraphBuilder(), catch_block.unit,
+    catch_block_details.state->MergeThrow(
+        GetCurrentCatchBlockGraphBuilder(), catch_block_details.unit,
         *current_interpreter_frame_.known_node_aspects(),
         current_interpreter_frame_.virtual_objects());
   }
 
-  // Propagate catch block.
-  inner_graph_builder.parent_catch_ = catch_block;
-  inner_graph_builder.parent_catch_deopt_frame_distance_ =
-      1 + (IsInsideTryBlock() ? 0 : parent_catch_deopt_frame_distance_);
+  // Propagate details.
+  MaglevCallerDetails caller_details{
+      this,
+      BytecodeOffset(iterator_.current_offset()),
+      /* deopt_frame */ nullptr,
+      current_interpreter_frame_.known_node_aspects(),
+      current_interpreter_frame_.virtual_objects(),
+      loop_effects_,
+      unobserved_context_slot_stores_,
+      catch_block_details,
+      CatchBlockDeoptFrameDistance() + 1,
+      IsInsideLoop(),
+      call_frequency};
+
+  // Create a new compilation unit and graph builder for the inlined
+  // function.
+  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+      zone(), compilation_unit_, shared, feedback_vector.value());
+  MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
+                                         inlining_id, &caller_details);
 
   // Set the inner graph builder to build in the current block.
   inner_graph_builder.current_block_ = current_block_;
