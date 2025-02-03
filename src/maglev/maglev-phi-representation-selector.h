@@ -80,6 +80,10 @@ class MaglevPhiRepresentationSelector {
   // updates {phi}'s representation to {repr}.
   void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
                           const HoistTypeList& hoist_untagging);
+  template <class NodeT>
+  ValueNode* GetReplacementForPhiInputConversion(ValueNode* conversion_node,
+                                                 Phi* phi,
+                                                 uint32_t input_index);
 
   // Since this pass changes the representation of Phis, it makes some untagging
   // operations outdated: if we've decided that a Phi should have Int32
