@@ -112,6 +112,13 @@ const DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES = [
     // Disallowed due to false positives.
     '--correctness-fuzzer-suppressions',
     '--expose-trigger-failure',
+
+    // Doesn't make much sense without the memory-corruption API. In the future
+    // we might want to enable the latter only on builds with the API
+    // available. Using tests that need one of these flags is also not
+    // resulting in useful cases.
+    '--sandbox-testing',
+    '--sandbox-fuzzing',
 ];
 
 // Flags that lead to false positives or that are already passed by default.
