@@ -81,7 +81,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:ee3af96ef0f88f93a33b9208caad206f672edf35',
+  'siso_version': 'git_revision:0b6159c39573013a79a47f8544200df07a6a74fc',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -126,7 +126,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a9640b2af4c541cbe6b716f447315d487351ae46',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6b4eaa1ed0f3a604f354b4098e4f676f7815f1da',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6377d6649b0a2160ab8bb0b88d3cc64e3fd897cf',
   'buildtools/linux64': {
     'packages': [
       {
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '22c1eb49eefd18c66942e8fa0a1d53f001703616',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '15c1046a369882427ed7a1fbe44b82009c90d356',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '6f49850910a5160e9f8c3f35f4e07b6fc02feae0',
   'third_party/re2/src':
