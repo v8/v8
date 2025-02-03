@@ -1567,7 +1567,10 @@ class MachineLoweringReducer : public Next {
 
     UnparkedScopeIfNeeded unpark(broker_);
     HeapObjectRef ref = MakeRef(broker_, constant->handle());
-    CHECK(ref.IsString());
+    if (!V8_LIKELY(ref.IsString())) {
+      // This can only happen in unreachable code.
+      return StringEncoding::kUnknown;
+    }
 
     return ref.AsString().IsOneByteRepresentation() ? StringEncoding::kOneByte
                                                     : StringEncoding::kTwoByte;
