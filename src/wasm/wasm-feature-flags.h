@@ -65,6 +65,8 @@
   /* V8 side owner: irezvov */                                                 \
   V(fp16, "fp16", false)                                                       \
                                                                                \
+  /* V8 side owner: irezvov */                                                 \
+  V(growable_stacks, "growable stacks for jspi", false)                        \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
@@ -105,11 +107,7 @@
   /* JavaScript Promise Integration proposal. */                               \
   /* https://github.com/WebAssembly/js-promise-integration */                  \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(jspi, "javascript promise integration", false)                             \
-                                                                               \
-  /* Growable stacks for JavaScript Promise Integration proposal. */           \
-  /* V8 side owner: irezvov */                                                 \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(jspi, "javascript promise integration", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
