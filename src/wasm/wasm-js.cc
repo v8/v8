@@ -2417,9 +2417,6 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.promising()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   i_isolate->CountUsage(v8::Isolate::kWasmJavaScriptPromiseIntegration);
-  if (i::v8_flags.experimental_wasm_growable_stacks) {
-    i_isolate->CountUsage(v8::Isolate::kWasmGrowableStacks);
-  }
 
   if (!info[0]->IsFunction()) {
     thrower.TypeError("Argument 0 must be a function");
