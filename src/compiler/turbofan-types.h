@@ -140,10 +140,11 @@ namespace compiler {
 
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
-#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)                             \
-  V(Machine,                  uint64_t{1} << 32)                           \
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)   \
+  V(Machine,                  uint64_t{1} << 32) \
   V(Hole,                     uint64_t{1} << 33) \
-  V(StringWrapper,            uint64_t{1} << 34)
+  V(StringWrapper,            uint64_t{1} << 34) \
+  V(TypedArray,               uint64_t{1} << 35)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -201,11 +202,11 @@ namespace compiler {
   V(DetectableCallable,           kFunction | kBoundFunction | \
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
-  V(NonCallable,                  kArray | kStringWrapper | kOtherObject | \
-                                  kOtherProxy | kWasmObject) \
+  V(NonCallable,                  kArray | kStringWrapper | kTypedArray | \
+                                  kOtherObject | kOtherProxy | kWasmObject) \
   V(NonCallableOrNull,            kNonCallable | kNull) \
   V(DetectableObject,             kArray | kFunction | kBoundFunction | \
-                                  kStringWrapper | kOtherCallable | \
+                                  kStringWrapper | kTypedArray | kOtherCallable | \
                                   kOtherObject) \
   V(DetectableReceiver,           kDetectableObject | kProxy | kWasmObject) \
   V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \

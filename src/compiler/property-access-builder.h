@@ -102,6 +102,8 @@ class PropertyAccessBuilder {
 bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps);
 bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
                               ZoneVector<MapRef> const& maps);
+bool HasOnlyNonResizableTypedArrayMaps(JSHeapBroker* broker,
+                                       ZoneVector<MapRef> const& maps);
 
 }  // namespace compiler
 }  // namespace internal

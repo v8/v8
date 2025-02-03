@@ -55,6 +55,7 @@ bitfield struct TurbofanTypeHighBits extends uint32 {
   machine: bool: 1 bit;
   hole: bool: 1 bit;
   string_wrapper: bool: 1 bit;
+  typed_array: bool: 1 bit;
 }
 
 @export
@@ -198,6 +199,9 @@ macro TestTurbofanBitsetType(
       } else {
         return bitsetLow.other_object;
       }
+    }
+    case (JSTypedArray): {
+      return bitsetHigh.typed_array;
     }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {

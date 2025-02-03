@@ -266,7 +266,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -342,6 +341,10 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       DCHECK(!map.is_undetectable());
       return kCallableFunction;
+    case JS_TYPED_ARRAY_TYPE:
+      DCHECK(!map.is_callable());
+      DCHECK(!map.is_undetectable());
+      return kTypedArray;
     case JS_CLASS_CONSTRUCTOR_TYPE:
       return kClassConstructor;
     case JS_PROXY_TYPE:
@@ -938,6 +941,9 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   }
   if (ref.HoleType() != HoleType::kNone) {
     return Type::Hole();
+  }
+  if (ref.IsJSTypedArray()) {
+    return Type::TypedArray();
   }
   // If we see a HeapNumber wrapped in a Constant node,
   // then it should be a mutable HeapNumber, and it should be

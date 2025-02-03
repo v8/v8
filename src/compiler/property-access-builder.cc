@@ -54,6 +54,17 @@ bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
   return true;
 }
 
+bool HasOnlyNonResizableTypedArrayMaps(JSHeapBroker* broker,
+                                       ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSTypedArrayMap()) return false;
+    if (IsRabGsabTypedArrayElementsKind(map.elements_kind())) {
+      return false;
+    }
+  }
+  return true;
+}
+
 namespace {
 
 bool HasOnlyNumberMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {

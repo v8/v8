@@ -1543,7 +1543,7 @@ Type Typer::Visitor::TypeJSCreatePromise(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateTypedArray(Node* node) {
-  return Type::OtherObject();
+  return Type::TypedArray();
 }
 
 Type Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {

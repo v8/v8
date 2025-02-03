@@ -764,7 +764,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateTypedArray:
-      CheckTypeIs(node, Type::OtherObject());
+      CheckTypeIs(node, Type::TypedArray());
       break;
     case IrOpcode::kJSCreateLiteralArray:
       CheckTypeIs(node, Type::Array());
@@ -1259,7 +1259,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
     case IrOpcode::kTypedArrayLength:
-      CheckValueInputIs(node, 0, Type::Object());
+      CheckValueInputIs(node, 0, Type::TypedArray());
       CheckTypeIs(node, TypeCache::Get()->kJSTypedArrayLengthType);
       break;
     case IrOpcode::kStringToLowerCaseIntl:

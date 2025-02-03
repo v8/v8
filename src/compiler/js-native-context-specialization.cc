@@ -1612,6 +1612,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         lookup_start_object = effect =
             graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
                              lookup_start_object, effect, control);
+      } else if (HasOnlyNonResizableTypedArrayMaps(
+                     broker(), access_info.lookup_start_object_maps())) {
+        // In order to be able to use TypedArrayLength, we need a TypeGuard
+        // when all input maps are TypedArray maps. We need this only when
+        // all maps are non-RAB/GSAB maps, since TypedArrayLength only handles
+        // non-RAB/GSAB maps.
+        lookup_start_object = effect =
+            graph()->NewNode(common()->TypeGuard(Type::TypedArray()),
+                             lookup_start_object, effect, control);
       }
 
     } else if (!access_builder.TryBuildStringCheck(
@@ -1661,6 +1670,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // should be a rare case.
         lookup_start_object = receiver = effect =
             graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
+                             lookup_start_object, effect, control);
+      } else if (HasOnlyNonResizableTypedArrayMaps(
+                     broker(), access_info.lookup_start_object_maps())) {
+        // In order to be able to use TypedArrayLength, we need a TypeGuard
+        // when all input maps are TypedArray maps. We need this only when
+        // all maps are non-RAB/GSAB maps, since TypedArrayLength only handles
+        // non-RAB/GSAB maps.
+        lookup_start_object = receiver = effect =
+            graph()->NewNode(common()->TypeGuard(Type::TypedArray()),
                              lookup_start_object, effect, control);
       }
     } else {
@@ -1804,6 +1822,18 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                          receiver_is_lookup_start);
           this_lookup_start_object = this_effect =
               graph()->NewNode(common()->TypeGuard(Type::StringWrapper()),
+                               lookup_start_object, this_effect, this_control);
+          if (receiver_is_lookup_start) {
+            this_receiver = this_lookup_start_object;
+          }
+        } else if (HasOnlyNonResizableTypedArrayMaps(
+                       broker(), lookup_start_object_maps)) {
+          bool receiver_is_lookup_start =
+              this_lookup_start_object == this_receiver;
+          DCHECK_IMPLIES(access_mode != AccessMode::kLoad,
+                         receiver_is_lookup_start);
+          this_lookup_start_object = this_effect =
+              graph()->NewNode(common()->TypeGuard(Type::TypedArray()),
                                lookup_start_object, this_effect, this_control);
           if (receiver_is_lookup_start) {
             this_receiver = this_lookup_start_object;
