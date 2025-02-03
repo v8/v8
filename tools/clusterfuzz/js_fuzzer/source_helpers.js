@@ -338,6 +338,7 @@ class ParsedSource extends Source {
   constructor(ast, corpus, relPath, flags, dependentPaths) {
     super(corpus, relPath, flags, dependentPaths);
     this.ast = ast;
+    this.sloppy |= hasSloppyCode(ast);
   }
 
   isStrict() {
@@ -421,6 +422,25 @@ function removeComments(ast) {
       babelTypes.removeComments(path.node);
     }
   });
+}
+
+/**
+ * Return true if there's any code incompatible with strict mode.
+ */
+function hasSloppyCode(ast) {
+  let sloppy = false;
+  babelTraverse(ast, {
+    WithStatement(path) {
+      sloppy = true;
+    },
+    UnaryExpression(path) {
+      if (path.node.operator === 'delete' &&
+          babelTypes.isIdentifier(path.node.argument)) {
+        sloppy = true;
+      }
+    }
+  });
+  return sloppy;
 }
 
 /**

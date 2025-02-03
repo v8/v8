@@ -78,10 +78,30 @@ describe('Regression tests', () => {
     execFile(file);
   });
 
+  it('combine strict and with, life analysis', () => {
+    // As above, but without the sloppy file being marked. "Strict"
+    // incompatibility will also be detected at parse time.
+    const {file, flags} = createFuzzTest(
+        'test_data/regress/empty_db',
+        this.settings,
+        ['regress/strict/input_strict.js', 'regress/strict/input_with.js']);
+    execFile(file);
+  });
+
   it('combine strict and delete', () => {
     // As above with unqualified delete.
     sandbox.stub(exceptions, 'getGeneratedSloppy').callsFake(
         () => { return new Set(['regress/strict/input_delete.js']); });
+    const {file, flags} = createFuzzTest(
+        'test_data/regress/empty_db',
+        this.settings,
+        ['regress/strict/input_strict.js', 'regress/strict/input_delete.js']);
+    execFile(file);
+  });
+
+  it('combine strict and delete, life analysis', () => {
+    // As above, but without the sloppy file being marked. "Strict"
+    // incompatibility will also be detected at parse time.
     const {file, flags} = createFuzzTest(
         'test_data/regress/empty_db',
         this.settings,
