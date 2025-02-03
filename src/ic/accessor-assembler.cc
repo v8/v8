@@ -3600,7 +3600,7 @@ void AccessorAssembler::ScriptContextTableLookup(
     TNode<IntPtrT> var_index =
         IntPtrAdd(IntPtrConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS),
                   context_local_index);
-    TNode<Object> result = LoadContextElement(script_context, var_index);
+    TNode<Object> result = LoadScriptContextElement(script_context, var_index);
     GotoIf(IsTheHole(result), found_hole);
     Return(result);
   }
