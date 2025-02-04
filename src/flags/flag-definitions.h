@@ -2292,6 +2292,7 @@ DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
+DEFINE_BOOL(trap_on_abort, false, "trap instead of calling abort for debugging")
 #if defined(V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT) || \
     defined(ENABLE_SLOW_DCHECKS)
 #define V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL true
@@ -2305,6 +2306,7 @@ DEFINE_BOOL(slow_debug_code, V8_ENABLE_SLOW_DEBUG_CODE_BY_DEFAULT_BOOL,
 DEFINE_NEG_NEG_IMPLICATION(debug_code, slow_debug_code)
 #else
 DEFINE_BOOL_READONLY(debug_code, false, "")
+DEFINE_BOOL_READONLY(trap_on_abort, true, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
 #ifdef V8_CODE_COMMENTS
