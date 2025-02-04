@@ -159,7 +159,7 @@ describe('Regression tests', () => {
 
     // An input with a couple of insertion spots in constructors and
     // methods of two classes. One root and one a subclass.
-    const source = helpers.loadTestData('regress/super/input.js')
+    const source = helpers.loadTestData('regress/super/input.js');
     mutator.mutate(source);
 
     const mutated = sourceHelpers.generateCode(source);
@@ -182,5 +182,21 @@ describe('Regression tests', () => {
         this.settings,
         'test_data/regress/super/super_member_db',
         'regress/super/member_expected.js');
+  });
+
+  it('does not cross-insert duplicate variables', () => {
+    // Ensure we don't declare a duplicate variable when the
+    // declaration is part of a cross-over inserted snippet.
+    this.settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
+    const fakeDb = new db.MutateDb(
+        'test_data/regress/duplicates/duplicates_db');
+    const mutator = new CrossOverMutator(this.settings, fakeDb);
+
+    const source = helpers.loadTestData('regress/duplicates/input.js');
+    mutator.mutate(source);
+
+    const mutated = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'regress/duplicates/duplicates_expected.js', mutated);
   });
 });

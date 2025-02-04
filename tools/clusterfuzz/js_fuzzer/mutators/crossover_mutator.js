@@ -111,14 +111,17 @@ class CrossOverMutator extends mutator.Mutator {
             randomExpression.source,
             sourceHelpers.BABYLON_REPLACE_VAR_OPTIONS);
         const dependencies = {};
+        const expressionDependencies = randomExpression.dependencies;
 
-        if (randomExpression.dependencies) {
+        if (expressionDependencies) {
           const variables = common.availableVariables(path);
-          if (!variables.length) {
+          if (variables.length < expressionDependencies.length) {
             return;
           }
-          for (const dependency of randomExpression.dependencies) {
-            dependencies[dependency] = random.single(variables);
+          const chosenVariables = random.sample(
+              variables, expressionDependencies.length);
+          for (const [index, dependency] of expressionDependencies.entries()) {
+            dependencies[dependency] = chosenVariables[index];
           }
         }
 
