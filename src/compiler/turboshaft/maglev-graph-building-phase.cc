@@ -3471,7 +3471,7 @@ class GraphBuildingNodeProcessor {
     V<Word32> condition =
         __ Equal(Map(node->condition_input()), __ IntPtrConstant(0),
                  RegisterRepresentation::WordPtr());
-    __ Branch(condition, Map(node->if_true()), Map(node->if_false()));
+    __ Branch(condition, Map(node->if_false()), Map(node->if_true()));
     return maglev::ProcessResult::kContinue;
   }
 
