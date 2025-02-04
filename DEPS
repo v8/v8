@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dc7b3561cdb982e8961e0f9930bb0bd532722625',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b3f2515e155d4e9b09ad7f7b42648a47ed260b07',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6377d6649b0a2160ab8bb0b88d3cc64e3fd897cf',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e42fac3e9c1726ab14a61a25e6291d9ccc49e688',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0cc30c3bafbabf75bc9c79bff5457741e742beb1',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '7318ee2c9eeb951040cac64148b1d4bbc550f0c3',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '78da381450ce752ab9788781702f0da73e331796',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'd8e413be0cb7645a3545a6efea1aab03f9a58e52',
   'third_party/re2/src':
