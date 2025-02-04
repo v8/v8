@@ -2366,8 +2366,17 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
   int new_capacity = new_entries * 2 + kReservedSlotOffset;
   DirectHandle<ProtectedWeakFixedArray> new_uses =
       isolate->factory()->NewProtectedWeakFixedArray(new_capacity);
-  for (int i = kReservedSlotOffset; i < write_cursor; i += 2) {
-    CopyEntry(*new_uses, i, *uses_handle, i);
+  // The allocation could have triggered GC, freeing more entries.
+  // The previous compaction's {write_cursor} is the new upper bound on
+  // existing entries.
+  used_length = write_cursor;
+  DisallowGarbageCollection no_gc;
+  uses = *uses_handle;
+  write_cursor = kReservedSlotOffset;
+  for (int i = kReservedSlotOffset; i < used_length; i += 2) {
+    if (uses->get(i).IsCleared()) continue;
+    CopyEntry(*new_uses, write_cursor, uses, i);
+    write_cursor += 2;
   }
   SetUsedLength(*new_uses, write_cursor);
   dispatch_table->set_protected_uses(*new_uses);
