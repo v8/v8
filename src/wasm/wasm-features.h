@@ -135,6 +135,8 @@ enum class CompileTimeImport {
   kStringConstants,
   kTextEncoder,
   kTextDecoder,
+  // Not really an import, but needs the same handling as compile-time imports.
+  kDisableDenormalFloats,
 };
 
 inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {

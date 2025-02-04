@@ -14,6 +14,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
@@ -584,11 +585,14 @@ void RecordCompilationMethod(i::Isolate* isolate, CompilationMethod method) {
 CompileTimeImports ArgumentToCompileOptions(
     Local<Value> arg_value, i::Isolate* isolate,
     WasmEnabledFeatures enabled_features) {
-  if (!enabled_features.has_imported_strings()) return {};
-  i::DirectHandle<i::Object> arg = Utils::OpenDirectHandle(*arg_value);
-  if (!i::IsJSReceiver(*arg)) return {};
-  i::DirectHandle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);
   CompileTimeImports result;
+  if (base::FPU::GetFlushDenormals()) {
+    result.Add(CompileTimeImport::kDisableDenormalFloats);
+  }
+  if (!enabled_features.has_imported_strings()) return result;
+  i::DirectHandle<i::Object> arg = Utils::OpenDirectHandle(*arg_value);
+  if (!i::IsJSReceiver(*arg)) return result;
+  i::DirectHandle<i::JSReceiver> receiver = i::Cast<i::JSReceiver>(arg);
 
   // ==================== Builtins ====================
   i::DirectHandle<i::JSAny> builtins;

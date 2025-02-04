@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/turboshaft/wasm-turboshaft-compiler.h"
@@ -175,6 +176,10 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
   DCHECK_LT(function->func_index, native_module->num_functions());
   WasmCompilationUnit unit(function->func_index, tier, kNotForDebugging);
   CompilationEnv env = CompilationEnv::ForModule(native_module);
+  base::FlushDenormalsScope disable_denormals(
+      tier == ExecutionTier::kTurbofan &&
+      native_module->compile_imports().contains(
+          CompileTimeImport::kDisableDenormalFloats));
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
       counters, detected);

@@ -43,7 +43,7 @@ void FPU::SetFlushDenormals(bool value) {
 bool FPU::GetFlushDenormals() {
   unsigned int csr;
   _controlfp_s(&csr, 0, 0);
-  return (csr | _MCW_DN) == _DN_FLUSH;
+  return (csr & _MCW_DN) == _DN_FLUSH;
 }
 
 void FPU::SetFlushDenormals(bool value) {
