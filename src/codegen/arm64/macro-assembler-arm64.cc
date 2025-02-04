@@ -1631,7 +1631,8 @@ void MacroAssembler::AssertFPCRState(Register fpcr) {
 
   // Settings left to their default values:
   //   - Assert that flush-to-zero is not set.
-  Tbnz(fpcr, FZ_offset, &unexpected_mode);
+  // TODO(leszeks): Reenable check based on isolate flag.
+  // Tbnz(fpcr, FZ_offset, &unexpected_mode);
   //   - Assert that the rounding mode is nearest-with-ties-to-even.
   static_assert(FPTieEven == 0);
   Tst(fpcr, RMode_mask);
