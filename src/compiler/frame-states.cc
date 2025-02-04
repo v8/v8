@@ -32,10 +32,45 @@ std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
   return os << "PokeAt(" << sc.parameter_ << ")";
 }
 
+bool operator==(FrameStateFunctionInfo const& lhs,
+                FrameStateFunctionInfo const& rhs) {
+#if V8_HOST_ARCH_X64
+// If this static_assert fails, then you've probably added a new field to
+// FrameStateFunctionInfo. Make sure to take it into account in this equality
+// function, and update the static_assert.
+#if V8_ENABLE_WEBASSEMBLY
+  static_assert(sizeof(FrameStateFunctionInfo) == 40);
+#else
+  static_assert(sizeof(FrameStateFunctionInfo) == 32);
+#endif
+#endif
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (lhs.wasm_liftoff_frame_size() != rhs.wasm_liftoff_frame_size() ||
+      lhs.wasm_function_index() != rhs.wasm_function_index()) {
+    return false;
+  }
+#endif
+
+  return lhs.type() == rhs.type() &&
+         lhs.parameter_count() == rhs.parameter_count() &&
+         lhs.max_arguments() == rhs.max_arguments() &&
+         lhs.local_count() == rhs.local_count() &&
+         lhs.shared_info().equals(rhs.shared_info()) &&
+         lhs.bytecode_array().equals(rhs.bytecode_array());
+}
+
 bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
+#if V8_HOST_ARCH_X64
+  // If this static_assert fails, then you've probably added a new field to
+  // FrameStateInfo. Make sure to take it into account in this equality
+  // function, and update the static_assert.
+  static_assert(sizeof(FrameStateInfo) == 24);
+#endif
+
   return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
          lhs.state_combine() == rhs.state_combine() &&
-         lhs.function_info() == rhs.function_info();
+         *lhs.function_info() == *rhs.function_info();
 }
 
 bool operator!=(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {

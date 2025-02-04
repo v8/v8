@@ -3750,9 +3750,18 @@ struct FrameStateOp : OperationT<FrameStateOp> {
     return fn(base::VectorOf(mapped_inputs), inlined, data);
   }
 
+  size_t hash_value(
+      HashingStrategy strategy = HashingStrategy::kDefault) const {
+    // Computing the full hash of {data} would be a bit slow, so we just use the
+    // `bailout_id` and `inlined` (+ the inputs) to get a quick hash (and rely
+    // on the == operator to properly check later if 2 FrameStateOp with the
+    // same hash are really equal)
+    return HashWithOptions(inlined, data->frame_state_info.bailout_id());
+  }
+
   V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   V8_EXPORT_PRIVATE void PrintOptions(std::ostream& os) const;
-  auto options() const { return std::tuple{inlined, data}; }
+  auto options() const { return std::tuple{inlined, *data}; }
 };
 
 struct DeoptimizeOp : FixedArityOperationT<1, DeoptimizeOp> {

@@ -147,6 +147,8 @@ class FrameStateFunctionInfo {
   const MaybeIndirectHandle<BytecodeArray> bytecode_array_;
 };
 
+bool operator==(FrameStateFunctionInfo const&, FrameStateFunctionInfo const&);
+
 #if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
  public:
