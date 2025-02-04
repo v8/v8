@@ -6202,7 +6202,7 @@ void Isolate::UpdateProtectorsOnSetPrototype(
 
 void Isolate::UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(
     DirectHandle<JSObject> object) {
-  if (IsJSTypedArrayPrototype(*object) &&
+  if ((IsJSTypedArrayPrototype(*object) || IsJSTypedArray(*object)) &&
       Protectors::IsTypedArrayLengthLookupChainIntact(this)) {
     Protectors::InvalidateTypedArrayLengthLookupChain(this);
   }
