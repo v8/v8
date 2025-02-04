@@ -2633,4 +2633,12 @@
 # end import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
 ###
 
+####
+# import test262@d8e2cb274167073d3a0979085eeec5c1258ab042
+[ALWAYS, {
+ 'built-ins/TypedArray/prototype/includes/search-undefined-after-shrinking-buffer-index-is-oob': [SKIP],
+ 'staging/built-ins/Object/seal/seal-variable-length-typed-arrays': [SKIP],
+}],
+# end import test262@d8e2cb274167073d3a0979085eeec5c1258ab042
+###
 ]
