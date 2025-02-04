@@ -192,7 +192,7 @@ const CanonicalSig* TypeCanonicalizer::LookupFunctionSignature(
   base::SpinningMutexGuard mutex_guard(&mutex_);
   SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
-  DCHECK_EQ(type->kind, CanonicalType::kFunction);
+  SBXCHECK(type->kind == CanonicalType::kFunction);
   return type->function_sig;
 }
 
@@ -201,7 +201,7 @@ const CanonicalStructType* TypeCanonicalizer::LookupStruct(
   base::SpinningMutexGuard mutex_guard(&mutex_);
   SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
-  DCHECK_EQ(type->kind, CanonicalType::kStruct);
+  SBXCHECK(type->kind == CanonicalType::kStruct);
   return type->struct_type;
 }
 
@@ -210,7 +210,7 @@ const CanonicalArrayType* TypeCanonicalizer::LookupArray(
   base::SpinningMutexGuard mutex_guard(&mutex_);
   SBXCHECK(index.index < canonical_types_.size());
   const CanonicalType* type = get(index);
-  DCHECK_EQ(type->kind, CanonicalType::kArray);
+  SBXCHECK(type->kind == CanonicalType::kArray);
   return type->array_type;
 }
 
