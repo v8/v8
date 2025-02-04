@@ -129,10 +129,8 @@ bool Phi::is_unmerged_loop_phi() const {
   return merge_state()->is_unmerged_loop();
 }
 
-void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
-                            int current_offset) {
-  if (is_loop_phi() && merge_state()->HasLoopInfo() &&
-      merge_state()->loop_info()->Contains(current_offset)) {
+void Phi::RecordUseReprHint(UseRepresentationSet repr_mask) {
+  if (is_loop_phi() && is_unmerged_loop_phi()) {
     same_loop_uses_repr_hint_.Add(repr_mask);
   }
 
@@ -145,7 +143,7 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
 
     for (int i = 0; i < bound_inputs; i++) {
       if (Phi* phi_input = input(i).node()->TryCast<Phi>()) {
-        phi_input->RecordUseReprHint(repr_mask, current_offset);
+        phi_input->RecordUseReprHint(repr_mask);
       }
     }
   }

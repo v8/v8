@@ -207,11 +207,12 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     // {node} is a loop phi that has uses inside the loop; we will tag/untag
     // based on those uses, ignoring uses after the loop.
     use_reprs = node->get_same_loop_uses_repr_hints();
+    TRACE_UNTAGGING("  + use_reprs : " << use_reprs << " (same loop only)");
   } else {
     use_reprs = node->get_uses_repr_hints();
+    TRACE_UNTAGGING("  + use_reprs  : " << use_reprs << " (all uses)");
   }
 
-  TRACE_UNTAGGING("  + use_reprs  : " << use_reprs);
   TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
 
   if (use_reprs.contains(UseRepresentation::kTagged) ||

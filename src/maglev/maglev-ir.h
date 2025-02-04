@@ -8863,11 +8863,11 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
-  void RecordUseReprHint(UseRepresentation repr, int current_offset) {
-    RecordUseReprHint(UseRepresentationSet{repr}, current_offset);
+  void RecordUseReprHint(UseRepresentation repr) {
+    RecordUseReprHint(UseRepresentationSet{repr});
   }
 
-  void RecordUseReprHint(UseRepresentationSet repr_mask, int current_offset);
+  void RecordUseReprHint(UseRepresentationSet repr_mask);
 
   UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
   UseRepresentationSet get_same_loop_uses_repr_hints() {

@@ -397,7 +397,7 @@ class MaglevGraphBuilder {
   bool TopLevelFunctionPassMaglevPrintFilter();
 
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
-    phi->RecordUseReprHint(reprs, iterator_.current_offset());
+    phi->RecordUseReprHint(reprs);
   }
   void RecordUseReprHint(Phi* phi, UseRepresentation repr) {
     RecordUseReprHint(phi, UseRepresentationSet{repr});
