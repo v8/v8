@@ -3422,10 +3422,6 @@ class LiftoffCompiler {
     // Early return for trap handler.
     bool use_trap_handler = !force_check && bounds_checks == kTrapHandler;
     bool need_ool_code = !use_trap_handler || memory->is_memory64();
-    Label* trap_label =
-        need_ool_code
-            ? AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
-            : nullptr;
 
     DCHECK_IMPLIES(
         memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling,
@@ -3434,6 +3430,11 @@ class LiftoffCompiler {
     if (use_trap_handler) {
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       if (memory->is_memory64()) {
+        FREEZE_STATE(trapping);
+        Label* trap_label =
+            need_ool_code ? AddOutOfLineTrap(
+                                decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
+                          : nullptr;
         SCOPED_CODE_COMMENT("bounds check memory");
         // Bounds check `index` against `max_mem_size - end_offset`, such that
         // at runtime `index + end_offset` will be < `max_mem_size`, where the
@@ -3456,21 +3457,29 @@ class LiftoffCompiler {
 
     SCOPED_CODE_COMMENT("bounds check memory");
 
+    pinned.set(index_ptrsize);
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
     if (!memory->is_memory64()) {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
+      pinned.set(index.high_gp());
       DCHECK_GE(kMaxUInt32, memory->max_memory_size);
-      FREEZE_STATE(trapping);
+      FREEZE_STATE(out_of_line_trap);
+      Label* trap_label =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
       __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
-                        trapping);
+                        out_of_line_trap);
+      pinned.clear(index.high_gp());
     }
 
-    pinned.set(index_ptrsize);
+    // Note that allocating the registers here before creating the trap label is
+    // needed to prevent the tagged bits for the ool safe point to be
+    // invalidated!
     LiftoffRegister end_offset_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
+    LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
     // TODO(13957): Clamp the loaded memory size to a safe value.
     if (memory->index == 0) {
       LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
@@ -3484,9 +3493,15 @@ class LiftoffCompiler {
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
 
+    // {for_debugging_} needs spill slots in out of line code.
+    FREEZE_STATE(trapping);
+    Label* trap_label =
+        need_ool_code
+            ? AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
+            : nullptr;
+
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
-    FREEZE_STATE(trapping);
     // If the end offset is larger than the smallest memory, dynamically check
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
