@@ -35,6 +35,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
@@ -2637,6 +2638,21 @@ void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
+void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  // Check if the argument is a valid function.
+  if (info.Length() != 1) {
+    ThrowError(isolate, "Expected single boolean argument.");
+    return;
+  }
+  Local<Value> arg = info[0];
+  if (!arg->IsBoolean()) {
+    ThrowError(isolate, "Expected single boolean argument.");
+    return;
+  }
+  base::FPU::SetFlushDenormals(arg.As<Boolean>()->BooleanValue(isolate));
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -4021,6 +4037,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(isolate, "enableJSPI",
                        FunctionTemplate::New(isolate, Shell::EnableJSPI));
 
+    test_template->Set(
+        isolate, "setFlushDenormals",
+        FunctionTemplate::New(isolate, Shell::SetFlushDenormals));
+
     d8_template->Set(isolate, "test", test_template);
   }
   {
@@ -4969,6 +4989,8 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
     : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
+  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
@@ -5265,6 +5287,8 @@ void Worker::SetCurrentWorker(Worker* worker) {
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
+  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   isolate_ = Isolate::New(create_params);
@@ -5720,6 +5744,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (FlagMatches("--expose-fast-api", &argv[i])) {
       options.expose_fast_api = true;
+    } else if (FlagMatches("--flush-denormals", &argv[i])) {
+      options.flush_denormals = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -6365,6 +6391,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
+
+  v8::base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 

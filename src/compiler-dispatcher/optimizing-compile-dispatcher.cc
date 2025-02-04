@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
@@ -46,6 +47,9 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
       Isolate* const isolate = job->isolate();
 
       {
+        base::FlushDenormalsScope flush_denormals_scope(
+            isolate->flush_denormals());
+
         // Note that LocalIsolate's lifetime is shorter than the isolate value
         // in task_state which is only cleared after this LocalIsolate instance
         // was destroyed.
