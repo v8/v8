@@ -412,11 +412,6 @@ MaybeDirectHandle<Object> LoadIC::Load(Handle<JSAny> object, Handle<Name> name,
       TraceIC("LoadIC", name);
     }
 
-    if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
-      isolate()->Throw(*ErrorUtils::NewIteratorError(isolate(), object));
-      return MaybeDirectHandle<Object>();
-    }
-
     if (IsAnyHas()) {
       return TypeError(MessageTemplate::kInvalidInOperatorUse, object, name);
     } else {
