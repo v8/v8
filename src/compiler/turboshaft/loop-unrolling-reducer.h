@@ -62,6 +62,10 @@ class IterationCount {
     DCHECK_EQ(kind_, Kind::kExact);
     return count_;
   }
+  size_t approx_count() const {
+    DCHECK_EQ(kind_, Kind::kApprox);
+    return count_;
+  }
 
   bool IsExact() const { return kind_ == Kind::kExact; }
   bool IsApprox() const { return kind_ == Kind::kApprox; }

@@ -247,7 +247,7 @@ std::ostream& operator<<(std::ostream& os, const IterationCount& count) {
   if (count.IsExact()) {
     return os << "Exact[" << count.exact_count() << "]";
   } else if (count.IsApprox()) {
-    return os << "Approx[" << count.exact_count() << "]";
+    return os << "Approx[" << count.approx_count() << "]";
   } else {
     DCHECK(count.IsUnknown());
     return os << "Unknown";
