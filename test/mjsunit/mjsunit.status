@@ -1678,6 +1678,9 @@
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
 
+  # Flush to zero is not supported yet.
+  'd8/flush-denormals-flag': [SKIP],
+  'd8/flush-denormals-helper': [SKIP]
 }],  # arch in [ppc64, s390x]'
 
 ##############################################################################
