@@ -78,7 +78,7 @@ class RecordingVisitor final : public RootVisitor {
   }
 
   Tagged<InstructionStream> AllocateCodeObject(Isolate* isolate, int size) {
-    Assembler assm(AssemblerOptions{});
+    Assembler assm(isolate->allocator(), AssemblerOptions{});
 
     for (int i = 0; i < size; ++i)
       assm.nop();  // supported on all architectures
