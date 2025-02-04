@@ -198,6 +198,8 @@ constexpr int kFastElementsKindBits = 3;
 static_assert((1 << kFastElementsKindBits) > LAST_FAST_ELEMENTS_KIND);
 static_assert((1 << (kFastElementsKindBits - 1)) <= LAST_FAST_ELEMENTS_KIND);
 
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, ElementsKind kind);
+
 const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindShifts();
 const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindSizes();
 inline constexpr int ElementsKindToShiftSize(ElementsKind elements_kind) {

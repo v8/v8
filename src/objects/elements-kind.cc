@@ -288,5 +288,9 @@ bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b) {
   return false;
 }
 
+std::ostream& operator<<(std::ostream& os, ElementsKind kind) {
+  return os << ElementsKindToString(kind);
+}
+
 }  // namespace internal
 }  // namespace v8
