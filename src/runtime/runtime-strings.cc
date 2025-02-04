@@ -19,41 +19,41 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_GetSubstitution) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  Handle<String> matched = args.at<String>(0);
-  Handle<String> subject = args.at<String>(1);
+  DirectHandle<String> matched = args.at<String>(0);
+  DirectHandle<String> subject = args.at<String>(1);
   int position = args.smi_value_at(2);
-  Handle<String> replacement = args.at<String>(3);
+  DirectHandle<String> replacement = args.at<String>(3);
   int start_index = args.smi_value_at(4);
 
   // A simple match without captures.
   class SimpleMatch : public String::Match {
    public:
-    SimpleMatch(Handle<String> match, Handle<String> prefix,
-                Handle<String> suffix)
+    SimpleMatch(DirectHandle<String> match, DirectHandle<String> prefix,
+                DirectHandle<String> suffix)
         : match_(match), prefix_(prefix), suffix_(suffix) {}
 
-    Handle<String> GetMatch() override { return match_; }
-    Handle<String> GetPrefix() override { return prefix_; }
-    Handle<String> GetSuffix() override { return suffix_; }
+    DirectHandle<String> GetMatch() override { return match_; }
+    DirectHandle<String> GetPrefix() override { return prefix_; }
+    DirectHandle<String> GetSuffix() override { return suffix_; }
 
     int CaptureCount() override { return 0; }
     bool HasNamedCaptures() override { return false; }
-    MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
+    MaybeDirectHandle<String> GetCapture(int i, bool* capture_exists) override {
       *capture_exists = false;
       return match_;  // Return arbitrary string handle.
     }
-    MaybeHandle<String> GetNamedCapture(DirectHandle<String> name,
-                                        CaptureState* state) override {
+    MaybeDirectHandle<String> GetNamedCapture(DirectHandle<String> name,
+                                              CaptureState* state) override {
       UNREACHABLE();
     }
 
    private:
-    Handle<String> match_, prefix_, suffix_;
+    DirectHandle<String> match_, prefix_, suffix_;
   };
 
-  Handle<String> prefix =
+  DirectHandle<String> prefix =
       isolate->factory()->NewSubString(subject, 0, position);
-  Handle<String> suffix = isolate->factory()->NewSubString(
+  DirectHandle<String> suffix = isolate->factory()->NewSubString(
       subject, position + matched->length(), subject->length());
   SimpleMatch match(matched, prefix, suffix);
 
@@ -62,32 +62,32 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
       String::GetSubstitution(isolate, &match, replacement, start_index));
 }
 
-// This may return an empty MaybeHandle if an exception is thrown or
+// This may return an empty MaybeDirectHandle if an exception is thrown or
 // we abort due to reaching the recursion limit.
-MaybeHandle<String> StringReplaceOneCharWithString(
-    Isolate* isolate, Handle<String> subject, Handle<String> search,
-    Handle<String> replace, bool* found, int recursion_limit) {
+MaybeDirectHandle<String> StringReplaceOneCharWithString(
+    Isolate* isolate, DirectHandle<String> subject, DirectHandle<String> search,
+    DirectHandle<String> replace, bool* found, int recursion_limit) {
   StackLimitCheck stackLimitCheck(isolate);
   if (stackLimitCheck.HasOverflowed() || (recursion_limit == 0)) {
-    return MaybeHandle<String>();
+    return MaybeDirectHandle<String>();
   }
   recursion_limit--;
   if (IsConsString(*subject)) {
     Tagged<ConsString> cons = Cast<ConsString>(*subject);
-    Handle<String> first = handle(cons->first(), isolate);
-    Handle<String> second = handle(cons->second(), isolate);
-    Handle<String> new_first;
+    DirectHandle<String> first(cons->first(), isolate);
+    DirectHandle<String> second(cons->second(), isolate);
+    DirectHandle<String> new_first;
     if (!StringReplaceOneCharWithString(isolate, first, search, replace, found,
                                         recursion_limit).ToHandle(&new_first)) {
-      return MaybeHandle<String>();
+      return MaybeDirectHandle<String>();
     }
     if (*found) return isolate->factory()->NewConsString(new_first, second);
 
-    Handle<String> new_second;
+    DirectHandle<String> new_second;
     if (!StringReplaceOneCharWithString(isolate, second, search, replace, found,
                                         recursion_limit)
              .ToHandle(&new_second)) {
-      return MaybeHandle<String>();
+      return MaybeDirectHandle<String>();
     }
     if (*found) return isolate->factory()->NewConsString(first, new_second);
 
@@ -96,11 +96,12 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     int index = String::IndexOf(isolate, subject, search, 0);
     if (index == -1) return subject;
     *found = true;
-    Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
-    Handle<String> cons1;
+    DirectHandle<String> first =
+        isolate->factory()->NewSubString(subject, 0, index);
+    DirectHandle<String> cons1;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, cons1, isolate->factory()->NewConsString(first, replace));
-    Handle<String> second =
+    DirectHandle<String> second =
         isolate->factory()->NewSubString(subject, index + 1, subject->length());
     return isolate->factory()->NewConsString(cons1, second);
   }
@@ -109,9 +110,9 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<String> subject = args.at<String>(0);
-  Handle<String> search = args.at<String>(1);
-  Handle<String> replace = args.at<String>(2);
+  DirectHandle<String> subject = args.at<String>(0);
+  DirectHandle<String> search = args.at<String>(1);
+  DirectHandle<String> replace = args.at<String>(2);
 
   // If the cons string tree is too deep, we simply abort the recursion and
   // retry with a flattened subject string.
@@ -143,7 +144,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
 RUNTIME_FUNCTION(Runtime_StringSubstring) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
   int start = args.smi_value_at(1);
   int end = args.smi_value_at(2);
   DCHECK_LE(0, start);
@@ -157,8 +158,8 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> str1 = args.at<String>(0);
-  Handle<String> str2 = args.at<String>(1);
+  DirectHandle<String> str1 = args.at<String>(0);
+  DirectHandle<String> str2 = args.at<String>(1);
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }
@@ -167,7 +168,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> string = args.at<String>(0);
+  DirectHandle<String> string = args.at<String>(0);
   return *isolate->factory()->InternalizeString(string);
 }
 
@@ -176,7 +177,7 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  Handle<String> subject = args.at<String>(0);
+  DirectHandle<String> subject = args.at<String>(0);
   uint32_t i = NumberToUint32(args[1]);
 
   // Flatten the string.  If someone wants to get a char at an index
@@ -195,7 +196,7 @@ RUNTIME_FUNCTION(Runtime_StringCodePointAt) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  Handle<String> subject = args.at<String>(0);
+  DirectHandle<String> subject = args.at<String>(0);
   uint32_t i = NumberToUint32(args[1]);
 
   // Flatten the string.  If someone wants to get a char at an index
@@ -288,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 RUNTIME_FUNCTION(Runtime_StringToArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> s = args.at<String>(0);
+  DirectHandle<String> s = args.at<String>(0);
   uint32_t limit = NumberToUint32(args[1]);
 
   s = String::Flatten(isolate, s);
@@ -405,7 +406,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<String> str = args.at<String>(0);
+  DirectHandle<String> str = args.at<String>(0);
   return *String::Flatten(isolate, str);
 }
 

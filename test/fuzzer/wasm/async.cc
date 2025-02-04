@@ -28,13 +28,13 @@ class AsyncFuzzerResolver : public CompilationResultResolver {
   AsyncFuzzerResolver(Isolate* isolate, bool* done)
       : isolate_(isolate), done_(done) {}
 
-  void OnCompilationSucceeded(Handle<WasmModuleObject> module) override {
+  void OnCompilationSucceeded(DirectHandle<WasmModuleObject> module) override {
     *done_ = true;
     ExecuteAgainstReference(isolate_, module,
                             kDefaultMaxFuzzerExecutedInstructions);
   }
 
-  void OnCompilationFailed(Handle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
     *done_ = true;
   }
 

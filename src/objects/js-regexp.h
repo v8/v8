@@ -29,16 +29,16 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
-  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
-      Isolate* isolate, Handle<String> source, Flags flags,
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<JSRegExp> New(
+      Isolate* isolate, DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
-  static MaybeHandle<JSRegExp> Initialize(
-      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
+  static MaybeDirectHandle<JSRegExp> Initialize(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
-  static MaybeDirectHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                                Handle<String> source,
-                                                Handle<String> flags_string);
+  static MaybeDirectHandle<JSRegExp> Initialize(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
+      DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
@@ -79,7 +79,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static_assert(kFlagCount == kRegExpFlagCount);
 
   static std::optional<Flags> FlagsFromString(Isolate* isolate,
-                                              Handle<String> flags);
+                                              DirectHandle<String> flags);
 
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
@@ -355,7 +355,7 @@ class JSRegExpResultIndices
  public:
   static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-      Handle<Object> maybe_names);
+      DirectHandle<Object> maybe_names);
 
   // Indices of in-object properties.
   static constexpr int kGroupsIndex = 0;

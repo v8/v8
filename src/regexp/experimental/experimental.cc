@@ -16,7 +16,8 @@
 
 namespace v8::internal {
 
-bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, Handle<String> pattern,
+bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree,
+                                      DirectHandle<String> pattern,
                                       RegExpFlags flags, int capture_count) {
   DCHECK(v8_flags.enable_experimental_regexp_engine ||
          v8_flags.enable_experimental_regexp_engine_on_excessive_backtracks);
@@ -55,12 +56,12 @@ bool ExperimentalRegExp::IsCompiled(DirectHandle<IrRegExpData> re_data,
 }
 
 template <class T>
-Handle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
-                                           base::Vector<T> data) {
+DirectHandle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
+                                                 base::Vector<T> data) {
   static_assert(std::is_trivial_v<T>);
 
   int byte_length = sizeof(T) * data.length();
-  Handle<TrustedByteArray> byte_array =
+  DirectHandle<TrustedByteArray> byte_array =
       isolate->factory()->NewTrustedByteArray(byte_length);
   DisallowGarbageCollection no_gc;
   MemCopy(byte_array->begin(), data.begin(), byte_length);
@@ -70,8 +71,8 @@ Handle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
 namespace {
 
 struct CompilationResult {
-  Handle<TrustedByteArray> bytecode;
-  Handle<FixedArray> capture_name_map;
+  DirectHandle<TrustedByteArray> bytecode;
+  DirectHandle<FixedArray> capture_name_map;
 };
 
 // Compiles source pattern, but doesn't change the regexp object.
@@ -79,7 +80,7 @@ std::optional<CompilationResult> CompileImpl(
     Isolate* isolate, DirectHandle<IrRegExpData> re_data) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  Handle<String> source(re_data->source(), isolate);
+  DirectHandle<String> source(re_data->source(), isolate);
 
   // Parse and compile the regexp source.
   RegExpCompileData parse_result;
@@ -218,7 +219,7 @@ int32_t ExperimentalRegExp::MatchForCallFromJs(
 // static
 std::optional<int> ExperimentalRegExp::Exec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-    Handle<String> subject, int index, int32_t* result_offsets_vector,
+    DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
     uint32_t result_offsets_vector_length) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_EQ(regexp_data->type_tag(), RegExpData::Type::EXPERIMENTAL);

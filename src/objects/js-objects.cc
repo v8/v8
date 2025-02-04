@@ -3481,7 +3481,7 @@ DirectHandle<Map> JSObject::GetElementsTransitionMap(
 }
 
 void JSObject::AllocateStorageForMap(DirectHandle<JSObject> object,
-                                     Handle<Map> map) {
+                                     DirectHandle<Map> map) {
   DCHECK(object->map()->GetInObjectProperties() ==
          map->GetInObjectProperties());
   ElementsKind obj_kind = object->map()->elements_kind();
@@ -3788,7 +3788,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
 
 MaybeDirectHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
-    Handle<Object> value, PropertyAttributes attributes) {
+    DirectHandle<Object> value, PropertyAttributes attributes) {
   DCHECK(!IsTheHole(*value));
   LookupIterator it(object->GetIsolate(), object, name, object,
                     LookupIterator::OWN);
@@ -3796,7 +3796,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 }
 
 MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
-    DirectHandle<JSObject> object, size_t index, Handle<Object> value,
+    DirectHandle<JSObject> object, size_t index, DirectHandle<Object> value,
     PropertyAttributes attributes) {
   DCHECK(!IsJSTypedArray(*object));
   Isolate* isolate = object->GetIsolate();
@@ -3806,7 +3806,7 @@ MaybeDirectHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
 
 MaybeDirectHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     DirectHandle<JSObject> object, DirectHandle<Name> name,
-    Handle<Object> value, PropertyAttributes attributes) {
+    DirectHandle<Object> value, PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);

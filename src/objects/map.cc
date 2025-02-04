@@ -484,11 +484,11 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 }
 
 // static
-MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
+MaybeObjectDirectHandle Map::WrapFieldType(DirectHandle<FieldType> type) {
   if (IsClass(*type)) {
-    return MaybeObjectHandle::Weak(FieldType::AsClass(type));
+    return MaybeObjectDirectHandle::Weak(FieldType::AsClass(type));
   }
-  return MaybeObjectHandle(type);
+  return MaybeObjectDirectHandle(type);
 }
 
 // static
@@ -503,7 +503,7 @@ Tagged<FieldType> Map::UnwrapFieldType(Tagged<MaybeObject> wrapped_type) {
 
 MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
                                     DirectHandle<Name> name,
-                                    Handle<FieldType> type,
+                                    DirectHandle<FieldType> type,
                                     PropertyAttributes attributes,
                                     PropertyConstness constness,
                                     Representation representation,
@@ -550,7 +550,7 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, DirectHandle<Map> map,
 
   Representation representation =
       Object::OptimalRepresentation(*constant, isolate);
-  Handle<FieldType> type =
+  DirectHandle<FieldType> type =
       Object::OptimalType(*constant, isolate, representation);
   return CopyWithField(isolate, map, name, type, attributes,
                        PropertyConstness::kConst, representation, flag);
@@ -1974,7 +1974,8 @@ Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
       map->instance_descriptors(isolate)->GetDetails(descriptor).attributes();
   Representation representation =
       Object::OptimalRepresentation(*value, isolate);
-  Handle<FieldType> type = Object::OptimalType(*value, isolate, representation);
+  DirectHandle<FieldType> type =
+      Object::OptimalType(*value, isolate, representation);
 
   MapUpdater mu(isolate, map);
   return mu.ReconfigureToDataField(descriptor, attributes, constness,
@@ -2031,7 +2032,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!map->TooManyFastProperties(store_origin)) {
     Representation representation =
         Object::OptimalRepresentation(*value, isolate);
-    Handle<FieldType> type =
+    DirectHandle<FieldType> type =
         Object::OptimalType(*value, isolate, representation);
     maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
                                    constness, representation, flag);

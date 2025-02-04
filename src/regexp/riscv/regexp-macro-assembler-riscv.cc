@@ -659,8 +659,8 @@ void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source,
-                                                      RegExpFlags flags) {
+DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
   Label return_a0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of

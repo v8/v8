@@ -30359,10 +30359,10 @@ TEST(WasmAbortStreamingAfterContextDisposal) {
   class Resolver final : public i::wasm::CompilationResultResolver {
    public:
     void OnCompilationSucceeded(
-        i::Handle<i::WasmModuleObject> result) override {
+        i::DirectHandle<i::WasmModuleObject> result) override {
       UNREACHABLE();
     }
-    void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
       UNREACHABLE();
     }
   };

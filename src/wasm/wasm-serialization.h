@@ -58,7 +58,7 @@ bool IsSupportedVersion(base::Vector<const uint8_t> data,
                         WasmEnabledFeatures enabled_features);
 
 // Deserializes the given data to create a Wasm module object.
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> DeserializeNativeModule(
+V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate*, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes,
     const CompileTimeImports& compile_imports,

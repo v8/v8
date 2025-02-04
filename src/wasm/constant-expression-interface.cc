@@ -124,11 +124,12 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   bool function_is_shared = module_->type(sig_index).is_shared;
   CanonicalValueType type = CanonicalValueType::FromIndex(
       kRef, module_->canonical_type_id(sig_index));
-  Handle<WasmFuncRef> func_ref = WasmTrustedInstanceData::GetOrCreateFuncRef(
-      isolate_,
-      function_is_shared ? shared_trusted_instance_data_
-                         : trusted_instance_data_,
-      function_index);
+  DirectHandle<WasmFuncRef> func_ref =
+      WasmTrustedInstanceData::GetOrCreateFuncRef(
+          isolate_,
+          function_is_shared ? shared_trusted_instance_data_
+                             : trusted_instance_data_,
+          function_index);
   result->runtime_value = WasmValue(func_ref, type);
 }
 
@@ -184,7 +185,7 @@ void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
       trusted_instance_data_->native_module()->wire_bytes();
   const base::Vector<const uint8_t> string_bytes = module_bytes.SubVector(
       literal.source.offset(), literal.source.end_offset());
-  Handle<String> string =
+  DirectHandle<String> string =
       isolate_->factory()
           ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)
           .ToHandleChecked();
@@ -339,8 +340,9 @@ void ConstantExpressionInterface::ArrayNewSegment(
 
     Address source =
         data->data_segment_starts()->get(segment_imm.index) + offset;
-    Handle<WasmArray> array_value = isolate_->factory()->NewWasmArrayFromMemory(
-        length, rtt, element_type, source);
+    DirectHandle<WasmArray> array_value =
+        isolate_->factory()->NewWasmArrayFromMemory(length, rtt, element_type,
+                                                    source);
     result->runtime_value = WasmValue(array_value, result_type);
   } else {
     const wasm::WasmElemSegment* elem_segment =
@@ -356,7 +358,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
       return;
     }
 
-    Handle<Object> array_object =
+    DirectHandle<Object> array_object =
         isolate_->factory()->NewWasmArrayFromElementSegment(
             trusted_instance_data_, shared_trusted_instance_data_,
             segment_imm.index, offset, length, rtt, element_type);

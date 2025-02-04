@@ -2628,7 +2628,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
     script->set_origin_options(origin_options);
 
     // The one post-hoc fix-up: Add the script to the script list.
-    Handle<WeakArrayList> scripts = isolate->factory()->script_list();
+    DirectHandle<WeakArrayList> scripts = isolate->factory()->script_list();
     scripts = WeakArrayList::Append(isolate, scripts,
                                     MaybeObjectDirectHandle::Weak(script));
     isolate->heap()->SetRootScriptList(*scripts);
@@ -2966,13 +2966,13 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 
   if (script->produce_compile_hints()) {
     // Log lazy function compilation.
-    Handle<ArrayList> list;
+    DirectHandle<ArrayList> list;
     if (IsUndefined(script->compiled_lazy_function_positions())) {
       constexpr int kInitialLazyFunctionPositionListSize = 100;
       list = ArrayList::New(isolate, kInitialLazyFunctionPositionListSize);
     } else {
-      list = handle(Cast<ArrayList>(script->compiled_lazy_function_positions()),
-                    isolate);
+      list = direct_handle(
+          Cast<ArrayList>(script->compiled_lazy_function_positions()), isolate);
     }
     list = ArrayList::Add(isolate, list,
                           Smi::FromInt(shared_info->StartPosition()));

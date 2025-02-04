@@ -44,7 +44,8 @@ class CodeTraceContext {
     return incremental_state_.InternJsScript(isolate, script);
   }
 
-  uint64_t InternJsFunction(Isolate& isolate, Handle<SharedFunctionInfo> info,
+  uint64_t InternJsFunction(Isolate& isolate,
+                            DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num) {
     return incremental_state_.InternJsFunction(isolate, info, v8_js_script_iid,

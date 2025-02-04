@@ -59,7 +59,7 @@ class SharedEngineIsolate {
   }
 
   DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
-    Handle<WasmModuleObject> module_object =
+    DirectHandle<WasmModuleObject> module_object =
         GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeDirectHandle<WasmInstanceObject> instance =
@@ -115,10 +115,11 @@ class MockInstantiationResolver : public InstantiationResultResolver {
  public:
   explicit MockInstantiationResolver(IndirectHandle<Object>* out_instance)
       : out_instance_(out_instance) {}
-  void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) override {
+  void OnInstantiationSucceeded(
+      DirectHandle<WasmInstanceObject> result) override {
     *out_instance_->location() = result->ptr();
   }
-  void OnInstantiationFailed(Handle<Object> error_reason) override {
+  void OnInstantiationFailed(DirectHandle<Object> error_reason) override {
     UNREACHABLE();
   }
 
@@ -131,12 +132,12 @@ class MockCompilationResolver : public CompilationResultResolver {
   MockCompilationResolver(SharedEngineIsolate* isolate,
                           IndirectHandle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
-  void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
+  void OnCompilationSucceeded(DirectHandle<WasmModuleObject> result) override {
     GetWasmEngine()->AsyncInstantiate(
         isolate_->isolate(),
         std::make_unique<MockInstantiationResolver>(out_instance_), result, {});
   }
-  void OnCompilationFailed(Handle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
     UNREACHABLE();
   }
 

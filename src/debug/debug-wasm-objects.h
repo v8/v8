@@ -58,11 +58,11 @@ class WasmValueObject : public JSObject {
   static constexpr int kTypeIndex = 0;
   static constexpr int kValueIndex = 1;
 
-  static Handle<WasmValueObject> New(Isolate* isolate,
-                                     DirectHandle<String> type,
-                                     DirectHandle<Object> value);
-  static Handle<WasmValueObject> New(Isolate* isolate,
-                                     const wasm::WasmValue& value);
+  static DirectHandle<WasmValueObject> New(Isolate* isolate,
+                                           DirectHandle<String> type,
+                                           DirectHandle<Object> value);
+  static DirectHandle<WasmValueObject> New(Isolate* isolate,
+                                           const wasm::WasmValue& value);
 
   OBJECT_CONSTRUCTORS(WasmValueObject, JSObject);
 };
@@ -76,20 +76,20 @@ std::unique_ptr<debug::ScopeIterator> GetWasmInterpreterScopeIterator(
     WasmInterpreterEntryFrame* frame);
 #endif  // V8_ENABLE_DRUMBRAKE
 
-Handle<String> GetWasmFunctionDebugName(
+DirectHandle<String> GetWasmFunctionDebugName(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
     uint32_t func_index);
 
-Handle<ArrayList> AddWasmInstanceObjectInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+DirectHandle<ArrayList> AddWasmInstanceObjectInternalProperties(
+    Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<WasmInstanceObject> instance);
 
-Handle<ArrayList> AddWasmModuleObjectInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+DirectHandle<ArrayList> AddWasmModuleObjectInternalProperties(
+    Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<WasmModuleObject> module_object);
 
-Handle<ArrayList> AddWasmTableObjectInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+DirectHandle<ArrayList> AddWasmTableObjectInternalProperties(
+    Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<WasmTableObject> table);
 
 }  // namespace internal

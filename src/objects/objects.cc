@@ -221,8 +221,9 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
 }
 
 // static
-Handle<FieldType> Object::OptimalType(Tagged<Object> obj, Isolate* isolate,
-                                      Representation representation) {
+DirectHandle<FieldType> Object::OptimalType(Tagged<Object> obj,
+                                            Isolate* isolate,
+                                            Representation representation) {
   if (representation.IsNone()) return FieldType::None(isolate);
   if (v8_flags.track_field_types) {
     if (representation.IsHeapObject() && IsHeapObject(obj)) {
@@ -4043,7 +4044,8 @@ bool DescriptorArray::IsEqualTo(Tagged<DescriptorArray> other) {
 #endif
 
 // static
-MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name) {
+MaybeDirectHandle<String> Name::ToFunctionName(Isolate* isolate,
+                                               DirectHandle<Name> name) {
   if (IsString(*name)) return Cast<String>(name);
   // ES6 section 9.2.11 SetFunctionName, step 4.
   DirectHandle<Object> description(Cast<Symbol>(name)->description(), isolate);
@@ -4054,12 +4056,13 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name) {
   builder.AppendCharacter('[');
   builder.AppendString(Cast<String>(description));
   builder.AppendCharacter(']');
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 // static
-MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name,
-                                         DirectHandle<String> prefix) {
+MaybeDirectHandle<String> Name::ToFunctionName(Isolate* isolate,
+                                               DirectHandle<Name> name,
+                                               DirectHandle<String> prefix) {
   DirectHandle<String> name_string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, name_string,
                              ToFunctionName(isolate, name));
@@ -4067,7 +4070,7 @@ MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name,
   builder.AppendString(prefix);
   builder.AppendCharacter(' ');
   builder.AppendString(name_string);
-  return indirect_handle(builder.Finish(), isolate);
+  return builder.Finish();
 }
 
 void Relocatable::PostGarbageCollectionProcessing(Isolate* isolate) {

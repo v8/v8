@@ -162,11 +162,11 @@ class TestInstantiateResolver : public InstantiationResultResolver {
       : isolate_(isolate), status_(status), error_message_(error_message) {}
 
   void OnInstantiationSucceeded(
-      i::Handle<i::WasmInstanceObject> instance) override {
+      i::DirectHandle<i::WasmInstanceObject> instance) override {
     *status_ = CompilationStatus::kFinished;
   }
 
-  void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
@@ -189,7 +189,8 @@ class TestCompileResolver : public CompilationResultResolver {
         isolate_(isolate),
         native_module_(native_module) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       *native_module_ = module->shared_native_module();
       GetWasmEngine()->AsyncInstantiate(
@@ -200,7 +201,7 @@ class TestCompileResolver : public CompilationResultResolver {
     }
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(CcTest::i_isolate(), error_reason).ToHandleChecked();

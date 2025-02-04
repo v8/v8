@@ -736,7 +736,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int length, wasm::CanonicalValueType table_type);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
       wasm::CanonicalTypeIndex type_index,
-      wasm::CanonicalValueType element_type, Handle<Map> opt_parent);
+      wasm::CanonicalValueType element_type, DirectHandle<Map> opt_parent);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index);
   Handle<WasmFuncRef> NewWasmFuncRef(
@@ -787,8 +787,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   Handle<Object> NewWasmArrayFromElementSegment(
-      Handle<WasmTrustedInstanceData> trusted_instance_data,
-      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+      DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
       DirectHandle<Map> map, wasm::CanonicalValueType element_type);
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject(

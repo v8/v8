@@ -982,9 +982,7 @@ class RefImpl {
 
   i::Isolate* isolate() const { return store()->i_isolate(); }
 
-  i::Handle<JSType> v8_object() const {
-    return i::Cast<JSType>(val_);
-  }
+  i::DirectHandle<JSType> v8_object() const { return i::Cast<JSType>(val_); }
 
   void* get_host_info() const {
     v8::Isolate::Scope isolate_scope(store()->isolate());
@@ -1003,7 +1001,7 @@ class RefImpl {
     return reinterpret_cast<i::Address*>(val_.address());
   }
 
-  i::Handle<i::JSReceiver> val_;
+  i::IndirectHandle<i::JSReceiver> val_;
   StoreImpl* store_;
 };
 
@@ -1118,7 +1116,8 @@ WASM_EXPORT auto Trap::message() const -> Message {
 
   i::DirectHandle<i::JSMessageObject> message =
       isolate->CreateMessage(impl(this)->v8_object(), nullptr);
-  i::Handle<i::String> result = i::MessageHandler::GetMessage(isolate, message);
+  i::DirectHandle<i::String> result =
+      i::MessageHandler::GetMessage(isolate, message);
   result = i::String::Flatten(isolate, result);  // For performance.
   size_t length = 0;
   std::unique_ptr<char[]> utf8 = result->ToCString(&length);
@@ -1467,7 +1466,7 @@ WASM_EXPORT auto Extern::memory() const -> const Memory* {
                                       : nullptr;
 }
 
-auto extern_to_v8(const Extern* ex) -> i::Handle<i::JSReceiver> {
+auto extern_to_v8(const Extern* ex) -> i::DirectHandle<i::JSReceiver> {
   return impl(ex)->v8_object();
 }
 
@@ -1667,7 +1666,7 @@ own<Ref> V8RefValueToWasm(StoreImpl* store, i::DirectHandle<i::Object> value) {
   return implement<Ref>::type::make(store, i::Cast<i::JSReceiver>(value));
 }
 
-i::Handle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
+i::DirectHandle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
   if (ref == nullptr) return isolate->factory()->null_value();
   return impl(ref)->v8_object();
 }
@@ -1784,7 +1783,7 @@ own<Trap> CallWasmCapiFunction(i::Tagged<i::WasmCapiFunctionData> data,
 }
 
 i::DirectHandle<i::JSReceiver> GetProperException(
-    i::Isolate* isolate, i::Handle<i::Object> maybe_exception) {
+    i::Isolate* isolate, i::DirectHandle<i::Object> maybe_exception) {
   if (IsJSReceiver(*maybe_exception)) {
     return i::Cast<i::JSReceiver>(maybe_exception);
   }
@@ -1877,7 +1876,7 @@ WASM_EXPORT auto Func::call(const vec<Val>& args, vec<Val>& results) const
                          packer.argv());
 
   if (isolate->has_exception()) {
-    i::Handle<i::Object> exception(isolate->exception(), isolate);
+    i::DirectHandle<i::Object> exception(isolate->exception(), isolate);
     isolate->clear_exception();
     return implement<Trap>::type::make(store,
                                        GetProperException(isolate, exception));
@@ -2215,7 +2214,7 @@ WASM_EXPORT auto Table::set(size_t index, const Ref* ref) -> bool {
   i::DirectHandle<i::WasmTableObject> table = impl(this)->v8_object();
   if (index >= static_cast<size_t>(table->current_length())) return false;
   i::HandleScope handle_scope(isolate);
-  i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
+  i::DirectHandle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
   // We can use `table->unsafe_type()` and `module == nullptr` here as long
   // as the C-API doesn't support indexed types.
@@ -2242,7 +2241,7 @@ WASM_EXPORT auto Table::grow(size_t delta, const Ref* ref) -> bool {
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate));
   i::DirectHandle<i::WasmTableObject> table = impl(this)->v8_object();
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
+  i::DirectHandle<i::Object> obj = WasmRefToV8(isolate, ref);
   const char* error_message;
   // We can use `table->unsafe_type()` and `module == nullptr` here as long
   // as the C-API doesn't support indexed types.
@@ -2368,7 +2367,7 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
 
   if (trap) *trap = nullptr;
   ownvec<ImportType> import_types = module_abs->imports();
-  i::Handle<i::JSObject> imports_obj =
+  i::DirectHandle<i::JSObject> imports_obj =
       isolate->factory()->NewJSObject(isolate->object_function());
   for (size_t i = 0; i < import_types.size(); ++i) {
     ImportType* type = import_types[i].get();
@@ -2394,7 +2393,7 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
   i::MaybeDirectHandle<i::WasmInstanceObject> instance_obj =
       i::wasm::GetWasmEngine()->SyncInstantiate(
           isolate, &thrower, module->v8_object(), imports_obj,
-          i::MaybeHandle<i::JSArrayBuffer>());
+          i::MaybeDirectHandle<i::JSArrayBuffer>());
   if (trap) {
     if (thrower.error()) {
       *trap = implement<Trap>::type::make(
@@ -2403,7 +2402,7 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
       DCHECK(!isolate->has_exception());  // Hasn't been thrown yet.
       return own<Instance>();
     } else if (isolate->has_exception()) {
-      i::Handle<i::Object> maybe_exception(isolate->exception(), isolate);
+      i::DirectHandle<i::Object> maybe_exception(isolate->exception(), isolate);
       *trap = implement<Trap>::type::make(
           store, GetProperException(isolate, maybe_exception));
       isolate->clear_exception();

@@ -22,7 +22,8 @@ TEST_F(RuntimeTest, ReturnsPrototype) {
 
   Local<v8::Object> object = v8::Object::New(isolate());
   DirectHandle<JSArray> i_result =
-      Runtime::GetInternalProperties(i_isolate(), Utils::OpenHandle(*object))
+      Runtime::GetInternalProperties(i_isolate(),
+                                     Utils::OpenDirectHandle(*object))
           .ToHandleChecked();
   Local<Array> result = Utils::ToLocal(i_result);
   EXPECT_GE(result->Length(), 1u);
@@ -50,7 +51,8 @@ TEST_F(RuntimeTest, DoesNotReturnPrototypeWhenInacessible) {
   Local<v8::Object> object =
       object_template->NewInstance(context()).ToLocalChecked();
   DirectHandle<JSArray> i_result =
-      Runtime::GetInternalProperties(i_isolate(), Utils::OpenHandle(*object))
+      Runtime::GetInternalProperties(i_isolate(),
+                                     Utils::OpenDirectHandle(*object))
           .ToHandleChecked();
   Local<Array> result = Utils::ToLocal(i_result);
   EXPECT_EQ(0u, result->Length());
@@ -61,7 +63,7 @@ TEST_F(RuntimeTest, WasmTableWithoutInstance) {
   uint32_t initial = 1u;
   bool has_maximum = false;
   uint32_t maximum = std::numeric_limits<uint32_t>::max();
-  Handle<WasmTableObject> table = WasmTableObject::New(
+  DirectHandle<WasmTableObject> table = WasmTableObject::New(
       i_isolate(), DirectHandle<WasmTrustedInstanceData>(), wasm::kWasmAnyRef,
       wasm::kCanonicalAnyRef, initial, has_maximum, maximum,
       i_isolate()->factory()->null_value(), wasm::AddressType::kI32);

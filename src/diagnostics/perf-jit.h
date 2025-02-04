@@ -50,8 +50,8 @@ class LinuxPerfJitLogger : public CodeEventLogger {
   }
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,
                          Tagged<BytecodeArray> to) override {}
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {}
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override {}
 
  private:
   void OpenJitDumpFile();
@@ -61,7 +61,7 @@ class LinuxPerfJitLogger : public CodeEventLogger {
 
   uint64_t GetTimestamp();
   void LogRecordedBuffer(Tagged<AbstractCode> code,
-                         MaybeHandle<SharedFunctionInfo> maybe_shared,
+                         MaybeDirectHandle<SharedFunctionInfo> maybe_shared,
                          const char* name, size_t length) override;
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
@@ -81,7 +81,8 @@ class LinuxPerfJitLogger : public CodeEventLogger {
 
   void LogWriteBytes(const char* bytes, size_t size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Tagged<Code> code, Handle<SharedFunctionInfo> shared);
+  void LogWriteDebugInfo(Tagged<Code> code,
+                         DirectHandle<SharedFunctionInfo> shared);
 #if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY

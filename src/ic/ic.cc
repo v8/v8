@@ -2587,7 +2587,7 @@ MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
-    Handle<Object> result;
+    DirectHandle<Object> result;
     // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
     // so the logic doesn't get mixed here.
     ASSIGN_RETURN_ON_EXCEPTION(

@@ -93,7 +93,7 @@ using compiler::Node;
 // For tests that must manually import a JSFunction with source code.
 struct ManuallyImportedJSFunction {
   const FunctionSig* sig;
-  Handle<JSFunction> js_function;
+  DirectHandle<JSFunction> js_function;
 };
 
 // Helper Functions.
@@ -213,7 +213,7 @@ class TestingModuleBuilder {
   void InitializeWrapperCache();
 
   // Wrap the code so it can be called as a JS function.
-  Handle<JSFunction> WrapCode(uint32_t index);
+  DirectHandle<JSFunction> WrapCode(uint32_t index);
 
   // If function_indexes is {nullptr}, the contents of the table will be
   // initialized with null functions.
@@ -291,8 +291,8 @@ class TestingModuleBuilder {
   uint32_t mem0_size_ = 0;
   uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
-  Handle<WasmInstanceObject> instance_object_;
-  Handle<WasmTrustedInstanceData> trusted_instance_data_;
+  DirectHandle<WasmInstanceObject> instance_object_;
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
 
@@ -303,7 +303,7 @@ class TestingModuleBuilder {
 
   const WasmGlobal* AddGlobal(ValueType type);
 
-  Handle<WasmInstanceObject> InitInstanceObject();
+  DirectHandle<WasmInstanceObject> InitInstanceObject();
 };
 
 // A helper for compiling wasm functions for testing.
@@ -442,13 +442,16 @@ class WasmRunnerBase : public InitializedHandleScope {
     // reset / invalidate it when returning.
     SaveContext save_context(isolate);
 
-    if (jsfuncs_.size() <= function_index) {
-      jsfuncs_.resize(function_index + 1);
+    if (!jsfuncs_.has_value()) {
+      jsfuncs_.emplace(isolate);
     }
-    if (jsfuncs_[function_index].is_null()) {
-      jsfuncs_[function_index] = builder_.WrapCode(function_index);
+    if (jsfuncs_->size() <= function_index) {
+      jsfuncs_->resize(function_index + 1);
     }
-    DirectHandle<JSFunction> jsfunc = jsfuncs_[function_index];
+    if ((*jsfuncs_)[function_index].is_null()) {
+      (*jsfuncs_)[function_index] = builder_.WrapCode(function_index);
+    }
+    DirectHandle<JSFunction> jsfunc = (*jsfuncs_)[function_index];
     DirectHandle<Object> global(isolate->context()->global_object(), isolate);
     return Execution::TryCall(isolate, jsfunc, global, parameters,
                               Execution::MessageHandling::kReport, nullptr);
@@ -460,7 +463,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 
  protected:
   wasm::WasmCodeRefScope code_ref_scope_;
-  std::vector<Handle<JSFunction>> jsfuncs_;
+  std::optional<DirectHandleVector<JSFunction>> jsfuncs_;
 
   v8::internal::AccountingAllocator allocator_;
   Zone zone_;

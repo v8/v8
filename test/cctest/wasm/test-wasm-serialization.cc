@@ -69,7 +69,7 @@ class WasmSerializationTest {
                          serialized_bytes_.size() - 1};
   }
 
-  MaybeHandle<WasmModuleObject> Deserialize(
+  MaybeDirectHandle<WasmModuleObject> Deserialize(
       base::Vector<const char> source_url = {}) {
     return DeserializeNativeModule(
         CcTest::i_isolate(), base::VectorOf(serialized_bytes_),
@@ -78,7 +78,7 @@ class WasmSerializationTest {
 
   void DeserializeAndRun() {
     ErrorThrower thrower(CcTest::i_isolate(), "");
-    Handle<WasmModuleObject> module_object;
+    DirectHandle<WasmModuleObject> module_object;
     CHECK(Deserialize().ToHandle(&module_object));
     {
       DisallowGarbageCollection assume_no_gc;
@@ -92,8 +92,8 @@ class WasmSerializationTest {
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
-                              Handle<JSReceiver>::null(),
-                              MaybeHandle<JSArrayBuffer>())
+                              DirectHandle<JSReceiver>::null(),
+                              MaybeDirectHandle<JSArrayBuffer>())
             .ToHandleChecked();
     DirectHandle<Object> params[] = {
         direct_handle(Smi::FromInt(41), CcTest::i_isolate())};
@@ -141,11 +141,11 @@ class WasmSerializationTest {
 
       auto enabled_features =
           WasmEnabledFeatures::FromIsolate(serialization_isolate);
-      MaybeHandle<WasmModuleObject> maybe_module_object =
+      MaybeDirectHandle<WasmModuleObject> maybe_module_object =
           GetWasmEngine()->SyncCompile(serialization_isolate, enabled_features,
                                        MakeCompileTimeImports(), &thrower,
                                        base::OwnedCopyOf(buffer));
-      Handle<WasmModuleObject> module_object =
+      DirectHandle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
       weak_native_module = module_object->shared_native_module();
       // Check that the native module exists at this point.
@@ -616,7 +616,7 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     deserialization_context->Enter();
     ErrorThrower thrower(CcTest::i_isolate(), "");
     base::Vector<const char> kNoSourceUrl;
-    Handle<WasmModuleObject> module_object =
+    DirectHandle<WasmModuleObject> module_object =
         DeserializeNativeModule(CcTest::i_isolate(),
                                 base::VectorOf(serialized_module.buffer.get(),
                                                serialized_module.size),
@@ -648,8 +648,8 @@ TEST(DeserializeIndirectCallWithDifferentCanonicalId) {
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
-                              Handle<JSReceiver>::null(),
-                              MaybeHandle<JSArrayBuffer>())
+                              DirectHandle<JSReceiver>::null(),
+                              MaybeDirectHandle<JSArrayBuffer>())
             .ToHandleChecked();
     DirectHandle<Object> params[] = {direct_handle(Smi::FromInt(1), i_isolate)};
     int32_t result = testing::CallWasmFunctionForTesting(
@@ -708,7 +708,7 @@ TEST(SerializeDetectedFeatures) {
           v8::Context::New(v8_isolate);
       serialization_context->Enter();
 
-      Handle<WasmModuleObject> module_object =
+      DirectHandle<WasmModuleObject> module_object =
           GetWasmEngine()
               ->SyncCompile(i_isolate, enabled_features, CompileTimeImports{},
                             &thrower, base::OwnedCopyOf(buffer))
@@ -725,8 +725,8 @@ TEST(SerializeDetectedFeatures) {
       DirectHandle<WasmInstanceObject> instance =
           GetWasmEngine()
               ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
-                                Handle<JSReceiver>::null(),
-                                MaybeHandle<JSArrayBuffer>())
+                                DirectHandle<JSReceiver>::null(),
+                                MaybeDirectHandle<JSArrayBuffer>())
               .ToHandleChecked();
 
       v8::Local<v8::WasmModuleObject> v8_module_object =
@@ -774,7 +774,7 @@ TEST(SerializeDetectedFeatures) {
     deserialization_context->Enter();
     ErrorThrower thrower(CcTest::i_isolate(), "");
     base::Vector<const char> kNoSourceUrl;
-    Handle<WasmModuleObject> module_object =
+    DirectHandle<WasmModuleObject> module_object =
         DeserializeNativeModule(CcTest::i_isolate(),
                                 base::VectorOf(serialized_module.buffer.get(),
                                                serialized_module.size),
@@ -792,8 +792,8 @@ TEST(SerializeDetectedFeatures) {
     DirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
-                              Handle<JSReceiver>::null(),
-                              MaybeHandle<JSArrayBuffer>())
+                              DirectHandle<JSReceiver>::null(),
+                              MaybeDirectHandle<JSArrayBuffer>())
             .ToHandleChecked();
     int32_t result =
         testing::CallWasmFunctionForTesting(i_isolate, instance, "b", {});

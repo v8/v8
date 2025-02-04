@@ -8,7 +8,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
-#include "src/handles/handles.h"
+#include "src/handles/handles-inl.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
@@ -47,7 +47,7 @@ class WasmCompileHelper : public AllStatic {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         GetWasmEngine()->StartStreamingCompilation(
             isolate, WasmEnabledFeatures::All(), CompileTimeImports{},
-            handle(isolate->context()->native_context(), isolate),
+            direct_handle(isolate->context()->native_context(), isolate),
             "StreamingCompile", resolver);
     base::RandomNumberGenerator* rng = isolate->random_number_generator();
     for (auto remaining_bytes = bytes; !remaining_bytes.empty();) {
@@ -73,12 +73,12 @@ class WasmCompileHelper : public AllStatic {
   struct TestResolver : public CompilationResultResolver {
    public:
     void OnCompilationSucceeded(
-        i::Handle<i::WasmModuleObject> module) override {
+        i::DirectHandle<i::WasmModuleObject> module) override {
       ASSERT_FALSE(module.is_null());
       ASSERT_EQ(true, pending_.exchange(false, std::memory_order_relaxed));
     }
 
-    void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
       Print(*error_reason);
       FAIL();
     }

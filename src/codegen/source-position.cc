@@ -149,8 +149,8 @@ void SourcePosition::Print(std::ostream& out, Tagged<Code> code) const {
 }
 
 SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                                       Handle<SharedFunctionInfo> sfi)
-    : position(pos), shared(sfi), script(Handle<Script>::null()) {
+                                       DirectHandle<SharedFunctionInfo> sfi)
+    : position(pos), shared(indirect_handle(sfi, isolate)) {
   {
     DisallowGarbageCollection no_gc;
     if (sfi.is_null()) return;

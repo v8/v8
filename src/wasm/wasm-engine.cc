@@ -274,8 +274,8 @@ class WeakScriptHandle {
   // available.
   int script_id_;
 
-  // Similar for the source URL. We cannot dereference the Handle from arbitrary
-  // threads, but we need the URL available for code logging.
+  // Similar for the source URL. We cannot dereference the handle from
+  // arbitrary threads, but we need the URL available for code logging.
   // The shared pointer is kept alive by unlogged code, even if this entry is
   // collected in the meantime.
   // TODO(chromium:1132260): Revisit this for huge URLs.
@@ -657,17 +657,17 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   return AsmWasmData::New(isolate, std::move(native_module), uses_bitset);
 }
 
-Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
+DirectHandle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, DirectHandle<AsmWasmData> asm_wasm_data,
     DirectHandle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
       asm_wasm_data->managed_native_module()->get();
-  Handle<WasmModuleObject> module_object =
+  DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, std::move(native_module), script);
   return module_object;
 }
 
-MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
+MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
     base::OwnedVector<const uint8_t> bytes) {
@@ -733,7 +733,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmModuleObject> module_object =
+  DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, std::move(native_module), script);
 
   // Finish the Wasm script now and make it public to the debugger.
@@ -741,10 +741,11 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   return module_object;
 }
 
-MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
+MaybeDirectHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
     Isolate* isolate, ErrorThrower* thrower,
-    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
-    MaybeHandle<JSArrayBuffer> memory) {
+    DirectHandle<WasmModuleObject> module_object,
+    MaybeDirectHandle<JSReceiver> imports,
+    MaybeDirectHandle<JSArrayBuffer> memory) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncInstantiate");
   return InstantiateToInstanceObject(isolate, thrower, module_object, imports,
                                      memory);
@@ -752,7 +753,8 @@ MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
 
 void WasmEngine::AsyncInstantiate(
     Isolate* isolate, std::unique_ptr<InstantiationResultResolver> resolver,
-    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
+    DirectHandle<WasmModuleObject> module_object,
+    MaybeDirectHandle<JSReceiver> imports) {
   ErrorThrower thrower(isolate, "WebAssembly.instantiate()");
   TRACE_EVENT0("v8.wasm", "wasm.AsyncInstantiate");
   // Instantiate a TryCatch so that caught exceptions won't propagate out.
@@ -763,8 +765,9 @@ void WasmEngine::AsyncInstantiate(
   catcher.SetVerbose(false);
   catcher.SetCaptureMessage(false);
 
-  MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
-      isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
+  MaybeDirectHandle<WasmInstanceObject> instance_object =
+      SyncInstantiate(isolate, &thrower, module_object, imports,
+                      DirectHandle<JSArrayBuffer>::null());
 
   if (!instance_object.is_null()) {
     resolver->OnInstantiationSucceeded(instance_object.ToHandleChecked());
@@ -776,7 +779,7 @@ void WasmEngine::AsyncInstantiate(
     if (isolate->is_execution_terminating()) return;
     // The JS code executed during instantiation has thrown an exception.
     // We have to move the exception to the promise chain.
-    Handle<Object> exception(isolate->exception(), isolate);
+    DirectHandle<Object> exception(isolate->exception(), isolate);
     DCHECK(!IsHole(*exception));
     isolate->clear_exception();
     resolver->OnInstantiationFailed(exception);
@@ -798,14 +801,14 @@ void WasmEngine::AsyncCompile(
   if (!v8_flags.wasm_async_compilation || v8_flags.wasm_jitless) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, api_method_name_for_errors);
-    MaybeHandle<WasmModuleObject> module_object;
+    MaybeDirectHandle<WasmModuleObject> module_object;
     module_object = SyncCompile(isolate, enabled, std::move(compile_imports),
                                 &thrower, std::move(bytes));
     if (thrower.error()) {
       resolver->OnCompilationFailed(thrower.Reify());
       return;
     }
-    Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+    DirectHandle<WasmModuleObject> module = module_object.ToHandleChecked();
     resolver->OnCompilationSucceeded(module);
     return;
   }
@@ -850,7 +853,7 @@ void WasmEngine::AsyncCompile(
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, Handle<Context> context,
+    CompileTimeImports compile_imports, DirectHandle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -949,9 +952,9 @@ void WasmEngine::LeaveDebuggingForIsolate(Isolate* isolate) {
 }
 
 namespace {
-Handle<Script> CreateWasmScript(Isolate* isolate,
-                                std::shared_ptr<NativeModule> native_module,
-                                base::Vector<const char> source_url) {
+DirectHandle<Script> CreateWasmScript(
+    Isolate* isolate, std::shared_ptr<NativeModule> native_module,
+    base::Vector<const char> source_url) {
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   // The source URL of the script is
@@ -959,7 +962,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   // - wasm://wasm/<module name>-<hash> if a module name has been set, or
   // - wasm://wasm/<hash> otherwise.
   const WasmModule* module = native_module->module();
-  Handle<String> url_str;
+  DirectHandle<String> url_str;
   if (!source_url.empty()) {
     url_str = isolate->factory()
                   ->NewStringFromUtf8(source_url, AllocationType::kOld)
@@ -980,12 +983,12 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
       // Build the URL in the form "wasm://wasm/<module name>-<hash>".
       int hash_len = SNPrintF(buffer, "-%08x", hash);
       DCHECK(hash_len >= 0 && hash_len < buffer.length());
-      Handle<String> prefix =
+      DirectHandle<String> prefix =
           isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
-      Handle<String> module_name =
+      DirectHandle<String> module_name =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
               isolate, wire_bytes, module->name, kNoInternalize);
-      Handle<String> hash_str =
+      DirectHandle<String> hash_str =
           isolate->factory()
               ->NewStringFromUtf8(buffer.SubVector(0, hash_len))
               .ToHandleChecked();
@@ -1023,7 +1026,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
       Managed<wasm::NativeModule>::From(isolate, memory_estimate,
                                         std::move(native_module));
 
-  Handle<Script> script =
+  DirectHandle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->undefined_value());
   {
     DisallowGarbageCollection no_gc;
@@ -1059,7 +1062,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 }
 }  // namespace
 
-Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
+DirectHandle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
     base::Vector<const char> source_url) {
   NativeModule* native_module = shared_native_module.get();
@@ -1067,7 +1070,7 @@ Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
   DirectHandle<Script> script =
       GetOrCreateScript(isolate, shared_native_module, source_url);
   native_module->LogWasmCodes(isolate, *script);
-  Handle<WasmModuleObject> module_object =
+  DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, std::move(shared_native_module), script);
   {
     base::SpinningMutexGuard lock(&mutex_);
@@ -1187,7 +1190,7 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   return false;
 }
 
-void WasmEngine::DeleteCompileJobsOnContext(Handle<Context> context) {
+void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
   // Under the mutex get all jobs to delete. Then delete them without holding
   // the mutex, such that deletion can reenter the WasmEngine.
   std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
@@ -1889,7 +1892,7 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code,
   }
 }
 
-Handle<Script> WasmEngine::GetOrCreateScript(
+DirectHandle<Script> WasmEngine::GetOrCreateScript(
     Isolate* isolate, const std::shared_ptr<NativeModule>& native_module,
     base::Vector<const char> source_url) {
   {
@@ -1902,7 +1905,7 @@ Handle<Script> WasmEngine::GetOrCreateScript(
       if (weak_global_handle.is_null()) {
         scripts.erase(it);
       } else {
-        return Handle<Script>::New(*weak_global_handle, isolate);
+        return DirectHandle<Script>::New(*weak_global_handle, isolate);
       }
     }
   }

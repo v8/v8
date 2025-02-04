@@ -1042,25 +1042,26 @@ V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(
 V8_EXPORT_PRIVATE DirectHandle<String> ErrorStringForCodegen(
     Isolate* isolate, DirectHandle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
-                                    bool for_exception = false);
-Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
-                                  ValueType type);
-Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  std::optional<uint64_t> max_size, bool shared,
-                                  AddressType address_type);
-Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
-                                 uint32_t min_size,
-                                 std::optional<uint64_t> max_size,
-                                 AddressType address_type);
-Handle<JSArray> GetImports(Isolate* isolate,
-                           DirectHandle<WasmModuleObject> module);
-Handle<JSArray> GetExports(Isolate* isolate,
-                           DirectHandle<WasmModuleObject> module);
-Handle<JSArray> GetCustomSections(Isolate* isolate,
-                                  DirectHandle<WasmModuleObject> module,
-                                  DirectHandle<String> name,
-                                  ErrorThrower* thrower);
+DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
+                                          const FunctionSig* sig,
+                                          bool for_exception = false);
+DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
+                                        ValueType type);
+DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
+                                        std::optional<uint64_t> max_size,
+                                        bool shared, AddressType address_type);
+DirectHandle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
+                                       uint32_t min_size,
+                                       std::optional<uint64_t> max_size,
+                                       AddressType address_type);
+DirectHandle<JSArray> GetImports(Isolate* isolate,
+                                 DirectHandle<WasmModuleObject> module);
+DirectHandle<JSArray> GetExports(Isolate* isolate,
+                                 DirectHandle<WasmModuleObject> module);
+DirectHandle<JSArray> GetCustomSections(Isolate* isolate,
+                                        DirectHandle<WasmModuleObject> module,
+                                        DirectHandle<String> name,
+                                        ErrorThrower* thrower);
 
 // Get the source position from a given function index and byte offset,
 // for either asm.js or pure Wasm modules.

@@ -652,7 +652,7 @@ class DebugInfoImpl {
         } else if (value->type == kWasmI64) {
           return WasmValue(ReadUnalignedValue<uint64_t>(gp_addr(reg.gp())));
         } else if (value->type.is_reference()) {
-          Handle<Object> obj(
+          DirectHandle<Object> obj(
               Tagged<Object>(ReadUnalignedValue<Address>(gp_addr(reg.gp()))),
               isolate);
           // TODO(jkummerow): Consider changing {value->type} to be a
@@ -700,7 +700,7 @@ class DebugInfoImpl {
       case kRef:
       case kRefNull:
       case kRtt: {
-        Handle<Object> obj(
+        DirectHandle<Object> obj(
             Tagged<Object>(ReadUnalignedValue<Address>(stack_address)),
             isolate);
         return WasmValue(obj, value->module->canonical_type(value->type));

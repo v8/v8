@@ -44,9 +44,9 @@ bool IsNullOrWasmNull(Tagged<Object> obj) {
   return IsNull(obj) || IsWasmNull(obj);
 }
 
-Handle<Object> GetExport(Isolate* isolate,
-                         DirectHandle<WasmInstanceObject> instance,
-                         const char* name) {
+DirectHandle<Object> GetExport(Isolate* isolate,
+                               DirectHandle<WasmInstanceObject> instance,
+                               const char* name) {
   DirectHandle<JSObject> exports_object;
   DirectHandle<Name> exports =
       isolate->factory()->InternalizeUtf8String("exports");
@@ -248,15 +248,17 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   CHECK(valid);
   FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
-  MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      base::OwnedCopyOf(bytes));
+  MaybeDirectHandle<WasmModuleObject> compiled_module =
+      GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
+                                   CompileTimeImportsForFuzzing(), &thrower,
+                                   base::OwnedCopyOf(bytes));
   CHECK(!compiled_module.is_null());
   CHECK(!thrower.error());
   thrower.Reset();
   CHECK(!i_isolate->has_exception());
 
-  Handle<WasmModuleObject> module_object = compiled_module.ToHandleChecked();
+  DirectHandle<WasmModuleObject> module_object =
+      compiled_module.ToHandleChecked();
   DirectHandle<WasmInstanceObject> instance =
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
@@ -271,7 +273,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
     auto function =
         Cast<WasmExportedFunction>(GetExport(i_isolate, instance, buffer));
     DirectHandle<Object> undefined = i_isolate->factory()->undefined_value();
-    Handle<Object> function_result =
+    DirectHandle<Object> function_result =
         Execution::Call(i_isolate, function, undefined, {}).ToHandleChecked();
     // Get global value.
     snprintf(buffer, sizeof buffer, "g%zu", i);

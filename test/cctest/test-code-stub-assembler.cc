@@ -1071,7 +1071,7 @@ TEST(TransitionLookup) {
   base::RandomNumberGenerator rand_gen(v8_flags.random_seed);
 
   Factory* factory = isolate->factory();
-  Handle<FieldType> any = FieldType::Any(isolate);
+  DirectHandle<FieldType> any = FieldType::Any(isolate);
 
   for (int i = 0; i < kKeysCount; i++) {
     Handle<Name> name;

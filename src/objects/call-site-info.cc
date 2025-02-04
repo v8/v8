@@ -288,7 +288,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
 }
 
 // static
-Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
+DirectHandle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
     DirectHandle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
@@ -296,7 +296,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
     DirectHandle<WasmModuleObject> module_object(
         info->GetWasmInstance()->module_object(), isolate);
     uint32_t func_index = info->GetWasmFunctionIndex();
-    Handle<String> name;
+    DirectHandle<String> name;
     if (WasmModuleObject::GetFunctionNameOrNull(isolate, module_object,
                                                 func_index)
             .ToHandle(&name)) {
@@ -323,7 +323,7 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
       return isolate->factory()->NewStringFromAsciiChecked(maybe_known_name);
     }
   }
-  Handle<String> name = JSFunction::GetDebugName(function);
+  DirectHandle<String> name = JSFunction::GetDebugName(function);
   if (name->length() != 0) return name;
   if (info->IsEval()) return isolate->factory()->eval_string();
   return isolate->factory()->null_value();

@@ -243,7 +243,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   // owning map.
   Handle<Map> map = Map::Create(isolate, 0);
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
@@ -294,7 +294,7 @@ TEST(DescriptorArrayHashCollision) {
   // owning map.
   Handle<Map> map = Map::Create(isolate, 0);
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
@@ -342,7 +342,7 @@ TEST(TransitionArrayHashCollisionMassive) {
 
   std::vector<Handle<Map>> maps;
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     Handle<Map> map =
@@ -400,7 +400,7 @@ TEST(TransitionArrayHashCollision) {
 
   std::vector<Handle<Map>> maps;
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     Handle<Map> map =

@@ -5893,13 +5893,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     size_t local_count = kExtraLocals + decoder->stack_size() +
                          wasm_local_count - callee_sig->return_count();
     local_count += args != nullptr ? callee_sig->parameter_count() : 0;
-    Handle<SharedFunctionInfo> shared_info;
     Zone* zone = Asm().data()->compilation_zone();
     auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
         compiler::FrameStateType::kLiftoffFunction,
         static_cast<uint16_t>(param_count), 0, static_cast<int>(local_count),
-        shared_info, kNullMaybeHandle, GetLiftoffFrameSize(decoder),
-        func_index_);
+        IndirectHandle<SharedFunctionInfo>(), kNullMaybeHandle,
+        GetLiftoffFrameSize(decoder), func_index_);
     auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);

@@ -71,7 +71,7 @@ class WasmInterpreterThread;
 
 using pc_t = size_t;
 using CodeOffset = size_t;
-using WasmRef = Handle<Object>;
+using WasmRef = DirectHandle<Object>;
 
 // We are using sizeof(WasmRef) and kSystemPointerSize interchangeably in the
 // interpreter code.
@@ -121,11 +121,11 @@ struct FrameState {
 
   // Maintains a reference to the exceptions caught by each catch handler.
   void SetCaughtException(Isolate* isolate, uint32_t catch_block_index,
-                          Handle<Object> exception);
-  Handle<Object> GetCaughtException(Isolate* isolate,
-                                    uint32_t catch_block_index) const;
+                          DirectHandle<Object> exception);
+  DirectHandle<Object> GetCaughtException(Isolate* isolate,
+                                          uint32_t catch_block_index) const;
   void DisposeCaughtExceptionsArray(Isolate* isolate);
-  Handle<FixedArray> caught_exceptions_;
+  DirectHandle<FixedArray> caught_exceptions_;
 
   inline void ResetHandleScope(Isolate* isolate);
 
@@ -393,7 +393,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   explicit WasmInterpreterThread(Isolate* isolate);
   ~WasmInterpreterThread();
 
-  Handle<FixedArray> reference_stack() const { return reference_stack_; }
+  DirectHandle<FixedArray> reference_stack() const { return reference_stack_; }
 
   bool ExpandStack(size_t additional_required_size) {
     if (current_stack_size_ + additional_required_size > kMaxStackSize) {
@@ -574,7 +574,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   // object allocation while the reference arguments are being passed to the
   // callee and while the reference return values are being passed back to the
   // caller.
-  Handle<FixedArray> reference_stack_;
+  DirectHandle<FixedArray> reference_stack_;
   size_t current_ref_stack_size_;
 
   WasmExecutionTimer execution_timer_;
@@ -617,7 +617,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
   WasmInterpreter(Isolate* isolate, const WasmModule* module,
                   const ModuleWireBytes& wire_bytes,
-                  Handle<WasmInstanceObject> instance);
+                  DirectHandle<WasmInstanceObject> instance);
 
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -654,7 +654,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // {InterpreterCode} vector in the {CodeMap}. It is also passed to
   // {WasmDecoder} used to parse the 'locals' in a Wasm function.
   Zone zone_;
-  Handle<WasmInstanceObject> instance_object_;
+  DirectHandle<WasmInstanceObject> instance_object_;
 
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
@@ -1299,9 +1299,9 @@ class WasmEHData {
       BlockIndex catch_block_index) const;
 
   void SetCaughtException(Isolate* isolate, BlockIndex catch_block_index,
-                          Handle<Object> exception);
-  Handle<Object> GetCaughtException(Isolate* isolate,
-                                    BlockIndex catch_block_index) const;
+                          DirectHandle<Object> exception);
+  DirectHandle<Object> GetCaughtException(Isolate* isolate,
+                                          BlockIndex catch_block_index) const;
 
  protected:
   BlockIndex GetTryBranchOf(BlockIndex catch_block_index) const;
@@ -1403,8 +1403,8 @@ class WasmBytecode {
       WasmEHData::BlockIndex catch_block_index) const {
     return eh_data_.GetExceptionPayloadStartSlotOffsets(catch_block_index);
   }
-  Handle<Object> GetCaughtException(Isolate* isolate,
-                                    uint32_t catch_block_index) const {
+  DirectHandle<Object> GetCaughtException(Isolate* isolate,
+                                          uint32_t catch_block_index) const {
     return eh_data_.GetCaughtException(isolate, catch_block_index);
   }
 

@@ -122,7 +122,7 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
     ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-    MaybeHandle<WasmModuleObject> module =
+    MaybeDirectHandle<WasmModuleObject> module =
         testing::CompileForTesting(isolate, &thrower, base::VectorOf(buffer));
     CHECK(!module.is_null());
 

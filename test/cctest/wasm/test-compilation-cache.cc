@@ -26,14 +26,15 @@ class TestResolver : public CompilationResultResolver {
   explicit TestResolver(std::atomic<int>* pending)
       : native_module_(nullptr), pending_(pending) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       native_module_ = module->shared_native_module();
       pending_->fetch_sub(1);
     }
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
     CHECK(false);
   }
 

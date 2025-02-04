@@ -458,7 +458,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   }
   DirectHandle<WasmExceptionPackage> exception =
       args.at<WasmExceptionPackage>(0);
-  Handle<Object> values_obj =
+  DirectHandle<Object> values_obj =
       WasmExceptionPackage::GetExceptionValues(isolate, exception);
   if (!IsFixedArray(*values_obj)) {
     // Only called with correct input (unless fuzzing).
@@ -468,7 +468,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   DirectHandle<FixedArray> externalized_values =
       isolate->factory()->NewFixedArray(values->length());
   for (int i = 0; i < values->length(); i++) {
-    Handle<Object> value(values->get(i), isolate);
+    DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {
       // Note: This will leak string views to JS. This should be fine for a
       // debugging function.
@@ -762,11 +762,11 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   wasm::ErrorThrower thrower(isolate, "CreateWasmObject");
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
   wasm::WasmEngine* engine = wasm::GetWasmEngine();
-  MaybeHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
+  MaybeDirectHandle<WasmModuleObject> maybe_module_object = engine->SyncCompile(
       isolate, wasm::WasmEnabledFeatures(), wasm::CompileTimeImports(),
       &thrower, std::move(bytes));
   CHECK(!thrower.error());
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();

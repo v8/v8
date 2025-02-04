@@ -612,13 +612,15 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
                      i::Tagged<i::InstructionStream> to) override {}
   void BytecodeMoveEvent(i::Tagged<i::BytecodeArray> from,
                          i::Tagged<i::BytecodeArray> to) override {}
-  void CodeDisableOptEvent(i::Handle<i::AbstractCode> code,
-                           i::Handle<i::SharedFunctionInfo> shared) override {}
+  void CodeDisableOptEvent(
+      i::DirectHandle<i::AbstractCode> code,
+      i::DirectHandle<i::SharedFunctionInfo> shared) override {}
 
  private:
-  void LogRecordedBuffer(i::Tagged<i::AbstractCode> code,
-                         i::MaybeHandle<i::SharedFunctionInfo> maybe_shared,
-                         const char* name, size_t length) override {}
+  void LogRecordedBuffer(
+      i::Tagged<i::AbstractCode> code,
+      i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_shared,
+      const char* name, size_t length) override {}
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                          size_t length) override {}

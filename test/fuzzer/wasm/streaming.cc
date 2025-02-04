@@ -42,12 +42,12 @@ class TestResolver : public CompilationResultResolver {
  public:
   explicit TestResolver(Isolate* isolate) : isolate_(isolate) {}
 
-  void OnCompilationSucceeded(Handle<WasmModuleObject> module) override {
+  void OnCompilationSucceeded(DirectHandle<WasmModuleObject> module) override {
     done_ = true;
     native_module_ = module->shared_native_module();
   }
 
-  void OnCompilationFailed(Handle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
     done_ = true;
     failed_ = true;
     DirectHandle<String> str =
@@ -134,7 +134,7 @@ CompilationResult CompileSync(Isolate* isolate,
            ->SyncCompile(isolate, enabled_features, CompileTimeImports{},
                          &thrower, base::OwnedCopyOf(data))
            .ToHandle(&module_object)) {
-    Handle<Object> error = thrower.Reify();
+    DirectHandle<Object> error = thrower.Reify();
     DirectHandle<String> error_msg =
         Object::ToString(isolate, error).ToHandleChecked();
     return CompilationResult::ForFailure(error_msg->ToCString().get());

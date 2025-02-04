@@ -48,12 +48,13 @@ V8_OBJECT class RegExpMatchInfo
  public:
   using Shape = RegExpMatchInfoShape;
 
-  V8_EXPORT_PRIVATE static Handle<RegExpMatchInfo> New(
+  V8_EXPORT_PRIVATE static DirectHandle<RegExpMatchInfo> New(
       Isolate* isolate, int capture_count,
       AllocationType allocation = AllocationType::kYoung);
 
-  static Handle<RegExpMatchInfo> ReserveCaptures(
-      Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count);
+  static DirectHandle<RegExpMatchInfo> ReserveCaptures(
+      Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
+      int capture_count);
 
   // Returns the number of captures, which is defined as the length of the
   // matchIndices objects of the last match. matchIndices contains two indices

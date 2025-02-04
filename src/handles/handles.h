@@ -946,6 +946,7 @@ class DirectHandleVector {
 
   void clear() noexcept { backing_.clear(); }
   void resize(size_t n) { backing_.resize(n); }
+  void resize(size_t n, const value_type& value) { backing_.resize(n, value); }
   void swap(DirectHandleVector<T>& other) { backing_.swap(other.backing_); }
 
   friend bool operator==(const DirectHandleVector<T>& x,
@@ -990,6 +991,23 @@ template <typename T>
 struct is_direct_handle<DirectHandle<T>> : public std::true_type {};
 
 }  // namespace internal
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+#if defined(ENABLE_SLOW_DCHECKS) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+// In this configuration, DirectHandle is not trivially copyable (i.e., it is
+// not an instance of `std::is_trivially_copyable`), because the copy
+// constructor checks that direct handles are stack-allocated. By forcing an
+// instance of `v8::base::is_trivially_copyable`, we allow it to be used in the
+// place of template parameter `V` in `v8::base::ReadUnalignedValue<V>` and
+// `v8::base::WriteUnalignedValue<V>`.
+namespace base {
+template <typename T>
+struct is_trivially_copyable<::v8::internal::DirectHandle<T>>
+    : public std::true_type {};
+}  // namespace base
+#endif
+#endif
+
 }  // namespace v8
 
 #endif  // V8_HANDLES_HANDLES_H_

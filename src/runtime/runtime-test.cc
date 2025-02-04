@@ -1963,27 +1963,30 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   // {true} on {is_listening_to_code_events()}. Feel free to add assertions to
   // any method to further test the code logging callbacks.
   class NoopListener final : public LogEventListener {
-    void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+    void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                          const char* name) final {}
-    void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                         Handle<Name> name) final {}
-    void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                         Handle<SharedFunctionInfo> shared,
-                         Handle<Name> script_name) final {}
-    void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                         Handle<SharedFunctionInfo> shared,
-                         Handle<Name> script_name, int line, int column) final {
-    }
+    void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                         DirectHandle<Name> name) final {}
+    void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                         DirectHandle<SharedFunctionInfo> shared,
+                         DirectHandle<Name> script_name) final {}
+    void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                         DirectHandle<SharedFunctionInfo> shared,
+                         DirectHandle<Name> script_name, int line,
+                         int column) final {}
 #if V8_ENABLE_WEBASSEMBLY
     void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                          wasm::WasmName name, const char* source_url,
                          int code_offset, int script_id) final {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    void CallbackEvent(Handle<Name> name, Address entry_point) final {}
-    void GetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
-    void SetterCallbackEvent(Handle<Name> name, Address entry_point) final {}
-    void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+    void CallbackEvent(DirectHandle<Name> name, Address entry_point) final {}
+    void GetterCallbackEvent(DirectHandle<Name> name,
+                             Address entry_point) final {}
+    void SetterCallbackEvent(DirectHandle<Name> name,
+                             Address entry_point) final {}
+    void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                               DirectHandle<String> source,
                                RegExpFlags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
@@ -1992,12 +1995,12 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
     void SharedFunctionInfoMoveEvent(Address from, Address to) final {}
     void NativeContextMoveEvent(Address from, Address to) final {}
     void CodeMovingGCEvent() final {}
-    void CodeDisableOptEvent(Handle<AbstractCode> code,
-                             Handle<SharedFunctionInfo> shared) final {}
-    void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                        int fp_to_sp_delta) final {}
-    void CodeDependencyChangeEvent(Handle<Code> code,
-                                   Handle<SharedFunctionInfo> shared,
+    void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<SharedFunctionInfo> shared) final {}
+    void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
+                        Address pc, int fp_to_sp_delta) final {}
+    void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                   DirectHandle<SharedFunctionInfo> shared,
                                    const char* reason) final {}
     void WeakCodeClearEvent() final {}
 

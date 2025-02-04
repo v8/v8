@@ -67,7 +67,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void BindJumpTarget(Label* label) override;
 
   void Fail() override;
-  Handle<HeapObject> GetCode(Handle<String> source, RegExpFlags flags) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+                                   RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;

@@ -1489,10 +1489,9 @@ int String::IndexOf(Isolate* isolate, DirectHandle<String> receiver,
                                         start_index);
 }
 
-MaybeDirectHandle<String> String::GetSubstitution(Isolate* isolate,
-                                                  Match* match,
-                                                  Handle<String> replacement,
-                                                  uint32_t start_index) {
+MaybeDirectHandle<String> String::GetSubstitution(
+    Isolate* isolate, Match* match, DirectHandle<String> replacement,
+    uint32_t start_index) {
   Factory* factory = isolate->factory();
 
   const int replacement_length = replacement->length();

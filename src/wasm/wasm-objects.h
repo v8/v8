@@ -77,7 +77,8 @@ class TrustedManaged;
 class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
  public:
   FunctionTargetAndImplicitArg(
-      Isolate* isolate, Handle<WasmTrustedInstanceData> target_instance_data,
+      Isolate* isolate,
+      DirectHandle<WasmTrustedInstanceData> target_instance_data,
       int target_func_index);
   // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
   DirectHandle<TrustedObject> implicit_arg() { return implicit_arg_; }
@@ -88,7 +89,7 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
 #endif  // V8_ENABLE_DRUMBRAKE
 
  private:
-  Handle<TrustedObject> implicit_arg_;
+  DirectHandle<TrustedObject> implicit_arg_;
   WasmCodePointer call_target_;
 
 #if V8_ENABLE_DRUMBRAKE
@@ -112,7 +113,8 @@ enum class OnResume : int { kContinue, kThrow };
 //      - target = entrypoint for the function
 class ImportedFunctionEntry {
  public:
-  inline ImportedFunctionEntry(Handle<WasmTrustedInstanceData>, int index);
+  inline ImportedFunctionEntry(DirectHandle<WasmTrustedInstanceData>,
+                               int index);
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter since it allocates a WasmImportData.
@@ -146,7 +148,7 @@ class ImportedFunctionEntry {
 #endif  // V8_ENABLE_DRUMBRAKE
 
  private:
-  Handle<WasmTrustedInstanceData> const instance_data_;
+  DirectHandle<WasmTrustedInstanceData> const instance_data_;
   int const index_;
 };
 
@@ -166,7 +168,7 @@ class WasmModuleObject
 
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.
-  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
+  V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       DirectHandle<Script> script);
 
@@ -180,7 +182,7 @@ class WasmModuleObject
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
   // UTF-8 string.
-  static MaybeHandle<String> GetFunctionNameOrNull(
+  static MaybeDirectHandle<String> GetFunctionNameOrNull(
       Isolate*, DirectHandle<WasmModuleObject>, uint32_t func_index);
 
   // Get the raw bytes of the function name of the function identified by the
@@ -192,10 +194,10 @@ class WasmModuleObject
   // Extract a portion of the wire bytes as UTF-8 string, optionally
   // internalized. (Prefer to internalize early if the string will be used for a
   // property lookup anyway.)
-  static Handle<String> ExtractUtf8StringFromModuleBytes(
+  static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, DirectHandle<WasmModuleObject>, wasm::WireBytesRef,
       InternalizeString);
-  static Handle<String> ExtractUtf8StringFromModuleBytes(
+  static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate*, base::Vector<const uint8_t> wire_byte, wasm::WireBytesRef,
       InternalizeString);
 
@@ -234,7 +236,7 @@ class WasmTableObject
 
   // TODO(jkummerow): Consider getting rid of {type}, use {canonical_type}
   // instead.
-  V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
+  V8_EXPORT_PRIVATE static DirectHandle<WasmTableObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, wasm::CanonicalValueType canonical_type,
       uint32_t initial, bool has_maximum, uint64_t maximum,
@@ -248,9 +250,9 @@ class WasmTableObject
   inline std::optional<uint64_t> maximum_length_u64() const;
 
   // Thin wrapper around {JsToWasmObject}.
-  static MaybeHandle<Object> JSToWasmElement(
+  static MaybeDirectHandle<Object> JSToWasmElement(
       Isolate* isolate, DirectHandle<WasmTableObject> table,
-      Handle<Object> entry, const char** error_message);
+      DirectHandle<Object> entry, const char** error_message);
 
   // This function will not handle JS objects; i.e., {entry} needs to be in wasm
   // representation.
@@ -258,7 +260,7 @@ class WasmTableObject
                                     DirectHandle<WasmTableObject> table,
                                     uint32_t index, DirectHandle<Object> entry);
 
-  V8_EXPORT_PRIVATE static Handle<Object> Get(
+  V8_EXPORT_PRIVATE static DirectHandle<Object> Get(
       Isolate* isolate, DirectHandle<WasmTableObject> table, uint32_t index);
 
   V8_EXPORT_PRIVATE static void Fill(Isolate* isolate,
@@ -297,7 +299,8 @@ class WasmTableObject
   static void GetFunctionTableEntry(
       Isolate* isolate, DirectHandle<WasmTableObject> table, int entry_index,
       bool* is_valid, bool* is_null,
-      MaybeHandle<WasmTrustedInstanceData>* instance_data, int* function_index,
+      MaybeDirectHandle<WasmTrustedInstanceData>* instance_data,
+      int* function_index,
       MaybeDirectHandle<WasmJSFunction>* maybe_js_function);
 
  private:
@@ -349,11 +352,11 @@ class WasmMemoryObject
 
   inline bool is_memory64() const;
 
-  V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
+  V8_EXPORT_PRIVATE static DirectHandle<WasmMemoryObject> New(
       Isolate* isolate, DirectHandle<JSArrayBuffer> buffer, int maximum,
       wasm::AddressType address_type);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmMemoryObject> New(
       Isolate* isolate, int initial, int maximum, SharedFlag shared,
       wasm::AddressType address_type);
 
@@ -388,7 +391,7 @@ class WasmGlobalObject
   // Dispatched behavior.
   DECL_PRINTER(WasmGlobalObject)
 
-  V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<WasmGlobalObject> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_object,
       MaybeDirectHandle<JSArrayBuffer> maybe_untagged_buffer,
       MaybeDirectHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
@@ -401,7 +404,7 @@ class WasmGlobalObject
   inline float GetF32();
   inline double GetF64();
   inline uint8_t* GetS128RawBytes();
-  inline Handle<Object> GetRef();
+  inline DirectHandle<Object> GetRef();
 
   inline void SetI32(int32_t value);
   inline void SetI64(int64_t value);
@@ -619,14 +622,14 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #if V8_ENABLE_DRUMBRAKE
   // Get the interpreter object associated with the given wasm object.
   // If no interpreter object exists yet, it is created automatically.
-  static Handle<Tuple2> GetOrCreateInterpreterObject(
-      Handle<WasmInstanceObject>);
-  static Handle<Tuple2> GetInterpreterObject(Handle<WasmInstanceObject>);
+  static DirectHandle<Tuple2> GetOrCreateInterpreterObject(
+      DirectHandle<WasmInstanceObject>);
+  static DirectHandle<Tuple2> GetInterpreterObject(
+      DirectHandle<WasmInstanceObject>);
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  static Handle<WasmTrustedInstanceData> New(Isolate*,
-                                             DirectHandle<WasmModuleObject>,
-                                             bool shared);
+  static DirectHandle<WasmTrustedInstanceData> New(
+      Isolate*, DirectHandle<WasmModuleObject>, bool shared);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 
@@ -644,8 +647,9 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // Returns the empty {Optional} if the operation succeeds, or an {Optional}
   // with the error {MessageTemplate} if it fails.
   static std::optional<MessageTemplate> InitTableEntries(
-      Isolate* isolate, Handle<WasmTrustedInstanceData> trusted_instance_data,
-      Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+      Isolate* isolate,
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+      DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
       uint32_t count) V8_WARN_UNUSED_RESULT;
 
@@ -660,7 +664,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // the given {trusted_instance_data}, or creates a new {WasmInternalFunction}
   // and {WasmFuncRef} if it does not exist yet. The new objects are added to
   // the cache of the {trusted_instance_data} immediately.
-  static Handle<WasmFuncRef> GetOrCreateFuncRef(
+  static DirectHandle<WasmFuncRef> GetOrCreateFuncRef(
       Isolate* isolate,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int function_index);
@@ -709,7 +713,7 @@ class WasmTagObject
   // serialized signature stored within this tag object.
   bool MatchesSignature(wasm::CanonicalTypeIndex expected_index);
 
-  static Handle<WasmTagObject> New(
+  static DirectHandle<WasmTagObject> New(
       Isolate* isolate, const wasm::FunctionSig* sig,
       wasm::CanonicalTypeIndex type_index, DirectHandle<HeapObject> tag,
       DirectHandle<WasmTrustedInstanceData> instance);
@@ -902,10 +906,10 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static Tagged<ProtectedWeakFixedArray> MaybeGrowUsesList(
       Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table);
 
-  static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> New(
-      Isolate* isolate, int length, wasm::CanonicalValueType table_type);
-  static V8_WARN_UNUSED_RESULT Handle<WasmDispatchTable> Grow(
-      Isolate*, Handle<WasmDispatchTable>, uint32_t new_length);
+  static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable>
+  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type);
+  static V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable> Grow(
+      Isolate*, DirectHandle<WasmDispatchTable>, uint32_t new_length);
 
   DECL_PRINTER(WasmDispatchTable)
   DECL_VERIFIER(WasmDispatchTable)
@@ -925,9 +929,9 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
 
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
-  static Handle<Object> GetExceptionTag(
+  static DirectHandle<Object> GetExceptionTag(
       Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
-  static Handle<Object> GetExceptionValues(
+  static DirectHandle<Object> GetExceptionValues(
       Isolate* isolate, DirectHandle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
@@ -970,7 +974,7 @@ class WasmExportedFunction : public JSFunction {
  public:
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Tagged<Object> object);
 
-  V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
+  V8_EXPORT_PRIVATE static DirectHandle<WasmExportedFunction> New(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
@@ -1129,7 +1133,7 @@ class WasmInternalFunction
   // output parameter if an external function exists. Returns false otherwise.
   bool try_get_external(Tagged<JSFunction>* result);
 
-  V8_EXPORT_PRIVATE static Handle<JSFunction> GetOrCreateExternal(
+  V8_EXPORT_PRIVATE static DirectHandle<JSFunction> GetOrCreateExternal(
       DirectHandle<WasmInternalFunction> internal);
 
   DECL_PROTECTED_POINTER_ACCESSORS(implicit_arg, TrustedObject)
@@ -1313,8 +1317,8 @@ class WasmScript : public AllStatic {
 class WasmExceptionTag
     : public TorqueGeneratedWasmExceptionTag<WasmExceptionTag, Struct> {
  public:
-  V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
-                                                        int index);
+  V8_EXPORT_PRIVATE static DirectHandle<WasmExceptionTag> New(Isolate* isolate,
+                                                              int index);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -1383,8 +1387,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
 
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
 
-  static inline void SetField(Isolate* isolate, Handle<WasmStruct> obj,
-                              uint32_t field_index, Handle<Object> value);
+  static inline void SetField(Isolate* isolate, DirectHandle<WasmStruct> obj,
+                              uint32_t field_index, DirectHandle<Object> value);
 
   DECL_PRINTER(WasmStruct)
 
@@ -1537,25 +1541,29 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
-                                   Handle<Map> opt_rtt_parent);
+                                   DirectHandle<Map> opt_rtt_parent);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to
 // {expected}. If the typecheck succeeds, returns the wasm representation of the
 // object; otherwise, returns the empty handle.
-MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
-                                   CanonicalValueType expected,
-                                   const char** error_message);
+MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
+                                         DirectHandle<Object> value,
+                                         CanonicalValueType expected,
+                                         const char** error_message);
 
 // Utility which canonicalizes {expected} in addition.
-MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
-                                   Handle<Object> value, ValueType expected,
-                                   const char** error_message);
+MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
+                                         const WasmModule* module,
+                                         DirectHandle<Object> value,
+                                         ValueType expected,
+                                         const char** error_message);
 
 // Takes a {value} in the Wasm representation and transforms it to the
 // respective JS representation. The caller is responsible for not providing an
 // object which cannot be transformed to JS.
-Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value);
+DirectHandle<Object> WasmToJSObject(Isolate* isolate,
+                                    DirectHandle<Object> value);
 
 }  // namespace wasm
 }  // namespace internal

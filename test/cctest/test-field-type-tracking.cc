@@ -88,9 +88,9 @@ class Expectations {
   Representation representations_[MAX_PROPERTIES];
   // FieldType for kField, value for DATA_CONSTANT and getter for
   // ACCESSOR_CONSTANT.
-  Handle<Object> values_[MAX_PROPERTIES];
+  DirectHandle<Object> values_[MAX_PROPERTIES];
   // Setter for ACCESSOR_CONSTANT.
-  Handle<Object> setter_values_[MAX_PROPERTIES];
+  DirectHandle<Object> setter_values_[MAX_PROPERTIES];
   int number_of_properties_;
 
  public:
@@ -106,7 +106,7 @@ class Expectations {
 
   void Init(int index, PropertyKind kind, PropertyAttributes attributes,
             PropertyConstness constness, PropertyLocation location,
-            Representation representation, Handle<Object> value) {
+            Representation representation, DirectHandle<Object> value) {
     CHECK(index < MAX_PROPERTIES);
     kinds_[index] = kind;
     locations_[index] = location;
@@ -164,14 +164,14 @@ class Expectations {
 
   void SetDataField(int index, PropertyAttributes attrs,
                     PropertyConstness constness, Representation representation,
-                    Handle<FieldType> field_type) {
+                    DirectHandle<FieldType> field_type) {
     Init(index, PropertyKind::kData, attrs, constness, PropertyLocation::kField,
          representation, field_type);
   }
 
   void SetDataField(int index, PropertyConstness constness,
                     Representation representation,
-                    Handle<FieldType> field_type) {
+                    DirectHandle<FieldType> field_type) {
     SetDataField(index, attributes_[index], constness, representation,
                  field_type);
   }
@@ -188,7 +188,8 @@ class Expectations {
 
   void SetDataConstant(int index, PropertyAttributes attrs,
                        DirectHandle<JSFunction> value) {
-    Handle<FieldType> field_type(FieldType::Class(value->map()), isolate_);
+    DirectHandle<FieldType> field_type(FieldType::Class(value->map()),
+                                       isolate_);
     Init(index, PropertyKind::kData, attrs, PropertyConstness::kConst,
          PropertyLocation::kField, Representation::HeapObject(), field_type);
   }
@@ -219,8 +220,8 @@ class Expectations {
 
   void SetAccessorConstant(int index, PropertyAttributes attrs,
                            DirectHandle<AccessorPair> pair) {
-    Handle<Object> getter = handle(pair->getter(), isolate_);
-    Handle<Object> setter = handle(pair->setter(), isolate_);
+    Handle<Object> getter(pair->getter(), isolate_);
+    Handle<Object> setter(pair->setter(), isolate_);
     SetAccessorConstant(index, attrs, getter, setter);
   }
 
@@ -230,8 +231,8 @@ class Expectations {
   }
 
   void SetAccessorConstant(int index, DirectHandle<AccessorPair> pair) {
-    Handle<Object> getter = handle(pair->getter(), isolate_);
-    Handle<Object> setter = handle(pair->setter(), isolate_);
+    Handle<Object> getter(pair->getter(), isolate_);
+    Handle<Object> setter(pair->setter(), isolate_);
     SetAccessorConstant(index, getter, setter);
   }
 
@@ -332,7 +333,7 @@ class Expectations {
   Handle<Map> AddDataField(DirectHandle<Map> map, PropertyAttributes attributes,
                            PropertyConstness constness,
                            Representation representation,
-                           Handle<FieldType> field_type) {
+                           DirectHandle<FieldType> field_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataField(property_index, attributes, constness, representation,
@@ -361,7 +362,7 @@ class Expectations {
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
                                           Representation representation,
-                                          Handle<FieldType> heap_type,
+                                          DirectHandle<FieldType> heap_type,
                                           DirectHandle<Object> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
@@ -390,7 +391,7 @@ class Expectations {
                                    PropertyAttributes attributes,
                                    PropertyConstness constness,
                                    Representation representation,
-                                   Handle<FieldType> heap_type) {
+                                   DirectHandle<FieldType> heap_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataField(property_index, attributes, constness, representation,
@@ -481,7 +482,7 @@ Handle<Map> ReconfigureProperty(Isolate* isolate, Handle<Map> map,
                                 PropertyKind new_kind,
                                 PropertyAttributes new_attributes,
                                 Representation new_representation,
-                                Handle<FieldType> new_field_type) {
+                                DirectHandle<FieldType> new_field_type) {
   DCHECK_EQ(PropertyKind::kData, new_kind);  // Only kData case is supported.
   MapUpdater mu(isolate, map);
   return mu.ReconfigureToDataField(modify_index, new_attributes,
@@ -496,8 +497,8 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> none_type = FieldType::None(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> none_type = FieldType::None(isolate);
   DirectHandle<AccessorPair> pair = CreateAccessorPair(true, true);
 
   Expectations expectations(isolate);
@@ -610,7 +611,7 @@ namespace {
 struct CRFTData {
   PropertyConstness constness;
   Representation representation;
-  Handle<FieldType> type;
+  DirectHandle<FieldType> type;
 };
 
 Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
@@ -670,7 +671,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
                          const CRFTData& expected,
                          ChangeAlertMechanism expected_alert) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   CHECK(detach_property_at_index >= -1 &&
         detach_property_at_index < kPropCount);
@@ -813,7 +814,7 @@ TEST(GeneralizeSmiFieldToDouble) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::Smi(), any_type},
@@ -827,8 +828,8 @@ TEST(GeneralizeSmiFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestGeneralizeField(
@@ -843,8 +844,8 @@ TEST(GeneralizeDoubleFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestGeneralizeField(
@@ -859,8 +860,8 @@ TEST(GeneralizeHeapObjectFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestGeneralizeField(
@@ -875,15 +876,15 @@ TEST(GeneralizeHeapObjectFieldToHeapObject) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<FieldType> current_type =
+  DirectHandle<FieldType> current_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> new_type =
+  DirectHandle<FieldType> new_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> expected_type = any_type;
+  DirectHandle<FieldType> expected_type = any_type;
 
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::HeapObject(), current_type},
@@ -907,8 +908,8 @@ TEST(GeneralizeNoneFieldToSmi) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> none_type = FieldType::None(isolate);
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> none_type = FieldType::None(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   // None -> Smi representation change is trivial.
   TestGeneralizeField(
@@ -923,8 +924,8 @@ TEST(GeneralizeNoneFieldToDouble) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> none_type = FieldType::None(isolate);
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> none_type = FieldType::None(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   // None -> Double representation change is NOT trivial.
   TestGeneralizeField(
@@ -939,8 +940,8 @@ TEST(GeneralizeNoneFieldToHeapObject) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> none_type = FieldType::None(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> none_type = FieldType::None(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   // None -> HeapObject representation change is trivial.
@@ -956,8 +957,8 @@ TEST(GeneralizeNoneFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> none_type = FieldType::None(isolate);
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> none_type = FieldType::None(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   // None -> HeapObject representation change is trivial.
   TestGeneralizeField(
@@ -977,7 +978,7 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
   DirectHandle<AccessorPair> pair = CreateAccessorPair(true, true);
 
   const int kAccessorProp = kPropCount / 2;
@@ -1180,7 +1181,7 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToDouble) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
@@ -1212,8 +1213,8 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeSmiFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
@@ -1246,8 +1247,8 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeDoubleFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
@@ -1280,15 +1281,15 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<FieldType> current_type =
+  DirectHandle<FieldType> current_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> new_type =
+  DirectHandle<FieldType> new_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> expected_type = any_type;
+  DirectHandle<FieldType> expected_type = any_type;
 
   // Check generalizations that trigger deopts.
   TestReconfigureDataFieldAttribute_GeneralizeField(
@@ -1356,8 +1357,8 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureDataFieldAttribute_GeneralizeField(
@@ -1449,7 +1450,7 @@ template <typename TestConfig, typename Checker>
 static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
     TestConfig* config, Checker* checker) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   const int kCustomPropIndex = kPropCount - 2;
   Expectations expectations(isolate);
@@ -1559,7 +1560,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
   struct TestConfig {
     Handle<JSFunction> js_func1_;
     Handle<JSFunction> js_func2_;
-    Handle<FieldType> function_type_;
+    DirectHandle<FieldType> function_type_;
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
@@ -1719,7 +1720,7 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
         return expectations->AddAccessorConstant(map, NONE, pair_);
       } else {
         Isolate* isolate = CcTest::i_isolate();
-        Handle<FieldType> any_type = FieldType::Any(isolate);
+        DirectHandle<FieldType> any_type = FieldType::Any(isolate);
         return expectations->AddDataField(map, NONE, PropertyConstness::kConst,
                                           Representation::Smi(), any_type);
       }
@@ -1857,7 +1858,7 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToDouble) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   TestReconfigureElementsKind_GeneralizeFieldInPlace(
       {PropertyConstness::kConst, Representation::Smi(), any_type},
@@ -1885,8 +1886,8 @@ TEST(ReconfigureElementsKind_GeneralizeSmiFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureElementsKind_GeneralizeFieldInPlace(
@@ -1915,8 +1916,8 @@ TEST(ReconfigureElementsKind_GeneralizeDoubleFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureElementsKind_GeneralizeFieldInPlace(
@@ -1945,15 +1946,15 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<FieldType> current_type =
+  DirectHandle<FieldType> current_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> new_type =
+  DirectHandle<FieldType> new_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
-  Handle<FieldType> expected_type = any_type;
+  DirectHandle<FieldType> expected_type = any_type;
 
   // Check generalizations that trigger deopts.
   TestReconfigureElementsKind_GeneralizeFieldInPlace(
@@ -2013,8 +2014,8 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjectFieldToTagged) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   TestReconfigureElementsKind_GeneralizeFieldInPlace(
@@ -2047,7 +2048,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   Expectations expectations(isolate);
 
@@ -2297,9 +2298,9 @@ static void TestGeneralizeFieldWithSpecialTransition(
 template <typename TestConfig>
 void TestMultipleElementsKindTransitions(Isolate* isolate, TestConfig* config,
                                          UpdateDirectionCheck direction) {
-  Handle<FieldType> value_type(
+  DirectHandle<FieldType> value_type(
       FieldType::Class(Map::Create(isolate, 0), isolate));
-  Handle<FieldType> any_type(FieldType::Any(isolate));
+  DirectHandle<FieldType> any_type(FieldType::Any(isolate));
 
   TestGeneralizeFieldWithSpecialTransition(
       config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
@@ -2376,7 +2377,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
 
     Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> any_type = FieldType::Any(isolate);
+      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
@@ -2443,9 +2444,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
 
 template <typename TestConfig>
 void TestMultiplePrototypeTransitions(Isolate* isolate, TestConfig* config) {
-  Handle<FieldType> value_type(
+  DirectHandle<FieldType> value_type(
       FieldType::Class(Map::Create(isolate, 0), isolate));
-  Handle<FieldType> any_type(FieldType::Any(isolate));
+  DirectHandle<FieldType> any_type(FieldType::Any(isolate));
 
   // Smi + HeapObject -> Tagged
 
@@ -2595,7 +2596,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
 
     Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> any_type = FieldType::Any(isolate);
+      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
@@ -2768,8 +2769,8 @@ TEST(ElementsKindTransitionFromMapOwningDescriptorLegacy) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
@@ -2826,8 +2827,8 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
@@ -2837,7 +2838,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
 
     Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> any_type = FieldType::Any(isolate);
+      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
@@ -2896,8 +2897,8 @@ TEST(PrototypeTransitionFromMapOwningDescriptorLegacy) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
@@ -2940,8 +2941,8 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptorLegacy) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-  Handle<FieldType> value_type =
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> value_type =
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
@@ -2955,7 +2956,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptorLegacy) {
 
     Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> any_type = FieldType::Any(isolate);
+      DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
       // Add one more transition to |map| in order to prevent descriptors
       // ownership.
@@ -2997,13 +2998,13 @@ struct TransitionToDataFieldOperator {
   PropertyConstness constness_;
   Representation representation_;
   PropertyAttributes attributes_;
-  Handle<FieldType> heap_type_;
-  Handle<Object> value_;
+  DirectHandle<FieldType> heap_type_;
+  DirectHandle<Object> value_;
 
   TransitionToDataFieldOperator(PropertyConstness constness,
                                 Representation representation,
-                                Handle<FieldType> heap_type,
-                                Handle<Object> value,
+                                DirectHandle<FieldType> heap_type,
+                                DirectHandle<Object> value,
                                 PropertyAttributes attributes = NONE)
       : constness_(constness),
         representation_(representation),
@@ -3053,11 +3054,11 @@ struct ReconfigureAsDataPropertyOperator {
   InternalIndex descriptor_;
   Representation representation_;
   PropertyAttributes attributes_;
-  Handle<FieldType> heap_type_;
+  DirectHandle<FieldType> heap_type_;
 
   ReconfigureAsDataPropertyOperator(int descriptor,
                                     Representation representation,
-                                    Handle<FieldType> heap_type,
+                                    DirectHandle<FieldType> heap_type,
                                     PropertyAttributes attributes = NONE)
       : descriptor_(descriptor),
         representation_(representation),
@@ -3099,11 +3100,11 @@ struct FieldGeneralizationChecker {
   PropertyConstness constness_;
   Representation representation_;
   PropertyAttributes attributes_;
-  Handle<FieldType> heap_type_;
+  DirectHandle<FieldType> heap_type_;
 
   FieldGeneralizationChecker(int descriptor, PropertyConstness constness,
                              Representation representation,
-                             Handle<FieldType> heap_type,
+                             DirectHandle<FieldType> heap_type,
                              PropertyAttributes attributes = NONE)
       : descriptor_(descriptor),
         constness_(constness),
@@ -3171,7 +3172,7 @@ template <typename TransitionOp1, typename TransitionOp2, typename Checker>
 static void TestTransitionTo(TransitionOp1* transition_op1,
                              TransitionOp2* transition_op2, Checker* checker) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   Expectations expectations(isolate);
 
@@ -3200,9 +3201,9 @@ TEST(TransitionDataFieldToDataField) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<Object> value1 = handle(Smi::zero(), isolate);
+  Handle<Object> value1(Smi::zero(), isolate);
   TransitionToDataFieldOperator transition_op1(
       PropertyConstness::kMutable, Representation::Smi(), any_type, value1);
 
@@ -3268,7 +3269,7 @@ TEST(TransitionDataConstantToDataField) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   Handle<JSFunction> js_func1 =
       factory->NewFunctionForTesting(factory->empty_string());

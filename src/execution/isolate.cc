@@ -3796,7 +3796,7 @@ bool Isolate::IsOnCentralStack() {
 
 void Isolate::AddSharedWasmMemory(
     DirectHandle<WasmMemoryObject> memory_object) {
-  Handle<WeakArrayList> shared_wasm_memories =
+  DirectHandle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
   shared_wasm_memories = WeakArrayList::Append(
       this, shared_wasm_memories, MaybeObjectDirectHandle::Weak(memory_object));
@@ -6140,7 +6140,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
   }
 
   // Add collected feedback vectors to the root list lest we lose them to GC.
-  Handle<ArrayList> list =
+  DirectHandle<ArrayList> list =
       ArrayList::New(this, static_cast<int>(vectors.size()));
   for (const auto& vector : vectors) list = ArrayList::Add(this, list, vector);
   SetFeedbackVectorsForProfilingTools(*list);

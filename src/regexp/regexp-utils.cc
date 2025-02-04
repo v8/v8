@@ -91,7 +91,7 @@ MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
 // Also takes an optional exec method in case our caller
 // has already fetched exec.
 MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
-                                           Handle<JSReceiver> regexp,
+                                           DirectHandle<JSReceiver> regexp,
                                            DirectHandle<String> string,
                                            DirectHandle<Object> exec) {
   if (IsUndefined(*exec, isolate)) {

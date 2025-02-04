@@ -34,7 +34,7 @@ class RegExpImpl final : public AllStatic {
   // Returns a string representation of a regular expression.
   // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.
   // This function calls the garbage collector if necessary.
-  static DirectHandle<String> ToString(Handle<Object> value);
+  static DirectHandle<String> ToString(DirectHandle<Object> value);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
@@ -51,7 +51,7 @@ class RegExpImpl final : public AllStatic {
   // an exception is thrown as indicated by a negative return value.
   static int IrregexpPrepare(Isolate* isolate,
                              DirectHandle<IrRegExpData> regexp_data,
-                             Handle<String> subject);
+                             DirectHandle<String> subject);
 
   static void AtomCompile(Isolate* isolate, DirectHandle<JSRegExp> re,
                           DirectHandle<String> pattern, RegExpFlags flags,
@@ -59,7 +59,7 @@ class RegExpImpl final : public AllStatic {
 
   static int AtomExecRaw(Isolate* isolate,
                          DirectHandle<AtomRegExpData> regexp_data,
-                         Handle<String> subject, int index,
+                         DirectHandle<String> subject, int index,
                          int32_t* result_offsets_vector,
                          int result_offsets_vector_length);
   static int AtomExecRaw(Isolate* isolate, const String::FlatContent& pattern,
@@ -70,7 +70,7 @@ class RegExpImpl final : public AllStatic {
 
   static int AtomExec(Isolate* isolate,
                       DirectHandle<AtomRegExpData> regexp_data,
-                      Handle<String> subject, int index,
+                      DirectHandle<String> subject, int index,
                       int32_t* result_offsets_vector,
                       int result_offsets_vector_length);
 
@@ -82,28 +82,29 @@ class RegExpImpl final : public AllStatic {
   // If execution fails, sets an exception and returns RE_EXCEPTION.
   static int IrregexpExecRaw(Isolate* isolate,
                              DirectHandle<IrRegExpData> regexp_data,
-                             Handle<String> subject, int index, int32_t* output,
-                             int output_size);
+                             DirectHandle<String> subject, int index,
+                             int32_t* output, int output_size);
 
   // Execute an Irregexp bytecode pattern. Returns the number of matches, or an
   // empty handle in case of an exception.
   V8_WARN_UNUSED_RESULT static std::optional<int> IrregexpExec(
       Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-      Handle<String> subject, int index, int32_t* result_offsets_vector,
+      DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
       uint32_t result_offsets_vector_length);
 
   static bool CompileIrregexp(Isolate* isolate,
                               DirectHandle<IrRegExpData> re_data,
-                              Handle<String> sample_subject, bool is_one_byte);
+                              DirectHandle<String> sample_subject,
+                              bool is_one_byte);
   static inline bool EnsureCompiledIrregexp(Isolate* isolate,
                                             DirectHandle<IrRegExpData> re_data,
-                                            Handle<String> sample_subject,
+                                            DirectHandle<String> sample_subject,
                                             bool is_one_byte);
 
   // Returns true on success, false on failure.
   static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
-                      RegExpFlags flags, Handle<String> pattern,
-                      Handle<String> sample_subject, bool is_one_byte,
+                      RegExpFlags flags, DirectHandle<String> pattern,
+                      DirectHandle<String> sample_subject, bool is_one_byte,
                       uint32_t& backtrack_limit);
 };
 
@@ -139,17 +140,16 @@ template bool RegExp::VerifySyntax<base::uc16>(
     Zone*, uintptr_t, const base::uc16*, int, RegExpFlags,
     RegExpError* regexp_error_out, const DisallowGarbageCollection&);
 
-MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
-                                                 RegExpFlags flags,
-                                                 Handle<String> pattern,
-                                                 RegExpError error) {
+MaybeDirectHandle<Object> RegExp::ThrowRegExpException(
+    Isolate* isolate, RegExpFlags flags, DirectHandle<String> pattern,
+    RegExpError error) {
   base::Vector<const char> error_data =
       base::CStrVector(RegExpErrorString(error));
-  Handle<String> error_text =
+  DirectHandle<String> error_text =
       isolate->factory()
           ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
           .ToHandleChecked();
-  Handle<String> flag_string =
+  DirectHandle<String> flag_string =
       JSRegExp::StringFromFlags(isolate, JSRegExp::AsJSRegExpFlags(flags));
   THROW_NEW_ERROR(isolate, NewSyntaxError(MessageTemplate::kMalformedRegExp,
                                           pattern, flag_string, error_text));
@@ -159,7 +159,7 @@ void RegExp::ThrowRegExpException(Isolate* isolate,
                                   DirectHandle<RegExpData> re_data,
                                   RegExpError error_text) {
   USE(ThrowRegExpException(isolate, JSRegExp::AsRegExpFlags(re_data->flags()),
-                           Handle<String>(re_data->source(), isolate),
+                           direct_handle(re_data->source(), isolate),
                            error_text));
 }
 
@@ -199,7 +199,7 @@ bool HasFewDifferentCharacters(DirectHandle<String> pattern) {
 // static
 MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
                                           DirectHandle<JSRegExp> re,
-                                          Handle<String> pattern,
+                                          DirectHandle<String> pattern,
                                           RegExpFlags flags,
                                           uint32_t backtrack_limit) {
   DCHECK(pattern->IsFlat());
@@ -293,7 +293,7 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
 // static
 bool RegExp::EnsureFullyCompiled(Isolate* isolate,
                                  DirectHandle<RegExpData> re_data,
-                                 Handle<String> subject) {
+                                 DirectHandle<String> subject) {
   switch (re_data->type_tag()) {
     case RegExpData::Type::ATOM:
       return true;
@@ -321,7 +321,7 @@ std::optional<int> RegExp::ExperimentalOneshotExec(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
     DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
     uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
+  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   SBXCHECK(Is<IrRegExpData>(*data));
   return ExperimentalRegExp::OneshotExec(isolate, Cast<IrRegExpData>(data),
                                          subject, index, result_offsets_vector,
@@ -330,10 +330,10 @@ std::optional<int> RegExp::ExperimentalOneshotExec(
 
 // static
 std::optional<int> RegExp::Exec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
-                                Handle<String> subject, int index,
+                                DirectHandle<String> subject, int index,
                                 int32_t* result_offsets_vector,
                                 uint32_t result_offsets_vector_length) {
-  DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
+  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   switch (data->type_tag()) {
     case RegExpData::Type::ATOM:
       return RegExpImpl::AtomExec(isolate, Cast<AtomRegExpData>(data), subject,
@@ -355,11 +355,12 @@ std::optional<int> RegExp::Exec(Isolate* isolate, DirectHandle<JSRegExp> regexp,
 }
 
 // static
-MaybeHandle<Object> RegExp::Exec_Single(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp, Handle<String> subject,
-    int index, Handle<RegExpMatchInfo> last_match_info) {
+MaybeDirectHandle<Object> RegExp::Exec_Single(
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> subject, int index,
+    DirectHandle<RegExpMatchInfo> last_match_info) {
   RegExpStackScope stack_scope(isolate);
-  DirectHandle<RegExpData> data = direct_handle(regexp->data(isolate), isolate);
+  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   int capture_count = data->capture_count();
   int result_offsets_vector_length =
       JSRegExp::RegistersForCaptureCount(capture_count);
@@ -426,7 +427,7 @@ int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
 // static
 int RegExpImpl::AtomExecRaw(Isolate* isolate,
                             DirectHandle<AtomRegExpData> regexp_data,
-                            Handle<String> subject, int index,
+                            DirectHandle<String> subject, int index,
                             int32_t* result_offsets_vector,
                             int result_offsets_vector_length) {
   subject = String::Flatten(isolate, subject);
@@ -495,7 +496,7 @@ intptr_t RegExp::AtomExecRaw(Isolate* isolate,
 }
 
 int RegExpImpl::AtomExec(Isolate* isolate, DirectHandle<AtomRegExpData> re_data,
-                         Handle<String> subject, int index,
+                         DirectHandle<String> subject, int index,
                          int32_t* result_offsets_vector,
                          int result_offsets_vector_length) {
   int res = AtomExecRaw(isolate, re_data, subject, index, result_offsets_vector,
@@ -515,7 +516,7 @@ int RegExpImpl::AtomExec(Isolate* isolate, DirectHandle<AtomRegExpData> re_data,
 // returns false.
 bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
                                         DirectHandle<IrRegExpData> re_data,
-                                        Handle<String> sample_subject,
+                                        DirectHandle<String> sample_subject,
                                         bool is_one_byte) {
   bool has_bytecode = re_data->has_bytecode(is_one_byte);
   bool needs_initial_compilation = !re_data->has_code(is_one_byte);
@@ -570,9 +571,9 @@ struct RegExpCaptureIndexLess {
 }  // namespace
 
 // static
-Handle<FixedArray> RegExp::CreateCaptureNameMap(
+DirectHandle<FixedArray> RegExp::CreateCaptureNameMap(
     Isolate* isolate, ZoneVector<RegExpCapture*>* named_captures) {
-  if (named_captures == nullptr) return Handle<FixedArray>();
+  if (named_captures == nullptr) return DirectHandle<FixedArray>();
 
   DCHECK(!named_captures->empty());
 
@@ -583,7 +584,7 @@ Handle<FixedArray> RegExp::CreateCaptureNameMap(
             RegExpCaptureIndexLess{});
 
   int len = static_cast<int>(named_captures->size()) * 2;
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(len);
+  DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(len);
 
   int i = 0;
   for (const RegExpCapture* capture : *named_captures) {
@@ -605,7 +606,7 @@ Handle<FixedArray> RegExp::CreateCaptureNameMap(
 
 bool RegExpImpl::CompileIrregexp(Isolate* isolate,
                                  DirectHandle<IrRegExpData> re_data,
-                                 Handle<String> sample_subject,
+                                 DirectHandle<String> sample_subject,
                                  bool is_one_byte) {
   // Compile the RegExp.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -615,7 +616,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
 
   RegExpFlags flags = JSRegExp::AsRegExpFlags(re_data->flags());
 
-  Handle<String> pattern(re_data->source(), isolate);
+  DirectHandle<String> pattern(re_data->source(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
@@ -695,7 +696,7 @@ void RegExpImpl::IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
 // static
 int RegExpImpl::IrregexpPrepare(Isolate* isolate,
                                 DirectHandle<IrRegExpData> re_data,
-                                Handle<String> subject) {
+                                DirectHandle<String> subject) {
   DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
@@ -712,7 +713,7 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate,
 
 int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
                                 DirectHandle<IrRegExpData> regexp_data,
-                                Handle<String> subject, int index,
+                                DirectHandle<String> subject, int index,
                                 int32_t* output, int output_size) {
   DCHECK_LE(0, index);
   DCHECK_LE(index, subject->length());
@@ -787,8 +788,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
 
 std::optional<int> RegExpImpl::IrregexpExec(
     Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-    Handle<String> subject, int previous_index, int32_t* result_offsets_vector,
-    uint32_t result_offsets_vector_length) {
+    DirectHandle<String> subject, int previous_index,
+    int32_t* result_offsets_vector, uint32_t result_offsets_vector_length) {
   subject = String::Flatten(isolate, subject);
 
 #ifdef DEBUG
@@ -865,10 +866,10 @@ std::optional<int> RegExpImpl::IrregexpExec(
 }
 
 // static
-Handle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
-    Isolate* isolate, Handle<RegExpMatchInfo> last_match_info,
+DirectHandle<RegExpMatchInfo> RegExp::SetLastMatchInfo(
+    Isolate* isolate, DirectHandle<RegExpMatchInfo> last_match_info,
     DirectHandle<String> subject, int capture_count, int32_t* match) {
-  Handle<RegExpMatchInfo> result =
+  DirectHandle<RegExpMatchInfo> result =
       RegExpMatchInfo::ReserveCaptures(isolate, last_match_info, capture_count);
   if (*result != *last_match_info) {
     if (*last_match_info == *isolate->regexp_last_match_info()) {
@@ -923,8 +924,8 @@ bool TooMuchRegExpCode(Isolate* isolate, DirectHandle<String> pattern) {
 // static
 bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
                                RegExpCompileData* data, RegExpFlags flags,
-                               Handle<String> pattern,
-                               Handle<String> sample_subject,
+                               DirectHandle<String> pattern,
+                               DirectHandle<String> sample_subject,
                                bool is_one_byte) {
   uint32_t backtrack_limit = JSRegExp::kNoBacktrackLimit;
   return RegExpImpl::Compile(isolate, zone, data, flags, pattern,
@@ -932,8 +933,8 @@ bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
 }
 
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
-                         RegExpFlags flags, Handle<String> pattern,
-                         Handle<String> sample_subject, bool is_one_byte,
+                         RegExpFlags flags, DirectHandle<String> pattern,
+                         DirectHandle<String> sample_subject, bool is_one_byte,
                          uint32_t& backtrack_limit) {
   if (JSRegExp::RegistersForCaptureCount(data->capture_count) >
       RegExpMacroAssembler::kMaxRegisterCount) {
@@ -1112,9 +1113,9 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   return result.Succeeded();
 }
 
-RegExpGlobalExecRunner::RegExpGlobalExecRunner(Handle<RegExpData> regexp_data,
-                                               Handle<String> subject,
-                                               Isolate* isolate)
+RegExpGlobalExecRunner::RegExpGlobalExecRunner(
+    DirectHandle<RegExpData> regexp_data, DirectHandle<String> subject,
+    Isolate* isolate)
     : result_vector_scope_(isolate),
       regexp_data_(regexp_data),
       subject_(subject),
@@ -1355,7 +1356,7 @@ void RegExpResultsCache::Enter(Isolate* isolate,
   // list of internalized strings.
   if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
     for (int i = 0; i < value_array->length(); i++) {
-      Handle<String> str(Cast<String>(value_array->get(i)), isolate);
+      DirectHandle<String> str(Cast<String>(value_array->get(i)), isolate);
       DirectHandle<String> internalized_str = factory->InternalizeString(str);
       value_array->set(i, *internalized_str);
     }

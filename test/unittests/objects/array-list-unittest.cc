@@ -16,7 +16,7 @@ using ArrayListTest = TestWithContext;
 
 TEST_F(ArrayListTest, ArrayList) {
   HandleScope scope(i_isolate());
-  Handle<ArrayList> array = i_isolate()->factory()->empty_array_list();
+  DirectHandle<ArrayList> array = i_isolate()->factory()->empty_array_list();
   EXPECT_EQ(0, array->length());
   array = ArrayList::Add(i_isolate(), array,
                          direct_handle(Smi::FromInt(100), i_isolate()));

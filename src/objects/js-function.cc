@@ -300,7 +300,8 @@ void JSFunction::SetInterruptBudget(
 Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
     Isolate* isolate,
     DirectHandle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
-    DirectHandle<JSReceiver> target, Handle<String> prefix, int arg_count) {
+    DirectHandle<JSReceiver> target, DirectHandle<String> prefix,
+    int arg_count) {
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the
@@ -351,11 +352,11 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
-    Handle<Object> target_name;
+    DirectHandle<Object> target_name;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_name,
                                      Object::GetProperty(&name_lookup),
                                      Nothing<bool>());
-    Handle<String> name;
+    DirectHandle<String> name;
     if (IsString(*target_name)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, name,
@@ -1350,7 +1351,7 @@ Handle<String> JSFunction::GetDebugName(DirectHandle<JSFunction> function) {
 bool JSFunction::SetName(DirectHandle<JSFunction> function, Handle<Name> name,
                          DirectHandle<String> prefix) {
   Isolate* isolate = function->GetIsolate();
-  Handle<String> function_name;
+  DirectHandle<String> function_name;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
                                    Name::ToFunctionName(isolate, name), false);
   if (prefix->length() > 0) {

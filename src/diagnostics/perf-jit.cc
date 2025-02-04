@@ -222,7 +222,7 @@ uint64_t LinuxPerfJitLogger::GetTimestamp() {
 
 void LinuxPerfJitLogger::LogRecordedBuffer(
     Tagged<AbstractCode> abstract_code,
-    MaybeHandle<SharedFunctionInfo> maybe_sfi, const char* name,
+    MaybeDirectHandle<SharedFunctionInfo> maybe_sfi, const char* name,
     size_t length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
@@ -241,7 +241,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   Tagged<Code> code = Cast<Code>(abstract_code);
 
   // Debug info has to be emitted first.
-  Handle<SharedFunctionInfo> sfi;
+  DirectHandle<SharedFunctionInfo> sfi;
   if (v8_flags.perf_prof && maybe_sfi.ToHandle(&sfi)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
     CodeKind kind = code->kind();
@@ -329,9 +329,9 @@ base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
 
 }  // namespace
 
-SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Tagged<Code> code,
-                                         Handle<SharedFunctionInfo> function,
-                                         SourcePosition pos) {
+SourcePositionInfo GetSourcePositionInfo(
+    Isolate* isolate, Tagged<Code> code,
+    DirectHandle<SharedFunctionInfo> function, SourcePosition pos) {
   DisallowGarbageCollection disallow;
   if (code->is_turbofanned()) {
     return pos.FirstInfo(isolate, code);
@@ -342,8 +342,8 @@ SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Tagged<Code> code,
 
 }  // namespace
 
-void LinuxPerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
-                                           Handle<SharedFunctionInfo> shared) {
+void LinuxPerfJitLogger::LogWriteDebugInfo(
+    Tagged<Code> code, DirectHandle<SharedFunctionInfo> shared) {
   // Line ends of all scripts have been initialized prior to this.
   DisallowGarbageCollection no_gc;
   // The WasmToJS wrapper stubs have source position entries.

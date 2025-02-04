@@ -161,8 +161,8 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
 namespace {
 
 template <class IteratorType>
-static Handle<ArrayList> AddIteratorInternalProperties(
-    Isolate* isolate, Handle<ArrayList> result,
+static DirectHandle<ArrayList> AddIteratorInternalProperties(
+    Isolate* isolate, DirectHandle<ArrayList> result,
     DirectHandle<IteratorType> iterator) {
   const char* kind = nullptr;
   switch (iterator->map()->instance_type()) {
@@ -198,9 +198,9 @@ static Handle<ArrayList> AddIteratorInternalProperties(
 
 }  // namespace
 
-MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
-                                                    Handle<Object> object) {
-  Handle<ArrayList> result = ArrayList::New(isolate, 8 * 2);
+MaybeHandle<JSArray> Runtime::GetInternalProperties(
+    Isolate* isolate, DirectHandle<Object> object) {
+  DirectHandle<ArrayList> result = ArrayList::New(isolate, 8 * 2);
   if (IsJSObject(*object)) {
     PrototypeIterator iter(isolate, Cast<JSObject>(object), kStartAtReceiver);
     if (iter.HasAccess()) {
@@ -280,7 +280,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewStringFromAsciiChecked("[[PromiseResult]]"),
         promise->status() == Promise::kPending
             ? isolate->factory()->undefined_value()
-            : handle(promise->result(), isolate));
+            : direct_handle(promise->result(), isolate));
   } else if (IsJSProxy(*object)) {
     auto js_proxy = Cast<JSProxy>(object);
 
@@ -658,12 +658,12 @@ DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
 }
 
 // Slow traversal over all scripts on the heap.
-bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
+bool GetScriptById(Isolate* isolate, int needle, DirectHandle<Script>* result) {
   Script::Iterator iterator(isolate);
   for (Tagged<Script> script = iterator.Next(); !script.is_null();
        script = iterator.Next()) {
     if (script->id() == needle) {
-      *result = handle(script, isolate);
+      *result = direct_handle(script, isolate);
       return true;
     }
   }
@@ -682,7 +682,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   DirectHandle<Object> opt_column = args.at(2);
   int32_t offset = NumberToInt32(args[3]);
 
-  Handle<Script> script;
+  DirectHandle<Script> script;
   CHECK(GetScriptById(isolate, scriptid, &script));
 
   return *ScriptLocationFromLine(isolate, script, opt_line, opt_column, offset);

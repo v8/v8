@@ -39,10 +39,10 @@ CompileTimeImports CompileTimeImportsForFuzzing();
 // result is compared against the reference execution. If non-determinism was
 // detected during the reference execution, the result is allowed to differ.
 void ExecuteAgainstReference(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object,
+                             DirectHandle<WasmModuleObject> module_object,
                              int32_t max_executed_instructions);
 
-Handle<WasmModuleObject> CompileReferenceModule(
+DirectHandle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     int32_t* max_steps);
 

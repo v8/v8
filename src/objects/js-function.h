@@ -34,7 +34,8 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
   static Maybe<bool> CopyNameAndLength(
       Isolate* isolate,
       DirectHandle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
-      DirectHandle<JSReceiver> target, Handle<String> prefix, int arg_count);
+      DirectHandle<JSReceiver> target, DirectHandle<String> prefix,
+      int arg_count);
 
   static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)

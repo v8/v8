@@ -62,7 +62,7 @@ class ValueSerializer {
   /*
    * Serializes a V8 object into the buffer.
    */
-  Maybe<bool> WriteObject(Handle<Object> object) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteObject(DirectHandle<Object> object) V8_WARN_UNUSED_RESULT;
 
   /*
    * Returns the buffer, allocated via the delegate, and its size.
@@ -117,8 +117,8 @@ class ValueSerializer {
   void WriteSmi(Tagged<Smi> smi);
   void WriteHeapNumber(Tagged<HeapNumber> number);
   void WriteBigInt(Tagged<BigInt> bigint);
-  void WriteString(Handle<String> string);
-  Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
+  void WriteString(DirectHandle<String> string);
+  Maybe<bool> WriteJSReceiver(DirectHandle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(DirectHandle<JSObject> object)
       V8_WARN_UNUSED_RESULT;
@@ -147,7 +147,8 @@ class ValueSerializer {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Maybe<bool> WriteSharedObject(DirectHandle<HeapObject> object)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
+  Maybe<bool> WriteHostObject(DirectHandle<JSObject> object)
+      V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads the specified keys from the object and writes key-value pairs to the
@@ -268,51 +269,51 @@ class ValueDeserializer {
       V8_WARN_UNUSED_RESULT;
   Maybe<base::Vector<const base::uc16>> ReadRawTwoBytes(size_t size)
       V8_WARN_UNUSED_RESULT;
-  MaybeHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<Object> ReadObject() V8_WARN_UNUSED_RESULT;
 
   // Like ReadObject, but skips logic for special cases in simulating the
   // "stack machine".
-  MaybeHandle<Object> ReadObjectInternal() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<Object> ReadObjectInternal() V8_WARN_UNUSED_RESULT;
 
   // Reads a string intended to be part of a more complicated object.
   // Before v12, these are UTF-8 strings. After, they can be any encoding
   // permissible for a string (with the relevant tag).
-  MaybeHandle<String> ReadString() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<String> ReadString() V8_WARN_UNUSED_RESULT;
 
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
-  MaybeHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadUtf8String(
+  MaybeDirectHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<String> ReadUtf8String(
       AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadOneByteString(
+  MaybeDirectHandle<String> ReadOneByteString(
       AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadTwoByteString(
+  MaybeDirectHandle<String> ReadTwoByteString(
       AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSDate> ReadJSDate() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSPrimitiveWrapper> ReadJSPrimitiveWrapper(SerializationTag tag)
-      V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadJSArrayBuffer(
+  MaybeDirectHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSDate> ReadJSDate() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSPrimitiveWrapper> ReadJSPrimitiveWrapper(
+      SerializationTag tag) V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSRegExp> ReadJSRegExp() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSArrayBuffer> ReadJSArrayBuffer(
       bool is_shared, bool is_resizable) V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
+  MaybeDirectHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
+  MaybeDirectHandle<JSArrayBufferView> ReadJSArrayBufferView(
       DirectHandle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
   bool ValidateJSArrayBufferViewFlags(
       Tagged<JSArrayBuffer> buffer, uint32_t serialized_flags,
       bool& is_length_tracking, bool& is_backed_by_rab) V8_WARN_UNUSED_RESULT;
-  MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
-  MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
    * Reads key-value pairs into the object until the specified end tag is
@@ -324,7 +325,7 @@ class ValueDeserializer {
 
   // Manipulating the map from IDs to reified objects.
   bool HasObjectWithID(uint32_t id);
-  MaybeHandle<JSReceiver> GetObjectWithID(uint32_t id);
+  MaybeDirectHandle<JSReceiver> GetObjectWithID(uint32_t id);
   void AddObjectWithID(uint32_t id, DirectHandle<JSReceiver> object);
 
   Isolate* const isolate_;
@@ -337,8 +338,8 @@ class ValueDeserializer {
   bool suppress_deserialization_errors_ = false;
 
   // Always global handles.
-  Handle<FixedArray> id_map_;
-  MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
+  IndirectHandle<FixedArray> id_map_;
+  MaybeIndirectHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
 
   // The conveyor used to keep shared objects alive.
   const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;

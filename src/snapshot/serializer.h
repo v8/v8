@@ -41,8 +41,8 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Move(from.address(), to.address());
   }
 
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {}
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override {}
 
   const char* Lookup(Address address) {
     return address_to_name_map_.Lookup(address);
@@ -124,8 +124,8 @@ class CodeAddressMap : public CodeEventLogger {
   };
 
   void LogRecordedBuffer(Tagged<AbstractCode> code,
-                         MaybeHandle<SharedFunctionInfo>, const char* name,
-                         size_t length) override {
+                         MaybeDirectHandle<SharedFunctionInfo>,
+                         const char* name, size_t length) override {
     DisallowGarbageCollection no_gc;
     address_to_name_map_.Insert(code.address(), name, length);
   }

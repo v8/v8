@@ -861,13 +861,16 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
 }
 
 template <typename Impl>
-MaybeHandle<String> FactoryBase<Impl>::NewConsString(
-    Handle<String> left, Handle<String> right, AllocationType allocation) {
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
+HandleType<String>::MaybeType FactoryBase<Impl>::NewConsString(
+    HandleType<String> left, HandleType<String> right,
+    AllocationType allocation) {
   if (IsThinString(*left)) {
-    left = handle(Cast<ThinString>(*left)->actual(), isolate());
+    left = HandleType<String>(Cast<ThinString>(*left)->actual(), isolate());
   }
   if (IsThinString(*right)) {
-    right = handle(Cast<ThinString>(*right)->actual(), isolate());
+    right = HandleType<String>(Cast<ThinString>(*right)->actual(), isolate());
   }
   uint32_t left_length = left->length();
   if (left_length == 0) return right;
@@ -901,7 +904,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
 
     static_assert(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
-      Handle<SeqOneByteString> result =
+      HandleType<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();
       DisallowGarbageCollection no_gc;
       SharedStringAccessGuardIfNeeded access_guard(isolate());
@@ -921,7 +924,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       return result;
     }
 
-    Handle<SeqTwoByteString> result =
+    HandleType<SeqTwoByteString> result =
         NewRawTwoByteString(length, allocation).ToHandleChecked();
 
     DisallowGarbageCollection no_gc;
@@ -1395,6 +1398,23 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     FactoryBase<LocalFactory>;
+
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<String>
+FactoryBase<Factory>::NewConsString(IndirectHandle<String> left,
+                                    IndirectHandle<String> right,
+                                    AllocationType allocation);
+template V8_EXPORT_PRIVATE MaybeDirectHandle<String>
+FactoryBase<Factory>::NewConsString(DirectHandle<String> left,
+                                    DirectHandle<String> right,
+                                    AllocationType allocation);
+template V8_EXPORT_PRIVATE MaybeIndirectHandle<String>
+FactoryBase<LocalFactory>::NewConsString(IndirectHandle<String> left,
+                                         IndirectHandle<String> right,
+                                         AllocationType allocation);
+template V8_EXPORT_PRIVATE MaybeDirectHandle<String>
+FactoryBase<LocalFactory>::NewConsString(DirectHandle<String> left,
+                                         DirectHandle<String> right,
+                                         AllocationType allocation);
 
 }  // namespace internal
 }  // namespace v8

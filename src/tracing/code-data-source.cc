@@ -195,9 +195,10 @@ uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate& isolate,
 }
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunction(
-    Isolate& isolate, Handle<SharedFunctionInfo> info,
+    Isolate& isolate, DirectHandle<SharedFunctionInfo> info,
     uint64_t v8_js_script_iid, int line_num, int column_num) {
-  Handle<String> function_name = SharedFunctionInfo::DebugName(&isolate, info);
+  DirectHandle<String> function_name =
+      SharedFunctionInfo::DebugName(&isolate, info);
   uint64_t v8_js_function_name_iid = InternJsFunctionName(*function_name);
 
   auto [it, was_inserted] = functions_.emplace(

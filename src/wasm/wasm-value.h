@@ -41,7 +41,7 @@ struct WasmModule;
   V(f64_boxed, kCanonicalF64, Float64)    \
   V(s128, kCanonicalS128, Simd128)
 
-ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
+ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 
 // A wasm value with type information.
 class WasmValue {
@@ -73,18 +73,18 @@ class WasmValue {
     memcpy(bit_pattern_, raw_bytes, type.value_kind_size());
   }
 
-  WasmValue(Handle<Object> ref, CanonicalValueType type)
+  WasmValue(DirectHandle<Object> ref, CanonicalValueType type)
       : type_(type), bit_pattern_{} {
-    static_assert(sizeof(Handle<Object>) <= sizeof(bit_pattern_),
+    static_assert(sizeof(DirectHandle<Object>) <= sizeof(bit_pattern_),
                   "bit_pattern_ must be large enough to fit a Handle");
     DCHECK(type.is_reference());
-    base::WriteUnalignedValue<Handle<Object>>(
+    base::WriteUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
-  Handle<Object> to_ref() const {
+  DirectHandle<Object> to_ref() const {
     DCHECK(type_.is_reference());
-    return base::ReadUnalignedValue<Handle<Object>>(
+    return base::ReadUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_));
   }
 
@@ -96,7 +96,7 @@ class WasmValue {
   bool operator==(const WasmValue& other) const {
     return type_ == other.type_ &&
            !memcmp(bit_pattern_, other.bit_pattern_,
-                   type_.is_reference() ? sizeof(Handle<Object>)
+                   type_.is_reference() ? sizeof(DirectHandle<Object>)
                                         : type_.value_kind_size());
   }
 
@@ -161,7 +161,7 @@ class WasmValue {
       case kRefNull:
       case kRef:
       case kRtt:
-        return "Handle [" + std::to_string(to_ref().address()) + "]";
+        return "DirectHandle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
       case kTop:
       case kBottom:

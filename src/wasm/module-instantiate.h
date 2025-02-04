@@ -68,24 +68,24 @@ class ResolvedWasmImport {
   // currently we can't efficiently translate between them.
   V8_EXPORT_PRIVATE ResolvedWasmImport(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int func_index, Handle<JSReceiver> callable,
+      int func_index, DirectHandle<JSReceiver> callable,
       const wasm::CanonicalSig* sig, CanonicalTypeIndex expected_sig_id,
       WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
   Suspend suspend() const { return suspend_; }
-  Handle<JSReceiver> callable() const { return callable_; }
+  DirectHandle<JSReceiver> callable() const { return callable_; }
   // Avoid reading function data from the result of `callable()`, because it
   // might have been corrupted in the meantime (in a compromised sandbox).
   // Instead, use this cached copy.
-  Handle<WasmFunctionData> trusted_function_data() const {
+  DirectHandle<WasmFunctionData> trusted_function_data() const {
     return trusted_function_data_;
   }
 
  private:
   void SetCallable(Isolate* isolate, Tagged<JSReceiver> callable);
-  void SetCallable(Isolate* isolate, Handle<JSReceiver> callable);
+  void SetCallable(Isolate* isolate, DirectHandle<JSReceiver> callable);
 
   ImportCallKind ComputeKind(
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
@@ -96,14 +96,15 @@ class ResolvedWasmImport {
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
   Suspend suspend_{kNoSuspend};
-  Handle<JSReceiver> callable_;
-  Handle<WasmFunctionData> trusted_function_data_;
+  DirectHandle<JSReceiver> callable_;
+  DirectHandle<WasmFunctionData> trusted_function_data_;
 };
 
-MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
+MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
-    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
-    MaybeHandle<JSArrayBuffer> memory);
+    DirectHandle<WasmModuleObject> module_object,
+    MaybeDirectHandle<JSReceiver> imports,
+    MaybeDirectHandle<JSArrayBuffer> memory);
 
 // Initializes a segment at index {segment_index} of the segment array of
 // {instance}. If successful, returns the empty {Optional}, otherwise an
@@ -111,13 +112,13 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // already initialized.
 std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
-    Handle<WasmTrustedInstanceData> trusted_instance_data,
-    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index);
 
 V8_EXPORT_PRIVATE void CreateMapForType(
     Isolate* isolate, const WasmModule* module, ModuleTypeIndex type_index,
-    Handle<FixedArray> maybe_shared_maps);
+    DirectHandle<FixedArray> maybe_shared_maps);
 
 // Wrapper information required for graph building.
 struct WrapperCompilationInfo {

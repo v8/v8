@@ -343,8 +343,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
       int length, AllocationType allocation = AllocationType::kYoung);
   // Create a new cons string object which consists of a pair of strings.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewConsString(
-      Handle<String> left, Handle<String> right,
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
+  V8_WARN_UNUSED_RESULT HandleType<String>::MaybeType NewConsString(
+      HandleType<String> left, HandleType<String> right,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT Handle<String> NewConsString(

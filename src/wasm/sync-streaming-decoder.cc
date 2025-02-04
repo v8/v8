@@ -16,7 +16,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
  public:
   SyncStreamingDecoder(Isolate* isolate, WasmEnabledFeatures enabled,
                        CompileTimeImports compile_imports,
-                       Handle<Context> context,
+                       DirectHandle<Context> context,
                        const char* api_method_name_for_errors,
                        std::shared_ptr<CompilationResultResolver> resolver)
       : isolate_(isolate),
@@ -49,12 +49,13 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
       HandleScope scope(isolate_);
       SaveAndSwitchContext saved_context(isolate_, *context_);
 
-      MaybeHandle<WasmModuleObject> module_object = DeserializeNativeModule(
-          isolate_, compiled_module_bytes_, bytes.as_vector(), compile_imports_,
-          base::VectorOf(url()));
+      MaybeDirectHandle<WasmModuleObject> module_object =
+          DeserializeNativeModule(isolate_, compiled_module_bytes_,
+                                  bytes.as_vector(), compile_imports_,
+                                  base::VectorOf(url()));
 
       if (!module_object.is_null()) {
-        Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+        DirectHandle<WasmModuleObject> module = module_object.ToHandleChecked();
         resolver_->OnCompilationSucceeded(module);
         return;
       }
@@ -62,14 +63,15 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 
     // Compile the received bytes synchronously.
     ErrorThrower thrower(isolate_, api_method_name_for_errors_);
-    MaybeHandle<WasmModuleObject> module_object = GetWasmEngine()->SyncCompile(
-        isolate_, enabled_, std::move(compile_imports_), &thrower,
-        std::move(bytes));
+    MaybeDirectHandle<WasmModuleObject> module_object =
+        GetWasmEngine()->SyncCompile(isolate_, enabled_,
+                                     std::move(compile_imports_), &thrower,
+                                     std::move(bytes));
     if (thrower.error()) {
       resolver_->OnCompilationFailed(thrower.Reify());
       return;
     }
-    Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+    DirectHandle<WasmModuleObject> module = module_object.ToHandleChecked();
     resolver_->OnCompilationSucceeded(module);
   }
 
@@ -90,7 +92,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
   Isolate* isolate_;
   const WasmEnabledFeatures enabled_;
   CompileTimeImports compile_imports_;
-  Handle<Context> context_;
+  DirectHandle<Context> context_;
   const char* api_method_name_for_errors_;
   std::shared_ptr<CompilationResultResolver> resolver_;
 
@@ -100,7 +102,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 
 std::unique_ptr<StreamingDecoder> StreamingDecoder::CreateSyncStreamingDecoder(
     Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, Handle<Context> context,
+    CompileTimeImports compile_imports, DirectHandle<Context> context,
     const char* api_method_name_for_errors,
     std::shared_ptr<CompilationResultResolver> resolver) {
   return std::make_unique<SyncStreamingDecoder>(

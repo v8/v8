@@ -159,8 +159,9 @@ class Object : public AllStatic {
 
   static inline bool FilterKey(Tagged<Object> obj, PropertyFilter filter);
 
-  static Handle<FieldType> OptimalType(Tagged<Object> obj, Isolate* isolate,
-                                       Representation representation);
+  static DirectHandle<FieldType> OptimalType(Tagged<Object> obj,
+                                             Isolate* isolate,
+                                             Representation representation);
 
   V8_EXPORT_PRIVATE static Handle<UnionOf<JSAny, Hole>> NewStorageFor(
       Isolate* isolate, Handle<UnionOf<JSAny, Hole>> object,

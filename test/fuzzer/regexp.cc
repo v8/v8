@@ -20,8 +20,8 @@
 namespace i = v8::internal;
 
 void Test(v8::Isolate* isolate, i::DirectHandle<i::JSRegExp> regexp,
-          i::Handle<i::String> subject,
-          i::Handle<i::RegExpMatchInfo> results_array) {
+          i::DirectHandle<i::String> subject,
+          i::DirectHandle<i::RegExpMatchInfo> results_array) {
   v8::TryCatch try_catch(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Exceptions will be swallowed by the try/catch above.
@@ -42,9 +42,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   CHECK(!i_isolate->has_exception());
   if (size > INT_MAX) return 0;
-  i::MaybeHandle<i::String> maybe_source =
+  i::MaybeDirectHandle<i::String> maybe_source =
       factory->NewStringFromOneByte(v8::base::VectorOf(data, size));
-  i::Handle<i::String> source;
+  i::DirectHandle<i::String> source;
   if (!maybe_source.ToHandle(&source)) {
     i_isolate->clear_exception();
     return 0;
@@ -59,14 +59,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                                             'b', 'a',    0x2603};
 
   CHECK(!i_isolate->has_exception());
-  i::Handle<i::RegExpMatchInfo> results_array =
+  i::DirectHandle<i::RegExpMatchInfo> results_array =
       i::RegExpMatchInfo::New(i_isolate, 2);
-  i::Handle<i::String> one_byte =
+  i::DirectHandle<i::String> one_byte =
       factory
           ->NewStringFromOneByte(
               v8::base::Vector<const uint8_t>(one_byte_array, 6))
           .ToHandleChecked();
-  i::Handle<i::String> two_byte =
+  i::DirectHandle<i::String> two_byte =
       factory
           ->NewStringFromTwoByte(
               v8::base::Vector<const v8::base::uc16>(two_byte_array, 6))

@@ -113,13 +113,13 @@ class WasmGCTester {
   void CompileModule() {
     ZoneBuffer buffer(&zone_);
     builder_.WriteTo(&buffer);
-    MaybeHandle<WasmInstanceObject> maybe_instance =
+    MaybeDirectHandle<WasmInstanceObject> maybe_instance =
         testing::CompileAndInstantiateForTesting(isolate_, &thrower,
                                                  base::VectorOf(buffer));
     if (thrower.error()) FATAL("%s", thrower.error_msg());
     instance_object_ = maybe_instance.ToHandleChecked();
     trusted_instance_data_ =
-        handle(instance_object_->trusted_data(isolate_), isolate_);
+        direct_handle(instance_object_->trusted_data(isolate_), isolate_);
   }
 
   void CheckResult(uint32_t function_index, int32_t expected) {
@@ -137,7 +137,7 @@ class WasmGCTester {
     CheckResultImpl(function_index, sig, &packer, expected);
   }
 
-  MaybeHandle<Object> GetResultObject(uint32_t function_index) {
+  MaybeDirectHandle<Object> GetResultObject(uint32_t function_index) {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 0);
     DCHECK_EQ(sig->return_count(), 1);
@@ -145,10 +145,11 @@ class WasmGCTester {
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_exception());
     packer.Reset();
-    return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
+    return direct_handle(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
-  MaybeHandle<Object> GetResultObject(uint32_t function_index, int32_t arg) {
+  MaybeDirectHandle<Object> GetResultObject(uint32_t function_index,
+                                            int32_t arg) {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK_EQ(sig->return_count(), 1);
@@ -158,7 +159,7 @@ class WasmGCTester {
     CallFunctionImpl(function_index, sig, &packer);
     CHECK(!isolate_->has_exception());
     packer.Reset();
-    return Handle<Object>(Tagged<Object>(packer.Pop<Address>()), isolate_);
+    return direct_handle(Tagged<Object>(packer.Pop<Address>()), isolate_);
   }
 
   void CheckHasThrown(uint32_t function_index, const char* expected = "") {
@@ -274,8 +275,8 @@ class WasmGCTester {
 
   Isolate* const isolate_;
   const HandleScope scope;
-  Handle<WasmInstanceObject> instance_object_;
-  Handle<WasmTrustedInstanceData> trusted_instance_data_;
+  DirectHandle<WasmInstanceObject> instance_object_;
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
   ErrorThrower thrower;
 };
 

@@ -345,9 +345,9 @@ V8_OBJECT class String : public Name {
   // by GetSubstitution.
   class Match {
    public:
-    virtual Handle<String> GetMatch() = 0;
-    virtual Handle<String> GetPrefix() = 0;
-    virtual Handle<String> GetSuffix() = 0;
+    virtual DirectHandle<String> GetMatch() = 0;
+    virtual DirectHandle<String> GetPrefix() = 0;
+    virtual DirectHandle<String> GetSuffix() = 0;
 
     // A named capture can be unmatched (either not specified in the pattern,
     // or specified but unmatched in the current string), or matched.
@@ -355,9 +355,10 @@ V8_OBJECT class String : public Name {
 
     virtual int CaptureCount() = 0;
     virtual bool HasNamedCaptures() = 0;
-    virtual MaybeHandle<String> GetCapture(int i, bool* capture_exists) = 0;
-    virtual MaybeHandle<String> GetNamedCapture(DirectHandle<String> name,
-                                                CaptureState* state) = 0;
+    virtual MaybeDirectHandle<String> GetCapture(int i,
+                                                 bool* capture_exists) = 0;
+    virtual MaybeDirectHandle<String> GetNamedCapture(DirectHandle<String> name,
+                                                      CaptureState* state) = 0;
 
     virtual ~Match() = default;
   };
@@ -369,7 +370,7 @@ V8_OBJECT class String : public Name {
   // A {start_index} can be passed to specify where to start scanning the
   // replacement string.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> GetSubstitution(
-      Isolate* isolate, Match* match, Handle<String> replacement,
+      Isolate* isolate, Match* match, DirectHandle<String> replacement,
       uint32_t start_index = 0);
 
   // String equality operations.

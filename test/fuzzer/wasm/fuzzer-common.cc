@@ -77,7 +77,7 @@ CompileTimeImports CompileTimeImportsForFuzzing() {
 
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
-Handle<WasmModuleObject> CompileReferenceModule(
+DirectHandle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
     int32_t* max_steps) {
   // Create the native module.
@@ -124,7 +124,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
 }
 
 void ExecuteAgainstReference(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object,
+                             DirectHandle<WasmModuleObject> module_object,
                              int32_t max_executed_instructions) {
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
@@ -134,7 +134,7 @@ void ExecuteAgainstReference(Isolate* isolate,
 
   HandleScope handle_scope(isolate);  // Avoid leaking handles.
   Zone reference_module_zone(isolate->allocator(), "wasm reference module");
-  Handle<WasmModuleObject> module_ref = CompileReferenceModule(
+  DirectHandle<WasmModuleObject> module_ref = CompileReferenceModule(
       isolate, module_object->native_module()->wire_bytes(), &max_steps);
   DirectHandle<WasmInstanceObject> instance_ref;
 
@@ -486,9 +486,10 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                                   debug_mask);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
-  MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(), &thrower,
-      base::OwnedCopyOf(buffer));
+  MaybeDirectHandle<WasmModuleObject> compiled_module =
+      GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
+                                   CompileTimeImportsForFuzzing(), &thrower,
+                                   base::OwnedCopyOf(buffer));
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

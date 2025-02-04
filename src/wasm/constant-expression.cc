@@ -29,8 +29,8 @@ WireBytesRef ConstantExpression::wire_bytes_ref() const {
 ValueOrError EvaluateConstantExpression(
     Zone* zone, ConstantExpression expr, ValueType expected,
     const WasmModule* module, Isolate* isolate,
-    Handle<WasmTrustedInstanceData> trusted_instance_data,
-    Handle<WasmTrustedInstanceData> shared_trusted_instance_data) {
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data) {
   switch (expr.kind()) {
     case ConstantExpression::Kind::kEmpty:
       UNREACHABLE();
@@ -45,11 +45,12 @@ ValueOrError EvaluateConstantExpression(
       uint32_t index = expr.index();
       bool function_is_shared =
           module->type(module->functions[index].sig_index).is_shared;
-      Handle<WasmFuncRef> value = WasmTrustedInstanceData::GetOrCreateFuncRef(
-          isolate,
-          function_is_shared ? shared_trusted_instance_data
-                             : trusted_instance_data,
-          index);
+      DirectHandle<WasmFuncRef> value =
+          WasmTrustedInstanceData::GetOrCreateFuncRef(
+              isolate,
+              function_is_shared ? shared_trusted_instance_data
+                                 : trusted_instance_data,
+              index);
       return WasmValue(value, module->canonical_type(expected));
     }
     case ConstantExpression::Kind::kWireBytesRef: {

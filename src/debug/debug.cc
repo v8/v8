@@ -3053,8 +3053,10 @@ void Debug::StartSideEffectCheckMode() {
   DirectHandle<RegExpMatchInfo> current_match_info(
       isolate_->native_context()->regexp_last_match_info(), isolate_);
   int register_count = current_match_info->number_of_capture_registers();
-  regexp_match_info_ = RegExpMatchInfo::New(
-      isolate_, JSRegExp::CaptureCountForRegisters(register_count));
+  regexp_match_info_ = indirect_handle(
+      RegExpMatchInfo::New(isolate_,
+                           JSRegExp::CaptureCountForRegisters(register_count)),
+      isolate_);
   DCHECK_EQ(regexp_match_info_->number_of_capture_registers(),
             current_match_info->number_of_capture_registers());
   regexp_match_info_->set_last_subject(current_match_info->last_subject());

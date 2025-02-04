@@ -183,7 +183,7 @@ class AsyncCompileJob {
 
   void Failed();
 
-  void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
+  void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
 
   void FinishSuccessfully();
 

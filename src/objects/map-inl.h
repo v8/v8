@@ -172,7 +172,7 @@ bool Map::IsDetached(Isolate* isolate) const {
 // static
 void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     Isolate* isolate, InstanceType instance_type,
-    Representation* representation, Handle<FieldType>* field_type) {
+    Representation* representation, DirectHandle<FieldType>* field_type) {
   if (CanHaveFastTransitionableElementsKind(instance_type)) {
     // We don't support propagation of field generalization through elements
     // kind transitions because they are inserted into the transition tree

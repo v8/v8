@@ -486,12 +486,13 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(DirectHandle<JSObject> object,
-                                 DirectHandle<Name> name, Handle<Object> value,
+                                 DirectHandle<Name> name,
+                                 DirectHandle<Object> value,
                                  PropertyAttributes attributes);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
   SetOwnElementIgnoreAttributes(DirectHandle<JSObject> object, size_t index,
-                                Handle<Object> value,
+                                DirectHandle<Object> value,
                                 PropertyAttributes attributes);
 
   // Equivalent to one of the above depending on whether |name| can be converted
@@ -499,7 +500,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
   DefinePropertyOrElementIgnoreAttributes(DirectHandle<JSObject> object,
                                           DirectHandle<Name> name,
-                                          Handle<Object> value,
+                                          DirectHandle<Object> value,
                                           PropertyAttributes attributes = NONE);
 
   // Adds or reconfigures a property to attributes NONE. It will fail when it
@@ -527,7 +528,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AllocateStorageForMap(DirectHandle<JSObject> object,
-                                    Handle<Map> map);
+                                    DirectHandle<Map> map);
 
   // Migrates the given object to a map whose field representations are the
   // lowest upper bound of all known representations for that field.

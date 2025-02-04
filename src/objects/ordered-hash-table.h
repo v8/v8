@@ -68,12 +68,17 @@ class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable (possibly |table|) with enough space
   // to add at least one new element.
-  static MaybeHandle<Derived> EnsureCapacityForAdding(Isolate* isolate,
-                                                      Handle<Derived> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
+  static HandleType<Derived>::MaybeType EnsureCapacityForAdding(
+      Isolate* isolate, HandleType<Derived> table);
 
   // Returns an OrderedHashTable (possibly |table|) that's shrunken
   // if possible.
-  static Handle<Derived> Shrink(Isolate* isolate, Handle<Derived> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
+  static HandleType<Derived> Shrink(Isolate* isolate,
+                                    HandleType<Derived> table);
 
   // Returns a new empty OrderedHashTable and records the clearing so that
   // existing iterators can be updated.
@@ -211,9 +216,15 @@ class OrderedHashTable : public FixedArray {
                                             AllocationType allocation,
                                             RootIndex root_ndex);
 
-  static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table);
-  static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
-                                     int new_capacity);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
+  static HandleType<Derived>::MaybeType Rehash(Isolate* isolate,
+                                               HandleType<Derived> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
+  static HandleType<Derived>::MaybeType Rehash(Isolate* isolate,
+                                               HandleType<Derived> table,
+                                               int new_capacity);
 
   int HashToEntryRaw(int hash) {
     int bucket = HashToBucket(hash);
@@ -273,17 +284,26 @@ class V8_EXPORT_PRIVATE OrderedHashSet
  public:
   DECL_PRINTER(OrderedHashSet)
 
-  static MaybeHandle<OrderedHashSet> Add(Isolate* isolate,
-                                         Handle<OrderedHashSet> table,
-                                         DirectHandle<Object> value);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedHashSet>,
+                                   DirectHandle<OrderedHashSet>>)
+  static HandleType<OrderedHashSet>::MaybeType Add(
+      Isolate* isolate, HandleType<OrderedHashSet> table,
+      DirectHandle<Object> value);
   static Handle<FixedArray> ConvertToKeysArray(Isolate* isolate,
                                                Handle<OrderedHashSet> table,
                                                GetKeysConversion convert);
-  static MaybeHandle<OrderedHashSet> Rehash(Isolate* isolate,
-                                            Handle<OrderedHashSet> table,
-                                            int new_capacity);
-  static MaybeHandle<OrderedHashSet> Rehash(Isolate* isolate,
-                                            Handle<OrderedHashSet> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedHashSet>,
+                                   DirectHandle<OrderedHashSet>>)
+  static HandleType<OrderedHashSet>::MaybeType Rehash(
+      Isolate* isolate, HandleType<OrderedHashSet> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedHashSet>,
+                                   DirectHandle<OrderedHashSet>>)
+  static HandleType<OrderedHashSet>::MaybeType Rehash(
+      Isolate* isolate, HandleType<OrderedHashSet> table, int new_capacity);
+
   template <typename IsolateT>
   static MaybeHandle<OrderedHashSet> Allocate(
       IsolateT* isolate, int capacity,
@@ -320,11 +340,16 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   static MaybeHandle<OrderedHashMap> AllocateEmpty(
       Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
 
-  static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
-                                            Handle<OrderedHashMap> table,
-                                            int new_capacity);
-  static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
-                                            Handle<OrderedHashMap> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedHashMap>,
+                                   DirectHandle<OrderedHashMap>>)
+  static HandleType<OrderedHashMap>::MaybeType Rehash(
+      Isolate* isolate, HandleType<OrderedHashMap> table);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedHashMap>,
+                                   DirectHandle<OrderedHashMap>>)
+  static HandleType<OrderedHashMap>::MaybeType Rehash(
+      Isolate* isolate, HandleType<OrderedHashMap> table, int new_capacity);
 
   void SetEntry(InternalIndex entry, Tagged<Object> key, Tagged<Object> value);
 
@@ -788,8 +813,12 @@ class V8_EXPORT_PRIVATE OrderedNameDictionary
   static MaybeHandle<OrderedNameDictionary> AllocateEmpty(
       Isolate* isolate, AllocationType allocation = AllocationType::kReadOnly);
 
-  static MaybeHandle<OrderedNameDictionary> Rehash(
-      Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<OrderedNameDictionary>,
+                                   DirectHandle<OrderedNameDictionary>>)
+  static HandleType<OrderedNameDictionary>::MaybeType Rehash(
+      Isolate* isolate, HandleType<OrderedNameDictionary> table,
+      int new_capacity);
 
   // Returns the value for entry.
   inline Tagged<Object> ValueAt(InternalIndex entry);

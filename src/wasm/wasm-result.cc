@@ -104,7 +104,7 @@ void ErrorThrower::RuntimeError(const char* format, ...) {
   va_end(arguments);
 }
 
-Handle<Object> ErrorThrower::Reify() {
+DirectHandle<Object> ErrorThrower::Reify() {
   DirectHandle<JSFunction> constructor;
   switch (error_type_) {
     case kNone:

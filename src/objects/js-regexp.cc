@@ -17,7 +17,7 @@ namespace v8::internal {
 
 DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-    Handle<Object> maybe_names) {
+    DirectHandle<Object> maybe_names) {
   DirectHandle<JSRegExpResultIndices> indices(
       Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
@@ -68,13 +68,13 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // their corresponding capture indices.
   auto names = Cast<FixedArray>(maybe_names);
   int num_names = names->length() >> 1;
-  Handle<HeapObject> group_names;
+  DirectHandle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
-  Handle<PropertyDictionary> group_names_dict =
+  DirectHandle<PropertyDictionary> group_names_dict =
       Cast<PropertyDictionary>(group_names);
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
@@ -82,8 +82,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     int index_offset = base_offset + 1;
     DirectHandle<String> name(Cast<String>(names->get(name_offset)), isolate);
     Tagged<Smi> smi_index = Cast<Smi>(names->get(index_offset));
-    Handle<Object> capture_indices(indices_array->get(smi_index.value()),
-                                   isolate);
+    DirectHandle<Object> capture_indices(indices_array->get(smi_index.value()),
+                                         isolate);
     if (!IsUndefined(*capture_indices, isolate)) {
       capture_indices = Cast<JSArray>(capture_indices);
     }
@@ -120,8 +120,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 }
 
 // static
-std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(Isolate* isolate,
-                                                         Handle<String> flags) {
+std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
+    Isolate* isolate, DirectHandle<String> flags) {
   const int length = flags->length();
 
   // A longer flags string cannot be valid.
@@ -149,10 +149,12 @@ Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
 }
 
 // static
-MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
-                                    Flags flags, uint32_t backtrack_limit) {
+MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
+                                          DirectHandle<String> pattern,
+                                          Flags flags,
+                                          uint32_t backtrack_limit) {
   DirectHandle<JSFunction> constructor = isolate->regexp_function();
-  Handle<JSRegExp> regexp =
+  DirectHandle<JSRegExp> regexp =
       Cast<JSRegExp>(isolate->factory()->NewJSObject(constructor));
 
   // Clear the data field, as a GC can be triggered before the field is set
@@ -163,9 +165,9 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 }
 
 // static
-MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                                 Handle<String> source,
-                                                 Handle<String> flags_string) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
+    DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
+    DirectHandle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
@@ -323,9 +325,10 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
 }  // namespace
 
 // static
-MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                           Handle<String> source, Flags flags,
-                                           uint32_t backtrack_limit) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(DirectHandle<JSRegExp> regexp,
+                                                 DirectHandle<String> source,
+                                                 Flags flags,
+                                                 uint32_t backtrack_limit) {
   Isolate* isolate = regexp->GetIsolate();
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as

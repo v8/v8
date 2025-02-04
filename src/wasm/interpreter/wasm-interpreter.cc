@@ -186,21 +186,21 @@ void WasmInterpreterThreadMap::NotifyIsolateDisposal(Isolate* isolate) {
 
 void FrameState::SetCaughtException(Isolate* isolate,
                                     uint32_t catch_block_index,
-                                    Handle<Object> exception) {
+                                    DirectHandle<Object> exception) {
   if (caught_exceptions_.is_null()) {
     DCHECK_NOT_NULL(current_function_);
     uint32_t blocks_count = current_function_->GetBlocksCount();
-    Handle<FixedArray> caught_exceptions =
+    DirectHandle<FixedArray> caught_exceptions =
         isolate->factory()->NewFixedArrayWithHoles(blocks_count);
     caught_exceptions_ = isolate->global_handles()->Create(*caught_exceptions);
   }
   caught_exceptions_->set(catch_block_index, *exception);
 }
 
-Handle<Object> FrameState::GetCaughtException(
+DirectHandle<Object> FrameState::GetCaughtException(
     Isolate* isolate, uint32_t catch_block_index) const {
-  Handle<Object> exception =
-      handle(caught_exceptions_->get(catch_block_index), isolate);
+  DirectHandle<Object> exception(caught_exceptions_->get(catch_block_index),
+                                 isolate);
   DCHECK(!IsTheHole(*exception));
   return exception;
 }
@@ -208,7 +208,7 @@ Handle<Object> FrameState::GetCaughtException(
 void FrameState::DisposeCaughtExceptionsArray(Isolate* isolate) {
   if (!caught_exceptions_.is_null()) {
     isolate->global_handles()->Destroy(caught_exceptions_.location());
-    caught_exceptions_ = Handle<FixedArray>::null();
+    caught_exceptions_ = DirectHandle<FixedArray>::null();
   }
 }
 
@@ -352,9 +352,9 @@ void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(global_handle_location);
 }
 
-Handle<WasmInstanceObject> MakeWeak(
-    Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
-  Handle<WasmInstanceObject> weak_instance =
+DirectHandle<WasmInstanceObject> MakeWeak(
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object) {
+  DirectHandle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
   Address* global_handle_location = weak_instance.location();
   GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
@@ -473,7 +473,7 @@ void WasmInterpreterThread::EnsureRefStackSpace(size_t new_size) {
                       std::max(2 * current_ref_stack_size_, requested_size));
   int grow_by = static_cast<int>(new_size - current_ref_stack_size_);
   HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-  Handle<FixedArray> new_ref_stack =
+  DirectHandle<FixedArray> new_ref_stack =
       isolate_->factory()->CopyFixedArrayAndGrow(reference_stack_, grow_by);
   new_ref_stack->FillWithHoles(static_cast<int>(current_ref_stack_size_),
                                static_cast<int>(new_size));
@@ -492,7 +492,7 @@ void WasmInterpreterThread::RaiseException(Isolate* isolate,
   DCHECK_EQ(WasmInterpreterThread::TRAPPED, state_);
   if (!isolate->has_exception()) {
     ClearThreadInWasmScope wasm_flag(isolate);
-    Handle<JSObject> error_obj =
+    DirectHandle<JSObject> error_obj =
         isolate->factory()->NewWasmRuntimeError(message);
     JSObject::AddProperty(isolate, error_obj,
                           isolate->factory()->wasm_uncatchable_symbol(),
@@ -630,9 +630,10 @@ void InitInstructionTableOnce(Isolate* isolate) {
 }
 #endif  // !V8_DRUMBRAKE_BOUNDS_CHECKS
 
-WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
-                                 const ModuleWireBytes& wire_bytes,
-                                 Handle<WasmInstanceObject> instance_object)
+WasmInterpreter::WasmInterpreter(
+    Isolate* isolate, const WasmModule* module,
+    const ModuleWireBytes& wire_bytes,
+    DirectHandle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
       instance_object_(MakeWeak(isolate, instance_object)),
       module_bytes_(wire_bytes.start(), wire_bytes.end(), &zone_),
@@ -5567,9 +5568,9 @@ class Handlers : public HandlersBase {
 
       uint32_t tag_index = Read<int32_t>(code);
 
-      Handle<WasmExceptionPackage> exception_object =
+      DirectHandle<WasmExceptionPackage> exception_object =
           wasm_runtime->CreateWasmExceptionPackage(tag_index);
-      Handle<FixedArray> encoded_values = Cast<FixedArray>(
+      DirectHandle<FixedArray> encoded_values = Cast<FixedArray>(
           WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
 
       // Encode the exception values on the operand stack into the exception
@@ -5614,9 +5615,9 @@ class Handlers : public HandlersBase {
           }
           case kRef:
           case kRefNull: {
-            Handle<Object> ref = pop<WasmRef>(sp, code, wasm_runtime);
+            DirectHandle<Object> ref = pop<WasmRef>(sp, code, wasm_runtime);
             if (IsWasmNull(*ref, isolate)) {
-              ref = handle(ReadOnlyRoots(isolate).null_value(), isolate);
+              ref = direct_handle(ReadOnlyRoots(isolate).null_value(), isolate);
             }
             encoded_values->set(encoded_index++, *ref);
             break;
@@ -5742,7 +5743,8 @@ class Handlers : public HandlersBase {
                         bool null_succeeds,
                         WasmInterpreterRuntime* wasm_runtime) {
     if (target_type.is_index()) {
-      Handle<Map> rtt = wasm_runtime->RttCanon(target_type.ref_index().index);
+      DirectHandle<Map> rtt =
+          wasm_runtime->RttCanon(target_type.ref_index().index);
       return wasm_runtime->SubtypeCheck(ref, ref_type, rtt,
                                         ValueType::Rtt(target_type.ref_index()),
                                         null_succeeds);
@@ -5928,9 +5930,9 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = Read<int32_t>(code);
-    std::pair<Handle<WasmStruct>, const StructType*> struct_new_result =
+    std::pair<DirectHandle<WasmStruct>, const StructType*> struct_new_result =
         wasm_runtime->StructNewUninitialized(index);
-    Handle<HeapObject> struct_obj = struct_new_result.first;
+    DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
 
     {
@@ -5998,9 +6000,9 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     uint32_t index = Read<int32_t>(code);
-    std::pair<Handle<WasmStruct>, const StructType*> struct_new_result =
+    std::pair<DirectHandle<WasmStruct>, const StructType*> struct_new_result =
         wasm_runtime->StructNewUninitialized(index);
-    Handle<HeapObject> struct_obj = struct_new_result.first;
+    DirectHandle<HeapObject> struct_obj = struct_new_result.first;
     const StructType* struct_type = struct_new_result.second;
 
     {
@@ -6151,9 +6153,9 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const T value = pop<T>(sp, code, wasm_runtime);
 
-    std::pair<Handle<WasmArray>, const ArrayType*> array_new_result =
+    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    Handle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.first;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(TrapReason::kTrapArrayTooLarge)
     }
@@ -6194,9 +6196,9 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const WasmRef value = pop<WasmRef>(sp, code, wasm_runtime);
 
-    std::pair<Handle<WasmArray>, const ArrayType*> array_new_result =
+    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    Handle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.first;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(TrapReason::kTrapArrayTooLarge)
     }
@@ -6233,9 +6235,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = Read<int32_t>(code);
 
-    std::pair<Handle<WasmArray>, const ArrayType*> array_new_result =
+    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    Handle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.first;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(TrapReason::kTrapArrayTooLarge)
     }
@@ -6310,9 +6312,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
 
-    std::pair<Handle<WasmArray>, const ArrayType*> array_new_result =
+    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    Handle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.first;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(TrapReason::kTrapArrayTooLarge)
     }

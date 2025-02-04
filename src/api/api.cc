@@ -10970,7 +10970,8 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
-  i::Handle<i::ArrayList> list = i_isolate->factory()->message_listeners();
+  i::DirectHandle<i::ArrayList> list =
+      i_isolate->factory()->message_listeners();
   i::DirectHandle<i::FixedArray> listener =
       i_isolate->factory()->NewFixedArray(3);
   i::DirectHandle<i::Foreign> foreign =

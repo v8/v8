@@ -19,21 +19,21 @@
 
 namespace v8::internal::wasm::testing {
 
-MaybeHandle<WasmModuleObject> CompileForTesting(
+MaybeDirectHandle<WasmModuleObject> CompileForTesting(
     Isolate* isolate, ErrorThrower* thrower,
     base::Vector<const uint8_t> bytes) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
-  MaybeHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
+  MaybeDirectHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
       isolate, enabled_features, CompileTimeImports{}, thrower,
       base::OwnedCopyOf(bytes));
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }
 
-MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+MaybeDirectHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower,
     base::Vector<const uint8_t> bytes) {
-  MaybeHandle<WasmModuleObject> module =
+  MaybeDirectHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
   return GetWasmEngine()->SyncInstantiate(isolate, thrower,
@@ -94,7 +94,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
                                     {});
 }
 
-MaybeHandle<WasmExportedFunction> GetExportedFunction(
+MaybeDirectHandle<WasmExportedFunction> GetExportedFunction(
     Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
     const char* name) {
   DirectHandle<JSObject> exports_object;
@@ -128,7 +128,7 @@ int32_t CallWasmFunctionForTesting(
 
   // Call the JS function.
   DirectHandle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval =
+  MaybeDirectHandle<Object> retval =
       Execution::Call(isolate, exported_function, undefined, args);
 
   // The result should be a number.
@@ -142,7 +142,7 @@ int32_t CallWasmFunctionForTesting(
     isolate->clear_internal_exception();
     return -1;
   }
-  Handle<Object> result = retval.ToHandleChecked();
+  DirectHandle<Object> result = retval.ToHandleChecked();
 
   // Multi-value returns, get the first return value (see InterpretWasmModule).
   if (IsJSArray(*result)) {

@@ -603,8 +603,8 @@ class WeakArrayList
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
   // indices to elements can change.
-  static V8_WARN_UNUSED_RESULT Handle<WeakArrayList> Append(
-      Isolate* isolate, Handle<WeakArrayList> array,
+  static V8_WARN_UNUSED_RESULT DirectHandle<WeakArrayList> Append(
+      Isolate* isolate, DirectHandle<WeakArrayList> array,
       MaybeObjectDirectHandle value,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -716,15 +716,15 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   inline int length() const;
   inline void set_length(int value);
 
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
-      Isolate* isolate, Handle<ArrayList> array, Tagged<Smi> obj,
+  V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
+      Isolate* isolate, DirectHandle<ArrayList> array, Tagged<Smi> obj,
       AllocationType allocation = AllocationType::kYoung);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
-      Isolate* isolate, Handle<ArrayList> array, DirectHandle<Object> obj,
+  V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
+      Isolate* isolate, DirectHandle<ArrayList> array, DirectHandle<Object> obj,
       AllocationType allocation = AllocationType::kYoung);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
-      Isolate* isolate, Handle<ArrayList> array, DirectHandle<Object> obj0,
-      DirectHandle<Object> obj1,
+  V8_EXPORT_PRIVATE static DirectHandle<ArrayList> Add(
+      Isolate* isolate, DirectHandle<ArrayList> array,
+      DirectHandle<Object> obj0, DirectHandle<Object> obj1,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_EXPORT_PRIVATE static DirectHandle<FixedArray> ToFixedArray(
@@ -741,8 +741,8 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   class BodyDescriptor;
 
  private:
-  static Handle<ArrayList> EnsureSpace(
-      Isolate* isolate, Handle<ArrayList> array, int length,
+  static DirectHandle<ArrayList> EnsureSpace(
+      Isolate* isolate, DirectHandle<ArrayList> array, int length,
       AllocationType allocation = AllocationType::kYoung);
 } V8_OBJECT_END;
 

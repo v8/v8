@@ -49,8 +49,8 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
 
   ConstantExpressionInterface(
       const WasmModule* module, Isolate* isolate,
-      Handle<WasmTrustedInstanceData> trusted_instance_data,
-      Handle<WasmTrustedInstanceData> shared_trusted_instance_data)
+      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+      DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data)
       : module_(module),
         outer_module_(nullptr),
         isolate_(isolate),
@@ -101,8 +101,8 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
   const WasmModule* module_;
   WasmModule* outer_module_;
   Isolate* isolate_;
-  Handle<WasmTrustedInstanceData> trusted_instance_data_;
-  Handle<WasmTrustedInstanceData> shared_trusted_instance_data_;
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
+  DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data_;
 };
 
 }  // namespace wasm

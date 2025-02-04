@@ -185,12 +185,13 @@ class TestResolver : public CompilationResultResolver {
         error_message_(error_message),
         module_object_(module_object) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> module) override {
     *state_ = CompilationState::kFinished;
     *module_object_ = isolate_->global_handles()->Create(*module);
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
     *state_ = CompilationState::kFailed;
     DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
@@ -217,7 +218,7 @@ class StreamTester {
     WasmEnabledFeatures features = WasmEnabledFeatures::FromIsolate(i_isolate);
     stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, features, CompileTimeImports{},
-        v8::Utils::OpenHandle(*context), "WebAssembly.compileStreaming()",
+        v8::Utils::OpenDirectHandle(*context), "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
                                        &module_object_));
   }
@@ -225,7 +226,7 @@ class StreamTester {
   std::shared_ptr<StreamingDecoder> stream() const { return stream_; }
 
   // Compiled module object, valid after successful compile.
-  Handle<WasmModuleObject> module_object() const {
+  DirectHandle<WasmModuleObject> module_object() const {
     CHECK(!module_object_.is_null());
     return module_object_;
   }
@@ -344,9 +345,10 @@ ZoneBuffer GetValidCompiledModuleBytes(v8::Isolate* isolate, Zone* zone,
 
     // Call the exported functions repeatedly until they are all tiered up.
     for (const char* export_name : kExportNames) {
-      exported_functions.push_back(
+      exported_functions.push_back(indirect_handle(
           testing::GetExportedFunction(i_isolate, instance, export_name)
-              .ToHandleChecked());
+              .ToHandleChecked(),
+          i_isolate));
     }
   }
   while (true) {
@@ -1277,13 +1279,15 @@ STREAM_TEST(TestIncrementalCaching) {
   {
     DirectHandle<Script> script = GetWasmEngine()->GetOrCreateScript(
         i_isolate, tester.shared_native_module(), kNoSourceUrl);
-    Handle<WasmModuleObject> module_object =
+    DirectHandle<WasmModuleObject> module_object =
         WasmModuleObject::New(i_isolate, tester.shared_native_module(), script);
     ErrorThrower thrower(i_isolate, "Instantiation");
     // We instantiated before, so the second instantiation must also succeed:
-    instance = GetWasmEngine()
-                   ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
-                   .ToHandleChecked();
+    instance = indirect_handle(
+        GetWasmEngine()
+            ->SyncInstantiate(i_isolate, &thrower, module_object, {}, {})
+            .ToHandleChecked(),
+        i_isolate);
     CHECK(!thrower.error());
 
     WasmCodeRefScope code_scope;
@@ -1479,9 +1483,10 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
     CHECK(!thrower.error());
 
     for (const char* function_name : {"a", "b", "c"}) {
-      exported_functions.push_back(
+      exported_functions.push_back(indirect_handle(
           testing::GetExportedFunction(i_isolate, instance, function_name)
-              .ToHandleChecked());
+              .ToHandleChecked(),
+          i_isolate));
     }
   }
 
@@ -1586,10 +1591,12 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallbackWithTimeout) {
   {
     // Create an instance.
     ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
-    instance = GetWasmEngine()
-                   ->SyncInstantiate(i_isolate, &thrower,
-                                     tester.module_object(), {}, {})
-                   .ToHandleChecked();
+    instance =
+        indirect_handle(GetWasmEngine()
+                            ->SyncInstantiate(i_isolate, &thrower,
+                                              tester.module_object(), {}, {})
+                            .ToHandleChecked(),
+                        i_isolate);
     CHECK(!thrower.error());
 
     // Execute the first function 100 times (which triggers tier-up and hence

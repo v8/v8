@@ -29,7 +29,7 @@ struct WasmTag;
 class WasmInterpreterRuntime {
  public:
   WasmInterpreterRuntime(const WasmModule* module, Isolate* isolate,
-                         Handle<WasmInstanceObject> instance_object,
+                         DirectHandle<WasmInstanceObject> instance_object,
                          WasmInterpreter::CodeMap* codemap);
 
   inline WasmBytecode* GetFunctionBytecode(uint32_t func_index);
@@ -44,8 +44,8 @@ class WasmInterpreterRuntime {
   inline Isolate* GetIsolate() const { return isolate_; }
 
   inline uint8_t* GetGlobalAddress(uint32_t index);
-  inline Handle<Object> GetGlobalRef(uint32_t index) const;
-  inline void SetGlobalRef(uint32_t index, Handle<Object> ref) const;
+  inline DirectHandle<Object> GetGlobalRef(uint32_t index) const;
+  inline void SetGlobalRef(uint32_t index, DirectHandle<Object> ref) const;
 
   int32_t MemoryGrow(uint32_t delta_pages);
   inline uint64_t MemorySize() const;
@@ -69,9 +69,9 @@ class WasmInterpreterRuntime {
                              const uint8_t*& code);
 
   bool TableGet(const uint8_t*& current_code, uint32_t table_index,
-                uint32_t entry_index, Handle<Object>* result);
+                uint32_t entry_index, DirectHandle<Object>* result);
   void TableSet(const uint8_t*& current_code, uint32_t table_index,
-                uint32_t entry_index, Handle<Object> ref);
+                uint32_t entry_index, DirectHandle<Object> ref);
   void TableInit(const uint8_t*& current_code, uint32_t table_index,
                  uint32_t element_segment_index, uint32_t dst, uint32_t src,
                  uint32_t size);
@@ -79,20 +79,19 @@ class WasmInterpreterRuntime {
                  uint32_t src_table_index, uint32_t dst, uint32_t src,
                  uint32_t size);
   uint32_t TableGrow(uint32_t table_index, uint32_t delta,
-                     Handle<Object> value);
+                     DirectHandle<Object> value);
   uint32_t TableSize(uint32_t table_index);
   void TableFill(const uint8_t*& current_code, uint32_t table_index,
-                 uint32_t count, Handle<Object> value, uint32_t start);
+                 uint32_t count, DirectHandle<Object> value, uint32_t start);
 
   static void UpdateIndirectCallTable(Isolate* isolate,
-                                      Handle<WasmInstanceObject> instance,
+                                      DirectHandle<WasmInstanceObject> instance,
                                       uint32_t table_index);
-  static void ClearIndirectCallCacheEntry(Isolate* isolate,
-                                          Handle<WasmInstanceObject> instance,
-                                          uint32_t table_index,
-                                          uint32_t entry_index);
+  static void ClearIndirectCallCacheEntry(
+      Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+      uint32_t table_index, uint32_t entry_index);
 
-  static void UpdateMemoryAddress(Handle<WasmInstanceObject> instance);
+  static void UpdateMemoryAddress(DirectHandle<WasmInstanceObject> instance);
 
   inline void DataDrop(uint32_t index);
   inline void ElemDrop(uint32_t index);
@@ -100,10 +99,10 @@ class WasmInterpreterRuntime {
   inline const WasmTag& GetWasmTag(uint32_t tag_index) const {
     return module_->tags[tag_index];
   }
-  Handle<WasmExceptionPackage> CreateWasmExceptionPackage(
+  DirectHandle<WasmExceptionPackage> CreateWasmExceptionPackage(
       uint32_t tag_index) const;
   void UnpackException(uint32_t* sp, const WasmTag& tag,
-                       Handle<Object> exception_object,
+                       DirectHandle<Object> exception_object,
                        uint32_t first_param_slot_index,
                        uint32_t first_param_ref_stack_index);
   void ThrowException(const uint8_t*& code, uint32_t* sp,
@@ -149,8 +148,8 @@ class WasmInterpreterRuntime {
     return function_result_[index];
   }
 
-  inline bool IsRefNull(Handle<Object> ref) const;
-  inline Handle<Object> GetFunctionRef(uint32_t index) const;
+  inline bool IsRefNull(DirectHandle<Object> ref) const;
+  inline DirectHandle<Object> GetFunctionRef(uint32_t index) const;
   void StoreWasmRef(uint32_t ref_stack_index, const WasmRef& ref);
   WasmRef ExtractWasmRef(uint32_t ref_stack_index);
   void UnwindCurrentStackFrame(uint32_t* sp, uint32_t slot_offset,
@@ -164,10 +163,10 @@ class WasmInterpreterRuntime {
   void SetTrap(TrapReason trap_reason, const uint8_t*& current_code);
 
   // GC helpers.
-  Handle<Map> RttCanon(uint32_t type_index) const;
-  std::pair<Handle<WasmStruct>, const StructType*> StructNewUninitialized(
+  DirectHandle<Map> RttCanon(uint32_t type_index) const;
+  std::pair<DirectHandle<WasmStruct>, const StructType*> StructNewUninitialized(
       uint32_t index) const;
-  std::pair<Handle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
+  std::pair<DirectHandle<WasmArray>, const ArrayType*> ArrayNewUninitialized(
       uint32_t length, uint32_t array_index) const;
   WasmRef WasmArrayNewSegment(uint32_t array_index, uint32_t segment_index,
                               uint32_t offset, uint32_t length);
@@ -186,7 +185,7 @@ class WasmInterpreterRuntime {
   inline WasmRef GetWasmArrayRefElement(Tagged<WasmArray> array,
                                         uint32_t index) const;
   bool SubtypeCheck(const WasmRef obj, const ValueType obj_type,
-                    const Handle<Map> rtt, const ValueType rtt_type,
+                    const DirectHandle<Map> rtt, const ValueType rtt_type,
                     bool null_succeeds) const;
   bool RefIsEq(const WasmRef obj, const ValueType obj_type,
                bool null_succeeds) const;
@@ -234,7 +233,7 @@ class WasmInterpreterRuntime {
 
   ExternalCallResult CallExternalJSFunction(const uint8_t*& current_code,
                                             const WasmModule* module,
-                                            Handle<Object> object_ref,
+                                            DirectHandle<Object> object_ref,
                                             const FunctionSig* sig,
                                             uint32_t* sp,
                                             uint32_t return_slot_offset);
@@ -265,7 +264,7 @@ class WasmInterpreterRuntime {
 
   WasmInterpreterThread::ExceptionHandlingResult HandleException(
       uint32_t* sp, const uint8_t*& current_code);
-  bool MatchingExceptionTag(Handle<Object> exception_object,
+  bool MatchingExceptionTag(DirectHandle<Object> exception_object,
                             uint32_t index) const;
 
   bool SubtypeCheck(Tagged<Map> rtt, Tagged<Map> formal_rtt,
@@ -277,18 +276,19 @@ class WasmInterpreterRuntime {
   }
   WasmInterpreterThread::State state() const { return thread()->state(); }
 
-  Handle<FixedArray> reference_stack() const {
+  DirectHandle<FixedArray> reference_stack() const {
     return thread()->reference_stack();
   }
 
-  void CallWasmToJSBuiltin(Isolate* isolate, Handle<Object> object_ref,
+  void CallWasmToJSBuiltin(Isolate* isolate, DirectHandle<Object> object_ref,
                            Address packed_args, const FunctionSig* sig);
 
-  inline Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
+  inline DirectHandle<WasmTrustedInstanceData> wasm_trusted_instance_data()
+      const;
 
   Isolate* isolate_;
   const WasmModule* module_;
-  Handle<WasmInstanceObject> instance_object_;
+  DirectHandle<WasmInstanceObject> instance_object_;
   WasmInterpreter::CodeMap* codemap_;
 
   uint32_t start_function_index_;
@@ -411,7 +411,7 @@ class V8_EXPORT_PRIVATE InterpreterHandle {
  public:
   static constexpr ExternalPointerTag kManagedTag = kGenericManagedTag;
 
-  InterpreterHandle(Isolate* isolate, Handle<Tuple2> interpreter_object);
+  InterpreterHandle(Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
 
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() const { return module_; }
@@ -429,7 +429,7 @@ class V8_EXPORT_PRIVATE InterpreterHandle {
   inline WasmInterpreterThread::State ContinueExecution(
       WasmInterpreterThread* thread, bool called_from_js);
 
-  Handle<WasmInstanceObject> GetInstanceObject();
+  DirectHandle<WasmInstanceObject> GetInstanceObject();
 
   std::vector<WasmInterpreterStackEntry> GetInterpretedStack(
       Address frame_pointer);

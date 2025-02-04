@@ -18,7 +18,7 @@ namespace testing {
 
 // Returns a MaybeHandle to the JsToWasm wrapper of the wasm function exported
 // with the given name by the provided instance.
-MaybeHandle<WasmExportedFunction> GetExportedFunction(
+MaybeDirectHandle<WasmExportedFunction> GetExportedFunction(
     Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
     const char* name);
 
@@ -37,11 +37,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
                                 const uint8_t* module_end);
 
 // Decode and compile the given module with no imports.
-MaybeHandle<WasmModuleObject> CompileForTesting(
+MaybeDirectHandle<WasmModuleObject> CompileForTesting(
     Isolate* isolate, ErrorThrower* thrower, base::Vector<const uint8_t> bytes);
 
 // Decode, compile, and instantiate the given module with no imports.
-MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+MaybeDirectHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
     Isolate* isolate, ErrorThrower* thrower, base::Vector<const uint8_t> bytes);
 
 // Generate an array of default arguments for the given signature, to be used

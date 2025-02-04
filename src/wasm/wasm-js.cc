@@ -50,7 +50,8 @@ namespace internal {
 
 // Note: The implementation of this function is in runtime-wasm.cc, in order
 // to be able to use helpers that aren't visible outside that file.
-void ToUtf8Lossy(Isolate* isolate, Handle<String> string, std::string& out);
+void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
+                 std::string& out);
 
 }  // namespace internal
 
@@ -85,7 +86,7 @@ class WasmStreaming::WasmStreamingImpl {
     if (exception.IsEmpty()) return;
 
     resolver_->OnCompilationFailed(
-        Utils::OpenHandle(*exception.ToLocalChecked()));
+        Utils::OpenDirectHandle(*exception.ToLocalChecked()));
   }
 
   bool SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
@@ -158,7 +159,8 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Value> value) {
   TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
-  auto managed = i::Cast<i::Managed<WasmStreaming>>(Utils::OpenHandle(*value));
+  auto managed =
+      i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
   return managed->get();
 }
 
@@ -176,23 +178,23 @@ namespace {
     }                                                    \
   } while (false)
 
-i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
+i::DirectHandle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
 }
 Local<String> v8_str(Isolate* isolate, const char* str) {
   return Utils::ToLocal(v8_str(reinterpret_cast<i::Isolate*>(isolate), str));
 }
 
-#define GET_FIRST_ARGUMENT_AS(Type)                                  \
-  i::MaybeHandle<i::Wasm##Type##Object> GetFirstArgumentAs##Type(    \
-      const v8::FunctionCallbackInfo<v8::Value>& info,               \
-      ErrorThrower* thrower) {                                       \
-    i::Handle<i::Object> arg0 = Utils::OpenHandle(*info[0]);         \
-    if (!IsWasm##Type##Object(*arg0)) {                              \
-      thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
-      return {};                                                     \
-    }                                                                \
-    return i::Cast<i::Wasm##Type##Object>(arg0);                     \
+#define GET_FIRST_ARGUMENT_AS(Type)                                      \
+  i::MaybeDirectHandle<i::Wasm##Type##Object> GetFirstArgumentAs##Type(  \
+      const v8::FunctionCallbackInfo<v8::Value>& info,                   \
+      ErrorThrower* thrower) {                                           \
+    i::DirectHandle<i::Object> arg0 = Utils::OpenDirectHandle(*info[0]); \
+    if (!IsWasm##Type##Object(*arg0)) {                                  \
+      thrower->TypeError("Argument 0 must be a WebAssembly." #Type);     \
+      return {};                                                         \
+    }                                                                    \
+    return i::Cast<i::Wasm##Type##Object>(arg0);                         \
   }
 
 GET_FIRST_ARGUMENT_AS(Module)
@@ -265,11 +267,11 @@ base::OwnedVector<const uint8_t> GetAndCopyFirstArgumentAsBytes(
 }
 
 namespace {
-i::MaybeHandle<i::JSReceiver> ImportsAsMaybeReceiver(Local<Value> ffi) {
+i::MaybeDirectHandle<i::JSReceiver> ImportsAsMaybeReceiver(Local<Value> ffi) {
   if (ffi->IsUndefined()) return {};
 
   Local<Object> obj = Local<Object>::Cast(ffi);
-  return i::Cast<i::JSReceiver>(v8::Utils::OpenHandle(*obj));
+  return i::Cast<i::JSReceiver>(v8::Utils::OpenDirectHandle(*obj));
 }
 
 // This class resolves the result of WebAssembly.compile. It just places the
@@ -285,7 +287,8 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
     promise_resolver_.AnnotateStrongRetainer(kGlobalPromiseHandle);
   }
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> result) override {
     if (finished_) return;
     finished_ = true;
     if (context_.IsEmpty()) return;
@@ -297,7 +300,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
              WasmAsyncSuccess::kSuccess);
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
     if (finished_) return;
     finished_ = true;
     if (context_.IsEmpty()) return;
@@ -334,7 +337,7 @@ class InstantiateModuleResultResolver
   }
 
   void OnInstantiationSucceeded(
-      i::Handle<i::WasmInstanceObject> instance) override {
+      i::DirectHandle<i::WasmInstanceObject> instance) override {
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
@@ -344,7 +347,7 @@ class InstantiateModuleResultResolver
              WasmAsyncSuccess::kSuccess);
   }
 
-  void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
@@ -382,7 +385,7 @@ class InstantiateBytesResultResolver
   }
 
   void OnInstantiationSucceeded(
-      i::Handle<i::WasmInstanceObject> instance) override {
+      i::DirectHandle<i::WasmInstanceObject> instance) override {
     if (context_.IsEmpty()) return;
     Local<Context> context = context_.Get(isolate_);
     WasmAsyncSuccess success = WasmAsyncSuccess::kSuccess;
@@ -423,7 +426,7 @@ class InstantiateBytesResultResolver
              success);
   }
 
-  void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
@@ -464,7 +467,8 @@ class AsyncInstantiateCompileResultResolver
     imports_.AnnotateStrongRetainer(kGlobalImportsHandle);
   }
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> result) override {
     if (finished_) return;
     finished_ = true;
     i::wasm::GetWasmEngine()->AsyncInstantiate(
@@ -475,7 +479,7 @@ class AsyncInstantiateCompileResultResolver
         result, ImportsAsMaybeReceiver(imports_.Get(isolate_)));
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
     if (finished_) return;
     finished_ = true;
     if (context_.IsEmpty()) return;
@@ -547,7 +551,7 @@ std::optional<uint64_t> EnforceBigIntUint64(Name argument_name, Local<Value> v,
   // Use the internal API, as v8::Value::ToBigInt clears exceptions.
   i::DirectHandle<i::BigInt> bigint;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  if (!i::BigInt::FromObject(i_isolate, Utils::OpenHandle(*v))
+  if (!i::BigInt::FromObject(i_isolate, Utils::OpenDirectHandle(*v))
            .ToHandle(&bigint)) {
     return std::nullopt;
   }
@@ -643,7 +647,7 @@ CompileTimeImports ArgumentToCompileOptions(
       isolate->factory()->InternalizeUtf8String("importedStringConstants");
   if (i::JSReceiver::HasProperty(isolate, receiver, importedStringConstants)
           .FromMaybe(false)) {
-    i::Handle<i::Object> constants_value;
+    i::DirectHandle<i::Object> constants_value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, constants_value,
         i::JSReceiver::GetProperty(isolate, receiver, importedStringConstants),
@@ -1033,7 +1037,7 @@ void WebAssemblyModuleCustomSectionsImpl(
   }
 
   i::DirectHandle<i::Object> name;
-  if (!i::Object::ToString(i_isolate, Utils::OpenHandle(*info[1]))
+  if (!i::Object::ToString(i_isolate, Utils::OpenDirectHandle(*info[1]))
            .ToHandle(&name)) {
     return js_api_scope.AssertException();
   }
@@ -1060,7 +1064,7 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return;
     }
 
-    i::Handle<i::WasmModuleObject> module_object;
+    i::DirectHandle<i::WasmModuleObject> module_object;
     if (!GetFirstArgumentAsModule(info, &thrower).ToHandle(&module_object)) {
       return js_api_scope.AssertException();
     }
@@ -1075,7 +1079,7 @@ void WebAssemblyInstanceImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (!i::wasm::GetWasmEngine()
              ->SyncInstantiate(i_isolate, &thrower, module_object,
                                ImportsAsMaybeReceiver(ffi),
-                               i::MaybeHandle<i::JSArrayBuffer>())
+                               i::MaybeDirectHandle<i::JSArrayBuffer>())
              .ToHandle(&instance_obj)) {
       return js_api_scope.AssertException();
     }
@@ -1213,7 +1217,8 @@ void WebAssemblyInstantiateImpl(
       new InstantiateModuleResultResolver(isolate, context, promise_resolver));
 
   Local<Value> first_arg_value = info[0];
-  i::Handle<i::Object> first_arg = Utils::OpenHandle(*first_arg_value);
+  i::DirectHandle<i::Object> first_arg =
+      Utils::OpenDirectHandle(*first_arg_value);
   if (!IsJSObject(*first_arg)) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
@@ -1231,7 +1236,7 @@ void WebAssemblyInstantiateImpl(
   }
 
   if (IsWasmModuleObject(*first_arg)) {
-    i::Handle<i::WasmModuleObject> module_obj =
+    i::DirectHandle<i::WasmModuleObject> module_obj =
         i::Cast<i::WasmModuleObject>(first_arg);
 
     i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
@@ -1308,7 +1313,7 @@ std::optional<uint64_t> AddressValueToU64(ErrorThrower* thrower,
 // {AddressValueToU64} plus additional bounds checks.
 std::optional<uint64_t> AddressValueToBoundedU64(
     ErrorThrower* thrower, Local<Context> context, v8::Local<v8::Value> value,
-    i::Handle<i::String> property_name, AddressType address_type,
+    i::DirectHandle<i::String> property_name, AddressType address_type,
     uint64_t lower_bound, uint64_t upper_bound) {
   std::optional<uint64_t> maybe_address_value =
       AddressValueToU64(thrower, context, value, property_name, address_type);
@@ -1351,7 +1356,8 @@ std::optional<std::optional<uint64_t>> GetOptionalAddressValue(
     return std::optional<uint64_t>{};
   }
 
-  i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
+  i::DirectHandle<i::String> property_name =
+      v8::Utils::OpenDirectHandle(*property);
 
   std::optional<uint64_t> maybe_address_value =
       AddressValueToBoundedU64(thrower, context, value, property_name,
@@ -1411,8 +1417,8 @@ v8::Local<Value> AddressValueFromUnsigned(Isolate* isolate,
              : Integer::NewFromUnsigned(isolate, value).As<Value>();
 }
 
-i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
-                                               i::wasm::ValueType type) {
+i::DirectHandle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
+                                                     i::wasm::ValueType type) {
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
@@ -1439,7 +1445,7 @@ std::optional<AddressType> GetAddressType(Isolate* isolate,
 
   i::DirectHandle<i::String> address;
   if (!i::Object::ToString(reinterpret_cast<i::Isolate*>(isolate),
-                           Utils::OpenHandle(*address_value))
+                           Utils::OpenDirectHandle(*address_value))
            .ToHandle(&address)) {
     return std::nullopt;
   }
@@ -1477,7 +1483,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     }
     i::DirectHandle<i::String> string;
     if (!i::Object::ToString(reinterpret_cast<i::Isolate*>(isolate),
-                             Utils::OpenHandle(*value))
+                             Utils::OpenDirectHandle(*value))
              .ToHandle(&string)) {
       return js_api_scope.AssertException();
     }
@@ -1559,7 +1565,7 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   if (initial > 0 && info.Length() >= 2 && !info[1]->IsUndefined()) {
-    i::Handle<i::Object> element = Utils::OpenHandle(*info[1]);
+    i::DirectHandle<i::Object> element = Utils::OpenDirectHandle(*info[1]);
     const char* error_message;
     if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_obj, element,
                                              &error_message)
@@ -1748,7 +1754,7 @@ std::optional<i::wasm::ValueType> GetValueType(
   if (!maybe.ToLocal(&value)) return std::nullopt;
   i::DirectHandle<i::String> string;
   if (!i::Object::ToString(reinterpret_cast<i::Isolate*>(isolate),
-                           Utils::OpenHandle(*value))
+                           Utils::OpenDirectHandle(*value))
            .ToHandle(&string)) {
     return std::nullopt;
   }
@@ -1880,13 +1886,13 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   const uint32_t offset = 0;
-  i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
+  i::MaybeDirectHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(
           i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
           i::MaybeDirectHandle<i::JSArrayBuffer>(),
           i::MaybeDirectHandle<i::FixedArray>(), type, offset, is_mutable);
 
-  i::Handle<i::WasmGlobalObject> global_obj;
+  i::DirectHandle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
     return js_api_scope.AssertException();
   }
@@ -1946,11 +1952,11 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       [[fallthrough]];
     case i::wasm::kRefNull: {
       // We need the wasm default value {null} over {undefined}.
-      i::Handle<i::Object> value_handle;
+      i::DirectHandle<i::Object> value_handle;
       if (info.Length() < 2) {
         value_handle = DefaultReferenceValue(i_isolate, type);
       } else {
-        value_handle = Utils::OpenHandle(*value);
+        value_handle = Utils::OpenDirectHandle(*value);
         const char* error_message;
         // While the JS API generally allows indexed types, it currently has
         // no way to specify such types in `new WebAssembly.Global(...)`.
@@ -2137,7 +2143,8 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
       case i::wasm::kRef:
       case i::wasm::kRefNull: {
         const char* error_message;
-        i::Handle<i::Object> value_handle = Utils::OpenHandle(*value);
+        i::DirectHandle<i::Object> value_handle =
+            Utils::OpenDirectHandle(*value);
         i::wasm::CanonicalValueType canonical_type;
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
@@ -2230,7 +2237,7 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return js_api_scope.AssertException();
     }
     if (trace_stack_value->BooleanValue(isolate)) {
-      auto caller = Utils::OpenHandle(*info.NewTarget());
+      i::Handle<i::Object> caller = Utils::OpenHandle(*info.NewTarget());
 
       i::DirectHandle<i::Object> capture_result;
       if (!i::ErrorUtils::CaptureStackTrace(i_isolate, runtime_exception,
@@ -2479,7 +2486,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::DirectHandle<i::JSObject> type;
 
-  i::Handle<i::Object> fun = Utils::OpenHandle(*info.This());
+  i::DirectHandle<i::Object> fun = Utils::OpenDirectHandle(*info.This());
   if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
     auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(fun);
     i::Tagged<i::WasmExportedFunctionData> data =
@@ -2585,10 +2592,10 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!maybe_grow_by) return js_api_scope.AssertException();
   uint64_t grow_by = *maybe_grow_by;
 
-  i::Handle<i::Object> init_value;
+  i::DirectHandle<i::Object> init_value;
 
   if (info.Length() >= 2) {
-    init_value = Utils::OpenHandle(*info[1]);
+    init_value = Utils::OpenDirectHandle(*info[1]);
     const char* error_message;
     if (!i::WasmTableObject::JSToWasmElement(i_isolate, receiver, init_value,
                                              &error_message)
@@ -2620,7 +2627,7 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 namespace {
 V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
-    v8::ReturnValue<v8::Value>& return_value, i::Handle<i::Object> value,
+    v8::ReturnValue<v8::Value>& return_value, i::DirectHandle<i::Object> value,
     i::wasm::ValueType type, i::Isolate* isolate, ErrorThrower* thrower) {
   switch (type.heap_type().representation()) {
     case internal::wasm::HeapType::kStringViewWtf8:
@@ -2663,7 +2670,7 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::Handle<i::Object> result = i::WasmTableObject::Get(
+  i::DirectHandle<i::Object> result = i::WasmTableObject::Get(
       i_isolate, receiver, static_cast<uint32_t>(address));
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
@@ -2693,9 +2700,9 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::Handle<i::Object> element;
+  i::DirectHandle<i::Object> element;
   if (info.Length() >= 2) {
-    element = Utils::OpenHandle(*info[1]);
+    element = Utils::OpenDirectHandle(*info[1]);
     const char* error_message;
     if (!i::WasmTableObject::JSToWasmElement(i_isolate, table_object, element,
                                              &error_message)
@@ -2955,7 +2962,7 @@ void WebAssemblyExceptionGetArgImpl(
     }
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
-      i::Handle<i::Object> obj = handle(values->get(decode_index), i_isolate);
+      i::DirectHandle<i::Object> obj(values->get(decode_index), i_isolate);
       ReturnValue<Value> return_value = info.GetReturnValue();
       if (!WasmObjectToJSReturnValue(return_value, obj, signature->get(index),
                                      i_isolate, &thrower)) {
@@ -3108,7 +3115,7 @@ void WebAssemblyGlobalSetValueImpl(
           receiver->has_trusted_data()
               ? receiver->trusted_data(i_isolate)->module()
               : nullptr;
-      i::Handle<i::Object> value = Utils::OpenHandle(*info[0]);
+      i::DirectHandle<i::Object> value = Utils::OpenDirectHandle(*info[0]);
       const char* error_message;
       if (!i::wasm::JSToWasmObject(i_isolate, module, value, receiver->type(),
                                    &error_message)
@@ -3182,7 +3189,7 @@ static i::DirectHandle<i::ObjectTemplateInfo> NewObjectTemplate(
 namespace internal {
 namespace {
 
-Handle<JSFunction> CreateFunc(
+DirectHandle<JSFunction> CreateFunc(
     Isolate* isolate, DirectHandle<String> name, FunctionCallback func,
     bool has_prototype,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
@@ -3195,18 +3202,18 @@ Handle<JSFunction> CreateFunc(
     FunctionTemplateInfo::SetParentTemplate(isolate, temp, parent);
   }
 
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       ApiNatives::InstantiateFunction(isolate, temp, name).ToHandleChecked();
   DCHECK(function->shared()->HasSharedName());
   return function;
 }
 
-Handle<JSFunction> InstallFunc(
+DirectHandle<JSFunction> InstallFunc(
     Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<String> name,
     FunctionCallback func, int length, bool has_prototype = false,
     PropertyAttributes attributes = NONE,
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       CreateFunc(isolate, name, func, has_prototype, side_effect_type);
   function->shared()->set_length(length);
   CHECK(!JSObject::HasRealNamedProperty(isolate, object, name).FromMaybe(true));
@@ -3215,7 +3222,7 @@ Handle<JSFunction> InstallFunc(
   return function;
 }
 
-Handle<JSFunction> InstallFunc(
+DirectHandle<JSFunction> InstallFunc(
     Isolate* isolate, DirectHandle<JSObject> object, const char* str,
     FunctionCallback func, int length, bool has_prototype = false,
     PropertyAttributes attributes = NONE,
@@ -3225,22 +3232,22 @@ Handle<JSFunction> InstallFunc(
                      attributes, side_effect_type);
 }
 
-Handle<JSFunction> InstallConstructorFunc(Isolate* isolate,
-                                          DirectHandle<JSObject> object,
-                                          const char* str,
-                                          FunctionCallback func) {
+DirectHandle<JSFunction> InstallConstructorFunc(Isolate* isolate,
+                                                DirectHandle<JSObject> object,
+                                                const char* str,
+                                                FunctionCallback func) {
   return InstallFunc(isolate, object, str, func, 1, true, DONT_ENUM,
                      SideEffectType::kHasNoSideEffect);
 }
 
-DirectHandle<String> GetterName(Isolate* isolate, Handle<String> name) {
+DirectHandle<String> GetterName(Isolate* isolate, DirectHandle<String> name) {
   return Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
       .ToHandleChecked();
 }
 
 void InstallGetter(Isolate* isolate, DirectHandle<JSObject> object,
                    const char* str, FunctionCallback func) {
-  Handle<String> name = v8_str(isolate, str);
+  DirectHandle<String> name = v8_str(isolate, str);
   DirectHandle<JSFunction> function =
       CreateFunc(isolate, GetterName(isolate, name), func, false,
                  SideEffectType::kHasNoSideEffect);
@@ -3250,7 +3257,7 @@ void InstallGetter(Isolate* isolate, DirectHandle<JSObject> object,
                                               Local<Function>(), v8::None);
 }
 
-DirectHandle<String> SetterName(Isolate* isolate, Handle<String> name) {
+DirectHandle<String> SetterName(Isolate* isolate, DirectHandle<String> name) {
   return Name::ToFunctionName(isolate, name, isolate->factory()->set_string())
       .ToHandleChecked();
 }
@@ -3258,7 +3265,7 @@ DirectHandle<String> SetterName(Isolate* isolate, Handle<String> name) {
 void InstallGetterSetter(Isolate* isolate, DirectHandle<JSObject> object,
                          const char* str, FunctionCallback getter,
                          FunctionCallback setter) {
-  Handle<String> name = v8_str(isolate, str);
+  DirectHandle<String> name = v8_str(isolate, str);
   DirectHandle<JSFunction> getter_func =
       CreateFunc(isolate, GetterName(isolate, name), getter, false,
                  SideEffectType::kHasNoSideEffect);
@@ -3283,15 +3290,16 @@ void SetDummyInstanceTemplate(Isolate* isolate, DirectHandle<JSFunction> fun) {
       instance_template);
 }
 
-Handle<JSObject> SetupConstructor(Isolate* isolate,
-                                  DirectHandle<JSFunction> constructor,
-                                  InstanceType instance_type, int instance_size,
-                                  const char* name = nullptr,
-                                  int in_object_properties = 0) {
+DirectHandle<JSObject> SetupConstructor(Isolate* isolate,
+                                        DirectHandle<JSFunction> constructor,
+                                        InstanceType instance_type,
+                                        int instance_size,
+                                        const char* name = nullptr,
+                                        int in_object_properties = 0) {
   SetDummyInstanceTemplate(isolate, constructor);
   JSFunction::EnsureHasInitialMap(constructor);
-  Handle<JSObject> proto(Cast<JSObject>(constructor->instance_prototype()),
-                         isolate);
+  DirectHandle<JSObject> proto(
+      Cast<JSObject>(constructor->instance_prototype()), isolate);
   DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
       constructor, instance_type, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
       in_object_properties);
@@ -3485,7 +3493,7 @@ void WasmJs::InstallModule(Isolate* isolate,
   DirectHandle<JSGlobalObject> global = isolate->global_object();
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
-  Handle<JSFunction> module_constructor;
+  DirectHandle<JSFunction> module_constructor;
   if (v8_flags.js_source_phase_imports) {
     DirectHandle<FunctionTemplateInfo>
         intrinsic_abstract_module_source_interface_template =
@@ -3629,7 +3637,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   // If you need to install some optional features, follow the pattern:
   //
   // if (isolate->IsMyWasmFeatureEnabled(context)) {
-  //   Handle<String> feature = isolate->factory()->...;
+  //   DirectHandle<String> feature = isolate->factory()->...;
   //   if (!JSObject::HasRealNamedProperty(isolate, webassembly, feature)
   //            .FromMaybe(true)) {
   //     InstallFeature(isolate, webassembly);
@@ -3733,7 +3741,7 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
       GetProto(context->wasm_memory_constructor());
   DirectHandle<JSObject> tag_proto = GetProto(context->wasm_tag_constructor());
 
-  Handle<String> type_string = v8_str(isolate, "type");
+  DirectHandle<String> type_string = v8_str(isolate, "type");
   auto CheckProto = [isolate, type_string](DirectHandle<JSObject> proto) {
     if (JSObject::HasRealNamedProperty(isolate, proto, type_string)
             .FromMaybe(true)) {

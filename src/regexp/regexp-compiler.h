@@ -482,7 +482,7 @@ class RegExpCompiler {
 
   struct CompilationResult final {
     explicit CompilationResult(RegExpError err) : error(err) {}
-    CompilationResult(Handle<Object> code, int registers)
+    CompilationResult(DirectHandle<Object> code, int registers)
         : code(code), num_registers(registers) {}
 
     static CompilationResult RegExpTooBig() {
@@ -492,13 +492,13 @@ class RegExpCompiler {
     bool Succeeded() const { return error == RegExpError::kNone; }
 
     const RegExpError error = RegExpError::kNone;
-    Handle<Object> code;
+    DirectHandle<Object> code;
     int num_registers = 0;
   };
 
   CompilationResult Assemble(Isolate* isolate, RegExpMacroAssembler* assembler,
                              RegExpNode* start, int capture_count,
-                             Handle<String> pattern);
+                             DirectHandle<String> pattern);
 
   // Preprocessing is the final step of node creation before analysis
   // and assembly. It includes:

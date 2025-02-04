@@ -113,7 +113,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }
@@ -141,7 +141,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }

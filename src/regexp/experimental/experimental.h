@@ -20,7 +20,7 @@ class ExperimentalRegExp final : public AllStatic {
   // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, Handle<String> pattern,
+  static bool CanBeHandled(RegExpTree* tree, DirectHandle<String> pattern,
                            RegExpFlags flags, int capture_count);
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                          DirectHandle<String> pattern, RegExpFlags flags,
@@ -38,7 +38,7 @@ class ExperimentalRegExp final : public AllStatic {
                                     Isolate* isolate, Address regexp_data);
   static std::optional<int> Exec(Isolate* isolate,
                                  DirectHandle<IrRegExpData> regexp_data,
-                                 Handle<String> subject, int index,
+                                 DirectHandle<String> subject, int index,
                                  int32_t* result_offsets_vector,
                                  uint32_t result_offsets_vector_length);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,

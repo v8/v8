@@ -976,12 +976,12 @@ size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
   DCHECK(!created());
   HandleScope scope(isolate_);
   DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
-    list = Handle<ArrayList>(Cast<ArrayList>(context->serialized_objects()),
-                             isolate_);
+    list =
+        direct_handle(Cast<ArrayList>(context->serialized_objects()), isolate_);
   }
   size_t index = static_cast<size_t>(list->length());
   list = ArrayList::Add(isolate_, list, obj);
@@ -994,11 +994,11 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   DCHECK(!created());
   HandleScope scope(isolate_);
   DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
-    list = Handle<ArrayList>(
+    list = direct_handle(
         Cast<ArrayList>(isolate_->heap()->serialized_objects()), isolate_);
   }
   size_t index = static_cast<size_t>(list->length());

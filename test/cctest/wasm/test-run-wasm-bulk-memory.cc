@@ -364,7 +364,7 @@ void CheckTable(Isolate* isolate, DirectHandle<WasmTableObject> table,
                 Args... args) {
   uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
   CHECK_EQ(table->current_length(), args_length);
-  Handle<Object> handles[] = {args...};
+  DirectHandle<Object> handles[] = {args...};
   for (uint32_t i = 0; i < args_length; ++i) {
     CHECK(WasmTableObject::Get(isolate, table, i).is_identical_to(handles[i]));
   }

@@ -993,12 +993,16 @@ typename HandleType<BigInt>::MaybeType BigInt::FromObject(
         constexpr uint32_t kMaxRenderedLength = 1000;
         if (str->length() > kMaxRenderedLength) {
           Factory* factory = isolate->factory();
-          Handle<String> prefix =
+          DirectHandle<String> prefix =
               factory->NewProperSubString(str, 0, kMaxRenderedLength);
-          Handle<SeqTwoByteString> ellipsis =
+          DirectHandle<SeqTwoByteString> ellipsis =
               factory->NewRawTwoByteString(1).ToHandleChecked();
           ellipsis->SeqTwoByteStringSet(0, 0x2026);
-          str = factory->NewConsString(prefix, ellipsis).ToHandleChecked();
+          // TODO(42203211): The cast below should not be necessary. Let's
+          // remove it, when NewConsString is not templatized by the handle
+          // type.
+          str = factory->NewConsString(prefix, Cast<String>(ellipsis))
+                    .ToHandleChecked();
         }
         THROW_NEW_ERROR(
             isolate, NewSyntaxError(MessageTemplate::kBigIntFromObject, str));

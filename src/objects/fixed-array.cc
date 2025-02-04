@@ -70,8 +70,10 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Isolate* isolate, IndirectHandle<FixedArray> array, int new_length);
 
 // static
-Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Tagged<Smi> obj, AllocationType allocation) {
+DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
+                                       DirectHandle<ArrayList> array,
+                                       Tagged<Smi> obj,
+                                       AllocationType allocation) {
   int length = array->length();
   int new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
@@ -84,9 +86,10 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 // static
-Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 DirectHandle<Object> obj,
-                                 AllocationType allocation) {
+DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
+                                       DirectHandle<ArrayList> array,
+                                       DirectHandle<Object> obj,
+                                       AllocationType allocation) {
   int length = array->length();
   int new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
@@ -99,10 +102,11 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 // static
-Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 DirectHandle<Object> obj0,
-                                 DirectHandle<Object> obj1,
-                                 AllocationType allocation) {
+DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
+                                       DirectHandle<ArrayList> array,
+                                       DirectHandle<Object> obj0,
+                                       DirectHandle<Object> obj1,
+                                       AllocationType allocation) {
   int length = array->length();
   int new_length = length + 2;
   array = EnsureSpace(isolate, array, new_length, allocation);
@@ -138,9 +142,10 @@ void ArrayList::RightTrim(Isolate* isolate, int new_capacity) {
 }
 
 // static
-Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
-                                         Handle<ArrayList> array, int length,
-                                         AllocationType allocation) {
+DirectHandle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
+                                               DirectHandle<ArrayList> array,
+                                               int length,
+                                               AllocationType allocation) {
   DCHECK_LT(0, length);
   int old_capacity = array->capacity();
   if (old_capacity >= length) return array;
@@ -148,7 +153,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
   int old_length = array->length();
   // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
   int new_capacity = length + std::max(length / 2, 2);
-  Handle<ArrayList> new_array =
+  DirectHandle<ArrayList> new_array =
       ArrayList::New(isolate, new_capacity, allocation);
   DisallowGarbageCollection no_gc;
   new_array->set_length(old_length);
@@ -193,10 +198,9 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 }
 
 // static
-Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
-                                            Handle<WeakArrayList> array,
-                                            MaybeObjectDirectHandle value,
-                                            AllocationType allocation) {
+DirectHandle<WeakArrayList> WeakArrayList::Append(
+    Isolate* isolate, DirectHandle<WeakArrayList> array,
+    MaybeObjectDirectHandle value, AllocationType allocation) {
   int length = 0;
   int new_length = 0;
   {

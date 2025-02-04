@@ -156,10 +156,10 @@ uint8_t* WasmGlobalObject::GetS128RawBytes() {
   return reinterpret_cast<uint8_t*>(address());
 }
 
-Handle<Object> WasmGlobalObject::GetRef() {
+DirectHandle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref, funcref, and stringref.
   DCHECK(type().is_reference());
-  return handle(tagged_buffer()->get(offset()), GetIsolate());
+  return direct_handle(tagged_buffer()->get(offset()), GetIsolate());
 }
 
 void WasmGlobalObject::SetI32(int32_t value) {
@@ -330,7 +330,7 @@ const wasm::WasmModule* WasmInstanceObject::module() const {
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
-    Handle<WasmTrustedInstanceData> instance_data, int index)
+    DirectHandle<WasmTrustedInstanceData> instance_data, int index)
     : instance_data_(instance_data), index_(index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, instance_data->module()->num_imported_functions);

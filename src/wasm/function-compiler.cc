@@ -230,9 +230,9 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   OptimizedCompilationInfo* info =
       static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
           ->compilation_info();
-  Handle<Code> code = info->code();
+  DirectHandle<Code> code = info->code();
   if (isolate_->IsLoggingCodeCreation()) {
-    Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
+    DirectHandle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         info->GetDebugName().get());
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Cast<AbstractCode>(code), name));

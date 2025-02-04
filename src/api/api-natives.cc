@@ -461,12 +461,12 @@ void AddPropertyToPropertyList(Isolate* isolate,
                                DirectHandle<TemplateInfo> templ,
                                base::Vector<DirectHandle<Object>> data) {
   Tagged<Object> maybe_list = templ->property_list();
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
     list = ArrayList::New(isolate, static_cast<int>(data.size()),
                           AllocationType::kOld);
   } else {
-    list = handle(Cast<ArrayList>(maybe_list), isolate);
+    list = direct_handle(Cast<ArrayList>(maybe_list), isolate);
   }
   templ->set_number_of_properties(templ->number_of_properties() + 1);
   for (DirectHandle<Object> value : data) {
@@ -585,11 +585,11 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        DirectHandle<TemplateInfo> info,
                                        DirectHandle<AccessorInfo> property) {
   Tagged<Object> maybe_list = info->property_accessors();
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
     list = ArrayList::New(isolate, 1, AllocationType::kOld);
   } else {
-    list = handle(Cast<ArrayList>(maybe_list), isolate);
+    list = direct_handle(Cast<ArrayList>(maybe_list), isolate);
   }
   list = ArrayList::Add(isolate, list, property);
   info->set_property_accessors(*list);

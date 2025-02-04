@@ -258,8 +258,9 @@ DirectHandle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
 }
 }  // namespace
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
-                                    bool for_exception) {
+DirectHandle<JSObject> GetTypeForFunction(Isolate* isolate,
+                                          const FunctionSig* sig,
+                                          bool for_exception) {
   Factory* factory = isolate->factory();
 
   // Extract values for the {ValueType[]} arrays.
@@ -273,7 +274,7 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
 
   // Create the resulting {FunctionType} object.
   DirectHandle<JSFunction> object_function = isolate->object_function();
-  Handle<JSObject> object = factory->NewJSObject(object_function);
+  DirectHandle<JSObject> object = factory->NewJSObject(object_function);
   DirectHandle<JSArray> params = factory->NewJSArrayWithElements(param_values);
   DirectHandle<String> params_string =
       factory->InternalizeUtf8String("parameters");
@@ -301,12 +302,12 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
   return object;
 }
 
-Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
-                                  ValueType type) {
+DirectHandle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
+                                        ValueType type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
-  Handle<JSObject> object = factory->NewJSObject(object_function);
+  DirectHandle<JSObject> object = factory->NewJSObject(object_function);
   DirectHandle<String> mutable_string =
       factory->InternalizeUtf8String("mutable");
   DirectHandle<String> value_string = factory->value_string();
@@ -318,13 +319,13 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   return object;
 }
 
-Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  std::optional<uint64_t> max_size, bool shared,
-                                  AddressType address_type) {
+DirectHandle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
+                                        std::optional<uint64_t> max_size,
+                                        bool shared, AddressType address_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
-  Handle<JSObject> object = factory->NewJSObject(object_function);
+  DirectHandle<JSObject> object = factory->NewJSObject(object_function);
   DirectHandle<String> minimum_string =
       factory->InternalizeUtf8String("minimum");
   DirectHandle<String> maximum_string =
@@ -354,17 +355,17 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   return object;
 }
 
-Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
-                                 uint32_t min_size,
-                                 std::optional<uint64_t> max_size,
-                                 AddressType address_type) {
+DirectHandle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
+                                       uint32_t min_size,
+                                       std::optional<uint64_t> max_size,
+                                       AddressType address_type) {
   Factory* factory = isolate->factory();
 
   DirectHandle<String> element =
       factory->InternalizeUtf8String(base::VectorOf(type.name()));
 
   DirectHandle<JSFunction> object_function = isolate->object_function();
-  Handle<JSObject> object = factory->NewJSObject(object_function);
+  DirectHandle<JSObject> object = factory->NewJSObject(object_function);
   DirectHandle<String> element_string = factory->element_string();
   DirectHandle<String> minimum_string =
       factory->InternalizeUtf8String("minimum");
@@ -392,8 +393,8 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   return object;
 }
 
-Handle<JSArray> GetImports(Isolate* isolate,
-                           DirectHandle<WasmModuleObject> module_object) {
+DirectHandle<JSArray> GetImports(Isolate* isolate,
+                                 DirectHandle<WasmModuleObject> module_object) {
   auto enabled_features = i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
@@ -412,7 +413,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
   int num_imports = static_cast<int>(module->import_table.size());
-  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
+  DirectHandle<JSArray> array_object =
+      factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage = factory->NewFixedArray(num_imports);
   JSArray::SetContent(array_object, storage);
 
@@ -514,8 +516,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
   return array_object;
 }
 
-Handle<JSArray> GetExports(Isolate* isolate,
-                           DirectHandle<WasmModuleObject> module_object) {
+DirectHandle<JSArray> GetExports(Isolate* isolate,
+                                 DirectHandle<WasmModuleObject> module_object) {
   auto enabled_features = i::wasm::WasmEnabledFeatures::FromIsolate(isolate);
   Factory* factory = isolate->factory();
 
@@ -532,7 +534,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
   // Create the result array.
   const WasmModule* module = module_object->module();
   int num_exports = static_cast<int>(module->export_table.size());
-  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
+  DirectHandle<JSArray> array_object =
+      factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage = factory->NewFixedArray(num_exports);
   JSArray::SetContent(array_object, storage);
   array_object->set_length(Smi::FromInt(num_exports));
@@ -610,10 +613,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
   return array_object;
 }
 
-Handle<JSArray> GetCustomSections(Isolate* isolate,
-                                  DirectHandle<WasmModuleObject> module_object,
-                                  DirectHandle<String> name,
-                                  ErrorThrower* thrower) {
+DirectHandle<JSArray> GetCustomSections(
+    Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
+    DirectHandle<String> name, ErrorThrower* thrower) {
   Factory* factory = isolate->factory();
 
   base::Vector<const uint8_t> wire_bytes =
@@ -621,7 +623,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   std::vector<CustomSectionOffset> custom_sections =
       DecodeCustomSections(wire_bytes);
 
-  std::vector<Handle<Object>> matching_sections;
+  DirectHandleVector<Object> matching_sections(isolate);
 
   // Gather matching sections.
   for (auto& section : custom_sections) {
@@ -633,13 +635,13 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
     // Make a copy of the payload data in the section.
     size_t size = section.payload.length();
-    MaybeHandle<JSArrayBuffer> result =
+    MaybeDirectHandle<JSArrayBuffer> result =
         isolate->factory()->NewJSArrayBufferAndBackingStore(
             size, InitializedFlag::kUninitialized);
-    Handle<JSArrayBuffer> array_buffer;
+    DirectHandle<JSArrayBuffer> array_buffer;
     if (!result.ToHandle(&array_buffer)) {
       thrower->RangeError("out of memory allocating custom section data");
-      return Handle<JSArray>();
+      return DirectHandle<JSArray>();
     }
     memcpy(array_buffer->backing_store(),
            wire_bytes.begin() + section.payload.offset(),
@@ -649,7 +651,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   }
 
   int num_custom_sections = static_cast<int>(matching_sections.size());
-  Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
+  DirectHandle<JSArray> array_object =
+      factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage =
       factory->NewFixedArray(num_custom_sections);
   JSArray::SetContent(array_object, storage);

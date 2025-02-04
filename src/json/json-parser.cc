@@ -861,7 +861,7 @@ class JSDataObjectBuilder {
 
     Representation representation =
         Object::OptimalRepresentation(*value, isolate_);
-    Handle<FieldType> type =
+    DirectHandle<FieldType> type =
         Object::OptimalType(*value, isolate_, representation);
     MaybeHandle<Map> maybe_map = Map::CopyWithField(
         isolate_, map_, key, type, NONE, PropertyConstness::kConst,
@@ -1094,7 +1094,7 @@ class JSDataObjectBuilder {
       } else {
         // Do the in-place reconfiguration.
         DCHECK(!representation.IsDouble());
-        Handle<FieldType> value_type =
+        DirectHandle<FieldType> value_type =
             Object::OptimalType(*value, isolate_, representation);
         MapUpdater::GeneralizeField(isolate_, map_, descriptor_index,
                                     current_details.constness(), representation,
@@ -1105,7 +1105,7 @@ class JSDataObjectBuilder {
                    map_->instance_descriptors(isolate_)->GetFieldType(
                        descriptor_index),
                    value)) {
-      Handle<FieldType> value_type =
+      DirectHandle<FieldType> value_type =
           Object::OptimalType(*value, isolate_, expected_representation);
       MapUpdater::GeneralizeField(isolate_, map_, descriptor_index,
                                   current_details.constness(),

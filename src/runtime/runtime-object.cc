@@ -418,11 +418,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
                            should_throw);
 }
 
-MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
-                                                     DirectHandle<JSAny> object,
-                                                     DirectHandle<Object> key,
-                                                     Handle<Object> value,
-                                                     StoreOrigin store_origin) {
+MaybeDirectHandle<Object> Runtime::DefineObjectOwnProperty(
+    Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Object> key,
+    DirectHandle<Object> value, StoreOrigin store_origin) {
   if (IsNullOrUndefined(*object, isolate)) {
     MaybeDirectHandle<String> maybe_property =
         Object::NoSideEffectsToMaybeString(isolate, key);
@@ -441,7 +439,7 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
   // Check if the given key is an array index.
   bool success = false;
   PropertyKey lookup_key(isolate, key, &success);
-  if (!success) return MaybeHandle<Object>();
+  if (!success) return MaybeDirectHandle<Object>();
 
   if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
     LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
@@ -1449,7 +1447,7 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
 
 Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
                                            DirectHandle<JSReceiver> receiver,
-                                           Handle<String> desc,
+                                           DirectHandle<String> desc,
                                            MessageTemplate not_found_message,
                                            PrivateMember* result) {
   std::vector<PrivateMember> results;
@@ -1472,7 +1470,8 @@ Maybe<bool> FindPrivateMembersFromReceiver(Isolate* isolate,
 }  // namespace
 
 MaybeDirectHandle<Object> Runtime::GetPrivateMember(
-    Isolate* isolate, DirectHandle<JSReceiver> receiver, Handle<String> desc) {
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<String> desc) {
   PrivateMember result;
   MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
       isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,
@@ -1501,8 +1500,8 @@ MaybeDirectHandle<Object> Runtime::GetPrivateMember(
 }
 
 MaybeDirectHandle<Object> Runtime::SetPrivateMember(
-    Isolate* isolate, DirectHandle<JSReceiver> receiver, Handle<String> desc,
-    DirectHandle<Object> value) {
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<String> desc, DirectHandle<Object> value) {
   PrivateMember result;
   MAYBE_RETURN_NULL(FindPrivateMembersFromReceiver(
       isolate, receiver, desc, MessageTemplate::kInvalidPrivateMemberRead,

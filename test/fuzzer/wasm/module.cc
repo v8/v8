@@ -61,7 +61,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   HandleScope scope(i_isolate);
   ErrorThrower thrower(i_isolate, "wasm fuzzer");
-  Handle<WasmModuleObject> module_object;
+  DirectHandle<WasmModuleObject> module_object;
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool compiles =
       GetWasmEngine()

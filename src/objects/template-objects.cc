@@ -96,7 +96,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
           cooked_strings, raw_strings, function_literal_id, slot_id);
 
   // Insert the template object into the cached template array list.
-  Handle<ArrayList> cached_templates;
+  DirectHandle<ArrayList> cached_templates;
   if (!maybe_cached_templates.ToHandle(&cached_templates)) {
     cached_templates = isolate->factory()->NewArrayList(1);
   }

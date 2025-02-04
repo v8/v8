@@ -1538,7 +1538,7 @@ void Factory::ProcessNewScript(DirectHandle<Script> script,
                                ScriptEventType script_event_type) {
   int script_id = script->id();
   if (script_id != Script::kTemporaryScriptId) {
-    Handle<WeakArrayList> scripts = script_list();
+    DirectHandle<WeakArrayList> scripts = script_list();
     scripts = WeakArrayList::Append(isolate(), scripts,
                                     MaybeObjectDirectHandle::Weak(script),
                                     AllocationType::kOld);
@@ -1686,14 +1686,14 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(
 
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     wasm::CanonicalTypeIndex type_index, wasm::CanonicalValueType element_type,
-    Handle<Map> opt_parent) {
+    DirectHandle<Map> opt_parent) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
   // (2) The object visitors need to read the WasmTypeInfo to find tagged
   //     fields in Wasm structs; in the middle of a GC cycle that's only
   //     safe to do if the WTI is in old space.
-  std::vector<Handle<Object>> supertypes;
+  DirectHandleVector<Object> supertypes(isolate());
   if (opt_parent.is_null()) {
     supertypes.resize(wasm::kMinimumSupertypeArraySize, undefined_value());
   } else {
@@ -1701,8 +1701,8 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
                                                 isolate());
     int first_undefined_index = -1;
     for (int i = 0; i < parent_type_info->supertypes_length(); i++) {
-      Handle<Object> supertype =
-          handle(parent_type_info->supertypes(i), isolate());
+      DirectHandle<Object> supertype(parent_type_info->supertypes(i),
+                                     isolate());
       if (IsUndefined(*supertype) && first_undefined_index == -1) {
         first_undefined_index = i;
       }
@@ -2038,8 +2038,8 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(
 }
 
 Handle<Object> Factory::NewWasmArrayFromElementSegment(
-    Handle<WasmTrustedInstanceData> trusted_instance_data,
-    Handle<WasmTrustedInstanceData> shared_trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
+    DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
     DirectHandle<Map> map, wasm::CanonicalValueType element_type) {
   DCHECK(element_type.is_reference());

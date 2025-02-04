@@ -76,7 +76,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(
       DirectHandle<CallSiteInfo> info);
-  V8_EXPORT_PRIVATE static Handle<PrimitiveHeapObject> GetFunctionName(
+  V8_EXPORT_PRIVATE static DirectHandle<PrimitiveHeapObject> GetFunctionName(
       DirectHandle<CallSiteInfo> info);
   static DirectHandle<String> GetFunctionDebugName(
       DirectHandle<CallSiteInfo> info);

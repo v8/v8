@@ -98,7 +98,7 @@ class ExistingCodeLogger {
 
   void LogCompiledFunctions(bool ensure_source_positions_available = true);
   void LogExistingFunction(
-      Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
+      DirectHandle<SharedFunctionInfo> shared, DirectHandle<AbstractCode> code,
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
   void LogCodeObject(Tagged<AbstractCode> object);
 
@@ -170,26 +170,30 @@ class V8FileLogger : public LogEventListener {
   void ScriptDetails(Tagged<Script> script);
 
   // LogEventListener implementation.
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                        const char* name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<Name> name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name, int line, int column) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<Name> name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name, int line,
+                       int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void CallbackEvent(Handle<Name> name, Address entry_point) override;
-  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
-  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
-  void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+  void CallbackEvent(DirectHandle<Name> name, Address entry_point) override;
+  void GetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override;
+  void SetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override;
+  void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<String> source,
                              RegExpFlags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
@@ -198,12 +202,12 @@ class V8FileLogger : public LogEventListener {
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override;
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override;
-  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override;
+  void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                 DirectHandle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
   void FeedbackVectorEvent(Tagged<FeedbackVector> vector,
                            Tagged<AbstractCode> code);
@@ -281,8 +285,8 @@ class V8FileLogger : public LogEventListener {
 #endif  // V8_ENABLE_ETW_STACK_WALKING
   }
 
-  void LogExistingFunction(Handle<SharedFunctionInfo> shared,
-                           Handle<AbstractCode> code);
+  void LogExistingFunction(DirectHandle<SharedFunctionInfo> shared,
+                           DirectHandle<AbstractCode> code);
   // Logs all compiled functions found in the heap.
   V8_EXPORT_PRIVATE void LogCompiledFunctions(
       bool ensure_source_positions_available = true);
@@ -425,34 +429,38 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
   explicit CodeEventLogger(Isolate* isolate);
   ~CodeEventLogger() override;
 
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                        const char* name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<Name> name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name, int line, int column) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<Name> name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name, int line,
+                       int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+  void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<String> source,
                              RegExpFlags flags) override;
-  void CallbackEvent(Handle<Name> name, Address entry_point) override {}
-  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
-  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
+  void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
+  void GetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override {}
+  void SetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                 DirectHandle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
 
@@ -464,9 +472,10 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(Tagged<AbstractCode> code,
-                                 MaybeHandle<SharedFunctionInfo> maybe_shared,
-                                 const char* name, size_t length) = 0;
+  virtual void LogRecordedBuffer(
+      Tagged<AbstractCode> code,
+      MaybeDirectHandle<SharedFunctionInfo> maybe_shared, const char* name,
+      size_t length) = 0;
 #if V8_ENABLE_WEBASSEMBLY
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  size_t length) = 0;
@@ -479,8 +488,8 @@ struct CodeEvent {
   Isolate* isolate_;
   uintptr_t code_start_address;
   size_t code_size;
-  Handle<String> function_name;
-  Handle<String> script_name;
+  DirectHandle<String> function_name;
+  DirectHandle<String> script_name;
   int script_line;
   int script_column;
   CodeEventType code_type;
@@ -493,40 +502,44 @@ class ExternalLogEventListener : public LogEventListener {
   explicit ExternalLogEventListener(Isolate* isolate);
   ~ExternalLogEventListener() override;
 
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                        const char* comment) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<Name> name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared, Handle<Name> source,
-                       int line, int column) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<Name> name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> source, int line,
+                       int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void RegExpCodeCreateEvent(Handle<AbstractCode> code, Handle<String> source,
+  void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<String> source,
                              RegExpFlags flags) override;
-  void CallbackEvent(Handle<Name> name, Address entry_point) override {}
-  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
-  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
+  void CallbackEvent(DirectHandle<Name> name, Address entry_point) override {}
+  void GetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override {}
+  void SetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,
                          Tagged<BytecodeArray> to) override;
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {}
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+  void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> sfi,
+  void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                 DirectHandle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
 

@@ -193,7 +193,7 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
 RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> value(args[1], isolate);
+  DirectHandle<Object> value(args[1], isolate);
   // Make sure CanonicalValueType fits properly in a Smi.
   static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(2);
@@ -218,7 +218,7 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> value(args[0], isolate);
+  DirectHandle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
   static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(1);
@@ -351,9 +351,9 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-  Handle<String> op_name =
+  DirectHandle<String> op_name =
       isolate->factory()->NewStringFromAsciiChecked(ToString(op));
-  Handle<Object> value(args[1], isolate);
+  DirectHandle<Object> value(args[1], isolate);
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(message_id, op_name, value));
@@ -365,7 +365,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
   DCHECK_EQ(1, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-  Handle<String> op_name =
+  DirectHandle<String> op_name =
       isolate->factory()->NewStringFromAsciiChecked(ToString(op));
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, op_name));
@@ -376,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
-  Handle<Object> arg(args[1], isolate);
+  DirectHandle<Object> arg(args[1], isolate);
   if (IsSmi(*arg)) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id));
   } else {
@@ -721,8 +721,8 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
             wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index));
 
   // Compile a wrapper for the target callable.
-  Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
-                              isolate);
+  DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
+                                    isolate);
   wasm::Suspend suspend = import_data->suspend();
 
   wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_index,
@@ -813,7 +813,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Handle<JSArrayBuffer> array_buffer{
+  DirectHandle<JSArrayBuffer> array_buffer{
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
   // Should have trapped if address was OOB.
@@ -841,7 +841,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Handle<JSArrayBuffer> array_buffer{
+  DirectHandle<JSArrayBuffer> array_buffer{
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
   // Should have trapped if address was OOB.
@@ -902,7 +902,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
   DCHECK_LT(table_index, trusted_instance_data->tables()->length());
-  auto table = handle(
+  auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
@@ -935,7 +935,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   uint32_t entry_index = args.positive_smi_value_at(2);
   DirectHandle<Object> element(args[3], isolate);
   DCHECK_LT(table_index, trusted_instance_data->tables()->length());
-  auto table = handle(
+  auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
@@ -962,7 +962,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t elem_segment_index = args.positive_smi_value_at(2);
@@ -1211,7 +1211,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t segment_index = args.positive_smi_value_at(1);
   uint32_t offset = args.positive_smi_value_at(2);
@@ -1275,7 +1275,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
       Cast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t segment_index = args.positive_smi_value_at(1);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
@@ -1348,7 +1348,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
       return ThrowWasmError(isolate, opt_error.value());
     }
 
-    auto elements = handle(
+    auto elements = direct_handle(
         Cast<FixedArray>(
             trusted_instance_data->element_segments()->get(segment_index)),
         isolate);
@@ -1369,9 +1369,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       isolate->factory()->NewWasmSuspenderObject();
 
   // Update the continuation state.
-  auto parent = handle(Cast<WasmContinuationObject>(
-                           isolate->root(RootIndex::kActiveContinuation)),
-                       isolate);
+  auto parent = direct_handle(Cast<WasmContinuationObject>(isolate->root(
+                                  RootIndex::kActiveContinuation)),
+                              isolate);
   std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
   DirectHandle<WasmContinuationObject> target = WasmContinuationObject::New(
@@ -1558,7 +1558,7 @@ RUNTIME_FUNCTION(Runtime_WasmSubstring) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int start = args.positive_smi_value_at(1);
   int length = args.positive_smi_value_at(2);
 
@@ -1640,7 +1640,7 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
   }
   return length;
 }
-int MeasureWtf8(Isolate* isolate, Handle<String> string) {
+int MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -1701,7 +1701,7 @@ int EncodeWtf8(base::Vector<char> bytes, size_t offset,
 }
 template <typename GetWritableBytes>
 Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
-                          Handle<String> string,
+                          DirectHandle<String> string,
                           GetWritableBytes get_writable_bytes, size_t offset,
                           MessageTemplate out_of_bounds_message) {
   string = String::Flatten(isolate, string);
@@ -1727,7 +1727,8 @@ Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
 
 // Used for storing the name of a string-constants imports module off the heap.
 // Defined here to be able to make use of the helper functions above.
-void ToUtf8Lossy(Isolate* isolate, Handle<String> string, std::string& out) {
+void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
+                 std::string& out) {
   int utf8_length = MeasureWtf8(isolate, string);
   DisallowGarbageCollection no_gc;
   out.resize(utf8_length);
@@ -1750,7 +1751,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   string = String::Flatten(isolate, string);
   int length;
@@ -1777,7 +1778,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   int length = MeasureWtf8(isolate, string);
   return *isolate->factory()->NewNumberFromInt(length);
@@ -1791,7 +1792,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
       Cast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
   uint32_t utf8_variant_value = args.positive_smi_value_at(2);
-  Handle<String> string(Cast<String>(args[3]), isolate);
+  DirectHandle<String> string(Cast<String>(args[3]), isolate);
   double offset_double = args.number_value_at(4);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
 
@@ -1814,8 +1815,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
-  Handle<String> string(Cast<String>(args[1]), isolate);
-  Handle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
+  DirectHandle<String> string(Cast<String>(args[1]), isolate);
+  DirectHandle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
   uint32_t start = NumberToUint32(args[3]);
 
   DCHECK(utf8_variant_value <=
@@ -1833,7 +1834,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   uint32_t length = MeasureWtf8(isolate, string);
   wasm::WasmValue initial_value(int8_t{0});
   Tagged<WeakFixedArray> rtts = isolate->heap()->wasm_canonical_rtts();
@@ -1844,7 +1845,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
           rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
               .GetHeapObjectAssumeWeak()),
       isolate);
-  Handle<WasmArray> array = isolate->factory()->NewWasmArray(
+  DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
       wasm::kWasmI8, length, initial_value, map);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
@@ -1905,9 +1906,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int wtf8_length = MeasureWtf8(isolate, string);
-  Handle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
+  DirectHandle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
 
   auto utf8_variant = unibrow::Utf8Variant::kWtf8;
   auto get_writable_bytes =

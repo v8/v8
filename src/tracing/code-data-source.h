@@ -63,7 +63,8 @@ class CodeDataSourceIncrementalState {
 
   uint64_t InternIsolate(Isolate& isolate);
   uint64_t InternJsScript(Isolate& isolate, Tagged<Script> script);
-  uint64_t InternJsFunction(Isolate& isolate, Handle<SharedFunctionInfo> info,
+  uint64_t InternJsFunction(Isolate& isolate,
+                            DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num);
   uint64_t InternWasmScript(Isolate& isolate, int script_id,

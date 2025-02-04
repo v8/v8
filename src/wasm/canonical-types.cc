@@ -540,7 +540,7 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   old_rtts_raw = old_wrappers_raw = {};
 
   // We allocate the WeakFixedArray filled with undefined values, as we cannot
-  // pass the cleared value in a Handle (see https://crbug.com/364591622). We
+  // pass the cleared value in a handle (see https://crbug.com/364591622). We
   // overwrite the new entries via {MemsetTagged} afterwards.
   DirectHandle<WeakFixedArray> new_rtts =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);

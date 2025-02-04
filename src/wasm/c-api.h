@@ -59,7 +59,7 @@ class StoreImpl {
   v8::Isolate::CreateParams create_params_;
   v8::Isolate* isolate_ = nullptr;
   v8::Eternal<v8::Context> context_;
-  i::Handle<i::JSWeakMap> host_info_map_;
+  i::IndirectHandle<i::JSWeakMap> host_info_map_;
 };
 
 }  // namespace wasm

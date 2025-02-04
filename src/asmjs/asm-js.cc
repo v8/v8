@@ -343,7 +343,7 @@ MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
   auto* wasm_engine = wasm::GetWasmEngine();
 
   // Allocate the WasmModuleObject.
-  Handle<WasmModuleObject> module =
+  DirectHandle<WasmModuleObject> module =
       wasm_engine->FinalizeTranslatedAsmJs(isolate, wasm_data, script);
 
   // TODO(asmjs): The position currently points to the module definition
