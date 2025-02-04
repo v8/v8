@@ -1099,7 +1099,11 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       !IsRabGsabTypedArrayElementsKind(map.elements_kind()) &&
       Name::Equals(isolate(), name.object(),
                    isolate()->factory()->length_string()) &&
-      broker_->dependencies()->DependOnTypedArrayLengthProtector()) {
+      broker_->dependencies()->DependOnTypedArrayLengthProtector() &&
+      broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(388844115): If we cannot depend on the detaching protector, add a
+    // different kind of TypedArrayLength operator which checks for detached
+    // before reading the byte_length.
     return PropertyAccessInfo::TypedArrayLength(zone(), map);
   }
   // Check for special JSObject field accessors.
