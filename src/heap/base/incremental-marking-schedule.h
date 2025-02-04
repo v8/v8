@@ -19,7 +19,7 @@ namespace heap::base {
 // Usage:
 // 1. NotifyIncrementalMarkingStart()
 // 2. Any combination of:
-//   -> UpdateMutatorThreadMarkedBytes(mutator_marked_bytes)
+//   -> AddMutatorThreadMarkedBytes(mutator_marked_bytes)
 //   -> AddConcurrentlyMarkedBytes(concurrently_marked_bytes_delta)
 //   -> MarkSynchronously(GetNextIncrementalStepDuration(estimated_live_size))
 class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
@@ -71,24 +71,19 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
 
   // Notifies the schedule that incremental marking has been started.
   void NotifyIncrementalMarkingStart();
+  // Notifies the schedule that concurrent marking has been started.
+  void NotifyConcurrentMarkingStart();
 
-  // Updates the mutator marked bytes. Must be called from the thread owning the
-  // schedule. The schedule supports marked bytes being adjusted downwards,
-  // i.e., going backwards in the schedule.
-  void UpdateMutatorThreadMarkedBytes(size_t);
+  // Adds or removes bytes marked on the mutator thread. Must be called from the
+  // thread owning the schedule. The schedule supports marked bytes being
+  // adjusted downwards, i.e., going backwards in the schedule.
+  void AddMutatorThreadMarkedBytes(size_t);
+  void RemoveMutatorThreadMarkedBytes(size_t);
 
   // Adds concurrently marked bytes. May be called from any thread. Not required
   // to be complete, i.e., it is okay to not report bytes already marked for the
   // schedule.
   void AddConcurrentlyMarkedBytes(size_t);
-
-  // Returns the reported overall marked bytes including those marked by the
-  // mutator and concurrently.
-  size_t GetOverallMarkedBytes() const;
-
-  // Returns the reported concurrently marked bytes. Only as accurate as
-  // `AddConcurrentlyMarkedBytes()` is.
-  size_t GetConcurrentlyMarkedBytes() const;
 
   // Computes the next step duration based on reported marked bytes and the
   // current `estimated_live_bytes`.
@@ -103,6 +98,12 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   // available globally. Will only return true once every
   // `kEphemeronPairsFlushingRatioIncrements` percent of overall marked bytes.
   bool ShouldFlushEphemeronPairs();
+
+  // Returns the time span since concurrent marking has added marked bytes via
+  // `AddConcurrentlyMarkedBytes()`. Note that instead of updating the time on
+  // adding bytes we only update time in
+  // `GetTimeSinceLastConcurrentMarkingUpdate()`.
+  v8::base::TimeDelta GetTimeSinceLastConcurrentMarkingUpdate();
 
   // The minimum marked bytes per step. This is a lower bound for all the step
   // sizes returned from `GetNextIncrementalStepDuration()`.
@@ -122,6 +123,14 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
 
   v8::base::TimeDelta GetElapsedTime();
 
+  // Returns the reported overall marked bytes including those marked by the
+  // mutator and concurrently.
+  size_t GetOverallMarkedBytes() const;
+
+  // Returns the reported concurrently marked bytes. Only as accurate as
+  // `AddConcurrentlyMarkedBytes()` is.
+  size_t GetConcurrentlyMarkedBytes() const;
+
   v8::base::TimeTicks incremental_marking_start_time_;
   size_t mutator_thread_marked_bytes_ = 0;
   std::atomic_size_t concurrently_marked_bytes_{0};
@@ -131,6 +140,8 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   const size_t min_marked_bytes_per_step_;
   const bool predictable_schedule_ = false;
   std::optional<v8::base::TimeDelta> elapsed_time_override_;
+  size_t last_concurrently_marked_bytes_ = 0;
+  v8::base::TimeTicks last_concurrently_marked_bytes_update_;
 };
 
 }  // namespace heap::base

@@ -313,9 +313,10 @@ void MarkerBase::LeaveAtomicPause() {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkAtomicEpilogue);
     DCHECK(!incremental_marking_handle_);
-    heap().stats_collector()->NotifyMarkingCompleted(
-        // GetOverallMarkedBytes also includes concurrently marked bytes.
-        schedule_->GetOverallMarkedBytes());
+    const size_t overall_marked_bytes =
+        mutator_thread_marked_bytes_ +
+        concurrent_marker_->concurrently_marked_bytes();
+    heap().stats_collector()->NotifyMarkingCompleted(overall_marked_bytes);
     is_marking_ = false;
   }
   ProcessWeakness();
@@ -585,13 +586,17 @@ void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
   }
 }
 
+void MarkerBase::AddMutatorThreadMarkedBytes(size_t marked_bytes) {
+  mutator_thread_marked_bytes_ += marked_bytes;
+  schedule_->AddMutatorThreadMarkedBytes(marked_bytes);
+}
+
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
-  if (!main_marking_disabled_for_testing_) {
+  if (V8_LIKELY(!main_marking_disabled_for_testing_)) {
     if (marked_bytes_limit == 0) {
-      marked_bytes_limit = mutator_marking_state_.marked_bytes() +
-                           GetNextIncrementalStepDuration(*schedule_, heap_);
+      marked_bytes_limit = GetNextIncrementalStepDuration(*schedule_, heap_);
     }
     StatsCollector::EnabledScope deadline_scope(
         heap().stats_collector(),
@@ -599,8 +604,7 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
         max_duration.InMillisecondsF(), "max_bytes", marked_bytes_limit);
     const auto deadline = v8::base::TimeTicks::Now() + max_duration;
     is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
-    schedule_->UpdateMutatorThreadMarkedBytes(
-        mutator_marking_state_.marked_bytes());
+    AddMutatorThreadMarkedBytes(mutator_marking_state_.RecentlyMarkedBytes());
   }
   mutator_marking_state_.Publish();
   if (!is_done) {

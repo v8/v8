@@ -51,9 +51,19 @@ void IncrementalMarkingSchedule::NotifyIncrementalMarkingStart() {
   incremental_marking_start_time_ = v8::base::TimeTicks::Now();
 }
 
-void IncrementalMarkingSchedule::UpdateMutatorThreadMarkedBytes(
-    size_t overall_marked_bytes) {
-  mutator_thread_marked_bytes_ = overall_marked_bytes;
+void IncrementalMarkingSchedule::NotifyConcurrentMarkingStart() {
+  last_concurrently_marked_bytes_update_ = v8::base::TimeTicks::Now();
+}
+
+void IncrementalMarkingSchedule::AddMutatorThreadMarkedBytes(
+    size_t marked_bytes) {
+  mutator_thread_marked_bytes_ += marked_bytes;
+}
+
+void IncrementalMarkingSchedule::RemoveMutatorThreadMarkedBytes(
+    size_t marked_bytes) {
+  DCHECK_GE(mutator_thread_marked_bytes_, marked_bytes);
+  mutator_thread_marked_bytes_ -= marked_bytes;
 }
 
 void IncrementalMarkingSchedule::AddConcurrentlyMarkedBytes(
@@ -129,6 +139,22 @@ bool IncrementalMarkingSchedule::ShouldFlushEphemeronPairs() {
   ephemeron_pairs_flushing_ratio_target_ +=
       kEphemeronPairsFlushingRatioIncrements;
   return true;
+}
+
+v8::base::TimeDelta
+IncrementalMarkingSchedule::GetTimeSinceLastConcurrentMarkingUpdate() {
+  const size_t current_concurrently_marked_bytes = GetConcurrentlyMarkedBytes();
+  if (current_concurrently_marked_bytes > last_concurrently_marked_bytes_) {
+    last_concurrently_marked_bytes_ = current_concurrently_marked_bytes;
+    last_concurrently_marked_bytes_update_ = v8::base::TimeTicks::Now();
+    return {};
+  }
+  // In case `NotifyConcurrentMarkingStart()` was not called we just return an
+  // empty time delta, providing the same signal as making progress.
+  if (last_concurrently_marked_bytes_update_.IsNull()) {
+    return {};
+  }
+  return v8::base::TimeTicks::Now() - last_concurrently_marked_bytes_update_;
 }
 
 void IncrementalMarkingSchedule::SetElapsedTimeForTesting(
