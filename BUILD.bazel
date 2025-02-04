@@ -781,6 +781,8 @@ filegroup(
         "src/base/file-utils.cc",
         "src/base/file-utils.h",
         "src/base/flags.h",
+        "src/base/fpu.cc",
+        "src/base/fpu.h",
         "src/base/free_deleter.h",
         "src/base/hashing.h",
         "src/base/hashmap.h",
