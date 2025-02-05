@@ -423,6 +423,7 @@
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
   V(NumberToFloat16RawBits)            \
+  V(Float16RawBitsToNumber)            \
   V(Integral32OrMinusZeroToBigInt)     \
   V(NumberSilenceNaN)
 
