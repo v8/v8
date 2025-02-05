@@ -1921,7 +1921,7 @@ class FastJsonStringifier {
   FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array,
                                              uint32_t start_idx);
   template <ElementsKind kind>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
+  FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
       Tagged<JSArray> array, uint32_t length, uint32_t start_index,
       uint32_t* bailout_idx = nullptr);
   template <ElementsKind kind>
