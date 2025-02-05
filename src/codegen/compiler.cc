@@ -3518,6 +3518,7 @@ struct ScriptCompileTimerScope {
     kNoCacheBecauseInDocumentWrite,
     kNoCacheBecauseResourceWithNoCacheHandler,
     kHitIsolateCacheWhenStreamingSource,
+    kNoCacheBecauseStaticCodeCache,
     kCount
   };
 
@@ -3624,6 +3625,8 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler;
       case ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache:
         return CacheBehaviour::kProduceCodeCache;
+      case ScriptCompiler::kNoCacheBecauseStaticCodeCache:
+        return CacheBehaviour::kNoCacheBecauseStaticCodeCache;
       }
     UNREACHABLE();
   }
@@ -3675,6 +3678,7 @@ struct ScriptCompileTimerScope {
       case CacheBehaviour::kNoCacheBecausePacScript:
       case CacheBehaviour::kNoCacheBecauseInDocumentWrite:
       case CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler:
+      case CacheBehaviour::kNoCacheBecauseStaticCodeCache:
         return isolate_->counters()->compile_script_no_cache_other();
 
       case CacheBehaviour::kCount:
