@@ -124,9 +124,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'edcbdd1220e33a2571378736c1f2429924f5a7e7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd2acff863437fcc4586e1fb7144062ede416eed0',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3fa178af78a51166308a526f0e9aa8720b2b3889',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd51c118c75516434ae7b2896de87baaf4bc6749a',
   'buildtools/linux64': {
     'packages': [
       {
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'e4cb6a6d39ceacf948107a5fc5761dc6ad8c58a9',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '393b3f3ce43ef47352b9fbcd53cb6ba77d381039',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'd8e413be0cb7645a3545a6efea1aab03f9a58e52',
   'third_party/re2/src':
@@ -488,7 +488,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9d07d51c6ee92333a9f86acef20acadf9f5d9a89',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'f9b083a49c126394674dcbe4c3723d3bd247e7c8',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
