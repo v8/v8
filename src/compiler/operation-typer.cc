@@ -718,7 +718,7 @@ Type OperationTyper::NumberSubtract(Type lhs, Type rhs) {
   return type;
 }
 
-Type OperationTyper::SpeculativeSafeIntegerAdd(Type lhs, Type rhs) {
+Type OperationTyper::SpeculativeSmallIntegerAdd(Type lhs, Type rhs) {
   Type result = SpeculativeNumberAdd(lhs, rhs);
   // If we have a Smi or Int32 feedback, the representation selection will
   // either truncate or it will check the inputs (i.e., deopt if not int32).
@@ -728,7 +728,7 @@ Type OperationTyper::SpeculativeSafeIntegerAdd(Type lhs, Type rhs) {
   return Type::Intersect(result, cache_->kSafeIntegerOrMinusZero, zone());
 }
 
-Type OperationTyper::SpeculativeSafeIntegerSubtract(Type lhs, Type rhs) {
+Type OperationTyper::SpeculativeSmallIntegerSubtract(Type lhs, Type rhs) {
   Type result = SpeculativeNumberSubtract(lhs, rhs);
   // If we have a Smi or Int32 feedback, the representation selection will
   // either truncate or it will check the inputs (i.e., deopt if not int32).

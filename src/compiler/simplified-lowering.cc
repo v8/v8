@@ -211,11 +211,11 @@ bool CanOverflowSigned32(const Operator* op, Type left, Type right,
   right = Type::Intersect(right, Type::Signed32(), type_zone);
   if (left.IsNone() || right.IsNone()) return false;
   switch (op->opcode()) {
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
       return (left.Max() + right.Max() > kMaxInt) ||
              (left.Min() + right.Min() < kMinInt);
 
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
       return (left.Max() - right.Min() > kMaxInt) ||
              (left.Min() - right.Max() < kMinInt);
 
@@ -1645,8 +1645,8 @@ class RepresentationSelector {
   }
 
   template <Phase T>
-  void VisitSpeculativeIntegerAdditiveOp(Node* node, Truncation truncation,
-                                         SimplifiedLowering* lowering) {
+  void VisitSpeculativeSmallIntegerAdditiveOp(Node* node, Truncation truncation,
+                                              SimplifiedLowering* lowering) {
     Type left_upper = GetUpperBound(node->InputAt(0));
     Type right_upper = GetUpperBound(node->InputAt(1));
 
@@ -1693,7 +1693,7 @@ class RepresentationSelector {
     // subtraction we need to handle the case of -0 - 0 properly, since
     // that can produce -0.
     Type left_constraint_type =
-        node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd
+        node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd
             ? Type::Signed32OrMinusZero()
             : Type::Signed32();
     if (left_upper.Is(left_constraint_type) &&
@@ -1707,7 +1707,7 @@ class RepresentationSelector {
       // right-hand side is not minus zero, we do not have to distinguish
       // between 0 and -0.
       IdentifyZeros left_identify_zeros = truncation.identify_zeros();
-      if (node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd &&
+      if (node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd &&
           !right_feedback_type.Maybe(Type::MinusZero())) {
         left_identify_zeros = kIdentifyZeros;
       }
@@ -2620,9 +2620,10 @@ class RepresentationSelector {
         return;
       }
 
-      case IrOpcode::kSpeculativeSafeIntegerAdd:
-      case IrOpcode::kSpeculativeSafeIntegerSubtract:
-        return VisitSpeculativeIntegerAdditiveOp<T>(node, truncation, lowering);
+      case IrOpcode::kSpeculativeSmallIntegerAdd:
+      case IrOpcode::kSpeculativeSmallIntegerSubtract:
+        return VisitSpeculativeSmallIntegerAdditiveOp<T>(node, truncation,
+                                                         lowering);
 
       case IrOpcode::kSpeculativeNumberAdd:
       case IrOpcode::kSpeculativeNumberSubtract:

@@ -602,8 +602,8 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual ||
-         op->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
-         op->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
+         op->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
+         op->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract);
   return OpParameter<NumberOperationHint>(op);
 }
 

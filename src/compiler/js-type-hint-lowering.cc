@@ -145,13 +145,13 @@ class JSSpeculativeBinopBuilder final {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
         if (hint == NumberOperationHint::kSignedSmall) {
-          return simplified()->SpeculativeSafeIntegerAdd(hint);
+          return simplified()->SpeculativeSmallIntegerAdd(hint);
         } else {
           return simplified()->SpeculativeNumberAdd(hint);
         }
       case IrOpcode::kJSSubtract:
         if (hint == NumberOperationHint::kSignedSmall) {
-          return simplified()->SpeculativeSafeIntegerSubtract(hint);
+          return simplified()->SpeculativeSmallIntegerSubtract(hint);
         } else {
           return simplified()->SpeculativeNumberSubtract(hint);
         }

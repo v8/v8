@@ -385,8 +385,8 @@
   V(SpeculativeNumberShiftLeft)                     \
   V(SpeculativeNumberShiftRight)                    \
   V(SpeculativeNumberShiftRightLogical)             \
-  V(SpeculativeSafeIntegerAdd)                      \
-  V(SpeculativeSafeIntegerSubtract)
+  V(SpeculativeSmallIntegerAdd)                     \
+  V(SpeculativeSmallIntegerSubtract)
 
 #define SIMPLIFIED_NUMBER_UNOP_LIST(V) \
   V(NumberAbs)                         \

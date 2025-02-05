@@ -60,8 +60,8 @@ Reduction RedundancyElimination::Reduce(Node* node) {
       return ReduceSpeculativeNumberComparison(node);
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kSpeculativeToNumber:
       return ReduceSpeculativeNumberOperation(node);
     case IrOpcode::kEffectPhi:
@@ -448,8 +448,8 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberComparison(Node* node) {
 Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract ||
          node->opcode() == IrOpcode::kSpeculativeToNumber);
   DCHECK_EQ(1, node->op()->EffectInputCount());
   DCHECK_EQ(1, node->op()->EffectOutputCount());

@@ -1118,8 +1118,8 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
       CASE(NumberSubtract)
       CASE(SpeculativeNumberAdd)
       CASE(SpeculativeNumberSubtract)
-      CASE(SpeculativeSafeIntegerAdd)
-      CASE(SpeculativeSafeIntegerSubtract)
+      CASE(SpeculativeSmallIntegerAdd)
+      CASE(SpeculativeSmallIntegerSubtract)
 #undef CASE
       default:
         UNREACHABLE();

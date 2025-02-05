@@ -3844,7 +3844,7 @@ void BytecodeGraphBuilder::VisitForInStep() {
   PrepareEagerCheckpoint();
   interpreter::Register index_reg = bytecode_iterator().GetRegisterOperand(0);
   Node* index = environment()->LookupRegister(index_reg);
-  index = NewNode(simplified()->SpeculativeSafeIntegerAdd(
+  index = NewNode(simplified()->SpeculativeSmallIntegerAdd(
                       NumberOperationHint::kSignedSmall),
                   index, jsgraph()->OneConstant());
   environment()->BindRegister(index_reg, index, Environment::kAttachFrameState);
