@@ -372,7 +372,7 @@ void LookupIterator::InternalUpdateProtector(
     }
   } else if (*name == roots.length_string()) {
     if (!Protectors::IsTypedArrayLengthLookupChainIntact(isolate)) return;
-    if (IsJSTypedArrayPrototype(*receiver) ||
+    if (IsJSTypedArray(*receiver) || IsJSTypedArrayPrototype(*receiver) ||
         isolate->IsInCreationContext(*receiver,
                                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
       Protectors::InvalidateTypedArrayLengthLookupChain(isolate);
