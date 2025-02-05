@@ -163,7 +163,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertPromiseResult(wrapper(arg), v => assertEquals(arg.valueOf(), v));
 })();
 
-// Check that the suspender does not suspend if the import's
+// Check that the suspender DOES suspend even if the import's
 // return value is not a promise.
 (function TestStackSwitchNoPromise() {
   print(arguments.callee.name);
@@ -183,7 +183,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({m: {import: wasm_js_import}});
   let wrapped_export = WebAssembly.promising(instance.exports.test);
   let result = wrapped_export();
-  assertEquals(42, instance.exports.g.value);
+  assertEquals(0, instance.exports.g.value);
 })();
 
 (function TestStackSwitchSuspendArgs() {

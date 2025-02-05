@@ -1232,71 +1232,80 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     // with the promise's resolved value.
     ScopedVar<Object> result(this, value);
     ScopedVar<WordPtr> old_sp_var(this, *old_sp);
-    IF_NOT (__ IsSmi(value)) {
-      IF (__ HasInstanceType(value, JS_PROMISE_TYPE)) {
-        OpIndex suspender = LOAD_ROOT(ActiveSuspender);
-        V<Context> native_context =
-            __ Load(import_data, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::TaggedPointer(),
-                    WasmImportData::kNativeContextOffset);
-        IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
-          V<Smi> error = __ SmiConstant(Smi::FromInt(
-              static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
-          CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
-                      native_context);
-          __ Unreachable();
-        }
-        if (v8_flags.stress_wasm_stack_switching) {
-          V<Word32> for_stress_testing = __ TaggedEqual(
-              __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
-              LOAD_ROOT(UndefinedValue));
-          IF (for_stress_testing) {
-            V<Smi> error = __ SmiConstant(Smi::FromInt(
-                static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-            CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError,
-                        {error}, native_context);
-            __ Unreachable();
-          }
-        }
-        // If {old_sp} is null, it must be that we were on the central stack
-        // before entering the wasm-to-js wrapper, which means that there are JS
-        // frames in the current suspender. JS frames cannot be suspended, so
-        // trap.
-        OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), *old_sp);
-        IF (has_js_frames) {
-          V<Smi> error = __ SmiConstant(Smi::FromInt(
-              static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
-          CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
-                      native_context);
-          __ Unreachable();
-        }
-        V<Object> on_fulfilled = __ Load(suspender, LoadOp::Kind::TaggedBase(),
-                                         MemoryRepresentation::TaggedPointer(),
-                                         WasmSuspenderObject::kResumeOffset);
-        V<Object> on_rejected = __ Load(suspender, LoadOp::Kind::TaggedBase(),
-                                        MemoryRepresentation::TaggedPointer(),
-                                        WasmSuspenderObject::kRejectOffset);
 
-        OpIndex promise_then =
-            GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
-        auto* then_call_desc = GetBuiltinCallDescriptor(
-            Builtin::kPerformPromiseThen, __ graph_zone());
-        base::SmallVector<OpIndex, 16> args{value, on_fulfilled, on_rejected,
-                                            LOAD_ROOT(UndefinedValue),
-                                            native_context};
-        __ Call(promise_then, OpIndex::Invalid(), base::VectorOf(args),
-                then_call_desc);
+    OpIndex native_context = __ Load(import_data, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
+                                     WasmImportData::kNativeContextOffset);
 
-        OpIndex suspend = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
-        auto* suspend_call_descriptor =
-            GetBuiltinCallDescriptor(Builtin::kWasmSuspend, __ graph_zone());
-        BuildSwitchBackFromCentralStack(*old_sp, old_limit);
-        V<Object> resolved =
-            __ Call<Object>(suspend, {suspender}, suspend_call_descriptor);
-        old_sp_var = BuildSwitchToTheCentralStack(old_limit);
-        result = resolved;
+    OpIndex promise_ctor = __ LoadFixedArrayElement(
+        native_context, Context::PROMISE_FUNCTION_INDEX);
+
+    OpIndex promise_resolve = GetBuiltinPointerTarget(Builtin::kPromiseResolve);
+    auto* resolve_call_desc =
+        GetBuiltinCallDescriptor(Builtin::kPromiseResolve, __ graph_zone());
+    base::SmallVector<OpIndex, 16> resolve_args{promise_ctor, value,
+                                                native_context};
+    OpIndex promise = __ Call(promise_resolve, OpIndex::Invalid(),
+                              base::VectorOf(resolve_args), resolve_call_desc);
+
+    OpIndex suspender = LOAD_ROOT(ActiveSuspender);
+    IF (__ TaggedEqual(suspender, LOAD_ROOT(UndefinedValue))) {
+      V<Smi> error = __ SmiConstant(Smi::FromInt(
+          static_cast<int32_t>(MessageTemplate::kWasmSuspendError)));
+      CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
+                  native_context);
+      __ Unreachable();
+    }
+    if (v8_flags.stress_wasm_stack_switching) {
+      V<Word32> for_stress_testing = __ TaggedEqual(
+          __ LoadTaggedField(suspender, WasmSuspenderObject::kResumeOffset),
+          LOAD_ROOT(UndefinedValue));
+      IF (for_stress_testing) {
+        V<Smi> error = __ SmiConstant(Smi::FromInt(
+            static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+        CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
+                    native_context);
+        __ Unreachable();
       }
     }
+    // If {old_sp} is null, it must be that we were on the central stack
+    // before entering the wasm-to-js wrapper, which means that there are JS
+    // frames in the current suspender. JS frames cannot be suspended, so
+    // trap.
+    OpIndex has_js_frames = __ WordPtrEqual(__ IntPtrConstant(0), *old_sp);
+    IF (has_js_frames) {
+      V<Smi> error = __ SmiConstant(Smi::FromInt(
+          static_cast<int32_t>(MessageTemplate::kWasmSuspendJSFrames)));
+      CallRuntime(__ phase_zone(), Runtime::kThrowWasmSuspendError, {error},
+                  native_context);
+      __ Unreachable();
+    }
+    V<Object> on_fulfilled = __ Load(suspender, LoadOp::Kind::TaggedBase(),
+                                     MemoryRepresentation::TaggedPointer(),
+                                     WasmSuspenderObject::kResumeOffset);
+    V<Object> on_rejected = __ Load(suspender, LoadOp::Kind::TaggedBase(),
+                                    MemoryRepresentation::TaggedPointer(),
+                                    WasmSuspenderObject::kRejectOffset);
+
+    OpIndex promise_then =
+        GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
+    auto* then_call_desc =
+        GetBuiltinCallDescriptor(Builtin::kPerformPromiseThen, __ graph_zone());
+    base::SmallVector<OpIndex, 16> args{promise, on_fulfilled, on_rejected,
+                                        LOAD_ROOT(UndefinedValue),
+                                        native_context};
+    __ Call(promise_then, OpIndex::Invalid(), base::VectorOf(args),
+            then_call_desc);
+
+    OpIndex suspend = GetTargetForBuiltinCall(Builtin::kWasmSuspend);
+    auto* suspend_call_descriptor =
+        GetBuiltinCallDescriptor(Builtin::kWasmSuspend, __ graph_zone());
+    BuildSwitchBackFromCentralStack(*old_sp, old_limit);
+    V<Object> resolved =
+        __ Call<Object>(suspend, {suspender}, suspend_call_descriptor);
+    old_sp_var = BuildSwitchToTheCentralStack(old_limit);
+    result = resolved;
+
     *old_sp = old_sp_var;
     return result;
   }

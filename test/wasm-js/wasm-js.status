@@ -38,6 +38,9 @@
   'wpt/memory/to-resizable-buffer': [FAIL],
   'wpt/memory/to-resizable-buffer-shared': [FAIL],
   'wpt/memory/to-fixed-length-buffer-shared': [FAIL],
+
+  # TODO(irezvov): A spec behavior was updated, but WPT test not in sync yet.
+  'wpt/jspi/js-promise-integration': [FAIL],
 }], # ALWAYS
 
 ['system == android', {
