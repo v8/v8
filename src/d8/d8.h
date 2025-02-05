@@ -188,7 +188,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
  public:
   static constexpr i::ExternalPointerTag kManagedTag = i::kD8WorkerTag;
 
-  explicit Worker(Isolate* parent_isolate, const char* script);
+  explicit Worker(Isolate* parent_isolate, const char* script,
+                  bool flush_denormals);
   ~Worker();
 
   // Post a message to the worker. The worker will take ownership of the
@@ -267,6 +268,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   base::Thread* thread_ = nullptr;
   char* script_;
+  bool flush_denormals_;
   std::atomic<State> state_;
   bool is_joined_ = false;
   // For signalling that the worker has started.

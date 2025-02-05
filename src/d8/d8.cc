@@ -3251,6 +3251,20 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // early-out from the instance calls.
   info.This()->SetInternalField(0, v8::Integer::New(isolate, 0));
 
+  // By default, propagate flush denormals state.
+  bool flush_denormals = base::FPU::GetFlushDenormals();
+  if (info.Length() > 1 && info[1]->IsObject()) {
+    Local<Value> value;
+    if (!TryGetValue(isolate, isolate->GetCurrentContext(),
+                     info[1].As<Object>(), "flushDenormals")
+             .ToLocal(&value)) {
+      return;
+    }
+    if (!value->IsUndefined()) {
+      flush_denormals = value->BooleanValue(isolate);
+    }
+  }
+
   {
     // Don't allow workers to create more workers if the main thread
     // is waiting for existing running workers to terminate.
@@ -3268,7 +3282,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // The C++ worker object's lifetime is shared between the Managed<Worker>
     // object on the heap, which the JavaScript object points to, and an
     // internal std::shared_ptr in the worker thread itself.
-    auto worker = std::make_shared<Worker>(isolate, *script);
+    auto worker = std::make_shared<Worker>(isolate, *script, flush_denormals);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
     i::DirectHandle<i::Object> managed =
@@ -5082,8 +5096,11 @@ void SerializationDataQueue::Clear() {
   data_.clear();
 }
 
-Worker::Worker(Isolate* parent_isolate, const char* script)
-    : script_(i::StrDup(script)), parent_isolate_(parent_isolate) {
+Worker::Worker(Isolate* parent_isolate, const char* script,
+               bool flush_denormals)
+    : script_(i::StrDup(script)),
+      flush_denormals_(flush_denormals),
+      parent_isolate_(parent_isolate) {
   state_.store(State::kReady);
 }
 
@@ -5287,7 +5304,7 @@ void Worker::SetCurrentWorker(Worker* worker) {
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
-  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+  v8::base::FlushDenormalsScope denormals_scope(flush_denormals_);
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
