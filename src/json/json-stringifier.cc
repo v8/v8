@@ -1993,7 +1993,7 @@ class FastJsonStringifier {
 
   Isolate* isolate_;
   OutBuffer<Char> buffer_;
-  std::vector<ContinuationRecord> stack_;
+  base::SmallVector<ContinuationRecord, 16> stack_;
 
   template <typename>
   friend class FastJsonStringifier;
