@@ -2032,6 +2032,8 @@ class FastJsonStringifier {
   OutBuffer<Char> buffer_;
   base::SmallVector<ContinuationRecord, 16> stack_;
 
+  Tagged<HeapObject> initial_jsobject_proto_;
+  Tagged<HeapObject> initial_jsarray_proto_;
   template <typename>
   friend class FastJsonStringifier;
 };
@@ -2039,32 +2041,21 @@ class FastJsonStringifier {
 namespace {
 
 V8_INLINE bool CanFastSerializeJSArrayFastPath(Tagged<JSArray> object,
+                                               Tagged<HeapObject> initial_proto,
                                                Isolate* isolate) {
   // Check if the prototype is the initial array prototype without interesting
   // properties (toJSON).
   Tagged<Map> map = object->map();
   if (map->may_have_interesting_properties()) return false;
-  Tagged<NativeContext> native_context = map->map()->native_context();
   Tagged<HeapObject> proto = map->prototype();
-  if (native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) != proto) {
-    return false;
-  }
-  Tagged<Map> proto_map = proto->map();
-  if (proto_map->may_have_interesting_properties()) {
-    return false;
-  }
-  // Additionally check if the Array prototype is the initial object prototype
-  // without interesting properties (toJSON).
-  proto = proto_map->prototype();
-  if (native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX) != proto) {
-    return false;
-  }
-  return !proto->map()->may_have_interesting_properties();
+  // Note: This will also fail for sub-objects in different native contexts.
+  // This should be rare and bailing-out to the slow-path is fine.
+  return proto == initial_proto;
 }
 
-V8_INLINE bool CanFastSerializeJSObjectFastPath(Tagged<JSObject> object,
-                                                Tagged<Map> map,
-                                                Isolate* isolate) {
+V8_INLINE bool CanFastSerializeJSObjectFastPath(
+    Tagged<JSObject> object, Tagged<HeapObject> initial_proto, Tagged<Map> map,
+    Isolate* isolate) {
   if (IsCustomElementsReceiverMap(map)) return false;
   if (!object->HasFastProperties()) return false;
   auto roots = ReadOnlyRoots(isolate);
@@ -2074,12 +2065,10 @@ V8_INLINE bool CanFastSerializeJSObjectFastPath(Tagged<JSObject> object,
     return false;
   }
   if (map->may_have_interesting_properties()) return false;
-  Tagged<NativeContext> native_context = map->map()->native_context();
   Tagged<HeapObject> proto = map->prototype();
-  if (native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX) != proto) {
-    return false;
-  }
-  return !proto->map()->may_have_interesting_properties();
+  // Note: This will also fail for sub-objects in different native contexts.
+  // This should be rare and bailing-out to the slow-path is fine.
+  return proto == initial_proto;
 }
 
 }  // namespace
@@ -2468,7 +2457,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
     Tagged<JSObject> obj, uint32_t start_idx,
     const DisallowGarbageCollection& no_gc) {
   Tagged<Map> map = obj->map();
-  if (V8_UNLIKELY(!CanFastSerializeJSObjectFastPath(obj, map, isolate_))) {
+  if (V8_UNLIKELY(!CanFastSerializeJSObjectFastPath(
+          obj, initial_jsobject_proto_, map, isolate_))) {
     return SLOW_PATH;
   }
   if (map->NumberOfOwnDescriptors() == 0) {
@@ -2553,7 +2543,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSArray(
     Tagged<JSArray> array, uint32_t start_idx) {
-  if (V8_UNLIKELY(!CanFastSerializeJSArrayFastPath(array, isolate_))) {
+  if (V8_UNLIKELY(!CanFastSerializeJSArrayFastPath(
+          array, initial_jsarray_proto_, isolate_))) {
     return SLOW_PATH;
   }
   uint32_t length = 0;
@@ -2708,6 +2699,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
   DCHECK(stack_.empty());
   DCHECK(!old_stringifier.stack_.empty());
 
+  initial_jsobject_proto_ = old_stringifier.initial_jsobject_proto_;
+  initial_jsarray_proto_ = old_stringifier.initial_jsarray_proto_;
   stack_ = old_stringifier.stack_;
   ContinuationRecord cont = stack_.back();
   stack_.pop_back();
@@ -2763,6 +2756,29 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
     Tagged<JSAny> object, const DisallowGarbageCollection& no_gc) {
+  // Initial checks if using the fast-path is possible in general.
+  if (!object.IsSmi() && (IsJSObject(object) || IsJSArray(object))) {
+    Tagged<HeapObject> obj = Cast<HeapObject>(object);
+    // Load initial JSObject/JSArray prototypes from native context.
+    Tagged<NativeContext> native_context = obj->map()->map()->native_context();
+    initial_jsobject_proto_ = native_context->initial_object_prototype();
+    initial_jsarray_proto_ = native_context->initial_array_prototype();
+    // Prototypes don't have interesting properties (toJSON).
+    if (initial_jsarray_proto_->map()->may_have_interesting_properties()) {
+      return SLOW_PATH;
+    }
+    if (initial_jsobject_proto_->map()->may_have_interesting_properties()) {
+      return SLOW_PATH;
+    }
+    // JSArray's prototype is the initial object prototype.
+    Tagged<HeapObject> jsarray_proto_proto =
+        initial_jsarray_proto_->map()->prototype();
+    if (jsarray_proto_proto != initial_jsobject_proto_) {
+      return SLOW_PATH;
+    }
+  }
+
+  // Serialize object.
   FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
