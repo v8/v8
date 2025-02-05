@@ -7,4 +7,5 @@ include_rules = [
   "+cppgc/heap-statistics.h",
   "+cppgc/internal/write-barrier.h",
   "+cppgc/visitor.h",
+  "+perfetto",
 ]
