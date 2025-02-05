@@ -316,14 +316,16 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
 
 const AstRawString* AstValueFactory::GetOneByteStringInternal(
     base::Vector<const uint8_t> literal) {
-  if (literal.length() == 1 && literal[0] < kMaxOneCharStringValue) {
+  if (literal.length() == 1) {
     int key = literal[0];
-    if (V8_UNLIKELY(one_character_strings_[key] == nullptr)) {
-      uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(
-          literal.begin(), literal.length(), hash_seed_);
-      one_character_strings_[key] = GetString(raw_hash_field, true, literal);
+    if (key < kMaxOneCharStringValue) {
+      if (V8_UNLIKELY(one_character_strings_[key] == nullptr)) {
+        uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(
+            literal.begin(), literal.length(), hash_seed_);
+        one_character_strings_[key] = GetString(raw_hash_field, true, literal);
+      }
+      return one_character_strings_[key];
     }
-    return one_character_strings_[key];
   }
   uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(
       literal.begin(), literal.length(), hash_seed_);
