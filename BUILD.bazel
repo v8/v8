@@ -4142,7 +4142,6 @@ py_binary(
         "third_party/inspector_protocol/templates/TypeBuilder_h.template",
     ],
     imports = ["third_party/inspector_protocol/"],
-    python_version = "PY3",
     deps = [
         requirement("jinja2"),
     ],
@@ -4570,7 +4569,6 @@ py_test(
         "//testing/pybase",
     ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
     main = "tools/run-tests.py",
-    python_version = "PY3",
     tags = [
         # Disable sanitizers, as they don't work in general in V8.
         "nosan",
@@ -4609,7 +4607,6 @@ py_test(
         "//testing/pybase",
     ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
     main = "tools/run-tests.py",
-    python_version = "PY3",
     tags = [
         # Disable sanitizers, as they don't work in general in V8.
         "nosan",
