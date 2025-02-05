@@ -742,19 +742,6 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
   }
 }
 
-bool MarkerBase::IsAheadOfSchedule() const {
-  static constexpr size_t kNumOfBailoutObjectsForNormalTask = 512;
-  if (marking_worklists_.concurrent_marking_bailout_worklist()->Size() *
-          MarkingWorklists::ConcurrentMarkingBailoutWorklist::kMinSegmentSize >
-      kNumOfBailoutObjectsForNormalTask) {
-    return false;
-  }
-  if (schedule()->GetCurrentStepInfo().is_behind_expectation()) {
-    return false;
-  }
-  return true;
-}
-
 void MarkerBase::ClearAllWorklistsForTesting() {
   marking_worklists_.ClearForTesting();
   auto* compaction_worklists = heap_.compactor().compaction_worklists();
