@@ -637,22 +637,18 @@ void WasmTableObject::UpdateDispatchTable(
     // The function's code_pointer is not a compiled wrapper.
     // Opportunistically check if a matching wrapper has already been
     // compiled, but otherwise don't eagerly compile it now.
-    DirectHandle<JSReceiver> callable(function_data->GetCallable(), isolate);
     const wasm::CanonicalSig* sig =
         wasm::GetWasmEngine()->type_canonicalizer()->LookupFunctionSignature(
             sig_id);
     signature_hash = sig->signature_hash();
-    wasm::ResolvedWasmImport resolved({}, -1, callable, sig, sig_id,
+    wasm::ResolvedWasmImport resolved({}, -1, function, sig, sig_id,
                                       wasm::WellKnownImport::kUninstantiated);
     wasm::ImportCallKind kind = resolved.kind();
-    callable = resolved.callable();  // Update to ultimate target.
-    // Note: it is possible that kind == kLinkError here; e.g. that happens when
-    // the WasmJSFunction wraps another function that doesn't have the same
-    // signature. We don't need to check for that case: it's safe to do the
-    // cache lookup below, it just won't find a code object.
+    DCHECK_EQ(*function, *resolved.callable());
+    DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
     int expected_arity = static_cast<int>(sig->parameter_count());
     if (kind == wasm::ImportCallKind::kJSFunctionArityMismatch) {
-      expected_arity = Cast<JSFunction>(callable)
+      expected_arity = Cast<JSFunction>(function)
                            ->shared()
                            ->internal_formal_parameter_count_without_receiver();
     }
@@ -669,7 +665,7 @@ void WasmTableObject::UpdateDispatchTable(
              call_target == Builtins::EntryOf(
                                 Builtin::kWasmToJsWrapperInvalidSig, isolate));
       import_data = isolate->factory()->NewWasmImportData(
-          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
+          function, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
       import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
     }
   }

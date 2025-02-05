@@ -778,8 +778,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (!js_function_data->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
-    // Resolve the short-cut to the underlying callable and continue.
-    SetCallable(isolate, js_function_data->GetCallable());
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
     // TODO(jkummerow): Update this to follow the style of the other kinds of
