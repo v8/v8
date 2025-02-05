@@ -5665,9 +5665,10 @@ ScriptOrigin Function::GetScriptOrigin() const {
   auto self = Utils::OpenDirectHandle(this);
   if (!IsJSFunction(*self)) return v8::ScriptOrigin(Local<Value>());
   auto func = i::Cast<i::JSFunction>(self);
-  if (i::IsScript(func->shared()->script())) {
-    i::DirectHandle<i::Script> script(
-        i::Cast<i::Script>(func->shared()->script()), func->GetIsolate());
+  auto shared = func->shared();
+  if (i::IsScript(shared->script())) {
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
+                                      func->GetIsolate());
     return GetScriptOriginForScript(func->GetIsolate(), script);
   }
   return v8::ScriptOrigin(Local<Value>());
@@ -5681,10 +5682,11 @@ int Function::GetScriptLineNumber() const {
     return kLineOffsetNotFound;
   }
   auto func = i::Cast<i::JSFunction>(self);
-  if (i::IsScript(func->shared()->script())) {
-    i::DirectHandle<i::Script> script(
-        i::Cast<i::Script>(func->shared()->script()), func->GetIsolate());
-    return i::Script::GetLineNumber(script, func->shared()->StartPosition());
+  auto shared = func->shared();
+  if (i::IsScript(shared->script())) {
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
+                                      func->GetIsolate());
+    return i::Script::GetLineNumber(script, shared->StartPosition());
   }
   return kLineOffsetNotFound;
 }
@@ -5695,10 +5697,11 @@ int Function::GetScriptColumnNumber() const {
     return kLineOffsetNotFound;
   }
   auto func = i::Cast<i::JSFunction>(self);
-  if (i::IsScript(func->shared()->script())) {
-    i::DirectHandle<i::Script> script(
-        i::Cast<i::Script>(func->shared()->script()), func->GetIsolate());
-    return i::Script::GetColumnNumber(script, func->shared()->StartPosition());
+  auto shared = func->shared();
+  if (i::IsScript(shared->script())) {
+    i::DirectHandle<i::Script> script(i::Cast<i::Script>(shared->script()),
+                                      func->GetIsolate());
+    return i::Script::GetColumnNumber(script, shared->StartPosition());
   }
   return kLineOffsetNotFound;
 }
@@ -5725,8 +5728,9 @@ int Function::GetScriptStartPosition() const {
     return kLineOffsetNotFound;
   }
   auto func = i::Cast<i::JSFunction>(self);
-  if (i::IsScript(func->shared()->script())) {
-    return func->shared()->StartPosition();
+  auto shared = func->shared();
+  if (i::IsScript(shared->script())) {
+    return shared->StartPosition();
   }
   return kLineOffsetNotFound;
 }
@@ -5735,9 +5739,9 @@ int Function::ScriptId() const {
   auto self = *Utils::OpenDirectHandle(this);
   if (!IsJSFunction(self)) return v8::UnboundScript::kNoScriptId;
   auto func = i::Cast<i::JSFunction>(self);
-  if (!IsScript(func->shared()->script()))
-    return v8::UnboundScript::kNoScriptId;
-  return i::Cast<i::Script>(func->shared()->script())->id();
+  auto script = func->shared()->script();
+  if (!IsScript(script)) return v8::UnboundScript::kNoScriptId;
+  return i::Cast<i::Script>(script)->id();
 }
 
 Local<v8::Value> Function::GetBoundFunction() const {
@@ -12017,10 +12021,10 @@ V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
 
   } else if (i::IsJSFunction(*target)) {
     i::DirectHandle<i::JSFunction> target_func = i::Cast<i::JSFunction>(target);
-    if (target_func->shared()->IsApiFunction()) {
+    auto shared = target_func->shared();
+    if (shared->IsApiFunction()) {
       i::DirectHandle<i::Object> data(
-          target_func->shared()->api_func_data()->callback_data(kAcquireLoad),
-          i_isolate);
+          shared->api_func_data()->callback_data(kAcquireLoad), i_isolate);
       return Utils::ToLocal(data);
     }
   }
