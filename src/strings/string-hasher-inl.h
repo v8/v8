@@ -7,6 +7,7 @@
 
 #include "src/common/globals.h"
 #include "src/strings/string-hasher.h"
+#include "src/utils/utils.h"
 
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -112,6 +113,97 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
   return value;
 }
 
+namespace detail {
+
+enum IndexParseResult { kSuccess, kNonIndex, kOverflow };
+
+template <typename uchar>
+V8_INLINE IndexParseResult TryParseArrayIndex(const uchar* chars,
+                                              uint32_t length, uint32_t& i,
+                                              uint32_t& index) {
+  DCHECK_GT(length, 0);
+  DCHECK_LE(length, String::kMaxIntegerIndexSize);
+
+  // The leading character can only be a zero for the string "0"; otherwise this
+  // isn't a valid index string.
+  index = chars[0] - '0';
+  i = 1;
+  if (index > 9) return kNonIndex;
+  if (index == 0) {
+    if (length > 1) return kNonIndex;
+    DCHECK_EQ(length, 1);
+    return kSuccess;
+  }
+
+  if (length > String::kMaxArrayIndexSize) return kOverflow;
+
+  // TODO(leszeks): Use SIMD for this loop.
+  for (; i < length; i++) {
+    uchar c = chars[i];
+    uint32_t val = c - '0';
+    if (val > 9) return kNonIndex;
+    index = (10 * index) + val;
+  }
+  if (V8_UNLIKELY(length == String::kMaxArrayIndexSize)) {
+    // If length is String::kMaxArrayIndexSize, and we know there is no zero
+    // prefix, the minimum valid value is 1 followed by length - 1 zeros. If our
+    // value is smaller than this, then we overflowed.
+    //
+    // Additionally, String::kMaxArrayIndex is UInt32Max - 1, so we can fold in
+    // a check that index < UInt32Max by adding 1 to both sides, making
+    // index = UInt32Max overflows, and only then checking for overflow.
+    //
+    // TODO(leszeks): Compare this against doing add_with_overflow inside the
+    // loop.
+    constexpr uint32_t kMinValidValue =
+        TenToThe(String::kMaxArrayIndexSize - 1);
+    if (index + 1 < kMinValidValue + 1) {
+      // Undo the overflowing add so that integer index parsing can retry it on
+      // with int64.
+      index -= chars[i - 1];
+      i--;
+      return kOverflow;
+    }
+  }
+  DCHECK_LT(index, TenToThe(length));
+  DCHECK_GE(index, TenToThe(length - 1));
+  return kSuccess;
+}
+
+// The following function wouldn't do anything on 32-bit platforms, because
+// kMaxArrayIndexSize == kMaxIntegerIndexSize there.
+#if V8_HOST_ARCH_64_BIT
+template <typename uchar>
+V8_INLINE IndexParseResult TryParseIntegerIndex(const uchar* chars,
+                                                uint32_t length, uint32_t i,
+                                                uint32_t index) {
+  DCHECK_GT(length, 0);
+  DCHECK_LE(length, String::kMaxIntegerIndexSize);
+  DCHECK_GT(i, 0);
+  DCHECK_GT(index, 0);
+
+  uint64_t index_big = index;
+  for (; i < length; i++) {
+    // We should never be anywhere near overflowing, so we can just do
+    // one range check at the end.
+    static_assert(kMaxSafeIntegerUint64 < (kMaxUInt64 / 100));
+    DCHECK_LT(index_big, kMaxUInt64 / 100);
+
+    uchar c = chars[i];
+    uint32_t val = c - '0';
+    if (val > 9) return kNonIndex;
+    index_big = (10 * index_big) + val;
+  }
+  if (index_big > kMaxSafeIntegerUint64) return kOverflow;
+
+  return kSuccess;
+}
+#else
+static_assert(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
+#endif
+
+}  // namespace detail
+
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
                                             uint32_t length, uint64_t seed) {
@@ -121,99 +213,52 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
   const uchar* chars = reinterpret_cast<const uchar*>(chars_raw);
   DCHECK_IMPLIES(length > 0, chars != nullptr);
   if (length >= 1) {
-    if (length <= String::kMaxIntegerIndexSize && IsDecimalDigit(chars[0]) &&
-        (length == 1 || chars[0] != '0')) {
-      uint32_t index = chars[0] - '0';
-      uint32_t i = 1;
-      if (length <= String::kMaxArrayIndexSize) {
-        // Possible array index; try to compute the array index hash.
-        static_assert(String::kMaxArrayIndexSize <=
-                      String::kMaxIntegerIndexSize);
+    if (length <= String::kMaxIntegerIndexSize) {
+      // Possible array or integer index; try to compute the array index hash.
+      static_assert(String::kMaxArrayIndexSize <= String::kMaxIntegerIndexSize);
 
-        // We can safely add digits until `String::kMaxArrayIndexSize - 1`
-        // without needing an overflow check -- if the whole string is
-        // smaller than this, we can skip the overflow check entirely.
-        bool needs_overflow_check = length == String::kMaxArrayIndexSize;
-
-        uint32_t safe_length = needs_overflow_check ? length - 1 : length;
-        for (; i < safe_length; i++) {
-          char_t c = chars[i];
-          if (!IsDecimalDigit(c)) {
-            // If there is a non-decimal digit, we can skip doing anything
-            // else and emit a non-index hash.
-            goto non_index_hash;
-          }
-          index = (10 * index) + (c - '0');
-        }
-        DCHECK_EQ(i, safe_length);
-        // If we didn't need to check for an overflowing value, we're
-        // done.
-        if (!needs_overflow_check) {
-          DCHECK_EQ(i, length);
+      uint32_t index, i;
+      switch (detail::TryParseArrayIndex(chars, length, i, index)) {
+        case detail::kSuccess:
           return MakeArrayIndexHash(index, length);
-        }
-        // Otherwise, the last character needs to be checked for both being
-        // digit, and the result being in bounds of the maximum array index.
-        DCHECK_EQ(i, length - 1);
-        char_t c = chars[i];
-        if (!IsDecimalDigit(c)) {
-          // If there is a non-decimal digit, we can skip doing anything
-          // else and emit a non-index hash.
-          goto non_index_hash;
-        }
-        if (TryAddArrayIndexChar(&index, c)) {
-          return MakeArrayIndexHash(index, length);
-        }
-        // If the range check fails, this falls through into the integer index
-        // check.
-      }
-
-      // The following block wouldn't do anything on 32-bit platforms,
-      // because kMaxArrayIndexSize == kMaxIntegerIndexSize there, and
-      // if we wanted to compile it everywhere, then {index_big} would
-      // have to be a {size_t}, which the Mac compiler doesn't like to
-      // implicitly cast to uint64_t for the {TryAddIndexChar} call.
+        case detail::kNonIndex:
+          // A non-index result from TryParseArrayIndex means we don't need to
+          // check for integer indices.
+          break;
+        case detail::kOverflow: {
 #if V8_HOST_ARCH_64_BIT
-      // No "else" here: if the block above was entered and fell through,
-      // we have something that's not an array index but might still have
-      // been all digits and therefore a valid in-range integer index.
-      // Check if there are any remaining non-digit characters, and if
-      // we fit inside the overflow.
-      uint64_t index_big = index;
-      for (; i < length; i++) {
-        char_t c = chars[i];
-        if (!IsDecimalDigit(c)) {
-          // If there is a non-decimal digit, we can skip doing anything
-          // else and emit a non-index hash.
-          goto non_index_hash;
-        }
-        // We should never be anywhere near overflowing, so we can just do
-        // one range check at the end.
-        static_assert(kMaxSafeIntegerUint64 < (kMaxUInt64 / 100));
-        DCHECK_LT(index_big, kMaxUInt64 / 100);
-
-        index_big = (10 * index_big) + (c - '0');
-      }
-      if (index_big <= kMaxSafeIntegerUint64) {
-        uint32_t hash = String::CreateHashFieldValue(
-            GetUsableRapidHash(chars, length, seed),
-            String::HashFieldType::kIntegerIndex);
-        if (Name::ContainsCachedArrayIndex(hash)) {
-          // The hash accidentally looks like a cached index. Fix that by
-          // setting a bit that looks like a longer-than-cacheable string
-          // length.
-          hash |= (String::kMaxCachedArrayIndexLength + 1)
-                  << String::ArrayIndexLengthBits::kShift;
-        }
-        DCHECK(!Name::ContainsCachedArrayIndex(hash));
-        return hash;
-      }
-      // If the range check fails, this falls through into the non-index
-      // hash case.
-      // TODO(leszeks): Since we've bounded the length here to 16 or less,
-      // we could consider calling rapidhash directly, as it special cases
-      // small strings.
+          // On 64-bit, we might have a valid integer index even if the value
+          // overflowed an array index.
+          static_assert(String::kMaxArrayIndexSize <
+                        String::kMaxIntegerIndexSize);
+          switch (detail::TryParseIntegerIndex(chars, length, i, index)) {
+            case detail::kSuccess: {
+              uint32_t hash = String::CreateHashFieldValue(
+                  GetUsableRapidHash(chars, length, seed),
+                  String::HashFieldType::kIntegerIndex);
+              if (Name::ContainsCachedArrayIndex(hash)) {
+                // The hash accidentally looks like a cached index. Fix that by
+                // setting a bit that looks like a longer-than-cacheable string
+                // length.
+                hash |= (String::kMaxCachedArrayIndexLength + 1)
+                        << String::ArrayIndexLengthBits::kShift;
+              }
+              DCHECK(!Name::ContainsCachedArrayIndex(hash));
+              return hash;
+            }
+            case detail::kNonIndex:
+            case detail::kOverflow:
+              break;
+          }
+#else
+          static_assert(String::kMaxArrayIndexSize ==
+                        String::kMaxIntegerIndexSize);
 #endif
+          break;
+        }
+      }
+      // If the we failed to compute an index hash, this falls through into the
+      // non-index hash case.
     } else if (length > String::kMaxHashCalcLength) {
       // We should never go down this path if we might have an index value.
       static_assert(String::kMaxHashCalcLength > String::kMaxIntegerIndexSize);
@@ -222,7 +267,6 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
     }
   }
 
-non_index_hash:
   // Non-index hash.
   return String::CreateHashFieldValue(GetUsableRapidHash(chars, length, seed),
                                       String::HashFieldType::kHash);
