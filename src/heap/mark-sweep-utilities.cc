@@ -142,7 +142,7 @@ bool IsCppHeapMarkingFinished(
   const auto* cpp_heap = CppHeap::From(heap->cpp_heap());
   if (!cpp_heap) return true;
 
-  return cpp_heap->IsTracingDone() && local_marking_worklists->IsWrapperEmpty();
+  return cpp_heap->IsMarkingDone() && local_marking_worklists->IsWrapperEmpty();
 }
 
 #if DEBUG

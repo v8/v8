@@ -180,7 +180,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool TryInitializeTaskTimeout();
 
   // Returns the actual used time.
-  v8::base::TimeDelta EmbedderStep(v8::base::TimeDelta expected_duration);
+  v8::base::TimeDelta CppHeapStep(v8::base::TimeDelta expected_duration);
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 

@@ -631,7 +631,7 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
   main_thread_marked_bytes_ -= dead_bytes_marked;
 }
 
-v8::base::TimeDelta IncrementalMarking::EmbedderStep(
+v8::base::TimeDelta IncrementalMarking::CppHeapStep(
     v8::base::TimeDelta expected_duration) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
@@ -642,7 +642,7 @@ v8::base::TimeDelta IncrementalMarking::EmbedderStep(
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   const auto start = v8::base::TimeTicks::Now();
-  cpp_heap->AdvanceTracing(expected_duration);
+  cpp_heap->AdvanceMarking(expected_duration, 0);
   return v8::base::TimeTicks::Now() - start;
 }
 
@@ -990,7 +990,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
     // want to help out here to be able to fully finalize when all worklists
     // have been drained.
     max_embedder_duration = max_duration - v8_time;
-    embedder_duration = EmbedderStep(max_embedder_duration);
+    embedder_duration = CppHeapStep(max_embedder_duration);
   }
 
   if (v8_flags.concurrent_marking) {
