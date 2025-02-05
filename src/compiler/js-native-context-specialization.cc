@@ -3969,11 +3969,6 @@ JSNativeContextSpecialization::
             simplified()->LoadTypedElement(external_array_type),
             buffer_or_receiver, base_pointer, external_pointer, index, effect,
             control);
-
-        if (external_array_type == kExternalFloat16Array) {
-          value =
-              graph()->NewNode(simplified()->Float16RawBitsToNumber(), value);
-        }
       }
       break;
     }

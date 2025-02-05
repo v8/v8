@@ -141,6 +141,13 @@ bool TypeCheckIsBigInt(TypeCheckKind type_check) {
          type_check == TypeCheckKind::kBigInt64;
 }
 
+bool IsLoadFloat16ArrayElement(Node* node) {
+  Operator::Opcode opcode = node->op()->opcode();
+  return (opcode == IrOpcode::kLoadTypedElement ||
+          opcode == IrOpcode::kLoadDataViewElement) &&
+         ExternalArrayTypeOf(node->op()) == kExternalFloat16Array;
+}
+
 }  // namespace
 
 RepresentationChanger::RepresentationChanger(
@@ -181,6 +188,18 @@ Node* RepresentationChanger::GetRepresentationFor(
           InsertConversion(node, simplified()->ChangeInt64ToBigInt(), use_node);
     }
     output_rep = MachineRepresentation::kTaggedPointer;
+  }
+
+  // Float16Array elements are loaded as raw bits in a word16 then converted
+  // to float64, since architectures have spotty support for fp16.
+  if (IsLoadFloat16ArrayElement(node) &&
+      use_node->op()->opcode() != IrOpcode::kNumberToFloat16RawBits) {
+    DCHECK(output_type.Is(Type::Number()));
+    DCHECK_EQ(MachineRepresentation::kWord16, output_rep);
+    node = InsertConversion(
+        node, machine()->ChangeFloat16RawBitsToFloat64().placeholder(),
+        use_node);
+    output_rep = MachineRepresentation::kFloat64;
   }
 
   // Handle the no-op shortcuts when no checking is necessary.
@@ -224,7 +243,6 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,
                                          use_info.truncation());
-    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
              use_info.type_check() == TypeCheckKind::kNumber ||
@@ -251,6 +269,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       return node;
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
@@ -572,10 +591,6 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
       op = simplified()->ChangeUint32ToTagged();
-    } else if (node->op()->opcode() ==
-               IrOpcode::kTruncateFloat64ToFloat16RawBits) {
-      // Handled in DoFloat16RawBitsToNumber. Case For Float16
-      op = simplified()->ChangeUint32ToTagged();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTagged);
@@ -753,9 +768,6 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       // Either the output is uint32 or the uses only care about the
       // low 32 bits (so we can pick uint32 safely).
       op = machine()->ChangeUint32ToFloat64();
-    } else if (output_rep == MachineRepresentation::kWord16) {
-      // Handled in DoFloat16RawBitsToNumber. Case For Float16
-      return node;
     }
   } else if (output_rep == MachineRepresentation::kBit) {
     CHECK(output_type.Is(Type::Boolean()));
@@ -1023,11 +1035,6 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord32);
-    }
-  } else if (output_rep == MachineRepresentation::kFloat16) {
-    if (output_type.Is(Type::NumberOrOddball())) {
-      op = node->op();
-      node = node->InputAt(0);
     }
   }
 
