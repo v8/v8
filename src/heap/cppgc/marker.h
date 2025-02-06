@@ -62,6 +62,9 @@ class V8_EXPORT_PRIVATE MarkerBase {
     const bool resume_on_exit_;
   };
 
+  std::unique_ptr<::heap::base::IncrementalMarkingSchedule>
+  CreateDefaultMarkingSchedule(const MarkingConfig&);
+
   virtual ~MarkerBase();
 
   MarkerBase(const MarkerBase&) = delete;
@@ -165,6 +168,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
   virtual ConcurrentMarkerBase& concurrent_marker() = 0;
+  virtual heap::base::IncrementalMarkingSchedule& schedule() = 0;
 
   // Processes the worklists with given deadlines. The deadlines are only
   // checked every few objects.
@@ -189,19 +193,13 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
-
   cppgc::Platform* platform_;
   std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
   IncrementalMarkingTaskHandle incremental_marking_handle_;
-  std::unique_ptr<IncrementalMarkingAllocationObserver>
-      incremental_marking_allocation_observer_;
-
+  IncrementalMarkingAllocationObserver incremental_marking_allocation_observer_;
   MarkingWorklists marking_worklists_;
   MutatorMarkingState mutator_marking_state_;
   bool is_marking_{false};
-
-  std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
-
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};
   bool processed_cross_thread_weakness_{false};
@@ -224,9 +222,14 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
 
   ConcurrentMarkerBase& concurrent_marker() final { return concurrent_marker_; }
 
+  heap::base::IncrementalMarkingSchedule& schedule() final {
+    return *schedule_.get();
+  }
+
  private:
   MutatorMarkingVisitor marking_visitor_;
   ConservativeMarkingVisitor conservative_marking_visitor_;
+  std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
   ConcurrentMarker concurrent_marker_;
 };
 

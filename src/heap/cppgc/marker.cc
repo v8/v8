@@ -106,6 +106,15 @@ class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
   Handle handle_;
 };
 
+std::unique_ptr<::heap::base::IncrementalMarkingSchedule>
+MarkerBase::CreateDefaultMarkingSchedule(const MarkingConfig& config) {
+  return config.bailout_of_marking_when_ahead_of_schedule
+             ? ::heap::base::IncrementalMarkingSchedule::
+                   CreateWithZeroMinimumMarkedBytesPerStep()
+             : ::heap::base::IncrementalMarkingSchedule::
+                   CreateWithDefaultMinimumMarkedBytesPerStep();
+}
+
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
     MarkerBase* marker, StackState stack_state)
     : marker_(marker),
@@ -156,13 +165,9 @@ MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
       config_(config),
       platform_(platform),
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
+      incremental_marking_allocation_observer_(*this),
       mutator_marking_state_(heap, marking_worklists_,
-                             heap.compactor().compaction_worklists()),
-      schedule_(config.bailout_of_marking_when_ahead_of_schedule
-                    ? ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithZeroMinimumMarkedBytesPerStep()
-                    : ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithDefaultMinimumMarkedBytesPerStep()) {
+                             heap.compactor().compaction_worklists()) {
   DCHECK_IMPLIES(config_.collection_type == CollectionType::kMinor,
                  heap_.generational_gc_supported());
 }
@@ -229,7 +234,7 @@ void MarkerBase::StartMarking() {
         heap().stats_collector(), StatsCollector::kMarkIncrementalStart);
 
     // Performing incremental or concurrent marking.
-    schedule_->NotifyIncrementalMarkingStart();
+    schedule().NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
     VisitLocalRoots(StackState::kNoHeapPointers);
     ScheduleIncrementalMarkingTask();
@@ -238,10 +243,8 @@ void MarkerBase::StartMarking() {
       mutator_marking_state_.Publish();
       concurrent_marker().Start();
     }
-    incremental_marking_allocation_observer_ =
-        std::make_unique<IncrementalMarkingAllocationObserver>(*this);
     heap().stats_collector()->RegisterObserver(
-        incremental_marking_allocation_observer_.get());
+        &incremental_marking_allocation_observer_);
   }
 }
 
@@ -267,8 +270,7 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
     // of work.
     incremental_marking_handle_.Cancel();
     heap().stats_collector()->UnregisterObserver(
-        incremental_marking_allocation_observer_.get());
-    incremental_marking_allocation_observer_.reset();
+        &incremental_marking_allocation_observer_);
   }
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
@@ -315,9 +317,10 @@ void MarkerBase::LeaveAtomicPause() {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkAtomicEpilogue);
     DCHECK(!incremental_marking_handle_);
-    heap().stats_collector()->NotifyMarkingCompleted(
-        // GetOverallMarkedBytes also includes concurrently marked bytes.
-        schedule_->GetOverallMarkedBytes());
+    const size_t overall_marked_bytes =
+        mutator_marking_state_.marked_bytes() +
+        concurrent_marker().concurrently_marked_bytes();
+    heap().stats_collector()->NotifyMarkingCompleted(overall_marked_bytes);
     is_marking_ = false;
   }
   ProcessWeakness();
@@ -593,8 +596,10 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
   bool is_done = false;
   if (V8_LIKELY(!main_marking_disabled_for_testing_)) {
     if (marked_bytes_limit == 0) {
+      // `ProcessWorklistsWithDeadline()` below checks against `marked_bytes()`
+      // which are never reset.
       marked_bytes_limit = mutator_marking_state_.marked_bytes() +
-                           GetNextIncrementalStepDuration(*schedule_, heap_);
+                           GetNextIncrementalStepDuration(schedule(), heap_);
     }
     StatsCollector::EnabledScope deadline_scope(
         heap().stats_collector(),
@@ -602,8 +607,8 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
         max_duration.InMillisecondsF(), "max_bytes", marked_bytes_limit);
     const auto deadline = v8::base::TimeTicks::Now() + max_duration;
     is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
-    schedule_->UpdateMutatorThreadMarkedBytes(
-        mutator_marking_state_.marked_bytes());
+    schedule().AddMutatorThreadMarkedBytes(
+        mutator_marking_state_.RecentlyMarkedBytes());
   }
   mutator_marking_state_.Publish();
   if (!is_done) {
@@ -627,7 +632,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
   do {
     mutator_marking_state_.ResetDidDiscoverNewEphemeronPairs();
     if ((config_.marking_type == MarkingConfig::MarkingType::kAtomic) ||
-        schedule_->ShouldFlushEphemeronPairs()) {
+        schedule().ShouldFlushEphemeronPairs()) {
       mutator_marking_state_.FlushDiscoveredEphemeronPairs();
     }
 
@@ -770,7 +775,9 @@ Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_),
-      concurrent_marker_(heap_, marking_worklists_, *schedule_, platform_) {}
+      schedule_(MarkerBase::CreateDefaultMarkingSchedule(config)),
+      concurrent_marker_(heap_, marking_worklists_, *schedule_.get(),
+                         platform_) {}
 
 }  // namespace internal
 }  // namespace cppgc

@@ -618,11 +618,17 @@ void IncrementalMarking::UpdateExternalPointerTableAfterScavenge() {
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
     size_t dead_bytes_in_new_space) {
-  if (!IsMajorMarking()) return;
+  if (!IsMajorMarking()) {
+    return;
+  }
   // When removing the call, adjust the marking schedule to only support
   // monotonically increasing mutator marked bytes.
-  main_thread_marked_bytes_ -=
+  // We don't know the exact dead bytes that were marked (and don't want to
+  // compute it).
+  const size_t dead_bytes_marked =
       std::min(main_thread_marked_bytes_, dead_bytes_in_new_space);
+  schedule_->RemoveMutatorThreadMarkedBytes(dead_bytes_marked);
+  main_thread_marked_bytes_ -= dead_bytes_marked;
 }
 
 v8::base::TimeDelta IncrementalMarking::CppHeapStep(
@@ -961,7 +967,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
           max_duration, max_bytes_to_process,
           MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
   main_thread_marked_bytes_ += v8_bytes_processed;
-  schedule_->UpdateMutatorThreadMarkedBytes(main_thread_marked_bytes_);
+  schedule_->AddMutatorThreadMarkedBytes(v8_bytes_processed);
   const auto v8_time = v8::base::TimeTicks::Now() - start;
   if (heap_->cpp_heap() && (v8_time < max_duration)) {
     // The CppHeap only gets the remaining slice and not the exact same time.

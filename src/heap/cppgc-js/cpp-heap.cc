@@ -309,10 +309,15 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
     return concurrent_marker_;
   }
 
+  ::heap::base::IncrementalMarkingSchedule& schedule() final {
+    return *schedule_.get();
+  }
+
  private:
   UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
   MutatorUnifiedHeapMarkingVisitor marking_visitor_;
   UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
+  std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
   UnifiedHeapConcurrentMarker concurrent_marker_;
 };
 
@@ -327,7 +332,10 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                        mutator_unified_heap_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_),
-      concurrent_marker_(heap_, v8_heap, marking_worklists_, *schedule_,
+      // TODO(391118563): Allow for reusing the V8 schedule to create one
+      // unified schedule for JS and C++.
+      schedule_(MarkerBase::CreateDefaultMarkingSchedule(config)),
+      concurrent_marker_(heap_, v8_heap, marking_worklists_, *schedule_.get(),
                          platform_, mutator_unified_heap_marking_state_,
                          config.collection_type) {}
 
