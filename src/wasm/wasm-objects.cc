@@ -196,7 +196,8 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
     wasm::ValueType type, wasm::CanonicalValueType canonical_type,
     uint32_t initial, bool has_maximum, uint64_t maximum,
-    DirectHandle<Object> initial_value, wasm::AddressType address_type) {
+    DirectHandle<Object> initial_value, wasm::AddressType address_type,
+    DirectHandle<WasmDispatchTable>* out_dispatch_table) {
   CHECK(type.is_object_reference());
 
   DCHECK_LE(initial, wasm::max_table_size());
@@ -246,6 +247,7 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
   if (is_function_table) {
     DCHECK_EQ(table_obj->current_length(), dispatch_table->length());
     table_obj->set_trusted_dispatch_table(*dispatch_table);
+    if (out_dispatch_table) *out_dispatch_table = dispatch_table;
   } else {
     table_obj->clear_trusted_dispatch_table();
   }

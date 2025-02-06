@@ -106,6 +106,11 @@ bool TrustedPointerTableEntry::IsMarked() const {
   return payload_.load(std::memory_order_relaxed).HasMarkBitSet();
 }
 
+bool TrustedPointerTable::IsUnpublished(TrustedPointerHandle handle) const {
+  uint32_t index = HandleToIndex(handle);
+  return at(index).HasPointer(kUnpublishedIndirectPointerTag);
+}
+
 Address TrustedPointerTable::Get(TrustedPointerHandle handle,
                                  IndirectPointerTag tag) const {
   uint32_t index = HandleToIndex(handle);

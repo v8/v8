@@ -1097,6 +1097,17 @@ bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
 #endif
 }
 
+bool HeapObject::IsTrustedPointerFieldUnpublished(
+    size_t offset, IndirectPointerTag tag, IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  IndirectPointerHandle handle = ACQUIRE_READ_UINT32_FIELD(*this, offset);
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
+  return table.IsUnpublished(handle);
+#else
+  return false;
+#endif
+}
+
 void HeapObject::ClearTrustedPointerField(size_t offset) {
 #ifdef V8_ENABLE_SANDBOX
   RELEASE_WRITE_UINT32_FIELD(*this, offset, kNullIndirectPointerHandle);

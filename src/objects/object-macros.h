@@ -502,7 +502,11 @@
   /* routines for relaxed- and release-acquire semantics in the future. */   \
   inline Tagged<type> name(IsolateForSandbox isolate) const;                 \
   inline Tagged<type> name(IsolateForSandbox isolate, AcquireLoadTag) const; \
-  inline bool has_##name() const;
+  inline bool has_##name() const;                                            \
+  /* Checks if the field in question is populated but unpublished. Most */   \
+  /* code shouldn't need to care (i.e. may assume regularly published */     \
+  /* fields), but some code needs to be robust to both situations. */        \
+  inline bool has_##name##_unpublished(IsolateForSandbox isolate) const;
 
 #define DECL_TRUSTED_POINTER_SETTERS(name, type)                           \
   /* Trusted pointers currently always have release-acquire semantics. */  \
@@ -539,6 +543,9 @@
   }                                                                            \
   bool holder::has_##name() const {                                            \
     return !IsTrustedPointerFieldEmpty(offset);                                \
+  }                                                                            \
+  bool holder::has_##name##_unpublished(IsolateForSandbox isolate) const {     \
+    return IsTrustedPointerFieldUnpublished(offset, tag, isolate);             \
   }                                                                            \
   void holder::clear_##name() { ClearTrustedPointerField(offset); }
 

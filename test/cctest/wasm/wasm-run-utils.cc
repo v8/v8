@@ -262,19 +262,18 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           ? Cast<HeapObject>(isolate_->factory()->wasm_null())
           : Cast<HeapObject>(isolate_->factory()->null_value());
   CanonicalValueType canonical_type = test_module_->canonical_type(table.type);
+  DirectHandle<WasmDispatchTable> dispatch_table;
   DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
       isolate_,
       direct_handle(instance_object_->trusted_data(isolate_), isolate_),
       table.type, canonical_type, table.initial_size, table.has_maximum_size,
       table.maximum_size, value,
       // TODO(clemensb): Make this configurable.
-      wasm::AddressType::kI32);
-  DirectHandle<WasmDispatchTable> dispatch_table(
-      table_obj->trusted_dispatch_table(isolate_), isolate_);
+      wasm::AddressType::kI32, &dispatch_table);
   WasmDispatchTable::AddUse(isolate_, dispatch_table, trusted_instance_data_,
                             table_index);
   {
-    // Allocate the dispatch table.
+    // Store the shortcut to the dispatch table.
     DirectHandle<ProtectedFixedArray> old_dispatch_tables{
         trusted_instance_data_->dispatch_tables(), isolate_};
     DCHECK_EQ(table_index, old_dispatch_tables->length());

@@ -2153,7 +2153,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
           // Indexed types are guaranteed to come from an instance.
-          CHECK(tag_object->has_trusted_data());
+          DCHECK(tag_object->has_trusted_data());
           i::Tagged<i::WasmTrustedInstanceData> wtid =
               tag_object->trusted_data(i_isolate);
           const i::wasm::WasmModule* module = wtid->module();

@@ -379,6 +379,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // in the TrustedPointerTable which just contains nullptr). When the sandbox
   // is disabled, this will set the field to Smi::zero().
   inline bool IsTrustedPointerFieldEmpty(size_t offset) const;
+  inline bool IsTrustedPointerFieldUnpublished(size_t offset,
+                                               IndirectPointerTag tag,
+                                               IsolateForSandbox isolate) const;
   inline void ClearTrustedPointerField(size_t offest);
   inline void ClearTrustedPointerField(size_t offest, ReleaseStoreTag);
 

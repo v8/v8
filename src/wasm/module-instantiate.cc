@@ -1317,6 +1317,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
       CanonicalValueType canonical_type = module_->canonical_type(table.type);
       // Initialize tables with null for now. We will initialize non-defaultable
       // tables later, in {SetTableInitialValues}.
+      DirectHandle<WasmDispatchTable> dispatch_table;
       DirectHandle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, table.shared ? shared_trusted_data : trusted_data,
           table.type, canonical_type, table.initial_size,
@@ -1324,16 +1325,14 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
           table.type.use_wasm_null()
               ? DirectHandle<HeapObject>{isolate_->factory()->wasm_null()}
               : DirectHandle<HeapObject>{isolate_->factory()->null_value()},
-          table.address_type);
+          table.address_type, &dispatch_table);
       (table.shared ? shared_tables : tables)->set(i, *table_obj);
-      if (table_obj->has_trusted_dispatch_table()) {
-        Tagged<WasmDispatchTable> dispatch_table =
-            table_obj->trusted_dispatch_table(isolate_);
+      if (!dispatch_table.is_null()) {
         (table.shared ? shared_dispatch_tables : dispatch_tables)
-            ->set(i, dispatch_table);
+            ->set(i, *dispatch_table);
         if (i == 0) {
           (table.shared ? shared_trusted_data : trusted_data)
-              ->set_dispatch_table0(dispatch_table);
+              ->set_dispatch_table0(*dispatch_table);
         }
       }
     }

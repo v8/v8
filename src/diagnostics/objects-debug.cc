@@ -2490,7 +2490,8 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
 
 void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
-  if (has_trusted_dispatch_table()) {
+  if (has_trusted_dispatch_table() &&
+      !has_trusted_dispatch_table_unpublished(isolate)) {
     CHECK_EQ(trusted_dispatch_table(isolate)->length(), current_length());
   }
 }

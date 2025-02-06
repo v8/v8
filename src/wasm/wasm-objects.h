@@ -240,7 +240,8 @@ class WasmTableObject
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       wasm::ValueType type, wasm::CanonicalValueType canonical_type,
       uint32_t initial, bool has_maximum, uint64_t maximum,
-      DirectHandle<Object> initial_value, wasm::AddressType address_type);
+      DirectHandle<Object> initial_value, wasm::AddressType address_type,
+      DirectHandle<WasmDispatchTable>* out_dispatch_table = nullptr);
 
   inline bool is_in_bounds(uint32_t entry_index);
 

@@ -192,6 +192,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Accessing a zapped entry will return an invalid pointer.
   inline void Zap(TrustedPointerHandle handle);
 
+  // Checks whether the given entry currently has the "unpublished" tag.
+  inline bool IsUnpublished(TrustedPointerHandle handle) const;
+
   // Iterate over all active entries in the given space.
   //
   // The callback function will be invoked once for every entry that is
