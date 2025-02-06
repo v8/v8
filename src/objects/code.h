@@ -458,7 +458,9 @@ class Code : public ExposedTrustedObject {
   static const int kIsTurbofannedBit = IsTurbofannedField::kShift;
 
   static const int kArgumentsBits = 16;
-  static const int kMaxArguments = (1 << kArgumentsBits) - 1;
+  // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
+  // on the call nodes without overflowing the uint16_t input_count.
+  static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:
   DECL_PRIMITIVE_SETTER(marked_for_deoptimization, bool)
