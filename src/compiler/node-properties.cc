@@ -365,11 +365,13 @@ MachineRepresentation NodeProperties::GetProjectionType(
 // static
 bool NodeProperties::IsSame(Node* a, Node* b) {
   for (;;) {
-    if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    if (a->opcode() == IrOpcode::kCheckHeapObject ||
+        a->opcode() == IrOpcode::kTypeGuard) {
       a = GetValueInput(a, 0);
       continue;
     }
-    if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    if (b->opcode() == IrOpcode::kCheckHeapObject ||
+        b->opcode() == IrOpcode::kTypeGuard) {
       b = GetValueInput(b, 0);
       continue;
     }
@@ -428,6 +430,12 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   InferMapsResult result = kReliableMaps;
   while (true) {
     switch (effect->opcode()) {
+      case IrOpcode::kTypeGuard: {
+        DCHECK_EQ(1, effect->op()->EffectInputCount());
+        effect = NodeProperties::GetEffectInput(effect);
+        continue;
+      }
+
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
