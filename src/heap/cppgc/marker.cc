@@ -229,7 +229,7 @@ void MarkerBase::StartMarking() {
         heap().stats_collector(), StatsCollector::kMarkIncrementalStart);
 
     // Performing incremental or concurrent marking.
-    schedule()->NotifyIncrementalMarkingStart();
+    schedule_->NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
     VisitLocalRoots(StackState::kNoHeapPointers);
     ScheduleIncrementalMarkingTask();
@@ -588,7 +588,7 @@ void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
 
 void MarkerBase::AddMutatorThreadMarkedBytes(size_t marked_bytes) {
   mutator_thread_marked_bytes_ += marked_bytes;
-  schedule()->AddMutatorThreadMarkedBytes(marked_bytes);
+  schedule_->AddMutatorThreadMarkedBytes(marked_bytes);
 }
 
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
@@ -596,7 +596,7 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
   bool is_done = false;
   if (V8_LIKELY(!main_marking_disabled_for_testing_)) {
     if (marked_bytes_limit == 0) {
-      marked_bytes_limit = GetNextIncrementalStepDuration(*schedule(), heap_);
+      marked_bytes_limit = GetNextIncrementalStepDuration(*schedule_, heap_);
     }
     StatsCollector::EnabledScope deadline_scope(
         heap().stats_collector(),
@@ -628,7 +628,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
   do {
     mutator_marking_state_.ResetDidDiscoverNewEphemeronPairs();
     if ((config_.marking_type == MarkingConfig::MarkingType::kAtomic) ||
-        schedule()->ShouldFlushEphemeronPairs()) {
+        schedule_->ShouldFlushEphemeronPairs()) {
       mutator_marking_state_.FlushDiscoveredEphemeronPairs();
     }
 
@@ -749,7 +749,7 @@ bool MarkerBase::IsAheadOfSchedule() const {
       kNumOfBailoutObjectsForNormalTask) {
     return false;
   }
-  if (schedule()->GetCurrentStepInfo().is_behind_expectation()) {
+  if (schedule_->GetCurrentStepInfo().is_behind_expectation()) {
     return false;
   }
   return true;
@@ -785,7 +785,7 @@ Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_) {
   concurrent_marker_ = std::make_unique<ConcurrentMarker>(
-      heap_, marking_worklists_, *schedule(), platform_);
+      heap_, marking_worklists_, *schedule_, platform_);
 }
 
 }  // namespace internal

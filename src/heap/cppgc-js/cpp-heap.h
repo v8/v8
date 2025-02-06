@@ -144,9 +144,8 @@ class V8_EXPORT_PRIVATE CppHeap final
       CollectionType,
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartMarking();
-  bool AdvanceMarking(v8::base::TimeDelta max_duration,
-                      size_t marked_bytes_limit);
-  bool IsMarkingDone() const;
+  bool AdvanceTracing(v8::base::TimeDelta max_duration);
+  bool IsTracingDone() const;
   void ProcessCrossThreadWeakness();
   void FinishMarkingAndProcessWeakness();
   void CompactAndSweep();

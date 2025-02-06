@@ -322,7 +322,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, v8_heap, marking_worklists_, *schedule(), platform_,
+      heap_, v8_heap, marking_worklists_, *schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
 }
 
@@ -811,34 +811,36 @@ void CppHeap::StartMarking() {
   marking_done_ = false;
 }
 
-bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
-                             size_t marked_bytes_limit) {
-  if (!TracingInitialized()) {
-    return true;
-  }
+bool CppHeap::AdvanceTracing(v8::base::TimeDelta max_duration) {
+  if (!TracingInitialized()) return true;
   is_in_v8_marking_step_ = true;
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       stats_collector(),
       in_atomic_pause_ ? cppgc::internal::StatsCollector::kAtomicMark
                        : cppgc::internal::StatsCollector::kIncrementalMark);
+  const v8::base::TimeDelta deadline =
+      in_atomic_pause_ ? v8::base::TimeDelta::Max() : max_duration;
+  const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   DCHECK_NOT_NULL(marker_);
   if (in_atomic_pause_) {
     marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
         cppgc::TaskPriority::kUserBlocking);
   }
+  // TODO(chromium:1056170): Replace when unified heap transitions to
+  // bytes-based deadline.
   marking_done_ =
-      marker_->AdvanceMarkingWithLimits(max_duration, marked_bytes_limit);
+      marker_->AdvanceMarkingWithLimits(deadline, marked_bytes_limit);
   DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   is_in_v8_marking_step_ = false;
   return marking_done_;
 }
 
-bool CppHeap::IsMarkingDone() const {
+bool CppHeap::IsTracingDone() const {
   return !TracingInitialized() || marking_done_;
 }
 
 bool CppHeap::ShouldFinalizeIncrementalMarking() const {
-  return !incremental_marking_supported() || IsMarkingDone();
+  return !incremental_marking_supported() || IsTracingDone();
 }
 
 void CppHeap::EnterProcessGlobalAtomicPause() {
@@ -1074,9 +1076,9 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     }
     EnterFinalPause(stack_state);
     EnterProcessGlobalAtomicPause();
-    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+    CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     if (FinishConcurrentMarkingIfNeeded()) {
-      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
+      CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     }
     FinishMarkingAndProcessWeakness();
     CompactAndSweep();

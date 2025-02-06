@@ -168,11 +168,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
-  heap::base::IncrementalMarkingSchedule* schedule() { return schedule_.get(); }
-  const heap::base::IncrementalMarkingSchedule* schedule() const {
-    return schedule_.get();
-  }
-
   // Processes the worklists with given deadlines. The deadlines are only
   // checked every few objects.
   // - `marked_bytes_deadline`: Only process this many bytes. Ignored for
