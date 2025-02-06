@@ -4623,11 +4623,6 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableLoadStackArgument(base, index);
   }
 
-  V<Float64OrWord32> Float16Change(V<Float64OrWord32> input,
-                                   Float16ChangeOp::Kind op) {
-    return ReduceIfReachableFloat16Change(input, op);
-  }
-
   void StoreTypedElement(OpIndex buffer, V<Object> base, V<WordPtr> external,
                          V<WordPtr> index, OpIndex value,
                          ExternalArrayType array_type) {

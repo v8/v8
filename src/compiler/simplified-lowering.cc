@@ -257,6 +257,14 @@ bool IsLoadFloat16ArrayElement(Node* node) {
          ExternalArrayTypeOf(node->op()) == kExternalFloat16Array;
 }
 
+constexpr bool SupportsFpParamsInCLinkage() {
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  return Is64();
+#else
+  return false;
+#endif
+}
+
 }  // namespace
 
 #ifdef DEBUG
@@ -5706,7 +5714,23 @@ void SimplifiedLowering::DoIntegerToUint8Clamped(Node* node) {
 }
 
 void SimplifiedLowering::DoNumberToFloat16RawBits(Node* node) {
-  ChangeOp(node, machine()->TruncateFloat64ToFloat16RawBits().placeholder());
+  if (machine()->TruncateFloat64ToFloat16RawBits().IsSupported()) {
+    ChangeOp(node, machine()->TruncateFloat64ToFloat16RawBits().op());
+  } else {
+    Node* value = node->InputAt(0);
+    node->ReplaceInput(0, Ieee754Fp64ToFp16RawBitsCode());
+    if constexpr (SupportsFpParamsInCLinkage()) {
+      node->AppendInput(graph()->zone(), value);
+    } else {
+      node->AppendInput(
+          graph()->zone(),
+          graph()->NewNode(machine()->Float64ExtractHighWord32(), value));
+      node->AppendInput(
+          graph()->zone(),
+          graph()->NewNode(machine()->Float64ExtractLowWord32(), value));
+    }
+    ChangeOp(node, Ieee754Fp64ToFp16RawBitsOperator());
+  }
 }
 
 void SimplifiedLowering::DoNumberToUint8Clamped(Node* node) {
@@ -5779,6 +5803,20 @@ Node* SimplifiedLowering::ToNumericCode() {
   return to_numeric_code_.get();
 }
 
+Node* SimplifiedLowering::Ieee754Fp64ToFp16RawBitsCode() {
+  if (!ieee754_fp64_to_fp16_raw_bits_code_.is_set()) {
+    if constexpr (SupportsFpParamsInCLinkage()) {
+      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
+          ExternalReference::ieee754_fp64_to_fp16_raw_bits()));
+    } else {
+      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
+          ExternalReference::
+              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch()));
+    }
+  }
+  return ieee754_fp64_to_fp16_raw_bits_code_.get();
+}
+
 Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
@@ -5817,6 +5855,29 @@ Operator const* SimplifiedLowering::ToNumericOperator() {
     to_numeric_operator_.set(common()->Call(call_descriptor));
   }
   return to_numeric_operator_.get();
+}
+
+Operator const* SimplifiedLowering::Ieee754Fp64ToFp16RawBitsOperator() {
+  if (!ieee754_fp64_to_fp16_raw_bits_operator_.is_set()) {
+    Zone* graph_zone = graph()->zone();
+    CallDescriptor* desc;
+    if constexpr (SupportsFpParamsInCLinkage()) {
+      MachineSignature::Builder builder(graph_zone, 1, 1);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Float64());
+      desc = Linkage::GetSimplifiedCDescriptor(
+          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    } else {
+      MachineSignature::Builder builder(graph_zone, 1, 2);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      desc = Linkage::GetSimplifiedCDescriptor(
+          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    }
+    ieee754_fp64_to_fp16_raw_bits_operator_.set(common()->Call(desc));
+  }
+  return ieee754_fp64_to_fp16_raw_bits_operator_.get();
 }
 
 void SimplifiedLowering::ChangeOp(Node* node, const Operator* new_op) {

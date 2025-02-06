@@ -176,10 +176,10 @@ Node* RepresentationChanger::GetRepresentationFor(
     return TypeError(node, output_rep, output_type, use_info.representation());
   }
 
-  // Rematerialize any truncated BigInt if user is not expecting a BigInt.
   if (output_type.Is(Type::BigInt()) &&
       output_rep == MachineRepresentation::kWord64 &&
       !TypeCheckIsBigInt(use_info.type_check())) {
+    // Rematerialize any truncated BigInt if user is not expecting a BigInt.
     if (output_type.Is(Type::UnsignedBigInt64())) {
       node = InsertConversion(node, simplified()->ChangeUint64ToBigInt(),
                               use_node);
@@ -188,17 +188,18 @@ Node* RepresentationChanger::GetRepresentationFor(
           InsertConversion(node, simplified()->ChangeInt64ToBigInt(), use_node);
     }
     output_rep = MachineRepresentation::kTaggedPointer;
-  }
-
-  // Float16Array elements are loaded as raw bits in a word16 then converted
-  // to float64, since architectures have spotty support for fp16.
-  if (IsLoadFloat16ArrayElement(node) &&
-      use_node->op()->opcode() != IrOpcode::kNumberToFloat16RawBits) {
+  } else if (IsLoadFloat16ArrayElement(node) &&
+             use_node->op()->opcode() != IrOpcode::kNumberToFloat16RawBits) {
+    // Float16Array elements are loaded as raw bits in a word16 then converted
+    // to float64, since architectures have spotty support for fp16.
     DCHECK(output_type.Is(Type::Number()));
     DCHECK_EQ(MachineRepresentation::kWord16, output_rep);
-    node = InsertConversion(
-        node, machine()->ChangeFloat16RawBitsToFloat64().placeholder(),
-        use_node);
+    if (machine()->ChangeFloat16RawBitsToFloat64().IsSupported()) {
+      node = jsgraph()->graph()->NewNode(
+          machine()->ChangeFloat16RawBitsToFloat64().op(), node);
+    } else {
+      node = InsertChangeFloat16RawBitsToFloat64Fallback(node);
+    }
     output_rep = MachineRepresentation::kFloat64;
   }
 
@@ -1695,6 +1696,45 @@ Node* RepresentationChanger::InsertCheckedFloat64ToInt32(
     Node* use_node) {
   return InsertConversion(
       node, simplified()->CheckedFloat64ToInt32(check, feedback), use_node);
+}
+
+Node* RepresentationChanger::Ieee754Fp16RawBitsToFp32RawBitsCode() {
+  if (!ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.is_set()) {
+    ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.set(
+        jsgraph()->ExternalConstant(
+            ExternalReference::ieee754_fp16_raw_bits_to_fp32_raw_bits()));
+  }
+  return ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.get();
+}
+
+Operator const*
+RepresentationChanger::Ieee754Fp16RawBitsToFp32RawBitsOperator() {
+  if (!ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.is_set()) {
+    Zone* graph_zone = jsgraph()->zone();
+    MachineSignature::Builder builder(graph_zone, 1, 1);
+    builder.AddReturn(MachineType::Uint32());
+    builder.AddParam(MachineType::Uint32());
+    auto desc = Linkage::GetSimplifiedCDescriptor(
+        graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.set(
+        jsgraph()->common()->Call(desc));
+  }
+  return ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.get();
+}
+
+Node* RepresentationChanger::InsertChangeFloat16RawBitsToFloat64Fallback(
+    Node* node) {
+  // Replace the op directly if the underlying architecture has support.
+  DCHECK(!machine()->ChangeFloat16RawBitsToFloat64().IsSupported());
+  DCHECK_EQ(0, Ieee754Fp16RawBitsToFp32RawBitsOperator()->ControlInputCount());
+  // On architectures that don't have fp16 support, Float16Array elements are
+  // loaded as raw bits in a word16, converted to float32 in software, then
+  // converted to float64.
+  Node* float32_raw_bits =
+      jsgraph()->graph()->NewNode(Ieee754Fp16RawBitsToFp32RawBitsOperator(),
+                                  Ieee754Fp16RawBitsToFp32RawBitsCode(), node);
+  return InsertChangeFloat32ToFloat64(jsgraph()->graph()->NewNode(
+      machine()->BitcastInt32ToFloat32(), float32_raw_bits));
 }
 
 Node* RepresentationChanger::InsertTypeOverrideForVerifier(const Type& type,

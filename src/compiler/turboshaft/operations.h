@@ -275,7 +275,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionElementsKindOrCheckMap)           \
   V(DebugPrint)                                 \
   V(CheckTurboshaftTypeOf)                      \
-  V(Float16Change)                              \
   V(Word32SignHint)
 
 // These Operations are the lowest level handled by Turboshaft, and are
@@ -6322,32 +6321,6 @@ struct SameValueOp : FixedArityOperationT<2, SameValueOp> {
 };
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            SameValueOp::Mode mode);
-
-struct Float16ChangeOp : FixedArityOperationT<1, Float16ChangeOp> {
-  static constexpr OpEffects effects = OpEffects();
-
-  enum Kind : uint8_t { kToFloat64, kToFloat16 };
-  Kind kind;
-
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return kind == kToFloat16 ? RepVector<RegisterRepresentation::Word32()>()
-                              : RepVector<RegisterRepresentation::Float64()>();
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return kind == kToFloat16
-               ? MaybeRepVector<MaybeRegisterRepresentation::Float64()>()
-               : MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
-  }
-
-  Float16ChangeOp(V<Float64OrWord32> input, Kind kind)
-      : Base(input), kind(kind) {}
-
-  V<Float64OrWord32> input() const { return Base::input<Float64OrWord32>(0); }
-
-  auto options() const { return std::tuple{kind}; }
-};
 
 struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
   static constexpr OpEffects effects = OpEffects();

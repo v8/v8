@@ -685,13 +685,11 @@ OpIndex GraphBuilder::Process(
 
       UNARY_CASE(Float64ExtractLowWord32, Float64ExtractLowWord32)
       UNARY_CASE(Float64ExtractHighWord32, Float64ExtractHighWord32)
+
+      UNARY_CASE(TruncateFloat64ToFloat16RawBits,
+                 TruncateFloat64ToFloat16RawBits)
+      UNARY_CASE(ChangeFloat16RawBitsToFloat64, ChangeFloat16RawBitsToFloat64)
 #undef UNARY_CASE
-    case IrOpcode::kTruncateFloat64ToFloat16RawBits:
-      return __ Float16Change(Map(node->InputAt(0)),
-                              Float16ChangeOp::Kind::kToFloat16);
-    case IrOpcode::kChangeFloat16RawBitsToFloat64:
-      return __ Float16Change(Map(node->InputAt(0)),
-                              Float16ChangeOp::Kind::kToFloat64);
     case IrOpcode::kTruncateInt64ToInt32:
       return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
     case IrOpcode::kTruncateFloat32ToInt32:

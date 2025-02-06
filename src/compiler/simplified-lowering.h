@@ -72,9 +72,11 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   SetOncePointer<Node> to_number_code_;
   SetOncePointer<Node> to_number_convert_big_int_code_;
   SetOncePointer<Node> to_numeric_code_;
+  SetOncePointer<Node> ieee754_fp64_to_fp16_raw_bits_code_;
   SetOncePointer<Operator const> to_number_operator_;
   SetOncePointer<Operator const> to_number_convert_big_int_operator_;
   SetOncePointer<Operator const> to_numeric_operator_;
+  SetOncePointer<Operator const> ieee754_fp64_to_fp16_raw_bits_operator_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
   // positions table, but must for now since there currently is no other way to
@@ -102,9 +104,13 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Node* ToNumberCode();
   Node* ToNumberConvertBigIntCode();
   Node* ToNumericCode();
+  Node* Ieee754Fp64ToFp16RawBitsCode();
+  Node* Ieee754Fp16RawBitsToFp64Code();
   Operator const* ToNumberOperator();
   Operator const* ToNumberConvertBigIntOperator();
   Operator const* ToNumericOperator();
+  Operator const* Ieee754Fp64ToFp16RawBitsOperator();
+  Operator const* Ieee754Fp16RawBitsToFp64Operator();
 
   friend class RepresentationSelector;
 

@@ -66,6 +66,10 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   bool testing_type_errors_;  // If {true}, don't abort on a type error.
   bool type_error_;           // Set when a type error is detected.
 
+  SetOncePointer<Node> ieee754_fp16_raw_bits_to_fp32_raw_bits_code_;
+  SetOncePointer<Operator const>
+      ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_;
+
   Node* GetTaggedSignedRepresentationFor(Node* node,
                                          MachineRepresentation output_rep,
                                          Type output_type, Node* use_node,
@@ -105,11 +109,15 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertCheckedFloat64ToInt32(Node* node, CheckForMinusZeroMode check,
                                     const FeedbackSource& feedback,
                                     Node* use_node);
+  Node* InsertChangeFloat16RawBitsToFloat64Fallback(Node* node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
                                  const FeedbackSource& feedback = {});
   Node* InsertTypeOverrideForVerifier(const Type& type, Node* node);
+
+  Node* Ieee754Fp16RawBitsToFp32RawBitsCode();
+  Operator const* Ieee754Fp16RawBitsToFp32RawBitsOperator();
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

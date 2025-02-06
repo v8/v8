@@ -437,7 +437,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
       Zone* zone, const MachineSignature* sig,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags,
+      Operator::Properties properties = Operator::kNoThrow);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {

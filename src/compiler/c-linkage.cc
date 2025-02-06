@@ -266,15 +266,16 @@ void BuildParameterLocations(const MachineSignature* msig,
         // defined(V8_TARGET_ARCH_MIPS64)
 
 // General code uses the above configuration data.
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
-                                                  const MachineSignature* msig,
-                                                  CallDescriptor::Flags flags) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(
+    Zone* zone, const MachineSignature* msig, CallDescriptor::Flags flags,
+    Operator::Properties properties) {
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
   FATAL("requested C call descriptor on unsupported architecture");
   return nullptr;
 #endif
 
+  DCHECK(properties == Operator::kNoThrow || properties == Operator::kPure);
   DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
 
   LocationSignature::Builder locations(zone, msig->return_count(),
@@ -353,7 +354,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
       target_loc,                    // target location
       locations.Get(),               // location_sig
       0,                             // stack_parameter_count
-      Operator::kNoThrow,            // properties
+      properties,                    // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
       flags, "c-call");
