@@ -4566,14 +4566,17 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     return Just(true);
   }
 
-  // Both seal and preventExtensions always go through without modifications to
-  // typed array elements if the typed array is fixed length. Freeze works only
-  // if there are no actual elements.
+  // PreventExtensions works without modifications to typed array elements if
+  // the typed array is fixed length; see #sec-typedarray-preventextensions.
+  // Seal and freeze work only if there are no actual elements, because
+  // TypedArray elements cannot be reconfigured; see
+  // #sec-typedarray-defineownproperty.
   if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     DCHECK(new_element_dictionary.is_null());
-    if (attrs == FROZEN && Cast<JSTypedArray>(*object)->GetLength() > 0) {
+    if (attrs != NONE && Cast<JSTypedArray>(*object)->GetLength() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kCannotFreezeArrayBufferView));
+          attrs == SEALED ? MessageTemplate::kCannotSealArrayBufferView
+                          : MessageTemplate::kCannotFreezeArrayBufferView));
       return Nothing<bool>();
     }
     return Just(true);
