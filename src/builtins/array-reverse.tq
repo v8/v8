@@ -127,8 +127,8 @@ transitioning macro GenericArrayReverse(context: Context, receiver: JSAny):
   return object;
 }
 
-macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny):
-    void labels Slow {
+macro TryFastPackedArrayReverse(implicit context: Context)(
+                                   receiver: JSAny): void labels Slow {
   const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
   const kind: ElementsKind = array.map.elements_kind;

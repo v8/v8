@@ -284,8 +284,8 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
   };
 }
 
-macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
-    String {
+macro BufferJoin(implicit context: Context)(buffer: Buffer,
+                    sep: String): String {
   dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
@@ -557,8 +557,8 @@ builtin JoinStackPush(
 
 // Fast path the common non-nested calls. If the receiver is not already on
 // the stack, add it to the stack and return true. Otherwise return false.
-macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
-    bool {
+macro JoinStackPushInline(implicit context: Context)(
+                             receiver: JSReceiver): bool {
   try {
     const stack: FixedArray = LoadJoinStack()
         otherwise IfUninitialized;
@@ -602,8 +602,8 @@ builtin JoinStackPop(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
-    void {
+macro JoinStackPopInline(implicit context: Context)(
+                            receiver: JSReceiver): void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;

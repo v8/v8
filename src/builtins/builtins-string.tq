@@ -70,8 +70,8 @@ extern macro StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
     int32): String;
 
 // This function assumes StringPrimitiveWithNoCustomIteration is true.
-transitioning builtin StringToList(implicit context: Context)(string: String):
-    JSArray {
+transitioning builtin StringToList(implicit context: Context)(
+                                   string: String): JSArray {
   const kind = ElementsKind::PACKED_ELEMENTS;
   const stringLength: intptr = string.length_intptr;
 

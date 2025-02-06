@@ -183,8 +183,8 @@ builtin WasmFuncRefToJS(
   }
 }
 
-builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: HeapObject):
-    int32 {
+builtin WasmTaggedNonSmiToInt32(implicit context: Context)(
+                                 val: HeapObject): int32 {
   return ChangeTaggedNonSmiToInt32(val);
 }
 

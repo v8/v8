@@ -98,8 +98,8 @@ struct Vector {
     this.skippedElements = true;
   }
 
-  macro CreateJSArray(implicit context: Context)(validLength: Smi):
-      JSArray {
+  macro CreateJSArray(implicit context: Context)(
+                         validLength: Smi): JSArray {
     const length: Smi = this.fixedArray.length;
     dcheck(validLength <= length);
     let kind: ElementsKind = ElementsKind::PACKED_SMI_ELEMENTS;
@@ -169,8 +169,8 @@ struct Vector {
     return a;
   }
 
-  macro StoreResult(implicit context: Context)(index: Smi, result: JSAny):
-      void {
+  macro StoreResult(implicit context: Context)(index: Smi,
+                       result: JSAny): void {
     typeswitch (result) {
       case (s: Smi): {
         this.fixedArray.objects[index] = s;

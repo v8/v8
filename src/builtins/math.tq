@@ -4,8 +4,8 @@
 
 namespace math {
 
-transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(x: JSAny):
-    never
+transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(
+                                         x: JSAny): never
     labels SmiResult(Smi), Float64Result(float64) {
   let x1: JSAny = x;
   while (true) {
@@ -113,12 +113,12 @@ transitioning javascript builtin MathTrunc(
 
 // ES6 #sec-math.pow
 extern macro Float64Pow(float64, float64): float64;
-extern macro TruncateTaggedToFloat64(implicit context: Context)(JSAny):
-    float64;
+extern macro TruncateTaggedToFloat64(implicit context: Context)(
+                                      JSAny): float64;
 
 @export
-macro MathPowImpl(implicit context: Context)(base: JSAny, exponent: JSAny):
-    Number {
+macro MathPowImpl(implicit context: Context)(base: JSAny,
+                     exponent: JSAny): Number {
   const baseValue: float64 = TruncateTaggedToFloat64(base);
   const exponentValue: float64 = TruncateTaggedToFloat64(exponent);
   const result: float64 = Float64Pow(baseValue, exponentValue);

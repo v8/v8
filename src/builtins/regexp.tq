@@ -16,8 +16,8 @@ macro IsFastRegExpForMatch(implicit context: Context)(o: HeapObject): bool {
 extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpForSearch(
     implicit context: Context)(HeapObject): never labels IsFast,
     IsSlow;
-macro IsFastRegExpForSearch(implicit context: Context)(o: HeapObject):
-    bool {
+macro IsFastRegExpForSearch(implicit context: Context)(
+                               o: HeapObject): bool {
   BranchIfFastRegExpForSearch(o) otherwise return true, return false;
 }
 
@@ -33,8 +33,8 @@ extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
     IsSlow;
 
 @export
-macro IsFastRegExpPermissive(implicit context: Context)(o: HeapObject):
-    bool {
+macro IsFastRegExpPermissive(implicit context: Context)(
+                                o: HeapObject): bool {
   BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
 }
 

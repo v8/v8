@@ -15,8 +15,8 @@
 
 namespace array {
 class SortState extends HeapObject {
-  transitioning macro Compare(implicit context: Context)(x: JSAny, y: JSAny):
-      Number {
+  transitioning macro Compare(implicit context: Context)(x: JSAny,
+                              y: JSAny): Number {
     if (this.userCmpFn != Undefined) {
       return SortCompareUserFn(context, this.userCmpFn, x, y);
     } else {
@@ -381,8 +381,8 @@ CanUseSameAccessor<GenericElementsAccessor>(
 
 // Re-loading the stack-size is done in a few places. The small macro allows
 // for easier invariant checks at all use sites.
-macro GetPendingRunsSize(implicit context: Context)(sortState: SortState):
-    Smi {
+macro GetPendingRunsSize(implicit context: Context)(
+                            sortState: SortState): Smi {
   const stackSize: Smi = sortState.pendingRunsSize;
   dcheck(stackSize >= 0);
   return stackSize;
