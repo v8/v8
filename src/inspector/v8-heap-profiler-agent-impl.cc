@@ -334,12 +334,13 @@ Response V8HeapProfilerAgentImpl::enable() {
 
 Response V8HeapProfilerAgentImpl::disable() {
   stopTrackingHeapObjectsInternal();
+  v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
+  DCHECK(profiler);
   if (m_state->booleanProperty(
           HeapProfilerAgentState::samplingHeapProfilerEnabled, false)) {
-    v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
-    if (profiler) profiler->StopSamplingHeapProfiler();
+    profiler->StopSamplingHeapProfiler();
   }
-  m_isolate->GetHeapProfiler()->ClearObjectIds();
+  profiler->ClearObjectIds();
   m_state->setBoolean(HeapProfilerAgentState::heapProfilerEnabled, false);
   return Response::Success();
 }
@@ -383,7 +384,7 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshotNow(
     const HeapSnapshotProtocolOptions& protocolOptions,
     cppgc::EmbedderStackState stackState) {
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
-  if (!profiler) return Response::ServerError("Cannot access v8 heap profiler");
+  DCHECK(profiler);
   std::unique_ptr<HeapSnapshotProgress> progress;
   if (protocolOptions.m_reportProgress)
     progress.reset(new HeapSnapshotProgress(&m_frontend));
@@ -551,7 +552,7 @@ Response V8HeapProfilerAgentImpl::startSampling(
     std::optional<bool> includeObjectsCollectedByMajorGC,
     std::optional<bool> includeObjectsCollectedByMinorGC) {
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
-  if (!profiler) return Response::ServerError("Cannot access v8 heap profiler");
+  DCHECK(profiler);
   const unsigned defaultSamplingInterval = 1 << 15;
   double samplingIntervalValue =
       samplingInterval.value_or(defaultSamplingInterval);
