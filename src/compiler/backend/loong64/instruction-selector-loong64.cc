@@ -2695,15 +2695,11 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(node_t node,
                                                        int32_t index) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    OperandGenerator g(this);
-    int count = linkage()->GetParameterLocation(index).GetLocation();
-    InstructionOperand out_op = g.TempRegister(-count);
-    Emit(kArchNop, out_op);
-    Emit(kLoong64BitcastLD, g.DefineAsRegister(node), out_op);
-  }
+  OperandGenerator g(this);
+  int count = linkage()->GetParameterLocation(index).GetLocation();
+  InstructionOperand out_op = g.TempRegister(-count);
+  Emit(kArchNop, out_op);
+  Emit(kLoong64BitcastLD, g.DefineAsRegister(node), out_op);
 }
 
 template <typename Adapter>
