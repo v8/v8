@@ -444,6 +444,16 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
   return Just<simdutf::result>(simd_result);
 }
 
+// http://0x80.pl/notesen/2014-09-21-convert-to-hex.html
+char ConvertNibbleToHex(uint8_t nibble) {
+  const char correction = 'a' - '0' - 10;
+  const char c = nibble + '0';
+  uint8_t temp = 128 - 10 + nibble;
+  uint8_t msb = temp & 0x80;
+  uint8_t mask = msb - (msb >> 7);
+  return c + (mask & correction);
+}
+
 }  // namespace
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
@@ -574,7 +584,7 @@ BUILTIN(Uint8ArrayFromBase64) {
 }
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
-BUILTIN(Uint8ArrayToBase64) {
+BUILTIN(Uint8ArrayPrototypeToBase64) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.toBase64";
 
@@ -684,6 +694,60 @@ BUILTIN(Uint8ArrayToBase64) {
   // output_length is the correct length of the output, with padding or
   // without padding, so we do not need to modify the output based on
   // padding here.
+  return *output;
+}
+
+// https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tohex
+BUILTIN(Uint8ArrayPrototypeToHex) {
+  HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.prototype.toHex";
+
+  //  1. Let O be the this value.
+  //  2. Perform ? ValidateUint8Array(O).
+  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  if (uint8array->IsDetachedOrOutOfBounds()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+  //  3. Let toEncode be ? GetUint8ArrayBytes(O).
+  int byte_length = static_cast<int>(uint8array->GetLength());
+
+  if (byte_length == 0) {
+    return *isolate->factory()->empty_string();
+  }
+
+  const char* bytes =
+      std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store());
+
+  //   4. Let out be the empty String.
+  Handle<SeqOneByteString> output;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, output,
+      isolate->factory()->NewRawOneByteString((byte_length) * 2));
+  //  5. For each byte byte of toEncode, do
+  //    a. Let hex be Number::toString(𝔽(byte), 16).
+  //    b. Set hex to StringPad(hex, 2, "0", start).
+  //    c. Set out to the string-concatenation of out and hex.
+  int index = 0;
+  for (int i = 0; i < byte_length; i++) {
+    uint8_t byte = bytes[i];
+    uint8_t high = byte >> 4;
+    uint8_t low = byte & 0x0F;
+
+    output->SeqOneByteStringSet(index++, ConvertNibbleToHex(high));
+    output->SeqOneByteStringSet(index++, ConvertNibbleToHex(low));
+  }
+
+  //  6. Return out.
   return *output;
 }
 

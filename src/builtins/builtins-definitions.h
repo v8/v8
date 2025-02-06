@@ -1100,7 +1100,9 @@ namespace internal {
   /* proposal-arraybuffer-base64 #sec-uint8array.frombase64 */                 \
   CPP(Uint8ArrayFromBase64, kDontAdaptArgumentsSentinel)                       \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
-  CPP(Uint8ArrayToBase64, kDontAdaptArgumentsSentinel)                         \
+  CPP(Uint8ArrayPrototypeToBase64, kDontAdaptArgumentsSentinel)                \
+  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tohex */            \
+  CPP(Uint8ArrayPrototypeToHex, kDontAdaptArgumentsSentinel)                   \
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
