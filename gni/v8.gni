@@ -81,6 +81,10 @@ declare_args() {
   if (target_os == "ios") {
     # TODO(dtapuska): Change this to an assert.
     v8_enable_lite_mode = ios_deployment_target != "17.4"
+  } else if (target_os == "tvos") {
+    # TODO(crbug.com/394710095): Enable the v8 lite mode to run v8 with the
+    # jitless mode on tvOS.
+    v8_enable_lite_mode = true
   }
 
   # Enable the Turbofan compiler.
