@@ -1246,31 +1246,29 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
             pnode->info().set_splat_index(index);
             return pnode;
           }
-        } else {
-#ifdef V8_TARGET_ARCH_X64
-          if (ShufflePackNode* pnode =
-                  X64TryMatch256Shuffle(node_group, shuffle0, shuffle1)) {
-            // Manually invoke recur build tree for shuffle node
-            for (int i = 0; i < value_in_count; ++i) {
-              NodeGroup operands(graph_.Get(node_group[0]).input(i),
-                                 graph_.Get(node_group[1]).input(i));
-
-              PackNode* child = BuildTreeRec(operands, recursion_depth + 1);
-              if (child) {
-                pnode->SetOperand(i, child);
-              } else {
-                return nullptr;
-              }
-            }
-            return pnode;
-          }
-#endif  // V8_TARGET_ARCH_X64
-          return nullptr;
         }
+
+#ifdef V8_TARGET_ARCH_X64
+        if (ShufflePackNode* pnode =
+                X64TryMatch256Shuffle(node_group, shuffle0, shuffle1)) {
+          // Manually invoke recur build tree for shuffle node
+          for (int i = 0; i < value_in_count; ++i) {
+            NodeGroup operands(graph_.Get(node_group[0]).input(i),
+                               graph_.Get(node_group[1]).input(i));
+
+            PackNode* child = BuildTreeRec(operands, recursion_depth + 1);
+            if (child) {
+              pnode->SetOperand(i, child);
+            } else {
+              return nullptr;
+            }
+          }
+          return pnode;
+        }
+#endif  // V8_TARGET_ARCH_X64
 
         TRACE("Unsupported Simd128Shuffle\n");
         return nullptr;
-
       } else {
         return Try256ShuffleMatchLoad8x8U(node_group, shuffle0, shuffle1);
       }
