@@ -3378,80 +3378,25 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
   return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
 }
 
-namespace {
-
-template <size_t size>
-struct ToUnsigned;
-
-template <>
-struct ToUnsigned<1> {
-  using Type = uint8_t;
-};
-
-template <>
-struct ToUnsigned<4> {
-  using Type = uint32_t;
-};
-
-template <>
-struct ToUnsigned<8> {
-  using Type = uint64_t;
-};
-
-}  // namespace
-
-template <typename T>
-static int utoa_impl(T value, base::Vector<char> buffer, int buffer_pos) {
-  static_assert(static_cast<T>(-1) > 0);  // Check that T is unsigned
-  int number_of_digits = 0;
-  T t = value;
-  do {
-    ++number_of_digits;
-  } while (t /= 10);
-
-  buffer_pos += number_of_digits;
-  int result = buffer_pos;
-  do {
-    int last_digit = static_cast<int>(value % 10);
-    buffer[--buffer_pos] = '0' + last_digit;
-    value /= 10;
-  } while (value);
-  return result;
-}
-
-template <typename T>
-static int utoa(T value, base::Vector<char> buffer, int buffer_pos) {
-  typename ToUnsigned<sizeof(value)>::Type unsigned_value = value;
-  static_assert(sizeof(value) == sizeof(unsigned_value));
-  return utoa_impl(unsigned_value, buffer, buffer_pos);
-}
-
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
                                                bool first_edge) {
-  // The buffer needs space for 3 unsigned ints, 3 commas, \n and \0
-  static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;
-  base::EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement ||
                                    edge->type() == HeapGraphEdge::kHidden
                                ? edge->index()
                                : GetStringId(edge->name());
-  int buffer_pos = 0;
   if (!first_edge) {
-    buffer[buffer_pos++] = ',';
+    writer_->AddCharacter(',');
   }
-  buffer_pos = utoa(edge->type(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(edge_name_or_index, buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(to_node_index(edge->to()), buffer, buffer_pos);
-  buffer[buffer_pos++] = '\n';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.begin());
+  writer_->AddNumber(static_cast<int>(edge->type()));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(edge_name_or_index);
+  writer_->AddCharacter(',');
+  writer_->AddNumber(to_node_index(edge->to()));
+  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeEdges() {
-  std::vector<HeapGraphEdge*>& edges = snapshot_->children();
+  const std::vector<HeapGraphEdge*>& edges = snapshot_->children();
   for (size_t i = 0; i < edges.size(); ++i) {
     DCHECK(i == 0 ||
            edges[i - 1]->from()->index() <= edges[i]->from()->index());
@@ -3461,37 +3406,27 @@ void HeapSnapshotJSONSerializer::SerializeEdges() {
 }
 
 void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
-  // The buffer needs space for 5 unsigned ints, 1 size_t, 1 uint8_t, 7 commas,
-  // \n and \0
-  static const int kBufferSize =
-      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned +
-      MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned +
-      MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
-  base::EmbeddedVector<char, kBufferSize> buffer;
-  int buffer_pos = 0;
   if (to_node_index(entry) != 0) {
-    buffer[buffer_pos++] = ',';
+    writer_->AddCharacter(',');
   }
-  buffer_pos = utoa(entry->type(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(GetStringId(entry->name()), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(entry->id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(entry->self_size(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(entry->children_count(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
+  writer_->AddNumber(static_cast<int>(entry->type()));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(GetStringId(entry->name()));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->id());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->self_size());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(entry->children_count());
+  writer_->AddCharacter(',');
   if (trace_function_count_) {
-    buffer_pos = utoa(entry->trace_node_id(), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
+    writer_->AddNumber(entry->trace_node_id());
+    writer_->AddCharacter(',');
   } else {
     CHECK_EQ(0, entry->trace_node_id());
   }
-  buffer_pos = utoa(entry->detachedness(), buffer, buffer_pos);
-  buffer[buffer_pos++] = '\n';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.begin());
+  writer_->AddNumber(entry->detachedness());
+  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeNodes() {
@@ -3585,13 +3520,13 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 #undef JSON_S
 #undef JSON_A
   writer_->AddString(",\"node_count\":");
-  writer_->AddSize(snapshot_->entries().size());
+  writer_->AddNumber(snapshot_->entries().size());
   writer_->AddString(",\"edge_count\":");
-  writer_->AddSize(snapshot_->edges().size());
+  writer_->AddNumber(snapshot_->edges().size());
   writer_->AddString(",\"trace_function_count\":");
   writer_->AddNumber(trace_function_count_);
   writer_->AddString(",\"extra_native_bytes\":");
-  writer_->AddSize(snapshot_->extra_native_bytes());
+  writer_->AddNumber(snapshot_->extra_native_bytes());
 }
 
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
@@ -3611,23 +3546,15 @@ void HeapSnapshotJSONSerializer::SerializeTraceTree() {
 }
 
 void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
-  // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
-  const int kBufferSize =
-      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 4 + 1 + 1;
-  base::EmbeddedVector<char, kBufferSize> buffer;
-  int buffer_pos = 0;
-  buffer_pos = utoa(node->id(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->function_info_index(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_count(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(node->allocation_size(), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer[buffer_pos++] = '[';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.begin());
-
+  writer_->AddNumber(node->id());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(node->function_info_index());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(node->allocation_count());
+  writer_->AddCharacter(',');
+  writer_->AddNumber(node->allocation_size());
+  writer_->AddCharacter(',');
+  writer_->AddCharacter('[');
   int i = 0;
   for (AllocationTraceNode* child : node->children()) {
     if (i++ > 0) {
@@ -3638,47 +3565,27 @@ void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   writer_->AddCharacter(']');
 }
 
-// 0-based position is converted to 1-based during the serialization.
-static int SerializePosition(int position, base::Vector<char> buffer,
-                             int buffer_pos) {
-  if (position == -1) {
-    buffer[buffer_pos++] = '0';
-  } else {
-    DCHECK_GE(position, 0);
-    buffer_pos = utoa(static_cast<unsigned>(position + 1), buffer, buffer_pos);
-  }
-  return buffer_pos;
-}
-
 void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();
   if (!tracker) return;
-  // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
-  const int kBufferSize =
-      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 6 + 1 + 1;
-  base::EmbeddedVector<char, kBufferSize> buffer;
   int i = 0;
   for (AllocationTracker::FunctionInfo* info : tracker->function_info_list()) {
-    int buffer_pos = 0;
     if (i++ > 0) {
-      buffer[buffer_pos++] = ',';
+      writer_->AddCharacter(',');
     }
-    buffer_pos = utoa(info->function_id, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(GetStringId(info->script_name), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    // The cast is safe because script id is a non-negative Smi.
-    buffer_pos =
-        utoa(static_cast<unsigned>(info->script_id), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->line, buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = SerializePosition(info->column, buffer, buffer_pos);
-    buffer[buffer_pos++] = '\n';
-    buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.begin());
+    writer_->AddNumber(info->function_id);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(GetStringId(info->name));
+    writer_->AddCharacter(',');
+    writer_->AddNumber(GetStringId(info->script_name));
+    writer_->AddCharacter(',');
+    writer_->AddNumber(info->script_id);
+    // 0-based positions are converted to 1-based during serialization.
+    writer_->AddCharacter(',');
+    writer_->AddNumber(info->line + 1);
+    writer_->AddCharacter(',');
+    writer_->AddNumber(info->column + 1);
+    writer_->AddCharacter('\n');
   }
 }
 
@@ -3687,25 +3594,16 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
       snapshot_->profiler()->heap_object_map()->samples();
   if (samples.empty()) return;
   base::TimeTicks start_time = samples[0].timestamp;
-  // The buffer needs space for 2 unsigned ints, 2 commas, \n and \0
-  const int kBufferSize = MaxDecimalDigitsIn<sizeof(
-                              base::TimeDelta().InMicroseconds())>::kUnsigned +
-                          MaxDecimalDigitsIn<sizeof(samples[0].id)>::kUnsigned +
-                          2 + 1 + 1;
-  base::EmbeddedVector<char, kBufferSize> buffer;
   int i = 0;
   for (const HeapObjectsMap::TimeInterval& sample : samples) {
-    int buffer_pos = 0;
     if (i++ > 0) {
-      buffer[buffer_pos++] = ',';
+      writer_->AddCharacter(',');
     }
     base::TimeDelta time_delta = sample.timestamp - start_time;
-    buffer_pos = utoa(time_delta.InMicroseconds(), buffer, buffer_pos);
-    buffer[buffer_pos++] = ',';
-    buffer_pos = utoa(sample.last_assigned_id(), buffer, buffer_pos);
-    buffer[buffer_pos++] = '\n';
-    buffer[buffer_pos++] = '\0';
-    writer_->AddString(buffer.begin());
+    writer_->AddNumber(time_delta.InMicroseconds());
+    writer_->AddCharacter(',');
+    writer_->AddNumber(sample.last_assigned_id());
+    writer_->AddCharacter('\n');
   }
 }
 
@@ -3777,21 +3675,14 @@ void HeapSnapshotJSONSerializer::SerializeStrings() {
 
 void HeapSnapshotJSONSerializer::SerializeLocation(
     const EntrySourceLocation& location) {
-  // The buffer needs space for 4 unsigned ints, 3 commas, \n and \0
-  static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 4 + 3 + 2;
-  base::EmbeddedVector<char, kBufferSize> buffer;
-  int buffer_pos = 0;
-  buffer_pos = utoa(to_node_index(location.entry_index), buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(location.scriptId, buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(location.line, buffer, buffer_pos);
-  buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(location.col, buffer, buffer_pos);
-  buffer[buffer_pos++] = '\n';
-  buffer[buffer_pos++] = '\0';
-  writer_->AddString(buffer.begin());
+  writer_->AddNumber(to_node_index(location.entry_index));
+  writer_->AddCharacter(',');
+  writer_->AddNumber(location.scriptId);
+  writer_->AddCharacter(',');
+  writer_->AddNumber(location.line);
+  writer_->AddCharacter(',');
+  writer_->AddNumber(location.col);
+  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeLocations() {
