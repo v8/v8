@@ -4766,12 +4766,6 @@ class TurboshaftAssemblerOpInterface
         table, key,
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
-  V<Object> SpeculativeNumberBinop(V<Object> left, V<Object> right,
-                                   V<turboshaft::FrameState> frame_state,
-                                   SpeculativeNumberBinopOp::Kind kind) {
-    return ReduceIfReachableSpeculativeNumberBinop(left, right, frame_state,
-                                                   kind);
-  }
 
   V<Object> LoadRoot(RootIndex root_index) {
     Isolate* isolate = __ data() -> isolate();

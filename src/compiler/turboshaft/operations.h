@@ -325,17 +325,12 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Dead)                                    \
   V(AbortCSADcheck)
 
-// These are operations used in the frontend and are mostly tied to JS
-// semantics.
-#define TURBOSHAFT_JS_NON_THROWING_OPERATION_LIST(V) V(SpeculativeNumberBinop)
-
 #define TURBOSHAFT_JS_THROWING_OPERATION_LIST(V) \
   V(GenericBinop)                                \
   V(GenericUnop)                                 \
   V(ToNumberOrNumeric)
 
 #define TURBOSHAFT_JS_OPERATION_LIST(V)        \
-  TURBOSHAFT_JS_NON_THROWING_OPERATION_LIST(V) \
   TURBOSHAFT_JS_THROWING_OPERATION_LIST(V)
 
 // These are operations that are not Machine operations and need to be lowered
@@ -6669,43 +6664,6 @@ struct CommentOp : FixedArityOperationT<0, CommentOp> {
 
   auto options() const { return std::tuple{message}; }
 };
-
-struct SpeculativeNumberBinopOp
-    : FixedArityOperationT<3, SpeculativeNumberBinopOp> {
-  enum class Kind : uint8_t {
-    kSafeIntegerAdd,
-  };
-
-  Kind kind;
-
-  static constexpr OpEffects effects = OpEffects().CanDeopt().CanAllocate();
-
-  OpIndex left() const { return Base::input(0); }
-  OpIndex right() const { return Base::input(1); }
-  V<FrameState> frame_state() const { return Base::input<FrameState>(2); }
-
-  SpeculativeNumberBinopOp(OpIndex left, OpIndex right,
-                           V<FrameState> frame_state, Kind kind)
-      : Base(left, right, frame_state), kind(kind) {}
-
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
-
-  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
-      ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    return MaybeRepVector<MaybeRegisterRepresentation::Tagged(),
-                          MaybeRegisterRepresentation::Tagged()>();
-  }
-
-  void Validate(const Graph& graph) const {
-    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
-  }
-
-  auto options() const { return std::tuple{kind}; }
-};
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           SpeculativeNumberBinopOp::Kind kind);
 
 #if V8_ENABLE_WEBASSEMBLY
 

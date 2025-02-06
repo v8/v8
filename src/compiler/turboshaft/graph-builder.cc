@@ -2302,11 +2302,6 @@ OpIndex GraphBuilder::Process(
       return __ FindOrderedHashMapEntryForInt32Key(Map(node->InputAt(0)),
                                                    Map(node->InputAt(1)));
 
-    // TODO(victorgomes): Remove SpeculativeNumberBinop in TS. This shouldn't
-    // exist.
-    case IrOpcode::kSpeculativeSmallIntegerAdd:
-      UNREACHABLE();
-
     case IrOpcode::kBeginRegion:
       inside_region = true;
       return OpIndex::Invalid();
