@@ -4212,6 +4212,7 @@ v8_header_set("v8_internal_headers") {
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/trace-event.h",
+    "src/tracing/trace-id.h",
     "src/tracing/traced-value.h",
     "src/tracing/tracing-category-observer.h",
     "src/utils/address-map.h",

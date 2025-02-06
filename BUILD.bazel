@@ -2489,6 +2489,7 @@ filegroup(
         "src/tracing/trace-event.cc",
         "src/tracing/trace-event.h",
         "src/tracing/trace-event-no-perfetto.h",
+        "src/tracing/trace-id.h",
         "src/tracing/traced-value.cc",
         "src/tracing/traced-value.h",
         "src/tracing/tracing-category-observer.cc",

@@ -26,6 +26,7 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
+#include "src/tracing/trace-id.h"
 
 namespace v8_inspector {
 
@@ -461,16 +462,10 @@ void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeStamp",
               "data", ([&](perfetto::TracedValue context) {
                 auto dict = std::move(context).WriteDictionary();
-
-                uint64_t name_hash =
-                    std::hash<std::string>{}("V8Console::TimeStamp");
-                uint64_t timestamp_hash = std::hash<uint64_t>{}(
-                    v8::base::TimeTicks::Now().ToInternalValue());
-                uint64_t hash =
-                    v8::base::hash_combine(name_hash, timestamp_hash);
+                uint64_t trace_id = v8::tracing::TraceId();
                 v8::CpuProfiler::CpuProfiler::CollectSample(
-                    m_inspector->isolate(), hash);
-                dict.Add("sampleTraceId", hash);
+                    m_inspector->isolate(), trace_id);
+                dict.Add("sampleTraceId", trace_id);
                 static const char* kNames[] = {"name",  "start",      "end",
                                                "track", "trackGroup", "color"};
                 for (int i = 0; i < info.Length() &&
@@ -570,19 +565,14 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   m_inspector->asyncTaskStarted(taskInfo->Id());
   {
 #ifdef V8_USE_PERFETTO
-    TRACE_EVENT(
-        TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::runTask", "data",
-        ([&](perfetto::TracedValue context) {
-          auto dict = std::move(context).WriteDictionary();
-          uint64_t task_id_hash =
-              std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(taskInfo->Id()));
-          uint64_t timestamp_hash = std::hash<uint64_t>{}(
-              v8::base::TimeTicks::Now().ToInternalValue());
-          uint64_t hash = v8::base::hash_combine(task_id_hash, timestamp_hash);
-
-          v8::CpuProfiler::CpuProfiler::CollectSample(isolate, hash);
-          dict.Add("sampleTraceId", hash);
-        }));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::runTask",
+                "data", ([&](perfetto::TracedValue context) {
+                  uint64_t trace_id = v8::tracing::TraceId();
+                  auto dict = std::move(context).WriteDictionary();
+                  v8::CpuProfiler::CpuProfiler::CollectSample(isolate,
+                                                              trace_id);
+                  dict.Add("sampleTraceId", trace_id);
+                }));
 #endif  // V8_USE_PERFETTO
 
     v8::Local<v8::Value> result;
