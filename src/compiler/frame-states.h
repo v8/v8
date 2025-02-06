@@ -147,7 +147,8 @@ class FrameStateFunctionInfo {
   const MaybeIndirectHandle<BytecodeArray> bytecode_array_;
 };
 
-bool operator==(FrameStateFunctionInfo const&, FrameStateFunctionInfo const&);
+V8_EXPORT_PRIVATE bool operator==(FrameStateFunctionInfo const&,
+                                  FrameStateFunctionInfo const&);
 
 #if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
@@ -212,8 +213,8 @@ class FrameStateInfo final {
   const FrameStateFunctionInfo* const info_;
 };
 
-bool operator==(FrameStateInfo const&, FrameStateInfo const&);
-bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
+V8_EXPORT_PRIVATE bool operator==(FrameStateInfo const&, FrameStateInfo const&);
+V8_EXPORT_PRIVATE bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
 
 size_t hash_value(FrameStateInfo const&);
 
