@@ -20,6 +20,8 @@ using BlockConstIterator = ZoneVector<BasicBlock*>::const_iterator;
 using BlockConstReverseIterator =
     ZoneVector<BasicBlock*>::const_reverse_iterator;
 
+struct MaglevCallerDetails;
+
 class Graph final : public ZoneObject {
  public:
   static Graph* New(Zone* zone, bool is_osr) {
@@ -38,6 +40,7 @@ class Graph final : public ZoneObject {
         float_(zone),
         external_references_(zone),
         parameters_(zone),
+        inlineable_calls_(zone),
         allocations_escape_map_(zone),
         allocations_elide_map_(zone),
         register_inputs_(),
@@ -112,6 +115,10 @@ class Graph final : public ZoneObject {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+
+  ZoneVector<MaglevCallerDetails*>& inlineable_calls() {
+    return inlineable_calls_;
+  }
 
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
   using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
@@ -236,6 +243,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
+  ZoneVector<MaglevCallerDetails*> inlineable_calls_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;

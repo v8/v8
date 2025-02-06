@@ -1298,6 +1298,7 @@ class Input : public InputLocation {
  public:
   explicit Input(ValueNode* node) : node_(node) {}
   ValueNode* node() const { return node_; }
+  void set_node(ValueNode* node) { node_ = node; }
   void clear();
 
  private:

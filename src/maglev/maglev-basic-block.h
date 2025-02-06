@@ -67,6 +67,12 @@ class BasicBlock {
     control_node_ = control_node;
   }
 
+  void TruncateAt(Node* node, Node::List* remaining_nodes) {
+    DCHECK(nodes_.Contains(node));
+    nodes_.TruncateAt(remaining_nodes, node);
+    control_node_ = nullptr;
+  }
+
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
   bool is_merge_block() const { return type_ == kMerge; }

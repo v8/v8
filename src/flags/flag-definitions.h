@@ -630,6 +630,9 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "still cause deopt loops)")
 DEFINE_BOOL(maglev_cse, true, "common subexpression elimination")
 
+DEFINE_EXPERIMENTAL_FEATURE(maglev_non_eager_inlining,
+                            "enable Maglev non-eager inlining")
+
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
               "filter for maglev's tracing/printing options")

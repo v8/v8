@@ -184,9 +184,12 @@ struct CatchBlockDetails {
 struct MaglevCallerDetails {
   // TODO(victorgomes): Remove access to this field for non-greedy inlining.
   MaglevGraphBuilder* builder;
+  MaglevCompilationUnit* callee;
   // TODO(victorgomes): If deopt_frame is not computed lazily, we can get rid of
   // this field.
   BytecodeOffset bytecode_offset;
+  SourcePosition call_site_positiion;
+  base::Vector<ValueNode*> arguments;
   DeoptFrame* deopt_frame;
   KnownNodeAspects* known_node_aspects;
   VirtualObject::List virtual_objects;
@@ -197,6 +200,8 @@ struct MaglevCallerDetails {
   int catch_deopt_frame_distance;
   bool is_inside_loop;
   float call_frequency;
+  // Only available if non-greedy inlining, otherwise nullptr.
+  CallKnownJSFunction* generic_call_node;
 };
 
 class MaglevGraphBuilder {
@@ -206,11 +211,15 @@ class MaglevGraphBuilder {
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
                               MaglevCompilationUnit* compilation_unit,
                               Graph* graph,
-                              int inlining_id = SourcePosition::kNotInlined,
                               MaglevCallerDetails* caller_details = nullptr);
 
   void Build() {
     DCHECK(!is_inline());
+
+    DCHECK_EQ(inlining_id_, SourcePosition::kNotInlined);
+    current_source_position_ = SourcePosition(
+        compilation_unit_->shared_function_info().StartPosition(),
+        inlining_id_);
 
     StartPrologue();
     for (int i = 0; i < parameter_count(); i++) {
@@ -251,8 +260,8 @@ class MaglevGraphBuilder {
     BuildBody();
   }
 
-  ReduceResult BuildInlined(ValueNode* context, ValueNode* function,
-                            ValueNode* new_target, const CallArguments& args);
+  ReduceResult BuildInlineFunction(ValueNode* context, ValueNode* function,
+                                   ValueNode* new_target);
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
@@ -407,6 +416,9 @@ class MaglevGraphBuilder {
       RecordUseReprHint(phi, repr);
     }
   }
+
+  BasicBlock* current_block() { return current_block_; }
+  void set_current_block(BasicBlock* block) { current_block_ = block; }
 
  private:
   // Helper class for building a subgraph with its own control flow, that is not
@@ -1708,6 +1720,9 @@ class MaglevGraphBuilder {
 #endif
 
   DeoptFrame* GetCallerDeoptFrame();
+  DeoptFrame* GetDeoptFrameForCall(const MaglevCompilationUnit* unit,
+                                   ValueNode* closure,
+                                   base::Vector<ValueNode*> args);
   DeoptFrame GetDeoptFrameForLazyDeopt(interpreter::Register result_location,
                                        int result_size);
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(
@@ -1928,6 +1943,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetConvertReceiver(compiler::SharedFunctionInfoRef shared,
                                 const CallArguments& args);
+  base::Vector<ValueNode*> GetArgumentsAsArrayOfValueNodes(
+      compiler::SharedFunctionInfoRef shared, const CallArguments& args);
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       ValueNode* node, ValueNode** constant_node = nullptr);
@@ -2023,6 +2040,14 @@ class MaglevGraphBuilder {
       compiler::JSFunctionRef target, compiler::SharedFunctionInfoRef shared,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   bool TargetIsCurrentCompilingUnit(compiler::JSFunctionRef target);
+  CallKnownJSFunction* BuildCallKnownJSFunction(
+      ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+      JSDispatchHandle dispatch_handle,
+#endif
+      compiler::SharedFunctionInfoRef shared,
+      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, ValueNode* new_target,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
@@ -2034,11 +2059,19 @@ class MaglevGraphBuilder {
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
-  bool ShouldInlineCall(compiler::SharedFunctionInfoRef shared,
-                        compiler::OptionalFeedbackVectorRef feedback_vector,
-                        float call_frequency);
-  MaybeReduceResult TryBuildInlinedCall(
+  bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
+                     float call_frequency);
+  bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared);
+  ReduceResult BuildEagerInlineCall(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
+      compiler::SharedFunctionInfoRef shared,
+      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      float call_frequency);
+  MaybeReduceResult TryBuildInlineCall(
+      ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+      JSDispatchHandle dispatch_handle,
+#endif
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -2909,13 +2942,9 @@ class MaglevGraphBuilder {
 
   int argument_count() const {
     DCHECK(is_inline());
-    return static_cast<int>(inlined_arguments_.size());
+    return static_cast<int>(caller_details_->arguments.size());
   }
   int argument_count_without_receiver() const { return argument_count() - 1; }
-
-  bool HasMismatchedArgumentAndParameterCount() {
-    return is_inline() && (argument_count() != parameter_count());
-  }
 
   bool IsInsideLoop() const {
     if (is_inline() && caller_details()->is_inside_loop) return true;
@@ -3053,7 +3082,6 @@ class MaglevGraphBuilder {
   InterpreterFrameState current_interpreter_frame_;
   compiler::FeedbackSource current_speculation_feedback_;
 
-  base::Vector<ValueNode*> inlined_arguments_;
   ValueNode* inlined_new_target_ = nullptr;
 
   // Bytecode offset at which compilation should start.
@@ -3063,7 +3091,7 @@ class MaglevGraphBuilder {
     return bytecode_analysis_.osr_bailout_id().ToInt();
   }
 
-  int inlining_id_;
+  int inlining_id_ = SourcePosition::kNotInlined;
 
   DeoptFrameScope* current_deopt_scope_ = nullptr;
 

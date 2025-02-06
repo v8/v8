@@ -904,7 +904,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
-                                       Graph* graph, int inlining_id,
+                                       Graph* graph,
                                        MaglevCallerDetails* caller_details)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
@@ -918,9 +918,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       loop_effects_stack_(zone()),
       decremented_predecessor_offsets_(zone()),
       loop_headers_to_peel_(bytecode().length(), zone()),
-      current_source_position_(SourcePosition(
-          compilation_unit_->shared_function_info().StartPosition(),
-          inlining_id)),
+      current_source_position_(),
       // Add an extra jump_target slot for the inline exit if needed.
       jump_targets_(zone()->AllocateArray<BasicBlockRef>(
           bytecode().length() + (is_inline() ? 1 : 0))),
@@ -939,7 +937,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
-      inlining_id_(inlining_id),
       catch_block_stack_(zone()),
       unobserved_context_slot_stores_(zone()) {
   memset(merge_states_, 0,
@@ -1031,7 +1028,7 @@ ValueNode* MaglevGraphBuilder::GetArgument(int i) {
 ValueNode* MaglevGraphBuilder::GetInlinedArgument(int i) {
   DCHECK(is_inline());
   DCHECK_LT(i, argument_count());
-  return inlined_arguments_[i];
+  return caller_details_->arguments[i];
 }
 
 void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
@@ -1274,37 +1271,47 @@ bool MaglevGraphBuilder::HasOutputRegister(interpreter::Register reg) const {
 }
 #endif
 
+DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForCall(
+    const MaglevCompilationUnit* unit, ValueNode* closure,
+    base::Vector<ValueNode*> args) {
+  // The parent resumes after the call, which is roughly equivalent to a lazy
+  // deopt. Use the helper function directly so that we can mark the
+  // accumulator as dead (since it'll be overwritten by this function's
+  // return value anyway).
+  // TODO(leszeks): This is true for our current set of
+  // inlinings/continuations, but there might be cases in the future where it
+  // isn't. We may need to store the relevant overwritten register in
+  // LazyDeoptFrameScope.
+  DCHECK(
+      interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
+
+  DeoptFrame* deopt_frame = zone()->New<DeoptFrame>(
+      GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
+                                      current_deopt_scope_, true));
+  // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
+  // formal parameter and arguments count.
+  if (static_cast<int>(args.size()) != unit->parameter_count()) {
+    deopt_frame = zone()->New<InlinedArgumentsDeoptFrame>(
+        *unit, BytecodeOffset(iterator_.current_offset()), closure, args,
+        deopt_frame);
+    AddDeoptUse(closure);
+    for (ValueNode* arg : deopt_frame->as_inlined_arguments().arguments()) {
+      AddDeoptUse(arg);
+    }
+  }
+  return deopt_frame;
+}
+
 DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
-  // TODO(victorgomes): This should be computed eagerly in non-greedy inlining.
   if (!is_inline()) return nullptr;
   if (caller_details_->deopt_frame == nullptr) {
-    // The parent resumes after the call, which is roughly equivalent to a lazy
-    // deopt. Use the helper function directly so that we can mark the
-    // accumulator as dead (since it'll be overwritten by this function's
-    // return value anyway).
-    // TODO(leszeks): This is true for our current set of
-    // inlinings/continuations, but there might be cases in the future where it
-    // isn't. We may need to store the relevant overwritten register in
-    // LazyDeoptFrameScope.
-    DCHECK(interpreter::Bytecodes::WritesAccumulator(
-        caller_details_->builder->iterator_.current_bytecode()));
-
-    caller_details_->deopt_frame = zone()->New<DeoptFrame>(
-        caller_details_->builder->GetDeoptFrameForLazyDeoptHelper(
-            interpreter::Register::invalid_value(), 0,
-            caller_details_->builder->current_deopt_scope_, true));
-    // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
-    // formal parameter and arguments count.
-    if (HasMismatchedArgumentAndParameterCount()) {
-      caller_details_->deopt_frame = zone()->New<InlinedArgumentsDeoptFrame>(
-          *compilation_unit_, caller_details_->bytecode_offset, GetClosure(),
-          inlined_arguments_, caller_details_->deopt_frame);
-      AddDeoptUse(GetClosure());
-      for (ValueNode* arg :
-           caller_details_->deopt_frame->as_inlined_arguments().arguments()) {
-        AddDeoptUse(arg);
-      }
-    }
+    // TODO(victorgomes): Do we even benefit from lazily computing this deopt
+    // frame for eagerly inline functions?
+    DCHECK(!v8_flags.maglev_non_eager_inlining ||
+           ShouldEagerInlineCall(compilation_unit_->shared_function_info()));
+    caller_details_->deopt_frame =
+        caller_details()->builder->GetDeoptFrameForCall(
+            compilation_unit_, GetClosure(), caller_details_->arguments);
   }
   return caller_details_->deopt_frame;
 }
@@ -7847,45 +7854,69 @@ void ForceEscapeIfAllocation(ValueNode* value) {
 }
 }  // namespace
 
-ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
-                                              ValueNode* function,
-                                              ValueNode* new_target,
-                                              const CallArguments& args) {
+ReduceResult MaglevGraphBuilder::BuildInlineFunction(ValueNode* context,
+                                                     ValueNode* function,
+                                                     ValueNode* new_target) {
   DCHECK(is_inline());
+  DCHECK_GT(caller_details_->arguments.size(), 0);
+
+  compiler::SharedFunctionInfoRef shared =
+      compilation_unit_->shared_function_info();
+  compiler::BytecodeArrayRef bytecode = compilation_unit_->bytecode();
+  compiler::FeedbackVectorRef feedback = compilation_unit_->feedback();
+
+  if (v8_flags.maglev_print_inlined &&
+      TopLevelFunctionPassMaglevPrintFilter() &&
+      (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
+       v8_flags.print_maglev_graphs ||
+       v8_flags.trace_maglev_inlining_verbose)) {
+    std::cout << "== Inlining " << Brief(*shared.object()) << std::endl;
+    BytecodeArray::Disassemble(bytecode.object(), std::cout);
+    if (v8_flags.maglev_print_feedback) {
+      i::Print(*feedback.object(), std::cout);
+    }
+  } else if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "== Inlining " << shared.object() << std::endl;
+  }
+
+  graph()->add_inlined_bytecode_size(bytecode.length());
+  graph()->inlined_functions().push_back(
+      OptimizedCompilationInfo::InlinedFunctionHolder(
+          shared.object(), bytecode.object(),
+          caller_details_->call_site_positiion));
+  if (feedback.object()->invocation_count_before_stable(kRelaxedLoad) >
+      v8_flags.invocation_count_for_early_optimization) {
+    compilation_unit_->info()->set_could_not_inline_all_candidates();
+  }
+  inlining_id_ = static_cast<int>(graph()->inlined_functions().size() - 1);
+
+  DCHECK_NE(inlining_id_, SourcePosition::kNotInlined);
+  current_source_position_ = SourcePosition(
+      compilation_unit_->shared_function_info().StartPosition(), inlining_id_);
 
   // Manually create the prologue of the inner function graph, so that we
   // can manually set up the arguments.
   DCHECK_NOT_NULL(current_block_);
 
   // Set receiver.
-  ValueNode* receiver =
-      GetConvertReceiver(compilation_unit_->shared_function_info(), args);
-  SetArgument(0, receiver);
+  SetArgument(0, caller_details_->arguments[0]);
 
   // The inlined function could call a builtin that iterates the frame, the
   // receiver needs to have been materialized.
   // TODO(victorgomes): Can we relax this requirement? Maybe we can allocate the
   // object lazily? This is also only required if the inlined function is not a
   // leaf (ie. it calls other functions).
-  ForceEscapeIfAllocation(receiver);
+  ForceEscapeIfAllocation(caller_details_->arguments[0]);
 
   // Set remaining arguments.
   RootConstant* undefined_constant =
       GetRootConstant(RootIndex::kUndefinedValue);
-  int arg_count = static_cast<int>(args.count());
+  int args_count = static_cast<int>(caller_details_->arguments.size()) - 1;
   int formal_parameter_count = compilation_unit_->parameter_count() - 1;
   for (int i = 0; i < formal_parameter_count; i++) {
-    ValueNode* arg_value = args[i];
-    if (arg_value == nullptr) arg_value = undefined_constant;
+    ValueNode* arg_value =
+        i < args_count ? caller_details_->arguments[i + 1] : undefined_constant;
     SetArgument(i + 1, arg_value);
-  }
-
-  // Save all arguments if we have a mismatch between arguments count and
-  // parameter count.
-  inlined_arguments_ = zone()->AllocateVector<ValueNode*>(arg_count + 1);
-  inlined_arguments_[0] = receiver;
-  for (int i = 0; i < arg_count; i++) {
-    inlined_arguments_[i + 1] = args[i];
   }
 
   inlined_new_target_ = new_target;
@@ -7908,11 +7939,19 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
     // no control flow that reaches the end of the inlined function, either
     // because of infinite loops or deopts
     if (merge_states_[inline_exit_offset()] == nullptr) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "== Finished inlining (abort) " << shared.object()
+                  << std::endl;
+      }
       return ReduceResult::DoneWithAbort();
     }
 
     ProcessMergePoint(inline_exit_offset(), /*preserve_kna*/ false);
     StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
+  }
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "== Finished inlining " << shared.object() << std::endl;
   }
 
   // Pull the returned accumulator value out of the inlined function's final
@@ -7929,18 +7968,12 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
 #define TRACE_CANNOT_INLINE(...) \
   TRACE_INLINING("  cannot inline " << shared << ": " << __VA_ARGS__)
 
-bool MaglevGraphBuilder::ShouldInlineCall(
-    compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, float call_frequency) {
+bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
+                                       float call_frequency) {
   if (graph()->total_inlined_bytecode_size() >
       v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlined bytecode size");
-    return false;
-  }
-  if (!feedback_vector) {
-    // TODO(verwaest): Soft deopt instead?
-    TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
     return false;
   }
   // TODO(olivf): This is a temporary stopgap to prevent infinite recursion when
@@ -7970,17 +8003,15 @@ bool MaglevGraphBuilder::ShouldInlineCall(
     TRACE_CANNOT_INLINE("use unsupported NewTargetOrGenerator register");
     return false;
   }
+  if (v8_flags.maglev_non_eager_inlining && IsInsideTryBlock()) {
+    TRACE_CANNOT_INLINE("non greedy inlining does not support catch blocks");
+    return false;
+  }
   if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
     TRACE_CANNOT_INLINE("call frequency ("
                         << call_frequency << ") < minimum threshold ("
                         << v8_flags.min_maglev_inlining_frequency << ")");
     return false;
-  }
-  if (bytecode.length() < v8_flags.max_maglev_inlined_bytecode_size_small) {
-    TRACE_INLINING("  inlining "
-                   << shared
-                   << ": small function, skipping max-size and max-depth");
-    return true;
   }
   if (bytecode.length() > v8_flags.max_maglev_inlined_bytecode_size) {
     TRACE_CANNOT_INLINE("big function, size ("
@@ -7988,18 +8019,6 @@ bool MaglevGraphBuilder::ShouldInlineCall(
                         << v8_flags.max_maglev_inlined_bytecode_size << ")");
     return false;
   }
-  if (inlining_depth() > v8_flags.max_maglev_inline_depth) {
-    TRACE_CANNOT_INLINE("inlining depth ("
-                        << inlining_depth() << ") >= max-depth ("
-                        << v8_flags.max_maglev_inline_depth << ")");
-    return false;
-  }
-  TRACE_INLINING("  inlining " << shared);
-  if (v8_flags.trace_maglev_inlining_verbose) {
-    BytecodeArray::Disassemble(bytecode.object(), std::cout);
-    i::Print(*feedback_vector->object(), std::cout);
-  }
-  graph()->add_inlined_bytecode_size(bytecode.length());
   return true;
 }
 
@@ -8015,12 +8034,32 @@ bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
       ->PassesFilter(v8_flags.maglev_print_filter);
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
+bool MaglevGraphBuilder::ShouldEagerInlineCall(
+    compiler::SharedFunctionInfoRef shared) {
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+  if (bytecode.length() < v8_flags.max_maglev_inlined_bytecode_size_small) {
+    TRACE_INLINING("  greedy inlining "
+                   << shared << ": small function, skipping max-depth");
+    return true;
+  }
+  return false;
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
+  if (!feedback_vector) {
+    // TODO(verwaest): Soft deopt instead?
+    TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
+    return {};
+  }
+
   float feedback_frequency = 0.0f;
   if (feedback_source.IsValid()) {
     compiler::ProcessedFeedback const& feedback =
@@ -8029,33 +8068,62 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
         feedback.IsInsufficient() ? 0.0f : feedback.AsCall().frequency();
   }
   float call_frequency = feedback_frequency * GetCurrentCallFrequency();
-  if (!ShouldInlineCall(shared, feedback_vector, call_frequency)) {
+
+  if (!CanInlineCall(shared, call_frequency)) return {};
+  if (ShouldEagerInlineCall(shared)) {
+    return BuildEagerInlineCall(context, function, new_target, shared,
+                                feedback_vector, args, call_frequency);
+  }
+
+  // Should we inline call?
+  if (inlining_depth() > v8_flags.max_maglev_inline_depth) {
+    TRACE_CANNOT_INLINE("inlining depth ("
+                        << inlining_depth() << ") >= max-depth ("
+                        << v8_flags.max_maglev_inline_depth << ")");
     return {};
   }
 
-  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-
-  if (v8_flags.maglev_print_inlined &&
-      TopLevelFunctionPassMaglevPrintFilter() &&
-      (v8_flags.print_maglev_code || v8_flags.print_maglev_graph ||
-       v8_flags.print_maglev_graphs)) {
-    std::cout << "== Inlining " << Brief(*shared.object()) << std::endl;
-    BytecodeArray::Disassemble(bytecode.object(), std::cout);
-    if (v8_flags.maglev_print_feedback) {
-      i::Print(*feedback_vector->object(), std::cout);
-    }
-  } else if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "== Inlining " << shared.object() << std::endl;
+  if (!v8_flags.maglev_non_eager_inlining) {
+    return BuildEagerInlineCall(context, function, new_target, shared,
+                                feedback_vector, args, call_frequency);
   }
 
-  graph()->inlined_functions().push_back(
-      OptimizedCompilationInfo::InlinedFunctionHolder(
-          shared.object(), bytecode.object(), current_source_position_));
-  if (feedback_vector->object()->invocation_count_before_stable(kRelaxedLoad) >
-      v8_flags.invocation_count_for_early_optimization) {
-    compilation_unit_->info()->set_could_not_inline_all_candidates();
-  }
-  int inlining_id = static_cast<int>(graph()->inlined_functions().size() - 1);
+  TRACE_INLINING("  considering " << shared << " for inlining");
+  auto generic_call =
+      BuildCallKnownJSFunction(context, function, new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+                               dispatch_handle,
+#endif
+                               shared, feedback_vector, args, feedback_source);
+
+  // Create a new compilation unit.
+  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+      zone(), compilation_unit_, shared, feedback_vector.value());
+  auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
+  // TODO(victorgomes): We could delay creating the compilation unit for every
+  // candidate, if we InlinedArgumentsDeoptFrame didn't need to point to the
+  // compilation unit.
+  DeoptFrame* deopt_frame =
+      GetDeoptFrameForCall(inner_unit, function, arguments);
+  MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
+      this, inner_unit, BytecodeOffset(iterator_.current_offset()),
+      current_source_position_, arguments, deopt_frame,
+      zone()->New<KnownNodeAspects>(zone()),
+      current_interpreter_frame_.virtual_objects(),
+      /* loop effects */ nullptr,
+      ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(zone()),
+      CatchBlockDetails{}, CatchBlockDeoptFrameDistance() + 1, IsInsideLoop(),
+      call_frequency, generic_call);
+  graph()->inlineable_calls().push_back(caller_details);
+  return generic_call;
+}
+
+ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
+    compiler::SharedFunctionInfoRef shared,
+    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    float call_frequency) {
+  DCHECK_EQ(args.mode(), CallArguments::kDefault);
 
   // Merge catch block state if needed.
   CatchBlockDetails catch_block_details = GetCurrentTryCatchBlock();
@@ -8068,10 +8136,18 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
         current_interpreter_frame_.virtual_objects());
   }
 
+  // Create a new compilation unit.
+  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+      zone(), compilation_unit_, shared, feedback_vector.value());
+
   // Propagate details.
+  auto arguments_vector = GetArgumentsAsArrayOfValueNodes(shared, args);
   MaglevCallerDetails caller_details{
       this,
+      inner_unit,
       BytecodeOffset(iterator_.current_offset()),
+      current_source_position_,
+      arguments_vector,
       /* deopt_frame */ nullptr,
       current_interpreter_frame_.known_node_aspects(),
       current_interpreter_frame_.virtual_objects(),
@@ -8080,47 +8156,37 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       catch_block_details,
       CatchBlockDeoptFrameDistance() + 1,
       IsInsideLoop(),
-      call_frequency};
+      call_frequency,
+      /* generic_call_node */ nullptr};
 
-  // Create a new compilation unit and graph builder for the inlined
-  // function.
-  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_vector.value());
+  // Create a new graph builder for the inlined function.
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
-                                         inlining_id, &caller_details);
+                                         &caller_details);
 
   // Set the inner graph builder to build in the current block.
   inner_graph_builder.current_block_ = current_block_;
 
-  MaybeReduceResult result =
-      inner_graph_builder.BuildInlined(context, function, new_target, args);
+  // Build inline function.
+  ReduceResult result =
+      inner_graph_builder.BuildInlineFunction(context, function, new_target);
   if (result.IsDoneWithAbort()) {
     DCHECK_NULL(inner_graph_builder.current_block_);
     current_block_ = nullptr;
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "== Finished inlining (abort) " << shared.object()
-                << std::endl;
-    }
     return ReduceResult::DoneWithAbort();
   }
 
-  // Propagate KnownNodeAspects back to the caller.
+  // Propagate information back to the caller.
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
-
-  // Propagate virtual object lists back to the caller.
   current_interpreter_frame_.set_virtual_objects(
       inner_graph_builder.current_interpreter_frame_.virtual_objects());
 
-  DCHECK(result.IsDoneWithValue());
   // Resume execution using the final block of the inner builder.
   current_block_ = inner_graph_builder.current_block_;
 
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "== Finished inlining " << shared.object() << std::endl;
-  }
+  DCHECK(result.IsDoneWithValue());
   return result;
 }
 
@@ -9730,6 +9796,18 @@ ValueNode* MaglevGraphBuilder::GetConvertReceiver(
       {receiver}, broker()->target_native_context(), args.receiver_mode());
 }
 
+base::Vector<ValueNode*> MaglevGraphBuilder::GetArgumentsAsArrayOfValueNodes(
+    compiler::SharedFunctionInfoRef shared, const CallArguments& args) {
+  // TODO(victorgomes): Investigate if we can avoid this copy.
+  int arg_count = static_cast<int>(args.count());
+  auto arguments = zone()->AllocateVector<ValueNode*>(arg_count + 1);
+  arguments[0] = GetConvertReceiver(shared, args);
+  for (int i = 0; i < arg_count; i++) {
+    arguments[i + 1] = args[i];
+  }
+  return arguments;
+}
+
 template <typename CallNode, typename... Args>
 CallNode* MaglevGraphBuilder::AddNewCallNode(const CallArguments& args,
                                              Args&&... extra_args) {
@@ -9970,7 +10048,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   return res;
 }
 
-MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
+CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
 #ifdef V8_ENABLE_LEAPTIERING
     JSDispatchHandle dispatch_handle,
@@ -9978,10 +10056,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(context, function, new_target, shared,
-                                       feedback_vector, args, feedback_source));
-  }
   ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
   return AddNewNode<CallKnownJSFunction>(
@@ -9996,6 +10070,30 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 #endif
       shared, GetTaggedValue(function), GetTaggedValue(context),
       GetTaggedValue(receiver), GetTaggedValue(new_target));
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
+    compiler::SharedFunctionInfoRef shared,
+    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
+  if (v8_flags.maglev_inlining) {
+    RETURN_IF_DONE(TryBuildInlineCall(context, function, new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+                                      dispatch_handle,
+#endif
+                                      shared, feedback_vector, args,
+                                      feedback_source));
+  }
+  return BuildCallKnownJSFunction(context, function, new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+                                  dispatch_handle,
+#endif
+                                  shared, feedback_vector, args,
+                                  feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
@@ -12534,7 +12632,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
       CreateFixedArray(broker()->fixed_array_map(), length);
   for (int i = 0; i < length; i++) {
     elements->set(FixedArray::OffsetOfElementAt(i),
-                  inlined_arguments_[i + start_index + 1]);
+                  caller_details_->arguments[i + start_index + 1]);
   }
   return elements;
 }
@@ -12554,7 +12652,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedUnmappedArgumentsElements(
   }
   for (; i < length; i++) {
     unmapped_elements->set(FixedArray::OffsetOfElementAt(i),
-                           inlined_arguments_[i + 1]);
+                           caller_details_->arguments[i + 1]);
   }
   return unmapped_elements;
 }

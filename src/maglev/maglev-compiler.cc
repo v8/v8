@@ -38,6 +38,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/maglev/maglev-inlining.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
@@ -107,6 +108,19 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
       if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
         std::cout << "\nAfter graph building" << std::endl;
+        PrintGraph(std::cout, compilation_info, graph);
+      }
+    }
+
+    if (v8_flags.maglev_non_eager_inlining) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                   "V8.Maglev.Inlining");
+
+      MaglevInliner inliner(local_isolate, graph);
+      inliner.Run();
+
+      if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
+        std::cout << "\nAfter inlining" << std::endl;
         PrintGraph(std::cout, compilation_info, graph);
       }
     }
