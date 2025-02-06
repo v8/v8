@@ -555,6 +555,10 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             : V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
     base::SmallVector<OpIndex, 16> args(pushed_count + 4 +
                                         (has_dispatch_handle ? 1 : 0));
+    SBXCHECK_LT(
+        args.size(),
+        std::numeric_limits<
+            decltype(compiler::turboshaft::Operation::input_count)>::max());
     // Position of the first wasm argument in the JS arguments.
     int pos = kind == ImportCallKind::kUseCallBuiltin ? 3 : 1;
     pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_params, sig_,
