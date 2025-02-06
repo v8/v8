@@ -4897,6 +4897,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeGetInt32:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalInt32Array);
+    case Builtin::kDataViewPrototypeGetFloat16:
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalFloat16Array);
     case Builtin::kDataViewPrototypeGetFloat32:
       return ReduceDataViewAccess(node, DataViewAccess::kGet,
                                   ExternalArrayType::kExternalFloat32Array);
@@ -4927,6 +4930,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeSetInt32:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalInt32Array);
+    case Builtin::kDataViewPrototypeSetFloat16:
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalFloat16Array);
     case Builtin::kDataViewPrototypeSetFloat32:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalFloat32Array);
@@ -8486,6 +8492,9 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
           simplified()->SpeculativeToNumber(
               NumberOperationHint::kNumberOrOddball, p.feedback()),
           value, effect, control);
+      if (element_type == kExternalFloat16Array) {
+        value = graph()->NewNode(simplified()->NumberToFloat16RawBits(), value);
+      }
     }
   }
 
