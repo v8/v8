@@ -568,6 +568,7 @@ void WasmTableObject::UpdateDispatchTable(
   if (target_instance_data->dispatch_table_for_imports()->IsAWrapper(
           func->func_index)) {
     uint64_t signature_hash = wasm::SignatureHasher::Hash(func->sig);
+    wasm::WasmCodeRefScope code_ref_scope;
     dispatch_table->SetForWrapper(
         entry_index, *implicit_arg,
         wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
@@ -2219,7 +2220,7 @@ void WasmDispatchTable::SetForWrapper(int index, Tagged<Object> implicit_arg,
                                       wasm::WasmCode* compiled_wrapper,
                                       NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
-
+  SBXCHECK(!compiled_wrapper || !compiled_wrapper->is_dying());
   SBXCHECK_BOUNDS(index, length());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
@@ -2398,8 +2399,15 @@ Handle<WasmDispatchTable> WasmDispatchTable::Grow(
       // After installing a compiled wrapper, we don't set a call origin
       // any more.
       if (import_data->has_call_origin()) {
-        DCHECK_EQ(*old_table, import_data->call_origin());
-        import_data->set_call_origin(*new_table);
+        if (import_data->call_origin() == *old_table) {
+          import_data->set_call_origin(*new_table);
+        } else {
+#if DEBUG
+          wasm::WasmCodeRefScope code_ref_scope;
+          DCHECK_NOT_NULL(
+              wasm::GetWasmImportWrapperCache()->FindWrapper(call_target));
+#endif  // DEBUG
+        }
       }
     }
 

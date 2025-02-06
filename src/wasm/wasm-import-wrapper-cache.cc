@@ -145,6 +145,8 @@ WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
       GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
           call_target));
   if (iter == codes_.end()) return nullptr;
+  WasmCodeRefScope::AddRef(iter->second);
+  if (iter->second->is_dying()) return nullptr;
   return iter->second;
 }
 
@@ -161,7 +163,10 @@ WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
     // Now that we have the lock (in the form of the cache_scope), check
     // again whether another thread has just created the wrapper.
     wasm_code = cache_scope[key];
-    if (wasm_code) return wasm_code;
+    if (wasm_code) {
+      WasmCodeRefScope::AddRef(wasm_code);
+      if (!wasm_code->is_dying()) return wasm_code;
+    }
 
     wasm_code = cache_scope.AddWrapper(key, std::move(result),
                                        WasmCode::Kind::kWasmToJsWrapper);
@@ -225,6 +230,7 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
   auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
   if (it == entry_map_.end()) return nullptr;
   WasmCodeRefScope::AddRef(it->second);
+  if (it->second->is_dying()) return nullptr;
   return it->second;
 }
 
@@ -239,6 +245,9 @@ WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
   DCHECK_EQ(candidate->instruction_start(), iter->first);
   if (!candidate->contains(pc)) return nullptr;
   WasmCodeRefScope::AddRef(candidate);
+  // Note: this function is used for iterating the stack, where dying
+  // code objects can still have their last few activations, so we
+  // must return {candidate} even if {candidate->is_dying()}.
   return candidate;
 }
 
