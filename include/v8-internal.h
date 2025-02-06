@@ -1478,7 +1478,11 @@ class WrappedIterator : public MaybeDefineIteratorConcept<Iterator> {
 
   [[nodiscard]] constexpr reference operator*() const noexcept { return *it_; }
   [[nodiscard]] constexpr pointer operator->() const noexcept {
-    return it_.operator->();
+    if constexpr (std::is_pointer_v<Iterator>) {
+      return it_;
+    } else {
+      return it_.operator->();
+    }
   }
 
   template <typename OtherIterator, typename OtherElementType>

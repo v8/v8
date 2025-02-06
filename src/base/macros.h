@@ -271,6 +271,18 @@ struct is_trivially_copyable {
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
                 #T " should not be trivially copyable")
 
+// Be aware that base::is_trivially_destructible will differ from
+// std::is_trivially_destructible for cases like DirectHandle<T>.
+template <typename T>
+struct is_trivially_destructible : public std::is_trivially_destructible<T> {};
+
+#define ASSERT_TRIVIALLY_DESTRUCTIBLE(T)                         \
+  static_assert(::v8::base::is_trivially_destructible<T>::value, \
+                #T " should be trivially destructible")
+#define ASSERT_NOT_TRIVIALLY_DESTRUCTIBLE(T)                      \
+  static_assert(!::v8::base::is_trivially_destructible<T>::value, \
+                #T " should not be trivially destructible")
+
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
 // The arguments are guaranteed to be evaluated from left to right.

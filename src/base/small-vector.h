@@ -22,7 +22,7 @@ template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
 class SmallVector {
   // Currently only support trivially destructible data types, as it is not
   // guaranteed to call destructors.
-  static_assert(std::is_trivially_destructible<T>::value);
+  ASSERT_TRIVIALLY_DESTRUCTIBLE(T);
 
  public:
   static constexpr size_t kInlineSize = kSize;
@@ -63,7 +63,7 @@ class SmallVector {
   }
 
   ~SmallVector() {
-    static_assert(std::is_trivially_destructible_v<T>);
+    ASSERT_TRIVIALLY_DESTRUCTIBLE(T);
     if (is_big()) FreeDynamicStorage();
   }
 
@@ -213,7 +213,7 @@ class SmallVector {
   }
 
   void resize_and_init(size_t new_size, const T& initial_value = {}) {
-    static_assert(std::is_trivially_destructible_v<T>);
+    ASSERT_TRIVIALLY_DESTRUCTIBLE(T);
     if (new_size > capacity()) Grow(new_size);
     T* new_end = begin_ + new_size;
     if (new_end > end_) {

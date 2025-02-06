@@ -338,7 +338,7 @@ class CompiledReplacement {
   }
 
   base::SmallVector<ReplacementPart, kStaticVectorSlots> parts_;
-  DirectHandleVector<String> replacement_substrings_;
+  DirectHandleSmallVector<String, kStaticVectorSlots> replacement_substrings_;
 };
 
 bool CompiledReplacement::Compile(Isolate* isolate,
@@ -1936,7 +1936,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
 
-  DirectHandleVector<JSAny> results(isolate);
+  DirectHandleSmallVector<JSAny, kStaticVectorSlots> results(isolate);
 
   while (true) {
     DirectHandle<JSAny> result;
@@ -2001,7 +2001,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
         std::min(PositiveNumberToUint32(*position_obj), length);
 
     // Do not reserve capacity since captures_length is user-controlled.
-    DirectHandleVector<Object> captures(isolate);
+    DirectHandleSmallVector<Object, kStaticVectorSlots> captures(isolate);
 
     for (uint32_t n = 0; n < captures_length; n++) {
       DirectHandle<Object> capture;
