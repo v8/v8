@@ -133,9 +133,8 @@ function isInWhileLoop(path) {
   return Boolean(whileStatement);
 }
 
-function _availableIdentifiers(path, filter) {
+function* _availableIdentifierNamesGen(path, filter) {
   // TODO(ochang): Consider globals that aren't declared with let/var etc.
-  const available = new Array();
   const allBindings = path.scope.getAllBindings();
   for (const key of Object.keys(allBindings)) {
     if (!filter(key)) {
@@ -147,9 +146,15 @@ function _availableIdentifiers(path, filter) {
       continue;
     }
 
-    available.push(_identifier(key));
+    yield key;
   }
+}
 
+function _availableIdentifiers(path, filter) {
+  const available = new Array();
+  for (const name of _availableIdentifierNamesGen(path, filter)) {
+    available.push(_identifier(name));
+  }
   return available;
 }
 
@@ -159,6 +164,15 @@ function availableVariables(path) {
 
 function availableFunctions(path) {
   return _availableIdentifiers(path, isFunctionIdentifier);
+}
+
+function availableFunctionNames(path) {
+  const available = new Set([]);
+  for (const name of _availableIdentifierNamesGen(
+      path, isFunctionIdentifier)) {
+    available.add(name);
+  }
+  return available;
 }
 
 function randomVariable(path) {
@@ -354,6 +368,7 @@ module.exports = {
   concatPrograms: concatPrograms,
   availableVariables: availableVariables,
   availableFunctions: availableFunctions,
+  availableFunctionNames: availableFunctionNames,
   randomFunction: randomFunction,
   randomVariable: randomVariable,
   isInForLoopCondition: isInForLoopCondition,

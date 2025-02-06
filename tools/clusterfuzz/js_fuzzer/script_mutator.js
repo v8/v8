@@ -24,6 +24,7 @@ const { CrossOverMutator } = require('./mutators/crossover_mutator.js');
 const { ExpressionMutator } = require('./mutators/expression_mutator.js');
 const { FunctionCallMutator } = require('./mutators/function_call_mutator.js');
 const { IdentifierNormalizer } = require('./mutators/normalizer.js');
+const { MutationContext } = require('./mutators/mutator.js');
 const { NumberMutator } = require('./mutators/number_mutator.js');
 const { ObjectMutator } = require('./mutators/object_mutator.js');
 const { VariableMutator } = require('./mutators/variable_mutator.js');
@@ -155,7 +156,7 @@ class ScriptMutator {
         'chakra_stubs', sourceHelpers.loadResource('chakra_stubs.js'));
   }
 
-  mutate(source) {
+  mutate(source, context) {
     let mutators = this.mutators.slice();
     let annotations = [];
     if (random.choose(this.settings.SCRIPT_MUTATOR_SHUFFLE)){
@@ -175,7 +176,7 @@ class ScriptMutator {
     mutators.push(this.trycatch);
 
     for (const mutator of mutators) {
-      mutator.mutate(source);
+      mutator.mutate(source, context);
     }
 
     for (const annotation of annotations.reverse()) {
@@ -236,10 +237,11 @@ class ScriptMutator {
   // Normalizes, combines and mutates multiple inputs.
   mutateInputs(inputs) {
     const normalizerMutator = new IdentifierNormalizer();
+    const context = new MutationContext();
 
     for (const [index, input] of inputs.entries()) {
       try {
-        normalizerMutator.mutate(input);
+        normalizerMutator.mutate(input, context);
       } catch (e) {
         console.log('ERROR: Failed to normalize ', input.relPath);
         throw e;
@@ -251,7 +253,7 @@ class ScriptMutator {
     // Combine ASTs into one. This is so that mutations have more context to
     // cross over content between ASTs (e.g. variables).
     const combinedSource = common.concatPrograms(inputs);
-    this.mutate(combinedSource);
+    this.mutate(combinedSource, context);
 
     return combinedSource;
   }

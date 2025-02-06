@@ -21,6 +21,7 @@ const helpers = require('./helpers.js');
 const random = require('../random.js');
 const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
+const functionCallMutator = require('../mutators/function_call_mutator.js');
 
 const {CrossOverMutator} = require('../mutators/crossover_mutator.js');
 
@@ -198,5 +199,39 @@ describe('Regression tests', () => {
     const mutated = sourceHelpers.generateCode(source);
     helpers.assertExpectedResult(
         'regress/duplicates/duplicates_expected.js', mutated);
+  });
+
+  function testAsyncReplacements(settings, expected) {
+    settings['MUTATE_FUNCTION_CALLS'] = 1.0;
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Go only into function-call replacements.
+    sandbox.stub(random, 'random').callsFake(() => { return 0.2; });
+
+    // Input with several async and non-async replacement sites.
+    const source = helpers.loadTestData('regress/async/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult(expected, mutated);
+  }
+
+  it('makes no cross-async replacements', () => {
+    // Test to show that when REPLACE_CROSS_ASYNC_PROB isn't chosen, there
+    // are no replacements that change the async property.
+    sandbox.stub(functionCallMutator, 'REPLACE_CROSS_ASYNC_PROB').value(0);
+    testAsyncReplacements(
+        this.settings, 'regress/async/no_async_expected.js');
+  });
+
+  it('makes full cross-async replacements', () => {
+    // Test to show that when REPLACE_CROSS_ASYNC_PROB is chosen, the
+    // replacement functions are from the pool of all functions (both
+    // maintaining and not maintaining the async property).
+    sandbox.stub(functionCallMutator, 'REPLACE_CROSS_ASYNC_PROB').value(1);
+    testAsyncReplacements(
+        this.settings, 'regress/async/full_async_expected.js');
   });
 });
