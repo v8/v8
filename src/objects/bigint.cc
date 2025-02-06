@@ -1248,7 +1248,7 @@ void BigInt::SerializeDigits(uint8_t* storage, size_t storage_length) {
 
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
-MaybeHandle<BigInt> BigInt::FromSerializedDigits(
+MaybeDirectHandle<BigInt> BigInt::FromSerializedDigits(
     Isolate* isolate, uint32_t bitfield,
     base::Vector<const uint8_t> digits_storage) {
   uint32_t bytelength = LengthBits::decode(bitfield);

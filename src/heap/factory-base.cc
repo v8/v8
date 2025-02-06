@@ -443,8 +443,8 @@ FactoryBase<Impl>::NewSloppyArgumentsElements(
 }
 
 template <typename Impl>
-Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
-                                                  AllocationType allocation) {
+DirectHandle<ArrayList> FactoryBase<Impl>::NewArrayList(
+    int size, AllocationType allocation) {
   return ArrayList::New(isolate(), size, allocation);
 }
 

@@ -649,7 +649,7 @@ V8_NOINLINE DirectHandle<JSFunction> CreateSharedObjectConstructor(
 
 V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
                                            DirectHandle<JSObject> base,
-                                           Handle<Name> name,
+                                           DirectHandle<Name> name,
                                            Builtin call_getter,
                                            Builtin call_setter) {
   DirectHandle<String> getter_name =
@@ -678,7 +678,7 @@ void SimpleInstallGetterSetter(Isolate* isolate, DirectHandle<JSObject> base,
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(
-    Isolate* isolate, DirectHandle<JSObject> base, Handle<Name> name,
+    Isolate* isolate, DirectHandle<JSObject> base, DirectHandle<Name> name,
     DirectHandle<Name> property_name, Builtin call, AdaptArguments adapt) {
   DirectHandle<String> getter_name =
       Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
@@ -697,7 +697,7 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Isolate* isolate,
                                                    DirectHandle<JSObject> base,
-                                                   Handle<Name> name,
+                                                   DirectHandle<Name> name,
                                                    Builtin call,
                                                    AdaptArguments adapt) {
   return SimpleInstallGetter(isolate, base, name, name, call, adapt);
@@ -845,7 +845,7 @@ DirectHandle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
       .Assert();
 
   // length needs to be non configurable.
-  Handle<Object> value(Smi::FromInt(function->length()), isolate());
+  DirectHandle<Object> value(Smi::FromInt(function->length()), isolate());
   JSObject::SetOwnPropertyIgnoreAttributes(
       function, factory()->length_string(), value,
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
@@ -6007,8 +6007,9 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
 void Genesis::InitializeGlobal_js_base_64() {
   if (!v8_flags.js_base_64) return;
 
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSObject> uint8_array_function =
+  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
+                                      isolate());
+  DirectHandle<JSObject> uint8_array_function =
       Cast<JSObject>(JSReceiver::GetProperty(isolate(), global, "Uint8Array")
                          .ToHandleChecked());
   SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",

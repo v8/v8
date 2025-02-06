@@ -298,9 +298,9 @@ class CompilerTracer : public AllStatic {
 void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       LogEventListener::CodeTag code_type,
                                       DirectHandle<Script> script,
-                                      Handle<SharedFunctionInfo> shared,
+                                      DirectHandle<SharedFunctionInfo> shared,
                                       DirectHandle<FeedbackVector> vector,
-                                      Handle<AbstractCode> abstract_code,
+                                      DirectHandle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK_NE(*abstract_code,
             Cast<AbstractCode>(*BUILTIN_CODE(isolate, CompileLazy)));
@@ -314,10 +314,10 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   Script::GetPositionInfo(script, shared->StartPosition(), &info);
   int line_num = info.line + 1;
   int column_num = info.column + 1;
-  Handle<String> script_name(IsString(script->name())
-                                 ? Cast<String>(script->name())
-                                 : ReadOnlyRoots(isolate).empty_string(),
-                             isolate);
+  DirectHandle<String> script_name(IsString(script->name())
+                                       ? Cast<String>(script->name())
+                                       : ReadOnlyRoots(isolate).empty_string(),
+                                   isolate);
   LogEventListener::CodeTag log_tag =
       V8FileLogger::ToNativeByScript(code_type, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared, script_name,
@@ -419,14 +419,14 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 
 namespace {
 void LogUnoptimizedCompilation(Isolate* isolate,
-                               Handle<SharedFunctionInfo> shared,
+                               DirectHandle<SharedFunctionInfo> shared,
                                LogEventListener::CodeTag code_type,
                                base::TimeDelta time_taken_to_execute,
                                base::TimeDelta time_taken_to_finalize) {
-  Handle<AbstractCode> abstract_code;
+  DirectHandle<AbstractCode> abstract_code;
   if (shared->HasBytecodeArray()) {
-    abstract_code =
-        handle(Cast<AbstractCode>(shared->GetBytecodeArray(isolate)), isolate);
+    abstract_code = direct_handle(
+        Cast<AbstractCode>(shared->GetBytecodeArray(isolate)), isolate);
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
@@ -628,7 +628,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
 
 void TurbofanCompilationJob::RecordFunctionCompilation(
     LogEventListener::CodeTag code_type, Isolate* isolate) const {
-  Handle<AbstractCode> abstract_code =
+  DirectHandle<AbstractCode> abstract_code =
       Cast<AbstractCode>(compilation_info()->code());
 
   double time_taken_ms = time_taken_to_prepare_.InMillisecondsF() +
@@ -677,7 +677,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 }  // namespace
 
 void Compiler::InstallInterpreterTrampolineCopy(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
     LogEventListener::CodeTag log_tag) {
   DCHECK(isolate->interpreted_frames_native_stack());
   if (!IsBytecodeArray(shared_info->GetTrustedData(isolate))) {
@@ -687,7 +687,7 @@ void Compiler::InstallInterpreterTrampolineCopy(
   DirectHandle<BytecodeArray> bytecode_array(
       shared_info->GetBytecodeArray(isolate), isolate);
 
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
   DirectHandle<InterpreterData> interpreter_data =
@@ -702,15 +702,15 @@ void Compiler::InstallInterpreterTrampolineCopy(
   }
 
   DirectHandle<Script> script(Cast<Script>(shared_info->script()), isolate);
-  Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
+  DirectHandle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
   Script::PositionInfo info;
   Script::GetPositionInfo(script, shared_info->StartPosition(), &info);
   int line_num = info.line + 1;
   int column_num = info.column + 1;
-  Handle<String> script_name =
-      handle(IsString(script->name()) ? Cast<String>(script->name())
-                                      : ReadOnlyRoots(isolate).empty_string(),
-             isolate);
+  DirectHandle<String> script_name(IsString(script->name())
+                                       ? Cast<String>(script->name())
+                                       : ReadOnlyRoots(isolate).empty_string(),
+                                   isolate);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,
                                    script_name, line_num, column_num));
 }
@@ -1258,9 +1258,9 @@ MaybeHandle<Code> CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
 // TODO(v8:7700): Record maglev compilations better.
 void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      DirectHandle<JSFunction> function,
-                                     Handle<AbstractCode> code) {
+                                     DirectHandle<AbstractCode> code) {
   PtrComprCageBase cage_base(isolate);
-  Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
+  DirectHandle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
   DirectHandle<Script> script(Cast<Script>(shared->script(cage_base)), isolate);
   DirectHandle<FeedbackVector> feedback_vector(
       function->feedback_vector(cage_base), isolate);
@@ -1497,7 +1497,8 @@ void FinalizeUnoptimizedCompilation(
       (!flags.collect_source_positions() && isolate->NeedsSourcePositions());
 
   for (const auto& finalize_data : finalize_unoptimized_compilation_data_list) {
-    Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
+    DirectHandle<SharedFunctionInfo> shared_info =
+        finalize_data.function_handle();
     // It's unlikely, but possible, that the bytecode was flushed between being
     // allocated and now, so guard against that case, and against it being
     // flushed in the middle of this loop.
@@ -3087,7 +3088,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   }
 
   CompilerTracer::TraceStartBaselineCompile(isolate, shared);
-  Handle<Code> code;
+  DirectHandle<Code> code;
   base::TimeDelta time_taken;
   {
     base::ScopedTimer timer(
@@ -4497,7 +4498,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     // Note the finalized InstructionStream object has already been installed on
     // the function by MaglevCompilationJob::FinalizeJobImpl.
 
-    Handle<Code> code = job->code().ToHandleChecked();
+    DirectHandle<Code> code = job->code().ToHandleChecked();
     if (!job->is_osr()) {
       job->function()->UpdateOptimizedCode(isolate, *code);
     }

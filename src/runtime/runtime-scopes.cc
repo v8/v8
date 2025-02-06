@@ -329,7 +329,7 @@ RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
 
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
-  Handle<Object> exception = args.at<Object>(1);
+  DirectHandle<Object> exception = args.at<Object>(1);
   DirectHandle<Object> message = args.at<Object>(2);
 
   if (!isolate->is_catchable_by_javascript(*exception)) {

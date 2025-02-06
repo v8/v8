@@ -192,7 +192,7 @@ class PipelineImpl final {
   void AssembleCode(Linkage* linkage);
 
   // Step D. Run the code finalization pass.
-  MaybeHandle<Code> FinalizeCode(bool retire_broker = true);
+  MaybeDirectHandle<Code> FinalizeCode(bool retire_broker = true);
 
   // Step E. Ensure all embedded maps are non-deprecated using
   // CheckNoDeprecatedMaps.
@@ -3654,7 +3654,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage) {
   data->EndPhaseKind();
 }
 
-MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
+MaybeDirectHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   TFPipelineData* data = this->data_;
   data->BeginPhaseKind("V8.TFFinalizeCode");
   if (data->broker() && retire_broker) {

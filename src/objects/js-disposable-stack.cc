@@ -31,7 +31,7 @@ namespace internal {
 #define CHECK_EXCEPTION_ON_DISPOSAL(isolate, disposable_stack, return_value) \
   do {                                                                       \
     DCHECK(isolate->has_exception());                                        \
-    Handle<Object> current_error(isolate->exception(), isolate);             \
+    DirectHandle<Object> current_error(isolate->exception(), isolate);       \
     DirectHandle<Object> current_error_message(isolate->pending_message(),   \
                                                isolate);                     \
     if (!isolate->is_catchable_by_javascript(*current_error)) {              \

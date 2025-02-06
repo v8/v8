@@ -524,8 +524,9 @@ void SharedFunctionInfo::DisableOptimization(Isolate* isolate,
     CodeKind kind = abstract_code(isolate)->kind(isolate);
     CHECK(kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BUILTIN);
   }
-  PROFILE(isolate, CodeDisableOptEvent(handle(abstract_code(isolate), isolate),
-                                       handle(*this, isolate)));
+  PROFILE(isolate,
+          CodeDisableOptEvent(direct_handle(abstract_code(isolate), isolate),
+                              direct_handle(*this, isolate)));
   if (v8_flags.trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[disabled optimization for ");

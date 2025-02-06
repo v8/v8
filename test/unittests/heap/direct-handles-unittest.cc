@@ -49,12 +49,12 @@ TEST_F(DirectHandlesTest, CreateMaybeDirectHandle) {
 
 TEST_F(DirectHandlesTest, CreateMaybeDirectObjectHandle) {
   HandleScope scope(isolate());
-  i::Handle<i::String> handle =
+  i::DirectHandle<i::String> handle =
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   i::DirectHandle<i::String> direct = handle;
 
   i::MaybeObjectDirectHandle maybe_direct(direct);
-  i::MaybeObjectHandle maybe_handle(handle);
+  i::MaybeObjectDirectHandle maybe_handle(handle);
 
   EXPECT_EQ(*maybe_direct, *maybe_handle);
 }

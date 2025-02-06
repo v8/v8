@@ -604,7 +604,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   DCHECK_EQ(4, args.length());
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(0);
   int index = args.tagged_index_value_at(1);
-  Handle<String> pattern = args.at<String>(2);
+  DirectHandle<String> pattern = args.at<String>(2);
   int flags = args.smi_value_at(3);
 
   if (IsUndefined(*maybe_vector)) {

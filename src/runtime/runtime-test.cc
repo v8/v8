@@ -2021,8 +2021,8 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  Handle<String> pattern = args.at<String>(0);
-  Handle<String> flags_string = args.at<String>(1);
+  DirectHandle<String> pattern = args.at<String>(0);
+  DirectHandle<String> flags_string = args.at<String>(1);
   int backtrack_limit = args.smi_value_at(2);
   if (backtrack_limit < 0) {
     return CrashUnlessFuzzing(isolate);

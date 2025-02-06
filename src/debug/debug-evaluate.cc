@@ -146,7 +146,7 @@ MaybeDirectHandle<Object> DebugEvaluate::WithTopmostArguments(
       .Check();
 
   // Materialize receiver.
-  Handle<Object> this_value(it.frame()->receiver(), isolate);
+  DirectHandle<Object> this_value(it.frame()->receiver(), isolate);
   DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
   if (!IsTheHole(*this_value, isolate)) {
     DirectHandle<String> this_str = factory->this_string();

@@ -197,7 +197,7 @@ class TestCompileResolver : public CompilationResultResolver {
           isolate_,
           std::make_unique<TestInstantiateResolver>(isolate_, status_,
                                                     error_message_),
-          module, MaybeHandle<JSReceiver>());
+          module, MaybeDirectHandle<JSReceiver>());
     }
   }
 

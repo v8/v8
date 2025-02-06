@@ -846,11 +846,7 @@ HandleType<Map> Map::Update(Isolate* isolate, HandleType<Map> map) {
       return HandleType<Map>(target_map, isolate);
     }
   }
-  if constexpr (std::is_convertible_v<HandleType<Map>, Handle<Map>>) {
-    return MapUpdater{isolate, map}.Update();
-  } else {
-    return MapUpdater{isolate, indirect_handle(map, isolate)}.Update();
-  }
+  return MapUpdater{isolate, map}.Update();
 }
 
 template V8_EXPORT_PRIVATE DirectHandle<Map> Map::Update(Isolate* isolate,
@@ -1076,7 +1072,8 @@ bool Map::IsMapInArrayPrototypeChain(Isolate* isolate) const {
   return false;
 }
 
-DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate, Handle<Map> map,
+DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate,
+                                            DirectHandle<Map> map,
                                             ElementsKind to_kind) {
   ElementsKind from_kind = map->elements_kind();
   if (from_kind == to_kind) return map;

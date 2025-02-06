@@ -228,7 +228,8 @@ Handle<Map> MapUpdater::ReconfigureToDataField(
   return result_map_;
 }
 
-Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
+DirectHandle<Map> MapUpdater::ReconfigureElementsKind(
+    ElementsKind elements_kind) {
   DCHECK_EQ(kInitialized, state_);
 
   new_elements_kind_ = elements_kind;
@@ -261,7 +262,7 @@ Handle<Map> MapUpdater::ApplyPrototypeTransition(
 
 // static
 DirectHandle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate,
-                                              Handle<Map> map) {
+                                              DirectHandle<Map> map) {
   if (!map->is_deprecated()) return map;
   // TODO(ishell): support fast map updating if we enable it.
   CHECK(!v8_flags.fast_map_update);
@@ -1185,7 +1186,7 @@ void PrintReconfiguration(Isolate* isolate, DirectHandle<Map> map, FILE* file,
 
 // static
 Handle<Map> MapUpdater::ReconfigureExistingProperty(
-    Isolate* isolate, Handle<Map> map, InternalIndex descriptor,
+    Isolate* isolate, DirectHandle<Map> map, InternalIndex descriptor,
     PropertyKind kind, PropertyAttributes attributes,
     PropertyConstness constness) {
   // Dictionaries have to be reconfigured in-place.

@@ -893,8 +893,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
 
   switch (lookup->state()) {
     case LookupIterator::INTERCEPTOR: {
-      DirectHandle<JSObject> holder =
-          indirect_handle(lookup->GetHolder<JSObject>(), isolate());
+      DirectHandle<JSObject> holder = lookup->GetHolder<JSObject>();
       Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
 
       if (holder->GetNamedInterceptor()->non_masking()) {
@@ -2578,7 +2577,7 @@ KeyedAccessStoreMode GetStoreMode(DirectHandle<JSObject> receiver,
 
 MaybeDirectHandle<Object> KeyedStoreIC::Store(Handle<JSAny> object,
                                               Handle<Object> key,
-                                              Handle<Object> value) {
+                                              DirectHandle<Object> value) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
@@ -3103,7 +3102,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<JSAny> receiver = args.at<JSAny>(3);
   Handle<Object> key = args.at(4);
@@ -3148,7 +3147,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<JSAny> receiver = args.at<JSAny>(3);
@@ -3209,7 +3208,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   DirectHandle<JSAny> object = args.at<JSAny>(1);
   DirectHandle<Object> key = args.at(2);
   RETURN_RESULT_OR_FAILURE(
@@ -3234,7 +3233,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   DirectHandle<JSAny> object = args.at<JSAny>(0);
   Handle<Object> key = args.at(1);
-  Handle<Object> value = args.at(2);
+  DirectHandle<Object> value = args.at(2);
   DirectHandle<Map> map = args.at<Map>(3);
   int slot = args.tagged_index_value_at(4);
   DirectHandle<FeedbackVector> vector = args.at<FeedbackVector>(5);

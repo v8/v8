@@ -317,9 +317,8 @@ class KeyedStoreIC : public StoreIC {
                FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(Handle<JSAny> object,
-                                                        Handle<Object> name,
-                                                        Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Store(
+      Handle<JSAny> object, Handle<Object> name, DirectHandle<Object> value);
 
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,

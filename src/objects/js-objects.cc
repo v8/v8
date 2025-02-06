@@ -3476,7 +3476,7 @@ Maybe<InterceptorResult> JSObject::SetPropertyWithInterceptor(
 
 DirectHandle<Map> JSObject::GetElementsTransitionMap(
     DirectHandle<JSObject> object, ElementsKind to_kind) {
-  Handle<Map> map(object->map(), object->GetIsolate());
+  DirectHandle<Map> map(object->map(), object->GetIsolate());
   return Map::TransitionElementsTo(object->GetIsolate(), map, to_kind);
 }
 
@@ -5261,7 +5261,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate,
       all_extensible = all_extensible && real_receiver->map()->is_extensible();
     }
   }
-  Handle<Map> map(real_receiver->map(), isolate);
+  DirectHandle<Map> map(real_receiver->map(), isolate);
 
   // Nothing to do if prototype is already set.
   if (map->prototype() == *value) return Just(true);
@@ -5668,10 +5668,10 @@ void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
 }
 
 // static
-MaybeHandle<JSDate> JSDate::New(DirectHandle<JSFunction> constructor,
-                                DirectHandle<JSReceiver> new_target,
-                                double tv) {
-  Handle<JSDate> result;
+MaybeDirectHandle<JSDate> JSDate::New(DirectHandle<JSFunction> constructor,
+                                      DirectHandle<JSReceiver> new_target,
+                                      double tv) {
+  DirectHandle<JSDate> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       constructor->GetIsolate(), result,
       Cast<JSDate>(JSObject::New(constructor, new_target, {})));

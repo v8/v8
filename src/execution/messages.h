@@ -161,8 +161,9 @@ class MessageFormatter {
       Isolate* isolate, MessageTemplate index,
       base::Vector<const DirectHandle<String>> args);
 
-  static Handle<String> Format(Isolate* isolate, MessageTemplate index,
-                               base::Vector<const DirectHandle<Object>> args);
+  static DirectHandle<String> Format(
+      Isolate* isolate, MessageTemplate index,
+      base::Vector<const DirectHandle<Object>> args);
 };
 
 // A message handler is a convenience interface for accessing the list
@@ -183,7 +184,8 @@ class MessageHandler {
 
   static void DefaultMessageReport(Isolate* isolate, const MessageLocation* loc,
                                    DirectHandle<Object> message_obj);
-  static Handle<String> GetMessage(Isolate* isolate, DirectHandle<Object> data);
+  static DirectHandle<String> GetMessage(Isolate* isolate,
+                                         DirectHandle<Object> data);
   static std::unique_ptr<char[]> GetLocalizedMessage(Isolate* isolate,
                                                      DirectHandle<Object> data);
 

@@ -51,7 +51,7 @@ class StreamTester {
       : internal_scope_(CcTest::i_isolate()), test_resolver_(test_resolver) {
     i::Isolate* i_isolate = CcTest::i_isolate();
 
-    Handle<Context> context = i_isolate->native_context();
+    DirectHandle<Context> context = i_isolate->native_context();
 
     stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmEnabledFeatures::All(), CompileTimeImports{}, context,

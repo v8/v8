@@ -66,7 +66,7 @@ class WasmStreaming::WasmStreamingImpl {
         enabled_features_(WasmEnabledFeatures::FromIsolate(i_isolate_)),
         streaming_decoder_(i::wasm::GetWasmEngine()->StartStreamingCompilation(
             i_isolate_, enabled_features_, std::move(compile_imports),
-            handle(i_isolate_->context(), i_isolate_), api_method_name,
+            direct_handle(i_isolate_->context(), i_isolate_), api_method_name,
             resolver)),
         resolver_(std::move(resolver)) {}
 
@@ -757,7 +757,8 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
-    resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
+    resolver->OnCompilationFailed(
+        direct_handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
   }
@@ -830,7 +831,8 @@ void WebAssemblyCompileStreaming(
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
-    resolver->OnCompilationFailed(handle(i_isolate->exception(), i_isolate));
+    resolver->OnCompilationFailed(
+        direct_handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
   }
@@ -1162,7 +1164,7 @@ void WebAssemblyInstantiateStreaming(
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
     compilation_resolver->OnCompilationFailed(
-        handle(i_isolate->exception(), i_isolate));
+        direct_handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
   }
@@ -1282,7 +1284,7 @@ void WebAssemblyInstantiateImpl(
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
     compilation_resolver->OnCompilationFailed(
-        handle(i_isolate->exception(), i_isolate));
+        direct_handle(i_isolate->exception(), i_isolate));
     i_isolate->clear_exception();
     return;
   }

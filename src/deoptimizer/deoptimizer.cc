@@ -684,8 +684,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
   CHECK(CodeKindCanDeoptimize(compiled_code_->kind()));
   {
     HandleScope scope(isolate_);
-    PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
-                                     from_, fp_to_sp_delta_));
+    PROFILE(isolate_, CodeDeoptEvent(direct_handle(compiled_code_, isolate_),
+                                     kind, from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count = compiled_code_->parameter_count();
@@ -871,10 +871,11 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
   no_gc.Release();
   {
     HandleScope handle_scope(isolate);
-    PROFILE(isolate, CodeDependencyChangeEvent(
-                         handle(code, isolate),
-                         handle(deopt_data->GetSharedFunctionInfo(), isolate),
-                         DeoptimizeReasonToString(reason)));
+    PROFILE(isolate,
+            CodeDependencyChangeEvent(
+                direct_handle(code, isolate),
+                direct_handle(deopt_data->GetSharedFunctionInfo(), isolate),
+                DeoptimizeReasonToString(reason)));
   }
 }
 

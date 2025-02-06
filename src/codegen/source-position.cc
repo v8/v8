@@ -70,13 +70,13 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
   while (pos.isInlined()) {
     InliningPosition inl =
         deopt_data->InliningPositions()->get(pos.InliningId());
-    Handle<SharedFunctionInfo> function(
+    DirectHandle<SharedFunctionInfo> function(
         deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
     stack.push_back(SourcePositionInfo(isolate, pos, function));
     pos = inl.position;
   }
-  Handle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
-                                      isolate);
+  DirectHandle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
+                                            isolate);
   stack.push_back(SourcePositionInfo(isolate, pos, function));
   return stack;
 }
@@ -90,12 +90,12 @@ SourcePositionInfo SourcePosition::FirstInfo(Isolate* isolate,
   if (pos.isInlined()) {
     InliningPosition inl =
         deopt_data->InliningPositions()->get(pos.InliningId());
-    Handle<SharedFunctionInfo> function(
+    DirectHandle<SharedFunctionInfo> function(
         deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
     return SourcePositionInfo(isolate, pos, function);
   }
-  Handle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
-                                      isolate);
+  DirectHandle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
+                                            isolate);
   return SourcePositionInfo(isolate, pos, function);
 }
 

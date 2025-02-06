@@ -1265,10 +1265,11 @@ DirectHandle<HeapObject> RegExpMacroAssemblerX64::GetCode(
   CodeDesc code_desc;
   Isolate* isolate = this->isolate();
   masm_.GetCode(isolate, &code_desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
-                          .set_self_reference(masm_.CodeObject())
-                          .set_empty_source_position_table()
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, code_desc, CodeKind::REGEXP)
+          .set_self_reference(masm_.CodeObject())
+          .set_empty_source_position_table()
+          .Build();
   PROFILE(isolate,
           RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
   return Cast<HeapObject>(code);

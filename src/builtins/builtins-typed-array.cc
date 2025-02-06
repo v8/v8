@@ -661,7 +661,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     return *isolate->factory()->empty_string();
   }
 
-  Handle<SeqOneByteString> output;
+  DirectHandle<SeqOneByteString> output;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, output,
       isolate->factory()->NewRawOneByteString(static_cast<int>(output_length)));

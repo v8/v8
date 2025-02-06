@@ -147,9 +147,10 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
                           data->untagged_globals_buffer()->backing_store()) +
                           global.offset,
                       type)
-          : WasmValue(handle(data->tagged_globals_buffer()->get(global.offset),
-                             isolate_),
-                      type);
+          : WasmValue(
+                direct_handle(data->tagged_globals_buffer()->get(global.offset),
+                              isolate_),
+                type);
 }
 
 void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
@@ -387,8 +388,9 @@ void ConstantExpressionInterface::RefI31(FullDecoder* decoder,
     shifted =
         static_cast<intptr_t>(raw << (kSmiTagSize + kSmiShiftSize + 1)) >> 1;
   }
-  result->runtime_value = WasmValue(handle(Tagged<Smi>(shifted), isolate_),
-                                    CanonicalValueType::Ref(HeapType::kI31));
+  result->runtime_value =
+      WasmValue(direct_handle(Tagged<Smi>(shifted), isolate_),
+                CanonicalValueType::Ref(HeapType::kI31));
 }
 
 void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,

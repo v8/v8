@@ -41,10 +41,10 @@ class Execution final : public AllStatic {
 
   // Construct object from function, the caller supplies an array of
   // arguments.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> New(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> New(
       Isolate* isolate, DirectHandle<Object> constructor,
       base::Vector<const DirectHandle<Object>> args);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> New(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> New(
       Isolate* isolate, DirectHandle<Object> constructor,
       DirectHandle<Object> new_target,
       base::Vector<const DirectHandle<Object>> args);

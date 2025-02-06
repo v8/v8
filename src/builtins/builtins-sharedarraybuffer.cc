@@ -236,7 +236,7 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
                                   "Atomics.wait")));
   }
 
-  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
 
   if (sta->type() == kExternalBigInt64Array) {
     return FutexEmulation::WaitJs64(

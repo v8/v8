@@ -107,7 +107,7 @@ TEST_F(ElementsKindTest, JSObjectAddingProperties) {
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
   DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
-  Handle<Object> value(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value(Smi::FromInt(42), i_isolate());
 
   DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
@@ -138,7 +138,7 @@ TEST_F(ElementsKindTest, JSObjectInObjectAddingProperties) {
   // Force in object properties by changing the expected_nof_properties
   // (we always reserve 8 inobject properties slack on top).
   function->shared()->set_expected_nof_properties(nof_inobject_properties - 8);
-  Handle<Object> value(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value(Smi::FromInt(42), i_isolate());
 
   DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
@@ -180,7 +180,7 @@ TEST_F(ElementsKindTest, JSObjectAddingElements) {
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
   DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
-  Handle<Object> value(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value(Smi::FromInt(42), i_isolate());
 
   DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<Map> previous_map(object->map(), i_isolate());
@@ -229,7 +229,7 @@ TEST_F(ElementsKindTest, JSArrayAddingProperties) {
 
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<Object> value(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value(Smi::FromInt(42), i_isolate());
 
   DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
@@ -259,7 +259,7 @@ TEST_F(ElementsKindTest, JSArrayAddingElements) {
   DirectHandle<String> name;
   Handle<FixedArray> empty_fixed_array(factory->empty_fixed_array());
   Handle<PropertyArray> empty_property_array(factory->empty_property_array());
-  Handle<Object> value(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value(Smi::FromInt(42), i_isolate());
 
   DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
@@ -314,9 +314,9 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastSmiElements) {
   v8::HandleScope scope(isolate());
 
   DirectHandle<String> name;
-  Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
-  Handle<Object> value_string(MakeString("value"));
-  Handle<Object> value_double = factory->NewNumber(3.1415);
+  DirectHandle<Object> value_smi(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value_string(MakeString("value"));
+  DirectHandle<Object> value_double = factory->NewNumber(3.1415);
 
   DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);
@@ -386,8 +386,8 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingFastElements) {
   v8::HandleScope scope(isolate());
 
   DirectHandle<String> name;
-  Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
-  Handle<Object> value_string(MakeString("value"));
+  DirectHandle<Object> value_smi(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value_string(MakeString("value"));
 
   DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_ELEMENTS, 0, 0);
@@ -433,9 +433,9 @@ TEST_F(ElementsKindTest, JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   v8::HandleScope scope(isolate());
 
   DirectHandle<String> name;
-  Handle<Object> value_smi(Smi::FromInt(42), i_isolate());
-  Handle<Object> value_string(MakeString("value"));
-  Handle<Object> value_double = factory->NewNumber(3.1415);
+  DirectHandle<Object> value_smi(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> value_string(MakeString("value"));
+  DirectHandle<Object> value_double = factory->NewNumber(3.1415);
 
   DirectHandle<JSArray> array =
       factory->NewJSArray(ElementsKind::PACKED_SMI_ELEMENTS, 0, 0);

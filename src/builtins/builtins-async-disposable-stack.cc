@@ -53,7 +53,7 @@ BUILTIN(AsyncDisposableStackOnRejected) {
               kOuterPromise))),
       isolate);
 
-  Handle<Object> rejection_error = args.at(1);
+  DirectHandle<Object> rejection_error = args.at(1);
   // (TODO:rezvan): Pass the correct pending message.
   DirectHandle<Object> message(isolate->pending_message(), isolate);
   DCHECK(isolate->is_catchable_by_javascript(*rejection_error));

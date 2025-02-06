@@ -709,7 +709,7 @@ V8_OBJECT class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
   using Shape = ArrayListShape;
 
   template <class IsolateT>
-  static inline Handle<ArrayList> New(
+  static inline DirectHandle<ArrayList> New(
       IsolateT* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
 

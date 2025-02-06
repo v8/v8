@@ -90,10 +90,9 @@ MaybeDirectHandle<Object> RegExpUtils::GetLastIndex(
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
 // Also takes an optional exec method in case our caller
 // has already fetched exec.
-MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
-                                           DirectHandle<JSReceiver> regexp,
-                                           DirectHandle<String> string,
-                                           DirectHandle<Object> exec) {
+MaybeDirectHandle<JSAny> RegExpUtils::RegExpExec(
+    Isolate* isolate, DirectHandle<JSReceiver> regexp,
+    DirectHandle<String> string, DirectHandle<Object> exec) {
   if (IsUndefined(*exec, isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
@@ -105,7 +104,7 @@ MaybeHandle<JSAny> RegExpUtils::RegExpExec(Isolate* isolate,
     constexpr int argc = 1;
     std::array<DirectHandle<Object>, argc> args = {string};
 
-    Handle<JSAny> result;
+    DirectHandle<JSAny> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
         Cast<JSAny>(

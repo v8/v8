@@ -183,8 +183,8 @@ void MessageHandler::ReportMessageNoExceptions(
   }
 }
 
-Handle<String> MessageHandler::GetMessage(Isolate* isolate,
-                                          DirectHandle<Object> data) {
+DirectHandle<String> MessageHandler::GetMessage(Isolate* isolate,
+                                                DirectHandle<Object> data) {
   DirectHandle<JSMessageObject> message = Cast<JSMessageObject>(data);
   DirectHandle<Object> arg{message->argument(), isolate};
   return MessageFormatter::Format(isolate, message->type(),
@@ -208,7 +208,8 @@ MaybeDirectHandle<JSArray> GetStackFrames(Isolate* isolate,
   DirectHandle<FixedArray> sites =
       isolate->factory()->NewFixedArray(frame_count);
   for (int i = 0; i < frame_count; ++i) {
-    Handle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), isolate);
+    DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)),
+                                     isolate);
     DirectHandle<JSObject> site;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
                                JSObject::New(constructor, constructor,
@@ -392,7 +393,7 @@ MaybeDirectHandle<Object> ErrorUtils::FormatStackTrace(
   return builder.Finish();
 }
 
-Handle<String> MessageFormatter::Format(
+DirectHandle<String> MessageFormatter::Format(
     Isolate* isolate, MessageTemplate index,
     base::Vector<const DirectHandle<Object>> args) {
   constexpr size_t kMaxArgs = 3;
@@ -580,10 +581,9 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
   //  c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
   // 4. Return O.
   if (!IsUndefined(*message, isolate)) {
-    Handle<String> msg_string;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, msg_string,
-        indirect_handle(Object::ToString(isolate, message), isolate));
+    DirectHandle<String> msg_string;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, msg_string,
+                               Object::ToString(isolate, message));
     RETURN_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                                      err, isolate->factory()->message_string(),
                                      msg_string, DONT_ENUM));
@@ -610,7 +610,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
         return MaybeHandle<JSObject>();
       }
       if (has_cause.ToChecked()) {
-        Handle<Object> cause;
+        DirectHandle<Object> cause;
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, cause,
             JSObject::GetProperty(isolate, js_options, cause_string));

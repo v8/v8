@@ -405,16 +405,16 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   int i = 0;
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
-    Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
+    auto builtin_code = DirectHandle<Code>::FromSlot(&builtins[i]);
+    DirectHandle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
 
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
-    Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
+    auto builtin_code = DirectHandle<Code>::FromSlot(&builtins[i]);
+    DirectHandle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =
@@ -427,7 +427,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
 }
 
 // static
-Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
+DirectHandle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
     Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());

@@ -966,12 +966,12 @@ class Runtime : public AllStatic {
   // Perform a property store on object. If the key is a private name (i.e. this
   // is a private field assignment), this method throws if the private field
   // does not exist on object.
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
   SetObjectProperty(Isolate* isolate, DirectHandle<JSAny> object,
                     DirectHandle<Object> key, DirectHandle<Object> value,
                     MaybeDirectHandle<JSAny> receiver, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
   SetObjectProperty(Isolate* isolate, DirectHandle<JSAny> object,
                     DirectHandle<Object> key, DirectHandle<Object> value,
                     StoreOrigin store_origin,

@@ -283,10 +283,11 @@ HandleType<Derived>::MaybeType OrderedHashTable<Derived, entrysize>::Rehash(
     Isolate* isolate, HandleType<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
-  MaybeHandle<Derived> new_table_candidate = Derived::Allocate(
-      isolate, new_capacity,
-      HeapLayout::InYoungGeneration(*table) ? AllocationType::kYoung
-                                            : AllocationType::kOld);
+  typename HandleType<Derived>::MaybeType new_table_candidate =
+      Derived::Allocate(isolate, new_capacity,
+                        HeapLayout::InYoungGeneration(*table)
+                            ? AllocationType::kYoung
+                            : AllocationType::kOld);
   DirectHandle<Derived> new_table;
   if (!new_table_candidate.ToHandle(&new_table)) {
     return new_table_candidate;

@@ -303,7 +303,7 @@ class Builtins {
                                    DirectHandle<JSObject> target_global_proxy);
 
   // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
-  static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
+  static DirectHandle<Code> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
   static inline constexpr bool IsJSEntryVariant(Builtin builtin);

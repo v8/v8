@@ -8206,10 +8206,10 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
   PREPARE_FOR_EXECUTION(context, RegExp, New);
   Local<v8::RegExp> result;
-  has_exception =
-      !ToLocal<RegExp>(i::JSRegExp::New(i_isolate, Utils::OpenHandle(*pattern),
-                                        static_cast<i::JSRegExp::Flags>(flags)),
-                       &result);
+  has_exception = !ToLocal<RegExp>(
+      i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
+                       static_cast<i::JSRegExp::Flags>(flags)),
+      &result);
   RETURN_ON_FAILED_EXECUTION(RegExp);
   RETURN_ESCAPED(result);
 }
@@ -8226,7 +8226,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
   PREPARE_FOR_EXECUTION(context, RegExp, New);
   Local<v8::RegExp> result;
   has_exception = !ToLocal<RegExp>(
-      i::JSRegExp::New(i_isolate, Utils::OpenHandle(*pattern),
+      i::JSRegExp::New(i_isolate, Utils::OpenDirectHandle(*pattern),
                        static_cast<i::JSRegExp::Flags>(flags), backtrack_limit),
       &result);
   RETURN_ON_FAILED_EXECUTION(RegExp);

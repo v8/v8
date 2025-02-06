@@ -816,7 +816,7 @@ void WasmEngine::AsyncCompile(
   if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         StartStreamingCompilation(isolate, enabled, std::move(compile_imports),
-                                  handle(isolate->context(), isolate),
+                                  direct_handle(isolate->context(), isolate),
                                   api_method_name_for_errors,
                                   std::move(resolver));
 

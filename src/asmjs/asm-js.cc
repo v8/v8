@@ -335,7 +335,7 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
 MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
-    Handle<JSReceiver> foreign, Handle<JSArrayBuffer> memory) {
+    DirectHandle<JSReceiver> foreign, DirectHandle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
   DirectHandle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);

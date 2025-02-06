@@ -721,15 +721,15 @@ void ArrayList ::set_length(int value) {
 
 // static
 template <class IsolateT>
-Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
-                                 AllocationType allocation) {
+DirectHandle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
+                                       AllocationType allocation) {
   if (capacity == 0) return isolate->factory()->empty_array_list();
 
   DCHECK_GT(capacity, 0);
   DCHECK_LE(capacity, kMaxCapacity);
 
   std::optional<DisallowGarbageCollection> no_gc;
-  Handle<ArrayList> result =
+  DirectHandle<ArrayList> result =
       Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
   result->set_length(0);
   ReadOnlyRoots roots{isolate};

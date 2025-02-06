@@ -129,8 +129,9 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source =
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })";
-  Handle<JSFunction> js_function = Cast<JSFunction>(v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
+          *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
   uint32_t js_throwing_index = 0;
   WasmRunner<void> r(execution_tier, kWasmOrigin, &import);
@@ -145,8 +146,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 
   DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
-  DirectHandle<JSFunction> js_trampoline =
-      Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+  DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
@@ -185,8 +186,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 
   DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
 
-  DirectHandle<JSFunction> js_trampoline =
-      Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+  DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
@@ -250,8 +251,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     DirectHandle<JSFunction> js_wasm_wrapper =
         r.builder().WrapCode(wasm_index_2);
 
-    DirectHandle<JSFunction> js_trampoline =
-        Cast<JSFunction>(v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+    DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+        v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
             CompileRun("(function callFn(fn) { fn(); })"))));
 
     Isolate* isolate = js_wasm_wrapper->GetIsolate();

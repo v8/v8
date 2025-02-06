@@ -56,7 +56,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
                               isolate);
   int32_t hash =
       EphemeronHashTable::TodoShape::Hash(ReadOnlyRoots(isolate), script);
-  MaybeHandle<ArrayList> maybe_cached_templates;
+  MaybeDirectHandle<ArrayList> maybe_cached_templates;
 
   if (!IsUndefined(native_context->template_weakmap(), isolate)) {
     DisallowGarbageCollection no_gc;
@@ -71,7 +71,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
     if (!IsTheHole(cached_templates_lookup, roots)) {
       Tagged<ArrayList> cached_templates =
           Cast<ArrayList>(cached_templates_lookup);
-      maybe_cached_templates = handle(cached_templates, isolate);
+      maybe_cached_templates = direct_handle(cached_templates, isolate);
 
       // Linear search over the cached template array list for a template
       // object matching the given function_literal_id + slot_id.

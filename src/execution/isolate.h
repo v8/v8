@@ -2379,7 +2379,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       DirectHandle<FunctionTemplateInfo> function,
       v8::ExceptionContext callback_kind);
   void ReportExceptionPropertyCallback(DirectHandle<JSReceiver> holder,
-                                       Handle<Name> name,
+                                       DirectHandle<Name> name,
                                        v8::ExceptionContext callback_kind);
   void SetExceptionPropagationCallback(ExceptionPropagationCallback callback);
 

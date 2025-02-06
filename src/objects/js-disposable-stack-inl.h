@@ -182,10 +182,11 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
 
 inline void JSDisposableStackBase::HandleErrorInDisposal(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-    Handle<Object> current_error, DirectHandle<Object> current_error_message) {
+    DirectHandle<Object> current_error,
+    DirectHandle<Object> current_error_message) {
   DCHECK(isolate->is_catchable_by_javascript(*current_error));
 
-  Handle<Object> maybe_error(disposable_stack->error(), isolate);
+  DirectHandle<Object> maybe_error(disposable_stack->error(), isolate);
 
   //   i. If completion is a throw completion, then
   if (!IsUninitialized(*maybe_error)) {

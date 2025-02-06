@@ -141,8 +141,8 @@ std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
 }
 
 // static
-Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
-                                         JSRegExp::Flags flags) {
+DirectHandle<String> JSRegExp::StringFromFlags(Isolate* isolate,
+                                               JSRegExp::Flags flags) {
   FlagsBuffer buffer;
   return isolate->factory()->NewStringFromAsciiChecked(
       FlagsToString(flags, &buffer));

@@ -172,9 +172,11 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> comment_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> comment_code(CreateCode(isolate, &env),
+                                                isolate);
+  i::DirectHandle<i::AbstractCode> comment2_code(CreateCode(isolate, &env),
+                                                 isolate);
   i::DirectHandle<i::AbstractCode> moved_code(CreateCode(isolate, &env),
                                               isolate);
 
@@ -194,7 +196,8 @@ TEST(CodeEvents) {
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
+  i::DirectHandle<i::String> aaa_name =
+      factory->NewStringFromAsciiChecked(aaa_str);
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kFunction,
                                     aaa_code, aaa_name);
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
@@ -249,9 +252,12 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> frame1_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> frame2_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> frame3_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> frame1_code(CreateCode(isolate, &env),
+                                               isolate);
+  i::DirectHandle<i::AbstractCode> frame2_code(CreateCode(isolate, &env),
+                                               isolate);
+  i::DirectHandle<i::AbstractCode> frame3_code(CreateCode(isolate, &env),
+                                               isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -422,7 +428,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -1317,7 +1323,7 @@ static void TickLines(bool optimize) {
   CHECK(!func->shared()->abstract_code(isolate).is_null());
   CHECK(!optimize || func->HasAttachedOptimizedCode(isolate) ||
         !isolate->use_optimizer());
-  i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
+  i::DirectHandle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!(*code).is_null());
   i::Address code_address = code->InstructionStart(isolate);
   CHECK_NE(code_address, kNullAddress);
@@ -1345,12 +1351,13 @@ static void TickLines(bool optimize) {
                                      *code_observer->weak_code_registry());
 
   // Enqueue code creation events.
-  i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
+  i::DirectHandle<i::String> str =
+      factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kFunction,
-                                    code, handle(func->shared(), isolate), str,
-                                    line, column);
+  profiler_listener.CodeCreateEvent(
+      i::LogEventListener::CodeTag::kFunction, code,
+      direct_handle(func->shared(), isolate), str, line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);

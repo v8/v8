@@ -249,7 +249,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, DirectHandle<Context> context,
       DirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
-  Handle<ArrayList> NewArrayList(
+  DirectHandle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(

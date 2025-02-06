@@ -199,7 +199,8 @@ class Expectations {
   }
 
   void SetAccessorConstant(int index, PropertyAttributes attrs,
-                           Handle<Object> getter, Handle<Object> setter) {
+                           DirectHandle<Object> getter,
+                           DirectHandle<Object> setter) {
     Init(index, PropertyKind::kAccessor, attrs, PropertyConstness::kConst,
          PropertyLocation::kDescriptor, Representation::Tagged(), getter);
     setter_values_[index] = setter;
@@ -207,7 +208,7 @@ class Expectations {
 
   void SetAccessorConstantComponent(int index, PropertyAttributes attrs,
                                     AccessorComponent component,
-                                    Handle<Object> accessor) {
+                                    DirectHandle<Object> accessor) {
     CHECK_EQ(PropertyKind::kAccessor, kinds_[index]);
     CHECK_EQ(PropertyLocation::kDescriptor, locations_[index]);
     CHECK(index < number_of_properties_);
@@ -220,19 +221,19 @@ class Expectations {
 
   void SetAccessorConstant(int index, PropertyAttributes attrs,
                            DirectHandle<AccessorPair> pair) {
-    Handle<Object> getter(pair->getter(), isolate_);
-    Handle<Object> setter(pair->setter(), isolate_);
+    DirectHandle<Object> getter(pair->getter(), isolate_);
+    DirectHandle<Object> setter(pair->setter(), isolate_);
     SetAccessorConstant(index, attrs, getter, setter);
   }
 
-  void SetAccessorConstant(int index, Handle<Object> getter,
-                           Handle<Object> setter) {
+  void SetAccessorConstant(int index, DirectHandle<Object> getter,
+                           DirectHandle<Object> setter) {
     SetAccessorConstant(index, attributes_[index], getter, setter);
   }
 
   void SetAccessorConstant(int index, DirectHandle<AccessorPair> pair) {
-    Handle<Object> getter(pair->getter(), isolate_);
-    Handle<Object> setter(pair->setter(), isolate_);
+    DirectHandle<Object> getter(pair->getter(), isolate_);
+    DirectHandle<Object> setter(pair->setter(), isolate_);
     SetAccessorConstant(index, getter, setter);
   }
 
@@ -345,9 +346,9 @@ class Expectations {
         .ToHandleChecked();
   }
 
-  Handle<Map> AddDataConstant(DirectHandle<Map> map,
-                              PropertyAttributes attributes,
-                              DirectHandle<JSFunction> value) {
+  DirectHandle<Map> AddDataConstant(DirectHandle<Map> map,
+                                    PropertyAttributes attributes,
+                                    DirectHandle<JSFunction> value) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataConstant(property_index, attributes, value);
@@ -387,18 +388,18 @@ class Expectations {
                                          StoreOrigin::kNamed);
   }
 
-  Handle<Map> FollowDataTransition(DirectHandle<Map> map,
-                                   PropertyAttributes attributes,
-                                   PropertyConstness constness,
-                                   Representation representation,
-                                   DirectHandle<FieldType> heap_type) {
+  DirectHandle<Map> FollowDataTransition(DirectHandle<Map> map,
+                                         PropertyAttributes attributes,
+                                         PropertyConstness constness,
+                                         Representation representation,
+                                         DirectHandle<FieldType> heap_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetDataField(property_index, attributes, constness, representation,
                  heap_type);
 
     DirectHandle<String> name = CcTest::MakeName("prop", property_index);
-    MaybeHandle<Map> target = TransitionsAccessor::SearchTransition(
+    MaybeDirectHandle<Map> target = TransitionsAccessor::SearchTransition(
         isolate_, map, *name, PropertyKind::kData, attributes);
     CHECK(!target.is_null());
     return target.ToHandleChecked();
@@ -419,8 +420,8 @@ class Expectations {
 
   DirectHandle<Map> AddAccessorConstant(DirectHandle<Map> map,
                                         PropertyAttributes attributes,
-                                        Handle<Object> getter,
-                                        Handle<Object> setter) {
+                                        DirectHandle<Object> getter,
+                                        DirectHandle<Object> setter) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
     SetAccessorConstant(property_index, attributes, getter, setter);
@@ -477,7 +478,7 @@ class Expectations {
 
 namespace {
 
-Handle<Map> ReconfigureProperty(Isolate* isolate, Handle<Map> map,
+Handle<Map> ReconfigureProperty(Isolate* isolate, DirectHandle<Map> map,
                                 InternalIndex modify_index,
                                 PropertyKind new_kind,
                                 PropertyAttributes new_attributes,
@@ -504,8 +505,8 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   map = expectations.AddAccessorConstant(map, NONE, pair);
 
   CHECK(!map->is_deprecated());
@@ -589,7 +590,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   CHECK(IsAccessorPair(
       obj->map()->instance_descriptors(isolate)->GetStrongValue(first)));
 
-  Handle<Object> value(Smi::FromInt(42), isolate);
+  DirectHandle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
 
   // Check that the property contains |value|.
@@ -685,7 +686,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
   Handle<Map> map = initial_map;
-  Handle<Map> detach_point_map;
+  DirectHandle<Map> detach_point_map;
   for (int i = 0; i < kPropCount; i++) {
     if (i == property_index) {
       map = expectations.AddDataField(map, NONE, from.constness,
@@ -1076,7 +1077,7 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   const int kSplitProp = kPropCount / 2;
   Expectations expectations2(isolate);
 
-  Handle<Map> map2 = initial_map;
+  DirectHandle<Map> map2 = initial_map;
   for (int i = 0; i < kSplitProp; i++) {
     map2 = expectations2.FollowDataTransition(map2, NONE, from.constness,
                                               from.representation, from.type);
@@ -1462,8 +1463,8 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   const Representation representation = Representation::Smi();
 
   // Create common part of transition tree.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kSplitProp; i++) {
     map = expectations.AddDataField(map, NONE, constness, representation,
                                     any_type);
@@ -1490,7 +1491,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
 
   // Create another branch in transition tree (property at index |kSplitProp|
   // has different attributes), initialize expectations.
-  Handle<Map> map2 = map;
+  DirectHandle<Map> map2 = map;
   Expectations expectations2 = expectations;
   map2 = expectations2.AddDataField(map2, READ_ONLY, constness, representation,
                                     any_type);
@@ -1535,8 +1536,9 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
       js_func_ = factory->NewFunctionForTesting(factory->empty_string());
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same data constant property at both transition tree branches.
       return expectations->AddDataConstant(map, NONE, js_func_);
@@ -1584,8 +1586,9 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
               .Build();
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       DirectHandle<JSFunction> js_func = branch_id == 1 ? js_func1_ : js_func2_;
       return expectations->AddDataConstant(map, NONE, js_func);
@@ -1616,8 +1619,9 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
       pair_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations->AddDataConstant(map, NONE, js_func_);
@@ -1644,8 +1648,9 @@ TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same accessor constant property at both transition tree
       // branches.
@@ -1675,8 +1680,9 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
       pair2_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       DirectHandle<AccessorPair> pair = branch_id == 1 ? pair1_ : pair2_;
       return expectations->AddAccessorConstant(map, NONE, pair);
@@ -1713,8 +1719,9 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
-                                    DirectHandle<Map> map) {
+    DirectHandle<Map> AddPropertyAtBranch(int branch_id,
+                                          Expectations* expectations,
+                                          DirectHandle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
         return expectations->AddAccessorConstant(map, NONE, pair_);
@@ -1780,7 +1787,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   const int kDiffProp = kPropCount / 2;
   Expectations expectations2(isolate, PACKED_SMI_ELEMENTS);
 
-  Handle<Map> map2 = initial_map;
+  DirectHandle<Map> map2 = initial_map;
   for (int i = 0; i < kPropCount; i++) {
     if (i == kDiffProp) {
       map2 = expectations2.AddDataField(map2, NONE, to.constness,
@@ -2065,7 +2072,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   // Generalize representation of property at index |kSplitProp|.
   const int kSplitProp = kPropCount / 2;
   DirectHandle<Map> split_map;
-  Handle<Map> map2 = initial_map;
+  DirectHandle<Map> map2 = initial_map;
   {
     for (int i = 0; i < kSplitProp + 1; i++) {
       if (i == kSplitProp) {
@@ -2073,7 +2080,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       }
 
       DirectHandle<String> name = CcTest::MakeName("prop", i);
-      MaybeHandle<Map> target = TransitionsAccessor::SearchTransition(
+      MaybeDirectHandle<Map> target = TransitionsAccessor::SearchTransition(
           isolate, map2, *name, PropertyKind::kData, NONE);
       CHECK(!target.is_null());
       map2 = target.ToHandleChecked();
@@ -2570,7 +2577,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       MapUpdater update(CcTest::i_isolate(), map);
       return update.ApplyPrototypeTransition(prototype_);
     }
@@ -2594,7 +2601,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+    Handle<Map> Transition(DirectHandle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -3066,7 +3073,7 @@ struct ReconfigureAsDataPropertyOperator {
         heap_type_(heap_type) {}
 
   DirectHandle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
-                                 Handle<Map> map) {
+                                 DirectHandle<Map> map) {
     expectations->SetDataField(descriptor_.as_int(),
                                PropertyConstness::kMutable, representation_,
                                heap_type_);
@@ -3086,7 +3093,7 @@ struct ReconfigureAsAccessorPropertyOperator {
       : descriptor_(descriptor), attributes_(attributes) {}
 
   DirectHandle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
-                                 Handle<Map> map) {
+                                 DirectHandle<Map> map) {
     expectations->SetAccessorField(descriptor_.as_int());
     return MapUpdater::ReconfigureExistingProperty(
         isolate, map, descriptor_, PropertyKind::kAccessor, attributes_,
@@ -3203,11 +3210,11 @@ TEST(TransitionDataFieldToDataField) {
 
   DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<Object> value1(Smi::zero(), isolate);
+  DirectHandle<Object> value1(Smi::zero(), isolate);
   TransitionToDataFieldOperator transition_op1(
       PropertyConstness::kMutable, Representation::Smi(), any_type, value1);
 
-  Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);
+  DirectHandle<Object> value2 = isolate->factory()->NewHeapNumber(0);
   TransitionToDataFieldOperator transition_op2(
       PropertyConstness::kMutable, Representation::Double(), any_type, value2);
 
@@ -3275,7 +3282,7 @@ TEST(TransitionDataConstantToDataField) {
       factory->NewFunctionForTesting(factory->empty_string());
   TransitionToDataConstantOperator transition_op1(js_func1);
 
-  Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);
+  DirectHandle<Object> value2 = isolate->factory()->NewHeapNumber(0);
   TransitionToDataFieldOperator transition_op2(
       PropertyConstness::kMutable, Representation::Tagged(), any_type, value2);
 

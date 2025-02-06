@@ -136,8 +136,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     // Add the on-heap data to a global list, which keeps it alive and allows
     // iteration.
-    Handle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
-                           isolate_);
+    DirectHandle<ArrayList> list(isolate_->heap()->basic_block_profiling_data(),
+                                 isolate_);
     DirectHandle<ArrayList> new_list = ArrayList::Add(
         isolate_, list, on_heap_profiler_data, AllocationType::kOld);
     isolate_->heap()->SetBasicBlockProfilingData(new_list);
@@ -564,7 +564,8 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
       .ToHandleChecked();
 }
 
-Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
+DirectHandle<NameDictionary> Factory::NewNameDictionary(
+    int at_least_space_for) {
   return NameDictionary::New(isolate(), at_least_space_for);
 }
 
@@ -1554,7 +1555,7 @@ Handle<Script> Factory::CloneScript(DirectHandle<Script> script,
                                     DirectHandle<String> source) {
   int script_id = isolate()->GetNextScriptId();
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-  Handle<ArrayList> list = ArrayList::New(isolate(), 0);
+  DirectHandle<ArrayList> list = ArrayList::New(isolate(), 0);
 #endif
   Handle<Script> new_script_handle =
       Cast<Script>(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
@@ -1641,7 +1642,7 @@ Factory::NewPromiseResolveThenableJobTask(
 
 #if V8_ENABLE_WEBASSEMBLY
 
-Handle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
+DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
   Tagged<WasmTrustedInstanceData> result =
       Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
           WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
@@ -1652,10 +1653,10 @@ Handle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
   for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
     result->RawField(offset).store(read_only_roots().undefined_value());
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
-Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(
+DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
     int length, wasm::CanonicalValueType table_type) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
 
@@ -1681,7 +1682,7 @@ Handle<WasmDispatchTable> Factory::NewWasmDispatchTable(
     result->Clear(i, WasmDispatchTable::kNewEntry);
     result->clear_entry_padding(i);
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
@@ -1793,7 +1794,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   return direct_handle(internal, isolate());
 }
 
-Handle<WasmFuncRef> Factory::NewWasmFuncRef(
+DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
     DirectHandle<WasmInternalFunction> internal_function,
     DirectHandle<Map> rtt) {
   Tagged<HeapObject> raw =
@@ -1804,7 +1805,7 @@ Handle<WasmFuncRef> Factory::NewWasmFuncRef(
   raw->set_map_after_allocation(isolate(), *rtt);
   Tagged<WasmFuncRef> func_ref = Cast<WasmFuncRef>(raw);
   func_ref->set_internal(*internal_function);
-  return handle(func_ref, isolate());
+  return direct_handle(func_ref, isolate());
 }
 
 DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
@@ -1972,10 +1973,10 @@ Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
   return result;
 }
 
-Handle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
-                                        uint32_t length,
-                                        wasm::WasmValue initial_value,
-                                        DirectHandle<Map> map) {
+DirectHandle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
+                                              uint32_t length,
+                                              wasm::WasmValue initial_value,
+                                              DirectHandle<Map> map) {
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
   if (element_type.is_numeric()) {
@@ -1994,10 +1995,10 @@ Handle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
       result->SetTaggedElement(i, initial_value.to_ref());
     }
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
-Handle<WasmArray> Factory::NewWasmArrayFromElements(
+DirectHandle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
     DirectHandle<Map> map) {
   uint32_t length = static_cast<uint32_t>(elements.size());
@@ -2015,10 +2016,10 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
       result->SetTaggedElement(i, elements[i].to_ref());
     }
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
-Handle<WasmArray> Factory::NewWasmArrayFromMemory(
+DirectHandle<WasmArray> Factory::NewWasmArrayFromMemory(
     uint32_t length, DirectHandle<Map> map,
     wasm::CanonicalValueType element_type, Address source) {
   DCHECK(element_type.is_numeric());
@@ -2034,10 +2035,10 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(
           length * element_type.value_kind_size());
 #endif
 
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
-Handle<Object> Factory::NewWasmArrayFromElementSegment(
+DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
     uint32_t segment_index, uint32_t start_offset, uint32_t length,
@@ -2052,7 +2053,7 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
       &zone, isolate(), trusted_instance_data, shared_trusted_instance_data,
       segment_index);
   if (opt_error.has_value()) {
-    return handle(Smi::FromEnum(opt_error.value()), isolate());
+    return direct_handle(Smi::FromEnum(opt_error.value()), isolate());
   }
 
   DirectHandle<FixedArray> elements = direct_handle(
@@ -2067,7 +2068,7 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
                                  elements->RawFieldOfElementAt(start_offset),
                                  length, SKIP_WRITE_BARRIER);
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -2082,9 +2083,9 @@ Handle<WasmStruct> Factory::NewWasmStructUninitialized(
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
-                                          wasm::WasmValue* args,
-                                          DirectHandle<Map> map) {
+DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
+                                                wasm::WasmValue* args,
+                                                DirectHandle<Map> map) {
   Tagged<HeapObject> raw =
       AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw->set_map_after_allocation(isolate(), *map);
@@ -2102,7 +2103,7 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
       TaggedField<Object>::store(result, offset, *args[i].to_ref());
     }
   }
-  return handle(result, isolate());
+  return direct_handle(result, isolate());
 }
 
 DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
@@ -2691,10 +2692,10 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   return result;
 }
 
-Handle<WeakArrayList> Factory::CompactWeakArrayList(
+DirectHandle<WeakArrayList> Factory::CompactWeakArrayList(
     DirectHandle<WeakArrayList> src, int new_capacity,
     AllocationType allocation) {
-  Handle<WeakArrayList> result =
+  DirectHandle<WeakArrayList> result =
       NewUninitializedWeakArrayList(new_capacity, allocation);
 
   // Copy the content.
@@ -2808,9 +2809,10 @@ DirectHandle<Object> Factory::NewInvalidStringLengthError() {
   return NewRangeError(MessageTemplate::kInvalidStringLength);
 }
 
-Handle<JSObject> Factory::NewSuppressedErrorAtDisposal(
-    Isolate* isolate, Handle<Object> error, Handle<Object> suppressed_error) {
-  Handle<JSObject> err =
+DirectHandle<JSObject> Factory::NewSuppressedErrorAtDisposal(
+    Isolate* isolate, DirectHandle<Object> error,
+    DirectHandle<Object> suppressed_error) {
+  DirectHandle<JSObject> err =
       NewSuppressedError(MessageTemplate::kSuppressedErrorDuringDisposal);
 
   JSObject::SetOwnPropertyIgnoreAttributes(
@@ -3572,16 +3574,16 @@ DirectHandle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
   return iterator;
 }
 
-Handle<JSMap> Factory::NewJSMap() {
+DirectHandle<JSMap> Factory::NewJSMap() {
   DirectHandle<Map> map(isolate()->native_context()->js_map_map(), isolate());
-  Handle<JSMap> js_map = Cast<JSMap>(NewJSObjectFromMap(map));
+  DirectHandle<JSMap> js_map = Cast<JSMap>(NewJSObjectFromMap(map));
   JSMap::Initialize(js_map, isolate());
   return js_map;
 }
 
-Handle<JSSet> Factory::NewJSSet() {
+DirectHandle<JSSet> Factory::NewJSSet() {
   DirectHandle<Map> map(isolate()->native_context()->js_set_map(), isolate());
-  Handle<JSSet> js_set = Cast<JSSet>(NewJSObjectFromMap(map));
+  DirectHandle<JSSet> js_set = Cast<JSSet>(NewJSObjectFromMap(map));
   JSSet::Initialize(js_set, isolate());
   return js_set;
 }

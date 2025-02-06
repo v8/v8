@@ -550,14 +550,14 @@ MaybeHandle<Object> Execution::CallBuiltin(
 }
 
 // static
-MaybeHandle<JSReceiver> Execution::New(
+MaybeDirectHandle<JSReceiver> Execution::New(
     Isolate* isolate, DirectHandle<Object> constructor,
     base::Vector<const DirectHandle<Object>> args) {
   return New(isolate, constructor, constructor, args);
 }
 
 // static
-MaybeHandle<JSReceiver> Execution::New(
+MaybeDirectHandle<JSReceiver> Execution::New(
     Isolate* isolate, DirectHandle<Object> constructor,
     DirectHandle<Object> new_target,
     base::Vector<const DirectHandle<Object>> args) {

@@ -186,7 +186,7 @@ MaybeLocal<Array> GetInternalProperties(Isolate* v8_isolate,
                                         Local<Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::DirectHandle<i::Object> val = Utils::OpenDirectHandle(*value);
   i::DirectHandle<i::JSArray> result;
   if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
     return MaybeLocal<Array>();

@@ -789,7 +789,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a new map with all transitions dropped from the given map and
   // the ElementsKind set.
   static DirectHandle<Map> TransitionElementsTo(Isolate* isolate,
-                                                Handle<Map> map,
+                                                DirectHandle<Map> map,
                                                 ElementsKind to_kind);
 
   static std::optional<Tagged<Map>> TryAsElementsKind(Isolate* isolate,

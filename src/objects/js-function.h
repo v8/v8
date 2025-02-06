@@ -409,12 +409,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // it should never fail, but in practice it will fail if the generated
   // function name's length exceeds String::kMaxLength.
   static V8_WARN_UNUSED_RESULT bool SetName(DirectHandle<JSFunction> function,
-                                            Handle<Name> name,
+                                            DirectHandle<Name> name,
                                             DirectHandle<String> prefix);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.
-  static Handle<String> GetDebugName(DirectHandle<JSFunction> function);
+  static DirectHandle<String> GetDebugName(DirectHandle<JSFunction> function);
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).

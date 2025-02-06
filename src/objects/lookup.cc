@@ -530,7 +530,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
         holder_obj, elements, number_, value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
-    Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
+    DirectHandle<Map> old_map(holder_obj->map(isolate_), isolate_);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(

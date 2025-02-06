@@ -62,7 +62,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
                                      DirectHandle<FieldType> field_type);
 
   // Prepares for reconfiguring elements kind and performs the steps 1-6.
-  Handle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
+  DirectHandle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
 
   // Prepares for an UpdatePrototype. Similar to reconfigure elements kind,
   // prototype transitions are put first. I.e., a prototype transition for
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
       ConcurrencyMode cmode) V8_WARN_UNUSED_RESULT;
 
   static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
-                                                 Handle<Map> map,
+                                                 DirectHandle<Map> map,
                                                  InternalIndex descriptor,
                                                  PropertyKind kind,
                                                  PropertyAttributes attributes,
@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
 
   // Updates map to the most up-to-date non-deprecated version.
   static inline DirectHandle<Map> UpdateMapNoLock(Isolate* isolate,
-                                                  Handle<Map> old_map);
+                                                  DirectHandle<Map> old_map);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.

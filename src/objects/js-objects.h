@@ -1233,7 +1233,7 @@ class DateCache;
 // Representation for JS date objects.
 class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
  public:
-  static V8_WARN_UNUSED_RESULT MaybeHandle<JSDate> New(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSDate> New(
       DirectHandle<JSFunction> constructor, DirectHandle<JSReceiver> new_target,
       double tv);
 

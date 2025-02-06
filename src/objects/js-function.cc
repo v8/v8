@@ -531,7 +531,7 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
   // 7. Let result be CopyNameAndLength(wrapped, Target, "wrapped").
   Maybe<bool> is_abrupt =
       JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
-          isolate, wrapped, value, Handle<String>(), 0);
+          isolate, wrapped, value, DirectHandle<String>(), 0);
 
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
@@ -1324,7 +1324,8 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Tagged<Map> map) {
 
 }  // namespace
 
-Handle<String> JSFunction::GetDebugName(DirectHandle<JSFunction> function) {
+DirectHandle<String> JSFunction::GetDebugName(
+    DirectHandle<JSFunction> function) {
   // Below we use the same fast-path that we already established for
   // Function.prototype.bind(), where we avoid a slow "name" property
   // lookup if the DescriptorArray for the |function| still has the
@@ -1340,7 +1341,7 @@ Handle<String> JSFunction::GetDebugName(DirectHandle<JSFunction> function) {
     // JSFunction where the "name" property is untouched, so we retain
     // that exact behavior and go with SharedFunctionInfo::DebugName()
     // in case of the fast-path.
-    Handle<Object> name =
+    DirectHandle<Object> name =
         GetDataProperty(isolate, function, isolate->factory()->name_string());
     if (IsString(*name)) return Cast<String>(name);
   }
@@ -1348,8 +1349,8 @@ Handle<String> JSFunction::GetDebugName(DirectHandle<JSFunction> function) {
       isolate, direct_handle(function->shared(), isolate));
 }
 
-bool JSFunction::SetName(DirectHandle<JSFunction> function, Handle<Name> name,
-                         DirectHandle<String> prefix) {
+bool JSFunction::SetName(DirectHandle<JSFunction> function,
+                         DirectHandle<Name> name, DirectHandle<String> prefix) {
   Isolate* isolate = function->GetIsolate();
   DirectHandle<String> function_name;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
@@ -1359,8 +1360,7 @@ bool JSFunction::SetName(DirectHandle<JSFunction> function, Handle<Name> name,
     builder.AppendString(prefix);
     builder.AppendCharacter(' ');
     builder.AppendString(function_name);
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name,
-                                     indirect_handle(builder.Finish(), isolate),
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, function_name, builder.Finish(),
                                      false);
   }
   RETURN_ON_EXCEPTION_VALUE(

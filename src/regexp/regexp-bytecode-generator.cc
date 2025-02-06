@@ -396,7 +396,7 @@ DirectHandle<HeapObject> RegExpBytecodeGenerator::GetCode(
   Bind(&backtrack_);
   Backtrack();
 
-  Handle<TrustedByteArray> array;
+  DirectHandle<TrustedByteArray> array;
   if (v8_flags.regexp_peephole_optimization) {
     array = RegExpBytecodePeepholeOptimization::OptimizeBytecode(
         isolate_, zone(), source, buffer_.data(), length(), jump_edges_);

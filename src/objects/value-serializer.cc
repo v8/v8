@@ -692,7 +692,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
                   details.location() == PropertyLocation::kField)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDetails(*map, details);
-      value = handle(object->RawFastPropertyAt(field_index), isolate_);
+      value = direct_handle(object->RawFastPropertyAt(field_index), isolate_);
     } else {
       // This logic should essentially match WriteJSObjectPropertiesSlow.
       // If the property is no longer found, do not serialize it.
@@ -868,7 +868,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
       WriteBigIntContents(Cast<BigInt>(inner_value));
     } else if (IsString(inner_value, cage_base)) {
       WriteTag(SerializationTag::kStringObject);
-      WriteString(handle(Cast<String>(inner_value), isolate_));
+      WriteString(direct_handle(Cast<String>(inner_value), isolate_));
     } else {
       AllowGarbageCollection allow_gc;
       DCHECK(IsSymbol(inner_value));
@@ -880,7 +880,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
 
 void ValueSerializer::WriteJSRegExp(DirectHandle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(handle(regexp->source(), isolate_));
+  WriteString(direct_handle(regexp->source(), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->flags()));
 }
 
@@ -909,7 +909,8 @@ Maybe<bool> ValueSerializer::WriteJSMap(DirectHandle<JSMap> js_map) {
   // Then write it out.
   WriteTag(SerializationTag::kBeginJSMap);
   for (int i = 0; i < length; i++) {
-    if (!WriteObject(handle(entries->get(i), isolate_)).FromMaybe(false)) {
+    if (!WriteObject(direct_handle(entries->get(i), isolate_))
+             .FromMaybe(false)) {
       return Nothing<bool>();
     }
   }
@@ -942,7 +943,8 @@ Maybe<bool> ValueSerializer::WriteJSSet(DirectHandle<JSSet> js_set) {
   // Then write it out.
   WriteTag(SerializationTag::kBeginJSSet);
   for (int i = 0; i < length; i++) {
-    if (!WriteObject(handle(entries->get(i), isolate_)).FromMaybe(false)) {
+    if (!WriteObject(direct_handle(entries->get(i), isolate_))
+             .FromMaybe(false)) {
       return Nothing<bool>();
     }
   }
@@ -1005,7 +1007,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
 Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
     Tagged<JSArrayBufferView> view) {
   if (treat_array_buffer_views_as_host_objects_) {
-    return WriteHostObject(handle(view, isolate_));
+    return WriteHostObject(direct_handle(view, isolate_));
   }
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;

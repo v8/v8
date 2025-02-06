@@ -33,7 +33,7 @@ class RegExpUtils : public AllStatic {
       Isolate* isolate, DirectHandle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static V8_WARN_UNUSED_RESULT MaybeHandle<JSAny> RegExpExec(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSAny> RegExpExec(
       Isolate* isolate, DirectHandle<JSReceiver> regexp,
       DirectHandle<String> string, DirectHandle<Object> exec);
 

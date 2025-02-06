@@ -81,8 +81,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static std::optional<Flags> FlagsFromString(Isolate* isolate,
                                               DirectHandle<String> flags);
 
-  V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
-                                                          Flags flags);
+  V8_EXPORT_PRIVATE static DirectHandle<String> StringFromFlags(
+      Isolate* isolate, Flags flags);
 
   inline Tagged<String> EscapedPattern();
 

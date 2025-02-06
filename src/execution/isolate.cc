@@ -4830,7 +4830,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
             Utils::OpenDirectHandle(*callback_info->Holder());
         Handle<Object> maybe_name =
             PropertyCallbackArguments::GetPropertyKeyHandle(*callback_info);
-        Handle<Name> name =
+        DirectHandle<Name> name =
             IsSmi(*maybe_name)
                 ? factory()->SizeToString(
                       PropertyCallbackArguments::GetPropertyIndex(
@@ -4882,7 +4882,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
       ApiAccessorExitFrame* frame = ApiAccessorExitFrame::cast(it.frame());
 
       DirectHandle<Object> holder(frame->holder(), this);
-      Handle<Name> name(frame->property_name(), this);
+      DirectHandle<Name> name(frame->property_name(), this);
       DCHECK(IsJSReceiver(*holder));
 
       // Currently we call only ApiGetters from JS code.
@@ -4955,7 +4955,7 @@ void Isolate::ReportExceptionFunctionCallback(
 }
 
 void Isolate::ReportExceptionPropertyCallback(
-    DirectHandle<JSReceiver> holder, Handle<Name> name,
+    DirectHandle<JSReceiver> holder, DirectHandle<Name> name,
     v8::ExceptionContext exception_context) {
   DCHECK_NOT_NULL(exception_propagation_callback_);
 

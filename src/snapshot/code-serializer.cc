@@ -301,7 +301,7 @@ void CreateInterpreterDataForDeserializedCode(
 
   Tagged<String> name = ReadOnlyRoots(isolate).empty_string();
   if (IsString(script->name())) name = Cast<String>(script->name());
-  Handle<String> name_handle(name, isolate);
+  DirectHandle<String> name_handle(name, isolate);
 
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (Tagged<SharedFunctionInfo> shared_info = iter.Next();
@@ -309,11 +309,11 @@ void CreateInterpreterDataForDeserializedCode(
     IsCompiledScope is_compiled(shared_info, isolate);
     if (!is_compiled.is_compiled()) continue;
     DCHECK(shared_info->HasBytecodeArray());
-    Handle<SharedFunctionInfo> sfi = handle(shared_info, isolate);
+    DirectHandle<SharedFunctionInfo> sfi(shared_info, isolate);
 
     DirectHandle<BytecodeArray> bytecode(sfi->GetBytecodeArray(isolate),
                                          isolate);
-    Handle<Code> code =
+    DirectHandle<Code> code =
         Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
     DirectHandle<InterpreterData> interpreter_data =
         isolate->factory()->NewInterpreterData(bytecode, code);
@@ -327,7 +327,7 @@ void CreateInterpreterDataForDeserializedCode(
 
     if (!log_code_creation) continue;
 
-    Handle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
+    DirectHandle<AbstractCode> abstract_code = Cast<AbstractCode>(code);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, sfi->StartPosition(), &info);
     int line_num = info.line_start + 1;
@@ -399,10 +399,10 @@ void FinalizeDeserialization(Isolate* isolate,
     Script::InitLineEnds(isolate, script);
   }
 
-  Handle<String> name(IsString(script->name())
-                          ? Cast<String>(script->name())
-                          : ReadOnlyRoots(isolate).empty_string(),
-                      isolate);
+  DirectHandle<String> name(IsString(script->name())
+                                ? Cast<String>(script->name())
+                                : ReadOnlyRoots(isolate).empty_string(),
+                            isolate);
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     LOG(isolate,
@@ -415,7 +415,7 @@ void FinalizeDeserialization(Isolate* isolate,
   for (Tagged<SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (!info->is_compiled()) continue;
-    Handle<SharedFunctionInfo> shared_info(info, isolate);
+    DirectHandle<SharedFunctionInfo> shared_info(info, isolate);
     if (needs_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
@@ -423,12 +423,13 @@ void FinalizeDeserialization(Isolate* isolate,
     Script::GetPositionInfo(script, shared_info->StartPosition(), &pos_info);
     int line_num = pos_info.line + 1;
     int column_num = pos_info.column + 1;
-    PROFILE(isolate, CodeCreateEvent(
-                         shared_info->is_toplevel()
-                             ? LogEventListener::CodeTag::kScript
-                             : LogEventListener::CodeTag::kFunction,
-                         handle(shared_info->abstract_code(isolate), isolate),
-                         shared_info, name, line_num, column_num));
+    PROFILE(
+        isolate,
+        CodeCreateEvent(
+            shared_info->is_toplevel() ? LogEventListener::CodeTag::kScript
+                                       : LogEventListener::CodeTag::kFunction,
+            direct_handle(shared_info->abstract_code(isolate), isolate),
+            shared_info, name, line_num, column_num));
   }
 }
 

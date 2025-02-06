@@ -125,8 +125,8 @@ Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
 void SourceTextModule::AddAsyncParentModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<SourceTextModule> parent) {
-  Handle<ArrayList> async_parent_modules(module->async_parent_modules(),
-                                         isolate);
+  DirectHandle<ArrayList> async_parent_modules(module->async_parent_modules(),
+                                               isolate);
   DirectHandle<ArrayList> new_array_list =
       ArrayList::Add(isolate, async_parent_modules, parent);
   module->set_async_parent_modules(*new_array_list);

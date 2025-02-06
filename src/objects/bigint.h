@@ -303,7 +303,7 @@ V8_OBJECT class BigInt : public BigIntBase {
   // Serialize the raw digits. {storage_length} is expected to be
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
   void SerializeDigits(uint8_t* storage, size_t storage_length);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
       base::Vector<const uint8_t> digits_storage);
 } V8_OBJECT_END;
