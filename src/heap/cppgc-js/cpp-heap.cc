@@ -287,7 +287,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
 
   cppgc::internal::MutatorMarkingState& GetMutatorMarkingState() {
     return static_cast<cppgc::internal::MutatorMarkingState&>(
-        marking_visitor_->marking_state_);
+        marking_visitor_.marking_state_);
   }
 
   UnifiedHeapMarkingState& GetMutatorUnifiedHeapMarkingState() {
@@ -299,15 +299,21 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   }
 
  protected:
-  cppgc::Visitor& visitor() final { return *marking_visitor_; }
+  cppgc::Visitor& visitor() final { return marking_visitor_; }
+
   ::heap::base::StackVisitor& stack_visitor() final {
     return conservative_marking_visitor_;
   }
 
+  cppgc::internal::ConcurrentMarkerBase& concurrent_marker() final {
+    return concurrent_marker_;
+  }
+
  private:
   UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
-  std::unique_ptr<MutatorUnifiedHeapMarkingVisitor> marking_visitor_;
+  MutatorUnifiedHeapMarkingVisitor marking_visitor_;
   UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
+  UnifiedHeapConcurrentMarker concurrent_marker_;
 };
 
 UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
@@ -317,14 +323,13 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
     : cppgc::internal::MarkerBase(heap, platform, config),
       mutator_unified_heap_marking_state_(v8_heap, nullptr,
                                           config.collection_type),
-      marking_visitor_(std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
-          heap, mutator_marking_state_, mutator_unified_heap_marking_state_)),
+      marking_visitor_(heap, mutator_marking_state_,
+                       mutator_unified_heap_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    *marking_visitor_) {
-  concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, v8_heap, marking_worklists_, *schedule_, platform_,
-      mutator_unified_heap_marking_state_, config.collection_type);
-}
+                                    marking_visitor_),
+      concurrent_marker_(heap_, v8_heap, marking_worklists_, *schedule_,
+                         platform_, mutator_unified_heap_marking_state_,
+                         config.collection_type) {}
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const GCCycle& cppgc_event) {

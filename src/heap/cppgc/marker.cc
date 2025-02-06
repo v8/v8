@@ -236,7 +236,7 @@ void MarkerBase::StartMarking() {
     if (config_.marking_type ==
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
       mutator_marking_state_.Publish();
-      concurrent_marker_->Start();
+      concurrent_marker().Start();
     }
     incremental_marking_allocation_observer_ =
         std::make_unique<IncrementalMarkingAllocationObserver>(*this);
@@ -283,10 +283,11 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
       MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     // Start parallel marking.
     mutator_marking_state_.Publish();
-    if (concurrent_marker_->IsActive()) {
-      concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
+    ConcurrentMarkerBase& marker = concurrent_marker();
+    if (marker.IsActive()) {
+      marker.NotifyIncrementalMutatorStepCompleted();
     } else {
-      concurrent_marker_->Start();
+      marker.Start();
     }
   }
 }
@@ -301,9 +302,10 @@ void MarkerBase::ReEnableConcurrentMarking() {
   CHECK_EQ(config_.marking_type, MarkingConfig::MarkingType::kIncremental);
   config_.marking_type = MarkingConfig::MarkingType::kIncrementalAndConcurrent;
   mutator_marking_state_.Publish();
-  CHECK(!concurrent_marker_->IsActive());
-  concurrent_marker_->Start();
-  CHECK(concurrent_marker_->IsActive());
+  ConcurrentMarkerBase& marker = concurrent_marker();
+  CHECK(!marker.IsActive());
+  marker.Start();
+  CHECK(marker.IsActive());
 }
 
 void MarkerBase::LeaveAtomicPause() {
@@ -568,7 +570,7 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
 
 bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
   if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marker_->Join())
+      !concurrent_marker().Join())
     return false;
 
   // Concurrent markers may have pushed some "leftover" in-construction objects
@@ -580,8 +582,9 @@ bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
 
 void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
     cppgc::TaskPriority priority) {
-  if (concurrent_marker_->IsActive()) {
-    concurrent_marker_->NotifyOfWorkIfNeeded(priority);
+  ConcurrentMarkerBase& marker = concurrent_marker();
+  if (marker.IsActive()) {
+    marker.NotifyOfWorkIfNeeded(priority);
   }
 }
 
@@ -609,7 +612,7 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
     ScheduleIncrementalMarkingTask();
     if (config_.marking_type ==
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-      concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
+      concurrent_marker().NotifyIncrementalMutatorStepCompleted();
     }
   }
   return is_done;
@@ -749,16 +752,16 @@ void MarkerBase::SetMainThreadMarkingDisabledForTesting(bool value) {
 }
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
-  concurrent_marker_->Join();
+  concurrent_marker().Join();
 }
 
 MarkerBase::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
     MarkerBase& marker)
-    : marker_(marker), resume_on_exit_(marker_.concurrent_marker_->Cancel()) {}
+    : marker_(marker), resume_on_exit_(marker_.concurrent_marker().Cancel()) {}
 
 MarkerBase::PauseConcurrentMarkingScope::~PauseConcurrentMarkingScope() {
   if (resume_on_exit_) {
-    marker_.concurrent_marker_->Start();
+    marker_.concurrent_marker().Start();
   }
 }
 
@@ -766,10 +769,8 @@ Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
     : MarkerBase(heap, platform, config),
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    marking_visitor_) {
-  concurrent_marker_ = std::make_unique<ConcurrentMarker>(
-      heap_, marking_worklists_, *schedule_, platform_);
-}
+                                    marking_visitor_),
+      concurrent_marker_(heap_, marking_worklists_, *schedule_, platform_) {}
 
 }  // namespace internal
 }  // namespace cppgc

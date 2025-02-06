@@ -164,6 +164,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual cppgc::Visitor& visitor() = 0;
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
+  virtual ConcurrentMarkerBase& concurrent_marker() = 0;
 
   // Processes the worklists with given deadlines. The deadlines are only
   // checked every few objects.
@@ -200,7 +201,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool is_marking_{false};
 
   std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
-  std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};
@@ -213,16 +213,21 @@ class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
 
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }
+
   ConservativeTracingVisitor& conservative_visitor() final {
     return conservative_marking_visitor_;
   }
+
   heap::base::StackVisitor& stack_visitor() final {
     return conservative_marking_visitor_;
   }
 
+  ConcurrentMarkerBase& concurrent_marker() final { return concurrent_marker_; }
+
  private:
   MutatorMarkingVisitor marking_visitor_;
   ConservativeMarkingVisitor conservative_marking_visitor_;
+  ConcurrentMarker concurrent_marker_;
 };
 
 template <MarkerBase::WriteBarrierType type>
