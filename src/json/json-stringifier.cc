@@ -1881,16 +1881,16 @@ struct ContinuationRecord {
   enum Type {
     kObject,
     kArray,
-    kResumeFromOther,  // Resume after encoding change or array serialization.
-                       // Either object, array, string or string wrapper.
-                       // |index| is ignored for this type.
-    kObjectKey         // For encoding changes triggered by object keys.
-                       // This is required (instead of simply resuming with the
-                       // object/index that triggered the change), to avoid
-                       // re-serializing '{' if the first property key triggered
-                       // the change.
-                       // |index| is used to indicate comma requirement
-                       // (0 = no comma, otherwise add comma).
+    kString,    // Resume after encoding change.
+                // Object is either string or string wrapper.
+                // |index| is ignored for this type.
+    kObjectKey  // For encoding changes triggered by object keys.
+                // This is required (instead of simply resuming with the
+                // object/index that triggered the change), to avoid
+                // re-serializing '{' if the first property key triggered
+                // the change.
+                // |index| is used to indicate comma requirement
+                // (0 = no comma, otherwise add comma).
   };
   Type type;
   Tagged<JSAny> object;
@@ -1899,7 +1899,8 @@ struct ContinuationRecord {
 
 enum FastJsonStringifierResult {
   SUCCESS,
-  UNCHANGED,
+  JS_OBJECT,
+  JS_ARRAY,
   UNDEFINED,
   CHANGE_ENCODING,
   SLOW_PATH,
@@ -1946,9 +1947,8 @@ class FastJsonStringifier {
   template <bool deferred_key>
   V8_INLINE FastJsonStringifierResult TrySerializeSimpleObject(
       Tagged<JSAny> object, bool comma = false, Tagged<String> key = {});
-  FastJsonStringifierResult SerializeObject(Tagged<JSAny> object,
-                                            uint32_t obj_cont_idx,
-                                            uint32_t array_cont_idx);
+  FastJsonStringifierResult SerializeObject(
+      ContinuationRecord cont, const DisallowGarbageCollection& no_gc);
   template <bool deferred_key>
   FastJsonStringifierResult SerializeJSPrimitiveWrapper(
       Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
@@ -2305,8 +2305,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
       return SerializeJSPrimitiveWrapper<deferred_key>(
           Cast<JSPrimitiveWrapper>(obj), comma, key, no_gc);
     case JS_OBJECT_TYPE:
+      return JS_OBJECT;
     case JS_ARRAY_TYPE:
-      return UNCHANGED;
+      return JS_ARRAY;
     default:
       return SLOW_PATH;
   }
@@ -2406,11 +2407,13 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
               },
               [&](Tagged<ThinString> str) {
                 string = str->actual();
-                return UNCHANGED;
+                // UNDEFINED is misused here to indicate that we continue after
+                // unwrapping.
+                return UNDEFINED;
               },
               [&](Tagged<ConsString> str) { return SLOW_PATH; },
               [&](Tagged<SlicedString> str) { return SLOW_PATH; }});
-      if (V8_LIKELY(result != UNCHANGED)) return result;
+      if (V8_LIKELY(result != UNDEFINED)) return result;
     }
     UNREACHABLE();
   } else if (IsNumber(raw)) {
@@ -2500,12 +2503,15 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
           break;
         case UNDEFINED:
           break;
-        case UNCHANGED:
+        case JS_OBJECT:
+        case JS_ARRAY: {
           stack_.emplace_back(ContinuationRecord::kObject, obj,
                               i.as_uint32() + 1);
-          // property can be an object or array. We don't need to distinguish
-          // as index is 0 anyways.
-          stack_.emplace_back(ContinuationRecord::kObject, property, 0);
+          static_assert(JS_OBJECT - 1 == ContinuationRecord::kObject);
+          static_assert(JS_ARRAY - 1 == ContinuationRecord::kArray);
+          ContinuationRecord::Type type =
+              static_cast<ContinuationRecord::Type>(result - 1);
+          stack_.emplace_back(type, property, 0);
           result = SerializeObjectKey(key_name, comma, no_gc);
           if constexpr (is_one_byte) {
             if (V8_UNLIKELY(result != SUCCESS)) {
@@ -2516,12 +2522,12 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
             }
           }
           return result;
+        }
         case CHANGE_ENCODING:
           DCHECK(is_one_byte);
           stack_.emplace_back(ContinuationRecord::kObject, obj,
                               i.as_uint32() + 1);
-          stack_.emplace_back(ContinuationRecord::kResumeFromOther, property,
-                              0);
+          stack_.emplace_back(ContinuationRecord::kString, property, 0);
           result = SerializeObjectKey(key_name, comma, no_gc);
           if (V8_UNLIKELY(result != SUCCESS)) {
             stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
@@ -2529,7 +2535,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
             return result;
           }
           DCHECK(IsString(property) || IsStringWrapper(property));
-          return result;
+          return CHANGE_ENCODING;
         case SLOW_PATH:
         case EXCEPTION:
           return result;
@@ -2676,15 +2682,22 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
       case CHANGE_ENCODING:
         DCHECK(IsString(obj) || IsStringWrapper(obj));
         stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
-        stack_.emplace_back(ContinuationRecord::kResumeFromOther, obj, 0);
+        stack_.emplace_back(ContinuationRecord::kString, obj, 0);
         return result;
-      case UNCHANGED:
+      case JS_OBJECT:
         stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
-        stack_.emplace_back(ContinuationRecord::kResumeFromOther, obj, 0);
+        stack_.emplace_back(ContinuationRecord::kObject, obj, 0);
         return result;
-      default:
+      case JS_ARRAY:
+        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
+        stack_.emplace_back(ContinuationRecord::kArray, obj, 0);
+        return result;
+      case SUCCESS:
+      case SLOW_PATH:
+      case EXCEPTION:
         return result;
     }
+    UNREACHABLE();
   }
   return SUCCESS;
 }
@@ -2704,14 +2717,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
   stack_ = old_stringifier.stack_;
   ContinuationRecord cont = stack_.back();
   stack_.pop_back();
-  DCHECK(cont.type == ContinuationRecord::kResumeFromOther ||
-         cont.type == ContinuationRecord::kObjectKey);
-  Tagged<JSAny> object = cont.object;
-  FastJsonStringifierResult result;
-  DCHECK(IsString(object) || IsStringWrapper(object));
   if (cont.type == ContinuationRecord::kObjectKey) {
     // Serializing an object key caused an encoding change.
-    result = SerializeObjectKey(Cast<String>(object), cont.index, no_gc);
+    FastJsonStringifierResult result =
+        SerializeObjectKey(Cast<String>(cont.object), cont.index, no_gc);
+    USE(result);
     DCHECK_EQ(result, SUCCESS);
     // Resuming due to encoding change of an object key guarantees that there
     // are at least two other objects on the stack (the value for that key, and
@@ -2722,35 +2732,20 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     // Check that we have the object's continuation record.
     DCHECK_EQ(stack_.back().type, ContinuationRecord::kObject);
   }
-  if (cont.type == ContinuationRecord::kResumeFromOther) {
-    // Multiple scenarios lead here:
-    // 1) The object to serialize was a string on the top-level, which triggered
-    //    an encoding change.
-    // 2) A string value in an array or object triggered an encoding change.
-    // 3) Fall-through from the object key case above.
-    object = cont.object;
-    result = TrySerializeSimpleObject<false>(object);
+  if (cont.type == ContinuationRecord::kString) {
+    Tagged<String> object = Cast<String>(cont.object);
+    FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
     DCHECK_EQ(result, SUCCESS);
 
+    // Early return if a top-level string triggered the encoding change.
     if (stack_.empty()) return result;
 
     cont = stack_.back();
-    DCHECK(cont.type == ContinuationRecord::kObject ||
-           cont.type == ContinuationRecord::kArray);
     stack_.pop_back();
-    uint32_t obj_cont_idx =
-        cont.type == ContinuationRecord::kObject ? cont.index : 0;
-    uint32_t array_cont_idx =
-        cont.type == ContinuationRecord::kArray ? cont.index : 0;
-    return SerializeObject(cont.object, obj_cont_idx, array_cont_idx);
-  } else {
-    // Object can be JSArray or JSObject. Right now this is only possible after
-    // encoding change of an object's key, in which case we push a continuation
-    // of kObject even for JSArrays (as index is 0 anyways).
-    DCHECK_EQ(cont.type, ContinuationRecord::kObject);
-    DCHECK_EQ(cont.index, 0);
-    return SerializeObject(cont.object, 0, 0);
   }
+  DCHECK(cont.type == ContinuationRecord::kObject ||
+         cont.type == ContinuationRecord::kArray);
+  return SerializeObject(cont, no_gc);
 }
 
 template <typename Char>
@@ -2783,22 +2778,25 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
       DCHECK(IsString(object) || IsStringWrapper(object));
-      stack_.emplace_back(ContinuationRecord::kResumeFromOther, object, 0);
+      stack_.emplace_back(ContinuationRecord::kString, object, 0);
       return result;
     }
   } else {
     DCHECK_NE(result, CHANGE_ENCODING);
   }
-  if (result != UNCHANGED) {
+  if (result != JS_OBJECT && result != JS_ARRAY) {
     return result;
   }
-  return SerializeObject(object, 0, 0);
+  return SerializeObject(
+      ContinuationRecord{result == JS_OBJECT ? ContinuationRecord::kObject
+                                             : ContinuationRecord::kArray,
+                         object, 0},
+      no_gc);
 }
 
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
-    Tagged<JSAny> object, uint32_t obj_cont_idx, uint32_t array_cont_idx) {
-  DisallowGarbageCollection no_gc;
+    ContinuationRecord cont, const DisallowGarbageCollection& no_gc) {
   // GCMole doesn't handle kNoGC interrupts correctly.
   DisableGCMole no_gc_mole;
 
@@ -2811,29 +2809,25 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
       if (result != SUCCESS) return result;
       interrupt_budget = kGlobalInterruptBudget;
     }
-    Tagged<HeapObject> obj = Cast<HeapObject>(object);
-    Tagged<Map> map = obj->map();
-    InstanceType instance_type = map->instance_type();
-    switch (instance_type) {
-      case JS_OBJECT_TYPE: {
-        result = SerializeJSObject(Cast<JSObject>(obj), obj_cont_idx, no_gc);
+    switch (cont.type) {
+      case ContinuationRecord::kObject: {
+        result =
+            SerializeJSObject(Cast<JSObject>(cont.object), cont.index, no_gc);
         break;
       }
-      case JS_ARRAY_TYPE: {
-        result = SerializeJSArray(Cast<JSArray>(obj), array_cont_idx);
+      case ContinuationRecord::kArray: {
+        result = SerializeJSArray(Cast<JSArray>(cont.object), cont.index);
         break;
       }
       default:
-        return SLOW_PATH;
+        UNREACHABLE();
     }
     static_assert(SUCCESS == 0);
-    static_assert(UNCHANGED == 1);
-    if (V8_UNLIKELY(result > UNCHANGED)) return result;
+    static_assert(JS_OBJECT == 1);
+    static_assert(JS_ARRAY == 2);
+    if (V8_UNLIKELY(result > JS_ARRAY)) return result;
     if (stack_.empty()) return SUCCESS;
-    ContinuationRecord cont = stack_.back();
-    object = cont.object;
-    obj_cont_idx = cont.type == ContinuationRecord::kObject ? cont.index : 0;
-    array_cont_idx = cont.type == ContinuationRecord::kArray ? cont.index : 0;
+    cont = stack_.back();
     stack_.pop_back();
   }
 }
