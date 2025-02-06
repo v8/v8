@@ -10,6 +10,7 @@
 #include <cmath>
 #include <optional>
 
+#include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/small-vector.h"
@@ -1251,8 +1252,10 @@ std::string_view DoubleToRadixStringView(double value, int radix,
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (base::Double(value).NextDouble() - value);
   delta = std::max(base::Double(0.0).NextDouble(), delta);
-  DCHECK_GT(delta, 0.0);
-  if (fraction >= delta) {
+  // Delta should always be greater than zero, so long as we're not flushing
+  // denormals to zero.
+  DCHECK_IMPLIES(!(delta > 0.0), base::FPU::GetFlushDenormals());
+  if (delta > 0.0 && fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {
