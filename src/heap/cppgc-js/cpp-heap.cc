@@ -811,36 +811,34 @@ void CppHeap::StartMarking() {
   marking_done_ = false;
 }
 
-bool CppHeap::AdvanceTracing(v8::base::TimeDelta max_duration) {
-  if (!TracingInitialized()) return true;
+bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
+                             size_t marked_bytes_limit) {
+  if (!TracingInitialized()) {
+    return true;
+  }
   is_in_v8_marking_step_ = true;
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
       stats_collector(),
       in_atomic_pause_ ? cppgc::internal::StatsCollector::kAtomicMark
                        : cppgc::internal::StatsCollector::kIncrementalMark);
-  const v8::base::TimeDelta deadline =
-      in_atomic_pause_ ? v8::base::TimeDelta::Max() : max_duration;
-  const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   DCHECK_NOT_NULL(marker_);
   if (in_atomic_pause_) {
     marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
         cppgc::TaskPriority::kUserBlocking);
   }
-  // TODO(chromium:1056170): Replace when unified heap transitions to
-  // bytes-based deadline.
   marking_done_ =
-      marker_->AdvanceMarkingWithLimits(deadline, marked_bytes_limit);
+      marker_->AdvanceMarkingWithLimits(max_duration, marked_bytes_limit);
   DCHECK_IMPLIES(in_atomic_pause_, marking_done_);
   is_in_v8_marking_step_ = false;
   return marking_done_;
 }
 
-bool CppHeap::IsTracingDone() const {
+bool CppHeap::IsMarkingDone() const {
   return !TracingInitialized() || marking_done_;
 }
 
 bool CppHeap::ShouldFinalizeIncrementalMarking() const {
-  return !incremental_marking_supported() || IsTracingDone();
+  return !incremental_marking_supported() || IsMarkingDone();
 }
 
 void CppHeap::EnterProcessGlobalAtomicPause() {
@@ -1076,9 +1074,9 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     }
     EnterFinalPause(stack_state);
     EnterProcessGlobalAtomicPause();
-    CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
+    CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
     if (FinishConcurrentMarkingIfNeeded()) {
-      CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
+      CHECK(AdvanceMarking(v8::base::TimeDelta::Max(), SIZE_MAX));
     }
     FinishMarkingAndProcessWeakness();
     CompactAndSweep();

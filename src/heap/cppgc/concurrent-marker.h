@@ -41,6 +41,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
     return incremental_marking_schedule_;
   }
 
+  void AddConcurrentlyMarkedBytes(size_t marked_bytes);
+
   virtual std::unique_ptr<Visitor> CreateConcurrentMarkingVisitor(
       ConcurrentMarkingState&) const = 0;
 

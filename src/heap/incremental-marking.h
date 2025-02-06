@@ -117,8 +117,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking completes.
   void AdvanceOnAllocation();
 
-  bool IsAheadOfSchedule() const;
-
   bool IsCompacting() { return IsMajorMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
@@ -180,7 +178,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool TryInitializeTaskTimeout();
 
   // Returns the actual used time.
-  v8::base::TimeDelta EmbedderStep(v8::base::TimeDelta expected_duration);
+  v8::base::TimeDelta CppHeapStep(v8::base::TimeDelta expected_duration);
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 

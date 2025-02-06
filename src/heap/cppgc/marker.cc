@@ -588,7 +588,7 @@ void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
-  if (!main_marking_disabled_for_testing_) {
+  if (V8_LIKELY(!main_marking_disabled_for_testing_)) {
     if (marked_bytes_limit == 0) {
       marked_bytes_limit = mutator_marking_state_.marked_bytes() +
                            GetNextIncrementalStepDuration(*schedule_, heap_);
@@ -736,19 +736,6 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
     // accounting and markbit handling (bailout).
     conservative_visitor().TraceConservativelyIfNeeded(*object);
   }
-}
-
-bool MarkerBase::IsAheadOfSchedule() const {
-  static constexpr size_t kNumOfBailoutObjectsForNormalTask = 512;
-  if (marking_worklists_.concurrent_marking_bailout_worklist()->Size() *
-          MarkingWorklists::ConcurrentMarkingBailoutWorklist::kMinSegmentSize >
-      kNumOfBailoutObjectsForNormalTask) {
-    return false;
-  }
-  if (schedule_->GetCurrentStepInfo().is_behind_expectation()) {
-    return false;
-  }
-  return true;
 }
 
 void MarkerBase::ClearAllWorklistsForTesting() {
