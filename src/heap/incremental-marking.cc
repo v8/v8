@@ -855,6 +855,21 @@ void IncrementalMarking::AdvanceForTesting(v8::base::TimeDelta max_duration,
   Step(max_duration, max_bytes_to_mark, StepOrigin::kV8);
 }
 
+bool IncrementalMarking::IsAheadOfSchedule() const {
+  DCHECK(IsMajorMarking());
+
+  const ::heap::base::IncrementalMarkingSchedule* v8_schedule = schedule_.get();
+  if (v8_schedule->GetCurrentStepInfo().is_behind_expectation()) {
+    return false;
+  }
+  if (auto* cpp_heap = CppHeap::From(heap()->cpp_heap())) {
+    if (!cpp_heap->marker()->IsAheadOfSchedule()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void IncrementalMarking::AdvanceOnAllocation() {
   DCHECK_EQ(heap_->gc_state(), Heap::NOT_IN_GC);
   DCHECK(v8_flags.incremental_marking);

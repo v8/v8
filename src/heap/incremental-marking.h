@@ -117,6 +117,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking completes.
   void AdvanceOnAllocation();
 
+  bool IsAheadOfSchedule() const;
+
   bool IsCompacting() { return IsMajorMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
