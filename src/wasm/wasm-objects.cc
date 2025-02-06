@@ -2254,6 +2254,7 @@ void WasmDispatchTable::SetForImport(int index,
                                      wasm::WasmCode* wrapper_if_known,
                                      IsAWrapper contextual_knowledge) {
   SBXCHECK_BOUNDS(index, length());
+  SBXCHECK(!wrapper_if_known || !wrapper_if_known->is_dying());
   DCHECK(IsWasmImportData(implicit_arg) ||
          IsWasmTrustedInstanceData(implicit_arg));
   DCHECK(kNullAddress != call_target || v8_flags.wasm_jitless);

@@ -293,6 +293,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   WasmTableObject::AddUse(isolate_, table_obj, instance_object_, table_index);
 
   if (function_indexes) {
+    WasmCodeRefScope code_ref_scope;
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       CanonicalTypeIndex sig_id =

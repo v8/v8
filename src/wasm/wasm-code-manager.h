@@ -343,6 +343,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return ForDebuggingField::decode(flags_);
   }
 
+  bool is_dying() const { return dying_; }
+  void mark_as_dying() { dying_ = true; }
+
   // Returns {true} for Liftoff code that sets up a feedback vector slot in its
   // stack frame.
   // TODO(jkummerow): This can be dropped when we ship Wasm inlining.
@@ -477,6 +480,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
   using FrameHasFeedbackSlotField = ForDebuggingField::Next<bool, 1>;
+
+  // Will be set to {true} the first time this code object is considered
+  // "potentially dead" (to be confirmed by the next Wasm Code GC cycle).
+  std::atomic<bool> dying_{false};
 
   // WasmCode is ref counted. Counters are held by:
   //   1) The jump table / code table.
