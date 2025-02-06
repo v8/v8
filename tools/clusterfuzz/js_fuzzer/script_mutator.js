@@ -138,22 +138,24 @@ class ScriptMutator {
     }
   }
 
-  _addJSTestStubsIfNeeded(dependencies, input) {
-    if (dependencies.has('jstest_stubs') ||
-        !input.absPath.includes('JSTests')) {
+  _addStubsIfNeeded(dependencies, input, baseName, corpusDir) {
+    if (dependencies.has(baseName) || !input.absPath.includes(corpusDir)) {
       return;
     }
-    dependencies.set(
-        'jstest_stubs', sourceHelpers.loadResource('jstest_stubs.js'));
+    dependencies.set(baseName, sourceHelpers.loadResource(baseName + '.js'));
+  }
+
+  _addJSTestStubsIfNeeded(dependencies, input) {
+    this._addStubsIfNeeded(dependencies, input, 'jstest_stubs', 'JSTests');
   }
 
   _addChakraStubsIfNeeded(dependencies, input) {
-    if (dependencies.has('chakra_stubs') ||
-        !input.absPath.includes('chakra')) {
-      return;
-    }
-    dependencies.set(
-        'chakra_stubs', sourceHelpers.loadResource('chakra_stubs.js'));
+    this._addStubsIfNeeded(dependencies, input, 'chakra_stubs', 'chakra');
+  }
+
+  _addSpidermonkeyStubsIfNeeded(dependencies, input) {
+    this._addStubsIfNeeded(
+        dependencies, input, 'spidermonkey_stubs', 'spidermonkey');
   }
 
   mutate(source, context) {
@@ -196,7 +198,8 @@ class ScriptMutator {
         // also need to load the dependencies they point to.
         this._addJSTestStubsIfNeeded(dependencies, input);
         this._addChakraStubsIfNeeded(dependencies, input);
-        this._addMjsunitIfNeeded(dependencies, input)
+        this._addMjsunitIfNeeded(dependencies, input);
+        this._addSpidermonkeyStubsIfNeeded(dependencies, input);
         this._addSpiderMonkeyShellIfNeeded(dependencies, input);
       } catch (e) {
         console.log(

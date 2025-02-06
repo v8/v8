@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Original: resources/spidermonkey_stubs.js
+var document = {
+  all: undefined
+};
+
 // Original: spidermonkey/shell.js
 console.log('/shell.js');
 if (!ok) throw new Error(`*****tion failed: ${f} did not throw as expected`);
