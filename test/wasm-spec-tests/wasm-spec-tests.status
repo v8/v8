@@ -17,8 +17,8 @@
   'ref_null': [FAIL],
 
   # TODO(clemensb/evih): Resolve https://github.com/WebAssembly/memory64/pull/103#issuecomment-2548870034
-  'proposals/memory64/memory64': [FAIL],
-  'proposals/memory64/table': [FAIL],
+  'memory64': [FAIL],
+  'table': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
