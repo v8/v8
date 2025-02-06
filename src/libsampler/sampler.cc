@@ -565,7 +565,11 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // USE_SIGNALS
 
 Sampler::Sampler(Isolate* isolate)
-    : isolate_(isolate), data_(std::make_unique<PlatformData>()) {}
+    : isolate_(isolate), data_(std::make_unique<PlatformData>()) {
+  // Abseil's deadlock detection uses locks. If we end up taking a sample absl
+  // internally holds this lock, we can end up deadlocking.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
+}
 
 Sampler::~Sampler() { DCHECK(!IsActive()); }
 
