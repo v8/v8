@@ -2640,6 +2640,12 @@ void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    // Setting denormals flushing in the middle of code is almost certain to
+    // cause correctness issues, in a way that isn't interesting to us. Make
+    // this a no-op instead.
+    return;
+  }
   // Check if the argument is a valid function.
   if (info.Length() != 1) {
     ThrowError(isolate, "Expected single boolean argument.");
