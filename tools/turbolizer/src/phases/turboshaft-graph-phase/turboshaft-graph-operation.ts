@@ -24,6 +24,7 @@ enum Opcode {
   Goto = "Goto",
   Branch = "Branch",
   TaggedBitcast = "TaggedBitcast",
+  Phi = "Phi",
 }
 
 enum BranchHint {
@@ -443,6 +444,21 @@ class CompactOperationPrinter_WordBinop extends CompactOperationPrinter {
   }
 }
 
+class CompactOperationPrinter_Phi extends CompactOperationPrinter {
+  rep : RegisterRepresentation;
+
+  constructor(operation: TurboshaftGraphOperation, properties: string) {
+    super(operation);
+
+    const options = this.parseOptions(properties, 1);
+    this.rep = toEnum(RegisterRepresentation, options[0]);
+  }
+
+  public override Print(id: number, input: InputPrinter): string {
+    return `v${id} = φ${this.sub(rrString(this.rep))} (${[...Array(this.GetInputCount())].map((_, i) => input(i)).join(',')})`;
+  }
+}
+
 enum Comparison_Kind {
   Equal = "Equal",
   SignedLessThan = "SignedLessThan",
@@ -779,6 +795,8 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
           return new CompactOperationPrinter_Goto_Branch(this, properties);
         case Opcode.TaggedBitcast:
           return new CompactOperationPrinter_TaggedBitcast(this, properties);
+        case Opcode.Phi:
+          return new CompactOperationPrinter_Phi(this, properties);
         default:
           return null;
       }
