@@ -189,8 +189,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void HandleNotFullyConstructedObjects();
 
-  void AddMutatorThreadMarkedBytes(size_t);
-
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
@@ -206,8 +204,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
-
-  size_t mutator_thread_marked_bytes_ = 0;
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};

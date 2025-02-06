@@ -112,7 +112,7 @@ void MarkingStateBase::PushMarked(HeapObjectHeader& header,
 class BasicMarkingState : public MarkingStateBase {
  public:
   BasicMarkingState(HeapBase& heap, MarkingWorklists&, CompactionWorklists*);
-  ~BasicMarkingState() override;
+  ~BasicMarkingState() override = default;
 
   BasicMarkingState(const BasicMarkingState&) = delete;
   BasicMarkingState& operator=(const BasicMarkingState&) = delete;
@@ -146,11 +146,6 @@ class BasicMarkingState : public MarkingStateBase {
   inline void AccountMarkedBytes(const HeapObjectHeader&);
   inline void AccountMarkedBytes(BasePage*, size_t);
   size_t marked_bytes() const { return marked_bytes_; }
-  // Returns marked_bytes() and resets the counter internally, basically
-  // consuming the value of the marked bytes.
-  size_t RecentlyMarkedBytes() {
-    return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);
-  }
 
   V8_EXPORT_PRIVATE void Publish() override;
 
@@ -229,7 +224,6 @@ class BasicMarkingState : public MarkingStateBase {
       movable_slots_worklist_;
 
   size_t marked_bytes_ = 0;
-  size_t last_marked_bytes_ = 0;
   bool in_ephemeron_processing_ = false;
   bool discovered_new_ephemeron_pairs_ = false;
   bool in_atomic_pause_ = false;
@@ -476,7 +470,13 @@ class ConcurrentMarkingState final : public BasicMarkingState {
                          CompactionWorklists* compaction_worklists)
       : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
 
-  ~ConcurrentMarkingState() override = default;
+  ~ConcurrentMarkingState() override {
+    DCHECK_EQ(last_marked_bytes_, marked_bytes_);
+  }
+
+  size_t RecentlyMarkedBytes() {
+    return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);
+  }
 
   inline void AccountDeferredMarkedBytes(BasePage* base_page,
                                          size_t deferred_bytes) {
@@ -486,6 +486,9 @@ class ConcurrentMarkingState final : public BasicMarkingState {
     marked_bytes_ -= deferred_bytes;
     marked_bytes_map_[base_page] -= static_cast<int64_t>(deferred_bytes);
   }
+
+ private:
+  size_t last_marked_bytes_ = 0;
 };
 
 template <size_t kDeadlineCheckInterval, typename Predicate,
