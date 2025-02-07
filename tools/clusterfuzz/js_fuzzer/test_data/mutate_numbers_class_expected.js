@@ -20,4 +20,6 @@ class A {
   /* NumberMutator: Replaced 1 with 5 */
   5(val) {}
 
+  /* NumberMutator: Replaced 1 with 4 */
+  4 = "";
 }

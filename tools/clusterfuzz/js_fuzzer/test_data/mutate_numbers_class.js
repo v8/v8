@@ -10,4 +10,6 @@ class A {
   get 1() {}
 
   set 1(val) {}
+
+  1 = "";
 }

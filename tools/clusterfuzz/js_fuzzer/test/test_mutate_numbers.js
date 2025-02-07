@@ -57,8 +57,9 @@ describe('Mutate numbers', () => {
         'mutate_numbers_expected.js', mutated);
   });
 
-  it('test getters and setters', () => {
-    // Ensure that numbers in getters and setters stay positive.
+  it('test classes', () => {
+    // Ensure that numbers in getters, setters and class properties
+    // stay positive.
     const source = helpers.loadTestData('mutate_numbers_class.js');
 
     const settings = scriptMutator.defaultSettings();
