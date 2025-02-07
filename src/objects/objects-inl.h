@@ -1035,13 +1035,18 @@ void HeapObject::WriteLazilyInitializedCppHeapPointerField(
                                                value, tag);
 }
 
-void HeapObject::InitSelfIndirectPointerField(size_t offset,
-                                              IsolateForSandbox isolate) {
+#if V8_ENABLE_SANDBOX
+
+void HeapObject::InitSelfIndirectPointerField(
+    size_t offset, IsolateForSandbox isolate,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
   DCHECK(IsExposedTrustedObject(*this));
   InstanceType instance_type = map()->instance_type();
   IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
-  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag);
+  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
+                                  opt_publishing_scope);
 }
+#endif  // V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>
 Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(

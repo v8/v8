@@ -1025,7 +1025,7 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
 }
 
 void UncompiledData::InitAfterBytecodeFlush(
-    IsolateForSandbox isolate, Tagged<String> inferred_name, int start_position,
+    Isolate* isolate, Tagged<String> inferred_name, int start_position,
     int end_position,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<HeapObject> target)>

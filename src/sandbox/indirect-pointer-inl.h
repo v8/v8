@@ -15,10 +15,10 @@
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitSelfIndirectPointerField(Address field_address,
-                                            IsolateForSandbox isolate,
-                                            Tagged<HeapObject> host,
-                                            IndirectPointerTag tag) {
+V8_INLINE void InitSelfIndirectPointerField(
+    Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
+    IndirectPointerTag tag,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kUnknownIndirectPointerTag);
   // TODO(saelo): in the future, we might want to CHECK here or in
@@ -37,7 +37,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
     TrustedPointerTable::Space* space =
         isolate.GetTrustedPointerTableSpaceFor(tag);
     handle = isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
-        space, host.ptr(), tag, isolate.GetTrustedPointerPublishingScope());
+        space, host.ptr(), tag, opt_publishing_scope);
   }
 
   // Use a Release_Store to ensure that the store of the pointer into the table

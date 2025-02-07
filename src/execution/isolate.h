@@ -2256,6 +2256,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   void set_trusted_pointer_publishing_scope(
       TrustedPointerPublishingScope* scope) {
+    DCHECK_NE((trusted_pointer_publishing_scope() == nullptr),
+              (scope == nullptr));
     isolate_data_.trusted_pointer_publishing_scope_ = scope;
   }
 #endif  // V8_ENABLE_SANDBOX

@@ -83,10 +83,18 @@ void TrustedObject::VerifyProtectedPointerField(Isolate* isolate, int offset) {
 
 OBJECT_CONSTRUCTORS_IMPL(ExposedTrustedObject, TrustedObject)
 
-void ExposedTrustedObject::init_self_indirect_pointer(
-    IsolateForSandbox isolate) {
+void ExposedTrustedObject::init_self_indirect_pointer(Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
-  InitSelfIndirectPointerField(kSelfIndirectPointerOffset, isolate);
+  InitSelfIndirectPointerField(kSelfIndirectPointerOffset, isolate,
+                               isolate->trusted_pointer_publishing_scope());
+#endif
+}
+
+void ExposedTrustedObject::init_self_indirect_pointer(LocalIsolate* isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  // Background threads using LocalIsolates don't use
+  // TrustedPointerPublishingScopes.
+  InitSelfIndirectPointerField(kSelfIndirectPointerOffset, isolate, nullptr);
 #endif
 }
 

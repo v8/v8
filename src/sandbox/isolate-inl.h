@@ -65,18 +65,6 @@ inline ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
   return isolate_->external_pointer_table().GetTag(handle);
 }
 
-TrustedPointerPublishingScope*
-IsolateForSandbox::GetTrustedPointerPublishingScope() {
-  return isolate_->trusted_pointer_publishing_scope();
-}
-
-void IsolateForSandbox::SetTrustedPointerPublishingScope(
-    TrustedPointerPublishingScope* scope) {
-  DCHECK((isolate_->trusted_pointer_publishing_scope() == nullptr) !=
-         (scope == nullptr));
-  isolate_->set_trusted_pointer_publishing_scope(scope);
-}
-
 #endif  // V8_ENABLE_SANDBOX
 
 template <typename IsolateT>

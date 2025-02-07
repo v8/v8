@@ -342,13 +342,16 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       size_t offset, IsolateForPointerCompression isolate, Address value,
       CppHeapPointerTag tag);
 
+#if V8_ENABLE_SANDBOX
   //
   // Indirect pointers.
   //
   // These are only available when the sandbox is enabled, in which case they
   // are the under-the-hood implementation of trusted pointers.
-  inline void InitSelfIndirectPointerField(size_t offset,
-                                           IsolateForSandbox isolate);
+  inline void InitSelfIndirectPointerField(
+      size_t offset, IsolateForSandbox isolate,
+      TrustedPointerPublishingScope* opt_publishing_scope);
+#endif  // V8_ENABLE_SANDBOX
 
   // Trusted pointers.
   //

@@ -22,7 +22,7 @@ struct TrustedPointerTableEntry;
 // untrusted code (not even via existing in-sandbox corruption).
 class TrustedPointerPublishingScope {
  public:
-  TrustedPointerPublishingScope(IsolateForSandbox isolate,
+  TrustedPointerPublishingScope(Isolate* isolate,
                                 const DisallowJavascriptExecution& no_js);
   ~TrustedPointerPublishingScope();
 
@@ -43,14 +43,14 @@ class TrustedPointerPublishingScope {
     TrustedPointerTableEntry* singleton_{nullptr};
     std::vector<TrustedPointerTableEntry*>* vector_;
   };
-  IsolateForSandbox isolate_;
+  Isolate* isolate_;
 };
 
 #else  // V8_ENABLE_SANDBOX
 
 class TrustedPointerPublishingScope {
  public:
-  TrustedPointerPublishingScope(IsolateForSandbox isolate,
+  TrustedPointerPublishingScope(Isolate* isolate,
                                 const DisallowJavascriptExecution& no_js) {}
   void MarkSuccess() {}
   void MarkFailure() {}

@@ -16,7 +16,6 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
-class TrustedPointerPublishingScope;
 
 // A reference to an Isolate that only exposes the sandbox-related parts of an
 // isolate, in particular the various pointer tables. Can be used off-thread
@@ -47,11 +46,6 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   // shared space.
   inline ExternalPointerTag GetExternalPointerTableTagFor(
       Tagged<HeapObject> witness, ExternalPointerHandle handle);
-
-  // There can be only one publishing scope at a time.
-  inline TrustedPointerPublishingScope* GetTrustedPointerPublishingScope();
-  inline void SetTrustedPointerPublishingScope(
-      TrustedPointerPublishingScope* scope);
 #endif  // V8_ENABLE_SANDBOX
 
  private:

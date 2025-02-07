@@ -11,11 +11,11 @@
 namespace v8::internal {
 
 TrustedPointerPublishingScope::TrustedPointerPublishingScope(
-    IsolateForSandbox isolate, const DisallowJavascriptExecution& no_js)
+    Isolate* isolate, const DisallowJavascriptExecution& no_js)
     : isolate_(isolate) {
   // Nesting TrustedPointerPublishingScopes is not supported for now.
-  DCHECK_NULL(isolate.GetTrustedPointerPublishingScope());
-  isolate.SetTrustedPointerPublishingScope(this);
+  DCHECK_NULL(isolate->trusted_pointer_publishing_scope());
+  isolate->set_trusted_pointer_publishing_scope(this);
 }
 
 TrustedPointerPublishingScope::~TrustedPointerPublishingScope() {
@@ -32,8 +32,8 @@ TrustedPointerPublishingScope::~TrustedPointerPublishingScope() {
     DCHECK_EQ(state_, State::kSuccess);
   }
   if (storage_ == Storage::kVector) delete vector_;
-  DCHECK_EQ(this, isolate_.GetTrustedPointerPublishingScope());
-  isolate_.SetTrustedPointerPublishingScope(nullptr);
+  DCHECK_EQ(this, isolate_->trusted_pointer_publishing_scope());
+  isolate_->set_trusted_pointer_publishing_scope(nullptr);
 }
 
 void TrustedPointerPublishingScope::TrackPointer(
