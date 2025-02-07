@@ -100,20 +100,14 @@ namespace internal {
 // TODO(jgruber): Move more types to SIMPLE_HEAP_OBJECT_LIST_GENERATOR.
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
-  V(AccessCheckNeeded)                          \
   V(AccessorInfo)                               \
   V(AllocationSite)                             \
-  V(AlwaysSharedSpaceJSObject)                  \
   V(BigInt)                                     \
   V(BigIntBase)                                 \
-  V(BigIntWrapper)                              \
   V(Boolean)                                    \
-  V(BooleanWrapper)                             \
-  V(Callable)                                   \
   V(Cell)                                       \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
-  V(Constructor)                                \
   V(ContextSidePropertyCell)                    \
   V(Context)                                    \
   V(CoverageInfo)                               \
@@ -131,14 +125,12 @@ namespace internal {
   V(FeedbackMetadata)                           \
   V(FeedbackVector)                             \
   V(FunctionTemplateInfo)                       \
-  V(Filler)                                     \
   V(FixedArrayBase)                             \
   V(FixedArrayExact)                            \
   V(Foreign)                                    \
   V(FreeSpace)                                  \
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
-  V(HandlerTable)                               \
   V(HeapNumber)                                 \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \
@@ -154,7 +146,6 @@ namespace internal {
   V(JSBoundFunction)                            \
   V(JSCollection)                               \
   V(JSCollectionIterator)                       \
-  V(JSContextExtensionObject)                   \
   V(JSCustomElementsObject)                     \
   V(JSDataView)                                 \
   V(JSDataViewOrRabGsabDataView)                \
@@ -162,7 +153,6 @@ namespace internal {
   V(JSDisposableStackBase)                      \
   V(JSSyncDisposableStack)                      \
   V(JSAsyncDisposableStack)                     \
-  V(JSError)                                    \
   V(JSExternalObject)                           \
   V(JSFinalizationRegistry)                     \
   V(JSFunction)                                 \
@@ -218,7 +208,6 @@ namespace internal {
   V(JSWrappedFunction)                          \
   V(LoadHandler)                                \
   V(Map)                                        \
-  V(MapCache)                                   \
   V(MegaDomHandler)                             \
   V(Module)                                     \
   V(Microtask)                                  \
@@ -228,7 +217,6 @@ namespace internal {
   V(NativeContext)                              \
   V(NormalizedMapCache)                         \
   V(NumberDictionary)                           \
-  V(NumberWrapper)                              \
   V(ObjectHashSet)                              \
   V(ObjectHashTable)                            \
   V(ObjectTemplateInfo)                         \
@@ -238,14 +226,12 @@ namespace internal {
   V(OrderedHashMap)                             \
   V(OrderedHashSet)                             \
   V(OrderedNameDictionary)                      \
-  V(OSROptimizedCodeCache)                      \
   V(PreparseData)                               \
   V(PrimitiveHeapObject)                        \
   V(PromiseReactionJobTask)                     \
   V(PropertyArray)                              \
   V(PropertyCell)                               \
   V(ScopeInfo)                                  \
-  V(ScriptWrapper)                              \
   V(SeqOneByteString)                           \
   V(SeqString)                                  \
   V(SeqTwoByteString)                           \
@@ -261,11 +247,9 @@ namespace internal {
   V(String)                                     \
   V(StringSet)                                  \
   V(RegisteredSymbolTable)                      \
-  V(StringWrapper)                              \
   V(Struct)                                     \
   V(SwissNameDictionary)                        \
   V(Symbol)                                     \
-  V(SymbolWrapper)                              \
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
   V(TemplateLiteralObject)                      \
@@ -281,8 +265,6 @@ namespace internal {
   V(TurboshaftWord64RangeType)                  \
   V(TurboshaftWord64SetType)                    \
   V(TurboshaftWord64Type)                       \
-  V(Undetectable)                               \
-  V(UniqueName)                                 \
   IF_WASM(V, WasmArray)                         \
   IF_WASM(V, WasmContinuationObject)            \
   IF_WASM(V, WasmExceptionPackage)              \
@@ -306,6 +288,28 @@ namespace internal {
   V(WeakCell)                                   \
   TORQUE_DEFINED_CLASS_LIST(V)                  \
   SIMPLE_HEAP_OBJECT_LIST1(V)
+
+// These are artificial object types which don't have properly defined classes
+// but exist for the sake of type checking, for example IsCallable().
+#define VIRTUAL_OBJECT_TYPE_LIST(V) \
+  V(AccessCheckNeeded)              \
+  V(AlwaysSharedSpaceJSObject)      \
+  V(BigIntWrapper)                  \
+  V(BooleanWrapper)                 \
+  V(Callable)                       \
+  V(Constructor)                    \
+  V(Filler)                         \
+  V(HandlerTable)                   \
+  V(JSContextExtensionObject)       \
+  V(JSError)                        \
+  V(MapCache)                       \
+  V(NumberWrapper)                  \
+  V(OSROptimizedCodeCache)          \
+  V(ScriptWrapper)                  \
+  V(StringWrapper)                  \
+  V(SymbolWrapper)                  \
+  V(UniqueName)                     \
+  V(Undetectable)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
@@ -452,6 +456,7 @@ namespace internal {
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
+  VIRTUAL_OBJECT_TYPE_LIST(V)       \
   HEAP_OBJECT_TRUSTED_TYPE_LIST(V)  \
   HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V)
@@ -487,6 +492,7 @@ namespace internal {
 HEAP_OBJECT_ORDINARY_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(DEF_FWD_DECLARATION)
 HEAP_OBJECT_SPECIALIZED_TYPE_LIST(DEF_FWD_DECLARATION)
+VIRTUAL_OBJECT_TYPE_LIST(DEF_FWD_DECLARATION)
 #undef DEF_FWD_DECLARATION
 
 }  // namespace internal

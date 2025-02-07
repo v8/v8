@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 
+#include "include/v8-internal.h"
 #include "src/api/api-arguments.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -32,7 +33,6 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 #include "third_party/fp16/src/include/fp16.h"
-#include "v8-internal.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects-inl.h"
@@ -4169,6 +4169,35 @@ V8_EXPORT_PRIVATE extern i::Tagged<i::Object> _v8_internal_Get_Object(
     void* object) {
   return GetObjectFromRaw(object);
 }
+
+// Defines _As_XXX functions which are useful for inspecting object properties
+// in debugger:
+//
+//   (gdb) p _As_ScopeInfo(0xead)->IsEmpty()
+//   $1 = 0x1
+//   (gdb) p _As_ScopeInfo(0x0e830009d555)->scope_type()
+//   $2 = v8::internal::FUNCTION_SCOPE
+//   (gdb) p _As_Undefined(0x11)->kind()
+//   $3 = 0x4
+//   (gdb) job _As_Oddball(0x2d)->to_string()
+//   0xe8300005309: [String] in ReadOnlySpace: #null
+//
+#define AS_HELPER_DEF(Type, ...)                                              \
+  V8_DONT_STRIP_SYMBOL V8_EXPORT_PRIVATE auto& _As_##Type(i::Address ptr) {   \
+    i::Tagged<i::Type> tagged = UncheckedCast<i::Type>(                       \
+        GetObjectFromRaw(reinterpret_cast<void*>(ptr)));                      \
+    /* _As_XXX(..) functions provide storage for TaggedOperatorArrowRef<T> */ \
+    /* temporary object and return a reference as a measure against gdb */    \
+    /* error "Attempt to take address of value not located in memory." */     \
+    static auto result = tagged.operator->(); /* There's no default ctor. */  \
+    result = tagged.operator->();                                             \
+    return result;                                                            \
+  }
+
+HEAP_OBJECT_ORDINARY_TYPE_LIST(AS_HELPER_DEF)
+HEAP_OBJECT_TRUSTED_TYPE_LIST(AS_HELPER_DEF)
+ODDBALL_LIST(AS_HELPER_DEF)
+#undef AS_HELPER_DEF
 
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {

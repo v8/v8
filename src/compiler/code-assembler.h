@@ -96,42 +96,6 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
 
 enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
 
-class AccessCheckNeeded;
-class BigIntBase;
-class BigIntWrapper;
-class ClassBoilerplate;
-class BooleanWrapper;
-class CompilationCacheTable;
-class Constructor;
-class Filler;
-class FunctionTemplateRareData;
-class HeapNumber;
-class InternalizedString;
-class JSArgumentsObject;
-class JSArrayBufferView;
-class JSContextExtensionObject;
-class JSError;
-class JSSloppyArgumentsObject;
-class MapCache;
-class NativeContext;
-class NumberWrapper;
-class ScriptWrapper;
-class SloppyArgumentsElements;
-class StringWrapper;
-class SymbolWrapper;
-class Undetectable;
-class UniqueName;
-class WasmCapiFunctionData;
-class WasmTagObject;
-class WasmExceptionPackage;
-class WasmExceptionTag;
-class WasmExportedFunctionData;
-class WasmGlobalObject;
-class WasmJSFunctionData;
-class WasmMemoryObject;
-class WasmModuleObject;
-class WasmTableObject;
-
 template <class T>
 struct ObjectTypeOf {};
 
@@ -162,6 +126,7 @@ OBJECT_TYPE_CASE(HeapObject)
 OBJECT_TYPE_CASE(HeapObjectReference)
 OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
+VIRTUAL_OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
 HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
