@@ -14,15 +14,16 @@ class __c_1 {
 }
 
 function __f_1() {
-  let __v_5 = 123;
-  console.log(__v_5);
+  let __v_6 = 123;
+  console.log(__v_6);
 }
 
 __f_1();
 
-let __v_3 = 456;
-console.log(__v_3);
+let __v_4 = 456;
+console.log(__v_4);
 
-let __v_4 = new __c_1();
+let __v_5 = new __c_1();
 
-console.log(__v_4.abc);
+console.log(__v_5.abc);
+__v_7 = undefined;

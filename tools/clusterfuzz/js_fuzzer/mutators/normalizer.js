@@ -80,6 +80,13 @@ class IdentifierNormalizer extends mutator.Mutator {
           return;
         }
 
+        if (path.node.name === "constructor" &&
+            babelTypes.isClassMethod(path.parent) &&
+            path.parent.key == path.node) {
+          // Don't touch constructors.
+          return;
+        }
+
         path.node.name = globalMappings.get(path.node.name);
       },
       FunctionDeclaration(path) {

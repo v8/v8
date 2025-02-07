@@ -26,3 +26,4 @@ console.log(__v_0);
 let __v_1 = new __c_0();
 
 console.log(__v_1.abc);
+__v_3 = undefined;
