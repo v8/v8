@@ -721,6 +721,7 @@ Type Typer::Visitor::ToString(Type type, Typer* t) {
 Type Typer::Visitor::ObjectIsArrayBufferView(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
   CHECK(!type.IsNone());
+  if (type.Is(Type::TypedArray())) return t->singleton_true_;
   if (!type.Maybe(Type::OtherObject())) return t->singleton_false_;
   return Type::Boolean();
 }
