@@ -510,7 +510,7 @@ bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
          shared()->is_compiled();
 }
 
-bool JSFunction::NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate) {
+bool JSFunction::NeedsResetDueToFlushedBytecode(Isolate* isolate) {
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
   // initialized here but the SharedFunctionInfo, Code objects may not be
@@ -529,7 +529,9 @@ bool JSFunction::NeedsResetDueToFlushedBytecode(IsolateForSandbox isolate) {
   Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(maybe_shared);
   return !shared->is_compiled() &&
          (code->builtin_id() != Builtin::kCompileLazy ||
-          IsTieringRequestedOrInProgress());
+          // With leaptiering we can have CompileLazy as the code object but
+          // still an optimization trampoline installed.
+          (V8_ENABLE_LEAPTIERING_BOOL && IsOptimizationRequested(isolate)));
 }
 
 bool JSFunction::NeedsResetDueToFlushedBaselineCode(IsolateForSandbox isolate) {
