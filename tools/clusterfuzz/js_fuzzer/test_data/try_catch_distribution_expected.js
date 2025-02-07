@@ -12,42 +12,34 @@ print("I'm a resource.");
 try {
   baz();
 } catch (e) {}
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     baz();
     baz();
-
     if (bar) {
       baz();
       baz();
     }
   }
 } catch (e) {}
-
 // Original: try_catch_distribution.js
 try {
   baz();
 } catch (e) {}
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     try {
       baz();
     } catch (e) {}
-
     try {
       baz();
     } catch (e) {}
-
     try {
       if (bar) {
         baz();
@@ -56,24 +48,19 @@ try {
     } catch (e) {}
   }
 } catch (e) {}
-
 // Original: try_catch_distribution.js
 baz();
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     try {
       baz();
     } catch (e) {}
-
     try {
       baz();
     } catch (e) {}
-
     try {
       if (bar) {
         baz();
@@ -82,26 +69,21 @@ try {
     } catch (e) {}
   }
 } catch (e) {}
-
 // Original: try_catch_distribution.js
 try {
   baz();
 } catch (e) {}
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     try {
       baz();
     } catch (e) {}
-
     try {
       baz();
     } catch (e) {}
-
     try {
       if (bar) {
         baz();
@@ -110,32 +92,26 @@ try {
     } catch (e) {}
   }
 } catch (e) {}
-
 // Original: try_catch_distribution.js
 try {
   baz();
 } catch (e) {}
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     try {
       baz();
     } catch (e) {}
-
     try {
       baz();
     } catch (e) {}
-
     try {
       if (bar) {
         try {
           baz();
         } catch (e) {}
-
         try {
           baz();
         } catch (e) {}
@@ -143,21 +119,17 @@ try {
     } catch (e) {}
   }
 } catch (e) {}
-
 // Original: try_catch_distribution.js
 try {
   baz();
 } catch (e) {}
-
 try {
   baz();
 } catch (e) {}
-
 try {
   if (foo) {
     baz();
     baz();
-
     if (bar) {
       baz();
       baz();

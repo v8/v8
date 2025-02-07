@@ -7,22 +7,17 @@ class A {
   constructor() {
     console.log(42);
   }
-
   method() {
     console.log(42);
   }
-
 }
-
 class B extends A {
   constructor() {
     /* CrossOverMutator: Crossover from foo */
     super();
     console.log(42);
   }
-
   method() {
     console.log(42);
   }
-
 }

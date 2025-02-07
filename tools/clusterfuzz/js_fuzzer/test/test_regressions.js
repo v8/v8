@@ -242,4 +242,16 @@ describe('Regression tests', () => {
     testAsyncReplacements(
         this.settings, 'regress/async/full_async_expected.js');
   });
+
+  it('does not drop required parentheses', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    const source = helpers.loadTestData('regress/parentheses/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/parentheses/expected.js', mutated);
+  });
 });

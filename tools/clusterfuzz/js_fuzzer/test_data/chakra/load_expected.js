@@ -20,5 +20,4 @@ console.log('load1.js');
 
 // Original: chakra/load.js
 if (this.WScript && this.WScript.LoadScriptFile) {}
-
 console.log('load.js');

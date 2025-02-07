@@ -106,21 +106,15 @@ a = {
   get bar() {
     return 0;
   },
-
   1: 0,
-
   set bar(t) {}
-
 };
 a = {
   get bar() {
     return 0;
   },
-
   1: 0,
-
   set bar(t) {}
-
 };
 a =
 /* ObjectMutator: Insert a random value */
@@ -128,11 +122,8 @@ a =
   get bar() {
     return 0;
   },
-
   1: "",
-
   set bar(t) {}
-
 };
 a =
 /* ObjectMutator: Insert a random value */

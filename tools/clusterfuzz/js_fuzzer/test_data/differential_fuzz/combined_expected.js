@@ -22,36 +22,25 @@ try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
 } catch (e) {}
-
 print("v8-foozzie source: v8/differential_fuzz/input1.js");
-
 // Original: v8/differential_fuzz/input1.js
 var __v_0 = 0;
-
 try {
-  /* DifferentialFuzzMutator: Pretty printing */
-  __prettyPrintExtra(__v_0);
+  /* DifferentialFuzzMutator: Pretty printing */__prettyPrintExtra(__v_0);
 } catch (e) {}
-
 /* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
-
   __prettyPrint(__v_0);
 } catch (e) {}
-
 print("v8-foozzie source: v8/differential_fuzz/input2.js");
-
 // Original: v8/differential_fuzz/input2.js
 let __v_1 = 1;
-
 /* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);
   print("Caught: " + __caught);
-
   __prettyPrint(__v_0);
-
   __prettyPrint(__v_1);
 } catch (e) {}

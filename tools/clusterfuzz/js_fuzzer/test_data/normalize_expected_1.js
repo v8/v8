@@ -10,20 +10,14 @@ class __c_1 {
     this.abc = 789;
     this.selfRef = __c_1;
   }
-
 }
-
 function __f_1() {
   let __v_6 = 123;
   console.log(__v_6);
 }
-
 __f_1();
-
 let __v_4 = 456;
 console.log(__v_4);
-
 let __v_5 = new __c_1();
-
 console.log(__v_5.abc);
 __v_7 = undefined;

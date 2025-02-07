@@ -30,5 +30,4 @@ try {
 if (true) {
   const s = new Sandbox.MemoryView(0);
 }
-
 console.log(Sandbox.getObjectAt(undefined));
