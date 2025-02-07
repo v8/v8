@@ -1681,6 +1681,7 @@
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
   'd8/flush-denormals-helper': [SKIP],
+  'd8/flush-denormals-worker': [SKIP],
   'wasm/denormals': [SKIP]
 }],  # arch in [ppc64, s390x]'
 
