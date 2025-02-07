@@ -271,6 +271,14 @@ IsolateGroup* IsolateGroup::New() {
   group->Initialize(false);
 #endif
   CHECK_NOT_NULL(group->page_allocator_);
+#if defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+  // We need to set this early, because it is needed while initializing the
+  // external reference table, eg. in the js_dispatch_table_address and
+  // code_pointer_table_address functions.  This is also done in
+  // IsolateGroup::InitializeOncePerProcess for the single-IsolateGroup
+  // configurations.
+  set_current(group);
+#endif
   ExternalReferenceTable::InitializeOncePerIsolateGroup(
       group->external_ref_table());
   return group;
