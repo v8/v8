@@ -10,7 +10,11 @@
 #include "include/v8config.h"
 #include "src/base/bounds.h"
 #include "src/common/globals.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {

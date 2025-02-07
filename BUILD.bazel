@@ -263,6 +263,22 @@ selects.config_setting_group(
     ],
 )
 
+selects.config_setting_group(
+    name = "webassembly_on_posix",
+    match_all = [
+        "@v8//bazel/config:is_posix",
+        ":is_v8_enable_webassembly",
+    ],
+)
+
+selects.config_setting_group(
+    name = "webassembly_on_windows",
+    match_all = [
+        "@v8//bazel/config:is_windows",
+        ":is_v8_enable_webassembly",
+    ],
+)
+
 v8_flag(
     name = "v8_jitless",
     default = False,
@@ -2766,11 +2782,11 @@ filegroup(
             "src/wasm/baseline/ppc/liftoff-assembler-ppc-inl.h",
         ],
     }) + select({
-        "@v8//bazel/config:is_posix": [
+        ":webassembly_on_posix": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
-        "@v8//bazel/config:is_windows": [
+        ":webassembly_on_windows": [
             "src/trap-handler/handler-inside-win.cc",
             "src/trap-handler/handler-inside-win.h",
             "src/trap-handler/handler-outside-win.cc",
