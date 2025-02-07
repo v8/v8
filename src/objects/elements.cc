@@ -3596,23 +3596,18 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     Tagged<JSTypedArray> typed_array = Cast<JSTypedArray>(*receiver);
 
-    if (typed_array->WasDetached()) {
-      return Just(IsUndefined(*value, isolate) && length > start_from);
-    }
-
     bool out_of_bounds = false;
     size_t new_length = typed_array->GetLengthOrOutOfBounds(out_of_bounds);
     if (V8_UNLIKELY(out_of_bounds)) {
       return Just(IsUndefined(*value, isolate) && length > start_from);
     }
 
-    if (IsUndefined(*value, isolate) && length > new_length) {
-      return Just(true);
-    }
-
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
     if (new_length < length) {
+      if (IsUndefined(*value, isolate) && length > start_from) {
+        return Just(true);
+      }
       length = new_length;
     }
 
