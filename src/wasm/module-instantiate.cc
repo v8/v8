@@ -778,6 +778,19 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (!js_function_data->MatchesSignature(expected_sig_id)) {
       return ImportCallKind::kLinkError;
     }
+    if (IsJSFunction(js_function_data->GetCallable())) {
+      Tagged<SharedFunctionInfo> sfi =
+          Cast<JSFunction>(js_function_data->GetCallable())->shared();
+      if (sfi->HasWasmFunctionData()) {
+        // Special case if the underlying callable is a WasmJSFunction or
+        // WasmExportedFunction: link the outer WasmJSFunction itself and not
+        // the inner callable. Otherwise when the wrapper tiers up, we will try
+        // to link the inner WasmJSFunction/WamsExportedFunction which is
+        // incorrect.
+        return ImportCallKind::kUseCallBuiltin;
+      }
+    }
+    SetCallable(isolate, js_function_data->GetCallable());
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable_)) {
     // TODO(jkummerow): Update this to follow the style of the other kinds of

@@ -646,11 +646,11 @@ void WasmTableObject::UpdateDispatchTable(
     wasm::ResolvedWasmImport resolved({}, -1, function, sig, sig_id,
                                       wasm::WellKnownImport::kUninstantiated);
     wasm::ImportCallKind kind = resolved.kind();
-    DCHECK_EQ(*function, *resolved.callable());
+    DirectHandle<JSReceiver> callable = resolved.callable();
     DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
     int expected_arity = static_cast<int>(sig->parameter_count());
     if (kind == wasm::ImportCallKind::kJSFunctionArityMismatch) {
-      expected_arity = Cast<JSFunction>(function)
+      expected_arity = Cast<JSFunction>(callable)
                            ->shared()
                            ->internal_formal_parameter_count_without_receiver();
     }
@@ -667,7 +667,7 @@ void WasmTableObject::UpdateDispatchTable(
              call_target == Builtins::EntryOf(
                                 Builtin::kWasmToJsWrapperInvalidSig, isolate));
       import_data = isolate->factory()->NewWasmImportData(
-          function, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
+          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
       import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
     }
   }
