@@ -1870,6 +1870,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }
@@ -2153,6 +2154,7 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }
@@ -2201,6 +2203,7 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }
@@ -2221,6 +2224,7 @@ const Operator* MachineOperatorBuilder::StoreTrapOnNull(
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }

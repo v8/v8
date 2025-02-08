@@ -1007,6 +1007,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1051,6 +1052,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }

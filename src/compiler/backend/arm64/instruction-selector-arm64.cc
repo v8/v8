@@ -1332,6 +1332,7 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kProtectedPointer:
       // We never store directly to protected pointers from generated code.
+    case MachineRepresentation::kFloat16RawBits:
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -1897,6 +1898,7 @@ std::tuple<InstructionCode, ImmediateMode> GetLoadOpcodeAndImmediate(
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kIndirectPointer:  // Fall through.
+    case MachineRepresentation::kFloat16RawBits:   // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }

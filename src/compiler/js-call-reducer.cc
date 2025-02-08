@@ -8492,9 +8492,6 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
           simplified()->SpeculativeToNumber(
               NumberOperationHint::kNumberOrOddball, p.feedback()),
           value, effect, control);
-      if (element_type == kExternalFloat16Array) {
-        value = graph()->NewNode(simplified()->NumberToFloat16RawBits(), value);
-      }
     }
   }
 

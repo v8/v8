@@ -343,6 +343,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep, ImmediateMode* mode) {
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kFloat16RawBits:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
   }
@@ -737,6 +738,7 @@ void VisitStoreCommon(InstructionSelectorT<TurbofanAdapter>* selector,
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kFloat16RawBits:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }

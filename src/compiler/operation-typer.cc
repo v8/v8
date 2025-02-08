@@ -582,13 +582,6 @@ Type OperationTyper::NumberToUint8Clamped(Type type) {
   return cache_->kUint8;
 }
 
-Type OperationTyper::NumberToFloat16RawBits(Type type) {
-  DCHECK(type.Is(Type::Number()));
-
-  if (type.Is(cache_->kUint16)) return type;
-  return cache_->kUint16;
-}
-
 Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
   DCHECK(type.Is(Type::Number()));
 

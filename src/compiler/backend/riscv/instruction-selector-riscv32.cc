@@ -332,6 +332,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kProtectedPointer:  // Fall through.
     case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kFloat16:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
     }
 
@@ -418,6 +419,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitStore(node_t node) {
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kFloat16:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
 
@@ -526,6 +528,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kFloat16:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
 
@@ -965,6 +968,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
       case MachineRepresentation::kNone:
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kFloat16:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
 
@@ -1029,6 +1033,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kFloat16:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
 

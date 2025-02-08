@@ -1171,10 +1171,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());
       break;
-    case IrOpcode::kNumberToFloat16RawBits:
-      CheckValueInputIs(node, 0, Type::Number());
-      CheckTypeIs(node, Type::Number());
-      break;
     case IrOpcode::kIntegral32OrMinusZeroToBigInt:
       CheckValueInputIs(node, 0, Type::Integral32OrMinusZero());
       CheckTypeIs(node, Type::BigInt());

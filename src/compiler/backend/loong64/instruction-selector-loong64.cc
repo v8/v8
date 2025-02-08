@@ -838,6 +838,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kNone:             // Fall through.
     case MachineRepresentation::kSimd128:          // Fall through.
     case MachineRepresentation::kSimd256:
+    case MachineRepresentation::kFloat16RawBits:  // Fall through.
       UNREACHABLE();
   }
 }
@@ -922,6 +923,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kProtectedPointer:
       // We never store directly to protected pointers from generated code.
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }

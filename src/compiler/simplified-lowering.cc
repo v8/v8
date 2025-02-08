@@ -91,6 +91,8 @@ MachineRepresentation MachineRepresentationFromArrayType(
     case kExternalUint32Array:
     case kExternalInt32Array:
       return MachineRepresentation::kWord32;
+    case kExternalFloat16Array:
+      return MachineRepresentation::kFloat16RawBits;
     case kExternalFloat32Array:
       return MachineRepresentation::kFloat32;
     case kExternalFloat64Array:
@@ -98,8 +100,6 @@ MachineRepresentation MachineRepresentationFromArrayType(
     case kExternalBigInt64Array:
     case kExternalBigUint64Array:
       return MachineRepresentation::kWord64;
-    case kExternalFloat16Array:
-      return MachineRepresentation::kWord16;
   }
   UNREACHABLE();
 }
@@ -153,9 +153,10 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:
       return UseInfo::TruncatingFloat64();
-    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
       return UseInfo::Float32();
+    case MachineRepresentation::kFloat16RawBits:
+      return UseInfo::Float16RawBits();
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
@@ -168,6 +169,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
@@ -255,14 +257,6 @@ bool IsLoadFloat16ArrayElement(Node* node) {
   return (opcode == IrOpcode::kLoadTypedElement ||
           opcode == IrOpcode::kLoadDataViewElement) &&
          ExternalArrayTypeOf(node->op()) == kExternalFloat16Array;
-}
-
-constexpr bool SupportsFpParamsInCLinkage() {
-#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-  return Is64();
-#else
-  return false;
-#endif
 }
 
 }  // namespace
@@ -3500,20 +3494,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kNumberToFloat16RawBits: {
-        if (IsLoadFloat16ArrayElement(node->InputAt(0))) {
-          // Fold away float16 raw bits -> float64 -> float16 raw bits
-          // sequences.
-          VisitUnop<T>(node, UseInfo::TruncatingWord32(),
-                       MachineRepresentation::kWord16);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
-        } else {
-          VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
-                       MachineRepresentation::kWord16);
-          if (lower<T>()) lowering->DoNumberToFloat16RawBits(node);
-        }
-        return;
-      }
       case IrOpcode::kIntegral32OrMinusZeroToBigInt: {
         VisitUnop<T>(node, UseInfo::Word64(kIdentifyZeros),
                      MachineRepresentation::kWord64);
@@ -5713,26 +5693,6 @@ void SimplifiedLowering::DoIntegerToUint8Clamped(Node* node) {
   ChangeOp(node, common()->Select(MachineRepresentation::kFloat64));
 }
 
-void SimplifiedLowering::DoNumberToFloat16RawBits(Node* node) {
-  if (machine()->TruncateFloat64ToFloat16RawBits().IsSupported()) {
-    ChangeOp(node, machine()->TruncateFloat64ToFloat16RawBits().op());
-  } else {
-    Node* value = node->InputAt(0);
-    node->ReplaceInput(0, Ieee754Fp64ToFp16RawBitsCode());
-    if constexpr (SupportsFpParamsInCLinkage()) {
-      node->AppendInput(graph()->zone(), value);
-    } else {
-      node->AppendInput(
-          graph()->zone(),
-          graph()->NewNode(machine()->Float64ExtractHighWord32(), value));
-      node->AppendInput(
-          graph()->zone(),
-          graph()->NewNode(machine()->Float64ExtractLowWord32(), value));
-    }
-    ChangeOp(node, Ieee754Fp64ToFp16RawBitsOperator());
-  }
-}
-
 void SimplifiedLowering::DoNumberToUint8Clamped(Node* node) {
   Node* const input = node->InputAt(0);
   Node* const min = jsgraph()->Float64Constant(0.0);
@@ -5803,20 +5763,6 @@ Node* SimplifiedLowering::ToNumericCode() {
   return to_numeric_code_.get();
 }
 
-Node* SimplifiedLowering::Ieee754Fp64ToFp16RawBitsCode() {
-  if (!ieee754_fp64_to_fp16_raw_bits_code_.is_set()) {
-    if constexpr (SupportsFpParamsInCLinkage()) {
-      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
-          ExternalReference::ieee754_fp64_to_fp16_raw_bits()));
-    } else {
-      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
-          ExternalReference::
-              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch()));
-    }
-  }
-  return ieee754_fp64_to_fp16_raw_bits_code_.get();
-}
-
 Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtin::kToNumber);
@@ -5855,29 +5801,6 @@ Operator const* SimplifiedLowering::ToNumericOperator() {
     to_numeric_operator_.set(common()->Call(call_descriptor));
   }
   return to_numeric_operator_.get();
-}
-
-Operator const* SimplifiedLowering::Ieee754Fp64ToFp16RawBitsOperator() {
-  if (!ieee754_fp64_to_fp16_raw_bits_operator_.is_set()) {
-    Zone* graph_zone = graph()->zone();
-    CallDescriptor* desc;
-    if constexpr (SupportsFpParamsInCLinkage()) {
-      MachineSignature::Builder builder(graph_zone, 1, 1);
-      builder.AddReturn(MachineType::Uint32());
-      builder.AddParam(MachineType::Float64());
-      desc = Linkage::GetSimplifiedCDescriptor(
-          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
-    } else {
-      MachineSignature::Builder builder(graph_zone, 1, 2);
-      builder.AddReturn(MachineType::Uint32());
-      builder.AddParam(MachineType::Uint32());
-      builder.AddParam(MachineType::Uint32());
-      desc = Linkage::GetSimplifiedCDescriptor(
-          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
-    }
-    ieee754_fp64_to_fp16_raw_bits_operator_.set(common()->Call(desc));
-  }
-  return ieee754_fp64_to_fp16_raw_bits_operator_.get();
 }
 
 void SimplifiedLowering::ChangeOp(Node* node, const Operator* new_op) {

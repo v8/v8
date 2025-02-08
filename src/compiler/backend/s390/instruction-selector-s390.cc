@@ -550,6 +550,7 @@ ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kProtectedPointer:  // Fall through.
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kFloat16RawBits:  // Fall through.
     case MachineRepresentation::kNone:
     default:
       UNREACHABLE();
@@ -1353,6 +1354,7 @@ static void VisitGeneralStore(
       case MachineRepresentation::kProtectedPointer:  // Fall through.
       case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kFloat16RawBits:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }

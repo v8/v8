@@ -302,6 +302,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           os << "|sb";
           break;
         case MachineRepresentation::kMapWord:
+        case MachineRepresentation::kFloat16RawBits:
           UNREACHABLE();
       }
       return os << "]";
@@ -1061,6 +1062,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }

@@ -1298,6 +1298,10 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
       return access;
     }
     case kExternalFloat16Array: {
+      // Accesses to Float16Array use float16 raw bits because spotty native
+      // fp16 support across architectures. See
+      // MachineRepresentation::kFloat16RawBits, which is used during simplified
+      // lowering to insert the correct conversions.
       ElementAccess access = {taggedness, header_size, Type::Number(),
                               MachineType::Uint16(), kNoWriteBarrier};
       return access;

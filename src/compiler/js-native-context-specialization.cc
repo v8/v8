@@ -3285,6 +3285,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kSimd128:
       case MachineRepresentation::kSimd256:
       case MachineRepresentation::kMapWord:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
     // Check if we need to perform a transitioning store.
@@ -3998,8 +3999,6 @@ JSNativeContextSpecialization::
       // might want to change that at some point.
       if (external_array_type == kExternalUint8ClampedArray) {
         value = graph()->NewNode(simplified()->NumberToUint8Clamped(), value);
-      } else if (external_array_type == kExternalFloat16Array) {
-        value = graph()->NewNode(simplified()->NumberToFloat16RawBits(), value);
       }
 
       if (situation == kHandleOOB_SmiAndRangeCheckComputed) {

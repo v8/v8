@@ -67,8 +67,10 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   bool type_error_;           // Set when a type error is detected.
 
   SetOncePointer<Node> ieee754_fp16_raw_bits_to_fp32_raw_bits_code_;
+  SetOncePointer<Node> ieee754_fp64_to_fp16_raw_bits_code_;
   SetOncePointer<Operator const>
       ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_;
+  SetOncePointer<Operator const> ieee754_fp64_to_fp16_raw_bits_operator_;
 
   Node* GetTaggedSignedRepresentationFor(Node* node,
                                          MachineRepresentation output_rep,
@@ -80,6 +82,10 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type output_type, Truncation truncation);
+  Node* GetFloat16RawBitsRepresentationFor(Node* node,
+                                           MachineRepresentation output_rep,
+                                           Type output_type, Node* use_node,
+                                           UseInfo use_info);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type output_type, Truncation truncation);
@@ -110,6 +116,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                     const FeedbackSource& feedback,
                                     Node* use_node);
   Node* InsertChangeFloat16RawBitsToFloat64Fallback(Node* node);
+  Node* InsertTruncateFloat64ToFloat16RawBitsFallback(Node* node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
@@ -117,7 +124,9 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertTypeOverrideForVerifier(const Type& type, Node* node);
 
   Node* Ieee754Fp16RawBitsToFp32RawBitsCode();
+  Node* Ieee754Fp64ToFp16RawBitsCode();
   Operator const* Ieee754Fp16RawBitsToFp32RawBitsOperator();
+  Operator const* Ieee754Fp64ToFp16RawBitsOperator();
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

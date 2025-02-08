@@ -306,6 +306,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
         // indirection, we have a Tagged pointer.
         return WordPtr();
       case MachineRepresentation::kNone:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }
@@ -843,6 +844,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kBit:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }
@@ -883,6 +885,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kProtectedPointer:
       case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }

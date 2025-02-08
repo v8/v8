@@ -774,6 +774,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -862,6 +863,7 @@ void InstructionSelectorT<Adapter>::VisitStore(typename Adapter::node_t node) {
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kIndirectPointer:    // Fall through.
+      case MachineRepresentation::kFloat16RawBits:     // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -2650,6 +2652,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -2704,6 +2707,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kFloat16RawBits:     // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }

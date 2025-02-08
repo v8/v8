@@ -548,6 +548,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kIndirectPointer:  // Fall through.
       case MachineRepresentation::kFloat16:          // Fall through.
+      case MachineRepresentation::kFloat16RawBits:
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -634,6 +635,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kFloat16:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }
@@ -2069,6 +2071,7 @@ void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
       case MachineRepresentation::kIndirectPointer:    // Fall through.
       case MachineRepresentation::kProtectedPointer:   // Fall through.
       case MachineRepresentation::kFloat16:            // Fall through.
+      case MachineRepresentation::kFloat16RawBits:     // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
@@ -2141,7 +2144,8 @@ void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kIndirectPointer:    // Fall through.
       case MachineRepresentation::kProtectedPointer:   // Fall through.
-      case MachineRepresentation::kFloat16:
+      case MachineRepresentation::kFloat16:            // Fall through.
+      case MachineRepresentation::kFloat16RawBits:     // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
     }
