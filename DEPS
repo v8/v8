@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ff733a6496a4ff67618f4b131bb18b66769f9a62',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '32e86cc3b13beb2f6c2d32c72bc5e7ec772db202',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -274,7 +274,7 @@ deps = {
   'third_party/fuzztest/src':
     Var('chromium_url') + '/external/github.com/google/fuzztest.git' + '@' + 'af84f4ca49bbacdb483635faae634044482a945b',
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e5443e5c65f23bfd2a9d56a30bb5b1de91a48ff9',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'a866428a78ab02b7072f96c8de15802ffd451a7f',
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
