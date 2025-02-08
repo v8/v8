@@ -15,6 +15,12 @@ const babelTypes = require('@babel/types');
 const common = require('./common.js');
 const mutator = require('./mutator.js');
 
+// Mapping of identifier->resource name, with additional resources only
+// loaded on demand if the respective identifier is found in the code.
+const IDENTIFIER_RESOURCE_MAP = {
+  'AsyncIterator': 'async_iterator.js',
+};
+
 class NormalizerContext {
   constructor() {
     this.funcIndex = 0;
@@ -70,24 +76,37 @@ class IdentifierNormalizer extends mutator.Mutator {
     }, {
       // Second pass to rename globals that weren't declared with
       // var/let/const etc.
-      Identifier(path) {
-        if (!globalMappings.has(path.node.name)) {
-          return;
-        }
+      Identifier: {
+        enter(path) {
+          if (!globalMappings.has(path.node.name)) {
+            return;
+          }
 
-        if (path.scope.getBinding(path.node.name)) {
-          // Don't rename if there is a binding that hides the global.
-          return;
-        }
+          if (path.scope.getBinding(path.node.name)) {
+            // Don't rename if there is a binding that hides the global.
+            return;
+          }
 
-        if (path.node.name === "constructor" &&
-            babelTypes.isClassMethod(path.parent) &&
-            path.parent.key == path.node) {
-          // Don't touch constructors.
-          return;
-        }
+          if (path.node.name === "constructor" &&
+              babelTypes.isClassMethod(path.parent) &&
+              path.parent.key == path.node) {
+            // Don't touch constructors.
+            return;
+          }
 
-        path.node.name = globalMappings.get(path.node.name);
+          path.node.name = globalMappings.get(path.node.name);
+        },
+        exit(path) {
+          // Ignore already renamed identifiers.
+          if(path.node.name.startsWith('__')) {
+            return;
+          }
+          // Check if remaining identifiers require additional resources.
+          const resource = IDENTIFIER_RESOURCE_MAP[path.node.name];
+          if (resource) {
+            thisMutator.context.extraResources.add(resource);
+          }
+        }
       },
       FunctionDeclaration(path) {
         if (path.node.id && babelTypes.isIdentifier(path.node.id)) {

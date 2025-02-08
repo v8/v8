@@ -254,4 +254,22 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/parentheses/expected.js', mutated);
   });
+
+  it('loads async iterator resource', () => {
+    // Test that inputs with the `AsyncIterator` identifier load an additional
+    // stub.
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake((resource) => {
+      if (resource === 'async_iterator.js') {
+        // Stub out resource loading, except for the resource in question.
+        return sourceHelpers.loadResource.wrappedMethod(resource);
+      }
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    const source = helpers.loadTestData('regress/iterator/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/iterator/expected.js', mutated);
+  });
 });

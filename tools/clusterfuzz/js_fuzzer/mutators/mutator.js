@@ -18,6 +18,7 @@ const babelTypes = require('@babel/types');
 class MutationContext {
   constructor () {
     this.asyncFunctions = new Set();
+    this.extraResources = new Set();
   }
 }
 

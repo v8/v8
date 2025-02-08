@@ -238,7 +238,7 @@ class ScriptMutator {
   }
 
   // Normalizes, combines and mutates multiple inputs.
-  mutateInputs(inputs) {
+  mutateInputs(inputs, dependencies) {
     const normalizerMutator = new IdentifierNormalizer();
     const context = new MutationContext();
 
@@ -258,6 +258,11 @@ class ScriptMutator {
     const combinedSource = common.concatPrograms(inputs);
     this.mutate(combinedSource, context);
 
+    // Add extra resources determined during mutation.
+    for (const resource of context.extraResources.values()) {
+      dependencies.push(sourceHelpers.loadResource(resource));
+    }
+
     return combinedSource;
   }
 
@@ -268,7 +273,7 @@ class ScriptMutator {
     // 3) Generate code with dependency code prepended.
     // 4) Combine and filter flags from inputs.
     const dependencies = this.resolveDependencies(inputs);
-    const combinedSource = this.mutateInputs(inputs);
+    const combinedSource = this.mutateInputs(inputs, dependencies);
     const code = sourceHelpers.generateCode(combinedSource, dependencies);
     const allFlags = common.concatFlags(dependencies.concat([combinedSource]));
     const filteredFlags = exceptions.resolveContradictoryFlags(
