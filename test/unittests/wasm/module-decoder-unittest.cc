@@ -3177,7 +3177,6 @@ TEST_F(WasmModuleVerifyTest, ActiveElementSegmentWithElements) {
 }
 
 TEST_F(WasmModuleVerifyTest, Table64ActiveElementSegmentWithElements) {
-  WASM_FEATURE_SCOPE(memory64);
   for (bool enable_table64 : {false, true}) {
     for (bool use_table64 : {false, true}) {
       uint8_t const_opcode = use_table64 ? kExprI64Const : kExprI32Const;
@@ -3453,7 +3452,6 @@ TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
 }
 
 TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
-  WASM_FEATURE_SCOPE(memory64);
   for (bool enable_memory64 : {false, true}) {
     for (bool use_memory64 : {false, true}) {
       uint8_t const_opcode = use_memory64 ? kExprI64Const : kExprI32Const;

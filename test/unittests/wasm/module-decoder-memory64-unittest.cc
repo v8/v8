@@ -19,12 +19,10 @@ class Memory64DecodingTest : public TestWithIsolateAndZone {
     // Add the wasm magic and version number automatically.
     std::vector<uint8_t> module_bytes{WASM_MODULE_HEADER};
     module_bytes.insert(module_bytes.end(), module_body_bytes);
-    static constexpr WasmEnabledFeatures kEnabledFeatures{
-        WasmEnabledFeature::memory64};
     bool kValidateFunctions = true;
     WasmDetectedFeatures detected_features;
     ModuleResult result =
-        DecodeWasmModule(kEnabledFeatures, base::VectorOf(module_bytes),
+        DecodeWasmModule(WasmEnabledFeatures{}, base::VectorOf(module_bytes),
                          kValidateFunctions, kWasmOrigin, &detected_features);
     CHECK_EQ(WasmDetectedFeatures{{WasmDetectedFeature::memory64}},
              detected_features);

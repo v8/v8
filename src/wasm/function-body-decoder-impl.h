@@ -839,8 +839,7 @@ struct MemoryAccessImmediate {
 
   template <typename ValidationTag>
   V8_INLINE MemoryAccessImmediate(Decoder* decoder, const uint8_t* pc,
-                                  uint32_t max_alignment, bool memory64_enabled,
-                                  ValidationTag = {}) {
+                                  uint32_t max_alignment, ValidationTag = {}) {
     // Check for the fast path (two single-byte LEBs, mem index 0).
     const bool two_bytes = !ValidationTag::validate || decoder->end() - pc >= 2;
     const bool use_fast_path = two_bytes && !(pc[0] & 0xc0) && !(pc[1] & 0x80);
@@ -850,8 +849,7 @@ struct MemoryAccessImmediate {
       offset = pc[1];
       length = 2;
     } else {
-      ConstructSlow<ValidationTag>(decoder, pc, max_alignment,
-                                   memory64_enabled);
+      ConstructSlow<ValidationTag>(decoder, pc, max_alignment);
     }
     if (!VALIDATE(alignment <= max_alignment)) {
       DecodeError<ValidationTag>(
@@ -866,8 +864,7 @@ struct MemoryAccessImmediate {
   template <typename ValidationTag>
   V8_NOINLINE V8_PRESERVE_MOST void ConstructSlow(Decoder* decoder,
                                                   const uint8_t* pc,
-                                                  uint32_t max_alignment,
-                                                  bool memory64_enabled) {
+                                                  uint32_t max_alignment) {
     uint32_t alignment_length;
     std::tie(alignment, alignment_length) =
         decoder->read_u32v<ValidationTag>(pc, "alignment");
@@ -882,13 +879,8 @@ struct MemoryAccessImmediate {
       mem_index = 0;
     }
     uint32_t offset_length;
-    if (memory64_enabled) {
-      std::tie(offset, offset_length) =
-          decoder->read_u64v<ValidationTag>(pc + length, "offset");
-    } else {
-      std::tie(offset, offset_length) =
-          decoder->read_u32v<ValidationTag>(pc + length, "offset");
-    }
+    std::tie(offset, offset_length) =
+        decoder->read_u64v<ValidationTag>(pc + length, "offset");
     length += offset_length;
   }
 };
@@ -2074,11 +2066,6 @@ class WasmDecoder : public Decoder {
   static uint32_t OpcodeLength(WasmDecoder* decoder, const uint8_t* pc,
                                ImmediateObservers&... ios) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-    // We don't have information about the module here, so we just assume that
-    // memory64 and multi-memory are enabled when parsing memory access
-    // immediates. This is backwards-compatible; decode errors will be detected
-    // at another time when actually decoding that opcode.
-    constexpr bool kConservativelyAssumeMemory64 = true;
     switch (opcode) {
       /********** Control opcodes **********/
       case kExprUnreachable:
@@ -2228,7 +2215,6 @@ class WasmDecoder : public Decoder {
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE) {
         MemoryAccessImmediate imm(decoder, pc + 1, UINT32_MAX,
-                                  kConservativelyAssumeMemory64,
                                   validate);
         (ios.MemoryAccess(imm), ...);
         return 1 + imm.length;
@@ -2303,7 +2289,7 @@ class WasmDecoder : public Decoder {
           case kExprF32LoadMemF16:
           case kExprF32StoreMemF16: {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kConservativelyAssumeMemory64, validate);
+                                      validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -2330,7 +2316,6 @@ class WasmDecoder : public Decoder {
             return length + 1;
           FOREACH_SIMD_MEM_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kConservativelyAssumeMemory64,
                                       validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
@@ -2338,7 +2323,6 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_MEM_1_OPERAND_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(
                 decoder, pc + length, UINT32_MAX,
-                kConservativelyAssumeMemory64,
                 validate);
         if (sizeof...(ios) > 0) {
               SimdLaneImmediate lane_imm(decoder,
@@ -2372,7 +2356,7 @@ class WasmDecoder : public Decoder {
         switch (opcode) {
           FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE) {
             MemoryAccessImmediate imm(decoder, pc + length, UINT32_MAX,
-                                      kConservativelyAssumeMemory64, validate);
+                                      validate);
             (ios.MemoryAccess(imm), ...);
             return length + imm.length;
           }
@@ -2979,7 +2963,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   V8_INLINE MemoryAccessImmediate
   MakeMemoryAccessImmediate(uint32_t pc_offset, uint32_t max_alignment) {
     return MemoryAccessImmediate(this, this->pc_ + pc_offset, max_alignment,
-                                 this->enabled_.has_memory64(), validate);
+                                 validate);
   }
 
 #ifdef DEBUG

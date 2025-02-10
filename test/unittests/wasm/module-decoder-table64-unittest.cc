@@ -47,8 +47,6 @@ class Table64DecodingTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(Table64DecodingTest, TableLimitLEB64) {
-  WASM_FEATURE_SCOPE(memory64);
-
   // 2 bytes LEB (32-bit range), no maximum.
   ModuleResult module = DecodeModule({SECTION(
       Table, ENTRY_COUNT(1), kFuncRefCode, kMemory64NoMaximum, U32V_2(5))});
@@ -119,25 +117,13 @@ TEST_F(Table64DecodingTest, TableLimitLEB64) {
 }
 
 TEST_F(Table64DecodingTest, InvalidTableLimits) {
-  WASM_FEATURE_SCOPE(memory64);
-
   const uint8_t kInvalidLimits = 0x15;
   ModuleResult module = DecodeModule({SECTION(
       Table, ENTRY_COUNT(1), kFuncRefCode, kInvalidLimits, U32V_2(5))});
   EXPECT_NOT_OK(module, "invalid table limits flags");
 }
 
-TEST_F(Table64DecodingTest, DisabledFlag) {
-  ModuleResult module = DecodeModule({SECTION(
-      Table, ENTRY_COUNT(1), kFuncRefCode, kMemory64NoMaximum, U32V_2(5))});
-  EXPECT_NOT_OK(module,
-                "invalid table limits flags 0x4 (enable with "
-                "--experimental-wasm-memory64)");
-}
-
 TEST_F(Table64DecodingTest, ImportedTable64) {
-  WASM_FEATURE_SCOPE(memory64);
-
   // 10 bytes LEB (32-bit range), no maximum.
   ModuleResult module = DecodeModule(
       {SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('t'),

@@ -22,7 +22,6 @@ proposal_flags = [
         'name':
             'memory64',
         'flags': [
-            '--experimental-wasm-memory64',
             # The memory64 repository is rebased on the upstream 'wasm-3.0'
             # branch, which contains exnref.
             '--experimental-wasm-exnref'

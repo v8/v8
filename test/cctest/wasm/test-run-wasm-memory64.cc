@@ -16,9 +16,7 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
  public:
   explicit Memory64Runner(TestExecutionTier execution_tier)
       : WasmRunner<ReturnType, ParamTypes...>(execution_tier, kWasmOrigin,
-                                              nullptr, "main") {
-    this->builder().EnableFeature(WasmEnabledFeature::memory64);
-  }
+                                              nullptr, "main") {}
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -61,7 +59,6 @@ WASM_EXEC_TEST(Load) {
 // TODO(clemensb): Test atomic instructions.
 
 WASM_EXEC_TEST(InitExpression) {
-  EXPERIMENTAL_FLAG_SCOPE(memory64);
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
 

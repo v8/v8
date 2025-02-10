@@ -3635,7 +3635,7 @@ class ModuleGen {
     int num_memories = 1 + (module_range_->get<uint8_t>() % kMaxMemories);
     for (int i = 0; i < num_memories; i++) {
       uint8_t random_byte = module_range_->get<uint8_t>();
-      bool mem64 = v8_flags.experimental_wasm_memory64 && (random_byte & 1);
+      bool mem64 = random_byte & 1;
       bool has_maximum = random_byte & 2;
       static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
       uint32_t max_supported_pages =
@@ -3956,8 +3956,7 @@ class ModuleGen {
       bool use_initializer =
           !type.is_defaultable() || module_range_->get<bool>();
 
-      bool use_table64 =
-          v8_flags.experimental_wasm_memory64 && (are_table64 & 1);
+      bool use_table64 = are_table64 & 1;
       are_table64 >>= 1;
       AddressType address_type =
           use_table64 ? AddressType::kI64 : AddressType::kI32;

@@ -5280,10 +5280,6 @@ class FunctionBodyDecoderTestOnBothMemoryTypes
     : public FunctionBodyDecoderTestBase<
           WithDefaultPlatformMixin<::testing::TestWithParam<AddressType>>> {
  public:
-  FunctionBodyDecoderTestOnBothMemoryTypes() {
-    if (is_memory64()) enabled_features_.Add(WasmEnabledFeature::memory64);
-  }
-
   bool is_memory32() const { return GetParam() == AddressType::kI32; }
   bool is_memory64() const { return GetParam() == AddressType::kI64; }
 };
@@ -5316,14 +5312,14 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
   // Offset is zero encoded in 5 bytes (always works).
   Validate(true, sigs.i_v(),
            {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO)});
-  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
-  Validate(is_memory64(), sigs.i_v(),
+  // Offset is zero encoded in 6 bytes.
+  Validate(true, sigs.i_v(),
            {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO)});
   // Same with store.
   Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO,
                                   WASM_ZERO)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO,
                                   WASM_ZERO)});
   // Offset is 2^32+2 (fails validation on memory32).
@@ -5343,23 +5339,23 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
   Validate(
       true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64)});
-  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
+  // Offset is zero encoded in 6 bytes.
   Validate(
-      is_memory64(), sigs.i_v(),
+      true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64)});
   // Same with store.
   Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64,
                                   WASM_ZERO)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64,
                                   WASM_ZERO)});
-  // Offset is 2^32+2 (validates on memory64).
+  // Offset is 2^32+2.
   Validate(
-      is_memory64(), sigs.i_v(),
+      true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(),
                             U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(),
                                   U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64,
                                   WASM_ZERO)});
@@ -5458,10 +5454,6 @@ class FunctionBodyDecoderTestTable64
     : public FunctionBodyDecoderTestBase<
           WithDefaultPlatformMixin<::testing::TestWithParam<AddressType>>> {
  public:
-  FunctionBodyDecoderTestTable64() {
-    if (is_table64()) enabled_features_.Add(WasmEnabledFeature::memory64);
-  }
-
   bool is_table32() const { return GetParam() == AddressType::kI32; }
   bool is_table64() const { return GetParam() == AddressType::kI64; }
 };

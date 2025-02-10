@@ -2006,13 +2006,6 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
 
-    if (limits.is_64bit() && !enabled_features_.has_memory64()) {
-      errorf(pc() - 1,
-             "invalid %s limits flags 0x%x (enable with "
-             "--experimental-wasm-memory64)",
-             limits_type == kMemory ? "memory" : "table", limits.flags);
-    }
-
     if (tracer_) {
       if (limits.is_shared()) tracer_->Description(" shared");
       if (limits.is_64bit()) {
