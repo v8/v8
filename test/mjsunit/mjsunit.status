@@ -246,6 +246,10 @@
   # collide more. This tests adds many objects to a WeakMap and that is very
   # slow in the lower_limits_mode.
   'es6/big-weakmap': [PASS, HEAVY, ['lower_limits_mode', SKIP]],
+
+  # TODO(thibaudm): Register allocation struggles with the function in this
+  # test, which has the maximum allowed number of parameters.
+  'regress/regress-crbug-724153': [SLOW],
 }],  # ALWAYS
 
 ################################################################################
