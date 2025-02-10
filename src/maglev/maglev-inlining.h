@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_INLINING_H_
 #define V8_MAGLEV_MAGLEV_INLINING_H_
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-deopt-frame-visitor.h"
@@ -88,6 +89,11 @@ class MaglevInliner {
   Graph* graph_;
 
   ValueNode* BuildInlineFunction(MaglevCallerDetails* details) {
+    compiler::JSHeapBroker* broker = details->callee->broker();
+    compiler::BytecodeArrayRef bytecode =
+        details->callee->shared_function_info().GetBytecodeArray(broker);
+    graph_->add_inlined_bytecode_size(bytecode.length());
+
     // Create a new graph builder for the inlined function.
     MaglevGraphBuilder inner_graph_builder(local_isolate_, details->callee,
                                            graph_, details);

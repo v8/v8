@@ -7879,7 +7879,6 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(ValueNode* context,
     std::cout << "== Inlining " << shared.object() << std::endl;
   }
 
-  graph()->add_inlined_bytecode_size(bytecode.length());
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(),
@@ -8084,6 +8083,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   }
 
   if (!v8_flags.maglev_non_eager_inlining) {
+    compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+    graph()->add_inlined_bytecode_size(bytecode.length());
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_vector, args, call_frequency);
   }
