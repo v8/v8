@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
 
 function foo() {
-  const arr = new Array(65535);
+  const arr = new Array(65526);
   function* bar() {}
   const f = bar.constructor.apply(null, arr);
   f();
