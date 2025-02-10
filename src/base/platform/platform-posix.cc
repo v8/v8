@@ -843,8 +843,7 @@ int OS::GetCurrentProcessId() {
   return static_cast<int>(getpid());
 }
 
-
-int OS::GetCurrentThreadId() {
+int OS::GetCurrentThreadIdInternal() {
 #if V8_OS_DARWIN || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX

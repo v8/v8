@@ -539,8 +539,7 @@ int OS::GetCurrentProcessId() {
   return static_cast<int>(::GetCurrentProcessId());
 }
 
-
-int OS::GetCurrentThreadId() {
+int OS::GetCurrentThreadIdInternal() {
   return static_cast<int>(::GetCurrentThreadId());
 }
 

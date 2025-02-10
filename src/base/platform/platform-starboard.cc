@@ -268,7 +268,7 @@ int OS::GetCurrentProcessId() {
   return 0;
 }
 
-int OS::GetCurrentThreadId() { return SbThreadGetId(); }
+int OS::GetCurrentThreadIdInternal() { return SbThreadGetId(); }
 
 int OS::GetLastError() { return SbSystemGetLastError(); }
 

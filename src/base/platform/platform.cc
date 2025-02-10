@@ -29,5 +29,11 @@ Stack::StackSlot Stack::GetStackStart() {
   return GetStackStartUnchecked();
 }
 
+// static
+int OS::GetCurrentThreadId() {
+  static thread_local int id = GetCurrentThreadIdInternal();
+  return id;
+}
+
 }  // namespace base
 }  // namespace v8
