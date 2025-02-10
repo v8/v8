@@ -562,14 +562,14 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
-constexpr size_t kJSDispatchTableReservationSize = 128 * MB;
+constexpr size_t kJSDispatchTableReservationSize = 256 * MB;
 // The maximum number of entries in a JSDispatchTable.
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
 
-constexpr uint32_t kJSDispatchHandleShift = 9;
+constexpr uint32_t kJSDispatchHandleShift = 8;
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");
