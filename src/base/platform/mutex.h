@@ -10,27 +10,9 @@
 #include "absl/synchronization/mutex.h"
 #include "include/v8config.h"
 
-#if V8_OS_DARWIN
-#include <os/lock.h>
-#endif
-
-#if V8_OS_POSIX
-#include <pthread.h>
-#endif
-
 #include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
-
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
-#endif
-
-#if V8_OS_STARBOARD
-#include "starboard/common/mutex.h"
-#include "starboard/common/recursive_mutex.h"
-#include "starboard/common/rwlock.h"
-#endif
 
 namespace v8 {
 namespace base {
@@ -143,7 +125,7 @@ using LazyMutex = LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
 
 class V8_BASE_EXPORT RecursiveMutex final {
  public:
-  RecursiveMutex();
+  RecursiveMutex() = default;
   RecursiveMutex(const RecursiveMutex&) = delete;
   RecursiveMutex& operator=(const RecursiveMutex&) = delete;
   ~RecursiveMutex();
@@ -175,21 +157,9 @@ class V8_BASE_EXPORT RecursiveMutex final {
   }
 
  private:
-  // The implementation-defined native handle type.
-#if V8_OS_POSIX
-  using NativeHandle = pthread_mutex_t;
-#elif V8_OS_WIN
-  using NativeHandle = V8_CRITICAL_SECTION;
-#elif V8_OS_STARBOARD
-  using NativeHandle = starboard::RecursiveMutex;
-#endif
-
-  NativeHandle native_handle_;
-#ifdef DEBUG
-  // This is being used for Assert* methods. Accesses are only allowed if you
-  // actually hold the mutex, otherwise you would get race conditions.
-  int level_;
-#endif
+  std::atomic<int> thread_id_ = 0;
+  int level_ = 0;
+  Mutex mutex_;
 };
 
 
