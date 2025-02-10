@@ -147,8 +147,8 @@ const DISALLOWED_FLAGS = [
     '--expose-debug-as',
     '--expose-natives-as',
     '--mock-arraybuffer-allocator',
-    'natives',  // Used in conjunction with --expose-natives-as.
     /^--trace-path.*/,
+    /.*\.mjs$/,
 ];
 
 // Flags only used with 25% probability.
@@ -279,6 +279,7 @@ function isTestSloppyRel(relPath) {
 function filterFlags(flags) {
   return flags.filter(flag => {
     return (
+        flag.startsWith('--') &&
         _doesntMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag) &&
         _doesntMatch(DISALLOWED_FLAGS, flag) &&
         (_doesntMatch(LOW_PROB_FLAGS, flag) ||

@@ -148,6 +148,14 @@ describe('Regression tests', () => {
     assert.deepEqual(['--flag1'], flags);
   });
 
+  it('skips mjs flags', () => {
+    const {file, flags} = createFuzzTest(
+        'test_data/regress/empty_db',
+        this.settings,
+        ['v8/regress/mjs_flags/input.js']);
+    assert.deepEqual(['--ok-flag1', '--ok-flag2'], flags);
+  });
+
   function testSuper(settings, db_path, expected) {
     // Enforce mutations at every possible location.
     settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
