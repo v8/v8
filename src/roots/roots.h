@@ -627,6 +627,15 @@ class RootsTable {
            static_cast<unsigned>(RootIndex::kLastReadOnlyRoot);
   }
 
+  static constexpr RootIndex SingleCharacterStringIndex(int c) {
+    DCHECK_GE(c, 0);
+    DCHECK_LE(c, static_cast<unsigned>(RootIndex::klatin1_ff_string) -
+                     static_cast<unsigned>(RootIndex::kascii_nul_string));
+    static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
+    return static_cast<RootIndex>(
+        static_cast<unsigned>(RootIndex::kascii_nul_string) + c);
+  }
+
  private:
   FullObjectSlot begin() {
     return FullObjectSlot(&roots_[static_cast<size_t>(RootIndex::kFirstRoot)]);

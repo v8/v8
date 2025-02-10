@@ -71,7 +71,7 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
   };
   std::stack<State> states;
   HandleScope scope(isolate);
-  auto percent = isolate->factory()->LookupSingleCharacterStringFromCode('%');
+  auto percent = isolate->factory()->percent_sign_string();
   states.push({args.at<String>(index++), 0});
   while (!states.empty() && index < args.length()) {
     State& state = states.top();

@@ -967,11 +967,9 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::LookupSingleCharacterStringFromCode(
     uint16_t code) {
-  if (code <= unibrow::Latin1::kMaxChar) {
-    DisallowGarbageCollection no_gc;
-    Tagged<Object> value = single_character_string_table()->get(code);
-    DCHECK_NE(value, *undefined_value());
-    return handle(Cast<String>(value), isolate());
+  if (code <= String::kMaxOneByteCharCode) {
+    return Cast<String>(
+        isolate()->root_handle(RootsTable::SingleCharacterStringIndex(code)));
   }
   uint16_t buffer[] = {code};
   return InternalizeString(base::Vector<const uint16_t>(buffer, 1));

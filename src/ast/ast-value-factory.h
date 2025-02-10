@@ -235,77 +235,103 @@ using AstRawStringMap =
                               base::DefaultAllocationPolicy>;
 
 // For generating constants.
-#define AST_STRING_CONSTANTS(F)                    \
-  F(anonymous, "anonymous")                        \
-  F(arguments, "arguments")                        \
-  F(as, "as")                                      \
-  F(assert, "assert")                              \
-  F(async, "async")                                \
-  F(bigint, "bigint")                              \
-  F(boolean, "boolean")                            \
-  F(computed, "<computed>")                        \
-  F(dot_brand, ".brand")                           \
-  F(constructor, "constructor")                    \
-  F(default, "default")                            \
-  F(done, "done")                                  \
-  F(dot, ".")                                      \
-  F(dot_default, ".default")                       \
-  F(dot_for, ".for")                               \
-  F(dot_generator_object, ".generator_object")     \
-  F(dot_home_object, ".home_object")               \
-  F(dot_result, ".result")                         \
-  F(dot_repl_result, ".repl_result")               \
-  F(dot_static_home_object, ".static_home_object") \
-  F(dot_switch_tag, ".switch_tag")                 \
-  F(dot_catch, ".catch")                           \
-  F(empty, "")                                     \
-  F(eval, "eval")                                  \
-  F(from, "from")                                  \
-  F(function, "function")                          \
-  F(get_space, "get ")                             \
-  F(length, "length")                              \
-  F(let, "let")                                    \
-  F(meta, "meta")                                  \
-  F(native, "native")                              \
-  F(new_target, ".new.target")                     \
-  F(next, "next")                                  \
-  F(number, "number")                              \
-  F(object, "object")                              \
-  F(private_constructor, "#constructor")           \
-  F(proto, "__proto__")                            \
-  F(prototype, "prototype")                        \
-  F(return, "return")                              \
-  F(set_space, "set ")                             \
-  F(source, "source")                              \
-  F(string, "string")                              \
-  F(symbol, "symbol")                              \
-  F(target, "target")                              \
-  F(this, "this")                                  \
-  F(this_function, ".this_function")               \
-  F(throw, "throw")                                \
-  F(undefined, "undefined")                        \
-  F(value, "value")
+#define AST_STRING_CONSTANTS_INTERNALIZED_STRING_LIST_ADAPTER(F, name,  \
+                                                              contents) \
+  F(name, contents)
+#define SINGLE_CHARACTER_ASCII_AST_STRING_CONSTANTS(F)       \
+  SINGLE_CHARACTER_ASCII_INTERNALIZED_STRING_LIST_GENERATOR( \
+      AST_STRING_CONSTANTS_INTERNALIZED_STRING_LIST_ADAPTER, F)
+#define AST_STRING_CONSTANTS(F)                           \
+  SINGLE_CHARACTER_ASCII_AST_STRING_CONSTANTS(F)          \
+  F(anonymous_string, "anonymous")                        \
+  F(arguments_string, "arguments")                        \
+  F(as_string, "as")                                      \
+  F(assert_string, "assert")                              \
+  F(async_string, "async")                                \
+  F(bigint_string, "bigint")                              \
+  F(boolean_string, "boolean")                            \
+  F(computed_string, "<computed>")                        \
+  F(dot_brand_string, ".brand")                           \
+  F(constructor_string, "constructor")                    \
+  F(default_string, "default")                            \
+  F(done_string, "done")                                  \
+  F(dot_default_string, ".default")                       \
+  F(dot_for_string, ".for")                               \
+  F(dot_generator_object_string, ".generator_object")     \
+  F(dot_home_object_string, ".home_object")               \
+  F(dot_result_string, ".result")                         \
+  F(dot_repl_result_string, ".repl_result")               \
+  F(dot_static_home_object_string, ".static_home_object") \
+  F(dot_switch_tag_string, ".switch_tag")                 \
+  F(dot_catch_string, ".catch")                           \
+  F(empty_string, "")                                     \
+  F(eval_string, "eval")                                  \
+  F(from_string, "from")                                  \
+  F(function_string, "function")                          \
+  F(get_space_string, "get ")                             \
+  F(length_string, "length")                              \
+  F(let_string, "let")                                    \
+  F(meta_string, "meta")                                  \
+  F(native_string, "native")                              \
+  F(new_target_string, ".new.target")                     \
+  F(next_string, "next")                                  \
+  F(number_string, "number")                              \
+  F(object_string, "object")                              \
+  F(private_constructor_string, "#constructor")           \
+  F(proto_string, "__proto__")                            \
+  F(prototype_string, "prototype")                        \
+  F(return_string, "return")                              \
+  F(set_space_string, "set ")                             \
+  F(source_string, "source")                              \
+  F(string_string, "string")                              \
+  F(symbol_string, "symbol")                              \
+  F(target_string, "target")                              \
+  F(this_string, "this")                                  \
+  F(this_function_string, ".this_function")               \
+  F(throw_string, "throw")                                \
+  F(undefined_string, "undefined")                        \
+  F(value_string, "value")
 
 class AstStringConstants final {
  public:
+#define F(name, str) +1
+  static constexpr int kMaxOneCharStringValue =
+      0 SINGLE_CHARACTER_ASCII_AST_STRING_CONSTANTS(F);
+#undef F
+
   AstStringConstants(Isolate* isolate, uint64_t hash_seed);
   AstStringConstants(const AstStringConstants&) = delete;
   AstStringConstants& operator=(const AstStringConstants&) = delete;
 
 #define F(name, str) \
-  const AstRawString* name##_string() const { return name##_string_; }
+  const AstRawString* name() const { return name##_; }
   AST_STRING_CONSTANTS(F)
 #undef F
 
   uint64_t hash_seed() const { return hash_seed_; }
   const AstRawStringMap* string_table() const { return &string_table_; }
+  const AstRawString* one_character_string(int c) const {
+    DCHECK_GE(c, 0);
+    DCHECK_LT(c, kMaxOneCharStringValue);
+
+    // Make sure we can access the one character strings via an offset
+    // from ascii_nul_string_.
+#define F(name, str)                                              \
+  static_assert(offsetof(AstStringConstants, name##_) ==          \
+                offsetof(AstStringConstants, ascii_nul_string_) + \
+                    str[0] * sizeof(AstRawString*));
+    SINGLE_CHARACTER_ASCII_AST_STRING_CONSTANTS(F)
+#undef F
+
+    return (&ascii_nul_string_)[c];
+  }
 
  private:
   Zone zone_;
   AstRawStringMap string_table_;
   uint64_t hash_seed_;
 
-#define F(name, str) AstRawString* name##_string_;
+#define F(name, str) AstRawString* name##_;
   AST_STRING_CONSTANTS(F)
 #undef F
 };
@@ -330,9 +356,6 @@ class AstValueFactory {
     DCHECK_NOT_NULL(ast_raw_string_zone_);
     DCHECK_NOT_NULL(single_parse_zone_);
     DCHECK_EQ(hash_seed, string_constants->hash_seed());
-    std::fill(one_character_strings_,
-              one_character_strings_ + arraysize(one_character_strings_),
-              nullptr);
 
     // Allocate the empty ConsString in the AstRawString Zone instead of the
     // single parse Zone like other ConsStrings, because unlike those it can be
@@ -373,10 +396,8 @@ class AstValueFactory {
   template <typename IsolateT>
   void Internalize(IsolateT* isolate);
 
-#define F(name, str)                           \
-  const AstRawString* name##_string() const {  \
-    return string_constants_->name##_string(); \
-  }
+#define F(name, str) \
+  const AstRawString* name() const { return string_constants_->name(); }
   AST_STRING_CONSTANTS(F)
 #undef F
   AstConsString* empty_cons_string() const { return empty_cons_string_; }
@@ -408,10 +429,6 @@ class AstValueFactory {
   const AstStringConstants* string_constants_;
 
   AstConsString* empty_cons_string_;
-
-  // Caches one character lowercase strings (for minified code).
-  static const int kMaxOneCharStringValue = 128;
-  const AstRawString* one_character_strings_[kMaxOneCharStringValue];
 
   Zone* ast_raw_string_zone_;
   Zone* single_parse_zone_;

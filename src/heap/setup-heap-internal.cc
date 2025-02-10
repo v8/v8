@@ -97,14 +97,14 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
 #endif
 
 struct ConstantStringInit {
-  const char* contents;
+  base::Vector<const char> contents;
   RootIndex index;
 };
 
 constexpr std::initializer_list<ConstantStringInit>
-#define CONSTANT_STRING_ELEMENT(_, name, contents) \
-  {contents, RootIndex::k##name},
     kImportantConstantStringTable{
+#define CONSTANT_STRING_ELEMENT(_, name, contents) \
+  {{contents, arraysize(contents) - 1}, RootIndex::k##name},
         EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(
             CONSTANT_STRING_ELEMENT, /* not used */)
             IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(
@@ -113,9 +113,9 @@ constexpr std::initializer_list<ConstantStringInit>
     };
 
 constexpr std::initializer_list<ConstantStringInit>
-#define CONSTANT_STRING_ELEMENT(_, name, contents) \
-  {contents, RootIndex::k##name},
     kNotImportantConstantStringTable{
+#define CONSTANT_STRING_ELEMENT(_, name, contents) \
+  {{contents, arraysize(contents) - 1}, RootIndex::k##name},
         NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(
             CONSTANT_STRING_ELEMENT, /* not used */)
 #undef CONSTANT_STRING_ELEMENT
@@ -900,7 +900,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
       // the initial section.
       isolate()->string_table()->InsertEmptyStringForBootstrapping(isolate());
     } else {
-      DirectHandle<String> str = factory->InternalizeUtf8String(entry.contents);
+      DirectHandle<String> str = factory->InternalizeString(entry.contents);
       roots_table()[entry.index] = str->ptr();
     }
   }
@@ -912,8 +912,9 @@ bool Heap::CreateImportantReadOnlyObjects() {
         isolate()->factory()->NewPrivateSymbol(AllocationType::kReadOnly)); \
     roots_table()[RootIndex::k##name] = symbol->ptr();                      \
   }
-      IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)}
-  // SYMBOL_INIT used again later.
+      IMPORTANT_PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
+      // SYMBOL_INIT used again later.
+  }
 
   // Empty elements
   DirectHandle<NameDictionary>
@@ -1071,21 +1072,27 @@ bool Heap::CreateReadOnlyObjects() {
   roots.bigint_map()->SetConstructorFunctionIndex(
       Context::BIGINT_FUNCTION_INDEX);
 
+  for (const ConstantStringInit& entry : kNotImportantConstantStringTable) {
+    DirectHandle<String> str = factory->InternalizeString(entry.contents);
+    roots_table()[entry.index] = str->ptr();
+  }
+
+#define ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR(_, name, contents) \
+  static_assert(arraysize(contents) - 1 == 1);
+  SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(
+      ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR,
+      /* not used */)
+#undef ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR
+
   // Allocate and initialize table for single character one byte strings.
   int table_size = String::kMaxOneByteCharCode + 1;
   set_single_character_string_table(
       *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
   for (int i = 0; i < table_size; ++i) {
-    uint8_t code = static_cast<uint8_t>(i);
-    DirectHandle<String> str =
-        factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
+    DirectHandle<String> str = Cast<String>(
+        roots_table().handle_at(RootsTable::SingleCharacterStringIndex(i)));
     DCHECK(ReadOnlyHeap::Contains(*str));
     single_character_string_table()->set(i, *str);
-  }
-
-  for (const ConstantStringInit& entry : kNotImportantConstantStringTable) {
-    DirectHandle<String> str = factory->InternalizeUtf8String(entry.contents);
-    roots_table()[entry.index] = str->ptr();
   }
 
   // Finish initializing oddballs after creating the string table.

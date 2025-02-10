@@ -115,9 +115,7 @@ Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
 
   i::DirectHandle<i::String> description =
       i_isolate->factory()
-          ->NewConsString(
-              string_value,
-              i_isolate->factory()->LookupSingleCharacterStringFromCode('n'))
+          ->NewConsString(string_value, i_isolate->factory()->n_string())
           .ToHandleChecked();
   return Utils::ToLocal(description);
 }
