@@ -97,6 +97,15 @@ void StackGuard::AdjustStackLimitForSimulator() {
     thread_local_.set_jslimit(jslimit);
   }
 }
+
+void StackGuard::ResetStackLimitForSimulator() {
+  ExecutionAccess access(isolate_);
+  // If the current limits are special due to a pending interrupt then
+  // leave them alone.
+  if (thread_local_.jslimit() != kInterruptLimit) {
+    thread_local_.set_jslimit(thread_local_.real_jslimit_);
+  }
+}
 #endif
 
 void StackGuard::PushInterruptsScope(InterruptsScope* scope) {

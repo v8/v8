@@ -1885,6 +1885,12 @@ Tagged<Object> Isolate::StackOverflow() {
     FATAL("Aborting on stack overflow");
   }
 
+#if USE_SIMULATOR
+  // Adjust the stack limit back to the real limit in case it was temporarily
+  // modified to reflect an overflow in the C stack (see
+  // AdjustStackLimitForSimulator).
+  stack_guard()->ResetStackLimitForSimulator();
+#endif
   DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
 

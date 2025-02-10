@@ -44,6 +44,8 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   // to be adjusted in order to reflect overflows of the C stack, because we
   // cannot rely on the interleaving of frames on the simulator.
   void AdjustStackLimitForSimulator();
+  // Reset the limit to the real limit after the stack overflow, if any.
+  void ResetStackLimitForSimulator();
 #endif
 
   // Threading support.
