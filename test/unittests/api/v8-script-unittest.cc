@@ -609,7 +609,8 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentBetweenFunctions) {
   EXPECT_FALSE(result.IsEmpty());
 
   EXPECT_FALSE(FunctionIsCompiled("f1"));
-  EXPECT_TRUE(FunctionIsCompiled("f2"));
+  // Compile hint between functions is not picked up.
+  EXPECT_FALSE(FunctionIsCompiled("f2"));
 }
 
 TEST_F(CompileHintsTest, CompileHintsMagicCommentInvalid) {
@@ -725,6 +726,35 @@ TEST_F(CompileHintsTest, StreamingCompileHintsMagic) {
 
   EXPECT_TRUE(FunctionIsCompiled("func1"));
   EXPECT_TRUE(FunctionIsCompiled("func2"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsMagicCommentAfterComments) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a single-line comment\n"
+      "/* a multi-\n"
+      "line comment */\n"
+      "// another single-line comment\n"
+      "//# eagerCompilation=all\n"
+      "function f1() {}";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kProduceCompileHints |
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("f1"));
 }
 
 }  // namespace
