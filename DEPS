@@ -124,9 +124,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1a5a3d0df60d8bc59f27f124cc1c182a643bf1d7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '564ab325d8874b9abb338c77bed1e56f85b3bca9',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fa96185dc5d13c6666b4850d03cddc06be4e4f35',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '11130b8ec4fa52349800daa8b07d3304b47f2bf4',
   'buildtools/linux64': {
     'packages': [
       {
@@ -226,7 +226,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '521490bbb879d3255314fddecb3956bf9d617efc',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5f094dfc3ee5cdc537403f24101e9c6408d9784e',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '14051a83465d5d983bc1ad5f05b651eb118b10f9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a5519ca8728983c295ec8fbeca8d4da72e530c3c',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -300,7 +300,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4337c9955a37b3f2a7b105fd19a2fb82bf9bf5af',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'e3b5e716641185d044d4b91d53b310dc007ccefa',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'fb1d0708374ecfcd6323989bdfed852ea68d2731',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -462,9 +462,9 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '6a1542cec366dd9e57bad649eb917e42a9db2c20',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '7d1bca0e0a52591a84aac4d38b38132e11602dba',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'ee18abb224719dbe2b5fa0114da8932d76a78ca5',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '50838536e6bef29befa5bf463165f4bb0dc11d1c',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + '6dcd83d60f7944926bfd308cc13979fc53dd69ca',
   'third_party/requests': {
