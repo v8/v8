@@ -3421,7 +3421,6 @@ class LiftoffCompiler {
 
     // Early return for trap handler.
     bool use_trap_handler = !force_check && bounds_checks == kTrapHandler;
-    bool need_ool_code = !use_trap_handler || memory->is_memory64();
 
     DCHECK_IMPLIES(
         memory->is_memory64() && !v8_flags.wasm_memory64_trap_handling,
@@ -3432,9 +3431,7 @@ class LiftoffCompiler {
       if (memory->is_memory64()) {
         FREEZE_STATE(trapping);
         Label* trap_label =
-            need_ool_code ? AddOutOfLineTrap(
-                                decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
-                          : nullptr;
+            AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
         SCOPED_CODE_COMMENT("bounds check memory");
         // Bounds check `index` against `max_mem_size - end_offset`, such that
         // at runtime `index + end_offset` will be < `max_mem_size`, where the
@@ -3463,14 +3460,12 @@ class LiftoffCompiler {
     if (!memory->is_memory64()) {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
-      pinned.set(index.high_gp());
       DCHECK_GE(kMaxUInt32, memory->max_memory_size);
       FREEZE_STATE(out_of_line_trap);
       Label* trap_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
       __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
                         out_of_line_trap);
-      pinned.clear(index.high_gp());
     }
 
     // Note that allocating the registers here before creating the trap label is
@@ -3496,9 +3491,7 @@ class LiftoffCompiler {
     // {for_debugging_} needs spill slots in out of line code.
     FREEZE_STATE(trapping);
     Label* trap_label =
-        need_ool_code
-            ? AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds)
-            : nullptr;
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
