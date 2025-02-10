@@ -81,7 +81,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:55313eb59667cbb02e2c1a32956b68183fd35e0e',
+  'siso_version': 'git_revision:b4b90dd1a09f927c2900e8e967c65875d0473c95',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '32e86cc3b13beb2f6c2d32c72bc5e7ec772db202',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '14051a83465d5d983bc1ad5f05b651eb118b10f9',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
