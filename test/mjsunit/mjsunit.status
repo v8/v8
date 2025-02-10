@@ -1249,6 +1249,12 @@
 
   # MIPS64 port doesn't support maglev yet.
   'turboshaft/maglev-frontend/*': [SKIP],
+
+  # Flush to zero is not supported yet.
+  'd8/flush-denormals-flag': [SKIP],
+  'd8/flush-denormals-helper': [SKIP],
+  'd8/flush-denormals-worker': [SKIP],
+  'wasm/denormals': [SKIP]
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -1260,6 +1266,12 @@
 
   # Loong64 port doesn't support maglev yet.
   'turboshaft/maglev-frontend/*': [SKIP],
+
+  # Flush to zero is not supported yet.
+  'd8/flush-denormals-flag': [SKIP],
+  'd8/flush-denormals-helper': [SKIP],
+  'd8/flush-denormals-worker': [SKIP],
+  'wasm/denormals': [SKIP]
 }],  # 'arch == loong64'
 
 ##############################################################################
