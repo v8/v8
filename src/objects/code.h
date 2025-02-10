@@ -459,7 +459,9 @@ class Code : public ExposedTrustedObject {
 
   // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;
-  static const int kMaxArguments = (1 << kArgumentsBits) - 2;
+  // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
+  // on the call nodes without overflowing the uint16_t input_count.
+  static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:
   DECL_PRIMITIVE_SETTER(marked_for_deoptimization, bool)

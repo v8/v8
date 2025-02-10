@@ -235,6 +235,9 @@
 
   # Disabled since v8_flags.always_use_string_forwarding_table is now READONLY.
   'string-forwarding-table': [SKIP],
+  # TODO(thibaudm): Register allocation struggles with the function in this
+  # test, which has the maximum allowed number of parameters.
+  'regress/regress-crbug-724153': [SLOW],
 }],  # ALWAYS
 
 ################################################################################
