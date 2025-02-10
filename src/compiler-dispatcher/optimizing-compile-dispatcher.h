@@ -152,7 +152,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   std::deque<TurbofanCompilationJob*> output_queue_;
   // Used for job based recompilation which has multiple producers on
   // different threads.
-  base::SpinningMutex output_queue_mutex_;
+  base::Mutex output_queue_mutex_;
 
   std::unique_ptr<JobHandle> job_handle_;
 

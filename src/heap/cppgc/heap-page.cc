@@ -280,7 +280,7 @@ void LargePage::Destroy(LargePage* page) {
     // Destroy() happens on the mutator but another concurrent sweeper task may
     // add add a live object using `BaseSpace::AddPage()` while iterating the
     // pages.
-    v8::base::SpinningMutexGuard guard(&space.pages_mutex());
+    v8::base::MutexGuard guard(&space.pages_mutex());
     DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   }
 #endif  // DEBUG

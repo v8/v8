@@ -1322,13 +1322,13 @@ struct FixedArityOperationT : OperationT<Derived> {
 
 class V8_EXPORT_PRIVATE SupportedOperations {
 #define DECLARE_FIELD(name, machine_name) bool name##_;
-#define DECLARE_GETTER(name, machine_name)             \
-  static bool name() {                                 \
-    if constexpr (DEBUG_BOOL) {                        \
-      base::SpinningMutexGuard lock(mutex_.Pointer()); \
-      DCHECK(initialized_);                            \
-    }                                                  \
-    return instance_.name##_;                          \
+#define DECLARE_GETTER(name, machine_name)     \
+  static bool name() {                         \
+    if constexpr (DEBUG_BOOL) {                \
+      base::MutexGuard lock(mutex_.Pointer()); \
+      DCHECK(initialized_);                    \
+    }                                          \
+    return instance_.name##_;                  \
   }
 
  public:
@@ -1341,7 +1341,7 @@ class V8_EXPORT_PRIVATE SupportedOperations {
   SUPPORTED_OPERATIONS_LIST(DECLARE_FIELD)
 
   static bool initialized_;
-  static base::LazySpinningMutex mutex_;
+  static base::LazyMutex mutex_;
   static SupportedOperations instance_;
 
 #undef DECLARE_FIELD

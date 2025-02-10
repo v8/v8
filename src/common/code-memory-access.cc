@@ -146,7 +146,7 @@ ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPageLocked(
 // static
 ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
                                                                  size_t size) {
-  base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   return LookupJitPageLocked(addr, size);
 }
 
@@ -159,7 +159,7 @@ WritableJitPage ThreadIsolation::LookupWritableJitPage(Address addr,
 // static
 std::optional<ThreadIsolation::JitPageReference>
 ThreadIsolation::TryLookupJitPage(Address addr, size_t size) {
-  base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   return TryLookupJitPageLocked(addr, size);
 }
 
@@ -406,7 +406,7 @@ ThreadIsolation::JitPageReference::AllocationContaining(
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   CFIMetadataWriteScope write_scope("Adding new executable memory.");
 
-  base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   CheckForRegionOverlap(*trusted_data_.jit_pages_, address, size);
   JitPage* jit_page;
   ConstructNew(&jit_page, size);
@@ -419,7 +419,7 @@ void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
 
   JitPage* to_delete;
   {
-    base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+    base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
     JitPageReference jit_page = LookupJitPageLocked(address, size);
 
     // We're merging jit pages together, so potentially split them back up
@@ -534,7 +534,7 @@ void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
 
 ThreadIsolation::JitPageReference ThreadIsolation::SplitJitPage(Address addr,
                                                                 size_t size) {
-  base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   return SplitJitPageLocked(addr, size);
 }
 
@@ -575,7 +575,7 @@ ThreadIsolation::SplitJitPages(Address addr1, size_t size1, Address addr2,
   // that the sizes don't overflow.
   CHECK_LE(addr1 + size1, addr2);
 
-  base::SpinningMutexGuard guard(trusted_data_.jit_pages_mutex_);
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
   return {SplitJitPageLocked(addr1, size1), SplitJitPageLocked(addr2, size2)};
 }
 
@@ -610,7 +610,7 @@ namespace {
 
 class MutexUnlocker {
  public:
-  explicit MutexUnlocker(base::SpinningMutex& mutex) : mutex_(mutex) {
+  explicit MutexUnlocker(base::Mutex& mutex) : mutex_(mutex) {
     mutex_.AssertHeld();
   }
 
@@ -620,7 +620,7 @@ class MutexUnlocker {
   }
 
  private:
-  base::SpinningMutex& mutex_;
+  base::Mutex& mutex_;
 };
 
 }  // namespace

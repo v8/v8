@@ -160,7 +160,7 @@ class V8_EXPORT_PRIVATE CompactibleExternalEntityTable
     std::vector<Address> invalidated_fields_;
 
     // Mutex guarding access to the invalidated_fields_ set.
-    base::SpinningMutex invalidated_fields_mutex_;
+    base::Mutex invalidated_fields_mutex_;
   };
 
   // Allocate an EPT entry from the space's freelist, or add a freshly-allocated

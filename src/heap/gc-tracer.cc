@@ -416,7 +416,7 @@ void GCTracer::UpdateMemoryBalancerGCSpeed() {
       atomic_pause_duration + current_.incremental_marking_duration;
   base::TimeDelta concurrent_gc_time;
   {
-    base::SpinningMutexGuard guard(&background_scopes_mutex_);
+    base::MutexGuard guard(&background_scopes_mutex_);
     concurrent_gc_time =
         background_scopes_[Scope::MC_BACKGROUND_EVACUATE_COPY] +
         background_scopes_[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS] +
@@ -823,7 +823,7 @@ void GCTracer::PrintNVP() const {
   }
 
   // Avoid data races when printing the background scopes.
-  base::SpinningMutexGuard guard(&background_scopes_mutex_);
+  base::MutexGuard guard(&background_scopes_mutex_);
 
   switch (current_.type) {
     case Event::Type::SCAVENGER:
@@ -1368,7 +1368,7 @@ void GCTracer::NotifyIncrementalMarkingStart() {
 }
 
 void GCTracer::FetchBackgroundCounters() {
-  base::SpinningMutexGuard guard(&background_scopes_mutex_);
+  base::MutexGuard guard(&background_scopes_mutex_);
   for (int i = Scope::FIRST_BACKGROUND_SCOPE; i <= Scope::LAST_BACKGROUND_SCOPE;
        i++) {
     current_.scopes[i] += background_scopes_[i];
@@ -1434,7 +1434,7 @@ void GCTracer::RecordGCSumCounters() {
   base::TimeDelta background_duration;
   base::TimeDelta marking_background_duration;
   {
-    base::SpinningMutexGuard guard(&background_scopes_mutex_);
+    base::MutexGuard guard(&background_scopes_mutex_);
     background_duration =
         background_scopes_[Scope::MC_BACKGROUND_EVACUATE_COPY] +
         background_scopes_[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS] +

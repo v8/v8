@@ -153,8 +153,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
                             &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
-      base::SpinningMutexGuard mutex_guard(
-          isolate->full_transition_array_access());
+      base::MutexGuard mutex_guard(isolate->full_transition_array_access());
       array->SetRawTarget(index, MakeWeak(*target));
       return;
     }
@@ -166,8 +165,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
 
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array->Capacity()) {
-      base::SpinningMutexGuard mutex_guard(
-          isolate->full_transition_array_access());
+      base::MutexGuard mutex_guard(isolate->full_transition_array_access());
       array->SetNumberOfTransitions(new_nof);
       for (int i = number_of_transitions; i > insertion_index; --i) {
         array->SetKey(i, array->GetKey(i - 1));
@@ -242,8 +240,8 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
       return map;
     }
     case kFullTransitionArray: {
-      base::SpinningMutexGuardIf guard(isolate_->full_transition_array_access(),
-                                       concurrent_access_);
+      base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                               concurrent_access_);
       return transitions()->SearchAndGetTarget(kind, name, attributes);
     }
   }
@@ -252,8 +250,8 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
 
 Tagged<Map> TransitionsAccessor::SearchSpecial(Tagged<Symbol> name) {
   if (encoding() != kFullTransitionArray) return {};
-  base::SpinningMutexGuardIf guard(isolate_->full_transition_array_access(),
-                                   concurrent_access_);
+  base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                           concurrent_access_);
   int transition = transitions()->SearchSpecial(name, concurrent_access_);
   if (transition == kNotFound) return {};
   return transitions()->GetTarget(transition);
@@ -306,8 +304,8 @@ void TransitionsAccessor::ForEachTransitionTo(
       return;
     }
     case kFullTransitionArray: {
-      base::SpinningMutexGuardIf guard(isolate_->full_transition_array_access(),
-                                       concurrent_access_);
+      base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                               concurrent_access_);
       return transitions()->ForEachTransitionTo(name, callback);
     }
   }
@@ -425,7 +423,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
     // Grow the array if compacting it doesn't free space.
     bool compacted;
     {
-      base::SpinningMutexGuard guard(isolate->full_transition_array_access());
+      base::MutexGuard guard(isolate->full_transition_array_access());
       DisallowGarbageCollection no_gc;
       compacted =
           TransitionArray::CompactPrototypeTransitionArray(isolate, *cache);
@@ -449,7 +447,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   int entry = header + last;
 
   {
-    base::SpinningMutexGuard guard(isolate->full_transition_array_access());
+    base::MutexGuard guard(isolate->full_transition_array_access());
     DisallowGarbageCollection no_gc;
     cache->set(entry, MakeWeak(*target_map));
     TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);

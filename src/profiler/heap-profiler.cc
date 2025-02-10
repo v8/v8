@@ -279,7 +279,7 @@ void HeapProfilerNativeMoveListener::ObjectMoveEvent(Address from, Address to,
 
 void HeapProfiler::ObjectMoveEvent(Address from, Address to, int size,
                                    bool is_native_object) {
-  base::SpinningMutexGuard guard(&profiler_mutex_);
+  base::MutexGuard guard(&profiler_mutex_);
   bool known_object = ids_->MoveObject(from, to, size);
   if (!known_object && allocation_tracker_ && !is_native_object) {
     allocation_tracker_->address_to_trace()->MoveObject(from, to, size);

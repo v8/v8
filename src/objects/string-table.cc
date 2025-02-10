@@ -172,7 +172,7 @@ int StringTable::Capacity() const {
 }
 int StringTable::NumberOfElements() const {
   {
-    base::SpinningMutexGuard table_write_guard(&write_mutex_);
+    base::MutexGuard table_write_guard(&write_mutex_);
     return data_.load(std::memory_order_relaxed)->table().number_of_elements();
   }
 }
@@ -447,7 +447,7 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
   // No entry found, so adding new string.
   key->PrepareForInsertion(isolate);
   {
-    base::SpinningMutexGuard table_write_guard(&write_mutex_);
+    base::MutexGuard table_write_guard(&write_mutex_);
 
     Data* data = EnsureCapacity(isolate, 1);
     OffHeapStringHashSet& table = data->table();
@@ -679,7 +679,7 @@ void StringTable::InsertForIsolateDeserialization(
 
   const int length = static_cast<int>(strings.size());
   {
-    base::SpinningMutexGuard table_write_guard(&write_mutex_);
+    base::MutexGuard table_write_guard(&write_mutex_);
 
     Data* const data = EnsureCapacity(isolate, length);
 
@@ -701,7 +701,7 @@ void StringTable::InsertForIsolateDeserialization(
 void StringTable::InsertEmptyStringForBootstrapping(Isolate* isolate) {
   DCHECK_EQ(NumberOfElements(), 0);
   {
-    base::SpinningMutexGuard table_write_guard(&write_mutex_);
+    base::MutexGuard table_write_guard(&write_mutex_);
 
     Data* const data = EnsureCapacity(isolate, 1);
 

@@ -91,7 +91,7 @@ TEST_F(SignalAndMutexTest, SignalsPlusMutexes) {
   // exclusive mode. This should not deadlock.
   class MutexTestThread : public base::Thread {
    public:
-    MutexTestThread(base::SpinningMutex* mutexes,
+    MutexTestThread(base::Mutex* mutexes,
                     std::atomic<size_t>* remaining_samples, int64_t rng_seed,
                     std::function<void(pthread_t)> add_thread_to_sample,
                     std::function<void(pthread_t)> remove_thread_to_sample)
@@ -106,14 +106,14 @@ TEST_F(SignalAndMutexTest, SignalsPlusMutexes) {
       add_thread_to_sample_(pthread_self());
       while (remaining_samples_->load(std::memory_order_relaxed) > 0) {
         size_t idx = rng_.NextInt(kNumMutexes);
-        base::SpinningMutex* mutex = &mutexes_[idx];
-        base::SpinningMutexGuard guard{mutex};
+        base::Mutex* mutex = &mutexes_[idx];
+        base::MutexGuard guard{mutex};
       }
       remove_thread_to_sample_(pthread_self());
     }
 
    private:
-    base::SpinningMutex* mutexes_;
+    base::Mutex* mutexes_;
     std::atomic<size_t>* remaining_samples_;
     base::RandomNumberGenerator rng_;
     std::function<void(pthread_t)> add_thread_to_sample_;
@@ -121,7 +121,7 @@ TEST_F(SignalAndMutexTest, SignalsPlusMutexes) {
   };
 
   std::atomic<size_t> remaining_samples{kNumSamples};
-  base::SpinningMutex mutexes[kNumMutexes];
+  base::Mutex mutexes[kNumMutexes];
 
   InstallSignalHandler();
 

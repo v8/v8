@@ -332,9 +332,9 @@ class JSAtomicsMutex
   // with a `WaiterQueueLockGuard` object.
   static std::optional<WaiterQueueLockGuard> LockWaiterQueueOrJSMutex(
       std::atomic<StateT>* state, StateT& current_state);
-  V8_EXPORT_PRIVATE static bool SpinningMutexTryLock(
-      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
-      std::atomic<StateT>* state);
+  V8_EXPORT_PRIVATE static bool MutexTryLock(Isolate* requester,
+                                             DirectHandle<JSAtomicsMutex> mutex,
+                                             std::atomic<StateT>* state);
   V8_INLINE static bool BackoffTryLock(Isolate* requester,
                                        DirectHandle<JSAtomicsMutex> mutex,
                                        std::atomic<StateT>* state);

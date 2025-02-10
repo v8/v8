@@ -157,7 +157,7 @@ WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
     Isolate* isolate) {
   const int current_thread_id = ThreadId::Current().ToInteger();
   {
-    base::SpinningMutexGuard guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
 
     auto it = map_.find(current_thread_id);
     if (it == map_.end()) {
@@ -170,7 +170,7 @@ WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
 }
 
 void WasmInterpreterThreadMap::NotifyIsolateDisposal(Isolate* isolate) {
-  base::SpinningMutexGuard guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
 
   auto it = map_.begin();
   while (it != map_.end()) {

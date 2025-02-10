@@ -16,7 +16,7 @@ namespace internal {
 void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
                                              const char* phase_name,
                                              const BasicStats& stats) {
-  base::SpinningMutexGuard guard(&access_mutex_);
+  base::MutexGuard guard(&access_mutex_);
 
   std::string phase_name_str(phase_name);
   auto it = phase_map_.find(phase_name_str);
@@ -29,7 +29,7 @@ void CompilationStatistics::RecordPhaseStats(const char* phase_kind_name,
 
 void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
                                                  const BasicStats& stats) {
-  base::SpinningMutexGuard guard(&access_mutex_);
+  base::MutexGuard guard(&access_mutex_);
 
   std::string phase_kind_name_str(phase_kind_name);
   auto it = phase_kind_map_.find(phase_kind_name_str);
@@ -43,7 +43,7 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
 }
 
 void CompilationStatistics::RecordTotalStats(const BasicStats& stats) {
-  base::SpinningMutexGuard guard(&access_mutex_);
+  base::MutexGuard guard(&access_mutex_);
   total_stats_.Accumulate(stats);
   total_stats_.count_++;
 }
@@ -151,7 +151,7 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
   // phase_kind_map_ and phase_map_ don't get mutated, so store a bunch of
   // pointers into them.
   CompilationStatistics& s = ps.s;
-  base::SpinningMutexGuard guard(&s.access_mutex_);
+  base::MutexGuard guard(&s.access_mutex_);
 
   using SortedPhaseKinds =
       std::vector<CompilationStatistics::PhaseKindMap::const_iterator>;

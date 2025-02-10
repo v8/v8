@@ -1330,7 +1330,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(
     const uintptr_t offset = chunk->Offset(slot_address);
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
 
-    base::SpinningMutexGuard guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     RememberedSet<OLD_TO_SHARED>::InsertTyped(page, slot_type,
                                               static_cast<uint32_t>(offset));
   }

@@ -443,7 +443,7 @@ V8InspectorImpl::EvaluateScope::EvaluateScope(
     : m_scope(scope), m_isolate(scope.inspector()->isolate()) {}
 
 struct V8InspectorImpl::EvaluateScope::CancelToken {
-  v8::base::SpinningMutex m_mutex;
+  v8::base::Mutex m_mutex;
   bool m_canceled = false;
 };
 
@@ -452,7 +452,7 @@ V8InspectorImpl::EvaluateScope::~EvaluateScope() {
     m_scope.inspector()->debugger()->reportTermination();
   }
   if (m_cancelToken) {
-    v8::base::SpinningMutexGuard lock(&m_cancelToken->m_mutex);
+    v8::base::MutexGuard lock(&m_cancelToken->m_mutex);
     m_cancelToken->m_canceled = true;
     m_isolate->CancelTerminateExecution();
   }
@@ -466,7 +466,7 @@ class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
   void Run() override {
     // CancelToken contains m_canceled bool which may be changed from main
     // thread, so lock mutex first.
-    v8::base::SpinningMutexGuard lock(&m_token->m_mutex);
+    v8::base::MutexGuard lock(&m_token->m_mutex);
     if (m_token->m_canceled) return;
     m_isolate->TerminateExecution();
   }

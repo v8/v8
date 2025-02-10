@@ -42,11 +42,11 @@ V8_INLINE ParkedRecursiveMutexGuard::ParkedRecursiveMutexGuard(
 }
 
 V8_INLINE ParkedMutexGuardIf::ParkedMutexGuardIf(LocalIsolate* local_isolate,
-                                                 base::SpinningMutex* mutex,
+                                                 base::Mutex* mutex,
                                                  bool enable_mutex)
     : ParkedMutexGuardIf(local_isolate -> heap(), mutex, enable_mutex) {}
 V8_INLINE ParkedMutexGuardIf::ParkedMutexGuardIf(LocalHeap* local_heap,
-                                                 base::SpinningMutex* mutex,
+                                                 base::Mutex* mutex,
                                                  bool enable_mutex) {
   DCHECK(AllowGarbageCollection::IsAllowed());
   if (!enable_mutex) return;

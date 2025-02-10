@@ -425,8 +425,7 @@ bool Heap::CanExpandOldGeneration(size_t size) const {
 }
 
 bool Heap::IsOldGenerationExpansionAllowed(
-    size_t size,
-    const base::SpinningMutexGuard& expansion_mutex_witness) const {
+    size_t size, const base::MutexGuard& expansion_mutex_witness) const {
   return OldGenerationCapacity() + size <= max_old_generation_size();
 }
 
@@ -2678,7 +2677,7 @@ void Heap::Scavenge() {
   }
 
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
-  base::SpinningMutexGuard guard(relocation_mutex());
+  base::MutexGuard guard(relocation_mutex());
   // Young generation garbage collection is orthogonal from full GC marking. It
   // is possible that objects that are currently being processed for marking are
   // reclaimed in the young generation GC that interleaves concurrent marking.
@@ -6732,7 +6731,7 @@ StrongRootsEntry* Heap::RegisterStrongRoots(const char* label,
   // local heap.
   DCHECK(isolate()->CurrentLocalHeap()->IsRunning());
 
-  base::SpinningMutexGuard guard(&strong_roots_mutex_);
+  base::MutexGuard guard(&strong_roots_mutex_);
 
   StrongRootsEntry* entry = new StrongRootsEntry(label);
   entry->start = start;
@@ -6760,7 +6759,7 @@ void Heap::UnregisterStrongRoots(StrongRootsEntry* entry) {
   // local heap.
   DCHECK(isolate()->CurrentLocalHeap()->IsRunning());
 
-  base::SpinningMutexGuard guard(&strong_roots_mutex_);
+  base::MutexGuard guard(&strong_roots_mutex_);
 
   StrongRootsEntry* prev = entry->prev;
   StrongRootsEntry* next = entry->next;

@@ -730,7 +730,7 @@ namespace {
 // Implementation details of GlobalBackingStoreRegistry.
 struct GlobalBackingStoreRegistryImpl {
   GlobalBackingStoreRegistryImpl() = default;
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
   std::unordered_map<const void*, std::weak_ptr<BackingStore>> map_;
 };
 
@@ -745,7 +745,7 @@ void GlobalBackingStoreRegistry::Register(
   CHECK(backing_store->is_wasm_memory());
 
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
-  base::SpinningMutexGuard scope_lock(&impl->mutex_);
+  base::MutexGuard scope_lock(&impl->mutex_);
   if (backing_store->globally_registered_) return;
   TRACE_BS("BS:reg    bs=%p mem=%p (length=%zu, capacity=%zu)\n",
            backing_store.get(), backing_store->buffer_start(),
@@ -764,7 +764,7 @@ void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
   DCHECK_NOT_NULL(backing_store->buffer_start());
 
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
-  base::SpinningMutexGuard scope_lock(&impl->mutex_);
+  base::MutexGuard scope_lock(&impl->mutex_);
   const auto& result = impl->map_.find(backing_store->buffer_start());
   if (result != impl->map_.end()) {
     DCHECK(!result->second.lock());
@@ -781,7 +781,7 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
   // may try to take the &impl->mutex_ in order to unregister itself.
   std::vector<std::shared_ptr<BackingStore>> prevent_destruction_under_lock;
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
-  base::SpinningMutexGuard scope_lock(&impl->mutex_);
+  base::MutexGuard scope_lock(&impl->mutex_);
   // Purge all entries in the map that refer to the given isolate.
   for (auto& entry : impl->map_) {
     auto backing_store = entry.second.lock();
@@ -812,7 +812,7 @@ void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
 
   // Add the isolate to the list of isolates sharing this backing store.
   GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
-  base::SpinningMutexGuard scope_lock(&impl->mutex_);
+  base::MutexGuard scope_lock(&impl->mutex_);
   SharedWasmMemoryData* shared_data =
       backing_store->get_shared_wasm_memory_data();
   auto& isolates = shared_data->isolates_;
@@ -832,7 +832,7 @@ void GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(
   {
     GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
     // The global lock protects the list of isolates per backing store.
-    base::SpinningMutexGuard scope_lock(&impl->mutex_);
+    base::MutexGuard scope_lock(&impl->mutex_);
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();
     for (Isolate* other : shared_data->isolates_) {

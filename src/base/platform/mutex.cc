@@ -174,24 +174,21 @@ Mutex::Mutex() {
 
 Mutex::~Mutex() { DCHECK_EQ(0, level_); }
 
-void Mutex::Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(native_handle_) {
+void Mutex::Lock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   native_handle_.Lock();
   AssertUnheldAndMark();
 }
 
-void Mutex::Unlock() ABSL_UNLOCK_FUNCTION(native_handle_) {
+void Mutex::Unlock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   AssertHeldAndUnmark();
   native_handle_.Unlock();
 }
 
-bool Mutex::TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true, native_handle_) {
+bool Mutex::TryLock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   if (!native_handle_.TryLock()) return false;
   AssertUnheldAndMark();
   return true;
 }
-
-SpinningMutex::SpinningMutex() = default;
-void SpinningMutex::Lock() ABSL_NO_THREAD_SAFETY_ANALYSIS { lock_.Lock(); }
 
 }  // namespace base
 }  // namespace v8

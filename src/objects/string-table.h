@@ -99,7 +99,7 @@ class V8_EXPORT_PRIVATE StringTable {
   std::atomic<Data*> data_;
   // Write mutex is mutable so that readers of concurrently mutated values (e.g.
   // NumberOfElements) are allowed to lock it while staying const.
-  mutable base::SpinningMutex write_mutex_;
+  mutable base::Mutex write_mutex_;
   Isolate* isolate_;
 };
 

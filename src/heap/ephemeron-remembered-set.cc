@@ -14,14 +14,14 @@ void EphemeronRememberedSet::RecordEphemeronKeyWrite(
   DCHECK(HeapLayout::InYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
   int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
   InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
-  base::SpinningMutexGuard guard(&insertion_mutex_);
+  base::MutexGuard guard(&insertion_mutex_);
   auto it = tables_.insert({table, IndicesSet()});
   it.first->second.insert(entry.as_int());
 }
 
 void EphemeronRememberedSet::RecordEphemeronKeyWrites(
     Tagged<EphemeronHashTable> table, IndicesSet indices) {
-  base::SpinningMutexGuard guard(&insertion_mutex_);
+  base::MutexGuard guard(&insertion_mutex_);
   auto it = tables_.find(table);
   if (it != tables_.end()) {
     it->second.merge(std::move(indices));

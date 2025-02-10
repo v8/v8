@@ -108,7 +108,7 @@ class PersistentHandlesList {
   void Add(PersistentHandles* persistent_handles);
   void Remove(PersistentHandles* persistent_handles);
 
-  base::SpinningMutex persistent_handles_mutex_;
+  base::Mutex persistent_handles_mutex_;
   PersistentHandles* persistent_handles_head_;
 
   friend class PersistentHandles;

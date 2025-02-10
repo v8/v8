@@ -202,7 +202,7 @@ PageBackend::PageBackend(PageAllocator& normal_page_allocator,
 PageBackend::~PageBackend() = default;
 
 Address PageBackend::TryAllocateNormalPageMemory() {
-  v8::base::SpinningMutexGuard guard(&mutex_);
+  v8::base::MutexGuard guard(&mutex_);
   if (PageMemoryRegion* cached = page_pool_.Take()) {
     const auto region = cached->region();
     DCHECK_NE(normal_page_memory_regions_.end(),
@@ -224,7 +224,7 @@ Address PageBackend::TryAllocateNormalPageMemory() {
 }
 
 void PageBackend::FreeNormalPageMemory(Address writeable_base) {
-  v8::base::SpinningMutexGuard guard(&mutex_);
+  v8::base::MutexGuard guard(&mutex_);
   auto* pmr = page_memory_region_tree_.Lookup(writeable_base);
   DCHECK_NOT_NULL(pmr);
   page_memory_region_tree_.Remove(pmr);
@@ -232,7 +232,7 @@ void PageBackend::FreeNormalPageMemory(Address writeable_base) {
 }
 
 Address PageBackend::TryAllocateLargePageMemory(size_t size) {
-  v8::base::SpinningMutexGuard guard(&mutex_);
+  v8::base::MutexGuard guard(&mutex_);
   auto pmr = CreateLargePageMemoryRegion(large_page_allocator_, size);
   if (!pmr) {
     return nullptr;
@@ -247,7 +247,7 @@ Address PageBackend::TryAllocateLargePageMemory(size_t size) {
 }
 
 void PageBackend::FreeLargePageMemory(Address writeable_base) {
-  v8::base::SpinningMutexGuard guard(&mutex_);
+  v8::base::MutexGuard guard(&mutex_);
   PageMemoryRegion* pmr = page_memory_region_tree_.Lookup(writeable_base);
   page_memory_region_tree_.Remove(pmr);
   auto size = large_page_memory_regions_.erase(pmr);

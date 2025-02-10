@@ -493,8 +493,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           // DCHECK that `inlining_decisions_` is consistent.
           DCHECK(inlining_decisions_->is_inlined());
           DCHECK_EQ(inlining_decisions_->function_index(), func_index_);
-          base::SpinningMutexGuard mutex_guard(
-              &decoder->module_->type_feedback.mutex);
+          base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
           if (inlining_decisions_->feedback_found()) {
             DCHECK_NE(
                 decoder->module_->type_feedback.feedback_for_function.find(
@@ -5945,7 +5944,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       return liftoff_frame_size_;
     }
     const TypeFeedbackStorage& feedback = decoder->module_->type_feedback;
-    base::SpinningMutexGuard mutex_guard(&feedback.mutex);
+    base::MutexGuard mutex_guard(&feedback.mutex);
     auto function_feedback = feedback.feedback_for_function.find(func_index_);
     CHECK_NE(function_feedback, feedback.feedback_for_function.end());
     liftoff_frame_size_ = function_feedback->second.liftoff_frame_size;

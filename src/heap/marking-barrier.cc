@@ -450,7 +450,7 @@ void MarkingBarrier::PublishIfNeeded() {
       MutablePageMetadata* memory_chunk = it.first;
       // Access to TypeSlots need to be protected, since LocalHeaps might
       // publish code in the background thread.
-      base::SpinningMutexGuard guard(memory_chunk->mutex());
+      base::MutexGuard guard(memory_chunk->mutex());
       std::unique_ptr<TypedSlots>& typed_slots = it.second;
       RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
                                             std::move(typed_slots));

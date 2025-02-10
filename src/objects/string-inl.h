@@ -38,11 +38,11 @@ namespace v8::internal {
 
 class V8_NODISCARD SharedStringAccessGuardIfNeeded {
  public:
-  // Creates no SpinningMutexGuard for the string access since it was
+  // Creates no MutexGuard for the string access since it was
   // called from the main thread.
   explicit SharedStringAccessGuardIfNeeded(Isolate* isolate) {}
 
-  // Creates a SpinningMutexGuard for the string access if it was called
+  // Creates a MutexGuard for the string access if it was called
   // from a background thread.
   explicit SharedStringAccessGuardIfNeeded(LocalIsolate* local_isolate) {
     if (IsNeeded(local_isolate)) {
@@ -117,7 +117,7 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     return isolate;
   }
 
-  std::optional<base::SpinningMutexGuard> mutex_guard;
+  std::optional<base::MutexGuard> mutex_guard;
 };
 
 uint32_t String::length() const { return length_; }

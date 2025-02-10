@@ -152,7 +152,7 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   // Mutex guarding the non-threadsafe RegionAllocator and
   // RandomNumberGenerator.
-  SpinningMutex mutex_;
+  Mutex mutex_;
 
   // RegionAllocator to manage the virtual address reservation and divide it
   // into further regions as necessary.

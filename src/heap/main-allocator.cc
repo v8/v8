@@ -284,8 +284,7 @@ void MainAllocator::FreeLinearAllocationAreaAndResetFreeList() {
 
 void MainAllocator::MoveOriginalTopForward() {
   DCHECK(SupportsPendingAllocation());
-  base::SpinningMutexGuard guard(
-      linear_area_original_data().linear_area_lock());
+  base::MutexGuard guard(linear_area_original_data().linear_area_lock());
   DCHECK_GE(top(), linear_area_original_data().get_original_top_acquire());
   DCHECK_LE(top(), linear_area_original_data().get_original_limit_relaxed());
   linear_area_original_data().set_original_top_release(top());
@@ -302,8 +301,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
   allocation_info().Reset(start, end);
 
   if (SupportsPendingAllocation()) {
-    base::SpinningMutexGuard guard(
-        linear_area_original_data().linear_area_lock());
+    base::MutexGuard guard(linear_area_original_data().linear_area_lock());
     linear_area_original_data().set_original_limit_relaxed(extended_end);
     linear_area_original_data().set_original_top_release(start);
   }
@@ -311,8 +309,7 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
 
 bool MainAllocator::IsPendingAllocation(Address object_address) {
   DCHECK(SupportsPendingAllocation());
-  base::SpinningMutexGuard guard(
-      linear_area_original_data().linear_area_lock());
+  base::MutexGuard guard(linear_area_original_data().linear_area_lock());
   Address top = original_top_acquire();
   Address limit = original_limit_relaxed();
   DCHECK_LE(top, limit);
@@ -457,7 +454,7 @@ Heap* AllocatorPolicy::isolate_heap() const {
 
 bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  std::optional<base::SpinningMutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();
@@ -513,7 +510,7 @@ void SemiSpaceNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   allocator_->Verify();
 #endif  // DEBUG
 
-  std::optional<base::SpinningMutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
   if (allocator_->in_gc()) guard.emplace(space_->mutex());
 
   FreeLinearAllocationAreaUnsynchronized();
@@ -908,7 +905,7 @@ bool PagedSpaceAllocatorPolicy::TryExtendLAB(int size_in_bytes) {
 void PagedSpaceAllocatorPolicy::FreeLinearAllocationArea() {
   if (!allocator_->IsLabValid()) return;
 
-  base::SpinningMutexGuard guard(space_->mutex());
+  base::MutexGuard guard(space_->mutex());
   FreeLinearAllocationAreaUnsynchronized();
 }
 

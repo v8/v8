@@ -109,26 +109,6 @@ class V8_BASE_EXPORT Mutex final {
   absl::Mutex native_handle_;
 };
 
-class V8_BASE_EXPORT SpinningMutex final {
- public:
-  SpinningMutex();
-  void Lock();
-  inline void Unlock();
-  inline bool TryLock();
-  void AssertHeld() const {}  // Not supported.
-
- private:
-  absl::Mutex lock_;
-};
-
-V8_INLINE bool SpinningMutex::TryLock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
-  return lock_.TryLock();
-}
-
-V8_INLINE void SpinningMutex::Unlock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
-  lock_.Unlock();
-}
-
 // POD Mutex initialized lazily (i.e. the first time Pointer() is called).
 // Usage:
 //   static LazyMutex my_mutex = LAZY_MUTEX_INITIALIZER;
@@ -141,11 +121,6 @@ V8_INLINE void SpinningMutex::Unlock() ABSL_NO_THREAD_SAFETY_ANALYSIS {
 using LazyMutex = LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
                                      ThreadSafeInitOnceTrait>::type;
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
-using LazySpinningMutex =
-    LazyStaticInstance<SpinningMutex, DefaultConstructTrait<SpinningMutex>,
-                       ThreadSafeInitOnceTrait>::type;
-
-#define LAZY_SELFISH_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
 // RecursiveMutex - a replacement for std::recursive_mutex
 //
@@ -272,21 +247,20 @@ class V8_NODISCARD LockGuard final {
 };
 
 using MutexGuard = LockGuard<Mutex>;
-using SpinningMutexGuard = LockGuard<SpinningMutex>;
 using RecursiveMutexGuard = LockGuard<RecursiveMutex>;
 
-class V8_NODISCARD SpinningMutexGuardIf final {
+class V8_NODISCARD MutexGuardIf final {
  public:
-  SpinningMutexGuardIf(SpinningMutex* mutex, bool enable_mutex) {
+  MutexGuardIf(Mutex* mutex, bool enable_mutex) {
     if (enable_mutex) {
       mutex_.emplace(mutex);
     }
   }
-  SpinningMutexGuardIf(const SpinningMutexGuardIf&) = delete;
-  SpinningMutexGuardIf& operator=(const SpinningMutexGuardIf&) = delete;
+  MutexGuardIf(const MutexGuardIf&) = delete;
+  MutexGuardIf& operator=(const MutexGuardIf&) = delete;
 
  private:
-  std::optional<SpinningMutexGuard> mutex_;
+  std::optional<MutexGuard> mutex_;
 };
 
 }  // namespace base

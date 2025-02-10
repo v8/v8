@@ -320,7 +320,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
     case NEW_LO_SPACE: {
       LargeObjectSpace* large_space =
           static_cast<LargeObjectSpace*>(base_space);
-      base::SpinningMutexGuard guard(large_space->pending_allocation_mutex());
+      base::MutexGuard guard(large_space->pending_allocation_mutex());
       return addr == large_space->pending_object();
     }
 
@@ -353,7 +353,7 @@ bool Heap::IsPendingAllocation(Tagged<Object> object) {
 }
 
 void Heap::ExternalStringTable::AddString(Tagged<String> string) {
-  std::optional<base::SpinningMutexGuard> guard;
+  std::optional<base::MutexGuard> guard;
 
   // With --shared-string-table client isolates may insert into the main
   // isolate's table concurrently.

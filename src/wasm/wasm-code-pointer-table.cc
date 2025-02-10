@@ -123,7 +123,7 @@ void WasmCodePointerTable::SweepSegments(size_t threshold) {
 
 WasmCodePointer WasmCodePointerTable::GetOrCreateHandleForNativeFunction(
     Address addr) {
-  base::SpinningMutexGuard guard(&native_function_map_mutex_);
+  base::MutexGuard guard(&native_function_map_mutex_);
   auto it = native_function_map_.find(addr);
   if (it != native_function_map_.end()) {
     return it->second;
@@ -141,7 +141,7 @@ bool WasmCodePointerTable::EntrypointEqualTo(WasmCodePointer index,
 }
 
 void WasmCodePointerTable::FreeNativeFunctionHandles() {
-  base::SpinningMutexGuard guard(&native_function_map_mutex_);
+  base::MutexGuard guard(&native_function_map_mutex_);
   for (auto const& [address, handle] : native_function_map_) {
     FreeEntry(handle);
   }

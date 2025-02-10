@@ -277,9 +277,9 @@ void TestModuleSharingBetweenIsolates() {
   };
 
   std::vector<std::shared_ptr<NativeModule>> modules;
-  base::SpinningMutex mutex;
+  base::Mutex mutex;
   auto register_module = [&](std::shared_ptr<NativeModule> module) {
-    base::SpinningMutexGuard guard(&mutex);
+    base::MutexGuard guard(&mutex);
     modules.emplace_back(std::move(module));
   };
 

@@ -59,7 +59,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 
   void MoveEvent(Address from, Address to, int size) override {
     if (from == to) return;
-    base::SpinningMutexGuard guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     if (RemoveFromRegions(from, from + size)) {
       // We had the object tracked as temporary, so we will track the
       // new location as temporary, too.
@@ -165,7 +165,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
   // (exclusive) address of regions. We index by end address for faster lookup.
   // Map: end address => start address
   std::map<Address, Address> regions_;
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
 };
 
 Debug::Debug(Isolate* isolate)
@@ -546,7 +546,7 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
 void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
                                  Tagged<DebugInfo> debug_info) {
   DisallowGarbageCollection no_gc;
-  base::SpinningMutexGuard mutex_guard(isolate_->shared_function_info_access());
+  base::MutexGuard mutex_guard(isolate_->shared_function_info_access());
 
   DCHECK_EQ(sfi, debug_info->shared());
   DCHECK(!Contains(sfi));
@@ -591,7 +591,7 @@ Tagged<DebugInfo> DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
 }
 
 void DebugInfoCollection::DeleteIndex(size_t index) {
-  base::SpinningMutexGuard mutex_guard(isolate_->shared_function_info_access());
+  base::MutexGuard mutex_guard(isolate_->shared_function_info_access());
 
   Tagged<DebugInfo> debug_info = EntryAsDebugInfo(index);
   Tagged<SharedFunctionInfo> sfi = debug_info->shared();

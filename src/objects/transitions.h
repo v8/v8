@@ -172,8 +172,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void TraverseTransitionTree(const TraverseCallback& callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
-    base::SpinningMutexGuardIf mutex_guard(
-        isolate_->full_transition_array_access(), concurrent_access_);
+    base::MutexGuardIf mutex_guard(isolate_->full_transition_array_access(),
+                                   concurrent_access_);
     TraverseTransitionTreeInternal(callback, &no_gc);
   }
 

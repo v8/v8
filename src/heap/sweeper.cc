@@ -383,7 +383,7 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
   if (page->SweepingDone()) return;
 
   {
-    base::SpinningMutexGuard guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingSweeping,
               page->concurrent_sweeping_state());
@@ -617,7 +617,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
   DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_NOT_NULL(page);
   {
-    base::SpinningMutexGuard guard(page->mutex());
+    base::MutexGuard guard(page->mutex());
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());

@@ -175,7 +175,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
  private:
   // Guards against concurrent uses of `Lookup()`.
-  mutable v8::base::SpinningMutex mutex_;
+  mutable v8::base::Mutex mutex_;
   PageAllocator& normal_page_allocator_;
   PageAllocator& large_page_allocator_;
 
@@ -207,7 +207,7 @@ PageMemoryRegion* PageMemoryRegionTree::Lookup(ConstAddress address) const {
 }
 
 Address PageBackend::Lookup(ConstAddress address) const {
-  v8::base::SpinningMutexGuard guard(&mutex_);
+  v8::base::MutexGuard guard(&mutex_);
   PageMemoryRegion* pmr = page_memory_region_tree_.Lookup(address);
   return pmr ? pmr->Lookup(address) : nullptr;
 }

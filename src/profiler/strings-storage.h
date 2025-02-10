@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE StringsStorage {
   const char* GetSymbol(Tagged<Symbol> sym);
 
   base::CustomMatcherHashMap names_;
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
   size_t string_size_ = 0;
 };
 

@@ -296,7 +296,7 @@ WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
 }
 
 base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
-  base::SpinningMutexGuard lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (!tls_key_) tls_key_ = base::Thread::CreateThreadLocalKey();
   return *tls_key_;
 }
@@ -308,14 +308,14 @@ RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
       std::make_unique<RuntimeCallStats>(RuntimeCallStats::kWorkerThread);
   RuntimeCallStats* result = new_table.get();
 
-  base::SpinningMutexGuard lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   tables_.push_back(std::move(new_table));
   return result;
 }
 
 void WorkerThreadRuntimeCallStats::AddToMainTable(
     RuntimeCallStats* main_call_stats) {
-  base::SpinningMutexGuard lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   for (auto& worker_stats : tables_) {
     DCHECK_NE(main_call_stats, worker_stats.get());
     main_call_stats->Add(worker_stats.get());

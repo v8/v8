@@ -86,7 +86,7 @@ void MemoryAllocator::TearDown() {
 void MemoryAllocator::Pool::ReleasePooledChunks() {
   std::vector<MutablePageMetadata*> copied_pooled;
   {
-    base::SpinningMutexGuard guard(&mutex_);
+    base::MutexGuard guard(&mutex_);
     std::swap(copied_pooled, pooled_chunks_);
   }
   for (auto* chunk_metadata : copied_pooled) {
@@ -96,7 +96,7 @@ void MemoryAllocator::Pool::ReleasePooledChunks() {
 }
 
 size_t MemoryAllocator::Pool::NumberOfCommittedChunks() const {
-  base::SpinningMutexGuard guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   return pooled_chunks_.size();
 }
 
@@ -609,7 +609,7 @@ const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
 }
 
 void MemoryAllocator::RecordMemoryChunkCreated(const MemoryChunk* chunk) {
-  base::SpinningMutexGuard guard(&chunks_mutex_);
+  base::MutexGuard guard(&chunks_mutex_);
   if (chunk->IsLargePage()) {
     auto result = large_pages_.insert(chunk);
     USE(result);
@@ -622,7 +622,7 @@ void MemoryAllocator::RecordMemoryChunkCreated(const MemoryChunk* chunk) {
 }
 
 void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
-  base::SpinningMutexGuard guard(&chunks_mutex_);
+  base::MutexGuard guard(&chunks_mutex_);
   if (chunk->IsLargePage()) {
     auto size = large_pages_.erase(chunk);
     USE(size);

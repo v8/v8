@@ -346,7 +346,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   class V8_NODISCARD RecursiveMutexGuardIfNeeded {
    protected:
     V8_INLINE RecursiveMutexGuardIfNeeded(LocalIsolate* local_isolate,
-                                          base::SpinningMutex* mutex,
+                                          base::Mutex* mutex,
                                           int* mutex_depth_address);
 
     ~RecursiveMutexGuardIfNeeded() {

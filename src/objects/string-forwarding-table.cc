@@ -145,7 +145,7 @@ StringForwardingTable::BlockVector::~BlockVector() {
 std::unique_ptr<StringForwardingTable::BlockVector>
 StringForwardingTable::BlockVector::Grow(
     StringForwardingTable::BlockVector* data, size_t capacity,
-    const base::SpinningMutex& mutex) {
+    const base::Mutex& mutex) {
   mutex.AssertHeld();
   std::unique_ptr<BlockVector> new_data =
       std::make_unique<BlockVector>(capacity);
@@ -182,7 +182,7 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
     uint32_t block_index) {
   BlockVector* blocks = blocks_.load(std::memory_order_acquire);
   if (V8_UNLIKELY(block_index >= blocks->size())) {
-    base::SpinningMutexGuard table_grow_guard(&grow_mutex_);
+    base::MutexGuard table_grow_guard(&grow_mutex_);
     // Reload the vector, as another thread could have grown it.
     blocks = blocks_.load(std::memory_order_relaxed);
     // Check again if we need to grow under lock.

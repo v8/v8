@@ -725,7 +725,7 @@ class WorkerThreadRuntimeCallStats final {
   void AddToMainTable(RuntimeCallStats* main_call_stats);
 
  private:
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
   std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
   std::optional<base::Thread::LocalStorageKey> tls_key_;
   // Since this is for creating worker thread runtime-call stats, record the

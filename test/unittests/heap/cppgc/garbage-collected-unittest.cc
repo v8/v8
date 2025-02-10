@@ -170,10 +170,10 @@ TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
 namespace {
 
 int GetDummyValue() {
-  static v8::base::SpinningMutex mutex;
+  static v8::base::Mutex mutex;
   static int ret = 43;
   // Global lock access to avoid reordering.
-  v8::base::SpinningMutexGuard guard(&mutex);
+  v8::base::MutexGuard guard(&mutex);
   return ret;
 }
 

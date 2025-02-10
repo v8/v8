@@ -125,7 +125,7 @@ WasmCodePointer WasmCodePointerTable::AllocateUninitializedEntry() {
     // allocating a new segment in the meantime. However, the freelist can
     // still grow if another thread frees an entry, so we'll merge the
     // freelists atomically in the end.
-    base::SpinningMutexGuard guard(&segment_allocation_mutex_);
+    base::MutexGuard guard(&segment_allocation_mutex_);
 
     // Reload freelist head in case another thread already grew the table.
     if (!freelist_head_.load(std::memory_order_relaxed).is_empty()) {

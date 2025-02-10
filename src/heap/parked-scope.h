@@ -107,10 +107,10 @@ class V8_NODISCARD ParkedRecursiveMutexGuard {
 
 class V8_NODISCARD ParkedMutexGuardIf final {
  public:
-  V8_INLINE ParkedMutexGuardIf(LocalIsolate* local_isolate,
-                               base::SpinningMutex* mutex, bool enable_mutex);
-  V8_INLINE ParkedMutexGuardIf(LocalHeap* local_heap,
-                               base::SpinningMutex* mutex, bool enable_mutex);
+  V8_INLINE ParkedMutexGuardIf(LocalIsolate* local_isolate, base::Mutex* mutex,
+                               bool enable_mutex);
+  V8_INLINE ParkedMutexGuardIf(LocalHeap* local_heap, base::Mutex* mutex,
+                               bool enable_mutex);
 
   ParkedMutexGuardIf(const ParkedMutexGuardIf&) = delete;
   ParkedMutexGuardIf& operator=(const ParkedMutexGuardIf&) = delete;
@@ -122,7 +122,7 @@ class V8_NODISCARD ParkedMutexGuardIf final {
   }
 
  private:
-  base::SpinningMutex* mutex_ = nullptr;
+  base::Mutex* mutex_ = nullptr;
 };
 
 // A subclass of base::ConditionVariable that automatically parks the thread

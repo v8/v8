@@ -456,7 +456,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     BackendAllocator& operator=(const BackendAllocator&) = delete;
 
     void* Allocate(size_t length) {
-      base::SpinningMutexGuard guard(&mutex_);
+      base::MutexGuard guard(&mutex_);
 
       length = RoundUp(length, kAllocationGranularity);
       i::Address region = region_alloc_->AllocateRegion(length);
@@ -489,7 +489,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     }
 
     void Free(void* data) {
-      base::SpinningMutexGuard guard(&mutex_);
+      base::MutexGuard guard(&mutex_);
       region_alloc_->FreeRegion(reinterpret_cast<i::Address>(data));
     }
 
@@ -509,7 +509,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     std::unique_ptr<base::RegionAllocator> region_alloc_;
     size_t end_of_accessible_region_;
     VirtualAddressSpace* vas_ = nullptr;
-    base::SpinningMutex mutex_;
+    base::Mutex mutex_;
   };
 
   BackendAllocator* allocator_ = BackendAllocator::SharedInstance();

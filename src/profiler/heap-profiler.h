@@ -152,7 +152,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
   bool is_taking_snapshot_;
-  base::SpinningMutex profiler_mutex_;
+  base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;

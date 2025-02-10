@@ -172,7 +172,7 @@ void OptimizingCompileDispatcher::CompileNext(TurbofanCompilationJob* job,
     // The function may have already been optimized by OSR.  Simply continue.
     // Use a mutex to make sure that functions marked for install
     // are always also queued.
-    base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+    base::MutexGuard access_output_queue_(&output_queue_mutex_);
     output_queue_.push_back(job);
   }
 
@@ -183,7 +183,7 @@ void OptimizingCompileDispatcher::FlushOutputQueue() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+      base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
       output_queue_.pop_front();
@@ -305,7 +305,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
   for (;;) {
     std::unique_ptr<TurbofanCompilationJob> job;
     {
-      base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+      base::MutexGuard access_output_queue_(&output_queue_mutex_);
       if (output_queue_.empty()) return;
       job.reset(output_queue_.front());
       output_queue_.pop_front();
@@ -344,7 +344,7 @@ int OptimizingCompileDispatcher::InstallGeneratedBuiltins(int installed_count) {
 
   CHECK(isolate_->IsGeneratingEmbeddedBuiltins());
 
-  base::SpinningMutexGuard access_output_queue_(&output_queue_mutex_);
+  base::MutexGuard access_output_queue_(&output_queue_mutex_);
 
   std::sort(output_queue_.begin(), output_queue_.end(),
             [](const TurbofanCompilationJob* job1,

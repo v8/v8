@@ -33,12 +33,12 @@ EmulatedVirtualAddressSubspace::~EmulatedVirtualAddressSubspace() {
 }
 
 void EmulatedVirtualAddressSubspace::SetRandomSeed(int64_t seed) {
-  SpinningMutexGuard guard(&mutex_);
+  MutexGuard guard(&mutex_);
   rng_.SetSeed(seed);
 }
 
 Address EmulatedVirtualAddressSubspace::RandomPageAddress() {
-  SpinningMutexGuard guard(&mutex_);
+  MutexGuard guard(&mutex_);
   Address addr = base() + (static_cast<uint64_t>(rng_.NextInt64()) % size());
   return RoundDown(addr, allocation_granularity());
 }
@@ -46,7 +46,7 @@ Address EmulatedVirtualAddressSubspace::RandomPageAddress() {
 Address EmulatedVirtualAddressSubspace::AllocatePages(
     Address hint, size_t size, size_t alignment, PagePermissions permissions) {
   if (hint == kNoHint || MappedRegionContains(hint, size)) {
-    SpinningMutexGuard guard(&mutex_);
+    MutexGuard guard(&mutex_);
 
     // Attempt to find a region in the mapped region.
     Address address = region_allocator_.AllocateRegion(hint, size, alignment);
@@ -95,7 +95,7 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
 
 void EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
   if (MappedRegionContains(address, size)) {
-    SpinningMutexGuard guard(&mutex_);
+    MutexGuard guard(&mutex_);
     CHECK_EQ(size, region_allocator_.FreeRegion(address));
     CHECK(parent_space_->DecommitPages(address, size));
   } else {
@@ -147,7 +147,7 @@ bool EmulatedVirtualAddressSubspace::SetPagePermissions(
 bool EmulatedVirtualAddressSubspace::AllocateGuardRegion(Address address,
                                                          size_t size) {
   if (MappedRegionContains(address, size)) {
-    SpinningMutexGuard guard(&mutex_);
+    MutexGuard guard(&mutex_);
     return region_allocator_.AllocateRegionAt(address, size);
   }
   if (!UnmappedRegionContains(address, size)) return false;
@@ -157,7 +157,7 @@ bool EmulatedVirtualAddressSubspace::AllocateGuardRegion(Address address,
 void EmulatedVirtualAddressSubspace::FreeGuardRegion(Address address,
                                                      size_t size) {
   if (MappedRegionContains(address, size)) {
-    SpinningMutexGuard guard(&mutex_);
+    MutexGuard guard(&mutex_);
     CHECK_EQ(size, region_allocator_.FreeRegion(address));
   } else {
     DCHECK(UnmappedRegionContains(address, size));

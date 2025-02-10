@@ -91,7 +91,7 @@ class ThreadManager {
 
   void EagerlyArchiveThread();
 
-  base::SpinningMutex mutex_;
+  base::Mutex mutex_;
   // {ThreadId} must be trivially copyable to be stored in {std::atomic}.
   ASSERT_TRIVIALLY_COPYABLE(i::ThreadId);
   std::atomic<ThreadId> mutex_owner_;

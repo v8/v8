@@ -437,7 +437,7 @@ class TypeCanonicalizer {
   std::vector<const CanonicalType*> canonical_types_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
-  mutable base::SpinningMutex mutex_;
+  mutable base::Mutex mutex_;
 };
 
 // Returns a reference to the TypeCanonicalizer shared by the entire process.

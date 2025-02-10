@@ -1019,7 +1019,7 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
     return CrashUnlessFuzzing(isolate);
   }
   const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
-  base::SpinningMutexGuard mutex_guard(&feedback.mutex);
+  base::MutexGuard mutex_guard(&feedback.mutex);
   auto entry = feedback.deopt_count_for_function.find(func_index);
   if (entry == feedback.deopt_count_for_function.end()) {
     return Smi::FromInt(0);

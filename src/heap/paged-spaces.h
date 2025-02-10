@@ -254,7 +254,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // sweeper.
   virtual void RefillFreeList();
 
-  base::SpinningMutex* mutex() { return &space_mutex_; }
+  base::Mutex* mutex() { return &space_mutex_; }
 
   void UnlinkFreeListCategories(PageMetadata* page);
   size_t RelinkFreeListCategories(PageMetadata* page);
@@ -330,7 +330,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   AllocationStats accounting_stats_;
 
   // Mutex guarding any concurrent access to the space.
-  mutable base::SpinningMutex space_mutex_;
+  mutable base::Mutex space_mutex_;
 
   std::atomic<size_t> committed_physical_memory_{0};
 
@@ -349,7 +349,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
       }
     }
 
-    std::optional<base::SpinningMutexGuard> guard_;
+    std::optional<base::MutexGuard> guard_;
   };
 
   bool SupportsConcurrentAllocation() const {
