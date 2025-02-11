@@ -66,6 +66,7 @@ using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
 #include <vector>
 
 #include "src/base/atomic-utils.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 #if V8_OS_ZOS

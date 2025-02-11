@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 namespace heap::base {
