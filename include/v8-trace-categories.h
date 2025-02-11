@@ -8,11 +8,12 @@
 #if defined(V8_USE_PERFETTO)
 
 #include "perfetto/tracing/track_event.h"
+#include "v8config.h"
 
 namespace v8 {
 
 // Returns the perfeto TrackEventCategoryRegistry for v8 tracing categories.
-const perfetto::internal::TrackEventCategoryRegistry&
+V8_EXPORT const perfetto::internal::TrackEventCategoryRegistry&
 GetTrackEventCategoryRegistry();
 
 }  // namespace v8
