@@ -157,7 +157,7 @@ V8_INLINE IndexParseResult TryParseArrayIndex(const uchar* chars,
       return kOverflow;
     }
   } else {
-    static_assert(sizeof(index) == sizeof(uint32_t));
+    DCHECK(sizeof(index) == sizeof(uint32_t));
     // If index is a 32-bit int, we have to get a bit creative with the overflow
     // check.
     if (V8_UNLIKELY(length == String::kMaxArrayIndexSize)) {
@@ -173,8 +173,7 @@ V8_INLINE IndexParseResult TryParseArrayIndex(const uchar* chars,
       if (index + 1 < kMinValidValue + 1) {
         // We won't try an integer index if there is overflow, so just return
         // non-index.
-        static_assert(String::kMaxArrayIndexSize ==
-                      String::kMaxIntegerIndexSize);
+        DCHECK(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
         return kNonIndex;
       }
     }
