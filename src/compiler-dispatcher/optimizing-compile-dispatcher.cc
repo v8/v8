@@ -108,13 +108,11 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
   OptimizingCompileTaskExecutor* task_executor_;
 };
 
-OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor(
-    bool is_generating_embedded_builtins)
+OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor()
     : input_queue_(v8_flags.concurrent_recompilation_queue_length),
       recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
   if (v8_flags.concurrent_recompilation ||
-      (v8_flags.concurrent_builtin_generation &&
-       is_generating_embedded_builtins)) {
+      v8_flags.concurrent_builtin_generation) {
     int max_tasks;
 
     if (v8_flags.concurrent_turbofan_max_threads == 0) {
@@ -227,7 +225,6 @@ OptimizingCompileDispatcher::OptimizingCompileDispatcher(
     : isolate_(isolate), task_executor_(task_executor) {}
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
-  DCHECK_EQ(0, input_queue().Length());
   DCHECK_EQ(output_queue_.size(), 0);
 }
 

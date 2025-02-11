@@ -8,6 +8,7 @@
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/ptr-compr-inl.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
 #include "src/heap/read-only-heap.h"
@@ -66,7 +67,6 @@ struct PtrComprCageReservationParams
 };
 #endif  // V8_COMPRESS_POINTERS
 
-IsolateGroup::IsolateGroup() {}
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK_EQ(isolate_count_, 0);
@@ -103,6 +103,8 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   sandbox_ = sandbox;
 
   code_pointer_table()->Initialize();
+  optimizing_compile_task_executor_ =
+      std::make_unique<OptimizingCompileTaskExecutor>();
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
@@ -122,6 +124,8 @@ void IsolateGroup::Initialize(bool process_wide) {
   page_allocator_ = reservation_.page_allocator();
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ = &reservation_;
+  optimizing_compile_task_executor_ =
+      std::make_unique<OptimizingCompileTaskExecutor>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
@@ -130,6 +134,8 @@ void IsolateGroup::Initialize(bool process_wide) {
 void IsolateGroup::Initialize(bool process_wide) {
   process_wide_ = process_wide;
   page_allocator_ = GetPlatformPageAllocator();
+  optimizing_compile_task_executor_ =
+      std::make_unique<OptimizingCompileTaskExecutor>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
@@ -302,6 +308,11 @@ void IsolateGroup::ReleaseDefault() {
 #ifdef V8_ENABLE_LEAPTIERING
   group->js_dispatch_table_.TearDown();
 #endif  // V8_ENABLE_LEAPTIERING
+}
+
+OptimizingCompileTaskExecutor*
+IsolateGroup::optimizing_compile_task_executor() {
+  return optimizing_compile_task_executor_.get();
 }
 
 }  // namespace internal
