@@ -5,12 +5,8 @@
 // Original: try_catch.js
 function blah() {
   try {
-    try {
-      var a = 10;
-    } catch (e) {}
-    try {
-      console.log(a);
-    } catch (e) {}
+    var a = 10;
+    console.log(a);
   } catch (e) {}
   try {
     label: for (var i = 0; i < 100; i++) {
@@ -93,4 +89,11 @@ try {
 } catch (e) {}
 async function foo(a) {
   let val = await __wrapTC(() => a);
+}
+try {
+  1;
+} catch (e) {
+  try {
+    2;
+  } catch (e) {}
 }

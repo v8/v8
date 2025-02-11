@@ -131,6 +131,11 @@ class AddTryCatchMutator extends mutator.Mutator {
           }
         },
       },
+      BlockStatement(path) {
+        if (path.parent && babelTypes.isTryStatement(path.parent)) {
+          path.skip();
+        }
+      },
       ExpressionStatement: accessStatement,
       IfStatement: accessStatement,
       LabeledStatement: {

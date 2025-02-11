@@ -51,3 +51,8 @@ if (true) {
 async function foo(a) {
   let val = await a;
 }
+try {
+  1;
+} catch (e) {
+  2;
+}
