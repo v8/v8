@@ -299,7 +299,7 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 #define F(name, str)                                                  \
   {                                                                   \
-    const char data[] = str;                                          \
+    static const char data[] = str;                                   \
     base::Vector<const uint8_t> literal(                              \
         reinterpret_cast<const uint8_t*>(data),                       \
         static_cast<int>(arraysize(data) - 1));                       \
