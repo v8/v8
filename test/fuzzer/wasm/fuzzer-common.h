@@ -38,9 +38,10 @@ CompileTimeImports CompileTimeImportsForFuzzing();
 // {module_object} is instantiated, its "main" function is executed, and the
 // result is compared against the reference execution. If non-determinism was
 // detected during the reference execution, the result is allowed to differ.
-void ExecuteAgainstReference(Isolate* isolate,
-                             DirectHandle<WasmModuleObject> module_object,
-                             int32_t max_executed_instructions);
+// Returns 0 or -1, see {WasmExecutionFuzzer::FuzzWasmModule}.
+V8_WARN_UNUSED_RESULT int ExecuteAgainstReference(
+    Isolate* isolate, DirectHandle<WasmModuleObject> module_object,
+    int32_t max_executed_instructions);
 
 DirectHandle<WasmModuleObject> CompileReferenceModule(
     Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
@@ -72,8 +73,15 @@ constexpr int kMaxFuzzerInputSize = 512;
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() = default;
-  void FuzzWasmModule(base::Vector<const uint8_t> data,
-                      bool require_valid = false);
+
+  // The main entry point: Generate a module from the data, using
+  // `GenerateModule` defined below. Returns `-1` if the test case is not
+  // interesting for fuzzing; otherwise returns `0`.
+  // This should be returned to libfuzzer to indicate that the test case should
+  // not be added to the corpus (see
+  // https://llvm.org/docs/LibFuzzer.html#rejecting-unwanted-inputs).
+  V8_WARN_UNUSED_RESULT int FuzzWasmModule(base::Vector<const uint8_t> data,
+                                           bool require_valid = false);
 
   virtual size_t max_input_size() const { return kMaxFuzzerInputSize; }
 

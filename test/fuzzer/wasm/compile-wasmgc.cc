@@ -24,9 +24,8 @@ class WasmCompileWasmGCFuzzer : public WasmExecutionFuzzer {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  constexpr bool require_valid = true;
-  WasmCompileWasmGCFuzzer().FuzzWasmModule({data, size}, require_valid);
-  return 0;
+  constexpr bool kRequireValid = true;
+  return WasmCompileWasmGCFuzzer().FuzzWasmModule({data, size}, kRequireValid);
 }
 
 }  // namespace v8::internal::wasm::fuzzing

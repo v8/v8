@@ -30,8 +30,7 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  WasmCodeFuzzer().FuzzWasmModule({data, size});
-  return 0;
+  return WasmCodeFuzzer().FuzzWasmModule({data, size});
 }
 
 }  // namespace v8::internal::wasm::fuzzing

@@ -123,12 +123,12 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
   return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 
-void ExecuteAgainstReference(Isolate* isolate,
-                             DirectHandle<WasmModuleObject> module_object,
-                             int32_t max_executed_instructions) {
+int ExecuteAgainstReference(Isolate* isolate,
+                            DirectHandle<WasmModuleObject> module_object,
+                            int32_t max_executed_instructions) {
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
-  if (module_object->module()->start_function_index >= 0) return;
+  if (module_object->module()->start_function_index >= 0) return -1;
 
   int32_t max_steps = max_executed_instructions;
 
@@ -151,7 +151,7 @@ void ExecuteAgainstReference(Isolate* isolate,
              .ToHandle(&instance_ref)) {
       isolate->clear_exception();
       thrower.Reset();  // Ignore errors.
-      return;
+      return -1;
     }
   }
 
@@ -159,7 +159,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   DirectHandle<WasmExportedFunction> main_function;
   if (!testing::GetExportedFunction(isolate, instance_ref, "main")
            .ToHandle(&main_function)) {
-    return;
+    return -1;
   }
 
   struct OomCallbackData {
@@ -220,7 +220,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   if (!execute) {
     // Before discarding the module, see if Turbofan runs into any DCHECKs.
     TierUpAllForTesting(isolate, instance_ref->trusted_data(isolate));
-    return;
+    return -1;
   }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
@@ -238,7 +238,7 @@ void ExecuteAgainstReference(Isolate* isolate,
         // The initial memory size might be too large for instantiation
         // (especially on 32 bit systems), therefore do not treat it as a fuzzer
         // failure.
-        return;
+        return -1;
       }
       FATAL("Second instantiation failed unexpectedly: %s",
             thrower.error_msg());
@@ -254,7 +254,7 @@ void ExecuteAgainstReference(Isolate* isolate,
   // growing memory). In that case, do not compare results.
   // TODO(384781857): Due to nondeterminism, the second run could even not
   // terminate. If this happens often enough we should do something about this.
-  if (WasmEngine::clear_nondeterminism()) return;
+  if (WasmEngine::clear_nondeterminism()) return -1;
 
   if ((exception_ref != nullptr) != (exception != nullptr)) {
     FATAL("Exception mismatch! Expected: <%s>; got: <%s>",
@@ -265,6 +265,8 @@ void ExecuteAgainstReference(Isolate* isolate,
   if (!exception) {
     CHECK_EQ(result_ref, result);
   }
+
+  return 0;
 }
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
@@ -396,15 +398,15 @@ void ResetTypeCanonicalizer(v8::Isolate* isolate, Zone* zone) {
   AddDummyTypesToTypeCanonicalizer(i_isolate, zone);
 }
 
-void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
-                                         bool require_valid) {
+int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
+                                        bool require_valid) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.
-  if (data.size() > max_input_size()) return;
+  if (data.size() > max_input_size()) return -1;
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
@@ -454,7 +456,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
-    return;
+    return -1;
   }
 
   testing::SetupIsolateForWasmModule(i_isolate);
@@ -497,10 +499,14 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   }
   thrower.Reset();
 
-  if (valid) {
-    ExecuteAgainstReference(i_isolate, compiled_module.ToHandleChecked(),
-                            kDefaultMaxFuzzerExecutedInstructions);
-  }
+  // Do not execute invalid modules, and return `-1` to avoid adding them to the
+  // corpus. Even though invalid modules are also somewhat interesting to fuzz,
+  // we will get them often enough via mutations, so we do not add them to the
+  // corpus.
+  if (!valid) return -1;
+
+  return ExecuteAgainstReference(i_isolate, compiled_module.ToHandleChecked(),
+                                 kDefaultMaxFuzzerExecutedInstructions);
 }
 
 }  // namespace v8::internal::wasm::fuzzing

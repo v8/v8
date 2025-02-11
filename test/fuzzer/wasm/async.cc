@@ -30,17 +30,23 @@ class AsyncFuzzerResolver : public CompilationResultResolver {
 
   void OnCompilationSucceeded(DirectHandle<WasmModuleObject> module) override {
     *done_ = true;
-    ExecuteAgainstReference(isolate_, module,
-                            kDefaultMaxFuzzerExecutedInstructions);
+    fuzzing_return_value_ = ExecuteAgainstReference(
+        isolate_, module, kDefaultMaxFuzzerExecutedInstructions);
   }
 
   void OnCompilationFailed(DirectHandle<Object> error_reason) override {
     *done_ = true;
+    // Keep {fuzzing_return_value_} at -1; while failed compilation is also
+    // somewhat interesting, we get this often enough via mutation, so no need
+    // to add this to the corpus.
   }
+
+  int fuzzing_return_value() const { return fuzzing_return_value_; }
 
  private:
   Isolate* isolate_;
   bool* done_;
+  int fuzzing_return_value_ = -1;
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -76,17 +82,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   constexpr const char* kAPIMethodName = "WasmAsyncFuzzer.compile";
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(data, size);
-  GetWasmEngine()->AsyncCompile(
-      i_isolate, enabled_features, CompileTimeImportsForFuzzing(),
-      std::make_shared<AsyncFuzzerResolver>(i_isolate, &done), std::move(bytes),
-      kAPIMethodName);
+  std::shared_ptr<AsyncFuzzerResolver> resolver =
+      std::make_shared<AsyncFuzzerResolver>(i_isolate, &done);
+  GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
+                                CompileTimeImportsForFuzzing(), resolver,
+                                std::move(bytes), kAPIMethodName);
 
   // Wait for the promise to resolve.
   while (!done) {
     support->PumpMessageLoop(platform::MessageLoopBehavior::kWaitForWork);
     isolate->PerformMicrotaskCheckpoint();
   }
-  return 0;
+
+  return resolver->fuzzing_return_value();
 }
 
 }  // namespace v8::internal::wasm::fuzzing

@@ -74,15 +74,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  if (compiles) {
-    ExecuteAgainstReference(i_isolate, module_object,
-                            kDefaultMaxFuzzerExecutedInstructions);
-  }
+  // Return `-1` for invalid modules. We generate enough of them via mutation,
+  // no need to add them to the corpus.
+  int fuzzer_return_value =
+      compiles ? ExecuteAgainstReference(i_isolate, module_object,
+                                         kDefaultMaxFuzzerExecutedInstructions)
+               : -1;
 
   // Pump the message loop and run micro tasks, e.g. GC finalization tasks.
   support->PumpMessageLoop(v8::platform::MessageLoopBehavior::kDoNotWait);
   isolate->PerformMicrotaskCheckpoint();
-  return 0;
+
+  return fuzzer_return_value;
 }
 
 }  // namespace v8::internal::wasm::fuzzing

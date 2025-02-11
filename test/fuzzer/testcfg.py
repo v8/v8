@@ -4,6 +4,7 @@
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+from testrunner.outproc import fuzzer
 
 SUB_TESTS = [
     'inspector',
@@ -22,6 +23,7 @@ SUB_TESTS = [
     'wasm/init_expr',
     'wasm/streaming',
 ]
+
 
 class VariantsGenerator(testsuite.VariantsGenerator):
   def _get_variants(self, test):
@@ -49,7 +51,6 @@ class TestSuite(testsuite.TestSuite):
   def _variants_gen_class(self):
     return VariantsGenerator
 
-
 class TestCase(testcase.TestCase):
   def _get_files_params(self):
     return [self.suite.root / self.path]
@@ -66,3 +67,7 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     fuzzer_name = '_'.join(self.path.parts[:-1])
     return f'v8_simple_{fuzzer_name}_fuzzer'
+
+  @property
+  def output_proc(self):
+    return fuzzer.OutProc(self.expected_outcomes)
