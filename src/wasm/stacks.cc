@@ -63,6 +63,10 @@ StackMemory::StackSegment::StackSegment(size_t pages) {
   limit_ = static_cast<uint8_t*>(
       allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
                                PageAllocator::kReadWrite));
+  if (limit_ == nullptr) {
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "StackMemory::StackSegment::StackSegment");
+  }
 }
 
 StackMemory::StackSegment::~StackSegment() {
