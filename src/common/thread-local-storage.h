@@ -35,9 +35,6 @@
 #define V8_TLS_MODEL "initial-exec"
 #elif defined(V8_TARGET_OS_ANDROID)
 #define V8_TLS_MODEL "local-dynamic"
-#elif defined(V8_TARGET_OS_CHROMEOS)
-// TODO(336738728): Figure out why ChromeOS can't use "local-exec".
-#define V8_TLS_MODEL "local-dynamic"
 #else
 #define V8_TLS_MODEL "local-exec"
 #endif
