@@ -902,6 +902,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
+  bool IsTwoByteStringMap() const;
+  bool IsThinStringMap() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;
 

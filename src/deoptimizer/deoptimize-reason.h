@@ -73,6 +73,7 @@ namespace internal {
   V(Overflow, "overflow")                                                      \
   V(Smi, "Smi")                                                                \
   V(StoreToConstant, "Storing to a constant field")                            \
+  V(StringTooLarge, "Result string larger than String::kMaxLength")            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
   V(Unknown, "(unknown)")                                                      \
   V(UnoptimizedCatch, "First use of catch block")                              \

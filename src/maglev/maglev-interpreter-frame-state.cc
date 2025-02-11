@@ -564,10 +564,7 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
     // No need to merge.
     return;
   }
-  // Currently, the graph builder will never change the VO map.
-  DCHECK(unmerged->map().equals(merged->map()));
-  DCHECK_EQ(merged->slot_count(), unmerged->slot_count());
-  DCHECK_EQ(merged->allocation(), unmerged->allocation());
+  DCHECK(unmerged->compatible_for_merge(merged));
 
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << " - Merging VOS: "
@@ -579,19 +576,15 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
               << "(unmerged)" << std::endl;
   }
 
-  VirtualObject* result = builder->CreateVirtualObjectForMerge(
-      unmerged->map(), unmerged->slot_count());
-  for (uint32_t i = 0; i < merged->slot_count(); i++) {
-    std::optional<ValueNode*> merged_value_opt = MergeVirtualObjectValue(
-        builder, unmerged_aspects, merged->get_by_index(i),
-        unmerged->get_by_index(i));
-    if (!merged_value_opt.has_value()) {
-      // Merge failed, we should escape the allocation instead.
-      unmerged->allocation()->ForceEscaping();
-      return;
-    }
-    result->set_by_index(i, merged_value_opt.value());
+  auto maybe_result = merged->Merge(
+      unmerged, builder->NewObjectId(), builder->zone(),
+      [&](ValueNode* a, ValueNode* b) {
+        return MergeVirtualObjectValue(builder, unmerged_aspects, a, b);
+      });
+  if (!maybe_result) {
+    return unmerged->allocation()->ForceEscaping();
   }
+  VirtualObject* result = *maybe_result;
   result->set_allocation(unmerged->allocation());
   result->Snapshot();
   unmerged->allocation()->UpdateObject(result);

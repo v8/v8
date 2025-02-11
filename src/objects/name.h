@@ -24,6 +24,10 @@ namespace compiler {
 class WasmGraphBuilder;
 }
 
+namespace maglev {
+class MaglevGraphBuilder;
+}
+
 class SharedStringAccessGuardIfNeeded;
 
 // The Name abstract class captures anything that can be used as a property
@@ -226,6 +230,7 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   friend class CodeStubAssembler;
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
+  friend class maglev::MaglevGraphBuilder;
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class compiler::WasmGraphBuilder;

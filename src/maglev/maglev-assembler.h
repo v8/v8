@@ -730,6 +730,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void IntPtrToDouble(DoubleRegister result, Register src);
 
   inline void StringLength(Register result, Register string);
+  inline void LoadThinStringValue(Register result, Register string);
 
   // The registers WriteBarrierDescriptor::ObjectRegister and
   // WriteBarrierDescriptor::SlotAddressRegister can be clobbered.

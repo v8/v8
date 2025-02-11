@@ -2679,29 +2679,28 @@ class GraphBuildingNodeProcessor {
     V<String> right = Map(node->rhs());
     return StringConcatHelper(node, left, right);
   }
-  maglev::ProcessResult Process(maglev::StringWrapperConcat* node,
+  maglev::ProcessResult Process(maglev::UnwrapStringWrapper* node,
                                 const maglev::ProcessingState& state) {
-    V<HeapObject> left_string_or_wrapper = Map(node->lhs());
-    V<HeapObject> right_string_or_wrapper = Map(node->rhs());
+    V<HeapObject> string_or_wrapper = Map(node->value_input());
 
-    ScopedVar<String, AssemblerT> left(this);
-    ScopedVar<String, AssemblerT> right(this);
-    IF (__ ObjectIsString(left_string_or_wrapper)) {
-      left = V<String>::Cast(left_string_or_wrapper);
+    ScopedVar<String, AssemblerT> string(this);
+    IF (__ ObjectIsString(string_or_wrapper)) {
+      string = V<String>::Cast(string_or_wrapper);
     } ELSE {
-      left = V<String>::Cast(__ LoadTaggedField(
-          V<JSPrimitiveWrapper>::Cast(left_string_or_wrapper),
-          JSPrimitiveWrapper::kValueOffset));
+      string = V<String>::Cast(
+          __ LoadTaggedField(V<JSPrimitiveWrapper>::Cast(string_or_wrapper),
+                             JSPrimitiveWrapper::kValueOffset));
     }
-    IF (__ ObjectIsString(right_string_or_wrapper)) {
-      right = V<String>::Cast(right_string_or_wrapper);
-    } ELSE {
-      right = V<String>::Cast(__ LoadTaggedField(
-          V<JSPrimitiveWrapper>::Cast(right_string_or_wrapper),
-          JSPrimitiveWrapper::kValueOffset));
-    }
-
-    return StringConcatHelper(node, left, right);
+    SetMap(node, string);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(maglev::ConsStringMap* node,
+                                const maglev::ProcessingState& state) {
+    UNREACHABLE();
+  }
+  maglev::ProcessResult Process(maglev::UnwrapThinString* node,
+                                const maglev::ProcessingState& state) {
+    UNREACHABLE();
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
@@ -5001,40 +5000,48 @@ class GraphBuildingNodeProcessor {
       builder.AddDematerializedObjectReference(dup_id.id);
       return;
     }
-    if (vobj->type() == maglev::VirtualObject::kFixedDoubleArray) {
-      constexpr int kMapAndLengthFieldCount = 2;
-      uint32_t length = vobj->double_elements_length();
-      uint32_t field_count = length + kMapAndLengthFieldCount;
-      builder.AddDematerializedObject(dup_id.id, field_count);
-      builder.AddInput(
-          MachineType::AnyTagged(),
-          __ HeapConstantNoHole(local_factory_->fixed_double_array_map()));
-      builder.AddInput(MachineType::AnyTagged(),
-                       __ SmiConstant(Smi::FromInt(length)));
-      FixedDoubleArrayRef elements = vobj->double_elements();
-      for (uint32_t i = 0; i < length; i++) {
-        i::Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
-        if (value.is_hole_nan()) {
-          builder.AddInput(
-              MachineType::AnyTagged(),
-              __ HeapConstantHole(local_factory_->the_hole_value()));
-        } else {
-          builder.AddInput(MachineType::AnyTagged(),
-                           __ NumberConstant(value.get_scalar()));
-        }
-      }
-      return;
-    }
 
-    DCHECK_EQ(vobj->type(), maglev::VirtualObject::kDefault);
-    constexpr int kMapFieldCount = 1;
-    uint32_t field_count = vobj->slot_count() + kMapFieldCount;
-    builder.AddDematerializedObject(dup_id.id, field_count);
-    builder.AddInput(MachineType::AnyTagged(),
-                     __ HeapConstantNoHole(vobj->map().object()));
-    for (uint32_t i = 0; i < vobj->slot_count(); i++) {
-      AddVirtualObjectNestedValue(builder, virtual_objects,
-                                  vobj->get_by_index(i));
+    switch (vobj->type()) {
+      case maglev::VirtualObject::kHeapNumber:
+        // Handled above
+        UNREACHABLE();
+      case maglev::VirtualObject::kConsString:
+        // TODO(olivf): Support elided maglev cons strings in turbolev.
+        UNREACHABLE();
+      case maglev::VirtualObject::kFixedDoubleArray: {
+        constexpr int kMapAndLengthFieldCount = 2;
+        uint32_t length = vobj->double_elements_length();
+        uint32_t field_count = length + kMapAndLengthFieldCount;
+        builder.AddDematerializedObject(dup_id.id, field_count);
+        builder.AddInput(
+            MachineType::AnyTagged(),
+            __ HeapConstantNoHole(local_factory_->fixed_double_array_map()));
+        builder.AddInput(MachineType::AnyTagged(),
+                         __ SmiConstant(Smi::FromInt(length)));
+        FixedDoubleArrayRef elements = vobj->double_elements();
+        for (uint32_t i = 0; i < length; i++) {
+          i::Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
+          if (value.is_hole_nan()) {
+            builder.AddInput(
+                MachineType::AnyTagged(),
+                __ HeapConstantHole(local_factory_->the_hole_value()));
+          } else {
+            builder.AddInput(MachineType::AnyTagged(),
+                             __ NumberConstant(value.get_scalar()));
+          }
+        }
+        return;
+      }
+      case maglev::VirtualObject::kDefault:
+        constexpr int kMapFieldCount = 1;
+        uint32_t field_count = vobj->slot_count() + kMapFieldCount;
+        builder.AddDematerializedObject(dup_id.id, field_count);
+        builder.AddInput(MachineType::AnyTagged(),
+                         __ HeapConstantNoHole(vobj->map().object()));
+        vobj->ForEachDeoptInput([&](maglev::ValueNode* value_node) {
+          AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
+        });
+        break;
     }
   }
 

@@ -8,6 +8,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/instance-type-inl.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
@@ -1159,6 +1160,14 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 
 bool MapRef::IsBooleanMap(JSHeapBroker* broker) const {
   return *this == broker->boolean_map();
+}
+
+bool MapRef::IsThinStringMap() const {
+  return InstanceTypeChecker::IsThinString(instance_type());
+}
+
+bool MapRef::IsTwoByteStringMap() const {
+  return InstanceTypeChecker::IsTwoByteString(instance_type());
 }
 
 bool MapRef::CanInlineElementAccess() const {

@@ -1503,6 +1503,15 @@ class MaglevFrameTranslationBuilder {
     translation_array_builder_->StoreLiteral(GetDeoptLiteral(*value));
   }
 
+  void BuildConsString(const VirtualObject* object,
+                       const InputLocation*& input_location,
+                       const VirtualObject::List& virtual_objects) {
+    auto cons_string = object->cons_string();
+    translation_array_builder_->StringConcat();
+    BuildNestedValue(cons_string.first(), input_location, virtual_objects);
+    BuildNestedValue(cons_string.second(), input_location, virtual_objects);
+  }
+
   void BuildFixedDoubleArray(uint32_t length,
                              compiler::FixedDoubleArrayRef array) {
     translation_array_builder_->BeginCapturedObject(length + 2);
@@ -1566,17 +1575,24 @@ class MaglevFrameTranslationBuilder {
       input_location += object->InputLocationSizeNeeded(virtual_objects);
       return;
     }
-    if (object->type() == VirtualObject::kFixedDoubleArray) {
-      return BuildFixedDoubleArray(object->double_elements_length(),
-                                   object->double_elements());
-    }
-    DCHECK_EQ(object->type(), VirtualObject::kDefault);
-    translation_array_builder_->BeginCapturedObject(object->slot_count() + 1);
-    translation_array_builder_->StoreLiteral(
-        GetDeoptLiteral(*object->map().object()));
-    for (uint32_t i = 0; i < object->slot_count(); i++) {
-      BuildNestedValue(object->get_by_index(i), input_location,
-                       virtual_objects);
+    switch (object->type()) {
+      case VirtualObject::kHeapNumber:
+        // Handled above.
+        UNREACHABLE();
+      case VirtualObject::kConsString:
+        return BuildConsString(object, input_location, virtual_objects);
+      case VirtualObject::kFixedDoubleArray:
+        return BuildFixedDoubleArray(object->double_elements_length(),
+                                     object->double_elements());
+      case VirtualObject::kDefault:
+        translation_array_builder_->BeginCapturedObject(object->slot_count() +
+                                                        1);
+        DCHECK(object->has_static_map());
+        translation_array_builder_->StoreLiteral(
+            GetDeoptLiteral(*object->map().object()));
+        object->ForEachDeoptInput([&](ValueNode* node) {
+          BuildNestedValue(node, input_location, virtual_objects);
+        });
     }
   }
 

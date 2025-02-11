@@ -74,17 +74,15 @@ void DeepForVirtualObject(VirtualObject* vobject,
                           InputLocation*& input_location,
                           const VirtualObject::List& virtual_objects,
                           Function&& f) {
-  if (vobject->type() != VirtualObject::kDefault) return;
-  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    ValueNode* value = vobject->get_by_index(i);
+  vobject->ForEachDeoptInputLocation([&](ValueNode* value, ValueNode*& input) {
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
-      continue;
+      return;
     }
     if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
       if (value->Is<Identity>()) {
         value = value->input(0).node();
-        vobject->set_by_index(i, value);
+        input = value;
       }
     }
     // Special nodes.
@@ -117,7 +115,7 @@ void DeepForVirtualObject(VirtualObject* vobject,
         input_location++;
         break;
     }
-  }
+  });
 }
 
 template <DeoptFrameVisitMode mode, typename Function>

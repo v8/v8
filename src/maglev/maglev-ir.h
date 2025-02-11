@@ -278,7 +278,9 @@ class ExceptionHandlerInfo;
   V(StringEqual)                                    \
   V(StringLength)                                   \
   V(StringConcat)                                   \
-  V(StringWrapperConcat)                            \
+  V(ConsStringMap)                                  \
+  V(UnwrapThinString)                               \
+  V(UnwrapStringWrapper)                            \
   V(ToBoolean)                                      \
   V(ToBooleanLogicalNot)                            \
   V(AllocateElementsArray)                          \
@@ -553,6 +555,21 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
          opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
+constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kStoreMap:
+    case Opcode::kStoreInt32:
+    case Opcode::kStoreTrustedPointerFieldWithWriteBarrier:
+    case Opcode::kStoreTaggedFieldWithWriteBarrier:
+    case Opcode::kStoreTaggedFieldNoWriteBarrier:
+    case Opcode::kStoreScriptContextSlotWithWriteBarrier:
+    case Opcode::kStoreFloat64:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Forward-declare NodeBase sub-hierarchies.
 class Node;
 class ControlNode;
@@ -615,10 +632,11 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
  *        /        \    /   /   /      |     \     /           \     /    \
  * NumberOrBoolean Oddball / Callable JSArray String            String   Symbol
  *      /      \   /      /                   Wrapper            |
- *   Number   Boolean    /                                   Internalized
+ *   Number   Boolean    /                                     NonThin
  *    /  \              /                                      String
- * Smi    \            /
- *          HeapNumber
+ * Smi    \            /                                         |
+ *          HeapNumber                                       Internalized
+ *                                                             String
  *
  * Ensure that each super-type mentioned in the following NODE_TYPE_LIST
  * corresponds to exactly one arrow in the above diagram.
@@ -638,11 +656,12 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
   V(Name, (1 << 7) | kAnyHeapObject)                       \
   V(StringOrStringWrapper, (1 << 8) | kAnyHeapObject)      \
   V(String, kName | kStringOrStringWrapper)                \
-  V(InternalizedString, (1 << 9) | kString)                \
-  V(Symbol, (1 << 10) | kName)                             \
-  V(JSReceiver, (1 << 11) | kAnyHeapObject)                \
-  V(JSArray, (1 << 12) | kJSReceiver)                      \
-  V(Callable, (1 << 13) | kJSReceiver)                     \
+  V(NonThinString, (1 << 9) | kString)                     \
+  V(InternalizedString, (1 << 10) | kNonThinString)        \
+  V(Symbol, (1 << 11) | kName)                             \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
+  V(JSArray, (1 << 13) | kJSReceiver)                      \
+  V(Callable, (1 << 14) | kJSReceiver)                     \
   V(StringWrapper, kStringOrStringWrapper | kJSReceiver)
 
 enum class NodeType : uint32_t {
@@ -667,8 +686,9 @@ inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
 inline NodeType StaticTypeForMap(compiler::MapRef map,
                                  compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
-  if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
   if (map.IsStringMap()) {
+    if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
+    if (!map.IsThinStringMap()) return NodeType::kNonThinString;
     return NodeType::kString;
   }
   if (map.IsNameMap()) return NodeType::kName;
@@ -739,6 +759,8 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsBooleanMap(broker);
     case NodeType::kName:
       return map.IsNameMap();
+    case NodeType::kNonThinString:
+      return map.IsStringMap() && !map.IsThinStringMap();
     case NodeType::kString:
       return map.IsStringMap();
     case NodeType::kStringWrapper:
@@ -5392,7 +5414,42 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     kDefault,
     kHeapNumber,
     kFixedDoubleArray,
+    kConsString,
   };
+
+  friend std::ostream& operator<<(std::ostream& out, Type type) {
+    switch (type) {
+      case kDefault:
+        out << "object";
+        break;
+      case kHeapNumber:
+        out << "number";
+        break;
+      case kFixedDoubleArray:
+        out << "double[]";
+        break;
+      case kConsString:
+        out << "ConsString";
+        break;
+    }
+    return out;
+  }
+
+  struct VirtualConsString {
+    ValueNode* first() const { return data[0]; }
+    ValueNode* second() const { return data[1]; }
+    // Length and map are stored for constant folding but not actually part of
+    // the virtual object as they are not needed to materialize the cons string.
+    ValueNode* map;
+    ValueNode* length;
+    std::array<ValueNode*, 2> data;
+  };
+
+  explicit VirtualObject(uint64_t bitfield, int id,
+                         const VirtualConsString& cons_string)
+      : Base(bitfield), id_(id), type_(kConsString), cons_string_(cons_string) {
+    DCHECK(!has_static_map());
+  }
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t slot_count, ValueNode** slots)
@@ -5400,7 +5457,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         map_(map),
         id_(id),
         type_(kDefault),
-        slots_({slot_count, slots}) {}
+        slots_({slot_count, slots}) {
+    DCHECK(has_static_map());
+  }
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          Float64 number)
@@ -5408,7 +5467,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         map_(map),
         id_(id),
         type_(kHeapNumber),
-        number_(number) {}
+        number_(number) {
+    DCHECK(has_static_map());
+  }
 
   explicit VirtualObject(uint64_t bitfield, compiler::MapRef map, int id,
                          uint32_t length,
@@ -5417,7 +5478,9 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         map_(map),
         id_(id),
         type_(kFixedDoubleArray),
-        double_array_({length, elements}) {}
+        double_array_({length, elements}) {
+    DCHECK(has_static_map());
+  }
 
   void SetValueLocationConstraints() { UNREACHABLE(); }
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
@@ -5425,7 +5488,21 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
 
   size_t InputLocationSizeNeeded(VirtualObject::List) const;
 
-  compiler::MapRef map() const { return map_; }
+  constexpr bool has_static_map() const {
+    switch (type_) {
+      case kDefault:
+      case kHeapNumber:
+      case kFixedDoubleArray:
+        return true;
+      case kConsString:
+        return false;
+    }
+  }
+
+  compiler::MapRef map() const {
+    DCHECK(has_static_map());
+    return *map_;
+  }
   Type type() const { return type_; }
   uint32_t id() const { return id_; }
 
@@ -5433,6 +5510,8 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     switch (type_) {
       case kDefault:
         return (slot_count() + 1) * kTaggedSize;
+      case kConsString:
+        return sizeof(ConsString);
       case kHeapNumber:
         return sizeof(HeapNumber);
       case kFixedDoubleArray:
@@ -5455,30 +5534,12 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     return double_array_.values;
   }
 
-  uint32_t slot_count() const {
-    DCHECK_EQ(type_, kDefault);
-    return slots_.count;
-  }
-
   ValueNode* get(uint32_t offset) const {
     DCHECK_NE(offset, 0);  // Don't try to get the map through this getter.
     DCHECK_EQ(type_, kDefault);
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     return slots_.data[offset / kTaggedSize];
-  }
-
-  ValueNode* get_by_index(uint32_t i) const {
-    DCHECK_EQ(type_, kDefault);
-    return slots_.data[i];
-  }
-
-  void set_by_index(uint32_t i, ValueNode* value) {
-    DCHECK_EQ(type_, kDefault);
-    // Values set here can leak to the interpreter. Conversions should be stored
-    // in known_node_aspects/NodeInfo.
-    DCHECK(!value->properties().is_conversion());
-    slots_.data[i] = value;
   }
 
   void set(uint32_t offset, ValueNode* value) {
@@ -5491,6 +5552,16 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     offset -= kTaggedSize;
     SBXCHECK_LT(offset / kTaggedSize, slot_count());
     slots_.data[offset / kTaggedSize] = value;
+  }
+
+  ValueNode* string_length() const {
+    DCHECK_EQ(type_, kConsString);
+    return cons_string_.length;
+  }
+
+  const VirtualConsString& cons_string() const {
+    DCHECK_EQ(type_, kConsString);
+    return cons_string_;
   }
 
   void ClearSlots(int last_init_slot, ValueNode* clear_value) {
@@ -5506,6 +5577,23 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     allocation_ = allocation;
   }
 
+  bool compatible_for_merge(const VirtualObject* other) const {
+    if (type_ != other->type_) return false;
+    if (allocation_ != other->allocation_) return false;
+    // Currently, the graph builder will never change the VO map.
+    if (has_static_map()) {
+      if (map() != other->map()) return false;
+    }
+    switch (other->type_) {
+      case kHeapNumber:
+      case kFixedDoubleArray:
+      case kConsString:
+        return true;
+      case kDefault:
+        return slot_count() == other->slot_count();
+    }
+  }
+
   // VOs are snapshotted at branch points and when they are leaked to
   // DeoptInfos. This is because the snapshots need to preserve the original
   // values at the time of branching or deoptimization. While a VO is not yet
@@ -5513,7 +5601,126 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   bool IsSnapshot() const { return snapshotted_; }
   void Snapshot() { snapshotted_ = true; }
 
+  template <typename Function>
+  inline void ForEachDeoptInputLocation(Function&& callback) {
+    switch (type_) {
+      case kDefault:
+        for (uint32_t i = 0; i < slot_count(); i++) {
+          callback(get_by_index(i), slots_.data[i]);
+        }
+        break;
+      case kConsString:
+        for (ValueNode*& val : cons_string_.data) {
+          callback(static_cast<ValueNode*>(val), val);
+        }
+        break;
+      case kHeapNumber:
+        break;
+      case kFixedDoubleArray:
+        break;
+    }
+  }
+
+  template <typename Function>
+  inline void ForEachDeoptInput(Function&& callback) const {
+    switch (type_) {
+      case kDefault:
+        for (uint32_t i = 0; i < slot_count(); i++) {
+          callback(get_by_index(i));
+        }
+        break;
+      case kConsString:
+        for (ValueNode* val : cons_string_.data) {
+          callback(val);
+        }
+        break;
+      case kHeapNumber:
+        break;
+      case kFixedDoubleArray:
+        break;
+    }
+  }
+
+  template <typename Function>
+  inline std::optional<VirtualObject*> Merge(const VirtualObject* other,
+                                             uint32_t new_object_id, Zone* zone,
+                                             Function MergeValue) const {
+    VirtualObject* result = Clone(new_object_id, zone, /* empty_clone */ true);
+    DCHECK(compatible_for_merge(other));
+    switch (type_) {
+      // These objects are immutable and thus should never need merging.
+      case kHeapNumber:
+      case kFixedDoubleArray:
+      case kConsString:
+        UNREACHABLE();
+      case kDefault: {
+        for (uint32_t i = 0; i < slot_count(); i++) {
+          if (auto success =
+                  MergeValue(get_by_index(i), other->get_by_index(i))) {
+            result->set_by_index(i, *success);
+          } else {
+            return {};
+          }
+        }
+        break;
+      }
+    }
+    return result;
+  }
+
+  VirtualObject* Clone(uint32_t new_object_id, Zone* zone,
+                       bool empty_clone = false) const {
+    VirtualObject* result;
+    switch (type_) {
+      case kHeapNumber:
+      case kFixedDoubleArray:
+      case kConsString:
+        UNREACHABLE();
+      case kDefault: {
+        ValueNode** slots = zone->AllocateArray<ValueNode*>(slot_count());
+        result = NodeBase::New<VirtualObject>(zone, 0, map(), new_object_id,
+                                              slot_count(), slots);
+        break;
+      }
+    }
+    if (empty_clone) return result;
+
+    // Copy content
+    switch (type_) {
+      case kHeapNumber:
+      case kFixedDoubleArray:
+      case kConsString:
+        UNREACHABLE();
+      case kDefault: {
+        for (uint32_t i = 0; i < slot_count(); i++) {
+          result->set_by_index(i, get_by_index(i));
+        }
+        break;
+      }
+    }
+    result->set_allocation(allocation());
+    return result;
+  }
+
+  uint32_t slot_count() const {
+    DCHECK_EQ(type_, kDefault);
+    return slots_.count;
+  }
+
  private:
+  ValueNode* get_by_index(uint32_t i) const {
+    DCHECK_EQ(type_, kDefault);
+    return slots_.data[i];
+  }
+
+  void set_by_index(uint32_t i, ValueNode* value) {
+    DCHECK_EQ(type_, kDefault);
+    // Values set here can leak to the interpreter. Conversions should be stored
+    // in known_node_aspects/NodeInfo.
+    DCHECK(!value->properties().is_conversion());
+    slots_.data[i] = value;
+  }
+
   struct DoubleArray {
     uint32_t length;
     compiler::FixedDoubleArrayRef values;
@@ -5523,7 +5730,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     ValueNode** data;  // Does not contain the map.
   };
 
-  compiler::MapRef map_;
+  compiler::OptionalMapRef map_;
   const int id_;
   Type type_;  // We need to cache the type. We cannot do map comparison in some
                // parts of the pipeline, because we would need to dereference a
@@ -5533,6 +5740,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
     Float64 number_;
     DoubleArray double_array_;
     ObjectFields slots_;
+    VirtualConsString cons_string_;
   };
   mutable InlinedAllocation* allocation_ = nullptr;
 
@@ -8535,21 +8743,64 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class StringWrapperConcat
-    : public FixedInputValueNodeT<2, StringWrapperConcat> {
-  using Base = FixedInputValueNodeT<2, StringWrapperConcat>;
+class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
+  using Base = FixedInputValueNodeT<2, ConsStringMap>;
 
  public:
-  explicit StringWrapperConcat(uint64_t bitfield) : Base(bitfield) {}
+  explicit ConsStringMap(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Call() |
-                                              OpProperties::LazyDeopt() |
-                                              OpProperties::CanThrow();
+  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
+
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& lhs() { return Node::input(0); }
   Input& rhs() { return Node::input(1); }
+
+#ifdef V8_STATIC_ROOTS
+  void MarkTaggedInputsAsDecompressing() const {
+    // Not needed as we just check some bits on the map ptr.
+  }
+#endif
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class UnwrapStringWrapper
+    : public FixedInputValueNodeT<1, UnwrapStringWrapper> {
+  using Base = FixedInputValueNodeT<1, UnwrapStringWrapper>;
+
+ public:
+  explicit UnwrapStringWrapper(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& value_input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class UnwrapThinString : public FixedInputValueNodeT<1, UnwrapThinString> {
+  using Base = FixedInputValueNodeT<1, UnwrapThinString>;
+
+ public:
+  explicit UnwrapThinString(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& value_input() { return Node::input(0); }
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();

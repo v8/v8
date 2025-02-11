@@ -50,6 +50,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
@@ -2567,6 +2568,238 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
   return ReduceResult::Done();
 }
 
+ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
+                                                     ValueNode* right) {
+  struct Result {
+    bool static_map;
+    bool is_two_byte;
+    // The result map if the other map is known to be one byte.
+    ValueNode* result_map;
+  };
+  // If either is a two byte map, then the result is the kConsTwoByteStringMap.
+  // If both are non-two byte maps, then the result is the
+  // kConsOneByteStringMap.
+  auto GetIsTwoByteAndMap = [&](ValueNode* input) -> Result {
+    if (auto maybe_constant =
+            TryGetConstant(broker(), local_isolate(), input)) {
+      bool two_byte = maybe_constant->map(broker()).IsTwoByteStringMap();
+      return {true, two_byte,
+              GetRootConstant(two_byte ? RootIndex::kConsTwoByteStringMap
+                                       : RootIndex::kConsOneByteStringMap)};
+    }
+    switch (input->opcode()) {
+      case Opcode::kNumberToString:
+        return {true, false, GetRootConstant(RootIndex::kConsOneByteStringMap)};
+      case Opcode::kInlinedAllocation: {
+        VirtualObject* cons = input->Cast<InlinedAllocation>()->object();
+        if (cons->type() == VirtualObject::kConsString) {
+          ValueNode* map = cons->cons_string().map;
+          if (auto cons_map = TryGetConstant(broker(), local_isolate(), map)) {
+            return {true, cons_map->AsMap().IsTwoByteStringMap(), map};
+          }
+          return {false, false, map};
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    return {false, false, nullptr};
+  };
+
+  auto left_info = GetIsTwoByteAndMap(left);
+  auto right_info = GetIsTwoByteAndMap(right);
+  if (left_info.static_map) {
+    if (left_info.is_two_byte) {
+      return GetRootConstant(RootIndex::kConsTwoByteStringMap);
+    }
+    // If left is known non-twobyte, then the result only depends on right.
+    if (right_info.static_map) {
+      if (right_info.is_two_byte) {
+        return GetRootConstant(RootIndex::kConsTwoByteStringMap);
+      } else {
+        return GetRootConstant(RootIndex::kConsOneByteStringMap);
+      }
+    }
+    if (right_info.result_map) {
+      return right_info.result_map;
+    }
+  } else if (left_info.result_map) {
+    // Left is not constant, but we have a value for the map.
+    // If right is known non-twobyte, then the result only depends on left.
+    if (right_info.static_map && !right_info.is_two_byte) {
+      return left_info.result_map;
+    }
+  }
+
+  // Since ConsStringMap only cares about the two-byte-ness of its inputs we
+  // might as well pass the result map instead if we have one.
+  ValueNode* left_map =
+      left_info.result_map ? left_info.result_map
+                           : BuildLoadTaggedField(left, HeapObject::kMapOffset);
+  ValueNode* right_map =
+      right_info.result_map
+          ? right_info.result_map
+          : BuildLoadTaggedField(right, HeapObject::kMapOffset);
+  // TODO(olivf): Evaluate if using maglev controlflow to select the map could
+  // be faster here.
+  return AddNewNode<ConsStringMap>({left_map, right_map});
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
+    ValueNode* left, ValueNode* right, AllocationType allocation_type) {
+  // This optimization is also done by Turboshaft.
+  if (compilation_unit_->info()->for_turboshaft_frontend()) {
+    return ReduceResult::Fail();
+  }
+  if (!v8_flags.maglev_cons_string_elision) {
+    return ReduceResult::Fail();
+  }
+
+  DCHECK(NodeTypeIs(GetType(left), NodeType::kString));
+  DCHECK(NodeTypeIs(GetType(right), NodeType::kString));
+
+  auto GetMinLength = [&](ValueNode* input) -> size_t {
+    if (auto maybe_constant =
+            TryGetConstant(broker(), local_isolate(), input)) {
+      return maybe_constant->AsString().length();
+    }
+    switch (input->opcode()) {
+      case Opcode::kNumberToString:
+        return 1;
+      case Opcode::kInlinedAllocation:
+        // TODO(olivf): Add a NodeType::kConsString instead of this check.
+        if (input->Cast<InlinedAllocation>()->object()->type() ==
+            VirtualObject::kConsString) {
+          return ConsString::kMinLength;
+        }
+        break;
+      default:
+        break;
+    }
+    return 0;
+  };
+
+  size_t left_min_length = GetMinLength(left);
+  size_t right_min_length = GetMinLength(right);
+  bool result_is_cons_string =
+      left_min_length + right_min_length >= ConsString::kMinLength;
+
+  // TODO(olivf): Support the fast case with a non-cons string fallback.
+  if (!result_is_cons_string) return MaybeReduceResult::Fail();
+
+  // For the builder pattern where the lhs is a cons string, we will see a phi
+  // from the Select that compares against the empty string. We can refine the
+  // min_length by checking the phi inputs. This might help us elide the Select.
+  if (left_min_length == 0) {
+    if (auto left_phi = left->TryCast<Phi>()) {
+      if (!left_phi->is_loop_phi() || !left_phi->is_unmerged_loop_phi()) {
+        left_min_length = GetMinLength(left_phi->input(0).node());
+        for (int i = 1; i < left_phi->input_count(); ++i) {
+          size_t min_length = GetMinLength(left_phi->input(i).node());
+          if (min_length < left_min_length) {
+            left_min_length = min_length;
+          }
+        }
+      }
+    }
+  }
+
+  left = BuildUnwrapThinString(left);
+  right = BuildUnwrapThinString(right);
+
+  ValueNode* left_length = BuildLoadStringLength(left);
+  ValueNode* right_length = BuildLoadStringLength(right);
+
+  auto BuildConsString = [&]() {
+    ValueNode* new_length;
+    MaybeReduceResult folded =
+        TryFoldInt32BinaryOperation<Operation::kAdd>(left_length, right_length);
+    if (folded.HasValue()) {
+      new_length = folded.value();
+    } else {
+      new_length =
+          AddNewNode<Int32AddWithOverflow>({left_length, right_length});
+    }
+
+    // TODO(olivf): Add unconditional deopt support to the Select builder
+    // instead of disabling unconditional deopt it here.
+    MaybeReduceResult too_long = TryBuildCheckInt32Condition(
+        new_length, GetInt32Constant(String::kMaxLength),
+        AssertCondition::kUnsignedLessThanEqual,
+        DeoptimizeReason::kStringTooLarge,
+        /* allow_unconditional_deopt */ false);
+    CHECK(!too_long.IsDoneWithAbort());
+
+    ValueNode* new_map = BuildNewConsStringMap(left, right);
+    VirtualObject* cons_string =
+        CreateConsString(new_map, new_length, left, right);
+    ValueNode* allocation =
+        BuildInlinedAllocation(cons_string, allocation_type);
+
+    // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+    // next side effect clear it.
+    ClearCurrentAllocationBlock();
+    return allocation;
+  };
+
+  return Select(
+      [&](auto& builder) {
+        if (left_min_length > 0) return BranchResult::kAlwaysFalse;
+        return BuildBranchIfInt32Compare(builder, Operation::kEqual,
+                                         left_length, GetInt32Constant(0));
+      },
+      [&] { return right; },
+      [&] {
+        return Select(
+            [&](auto& builder) {
+              if (right_min_length > 0) return BranchResult::kAlwaysFalse;
+              return BuildBranchIfInt32Compare(builder, Operation::kEqual,
+                                               right_length,
+                                               GetInt32Constant(0));
+            },
+            [&] { return left; }, [&] { return BuildConsString(); });
+      });
+}
+
+ValueNode* MaglevGraphBuilder::BuildUnwrapThinString(ValueNode* input) {
+  DCHECK(NodeTypeIs(GetType(input), NodeType::kString));
+  NodeType known_type;
+  if (EnsureType(input, NodeType::kNonThinString, &known_type)) return input;
+  return AddNewNode<UnwrapThinString>({input});
+}
+
+ValueNode* MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
+  DCHECK(NodeTypeIs(GetType(input), NodeType::kStringOrStringWrapper));
+  NodeType known_type;
+  if (EnsureType(input, NodeType::kString, &known_type)) return input;
+  return AddNewNode<UnwrapStringWrapper>({input});
+}
+
+ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
+                                                   ValueNode* right) {
+  if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
+    if (root_constant->index() == RootIndex::kempty_string) {
+      BuildCheckString(right);
+      SetAccumulator(right);
+      return ReduceResult::Done();
+    }
+  }
+  if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
+    if (root_constant->index() == RootIndex::kempty_string) {
+      BuildCheckString(left);
+      SetAccumulator(left);
+      return ReduceResult::Done();
+    }
+  }
+  BuildCheckString(left);
+  BuildCheckString(right);
+  PROCESS_AND_RETURN_IF_DONE(TryBuildNewConsString(left, right),
+                             SetAccumulator);
+  SetAccumulator(AddNewNode<StringConcat>({left, right}));
+  return ReduceResult::Done();
+}
+
 template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
@@ -2601,26 +2834,7 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       if constexpr (kOperation == Operation::kAdd) {
         ValueNode* left = LoadRegister(0);
         ValueNode* right = GetAccumulator();
-        if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
-          if (root_constant->index() == RootIndex::kempty_string) {
-            BuildCheckString(right);
-            // The right side is already in the accumulator register.
-            return ReduceResult::Done();
-          }
-        }
-        if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
-          if (root_constant->index() == RootIndex::kempty_string) {
-            BuildCheckString(left);
-            MoveNodeBetweenRegisters(
-                iterator_.GetRegisterOperand(0),
-                interpreter::Register::virtual_accumulator());
-            return ReduceResult::Done();
-          }
-        }
-        BuildCheckString(left);
-        BuildCheckString(right);
-        SetAccumulator(AddNewNode<StringConcat>({left, right}));
-        return ReduceResult::Done();
+        return BuildStringConcat(left, right);
       }
       break;
     case BinaryOperationHint::kStringOrStringWrapper:
@@ -2632,8 +2846,9 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
           ValueNode* right = GetAccumulator();
           BuildCheckStringOrStringWrapper(left);
           BuildCheckStringOrStringWrapper(right);
-          SetAccumulator(AddNewNode<StringWrapperConcat>({left, right}));
-          return ReduceResult::Done();
+          left = BuildUnwrapStringWrapper(left);
+          right = BuildUnwrapStringWrapper(right);
+          return BuildStringConcat(left, right);
         }
       }
       [[fallthrough]];
@@ -4191,9 +4406,21 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kHoleyFloat64ToTagged:
       return NodeType::kNumberOrOddball;
     case Opcode::kAllocationBlock:
-    case Opcode::kInlinedAllocation:
-      return StaticTypeForMap(node->Cast<InlinedAllocation>()->object()->map(),
-                              broker);
+    case Opcode::kInlinedAllocation: {
+      auto obj = node->Cast<InlinedAllocation>()->object();
+      if (obj->has_static_map()) {
+        return StaticTypeForMap(obj->map(), broker);
+      } else {
+        switch (obj->type()) {
+          case VirtualObject::kConsString:
+            return NodeType::kNonThinString;
+          case VirtualObject::kDefault:
+          case VirtualObject::kHeapNumber:
+          case VirtualObject::kFixedDoubleArray:
+            UNREACHABLE();
+        }
+      }
+    }
     case Opcode::kRootConstant: {
       RootConstant* constant = node->Cast<RootConstant>();
       switch (constant->index()) {
@@ -4222,9 +4449,11 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kUnknown;
     case Opcode::kToString:
     case Opcode::kNumberToString:
-    case Opcode::kStringConcat:
-    case Opcode::kStringWrapperConcat:
+    case Opcode::kUnwrapStringWrapper:
       return NodeType::kString;
+    case Opcode::kStringConcat:
+    case Opcode::kUnwrapThinString:
+      return NodeType::kNonThinString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
@@ -4426,6 +4655,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kGenericDecrement:
     case Opcode::kBuiltinStringFromCharCode:
     case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
+    case Opcode::kConsStringMap:
       return NodeType::kUnknown;
   }
 }
@@ -4957,7 +5187,7 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 
 bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
-  if (value->Is<RootConstant>()) return true;
+  if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
   if (CheckType(value, NodeType::kSmi)) {
     RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
     return true;
@@ -5025,17 +5255,20 @@ bool IsEscaping(Graph* graph, InlinedAllocation* alloc) {
 
 bool VerifyIsNotEscaping(VirtualObject::List vos, InlinedAllocation* alloc) {
   for (VirtualObject* vo : vos) {
-    if (vo->type() != VirtualObject::kDefault) continue;
     if (vo->allocation() == alloc) continue;
-    for (uint32_t i = 0; i < vo->slot_count(); i++) {
-      ValueNode* nested_value = vo->get_by_index(i);
-      if (!nested_value->Is<InlinedAllocation>()) continue;
+    bool escaped = false;
+    vo->ForEachDeoptInput([&](ValueNode* nested_value) {
+      if (escaped) return;
+      if (!nested_value->Is<InlinedAllocation>()) return;
       ValueNode* nested_alloc = nested_value->Cast<InlinedAllocation>();
       if (nested_alloc == alloc) {
-        if (vo->allocation()->IsEscaping()) return false;
-        if (!VerifyIsNotEscaping(vos, vo->allocation())) return false;
+        if (vo->allocation()->IsEscaping() ||
+            !VerifyIsNotEscaping(vos, vo->allocation())) {
+          escaped = true;
+        }
       }
-    }
+    });
+    if (escaped) return false;
   }
   return true;
 }
@@ -6086,7 +6319,7 @@ bool CompareUint32(uint32_t lhs, uint32_t rhs, Operation operation) {
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
     ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
-    DeoptimizeReason reason) {
+    DeoptimizeReason reason, bool allow_unconditional_deopt) {
   auto lhs_const = TryGetInt32Constant(lhs);
   if (lhs_const) {
     auto rhs_const = TryGetInt32Constant(rhs);
@@ -6094,7 +6327,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCheckInt32Condition(
       if (CheckConditionIn32(lhs_const.value(), rhs_const.value(), condition)) {
         return ReduceResult::Done();
       }
-      return EmitUnconditionalDeopt(reason);
+      if (allow_unconditional_deopt) {
+        return EmitUnconditionalDeopt(reason);
+      }
     }
   }
   AddNewNode<CheckInt32Condition>({lhs, rhs}, condition, reason);
@@ -7007,6 +7242,15 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
+  if (auto vo_string = string->TryCast<InlinedAllocation>()) {
+    return vo_string->object()->string_length();
+  }
+  if (auto const_string = TryGetConstant(broker(), local_isolate(), string)) {
+    return GetInt32Constant(const_string->AsString().length());
+  }
+  if (auto wrapper = string->TryCast<UnwrapThinString>()) {
+    return BuildLoadStringLength(wrapper->value_input().node());
+  }
   if (MaybeReduceResult result = TryFindLoadedProperty(
           known_node_aspects().loaded_constant_properties, string,
           KnownNodeAspects::LoadedPropertyMapKey::StringLength());
@@ -12230,23 +12474,9 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
 
 VirtualObject* MaglevGraphBuilder::DeepCopyVirtualObject(VirtualObject* old) {
   CHECK_EQ(old->type(), VirtualObject::kDefault);
-  ValueNode** slots = zone()->AllocateArray<ValueNode*>(old->slot_count());
-  VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, old->map(), NewObjectId(), old->slot_count(), slots);
+  VirtualObject* vobject = old->Clone(NewObjectId(), zone());
   current_interpreter_frame_.add_object(vobject);
-  for (int i = 0; i < static_cast<int>(old->slot_count()); i++) {
-    vobject->set_by_index(i, old->get_by_index(i));
-  }
-  vobject->set_allocation(old->allocation());
   old->allocation()->UpdateObject(vobject);
-  return vobject;
-}
-
-VirtualObject* MaglevGraphBuilder::CreateVirtualObjectForMerge(
-    compiler::MapRef map, uint32_t slot_count) {
-  ValueNode** slots = zone()->AllocateArray<ValueNode*>(slot_count);
-  VirtualObject* vobject = NodeBase::New<VirtualObject>(
-      zone(), 0, map, NewObjectId(), slot_count, slots);
   return vobject;
 }
 
@@ -12275,6 +12505,15 @@ VirtualObject* MaglevGraphBuilder::CreateDoubleFixedArray(
       zone(), 0, broker()->fixed_double_array_map(), NewObjectId(),
       elements_length, elements);
   return vobject;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateConsString(ValueNode* map,
+                                                    ValueNode* length,
+                                                    ValueNode* first,
+                                                    ValueNode* second) {
+  return NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(),
+      VirtualObject::VirtualConsString{map, length, {first, second}});
 }
 
 VirtualObject* MaglevGraphBuilder::CreateJSObject(compiler::MapRef map) {
@@ -12529,9 +12768,7 @@ void MaglevGraphBuilder::AddNonEscapingUses(InlinedAllocation* allocation,
 }
 
 void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
-  if (vobject->type() != VirtualObject::kDefault) return;
-  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    ValueNode* value = vobject->get_by_index(i);
+  vobject->ForEachDeoptInput([&](ValueNode* value) {
     if (InlinedAllocation* nested_allocation =
             value->TryCast<InlinedAllocation>()) {
       VirtualObject* nested_object =
@@ -12545,7 +12782,32 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
                value->opcode() != Opcode::kRestLength) {
       AddDeoptUse(value);
     }
+  });
+}
+
+ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForConsString(
+    VirtualObject* vobject, AllocationType allocation_type) {
+  InlinedAllocation* allocation =
+      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+  DCHECK_EQ(vobject->size(), sizeof(ConsString));
+  DCHECK_EQ(vobject->cons_string().length->value_representation(),
+            ValueRepresentation::kInt32);
+  AddNonEscapingUses(allocation, 5);
+  BuildInitializeStore(allocation, vobject->cons_string().map,
+                       HeapObject::kMapOffset);
+  AddNewNode<StoreInt32>(
+      {allocation, GetInt32Constant(Name::kEmptyHashField)},
+      static_cast<int>(offsetof(ConsString, raw_hash_field_)));
+  AddNewNode<StoreInt32>({allocation, vobject->cons_string().length},
+                         static_cast<int>(offsetof(ConsString, length_)));
+  BuildInitializeStore(allocation, vobject->cons_string().first(),
+                       offsetof(ConsString, first_));
+  BuildInitializeStore(allocation, vobject->cons_string().second(),
+                       offsetof(ConsString, second_));
+  if (is_loop_effect_tracking()) {
+    loop_effects_->allocations.insert(allocation);
   }
+  return allocation;
 }
 
 ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
@@ -12587,40 +12849,48 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
 ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
     VirtualObject* vobject, AllocationType allocation_type) {
   current_interpreter_frame_.add_object(vobject);
-  if (vobject->type() == VirtualObject::kHeapNumber) {
-    return BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
-  }
-  if (vobject->type() == VirtualObject::kFixedDoubleArray) {
-    return BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
-  }
-  SmallZoneVector<ValueNode*, 8> values(vobject->slot_count(), zone());
-  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    ValueNode* node = vobject->get_by_index(i);
-    if (node->Is<VirtualObject>()) {
-      VirtualObject* nested = node->Cast<VirtualObject>();
-      node = BuildInlinedAllocation(nested, allocation_type);
-      vobject->set_by_index(i, node);
-    } else if (node->Is<Float64Constant>()) {
-      node = BuildInlinedAllocationForHeapNumber(
-          CreateHeapNumber(node->Cast<Float64Constant>()->value()),
-          allocation_type);
-    } else {
-      node = GetTaggedValue(node);
+  switch (vobject->type()) {
+    case VirtualObject::kHeapNumber:
+      return BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
+    case VirtualObject::kFixedDoubleArray:
+      return BuildInlinedAllocationForDoubleFixedArray(vobject,
+                                                       allocation_type);
+    case VirtualObject::kConsString:
+      return BuildInlinedAllocationForConsString(vobject, allocation_type);
+    case VirtualObject::kDefault: {
+      SmallZoneVector<ValueNode*, 8> values(zone());
+      vobject->ForEachDeoptInputLocation(
+          [&](ValueNode* node, ValueNode*& input) {
+            if (node->Is<VirtualObject>()) {
+              VirtualObject* nested = node->Cast<VirtualObject>();
+              node = BuildInlinedAllocation(nested, allocation_type);
+              input = node;
+            } else if (node->Is<Float64Constant>()) {
+              node = BuildInlinedAllocationForHeapNumber(
+                  CreateHeapNumber(node->Cast<Float64Constant>()->value()),
+                  allocation_type);
+            } else {
+              node = GetTaggedValue(node);
+            }
+            values.push_back(node);
+          });
+      InlinedAllocation* allocation =
+          ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
+      AddNonEscapingUses(allocation, static_cast<int>(values.size()));
+      if (vobject->has_static_map()) {
+        AddNonEscapingUses(allocation, 1);
+        BuildStoreMap(allocation, vobject->map(),
+                      StoreMap::initializing_kind(allocation_type));
+      }
+      for (uint32_t i = 0; i < values.size(); i++) {
+        BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);
+      }
+      if (is_loop_effect_tracking()) {
+        loop_effects_->allocations.insert(allocation);
+      }
+      return allocation;
     }
-    values[i] = node;
   }
-  InlinedAllocation* allocation =
-      ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
-  AddNonEscapingUses(allocation, vobject->slot_count() + 1);
-  BuildStoreMap(allocation, vobject->map(),
-                StoreMap::initializing_kind(allocation_type));
-  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);
-  }
-  if (is_loop_effect_tracking()) {
-    loop_effects_->allocations.insert(allocation);
-  }
-  return allocation;
 }
 
 ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,

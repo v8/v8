@@ -26,6 +26,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-generator.h"
@@ -173,21 +174,14 @@ namespace {
 // ---
 
 bool IsStoreToNonEscapedObject(const NodeBase* node) {
-  switch (node->opcode()) {
-    case Opcode::kStoreMap:
-    case Opcode::kStoreTaggedFieldWithWriteBarrier:
-    case Opcode::kStoreTaggedFieldNoWriteBarrier:
-    case Opcode::kStoreScriptContextSlotWithWriteBarrier:
-    case Opcode::kStoreFloat64:
-      DCHECK_GT(node->input_count(), 0);
-      if (InlinedAllocation* alloc =
-              node->input(0).node()->template TryCast<InlinedAllocation>()) {
-        return alloc->HasBeenAnalysed() && alloc->HasBeenElided();
-      }
-      return false;
-    default:
-      return false;
+  if (CanBeStoreToNonEscapedObject(node->opcode())) {
+    DCHECK_GT(node->input_count(), 0);
+    if (InlinedAllocation* alloc =
+            node->input(0).node()->template TryCast<InlinedAllocation>()) {
+      return alloc->HasBeenAnalysed() && alloc->HasBeenElided();
+    }
   }
+  return false;
 }
 
 void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
@@ -198,9 +192,6 @@ void PrintInputs(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   for (int i = 0; i < node->input_count(); i++) {
     if (i != 0) os << ", ";
     graph_labeller->PrintInput(os, node->input(i));
-  }
-  if (IsStoreToNonEscapedObject(node)) {
-    os << " 🪦";
   }
   os << "]";
 }
@@ -288,6 +279,9 @@ void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   node->PrintParams(os, graph_labeller);
   PrintInputs(os, graph_labeller, node);
   PrintResult(os, graph_labeller, node);
+  if (IsStoreToNonEscapedObject(node)) {
+    os << " 🪦";
+  }
   if (!skip_targets) {
     PrintTargets(os, graph_labeller, node);
   }
@@ -380,12 +374,11 @@ size_t GetInputLocationSizeForVirtualObjectSlot(
 
 size_t VirtualObject::InputLocationSizeNeeded(
     VirtualObject::List virtual_objects) const {
-  if (type() != kDefault) return 0;
   size_t size = 0;
-  for (uint32_t i = 0; i < slot_count(); i++) {
-    size += GetInputLocationSizeForVirtualObjectSlot(virtual_objects,
-                                                     slots_.data[i]);
-  }
+  ForEachDeoptInput([&](ValueNode* value_node) {
+    size +=
+        GetInputLocationSizeForVirtualObjectSlot(virtual_objects, value_node);
+  });
   return size;
 }
 
@@ -5145,40 +5138,81 @@ void StringConcat::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(kReturnRegister0, ToRegister(result()));
 }
 
-void StringWrapperConcat::SetValueLocationConstraints() {
-  using D = StringAdd_CheckNoneDescriptor;
-  UseFixed(lhs(), D::GetRegisterParameter(D::kLeft));
-  UseFixed(rhs(), D::GetRegisterParameter(D::kRight));
-  DefineAsFixed(this, kReturnRegister0);
+void ConsStringMap::SetValueLocationConstraints() {
+  UseRegister(lhs());
+  UseRegister(rhs());
+  DefineAsRegister(this);
+}
+void ConsStringMap::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Label two_byte, ok;
+  Register res = ToRegister(result());
+  Register left = ToRegister(lhs());
+  Register right = ToRegister(rhs());
+
+#ifdef V8_STATIC_ROOTS
+  __ TestInt32AndJumpIfAnySet(left, InstanceTypeChecker::kTwoByteStringMapBit,
+                              &two_byte, Label::kNear);
+  __ TestInt32AndJumpIfAnySet(right, InstanceTypeChecker::kTwoByteStringMapBit,
+                              &two_byte, Label::kNear);
+#else
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.AcquireScratch();
+  static_assert(kTwoByteStringTag == 0);
+  __ LoadByte(scratch, FieldMemOperand(left, Map::kInstanceTypeOffset));
+  __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
+                                Label::kNear);
+  __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
+  __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
+                                Label::kNear);
+#endif  // V8_STATIC_ROOTS
+  __ LoadRoot(res, RootIndex::kConsOneByteStringMap);
+  __ Jump(&ok, Label::kNear);
+
+  __ bind(&two_byte);
+  __ LoadRoot(res, RootIndex::kConsTwoByteStringMap);
+  __ bind(&ok);
 }
 
-void StringWrapperConcat::GenerateCode(MaglevAssembler* masm,
+void UnwrapStringWrapper::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void UnwrapStringWrapper::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register input = ToRegister(value_input());
+  Label done;
+  __ JumpIfString(input, &done, Label::kNear);
+  __ LoadTaggedField(input, input, JSPrimitiveWrapper::kValueOffset);
+  __ bind(&done);
+}
 
-  Register left = ToRegister(lhs());
-  Label left_done;
-  __ JumpIfString(left, &left_done);
-  __ LoadTaggedField(left, left, JSPrimitiveWrapper::kValueOffset);
-  __ Jump(&left_done);
-
-  __ bind(&left_done);
-
-  Register right = ToRegister(rhs());
-  Label right_done;
-  __ JumpIfString(right, &right_done);
-  __ LoadTaggedField(right, right, JSPrimitiveWrapper::kValueOffset);
-  __ Jump(&right_done);
-
-  __ bind(&right_done);
-
-  __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
-      masm->native_context().object(),  // context
-      left,                             // left
-      right                             // right
-  );
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-  DCHECK_EQ(kReturnRegister0, ToRegister(result()));
+void UnwrapThinString::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineSameAsFirst(this);
+}
+void UnwrapThinString::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register input = ToRegister(value_input());
+  Label ok;
+  {
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    Register scratch = temps.AcquireScratch();
+#ifdef V8_STATIC_ROOTS
+    __ LoadCompressedMap(scratch, input);
+    __ JumpIfObjectNotInRange(
+        scratch,
+        InstanceTypeChecker::kUniqueMapRangeOfStringType::kThinString.first,
+        InstanceTypeChecker::kUniqueMapRangeOfStringType::kThinString.second,
+        &ok, Label::kNear);
+#else
+    __ LoadInstanceType(scratch, input);
+    __ TestInt32AndJumpIfAllClear(scratch, kThinStringTagBit, &ok,
+                                  Label::kNear);
+#endif  // V8_STATIC_ROOTS
+  }
+  __ LoadThinStringValue(input, input);
+  __ bind(&ok);
 }
 
 void StringEqual::SetValueLocationConstraints() {
@@ -7507,7 +7541,11 @@ void AllocationBlock::PrintParams(std::ostream& os,
 
 void InlinedAllocation::PrintParams(std::ostream& os,
                                     MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *object()->map().object() << ")";
+  os << "(" << object()->type();
+  if (object()->has_static_map()) {
+    os << " " << *object()->map().object();
+  }
+  os << ")";
 }
 
 void VirtualObject::PrintParams(std::ostream& os,

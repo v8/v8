@@ -302,9 +302,6 @@ class MaglevGraphBuilder {
               is_inline() && caller_details_->loop_effects ? 1 : 0);
   }
 
-  VirtualObject* CreateVirtualObjectForMerge(compiler::MapRef map,
-                                             uint32_t slot_count);
-
   SmiConstant* GetSmiConstant(int constant) const {
     DCHECK(Smi::IsValid(constant));
     auto it = graph_->smi().find(constant);
@@ -419,6 +416,8 @@ class MaglevGraphBuilder {
 
   BasicBlock* current_block() { return current_block_; }
   void set_current_block(BasicBlock* block) { current_block_ = block; }
+
+  uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
  private:
   // Helper class for building a subgraph with its own control flow, that is not
@@ -2339,9 +2338,9 @@ class MaglevGraphBuilder {
                                     NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
-  MaybeReduceResult TryBuildCheckInt32Condition(ValueNode* lhs, ValueNode* rhs,
-                                                AssertCondition condition,
-                                                DeoptimizeReason reason);
+  MaybeReduceResult TryBuildCheckInt32Condition(
+      ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
+      DeoptimizeReason reason, bool allow_unconditional_deopt = true);
 
   MaybeReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -2467,6 +2466,8 @@ class MaglevGraphBuilder {
   VirtualObject* CreateDoubleFixedArray(uint32_t elements_length,
                                         compiler::FixedDoubleArrayRef elements);
   VirtualObject* CreateJSObject(compiler::MapRef map);
+  VirtualObject* CreateConsString(ValueNode* map, ValueNode* length,
+                                  ValueNode* first, ValueNode* second);
   ReduceResult CreateJSArray(compiler::MapRef map, int instance_size,
                              ValueNode* length);
   VirtualObject* CreateJSArrayIterator(compiler::MapRef map,
@@ -2529,6 +2530,8 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
+  ValueNode* BuildInlinedAllocationForConsString(VirtualObject* object,
+                                                 AllocationType allocation);
   ValueNode* BuildInlinedAllocationForHeapNumber(VirtualObject* object,
                                                  AllocationType allocation);
   ValueNode* BuildInlinedAllocationForDoubleFixedArray(
@@ -2617,6 +2620,14 @@ class MaglevGraphBuilder {
   ReduceResult VisitBinaryOperation();
   template <Operation kOperation>
   ReduceResult VisitBinarySmiOperation();
+
+  ValueNode* BuildUnwrapThinString(ValueNode* input);
+  ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
+  ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
+  ValueNode* BuildNewConsStringMap(ValueNode* left, ValueNode* right);
+  MaybeReduceResult TryBuildNewConsString(
+      ValueNode* left, ValueNode* right,
+      AllocationType allocation_type = AllocationType::kYoung);
 
   template <Operation kOperation>
   ReduceResult VisitCompareOperation();
@@ -2968,8 +2979,6 @@ class MaglevGraphBuilder {
     DCHECK(is_inline());
     return bytecode().length();
   }
-
-  uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;

@@ -30,6 +30,7 @@ namespace v8::internal {
 namespace maglev {
 class CheckedInternalizedString;
 class BuiltinStringFromCharCode;
+class MaglevGraphBuilder;
 }  // namespace maglev
 
 namespace wasm {
@@ -681,6 +682,7 @@ V8_OBJECT class String : public Name {
   friend class Accessors;
   friend class StringBuiltinsAssembler;
   friend class maglev::MaglevAssembler;
+  friend class maglev::MaglevGraphBuilder;
   friend class compiler::AccessBuilder;
   friend class wasm::baseline::LiftoffCompiler;
   friend class TorqueGeneratedStringAsserts;
@@ -1025,6 +1027,7 @@ V8_OBJECT class ConsString : public String {
   friend class StringBuiltinsAssembler;
   friend class SandboxTesting;
   friend class maglev::MaglevAssembler;
+  friend class maglev::MaglevGraphBuilder;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedConsStringAsserts;
 
