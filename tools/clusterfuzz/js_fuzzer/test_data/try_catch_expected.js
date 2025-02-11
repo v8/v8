@@ -26,6 +26,7 @@ function blah() {
       } catch (e) {}
     }
   } catch (e) {}
+  return 1;
 }
 try {
   blah();
@@ -81,6 +82,7 @@ const complex1 = __wrapTC(() => [1, 2, 3]);
 const complex2 = __wrapTC(() => boom());
 let complex3 = __wrapTC(() => function () {
   let complex4 = __wrapTC(() => [1, 2, 3]);
+  return 2;
 }());
 try {
   if (true) {
@@ -97,3 +99,13 @@ try {
     2;
   } catch (e) {}
 }
+try {
+  call(() => {
+    try {
+      1;
+    } catch (e) {}
+    try {
+      2;
+    } catch (e) {}
+  });
+} catch (e) {}

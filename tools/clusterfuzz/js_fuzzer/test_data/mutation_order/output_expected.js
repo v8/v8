@@ -23,7 +23,9 @@ try {
   };
 } catch (e) {}
 function __f_0(__v_4, __v_5) {
-  return __v_4 + __v_5;
+  try {
+    return __v_4 + __v_5;
+  } catch (e) {}
 }
 try {
   %PrepareFunctionForOptimization(__f_0);
@@ -41,7 +43,9 @@ try {
   /* FunctionCallMutator: Optimizing __f_0 */__f_0(__v_0, /* NumberMutator: Replaced 3 with -5 */-5);
 } catch (e) {}
 function __f_1(__v_6) {
-  return /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1(__v_6, __v_6);
+  try {
+    return /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1(__v_6, __v_6);
+  } catch (e) {}
 }
 try {
   %PrepareFunctionForOptimization(__f_0);

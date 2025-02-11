@@ -16,6 +16,7 @@ function blah() {
       continue label;
     }
   }
+  return 1;
 }
 
 blah();
@@ -45,6 +46,7 @@ const complex2 = boom()
 
 let complex3 = (function () {
   let complex4 = [1, 2, 3];
+  return 2;
 })();
 
 if (true) {
@@ -60,3 +62,5 @@ try {
 } catch (e) {
   2;
 }
+
+call(() => { 1; 2; });

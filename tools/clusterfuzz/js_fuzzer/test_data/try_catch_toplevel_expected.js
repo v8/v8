@@ -5,10 +5,10 @@
 // Original: try_catch.js
 function blah() {
   try {
-    var a = 10;
-    console.log(a);
-  } catch (e) {}
-  try {
+    try {
+      var a = 10;
+      console.log(a);
+    } catch (e) {}
     label: for (var i = 0; i < 100; i++) {
       var b = 0;
       while (b < 10) {
@@ -17,6 +17,7 @@ function blah() {
         continue label;
       }
     }
+    return 1;
   } catch (e) {}
 }
 try {
@@ -57,6 +58,7 @@ const complex1 = __wrapTC(() => [1, 2, 3]);
 const complex2 = __wrapTC(() => boom());
 let complex3 = __wrapTC(() => function () {
   let complex4 = [1, 2, 3];
+  return 2;
 }());
 try {
   if (true) {
@@ -64,7 +66,9 @@ try {
   }
 } catch (e) {}
 async function foo(a) {
-  let val = await __wrapTC(() => a);
+  try {
+    let val = await a;
+  } catch (e) {}
 }
 try {
   1;
@@ -73,3 +77,9 @@ try {
     2;
   } catch (e) {}
 }
+try {
+  call(() => {
+    1;
+    2;
+  });
+} catch (e) {}

@@ -16,6 +16,7 @@ function blah() {
       continue label;
     }
   }
+  return 1;
 }
 blah();
 blah();
@@ -43,6 +44,7 @@ const complex1 = [1, 2, 3];
 const complex2 = boom();
 let complex3 = function () {
   let complex4 = [1, 2, 3];
+  return 2;
 }();
 if (true) {
   let complex5 = new Map();
@@ -55,3 +57,7 @@ try {
 } catch (e) {
   2;
 }
+call(() => {
+  1;
+  2;
+});

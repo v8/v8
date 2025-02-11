@@ -29,12 +29,31 @@ const WRAPPABLE_DECL_KINDS = new Set(['let', 'const']);
 // This function is defined in resources/fuzz_library.js.
 const WRAP_FUN = babelTemplate('__wrapTC(() => ID)');
 
-function wrapTryCatch(node) {
+function isFunction(node) {
+  return (babelTypes.isArrowFunctionExpression(node) ||
+          babelTypes.isFunctionExpression(node) ||
+          babelTypes.isFunctionDeclaration(node));
+}
+
+function isFunctionBody(path) {
+  const parent = path.parent;
+  return parent && isFunction(parent) && parent.body == path.node;
+}
+
+function _rawTryCatch(node) {
   return babelTypes.tryStatement(
-      babelTypes.blockStatement([node]),
+      node,
       babelTypes.catchClause(
           babelTypes.identifier('e'),
           babelTypes.blockStatement([])));
+}
+
+function wrapTryCatch(node) {
+  return _rawTryCatch(babelTypes.blockStatement([node]));
+}
+
+function wrapBlockWithTryCatch(block) {
+  return babelTypes.blockStatement([_rawTryCatch(block)]);
 }
 
 function skipReplaceVariableDeclarator(path) {
@@ -78,6 +97,11 @@ function replaceAndSkip(path) {
     path.replaceWith(wrapTryCatch(path.node));
   }
   // Prevent infinite looping.
+  path.skip();
+}
+
+function replaceBlockStatementAndSkip(path) {
+  path.replaceWith(wrapBlockWithTryCatch(path.node));
   path.skip();
 }
 
@@ -132,8 +156,20 @@ class AddTryCatchMutator extends mutator.Mutator {
         },
       },
       BlockStatement(path) {
+        // It'd be superfluous to wrap existing try statements.
         if (path.parent && babelTypes.isTryStatement(path.parent)) {
           path.skip();
+          return;
+        }
+        // Wrap the entire body of a function instead of descending into all
+        // the function's nodes. This also includes return statements.
+        // We only do this with the lower top-level wrapping probability and
+        // don't provide an exit() function here. I.e. if we did descent into
+        // the child nodes, we don't additionally wrap the body.
+        if (isFunctionBody(path) &&
+            path.node.body &&
+            path.node.body.length) {
+          thisMutator.callWithProb(path, replaceBlockStatementAndSkip);
         }
       },
       ExpressionStatement: accessStatement,
