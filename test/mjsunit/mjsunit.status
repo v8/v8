@@ -925,6 +925,9 @@
   'regress/regress-1432470': [SKIP],
   'wasm/imported-dataview-bytelength': [SKIP],
 
+  # Needs 64-bit integer add.
+  'additive-safe-int-feedback': [SKIP],
+
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
   'wasm/fast-api-calls-with-wellknown-imports-i64': [SKIP],
@@ -1967,6 +1970,7 @@
   # which in turn can lead to different deopt behavior.
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
+  'additive-safe-int-feedback': [SKIP],
   # Type assertions block the propagation of word64 truncation useinfo,
   # leading to differences in representation selection.
   'compiler/bigint-multiply-truncate': [SKIP],
@@ -2475,6 +2479,8 @@
   # worth it.
   'regress/regress-map-invalidation-2': [FAIL],
   'turboshaft/extras-cped': [SKIP],
+  # Maglev does not support additive safe ints.
+  'additive-safe-int-feedback': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
 
 ['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)) and (arch != arm)', {

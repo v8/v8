@@ -69,6 +69,7 @@ namespace internal {
   V(NotDetectableReceiver, "not a detectable receiver")                        \
   V(NotInt32, "not int32")                                                     \
   V(NotUint32, "not unsigned int32")                                           \
+  V(NotAdditiveSafeInteger, "not AdditiveSafeInteger")                         \
   V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(Smi, "Smi")                                                                \

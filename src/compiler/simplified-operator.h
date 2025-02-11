@@ -375,6 +375,7 @@ bool operator!=(CheckFloat64HoleParameters const&,
 Handle<FeedbackCell> FeedbackCellOf(const Operator* op);
 
 enum class CheckTaggedInputMode : uint8_t {
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrBoolean,
   kNumberOrOddball,
@@ -584,11 +585,13 @@ Type ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
-  kSignedSmall,        // Inputs were Smi, output was in Smi.
-  kSignedSmallInputs,  // Inputs were Smi, output was Number.
-  kNumber,             // Inputs were Number, output was Number.
-  kNumberOrBoolean,    // Inputs were Number or Boolean, output was Number.
-  kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
+  kSignedSmall,          // Inputs were Smi, output was in Smi.
+  kSignedSmallInputs,    // Inputs were Smi, output was Number.
+  kAdditiveSafeInteger,  // Inputs were AdditiveSafeInteger, output was
+                         // AdditiveSafeInteger.
+  kNumber,               // Inputs were Number, output was Number.
+  kNumberOrBoolean,      // Inputs were Number or Boolean, output was Number.
+  kNumberOrOddball,      // Inputs were Number or Oddball, output was Number.
 };
 
 enum class BigIntOperationHint : uint8_t {
@@ -896,6 +899,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntLessThan();
   const Operator* BigIntLessThanOrEqual();
 
+  const Operator* SpeculativeAdditiveSafeIntegerAdd(NumberOperationHint hint);
+  const Operator* SpeculativeAdditiveSafeIntegerSubtract(
+      NumberOperationHint hint);
   const Operator* SpeculativeSmallIntegerAdd(NumberOperationHint hint);
   const Operator* SpeculativeSmallIntegerSubtract(NumberOperationHint hint);
 
@@ -1033,6 +1039,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
                                         const FeedbackSource& feedback);
+  const Operator* CheckedFloat64ToAdditiveSafeInteger(
+      CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedFloat64ToInt64(CheckForMinusZeroMode,
                                         const FeedbackSource& feedback);
   const Operator* CheckedInt32Add();
@@ -1040,6 +1048,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
+  const Operator* CheckedAdditiveSafeIntegerAdd();
+  const Operator* CheckedAdditiveSafeIntegerSub();
   const Operator* CheckedInt64Add();
   const Operator* CheckedInt64Sub();
   const Operator* CheckedInt64Mul();
@@ -1054,6 +1064,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToArrayIndex(const FeedbackSource& feedback);
+  const Operator* CheckedTaggedToAdditiveSafeInteger(
+      CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);

@@ -322,10 +322,12 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(ChangeFloat32ToFloat64, Float64T, Float32T)                 \
   V(ChangeFloat64ToUint32, Uint32T, Float64T)                   \
   V(ChangeFloat64ToUint64, Uint64T, Float64T)                   \
+  V(ChangeFloat64ToInt64, Int64T, Float64T)                     \
   V(ChangeInt32ToFloat64, Float64T, Int32T)                     \
   V(ChangeInt32ToInt64, Int64T, Int32T)                         \
   V(ChangeUint32ToFloat64, Float64T, Word32T)                   \
   V(ChangeUint32ToUint64, Uint64T, Word32T)                     \
+  V(ChangeInt64ToFloat64, Float64T, Int64T)                     \
   V(BitcastInt32ToFloat32, Float32T, Word32T)                   \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                   \
   V(BitcastFloat64ToInt64, Int64T, Float64T)                    \
@@ -1047,6 +1049,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
   TNode<Uint64T> Word64Shl(TNode<Uint64T> left, TNode<Uint64T> right) {
     return Unsigned(Word64Shl(static_cast<TNode<Word64T>>(left), right));
+  }
+  TNode<Int64T> Word64Shr(TNode<Int64T> left, TNode<Uint64T> right) {
+    return Signed(Word64Shr(static_cast<TNode<Word64T>>(left), right));
   }
   TNode<Uint64T> Word64Shr(TNode<Uint64T> left, TNode<Uint64T> right) {
     return Unsigned(Word64Shr(static_cast<TNode<Word64T>>(left), right));

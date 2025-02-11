@@ -8,6 +8,8 @@
 #include <optional>
 
 #include "include/v8-fast-api-calls.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
@@ -16,11 +18,13 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operation-typer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/representation-change.h"
@@ -28,6 +32,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/type-cache.h"
+#include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
 
@@ -111,6 +116,7 @@ UseInfo CheckedUseInfoAsWord32FromHint(
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
       return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
+    case NumberOperationHint::kAdditiveSafeInteger:
     case NumberOperationHint::kNumber:
       DCHECK_EQ(identify_zeros, kIdentifyZeros);
       return UseInfo::CheckedNumberAsWord32(feedback);
@@ -132,6 +138,7 @@ UseInfo CheckedUseInfoAsFloat64FromHint(
     case NumberOperationHint::kSignedSmallInputs:
       // Not used currently.
       UNREACHABLE();
+    case NumberOperationHint::kAdditiveSafeInteger:
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsFloat64(identify_zeros, feedback);
     case NumberOperationHint::kNumberOrBoolean:
@@ -1546,6 +1553,10 @@ class RepresentationSelector {
     return changer_->Int32OverflowOperatorFor(node->opcode());
   }
 
+  const Operator* AdditiveSafeIntegerOverflowOp(Node* node) {
+    return changer_->AdditiveSafeIntegerOverflowOperatorFor(node->opcode());
+  }
+
   const Operator* Int64Op(Node* node) {
     return changer_->Int64OperatorFor(node->opcode());
   }
@@ -1765,20 +1776,64 @@ class RepresentationSelector {
     }
   }
 
+  bool CanSpeculateAdditiveSafeInteger(Node* node) {
+    if (!v8_flags.additive_safe_int_feedback) return false;
+    if (NumberOperationHintOf(node->op()) !=
+        NumberOperationHint::kAdditiveSafeInteger) {
+      return false;
+    }
+    DCHECK_EQ(2, node->op()->ValueInputCount());
+    Node* lhs = node->InputAt(0);
+    auto lhs_restriction_type = GetInfo(lhs)->restriction_type();
+    Node* rhs = node->InputAt(1);
+    auto rhs_restriction_type = GetInfo(rhs)->restriction_type();
+    // Only speculate AdditiveSafeInteger if one of the sides are already known
+    // to be in the AdditiveSafeInteger range, since the check is relatively
+    // expensive.
+    return GetUpperBound(lhs).Is(type_cache_->kAdditiveSafeInteger) ||
+           GetUpperBound(rhs).Is(type_cache_->kAdditiveSafeInteger) ||
+           lhs_restriction_type.Is(type_cache_->kAdditiveSafeInteger) ||
+           rhs_restriction_type.Is(type_cache_->kAdditiveSafeInteger);
+  }
+
   template <Phase T>
   void VisitSpeculativeAdditiveOp(Node* node, Truncation truncation,
                                   SimplifiedLowering* lowering) {
-    if (BothInputsAre(node, type_cache_->kAdditiveSafeIntegerOrMinusZero) &&
-        (GetUpperBound(node).Is(Type::Signed32()) ||
-         GetUpperBound(node).Is(Type::Unsigned32()) ||
-         truncation.IsUsedAsWord32())) {
-      // => Int32Add/Sub
-      VisitWord32TruncatingBinop<T>(node);
-      if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+    if (GetUpperBound(node).Is(Type::Signed32()) ||
+        GetUpperBound(node).Is(Type::Unsigned32()) ||
+        truncation.IsUsedAsWord32()) {
+      if (BothInputsAre(node, type_cache_->kAdditiveSafeIntegerOrMinusZero)) {
+        // => Int32Add/Sub
+        VisitBinop<T>(node, UseInfo::TruncatingWord32(),
+                      MachineRepresentation::kWord32);
+        if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+        return;
+      }
+
+      if (CanSpeculateAdditiveSafeInteger(node)) {
+        // This case handles addition where the result might be truncated to
+        // word32. Even if the inputs might be larger than 2^32, we can safely
+        // perform 32-bit addition *here* if the inputs are in the additive safe
+        // range. We *must* propagate the CheckedSafeIntTruncatingWord32
+        // information. This is because we need to ensure that we deoptimize if
+        // either input is not an integer, or not in the range.
+        // => Int32Add/Sub
+        VisitBinop<T>(node,
+                      UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
+                      MachineRepresentation::kWord32);
+        if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
+        return;
+      }
+    } else if (CanSpeculateAdditiveSafeInteger(node)) {
+      // => AdditiveSafeIntegerAdd/Sub
+      VisitBinop<T>(node, UseInfo::CheckedSafeIntAsWord64(FeedbackSource{}),
+                    MachineRepresentation::kWord64,
+                    type_cache_->kAdditiveSafeInteger);
+      if (lower<T>()) ChangeOp(node, AdditiveSafeIntegerOverflowOp(node));
       return;
     }
 
-    // default case => Float64Add/Sub
+    // Default case => Float64Add/Sub
     VisitBinop<T>(node,
                   UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
                                                            FeedbackSource()),
@@ -2656,6 +2711,8 @@ class RepresentationSelector {
         return VisitSpeculativeSmallIntegerAdditiveOp<T>(node, truncation,
                                                          lowering);
 
+      case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+      case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
       case IrOpcode::kSpeculativeNumberAdd:
       case IrOpcode::kSpeculativeNumberSubtract:
         return VisitSpeculativeAdditiveOp<T>(node, truncation, lowering);
@@ -2721,6 +2778,7 @@ class RepresentationSelector {
             }
             return;
           case NumberOperationHint::kSignedSmallInputs:
+          case NumberOperationHint::kAdditiveSafeInteger:
             // This doesn't make sense for compare operations.
             UNREACHABLE();
           case NumberOperationHint::kNumberOrOddball:
@@ -4182,6 +4240,7 @@ class RepresentationSelector {
                              p.hint(), kDistinguishZeros, p.feedback()),
                          MachineRepresentation::kWord32, Type::Signed32());
             break;
+          case NumberOperationHint::kAdditiveSafeInteger:
           case NumberOperationHint::kNumber:
           case NumberOperationHint::kNumberOrBoolean:
           case NumberOperationHint::kNumberOrOddball:

@@ -71,6 +71,11 @@ struct Word64T : IntegralT {
   static const MachineRepresentation kMachineRepresentation =
       MachineRepresentation::kWord64;
 };
+
+struct AdditiveSafeIntegerT : Word64T {
+  static constexpr MachineType kMachineType = MachineType::Int64();
+};
+
 struct Int64T : Word64T {
   static constexpr MachineType kMachineType = MachineType::Int64();
 };
@@ -322,6 +327,10 @@ struct types_have_common_values<Int32T, U> {
 };
 template <class U>
 struct types_have_common_values<Uint64T, U> {
+  static const bool value = types_have_common_values<Word64T, U>::value;
+};
+template <class U>
+struct types_have_common_values<AdditiveSafeIntegerT, U> {
   static const bool value = types_have_common_values<Word64T, U>::value;
 };
 template <class U>

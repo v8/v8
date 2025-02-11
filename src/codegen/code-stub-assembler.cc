@@ -6795,6 +6795,42 @@ TNode<Int32T> CodeStubAssembler::TryFloat64ToInt32(TNode<Float64T> value,
   return value32;
 }
 
+TNode<AdditiveSafeIntegerT> CodeStubAssembler::TryFloat64ToAdditiveSafeInteger(
+    TNode<Float64T> value, Label* if_failed) {
+  DCHECK(Is64());
+  TNode<Int64T> value_int64 = TruncateFloat64ToInt64(value);
+  TNode<Float64T> value_roundtrip = ChangeInt64ToFloat64(value_int64);
+  Label if_int64(this);
+  GotoIfNot(Float64Equal(value, value_roundtrip), if_failed);
+  GotoIfNot(Word64Equal(value_int64, Int64Constant(0)), &if_int64);
+
+  // if (value == -0.0)
+  Branch(Word64Equal(BitcastFloat64ToInt64(value), Int64Constant(0)), &if_int64,
+         if_failed);
+
+  BIND(&if_int64);
+  // Check if AdditiveSafeInteger: (value - kMinAdditiveSafeInteger) >> 53 == 0
+  TNode<Int64T> shifted_value =
+      Word64Shr(Int64Sub(value_int64, Int64Constant(kMinAdditiveSafeInteger)),
+                Uint64Constant(kAdditiveSafeIntegerBitLength));
+  GotoIfNot(Word64Equal(shifted_value, Int64Constant(0)), if_failed);
+  return UncheckedCast<AdditiveSafeIntegerT>(value_int64);
+}
+
+TNode<BoolT> CodeStubAssembler::IsAdditiveSafeInteger(TNode<Float64T> value) {
+  if (!Is64()) return BoolConstant(false);
+
+  Label done(this);
+  TVARIABLE(BoolT, result, BoolConstant(false));
+
+  TryFloat64ToAdditiveSafeInteger(value, &done);
+  result = BoolConstant(true);
+  Goto(&done);
+
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Float16RawBitsT> CodeStubAssembler::TruncateFloat64ToFloat16(
     TNode<Float64T> value) {
   TVARIABLE(Float16RawBitsT, float16_out);

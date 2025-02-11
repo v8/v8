@@ -83,9 +83,9 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kPositiveIntegerOrMinusZeroOrNaN =
       Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 
-  Type const kAdditiveSafeInteger =
-      CreateRange(-4503599627370495.0, 4503599627370495.0);
   Type const kSafeInteger = CreateRange(-kMaxSafeInteger, kMaxSafeInteger);
+  Type const kAdditiveSafeInteger =
+      CreateRange(kMinAdditiveSafeInteger, kMaxAdditiveSafeInteger);
   Type const kAdditiveSafeIntegerOrMinusZero =
       Type::Union(kAdditiveSafeInteger, Type::MinusZero(), zone());
   Type const kSafeIntegerOrMinusZero =

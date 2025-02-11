@@ -6,6 +6,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -316,6 +317,8 @@ size_t hash_value(CheckTaggedInputMode mode) {
 
 std::ostream& operator<<(std::ostream& os, CheckTaggedInputMode mode) {
   switch (mode) {
+    case CheckTaggedInputMode::kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case CheckTaggedInputMode::kNumber:
       return os << "Number";
     case CheckTaggedInputMode::kNumberOrBoolean:
@@ -572,6 +575,8 @@ std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
       return os << "SignedSmall";
     case NumberOperationHint::kSignedSmallInputs:
       return os << "SignedSmallInputs";
+    case NumberOperationHint::kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case NumberOperationHint::kNumber:
       return os << "Number";
     case NumberOperationHint::kNumberOrBoolean:
@@ -602,6 +607,8 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberEqual ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual ||
+         op->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerAdd ||
+         op->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract ||
          op->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
          op->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract);
   return OpParameter<NumberOperationHint>(op);
@@ -752,8 +759,10 @@ bool operator==(CheckTaggedInputParameters const& lhs,
 
 const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kCheckedTaggedToInt32 ||
+         op->opcode() == IrOpcode::kCheckedTaggedToAdditiveSafeInteger ||
          op->opcode() == IrOpcode::kCheckedTaggedToInt64 ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt32 ||
+         op->opcode() == IrOpcode::kCheckedFloat64ToAdditiveSafeInteger ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt64);
   return OpParameter<CheckMinusZeroParameters>(op);
 }
@@ -960,6 +969,8 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckedInt32Sub, 2, 1)                \
   V(CheckedUint32Div, 2, 1)               \
   V(CheckedUint32Mod, 2, 1)               \
+  V(CheckedAdditiveSafeIntegerAdd, 2, 1)  \
+  V(CheckedAdditiveSafeIntegerSub, 2, 1)  \
   V(CheckedInt64Add, 2, 1)                \
   V(CheckedInt64Sub, 2, 1)                \
   V(CheckedInt64Mul, 2, 1)                \
@@ -1138,6 +1149,23 @@ struct SimplifiedOperatorGlobalCache final {
       kCheckedFloat64ToInt32DontCheckForMinusZeroOperator;
 
   template <CheckForMinusZeroMode kMode>
+  struct CheckedFloat64ToAdditiveSafeIntegerOperator final
+      : public Operator1<CheckMinusZeroParameters> {
+    CheckedFloat64ToAdditiveSafeIntegerOperator()
+        : Operator1<CheckMinusZeroParameters>(
+              IrOpcode::kCheckedFloat64ToAdditiveSafeInteger,
+              Operator::kFoldable | Operator::kNoThrow,
+              "CheckedFloat64ToAdditiveSafeInteger", 1, 1, 1, 1, 1, 0,
+              CheckMinusZeroParameters(kMode, FeedbackSource())) {}
+  };
+  CheckedFloat64ToAdditiveSafeIntegerOperator<
+      CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedFloat64ToAddSafeIntCheckForMinusZeroOperator;
+  CheckedFloat64ToAdditiveSafeIntegerOperator<
+      CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedFloat64ToAddSafeIntDontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
   struct CheckedFloat64ToInt64Operator final
       : public Operator1<CheckMinusZeroParameters> {
     CheckedFloat64ToInt64Operator()
@@ -1166,6 +1194,23 @@ struct SimplifiedOperatorGlobalCache final {
       kCheckedTaggedToInt32CheckForMinusZeroOperator;
   CheckedTaggedToInt32Operator<CheckForMinusZeroMode::kDontCheckForMinusZero>
       kCheckedTaggedToInt32DontCheckForMinusZeroOperator;
+
+  template <CheckForMinusZeroMode kMode>
+  struct CheckedTaggedToAdditiveSafeIntegerOperator final
+      : public Operator1<CheckMinusZeroParameters> {
+    CheckedTaggedToAdditiveSafeIntegerOperator()
+        : Operator1<CheckMinusZeroParameters>(
+              IrOpcode::kCheckedTaggedToAdditiveSafeInteger,
+              Operator::kFoldable | Operator::kNoThrow,
+              "CheckedTaggedToAdditiveSafeInteger", 1, 1, 1, 1, 1, 0,
+              CheckMinusZeroParameters(kMode, FeedbackSource())) {}
+  };
+  CheckedTaggedToAdditiveSafeIntegerOperator<
+      CheckForMinusZeroMode::kCheckForMinusZero>
+      kCheckedTaggedToAddSafeIntCheckForMinusZeroOperator;
+  CheckedTaggedToAdditiveSafeIntegerOperator<
+      CheckForMinusZeroMode::kDontCheckForMinusZero>
+      kCheckedTaggedToAddSafeIntDontCheckForMinusZeroOperator;
 
   template <CheckForMinusZeroMode kMode>
   struct CheckedTaggedToInt64Operator final
@@ -1209,6 +1254,9 @@ struct SimplifiedOperatorGlobalCache final {
               "CheckedTruncateTaggedToWord32", 1, 1, 1, 1, 1, 0,
               CheckTaggedInputParameters(kMode, FeedbackSource())) {}
   };
+  CheckedTruncateTaggedToWord32Operator<
+      CheckTaggedInputMode::kAdditiveSafeInteger>
+      kCheckedTruncateTaggedToWord32AdditiveSafeIntegerOperator;
   CheckedTruncateTaggedToWord32Operator<CheckTaggedInputMode::kNumber>
       kCheckedTruncateTaggedToWord32NumberOperator;
   CheckedTruncateTaggedToWord32Operator<CheckTaggedInputMode::kNumberOrOddball>
@@ -1325,20 +1373,22 @@ struct SimplifiedOperatorGlobalCache final {
 
 #endif
 
-#define SPECULATIVE_NUMBER_BINOP(Name)                                      \
-  template <NumberOperationHint kHint>                                      \
-  struct Name##Operator final : public Operator1<NumberOperationHint> {     \
-    Name##Operator()                                                        \
-        : Operator1<NumberOperationHint>(                                   \
-              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow,  \
-              #Name, 2, 1, 1, 1, 1, 0, kHint) {}                            \
-  };                                                                        \
-  Name##Operator<NumberOperationHint::kSignedSmall>                         \
-      k##Name##SignedSmallOperator;                                         \
-  Name##Operator<NumberOperationHint::kSignedSmallInputs>                   \
-      k##Name##SignedSmallInputsOperator;                                   \
-  Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;     \
-  Name##Operator<NumberOperationHint::kNumberOrOddball>                     \
+#define SPECULATIVE_NUMBER_BINOP(Name)                                     \
+  template <NumberOperationHint kHint>                                     \
+  struct Name##Operator final : public Operator1<NumberOperationHint> {    \
+    Name##Operator()                                                       \
+        : Operator1<NumberOperationHint>(                                  \
+              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, \
+              #Name, 2, 1, 1, 1, 1, 0, kHint) {}                           \
+  };                                                                       \
+  Name##Operator<NumberOperationHint::kSignedSmall>                        \
+      k##Name##SignedSmallOperator;                                        \
+  Name##Operator<NumberOperationHint::kSignedSmallInputs>                  \
+      k##Name##SignedSmallInputsOperator;                                  \
+  Name##Operator<NumberOperationHint::kAdditiveSafeInteger>                \
+      k##Name##SafeIntOperator;                                            \
+  Name##Operator<NumberOperationHint::kNumber> k##Name##NumberOperator;    \
+  Name##Operator<NumberOperationHint::kNumberOrOddball>                    \
       k##Name##NumberOrOddballOperator;
   SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 #undef SPECULATIVE_NUMBER_BINOP
@@ -1737,6 +1787,23 @@ const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToInt32(
       1, 1, 1, 0, CheckMinusZeroParameters(mode, feedback));
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToAdditiveSafeInteger(
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckForMinusZeroMode::kCheckForMinusZero:
+        return &cache_.kCheckedFloat64ToAddSafeIntCheckForMinusZeroOperator;
+      case CheckForMinusZeroMode::kDontCheckForMinusZero:
+        return &cache_.kCheckedFloat64ToAddSafeIntDontCheckForMinusZeroOperator;
+    }
+  }
+  return zone()->New<Operator1<CheckMinusZeroParameters>>(
+      IrOpcode::kCheckedFloat64ToAdditiveSafeInteger,
+      Operator::kFoldable | Operator::kNoThrow,
+      "CheckedFloat64ToAdditiveSafeInteger", 1, 1, 1, 1, 1, 0,
+      CheckMinusZeroParameters(mode, feedback));
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckedFloat64ToInt64(
     CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1769,6 +1836,23 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt32(
       CheckMinusZeroParameters(mode, feedback));
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckedTaggedToAdditiveSafeInteger(
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case CheckForMinusZeroMode::kCheckForMinusZero:
+        return &cache_.kCheckedTaggedToAddSafeIntCheckForMinusZeroOperator;
+      case CheckForMinusZeroMode::kDontCheckForMinusZero:
+        return &cache_.kCheckedTaggedToAddSafeIntDontCheckForMinusZeroOperator;
+    }
+  }
+  return zone()->New<Operator1<CheckMinusZeroParameters>>(
+      IrOpcode::kCheckedTaggedToAdditiveSafeInteger,
+      Operator::kFoldable | Operator::kNoThrow,
+      "CheckedTaggedToAdditiveSafeInteger", 1, 1, 1, 1, 1, 0,
+      CheckMinusZeroParameters(mode, feedback));
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckedTaggedToInt64(
     CheckForMinusZeroMode mode, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1789,6 +1873,8 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
     CheckTaggedInputMode mode, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
     switch (mode) {
+      case CheckTaggedInputMode::kAdditiveSafeInteger:
+        UNREACHABLE();
       case CheckTaggedInputMode::kNumber:
         return &cache_.kCheckedTaggedToFloat64NumberOperator;
       case CheckTaggedInputMode::kNumberOrBoolean:
@@ -1807,6 +1893,9 @@ const Operator* SimplifiedOperatorBuilder::CheckedTruncateTaggedToWord32(
     CheckTaggedInputMode mode, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
     switch (mode) {
+      case CheckTaggedInputMode::kAdditiveSafeInteger:
+        return &cache_
+                    .kCheckedTruncateTaggedToWord32AdditiveSafeIntegerOperator;
       case CheckTaggedInputMode::kNumber:
         return &cache_.kCheckedTruncateTaggedToWord32NumberOperator;
       case CheckTaggedInputMode::kNumberOrBoolean:
@@ -1948,6 +2037,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
         return &cache_.kSpeculativeToNumberSignedSmallOperator;
       case NumberOperationHint::kSignedSmallInputs:
         break;
+      case NumberOperationHint::kAdditiveSafeInteger:
       case NumberOperationHint::kNumber:
         return &cache_.kSpeculativeToNumberNumberOperator;
       case NumberOperationHint::kNumberOrBoolean:
@@ -2204,6 +2294,8 @@ const Operator* SimplifiedOperatorBuilder::AllocateRaw(
         return &cache_.k##Name##SignedSmallOperator;                          \
       case NumberOperationHint::kSignedSmallInputs:                           \
         return &cache_.k##Name##SignedSmallInputsOperator;                    \
+      case NumberOperationHint::kAdditiveSafeInteger:                         \
+        return &cache_.k##Name##SafeIntOperator;                              \
       case NumberOperationHint::kNumber:                                      \
         return &cache_.k##Name##NumberOperator;                               \
       case NumberOperationHint::kNumberOrBoolean:                             \
@@ -2226,6 +2318,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
       return &cache_.kSpeculativeNumberEqualSignedSmallOperator;
     case NumberOperationHint::kSignedSmallInputs:
       return &cache_.kSpeculativeNumberEqualSignedSmallInputsOperator;
+    case NumberOperationHint::kAdditiveSafeInteger:
     case NumberOperationHint::kNumber:
       return &cache_.kSpeculativeNumberEqualNumberOperator;
     case NumberOperationHint::kNumberOrBoolean:

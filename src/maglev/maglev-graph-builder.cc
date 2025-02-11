@@ -2514,6 +2514,7 @@ BinopHintToNodeTypeAndConversionType(BinaryOperationHint hint) {
       return std::make_tuple(NodeType::kSmi,
                              TaggedToFloat64ConversionType::kOnlyNumber);
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
       return std::make_tuple(NodeType::kNumber,
                              TaggedToFloat64ConversionType::kOnlyNumber);
@@ -2541,6 +2542,7 @@ ReduceResult MaglevGraphBuilder::VisitUnaryOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
       auto [allowed_input_type, conversion_type] =
@@ -2810,6 +2812,7 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
       auto [allowed_input_type, conversion_type] =
@@ -2872,6 +2875,7 @@ ReduceResult MaglevGraphBuilder::VisitBinarySmiOperation() {
           DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball: {
       const auto [allowed_input_type, conversion_type] =
@@ -12114,6 +12118,7 @@ ReduceResult MaglevGraphBuilder::BuildToNumberOrToNumeric(
       RETURN_IF_ABORT(BuildCheckSmi(value));
       break;
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
       UNREACHABLE();
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kBigInt:

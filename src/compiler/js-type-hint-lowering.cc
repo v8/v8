@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-type-hint-lowering.h"
 
+#include "src/base/logging.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/opcodes.h"
@@ -25,6 +26,9 @@ bool BinaryOperationHintToNumberOperationHint(
       return true;
     case BinaryOperationHint::kSignedSmallInputs:
       *number_hint = NumberOperationHint::kSignedSmallInputs;
+      return true;
+    case BinaryOperationHint::kAdditiveSafeInteger:
+      *number_hint = NumberOperationHint::kAdditiveSafeInteger;
       return true;
     case BinaryOperationHint::kNumber:
       *number_hint = NumberOperationHint::kNumber;
@@ -48,6 +52,7 @@ bool BinaryOperationHintToBigIntOperationHint(
   switch (binop_hint) {
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball:
     case BinaryOperationHint::kAny:
@@ -146,12 +151,16 @@ class JSSpeculativeBinopBuilder final {
       case IrOpcode::kJSAdd:
         if (hint == NumberOperationHint::kSignedSmall) {
           return simplified()->SpeculativeSmallIntegerAdd(hint);
+        } else if (hint == NumberOperationHint::kAdditiveSafeInteger) {
+          return simplified()->SpeculativeAdditiveSafeIntegerAdd(hint);
         } else {
           return simplified()->SpeculativeNumberAdd(hint);
         }
       case IrOpcode::kJSSubtract:
         if (hint == NumberOperationHint::kSignedSmall) {
           return simplified()->SpeculativeSmallIntegerSubtract(hint);
+        } else if (hint == NumberOperationHint::kAdditiveSafeInteger) {
+          return simplified()->SpeculativeAdditiveSafeIntegerSubtract(hint);
         } else {
           return simplified()->SpeculativeNumberSubtract(hint);
         }

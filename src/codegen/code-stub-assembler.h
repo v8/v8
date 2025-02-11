@@ -2597,6 +2597,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
   TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
   TNode<Int32T> TryFloat64ToInt32(TNode<Float64T> number, Label* if_failed);
+  TNode<AdditiveSafeIntegerT> TryFloat64ToAdditiveSafeInteger(
+      TNode<Float64T> number, Label* if_failed);
+
+  TNode<BoolT> IsAdditiveSafeInteger(TNode<Float64T> number);
 
   TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16RawBitsT> value);
   TNode<Float16RawBitsT> BitcastUint32ToFloat16(TNode<Uint32T> value);
@@ -2905,6 +2909,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #else
     return BoolConstant(false);
 #endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+  }
+
+  TNode<BoolT> IsAdditiveSafeIntegerFeedbackEnabled() {
+    if (Is64()) {
+      return LoadRuntimeFlag(
+          ExternalReference::additive_safe_int_feedback_flag());
+    } else {
+      return BoolConstant(false);
+    }
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

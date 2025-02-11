@@ -2289,6 +2289,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt64,
     kFloat64ToInt32,
     kFloat64ToUint32,
+    kFloat64ToAdditiveSafeInteger,
     kFloat64ToInt64,
     kFloat64NotHole,
   };
@@ -2306,6 +2307,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kFloat64ToUint32:
         return RepVector<RegisterRepresentation::Word32()>();
       case Kind::kUint64ToInt64:
+      case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case Kind::kFloat64NotHole:
@@ -2324,6 +2326,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
         return MaybeRepVector<MaybeRegisterRepresentation::Word64()>();
       case Kind::kFloat64ToInt32:
       case Kind::kFloat64ToUint32:
+      case Kind::kFloat64ToAdditiveSafeInteger:
       case Kind::kFloat64ToInt64:
       case Kind::kFloat64NotHole:
         return MaybeRepVector<MaybeRegisterRepresentation::Float64()>();
@@ -4933,11 +4936,13 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     : FixedArityOperationT<2, ConvertJSPrimitiveToUntaggedOrDeoptOp> {
   enum class UntaggedKind : uint8_t {
     kInt32,
+    kAdditiveSafeInteger,
     kInt64,
     kFloat64,
     kArrayIndex,
   };
   enum class JSPrimitiveKind : uint8_t {
+    kAdditiveSafeInteger,
     kNumber,
     kNumberOrBoolean,
     kNumberOrOddball,
@@ -4956,6 +4961,7 @@ struct ConvertJSPrimitiveToUntaggedOrDeoptOp
     switch (to_kind) {
       case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
+      case UntaggedKind::kAdditiveSafeInteger:
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:

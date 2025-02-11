@@ -234,6 +234,7 @@ enum class IsolateFieldId : uint8_t;
     "v8_flags.script_context_mutable_heap_number")                             \
   V(script_context_mutable_heap_int32_flag,                                    \
     "v8_flags.script_context_mutable_heap_int32")                              \
+  V(additive_safe_int_feedback_flag, "v8_flags.additive_safe_int_feedback")    \
   V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
   V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \

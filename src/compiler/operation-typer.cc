@@ -705,6 +705,25 @@ Type OperationTyper::NumberSubtract(Type lhs, Type rhs) {
   return type;
 }
 
+Type OperationTyper::SpeculativeAdditiveSafeIntegerAdd(Type lhs, Type rhs) {
+  Type result = SpeculativeNumberAdd(lhs, rhs);
+  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
+      rhs.Is(cache_->kAdditiveSafeInteger)) {
+    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
+  }
+  return result;
+}
+
+Type OperationTyper::SpeculativeAdditiveSafeIntegerSubtract(Type lhs,
+                                                            Type rhs) {
+  Type result = SpeculativeNumberSubtract(lhs, rhs);
+  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
+      rhs.Is(cache_->kAdditiveSafeInteger)) {
+    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
+  }
+  return result;
+}
+
 Type OperationTyper::SpeculativeSmallIntegerAdd(Type lhs, Type rhs) {
   Type result = SpeculativeNumberAdd(lhs, rhs);
   // If we have a Smi or Int32 feedback, the representation selection will

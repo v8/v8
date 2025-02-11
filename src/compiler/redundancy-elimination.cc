@@ -60,6 +60,8 @@ Reduction RedundancyElimination::Reduce(Node* node) {
       return ReduceSpeculativeNumberComparison(node);
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
     case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kSpeculativeToNumber:
@@ -247,8 +249,10 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckedUint64ToTaggedSigned:
           break;
         case IrOpcode::kCheckedFloat64ToInt32:
+        case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger:
         case IrOpcode::kCheckedFloat64ToInt64:
         case IrOpcode::kCheckedTaggedToInt32:
+        case IrOpcode::kCheckedTaggedToAdditiveSafeInteger:
         case IrOpcode::kCheckedTaggedToInt64: {
           const CheckMinusZeroParameters& ap =
               CheckMinusZeroParametersOf(a->op());
@@ -448,6 +452,8 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberComparison(Node* node) {
 Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract ||
          node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
          node->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract ||
          node->opcode() == IrOpcode::kSpeculativeToNumber);

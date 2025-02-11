@@ -132,6 +132,7 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kSigned64,
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrBoolean,
   kNumberOrOddball,
@@ -151,6 +152,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Signed32";
     case TypeCheckKind::kSigned64:
       return os << "Signed64";
+    case TypeCheckKind::kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case TypeCheckKind::kNumber:
       return os << "Number";
     case TypeCheckKind::kNumberOrBoolean:
@@ -197,6 +200,7 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
+
   static UseInfo TruncatingWord64() {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
   }
@@ -242,7 +246,17 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kFloat16,
                    Truncation::OddballAndBigIntToNumber(identify_zeros));
   }
-
+  static UseInfo CheckedSafeIntTruncatingWord32(
+      const FeedbackSource& feedback) {
+    DCHECK(Is64());
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kAdditiveSafeInteger, feedback);
+  }
+  static UseInfo CheckedSafeIntAsWord64(const FeedbackSource& feedback) {
+    DCHECK(Is64());
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
+                   TypeCheckKind::kAdditiveSafeInteger, feedback);
+  }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
   }

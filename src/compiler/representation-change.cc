@@ -13,6 +13,7 @@
 #include "src/compiler/simplified-lowering-verifier.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/use-info.h"
 #include "src/heap/factory-inl.h"
 
 namespace v8 {
@@ -265,6 +266,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kWord64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
              use_info.type_check() == TypeCheckKind::kSigned64 ||
+             use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger ||
              TypeCheckIsBigInt(use_info.type_check()) ||
              use_info.type_check() == TypeCheckKind::kArrayIndex);
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
@@ -787,6 +789,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       case TypeCheckKind::kSigned64:
       case TypeCheckKind::kSignedSmall:
       case TypeCheckKind::kArrayIndex:
+      case TypeCheckKind::kAdditiveSafeInteger:
         break;
     }
   }
@@ -1013,6 +1016,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (output_type.Is(Type::NumberOrOddballOrHole())) {
         op = simplified()->TruncateTaggedToWord32();
+      } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+        op = simplified()->CheckedTruncateTaggedToWord32(
+            CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kNumber, use_info.feedback());
@@ -1045,7 +1051,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);
       }
-    } else if (use_info.type_check() == TypeCheckKind::kNumber ||
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger ||
+               use_info.type_check() == TypeCheckKind::kNumber ||
                use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       return node;
     }
@@ -1279,6 +1286,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
           use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      node = InsertChangeFloat32ToFloat64(node);
+      op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1293,6 +1307,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     } else if (use_info.type_check() == TypeCheckKind::kSigned64 ||
                use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedFloat64ToInt64(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
@@ -1329,6 +1349,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      op = simplified()->CheckedTaggedToAdditiveSafeInteger(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1370,10 +1396,12 @@ const Operator* RepresentationChanger::Int32OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
     case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Int32Add();
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
     case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
@@ -1420,6 +1448,18 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
       return simplified()->CheckedInt32Div();
     case IrOpcode::kSpeculativeNumberModulus:
       return simplified()->CheckedInt32Mod();
+    default:
+      UNREACHABLE();
+  }
+}
+
+const Operator* RepresentationChanger::AdditiveSafeIntegerOverflowOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+      return simplified()->CheckedAdditiveSafeIntegerAdd();
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+      return simplified()->CheckedAdditiveSafeIntegerSub();
     default:
       UNREACHABLE();
   }
@@ -1579,10 +1619,12 @@ const Operator* RepresentationChanger::Float64OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
     case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Float64Add();
     case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
     case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Float64Sub();

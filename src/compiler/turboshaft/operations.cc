@@ -419,6 +419,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Float64ToInt32";
     case ChangeOrDeoptOp::Kind::kFloat64ToUint32:
       return os << "Float64ToUint32";
+    case ChangeOrDeoptOp::Kind::kFloat64ToAdditiveSafeInteger:
+      return os << "Float64ToAdditiveSafeInteger";
     case ChangeOrDeoptOp::Kind::kFloat64ToInt64:
       return os << "Float64ToInt64";
     case ChangeOrDeoptOp::Kind::kFloat64NotHole:
@@ -1315,6 +1317,9 @@ std::ostream& operator<<(
   switch (kind) {
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
       return os << "Int32";
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::
+        kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64:
       return os << "Int64";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64:
@@ -1328,6 +1333,9 @@ std::ostream& operator<<(
     std::ostream& os,
     ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind) {
   switch (kind) {
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::

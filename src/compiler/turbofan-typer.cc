@@ -1119,6 +1119,8 @@ bool Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint(
       CASE(NumberSubtract)
       CASE(SpeculativeNumberAdd)
       CASE(SpeculativeNumberSubtract)
+      CASE(SpeculativeAdditiveSafeIntegerAdd)
+      CASE(SpeculativeAdditiveSafeIntegerSubtract)
       CASE(SpeculativeSmallIntegerAdd)
       CASE(SpeculativeSmallIntegerSubtract)
 #undef CASE
