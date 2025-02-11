@@ -2423,9 +2423,17 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   FrameState constructor_frame_state =
       PromiseConstructorFrameState(frame_state_params, common(), graph());
 
-  ThrowIfNotCallable(executor,
-                     PromiseConstructorLazyFrameState(frame_state_params,
-                                                      constructor_frame_state));
+  IfNot(ObjectIsCallable(executor))
+      .Then((_ {
+        JSCallRuntime2(
+            Runtime::kThrowTypeError,
+            SmiConstant(
+                Smi::FromEnum(MessageTemplate::kResolverNotAFunction).value()),
+            executor, context,
+            PromiseConstructorLazyFrameState(frame_state_params,
+                                             constructor_frame_state));
+      }))
+      .ExpectTrue();
 
   TNode<JSPromise> promise = CreatePromise(context);
 

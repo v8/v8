@@ -94,8 +94,9 @@ Node* GraphAssembler::UniqueIntPtrConstant(intptr_t value) {
           : common()->Int32Constant(static_cast<int32_t>(value))));
 }
 
-Node* JSGraphAssembler::SmiConstant(int32_t value) {
-  return AddClonedNode(jsgraph()->SmiConstant(value));
+TNode<Smi> JSGraphAssembler::SmiConstant(int32_t value) {
+  return TNode<Smi>::UncheckedCast(
+      AddClonedNode(jsgraph()->SmiConstant(value)));
 }
 
 Node* GraphAssembler::Float64Constant(double value) {

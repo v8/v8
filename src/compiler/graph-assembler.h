@@ -967,7 +967,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
     outermost_catch_scope_.set_gasm(this);
   }
 
-  Node* SmiConstant(int32_t value);
+  TNode<Smi> SmiConstant(int32_t value);
   TNode<HeapObject> HeapConstant(Handle<HeapObject> object);
   TNode<Object> Constant(ObjectRef ref);
   TNode<Number> NumberConstant(double value);
