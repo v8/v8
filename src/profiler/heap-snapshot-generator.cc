@@ -538,23 +538,25 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableNativeId = 2;
 
 namespace {
 
+const v8::String::ExternalStringResourceBase* GetExternalStringResource(
+    Tagged<ExternalString> object, PtrComprCageBase cage_base) {
+  if (IsExternalOneByteString(object, cage_base)) {
+    return Cast<ExternalOneByteString>(object)->resource();
+  }
+  return Cast<ExternalTwoByteString>(object)->resource();
+}
+
 int ExternalStringSizeForSnapshot(Tagged<ExternalString> object,
                                   PtrComprCageBase cage_base) {
-  int external_size = 0;
-  if (IsExternalOneByteString(object, cage_base)) {
-    const ExternalOneByteString::Resource* resource =
-        Cast<ExternalOneByteString>(object)->resource();
-    if (resource) {
-      external_size = resource->EstimateMemoryUsage();
-    }
-  } else {
-    const ExternalTwoByteString::Resource* resource =
-        Cast<ExternalTwoByteString>(object)->resource();
-    if (resource) {
-      external_size = resource->EstimateMemoryUsage();
-    }
+  const v8::String::ExternalStringResourceBase* resource =
+      GetExternalStringResource(object, cage_base);
+  size_t external_string_size = resource ? resource->EstimateMemoryUsage() : 0;
+  if (external_string_size ==
+      v8::String::ExternalStringResourceBase::kDefaultMemoryEstimate) {
+    return object->ExternalPayloadSize();
   }
-  return external_size == -1 ? object->ExternalPayloadSize() : external_size;
+  DCHECK_LE(external_string_size, std::numeric_limits<int>::max());
+  return base::saturated_cast<int>(external_string_size);
 }
 
 int SizeForSnapshot(Tagged<HeapObject> object, PtrComprCageBase cage_base) {
@@ -1539,6 +1541,54 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                        JSObject::kElementsOffset);
 }
 
+namespace {
+
+class ExternalDataEntryAllocator : public HeapEntriesAllocator {
+ public:
+  ExternalDataEntryAllocator(size_t size, V8HeapExplorer* explorer,
+                             const char* name)
+      : size_(size), explorer_(explorer), name_(name) {}
+  HeapEntry* AllocateEntry(HeapThing ptr) override {
+    return explorer_->AddEntry(reinterpret_cast<Address>(ptr),
+                               HeapEntry::kNative, name_, size_);
+  }
+  HeapEntry* AllocateEntry(Tagged<Smi> smi) override { UNREACHABLE(); }
+
+ private:
+  size_t size_;
+  V8HeapExplorer* explorer_;
+  const char* name_;
+};
+
+class ExternalStringRecorder
+    : public v8::String::ExternalStringResourceBase::SharedMemoryUsageRecorder {
+ public:
+  ExternalStringRecorder(HeapEntry* entry, V8HeapExplorer* explorer,
+                         HeapSnapshotGenerator* generator,
+                         StringsStorage* names)
+      : entry_(entry),
+        explorer_(explorer),
+        generator_(generator),
+        names_(names) {}
+  void RecordSharedMemoryUsage(const void* location, size_t size) final {
+    ExternalDataEntryAllocator allocator(size, explorer_,
+                                         "system / ExternalStringData");
+    HeapEntry* data_entry =
+        generator_->FindOrAddEntry(const_cast<HeapThing>(location), &allocator);
+    entry_->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
+                                       "backing_store", data_entry, names_,
+                                       generator_, HeapEntry::kOffHeapPointer);
+  }
+
+ private:
+  HeapEntry* entry_;
+  V8HeapExplorer* explorer_;
+  HeapSnapshotGenerator* generator_;
+  StringsStorage* names_;
+};
+
+}  // namespace
+
 void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                                              Tagged<String> string) {
   if (IsConsString(string)) {
@@ -1555,6 +1605,13 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
     Tagged<ThinString> ts = Cast<ThinString>(string);
     SetInternalReference(entry, "actual", ts->actual(),
                          offsetof(ThinString, actual_));
+  } else if (IsExternalString(string)) {
+    Tagged<ExternalString> es = Cast<ExternalString>(string);
+    if (const v8::String::ExternalStringResourceBase* resource =
+            GetExternalStringResource(es, isolate())) {
+      ExternalStringRecorder recorder(entry, this, generator_, names_);
+      resource->EstimateSharedMemoryUsage(&recorder);
+    }
   }
 }
 
@@ -1948,31 +2005,13 @@ void V8HeapExplorer::ExtractRegExpBoilerplateDescriptionReferences(
   TagObject(value->data(isolate()), "(RegExpData)", HeapEntry::kCode);
 }
 
-class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
- public:
-  JSArrayBufferDataEntryAllocator(size_t size, V8HeapExplorer* explorer)
-      : size_(size), explorer_(explorer) {}
-  HeapEntry* AllocateEntry(HeapThing ptr) override {
-    return explorer_->AddEntry(reinterpret_cast<Address>(ptr),
-                               HeapEntry::kNative, "system / JSArrayBufferData",
-                               size_);
-  }
-  HeapEntry* AllocateEntry(Tagged<Smi> smi) override {
-    DCHECK(false);
-    return nullptr;
-  }
-
- private:
-  size_t size_;
-  V8HeapExplorer* explorer_;
-};
-
 void V8HeapExplorer::ExtractJSArrayBufferReferences(
     HeapEntry* entry, Tagged<JSArrayBuffer> buffer) {
   // Setup a reference to a native memory backing_store object.
   if (!buffer->backing_store()) return;
   size_t data_size = buffer->byte_length();
-  JSArrayBufferDataEntryAllocator allocator(data_size, this);
+  ExternalDataEntryAllocator allocator(data_size, this,
+                                       "system / JSArrayBufferData");
   HeapEntry* data_entry =
       generator_->FindOrAddEntry(buffer->backing_store(), &allocator);
   entry->SetNamedReference(HeapGraphEdge::kInternal, "backing_store",

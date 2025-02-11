@@ -309,10 +309,34 @@ class V8_EXPORT String : public Name {
 
     /**
      * Returns an estimate of the memory occupied by this external string, to be
-     * used by V8 when producing a heap snapshot. If this function returns -1,
-     * then V8 will estimate the external size based on the string length.
+     * used by V8 when producing a heap snapshot. If this function returns
+     * kDefaultMemoryEstimate, then V8 will estimate the external size based on
+     * the string length. This function should return only memory that is
+     * uniquely owned by this resource. If the resource has shared ownership of
+     * a secondary allocation, it can report that memory by implementing
+     * EstimateSharedMemoryUsage.
      */
-    virtual int EstimateMemoryUsage() const { return -1; }
+    virtual size_t EstimateMemoryUsage() const {
+      return kDefaultMemoryEstimate;
+    }
+    static constexpr size_t kDefaultMemoryEstimate = static_cast<size_t>(-1);
+
+    class V8_EXPORT SharedMemoryUsageRecorder {
+     public:
+      /**
+       * Record that a shared allocation at the given location has the given
+       * size.
+       */
+      virtual void RecordSharedMemoryUsage(const void* location,
+                                           size_t size) = 0;
+    };
+
+    /**
+     * Estimates memory that this string resource may share with other string
+     * resources, to be used by V8 when producing a heap snapshot.
+     */
+    virtual void EstimateSharedMemoryUsage(
+        SharedMemoryUsageRecorder* recorder) const {}
 
     // Disallow copying and assigning.
     ExternalStringResourceBase(const ExternalStringResourceBase&) = delete;

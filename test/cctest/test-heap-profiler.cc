@@ -652,10 +652,33 @@ class StringResourceReportingSize
     : public v8::String::ExternalOneByteStringResource {
  public:
   static constexpr char kString[] = "external string reporting size";
-  static const int kMemoryUsage = 5;
+  static const size_t kMemoryUsage = 5;
   const char* data() const final { return kString; }
   size_t length() const final { return strlen(kString); }
-  int EstimateMemoryUsage() const final { return kMemoryUsage; }
+  size_t EstimateMemoryUsage() const final { return kMemoryUsage; }
+};
+
+class StringResourceWithSecondaryStorage
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  StringResourceWithSecondaryStorage(std::shared_ptr<std::string> data,
+                                     std::shared_ptr<size_t> other_data)
+      : data_(std::move(data)), other_data_(std::move(other_data)) {}
+  const char* data() const final { return data_->c_str(); }
+  size_t length() const final { return data_->size(); }
+  size_t EstimateMemoryUsage() const final { return sizeof(*this); }
+  void EstimateSharedMemoryUsage(
+      SharedMemoryUsageRecorder* recorder) const final {
+    recorder->RecordSharedMemoryUsage(data_.get(),
+                                      sizeof(std::string) + length());
+    if (other_data_ != nullptr) {
+      recorder->RecordSharedMemoryUsage(other_data_.get(), sizeof(size_t));
+    }
+  }
+
+ private:
+  std::shared_ptr<std::string> data_;
+  std::shared_ptr<size_t> other_data_;
 };
 
 }  // namespace
@@ -668,38 +691,109 @@ TEST(HeapSnapshotExternalString) {
   v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
       CompileRun("(function (name, value) { globalThis[name] = value; })"));
 
+  auto add_global = [&](v8::Local<v8::String> name,
+                        v8::Local<v8::Value> value) {
+    v8::Local<v8::Value> args[2] = {name, value};
+    f->Call(env.local(), env->Global(), 2, args).ToLocalChecked();
+  };
+
   constexpr char kPropertyName1[] = "first external string";
-  v8::Local<v8::String> property_name_1 = v8_str(kPropertyName1);
-  v8::Local<v8::String> external_string_1 =
-      v8::String::NewExternalTwoByte(isolate,
-                                     new StringResourceNotReportingSize())
-          .ToLocalChecked();
-  v8::Local<v8::Value> args[2] = {property_name_1, external_string_1};
-  f->Call(env.local(), env->Global(), 2, args).ToLocalChecked();
+  add_global(v8_str(kPropertyName1),
+             v8::String::NewExternalTwoByte(
+                 isolate, new StringResourceNotReportingSize())
+                 .ToLocalChecked());
 
   constexpr char kPropertyName2[] = "second external string";
-  v8::Local<v8::String> property_name_2 = v8_str(kPropertyName2);
-  v8::Local<v8::String> external_string_2 =
+  add_global(
+      v8_str(kPropertyName2),
       v8::String::NewExternalOneByte(isolate, new StringResourceReportingSize())
-          .ToLocalChecked();
-  args[0] = property_name_2;
-  args[1] = external_string_2;
-  f->Call(env.local(), env->Global(), 2, args).ToLocalChecked();
+          .ToLocalChecked());
+
+  std::shared_ptr<std::string> shared_content_1 =
+      std::make_shared<std::string>("a shared string");
+  std::shared_ptr<std::string> shared_content_2 =
+      std::make_shared<std::string>("another shared string");
+  std::shared_ptr<size_t> shared_number = std::make_shared<size_t>();
+
+  constexpr char kPropertyName3[] = "third external string";
+  add_global(v8_str(kPropertyName3),
+             v8::String::NewExternalOneByte(
+                 isolate, new StringResourceWithSecondaryStorage(
+                              shared_content_1, shared_number))
+                 .ToLocalChecked());
+
+  constexpr char kPropertyName4[] = "fourth external string";
+  add_global(v8_str(kPropertyName4),
+             v8::String::NewExternalOneByte(
+                 isolate, new StringResourceWithSecondaryStorage(
+                              shared_content_1, nullptr))
+                 .ToLocalChecked());
+
+  constexpr char kPropertyName5[] = "fifth external string";
+  add_global(v8_str(kPropertyName5),
+             v8::String::NewExternalOneByte(
+                 isolate, new StringResourceWithSecondaryStorage(
+                              shared_content_2, shared_number))
+                 .ToLocalChecked());
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+
   const v8::HeapGraphNode* string_1 = GetProperty(
       isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName1);
   CHECK(string_1);
   CHECK_EQ(GetSize(string_1),
            sizeof(i::ExternalTwoByteString) +
                2 * strlen(StringResourceNotReportingSize::kNarrowString));
+
   const v8::HeapGraphNode* string_2 = GetProperty(
       isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName2);
   CHECK(string_2);
   CHECK_EQ(GetSize(string_2), sizeof(i::ExternalOneByteString) +
                                   StringResourceReportingSize::kMemoryUsage);
+
+  const v8::HeapGraphNode* string_3 = GetProperty(
+      isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName3);
+  CHECK(string_3);
+  CHECK_EQ(GetSize(string_3), sizeof(i::ExternalOneByteString) +
+                                  sizeof(StringResourceWithSecondaryStorage));
+  const v8::HeapGraphNode* string_3_data = GetProperty(
+      isolate, string_3, v8::HeapGraphEdge::kInternal, "1 / backing_store");
+  CHECK(string_3_data);
+  CHECK_EQ(GetSize(string_3_data),
+           sizeof(std::string) + shared_content_1->size());
+  const v8::HeapGraphNode* string_3_other_data = GetProperty(
+      isolate, string_3, v8::HeapGraphEdge::kInternal, "2 / backing_store");
+  CHECK(string_3_other_data);
+  CHECK_EQ(GetSize(string_3_other_data), sizeof(size_t));
+
+  const v8::HeapGraphNode* string_4 = GetProperty(
+      isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName4);
+  CHECK(string_4);
+  CHECK_EQ(GetSize(string_4), sizeof(i::ExternalOneByteString) +
+                                  sizeof(StringResourceWithSecondaryStorage));
+  const v8::HeapGraphNode* string_4_data = GetProperty(
+      isolate, string_4, v8::HeapGraphEdge::kInternal, "1 / backing_store");
+  CHECK_EQ(string_3_data, string_4_data);
+  const v8::HeapGraphNode* string_4_other_data = GetProperty(
+      isolate, string_4, v8::HeapGraphEdge::kInternal, "2 / backing_store");
+  CHECK_NULL(string_4_other_data);
+
+  const v8::HeapGraphNode* string_5 = GetProperty(
+      isolate, global, v8::HeapGraphEdge::kProperty, kPropertyName5);
+  CHECK(string_5);
+  CHECK_EQ(GetSize(string_5), sizeof(i::ExternalOneByteString) +
+                                  sizeof(StringResourceWithSecondaryStorage));
+  const v8::HeapGraphNode* string_5_data = GetProperty(
+      isolate, string_5, v8::HeapGraphEdge::kInternal, "1 / backing_store");
+  CHECK(string_5_data);
+  CHECK_EQ(GetSize(string_5_data),
+           sizeof(std::string) + shared_content_2->size());
+  const v8::HeapGraphNode* string_5_other_data = GetProperty(
+      isolate, string_5, v8::HeapGraphEdge::kInternal, "2 / backing_store");
+  CHECK_EQ(string_3_other_data, string_5_other_data);
+
   heap_profiler->DeleteAllHeapSnapshots();
 }
 
