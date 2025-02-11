@@ -809,8 +809,7 @@ void WebAssemblyCompileStreaming(
   // Create and assign the return value of this function.
   ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
   Local<Promise> promise = promise_resolver->GetPromise();
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(promise);
+  info.GetReturnValue().Set(promise);
 
   // Prepare the CompilationResultResolver for the compilation.
   auto resolver = std::make_shared<AsyncCompilationResolver>(isolate, context,
@@ -839,13 +838,12 @@ void WebAssemblyCompileStreaming(
 
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
+  std::shared_ptr<WasmStreaming> streaming = std::make_shared<WasmStreaming>(
+      std::make_unique<WasmStreaming::WasmStreamingImpl>(
+          i_isolate, js_api_scope.api_name(), std::move(compile_imports),
+          resolver));
   i::DirectHandle<i::Managed<WasmStreaming>> data =
-      i::Managed<WasmStreaming>::From(
-          i_isolate, 0,
-          std::make_shared<WasmStreaming>(
-              std::make_unique<WasmStreaming::WasmStreamingImpl>(
-                  i_isolate, js_api_scope.api_name(),
-                  std::move(compile_imports), resolver)));
+      i::Managed<WasmStreaming>::From(i_isolate, 0, streaming);
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
   ASSIGN(v8::Function, compile_callback,
@@ -864,11 +862,18 @@ void WebAssemblyCompileStreaming(
   ASSIGN(Promise::Resolver, input_resolver, Promise::Resolver::New(context));
   if (!input_resolver->Resolve(context, info[0]).IsJust()) return;
 
-  // We do not have any use of the result here. The {compile_callback} will
-  // start streaming compilation, which will eventually resolve the promise we
-  // set as result value.
-  USE(input_resolver->GetPromise()->Then(context, compile_callback,
-                                         reject_callback));
+  // Calling `then` on the promise can fail if the user monkey-patched stuff,
+  // see https://crbug.com/374820218.
+  // If this does not fail, then the {compile_callback} will start streaming
+  // compilation, which will eventually resolve the promise we set as result
+  // value.
+  if (input_resolver->GetPromise()
+          ->Then(context, compile_callback, reject_callback)
+          .IsEmpty()) {
+    streaming->Abort(MaybeLocal<Value>{});
+    info.GetReturnValue().SetUndefined();
+    return js_api_scope.AssertException();
+  }
 }
 
 // WebAssembly.validate(bytes, options) -> bool
