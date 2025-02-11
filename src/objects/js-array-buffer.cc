@@ -47,10 +47,15 @@ bool CanonicalNumericIndexString(Isolate* isolate,
 void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
                           std::shared_ptr<BackingStore> backing_store,
                           Isolate* isolate) {
-  if (shared == SharedFlag::kShared) {
-    isolate->CountUsage(
-        v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
-  }
+  auto finish_setup = [shared, isolate]() {
+    // Count usage may lead to a blink allocation, through the callback, which
+    // may trigger a GC. It is important to delay this, until the array buffer
+    // is properly initialized.
+    if (shared == SharedFlag::kShared) {
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
+    }
+  };
   clear_padding();
   init_extension();
   set_detach_key(ReadOnlyRoots(isolate).undefined_value());
@@ -67,9 +72,10 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
     set_max_byte_length(0);
+    finish_setup();
     return;
   }
-  // Rest of the code here deals with attaching an the BackingStore.
+  // Rest of the code here deals with attaching the BackingStore.
   DCHECK_EQ(is_shared(), backing_store->is_shared());
   DCHECK_EQ(is_resizable_by_js(), backing_store->is_resizable_by_js());
   DCHECK_IMPLIES(
@@ -110,6 +116,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   }
 
   CreateExtension(isolate, std::move(backing_store));
+  finish_setup();
 }
 
 Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
