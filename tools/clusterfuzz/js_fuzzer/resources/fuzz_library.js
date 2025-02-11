@@ -98,14 +98,15 @@ function runNearStackLimit(f) {
   } catch (e) {}
 }
 
-// Limit number of times we cause major GCs in tests to reduce hangs
+// Limit number of times we cause GCs in tests to reduce hangs
 // when called within larger loops.
 let __callGC;
 (function() {
   let countGC = 0;
-  __callGC = function() {
+  __callGC = function(major) {
+    const type = {type: major ? 'major' : 'minor'};
     if (countGC++ < 20) {
-      gc();
+      gc(type);
     }
   };
 })();

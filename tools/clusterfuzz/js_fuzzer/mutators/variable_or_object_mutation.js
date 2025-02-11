@@ -17,6 +17,7 @@ const mutator = require('./mutator.js');
 
 const MAX_MUTATION_RECURSION_DEPTH = 5;
 
+const CHOOSE_MAJOR_GC_PROB = 0.7;
 
 // Stub for testing.
 function chooseCallGC() {
@@ -29,7 +30,11 @@ function chooseCallGC() {
 function maybeGCTemplate(expression) {
   let templ = expression;
   if (module.exports.chooseCallGC()) {
-    templ += ', __callGC()';
+    if (random.choose(CHOOSE_MAJOR_GC_PROB)){
+      templ += ', __callGC(true)';
+    } else {
+      templ += ', __callGC(false)';
+    }
   }
   return babelTemplate(templ);
 }
