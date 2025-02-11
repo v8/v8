@@ -14,14 +14,14 @@ const mutator = require('./mutator.js');
 const random = require('../random.js');
 
 // Default target probability for skipping try-catch completely.
-const DEFAULT_SKIP_PROB = 0.1;
+const DEFAULT_SKIP_PROB = 0.05;
 
 // Default target probability to wrap only on toplevel, i.e. to not nest
 // try-catch.
-const DEFAULT_TOPLEVEL_PROB = 0.4;
+const DEFAULT_TOPLEVEL_PROB = 0.5;
 
 // Probability to deviate from defaults and use extreme cases.
-const IGNORE_DEFAULT_PROB = 0.05;
+const IGNORE_DEFAULT_PROB = 0.03;
 
 // We don't support 'using' and 'async using'. We wrap var with try-catch.
 const WRAPPABLE_DECL_KINDS = new Set(['let', 'const']);

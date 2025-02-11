@@ -62,9 +62,9 @@ describe('Try catch', () => {
     sandbox.stub(random, 'random').callsFake(() => { return 0.01; });
     const source = loadSource();
 
-    // Fake source fraction 0.1 (i.e. the second of 10 files).
+    // Fake source fraction 0.2 (i.e. the third of 10 files).
     // Probability for skipping is 0.02.
-    common.setSourceLoc(source, 1, 10);
+    common.setSourceLoc(source, 2, 10);
 
     testTryCatch(source, 'try_catch_nothing_expected.js');
   });
