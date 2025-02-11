@@ -109,6 +109,7 @@
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
+#include "src/tracing/traced-value.h"
 #include "src/utils/hex-format.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
@@ -4408,6 +4409,68 @@ bool Script::ContainsAsmModule() {
   return false;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+void Script::TraceScriptRundown() {
+  DisallowGarbageCollection no_gc;
+  Isolate* isolate = this->GetIsolate();
+  Tagged<Object> context_value = isolate->native_context()->debug_context_id();
+  int contextId = (IsSmi(context_value)) ? Smi::ToInt(context_value) : 0;
+  auto value = v8::tracing::TracedValue::Create();
+  value->SetInteger("scriptId", this->id());
+  value->SetInteger("executionContextId", contextId);
+  value->SetString("isolate",
+                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetBoolean("isModule", this->origin_options().IsModule());
+  value->SetBoolean("hasSourceUrl", this->HasValidSource());
+  if (this->HasValidSource() && IsString(this->GetNameOrSourceURL())) {
+    value->SetString(
+        "sourceMapUrl",
+        Cast<String>(this->GetNameOrSourceURL())->ToCString().get());
+  }
+  if (IsString(this->name())) {
+    value->SetString("url", Cast<String>(this->name())->ToCString().get());
+  }
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+               "ScriptCatchup", "data", std::move(value));
+}
+
+void Script::TraceScriptRundownSources() {
+  DisallowGarbageCollection no_gc;
+  Isolate* isolate = this->GetIsolate();
+  if (!IsString(this->source())) return;
+  Tagged<String> source = Cast<String>(this->source());
+  auto script_id = this->id();
+  auto isolate_string = std::to_string(reinterpret_cast<size_t>(isolate));
+  int32_t source_length = source->length();
+  const int32_t kSplitMaxLength = 1000000;
+  if (source_length <= kSplitMaxLength) {
+    auto value = v8::tracing::TracedValue::Create();
+    value->SetString("isolate", isolate_string);
+    value->SetInteger("scriptId", script_id);
+    value->SetInteger("length", source_length);
+    value->SetString("sourceText", source->ToCString().get());
+    TRACE_EVENT1(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+        "ScriptCatchup", "data", std::move(value));
+  } else {
+    int32_t split_count = source_length / kSplitMaxLength + 1;
+    std::unique_ptr<char[]> source_ptr = source->ToCString();
+    for (int32_t i = 0; i < split_count; i++) {
+      int32_t begin = i * kSplitMaxLength;
+      int32_t end = std::min(begin + kSplitMaxLength, source_length);
+      auto split_trace_value = v8::tracing::TracedValue::Create();
+      split_trace_value->SetInteger("splitIndex", i);
+      split_trace_value->SetInteger("splitCount", split_count);
+      split_trace_value->SetString("isolate", isolate_string);
+      split_trace_value->SetInteger("scriptId", script_id);
+      split_trace_value->SetString(
+          "sourceText", std::string(source_ptr.get() + begin, end - begin));
+      TRACE_EVENT1(
+          TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+          "LargeScriptCatchup", "data", std::move(split_trace_value));
+    }
+  }
+}
 
 namespace {
 

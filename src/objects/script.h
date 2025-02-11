@@ -236,6 +236,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
 
   bool IsUserJavaScript() const;
 
+  void TraceScriptRundown();
+  void TraceScriptRundownSources();
+
   // Wrappers for GetPositionInfo
   static int GetColumnNumber(DirectHandle<Script> script, int code_offset);
   int GetColumnNumber(int code_pos) const;

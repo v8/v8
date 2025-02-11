@@ -4569,96 +4569,19 @@ void Compiler::PostInstantiation(Isolate* isolate,
     // If it's a top-level script, report compilation to the debugger.
     DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
     isolate->debug()->OnAfterCompile(script);
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
-                 "ScriptCompiled", "data",
-                 AddScriptCompiledTrace(isolate, shared));
-    bool tracing_enabled;
+    bool source_rundown_enabled;
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+        &source_rundown_enabled);
+    if (source_rundown_enabled) {
+      script->TraceScriptRundown();
+    }
+    bool source_rundown_sources_enabled;
     TRACE_EVENT_CATEGORY_GROUP_ENABLED(
         TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        &tracing_enabled);
-    if (tracing_enabled) {
-      EmitScriptSourceTextTrace(isolate, shared);
-    }
-  }
-}
-
-std::unique_ptr<v8::tracing::TracedValue> Compiler::AddScriptCompiledTrace(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
-  i::Tagged<i::Object> context_value =
-      isolate->native_context()->debug_context_id();
-  int contextId = (IsSmi(context_value)) ? i::Smi::ToInt(context_value) : 0;
-  Script::InitLineEnds(isolate, script);
-  Script::PositionInfo endInfo;
-  Script::GetPositionInfo(
-      script, i::Cast<i::String>(script->source())->length(), &endInfo);
-  Script::PositionInfo startInfo;
-  Script::GetPositionInfo(script, shared->StartPosition(), &startInfo);
-  auto value = v8::tracing::TracedValue::Create();
-  value->SetString("isolate",
-                   std::to_string(reinterpret_cast<size_t>(isolate)));
-  value->SetInteger("executionContextId", contextId);
-  value->SetInteger("scriptId", script->id());
-  value->SetInteger("startLine", startInfo.line);
-  value->SetInteger("startColumn", startInfo.column);
-  value->SetInteger("endLine", endInfo.line);
-  value->SetInteger("endColumn", endInfo.column);
-  value->SetBoolean("isModule", script->origin_options().IsModule());
-  value->SetBoolean("hasSourceUrl", script->HasValidSource());
-  if (script->HasValidSource() && IsString(script->GetNameOrSourceURL())) {
-    value->SetString(
-        "sourceMapUrl",
-        i::Cast<i::String>(script->GetNameOrSourceURL())->ToCString().get());
-  }
-  if (IsString(script->name())) {
-    value->SetString("url",
-                     i::Cast<i::String>(script->name())->ToCString().get());
-  }
-  value->SetString("hash",
-                   i::Script::GetScriptHash(isolate, script,
-                                            /* forceForInspector: */ false)
-                       ->ToCString()
-                       .get());
-  return value;
-}
-
-void Compiler::EmitScriptSourceTextTrace(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  DirectHandle<Script> script(Cast<Script>(shared->script()), isolate);
-  if (IsString(script->source())) {
-    Tagged<String> source = i::Cast<i::String>(script->source());
-    auto script_id = script->id();
-    auto isolate_string = std::to_string(reinterpret_cast<size_t>(isolate));
-    int32_t source_length = source->length();
-    const int32_t kSplitMaxLength = 1000000;
-    if (source_length <= kSplitMaxLength) {
-      auto value = v8::tracing::TracedValue::Create();
-      value->SetString("isolate", isolate_string);
-      value->SetInteger("scriptId", script_id);
-      value->SetInteger("length", source_length);
-      value->SetString("sourceText", source->ToCString().get());
-      TRACE_EVENT1(
-          TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-          "ScriptCompiled", "data", std::move(value));
-    } else {
-      Handle<String> handle_source(source, isolate);
-      int32_t split_count = source_length / kSplitMaxLength + 1;
-      for (int32_t i = 0; i < split_count; i++) {
-        int32_t begin = i * kSplitMaxLength;
-        int32_t end = std::min(begin + kSplitMaxLength, source_length);
-        DirectHandle<String> partial_source =
-            isolate->factory()->NewSubString(handle_source, begin, end);
-        auto split_trace_value = v8::tracing::TracedValue::Create();
-        split_trace_value->SetInteger("splitIndex", i);
-        split_trace_value->SetInteger("splitCount", split_count);
-        split_trace_value->SetString("isolate", isolate_string);
-        split_trace_value->SetInteger("scriptId", script_id);
-        split_trace_value->SetString("sourceText",
-                                     partial_source->ToCString().get());
-        TRACE_EVENT1(
-            TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-            "LargeScriptCompiledSplits", "data", std::move(split_trace_value));
-      }
+        &source_rundown_sources_enabled);
+    if (source_rundown_sources_enabled) {
+      script->TraceScriptRundownSources();
     }
   }
 }
