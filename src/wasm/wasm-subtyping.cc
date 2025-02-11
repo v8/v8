@@ -282,6 +282,10 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case kBottom:
       // The bottom type is a subtype of all types.
       return true;
+    case kRtt:
+      return supertype.kind() == kRtt &&
+             EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
+                               sub_module, super_module);
     case kRef:
     case kRefNull:
       break;

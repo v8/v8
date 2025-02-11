@@ -355,6 +355,7 @@ class MjsunitNamesProvider {
         out << "/*<bot>*/";
         return;
       case kTop:
+      case kRtt:
       case kVoid:
         UNREACHABLE();
     }

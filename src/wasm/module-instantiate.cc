@@ -2246,6 +2246,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     case kVoid:
     case kTop:
     case kBottom:
+    case kRtt:
     case kI8:
     case kI16:
     case kF16:

@@ -160,6 +160,7 @@ class WasmValue {
       }
       case kRefNull:
       case kRef:
+      case kRtt:
         return "DirectHandle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
       case kTop:

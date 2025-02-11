@@ -1121,6 +1121,7 @@ class WasmInJsInliningInterface {
         return __ Simd128Constant(value);
       }
       case wasm::kVoid:
+      case wasm::kRtt:
       case wasm::kRef:
       case wasm::kBottom:
       case wasm::kTop:

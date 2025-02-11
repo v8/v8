@@ -292,6 +292,9 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   if (type.encoding_needs_heap_type()) {
     buffer->write_i32v(type.heap_type().code());
   }
+  if (type.is_rtt()) {
+    buffer->write_u32v(type.ref_index());
+  }
 }
 }  // namespace
 

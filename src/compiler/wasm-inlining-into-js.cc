@@ -281,11 +281,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()),
         trusted_data_node_);
-    // Technically this is incorrect: the {rtt} node doesn't hold a reference
-    // to an object of type {target_type}, but to such an object's map. But
-    // we only need this type annotation so {ReduceWasmTypeCast} can get to
-    // the {ref_index}, we never need the type's {kind()}.
-    TypeNode(rtt, wasm::ValueType::Ref(target_type.ref_index()));
+    TypeNode(rtt, wasm::ValueType::Rtt(target_type.ref_index()));
     Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
     SetSourcePosition(cast);
     return TypeNode(cast, target_type);

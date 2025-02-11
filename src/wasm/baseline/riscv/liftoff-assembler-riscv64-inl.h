@@ -77,6 +77,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       assm->Ld(dst.gp(), src);
       break;
     case kF32:
@@ -109,6 +110,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kI64:
     case kRefNull:
     case kRef:
+    case kRtt:
       assm->Sd(src.gp(), dst);
       break;
     case kF32:
@@ -140,6 +142,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
     case kI64:
     case kRefNull:
     case kRef:
+    case kRtt:
       assm->push(reg.gp());
       break;
     case kF32:
@@ -180,6 +183,7 @@ inline void StoreToMemory(LiftoffAssembler* assm, MemOperand dst,
       case kI64:
       case kRef:
       case kRefNull:
+      case kRtt:
         return assm->Sd(src.reg().gp(), dst);
       case kF32:
         return assm->StoreFloat(src.reg().fp(), dst);
@@ -831,6 +835,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       Ld(kScratchReg, src);
       Sd(kScratchReg, dst);
       break;
@@ -893,6 +898,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       Sd(reg.gp(), dst);
       break;
     case kF32:
@@ -1486,7 +1492,8 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
     if (kind == kI64) {
       MacroAssembler::Branch(label, cond, lhs, Operand(rhs));
     } else {
-      DCHECK((kind == kI32) || (kind == kRef) || (kind == kRefNull));
+      DCHECK((kind == kI32) || (kind == kRtt) || (kind == kRef) ||
+             (kind == kRefNull));
       MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(rhs));
     }
   }

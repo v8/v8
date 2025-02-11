@@ -40,6 +40,7 @@ namespace wasm {
 #define FOREACH_VALUE_TYPE(V)                                      \
   V(Void, -1, Void, None, 'v', "<void>")                           \
   FOREACH_NUMERIC_VALUE_TYPE(V)                                    \
+  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")          \
   V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")              \
   V(RefNull, kTaggedSizeLog2, RefNull, AnyTagged, 'n', "ref null") \
   V(Top, -1, Void, None, '\\', "<top>")                            \
@@ -513,7 +514,7 @@ constexpr bool is_valid(ValueKind kind) {
 }
 
 constexpr bool is_reference(ValueKind kind) {
-  return kind == kRef || kind == kRefNull;
+  return kind == kRef || kind == kRefNull || kind == kRtt;
 }
 
 constexpr bool is_object_reference(ValueKind kind) {
@@ -599,13 +600,15 @@ constexpr ValueKind unpacked(ValueKind kind) {
   return is_packed(kind) ? (kind == kF16 ? kF32 : kI32) : kind;
 }
 
+constexpr bool is_rtt(ValueKind kind) { return kind == kRtt; }
+
 constexpr bool is_defaultable(ValueKind kind) {
   DCHECK(kind != kBottom && kind != kVoid);
-  return kind != kRef;
+  return kind != kRef && !is_rtt(kind);
 }
 
 // A ValueType is encoded by two components: a ValueKind and a heap
-// representation (for reference types). Those are encoded into 32 bits
+// representation (for reference types/rtts). Those are encoded into 32 bits
 // using base::BitField.
 // {ValueTypeBase} shouldn't be used directly; code should be using one of
 // the subclasses. To enforce this, the public interface is limited to
@@ -632,8 +635,10 @@ class ValueTypeBase {
            heap_representation() == htype;
   }
 
+  constexpr bool is_rtt() const { return wasm::is_rtt(kind()); }
+
   constexpr bool has_index() const {
-    return is_object_reference() && heap_type().is_index();
+    return is_rtt() || (is_object_reference() && heap_type().is_index());
   }
 
   constexpr bool is_defaultable() const { return wasm::is_defaultable(kind()); }
@@ -777,6 +782,9 @@ class ValueTypeBase {
 #undef NUMERIC_TYPE_CASE
       case kVoid:
         return kVoidCode;
+      // The RTT value type can not be used in WebAssembly and is a
+      // compiler-internal type only.
+      case kRtt:
       case kTop:
       case kBottom:
         UNREACHABLE();
@@ -823,6 +831,9 @@ class ValueTypeBase {
         } else {
           buf << "(ref null " << heap_type().name() << ")";
         }
+        break;
+      case kRtt:
+        buf << "(rtt " << ref_index() << ")";
         break;
       default:
         buf << kind_name();
@@ -961,6 +972,12 @@ class ValueType : public ValueTypeBase {
   static constexpr ValueType RefMaybeNull(HeapType heap_type,
                                           Nullability nullability) {
     return ValueType{ValueTypeBase::RefMaybeNull(heap_type, nullability)};
+  }
+
+  static constexpr ValueType Rtt(ModuleTypeIndex type) {
+    DCHECK(HeapType(type).is_index());
+    return ValueType{ValueTypeBase{KindField::encode(kRtt) |
+                                   HeapTypeField::encode(type.index)}};
   }
 
   static constexpr ValueType FromRawBitField(uint32_t bit_field) {

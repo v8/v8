@@ -686,6 +686,10 @@ DirectHandle<Object> WasmObject::ReadValueAt(Isolate* isolate,
       return direct_handle(slot.load(isolate), isolate);
     }
 
+    case wasm::kRtt:
+      // Rtt values are not supposed to be made available to JavaScript side.
+      UNREACHABLE();
+
     case wasm::kVoid:
     case wasm::kTop:
     case wasm::kBottom:

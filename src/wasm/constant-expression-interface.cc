@@ -217,6 +217,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
                            : Cast<Object>(isolate->factory()->null_value()),
                        module->canonical_type(type));
     case kVoid:
+    case kRtt:
     case kRef:
     case kTop:
     case kBottom:

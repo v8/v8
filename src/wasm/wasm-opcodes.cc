@@ -30,6 +30,8 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 
 bool IsJSCompatibleSignature(const CanonicalSig* sig) {
   for (auto type : sig->all()) {
+    // Rtts are internal-only. They should never be part of a signature.
+    DCHECK(!type.is_rtt());
     if (type == kCanonicalS128) return false;
     if (type.is_object_reference()) {
       switch (type.heap_representation_non_shared()) {

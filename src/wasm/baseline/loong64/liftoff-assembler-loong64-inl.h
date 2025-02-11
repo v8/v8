@@ -91,6 +91,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       assm->Ld_d(dst.gp(), src);
       break;
     case kF32:
@@ -119,6 +120,7 @@ inline void Store(LiftoffAssembler* assm, MemOperand dst, LiftoffRegister src,
     case kI64:
     case kRefNull:
     case kRef:
+    case kRtt:
       assm->St_d(src.gp(), dst);
       break;
     case kF32:
@@ -147,6 +149,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
     case kI64:
     case kRefNull:
     case kRef:
+    case kRtt:
       assm->Push(reg.gp());
       break;
     case kF32:
@@ -1063,6 +1066,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
     case kI64:
     case kRefNull:
     case kRef:
+    case kRtt:
     case kF64:
       Ld_d(scratch, liftoff::GetStackSlot(src_offset));
       St_d(scratch, liftoff::GetStackSlot(dst_offset));
@@ -1099,6 +1103,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kI64:
     case kRef:
     case kRefNull:
+    case kRtt:
       St_d(reg.gp(), dst);
       break;
     case kF32:
@@ -1151,6 +1156,8 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
     case kI64:
     case kRef:
     case kRefNull:
+    // TODO(LOONG_dev): LOONG64 Check, MIPS64 dosn't need, ARM64/LOONG64 need?
+    case kRtt:
       Ld_d(reg.gp(), src);
       break;
     case kF32:
@@ -1861,7 +1868,8 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
     if (kind == kI64) {
       MacroAssembler::Branch(label, cond, lhs, Operand(rhs));
     } else {
-      DCHECK((kind == kI32) || (kind == kRef) || (kind == kRefNull));
+      DCHECK((kind == kI32) || (kind == kRtt) || (kind == kRef) ||
+             (kind == kRefNull));
       MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(rhs));
     }
   }
