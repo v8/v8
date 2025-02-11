@@ -2047,7 +2047,7 @@ class ModuleDecoderImpl : public Decoder {
     bool mutability = flags & 0b1;
     bool shared = flags & 0b10;
     if (tracer_) {
-      tracer_->Bytes(pc_, 1);  // The flags byte.
+      tracer_->Bytes(pc_ - 1, 1);  // The flags byte.
       if (shared) tracer_->Description(" shared");
       tracer_->Description(mutability ? " mutable" : " immutable");
     }

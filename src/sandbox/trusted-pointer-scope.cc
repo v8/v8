@@ -53,6 +53,20 @@ void TrustedPointerPublishingScope::TrackPointer(
   vector_->push_back(entry);
 }
 
+DisableTrustedPointerPublishingScope::DisableTrustedPointerPublishingScope(
+    Isolate* isolate)
+    : isolate_(isolate) {
+  saved_ = isolate->trusted_pointer_publishing_scope();
+  if (saved_) {
+    isolate->set_trusted_pointer_publishing_scope(nullptr);
+  }
+}
+DisableTrustedPointerPublishingScope::~DisableTrustedPointerPublishingScope() {
+  if (saved_) {
+    isolate_->set_trusted_pointer_publishing_scope(saved_);
+  }
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_ENABLE_SANDBOX

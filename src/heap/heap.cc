@@ -1580,6 +1580,11 @@ void Heap::CollectGarbage(AllocationSpace space,
   // JS execution is not allowed in any of the callbacks.
   DisallowJavascriptExecution no_js(isolate());
 
+  // Some custom flushing (currently: FlushBytecodeFromSFI) can create
+  // fresh TrustedPointerTableEntries during GC. These must not be affected
+  // by an active TrustedPointerPublishingScope, so disable any such scope.
+  DisableTrustedPointerPublishingScope no_trusted_pointer_tracking(isolate());
+
   DCHECK(AllowGarbageCollection::IsAllowed());
   // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,

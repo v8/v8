@@ -46,6 +46,17 @@ class TrustedPointerPublishingScope {
   Isolate* isolate_;
 };
 
+// Temporarily disables a TrustedPointerPublishingScope.
+class DisableTrustedPointerPublishingScope {
+ public:
+  explicit DisableTrustedPointerPublishingScope(Isolate* isolate);
+  ~DisableTrustedPointerPublishingScope();
+
+ private:
+  Isolate* isolate_;
+  TrustedPointerPublishingScope* saved_{nullptr};
+};
+
 #else  // V8_ENABLE_SANDBOX
 
 class TrustedPointerPublishingScope {
@@ -54,6 +65,11 @@ class TrustedPointerPublishingScope {
                                 const DisallowJavascriptExecution& no_js) {}
   void MarkSuccess() {}
   void MarkFailure() {}
+};
+
+class DisableTrustedPointerPublishingScope {
+ public:
+  explicit DisableTrustedPointerPublishingScope(Isolate* isolate) {}
 };
 
 #endif  // V8_ENABLE_SANDBOX
