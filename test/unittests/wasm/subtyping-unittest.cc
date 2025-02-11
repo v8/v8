@@ -324,13 +324,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Recursive types.
     VALID_SUBTYPE(ref(9), ref(8));
 
-    // Identical rtts are subtypes of each other.
-    SUBTYPE(ValueType::Rtt(Idx{5}), ValueType::Rtt(Idx{5}));
-    // Rtts of unrelated types are unrelated.
-    NOT_SUBTYPE(ValueType::Rtt(Idx{1}), ValueType::Rtt(Idx{2}));
-    // Rtts of subtypes are not related.
-    NOT_SUBTYPE(ValueType::Rtt(Idx{1}), ValueType::Rtt(Idx{0}));
-
     // Function subtyping;
     // Unrelated function types are unrelated.
     NOT_VALID_SUBTYPE(ref(10), ref(11));
@@ -408,9 +401,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     NOT_SUBTYPE(ref(0), ValueType::Ref(HeapType::kStructShared));
     NOT_SUBTYPE(ref(2), ValueType::Ref(HeapType::kArrayShared));
     NOT_SUBTYPE(ref(10), ValueType::Ref(HeapType::kFuncShared));
-
-    // Rtts of identical types are subtype-related.
-    SUBTYPE(ValueType::Rtt(Idx{8}), ValueType::Rtt(Idx{17}));
 
     // Unions and intersections.
 

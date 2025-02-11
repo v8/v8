@@ -2297,7 +2297,6 @@ void V8HeapExplorer::ExtractWasmStructReferences(Tagged<WasmStruct> obj,
         MarkVisitedField(WasmStruct::kHeaderSize + field_offset);
         break;
       }
-      case wasm::kRtt:
       case wasm::kVoid:
       case wasm::kTop:
       case wasm::kBottom:

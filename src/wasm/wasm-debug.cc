@@ -698,8 +698,7 @@ class DebugInfoImpl {
       case kS128:
         return WasmValue(Simd128(ReadUnalignedValue<int8x16>(stack_address)));
       case kRef:
-      case kRefNull:
-      case kRtt: {
+      case kRefNull: {
         DirectHandle<Object> obj(
             Tagged<Object>(ReadUnalignedValue<Address>(stack_address)),
             isolate);

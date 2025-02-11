@@ -2030,7 +2030,6 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
                                GetIsolateFromWritableObject(*this));
       return wasm::WasmValue(ref, field_type);
     }
-    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kTop:
     case wasm::kBottom:
@@ -2061,7 +2060,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
                                GetIsolateFromWritableObject(*this));
       return wasm::WasmValue(ref, element_type);
     }
-    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kTop:
     case wasm::kBottom:
@@ -2678,7 +2676,6 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
       case wasm::kRefNull:
         encoded_size += 1;
         break;
-      case wasm::kRtt:
       case wasm::kVoid:
       case wasm::kTop:
       case wasm::kBottom:

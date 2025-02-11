@@ -65,7 +65,6 @@ DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
       case kRef:
         arguments[i] = isolate->factory()->undefined_value();
         break;
-      case kRtt:
       case kI8:
       case kI16:
       case kF16:

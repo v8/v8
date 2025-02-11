@@ -5423,8 +5423,7 @@ class LiftoffCompiler {
         break;
       }
       case wasm::kRef:
-      case wasm::kRefNull:
-      case wasm::kRtt: {
+      case wasm::kRefNull: {
         --(*index_in_array);
         __ StoreTaggedPointer(
             values_array, no_reg,
@@ -5483,8 +5482,7 @@ class LiftoffCompiler {
         break;
       }
       case wasm::kRef:
-      case wasm::kRefNull:
-      case wasm::kRtt: {
+      case wasm::kRefNull: {
         __ LoadTaggedPointer(
             value.gp(), values_array.gp(), no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index));
@@ -6601,8 +6599,8 @@ class LiftoffCompiler {
     LiftoffRegister rtt = RttCanon(imm.index, {});
 
     CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
-                MakeSig::Returns(kRef).Params(kRtt, kI32),
-                {VarState{kRtt, rtt, 0},
+                MakeSig::Returns(kRef).Params(kRef, kI32),
+                {VarState{kRef, rtt, 0},
                  VarState{kI32, WasmStruct::Size(imm.struct_type), 0}},
                 decoder->position());
 
@@ -6710,8 +6708,8 @@ class LiftoffCompiler {
     {
       LiftoffRegister rtt = RttCanon(imm.index, {});
       CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
-                  MakeSig::Returns(kRef).Params(kRtt, kI32, kI32),
-                  {VarState{kRtt, rtt, 0},
+                  MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                  {VarState{kRef, rtt, 0},
                    __ cache_state()->stack_state.end()[-1],  // length
                    VarState{kI32, elem_size, 0}},
                   decoder->position());
@@ -6897,8 +6895,8 @@ class LiftoffCompiler {
     int32_t elem_count = length_imm.index;
     // Allocate the array.
     CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
-                MakeSig::Returns(kRef).Params(kRtt, kI32, kI32),
-                {VarState{kRtt, rtt, 0}, VarState{kI32, elem_count, 0},
+                MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                {VarState{kRef, rtt, 0}, VarState{kI32, elem_count, 0},
                  VarState{kI32, value_kind_size(elem_kind), 0}},
                 decoder->position());
 
@@ -6944,14 +6942,14 @@ class LiftoffCompiler {
     CallBuiltin(
         Builtin::kWasmArrayNewSegment,
         MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kSmiKind, kSmiKind,
-                                      kRtt),
+                                      kRef),
         {
             VarState{kI32, static_cast<int>(segment_imm.index), 0},  // segment
             __ cache_state()->stack_state.end()[-2],                 // offset
             __ cache_state()->stack_state.end()[-1],                 // length
             VarState{kSmiKind, is_element_reg, 0},           // is_element
             VarState{kSmiKind, extract_shared_data_reg, 0},  // shared
-            VarState{kRtt, rtt, 0}                           // rtt
+            VarState{kRef, rtt, 0}                           // rtt
         },
         decoder->position());
 
@@ -7069,8 +7067,9 @@ class LiftoffCompiler {
   // Falls through on match (=successful type check).
   // Returns the register containing the object.
   void SubtypeCheck(const WasmModule* module, Register obj_reg,
-                    ValueType obj_type, Register rtt_reg, ValueType rtt_type,
-                    Register scratch_null, Register scratch2, Label* no_match,
+                    ValueType obj_type, Register rtt_reg,
+                    ModuleTypeIndex target_type, Register scratch_null,
+                    Register scratch2, Label* no_match,
                     NullSucceeds null_succeeds,
                     const FreezeCacheState& frozen) {
     Label match;
@@ -7087,29 +7086,22 @@ class LiftoffCompiler {
 
     // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
     ValueType i31ref = ValueType::Ref(HeapType::kI31);
-    // Ref.extern can also contain Smis, however there isn't any type that
-    // could downcast to ref.extern.
-    DCHECK(!rtt_type.is_reference_to(HeapType::kExtern));
-    // Ref.i31 check has its own implementation.
-    DCHECK(!rtt_type.is_reference_to(HeapType::kI31));
     if (IsSubtypeOf(i31ref, obj_type, module)) {
-      Label* i31_target =
-          IsSubtypeOf(i31ref, rtt_type, module) ? &match : no_match;
-      __ emit_smi_check(obj_reg, i31_target, LiftoffAssembler::kJumpOnSmi,
+      __ emit_smi_check(obj_reg, no_match, LiftoffAssembler::kJumpOnSmi,
                         frozen);
     }
 
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
-    if (module->type(rtt_type.ref_index()).is_final) {
+    if (module->type(target_type).is_final) {
       // In this case, simply check for map equality.
-      __ emit_cond_jump(kNotEqual, no_match, rtt_type.kind(), tmp1, rtt_reg,
+      __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     } else {
       // Check for rtt equality, and if not, check if the rtt is a struct/array
       // rtt.
-      __ emit_cond_jump(kEqual, &match, rtt_type.kind(), tmp1, rtt_reg, frozen);
+      __ emit_cond_jump(kEqual, &match, ValueKind::kRef, tmp1, rtt_reg, frozen);
 
       if (is_cast_from_any) {
         // Check for map being a map for a wasm object (struct, array, func).
@@ -7129,7 +7121,7 @@ class LiftoffCompiler {
           Map::kConstructorOrBackPointerOrNativeContextOffset);
       __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
       // Step 2: check the list's length if needed.
-      uint32_t rtt_depth = GetSubtypingDepth(module, rtt_type.ref_index());
+      uint32_t rtt_depth = GetSubtypingDepth(module, target_type);
       if (rtt_depth >= kMinimumSupertypeArraySize) {
         LiftoffRegister list_length(scratch2);
         int offset =
@@ -7143,7 +7135,7 @@ class LiftoffCompiler {
           tmp1, tmp1, no_reg,
           ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                  rtt_depth * kTaggedSize));
-      __ emit_cond_jump(kNotEqual, no_match, rtt_type.kind(), tmp1, rtt_reg,
+      __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
     }
 
@@ -7167,9 +7159,8 @@ class LiftoffCompiler {
     {
       FREEZE_STATE(frozen);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   ValueType::Rtt(ref_index), scratch_null, result.gp(),
-                   &return_false, null_succeeds ? kNullSucceeds : kNullFails,
-                   frozen);
+                   ref_index, scratch_null, result.gp(), &return_false,
+                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -7233,8 +7224,8 @@ class LiftoffCompiler {
       FREEZE_STATE(frozen);
       NullSucceeds on_null = null_succeeds ? kNullSucceeds : kNullFails;
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   ValueType::Rtt(ref_index), scratch_null, scratch2,
-                   trap_label, on_null, frozen);
+                   ref_index, scratch_null, scratch2, trap_label, on_null,
+                   frozen);
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -7293,8 +7284,8 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 ValueType::Rtt(ref_index), scratch_null, scratch2, &cont_false,
-                 null_handling, frozen);
+                 ref_index, scratch_null, scratch2, &cont_false, null_handling,
+                 frozen);
 
     BrOrRet(decoder, depth);
 
@@ -7323,8 +7314,8 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 ValueType::Rtt(ref_index), scratch_null, scratch2,
-                 &cont_branch, null_handling, frozen);
+                 ref_index, scratch_null, scratch2, &cont_branch, null_handling,
+                 frozen);
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);
@@ -8719,7 +8710,7 @@ class LiftoffCompiler {
             formal_rtt.gp_reg(), formal_rtt.gp_reg(), no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                 imm.sig_imm.index.index));
-        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRtt,
+        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRef,
                           formal_rtt.gp_reg(), maybe_match.gp_reg(), frozen);
 
         __ bind(&success_label);
@@ -9107,7 +9098,6 @@ class LiftoffCompiler {
         return __ emit_s128_xor(reg, reg, reg);
       case kRefNull:
         return LoadNullValue(reg.gp(), type);
-      case kRtt:
       case kVoid:
       case kTop:
       case kBottom:
@@ -9292,7 +9282,7 @@ class LiftoffCompiler {
       // MVP:
       kI32, kI64, kF32, kF64,
       // Extern ref:
-      kRef, kRefNull, kRtt, kI8, kI16};
+      kRef, kRefNull, kI8, kI16};
 
   LiftoffAssembler asm_;
 

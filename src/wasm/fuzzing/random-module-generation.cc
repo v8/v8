@@ -4266,7 +4266,6 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
       }
     }
     case kVoid:
-    case kRtt:
     case kTop:
     case kBottom:
       UNREACHABLE();

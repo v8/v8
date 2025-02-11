@@ -1071,7 +1071,6 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
       }
       break;
     }
-    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kTop:
     case wasm::kBottom:

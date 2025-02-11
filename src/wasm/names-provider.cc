@@ -408,11 +408,6 @@ void NamesProvider::PrintValueType(StringBuilder& out, ValueType type) {
         out << type.heap_type().name() << "ref";
       }
       break;
-    case kRtt:
-      out << "(rtt ";
-      PrintTypeName(out, type.ref_index());
-      out << ')';
-      break;
     default:
       out << wasm::name(type.kind());
   }
@@ -527,11 +522,6 @@ void CanonicalTypeNamesProvider::PrintValueType(StringBuilder& out,
       } else {
         out << type.name();
       }
-      break;
-    case kRtt:
-      out << "(rtt ";
-      PrintTypeName(out, type.ref_index());
-      out << ')';
       break;
     default:
       out << wasm::name(type.kind());

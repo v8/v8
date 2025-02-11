@@ -1597,7 +1597,6 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kS128:
       return kSimd128;
     case wasm::kVoid:
-    case wasm::kRtt:
     case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();

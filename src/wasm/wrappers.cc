@@ -312,7 +312,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
             }
           }
         }
-      case kRtt:
       case kI8:
       case kI16:
       case kF16:
@@ -822,7 +821,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kRef:
       case kRefNull:
       case kI64:
-      case kRtt:
       case kS128:
       case kI8:
       case kI16:
@@ -993,7 +991,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         // i64 values can only come from BigInt.
         return BuildChangeBigIntToInt64(input, context, frame_state);
 
-      case kRtt:
       case kS128:
       case kI8:
       case kI16:
@@ -1014,7 +1011,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
         case kRef:
         case kRefNull:
         case kI64:
-        case kRtt:
         case kS128:
         case kI8:
         case kI16:
@@ -1077,7 +1073,6 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
       case kRef:
       case kRefNull:
       case kI64:
-      case kRtt:
       case kS128:
       case kI8:
       case kI16:
