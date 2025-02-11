@@ -8,12 +8,20 @@
 // Script mutator: extra ExpressionMutator
 // Script mutator: extra ArrayMutator
 // Original: mutation_order/input.js
-var __v_0 = /* NumberMutator: Replaced 1 with NaN */NaN;
-var __v_1 = 'str';
-var __v_2 = undefined;
-var __v_3 = __wrapTC(() => ({
-  /* NumberMutator: Replaced 0 with 1 */1: /* NumberMutator: Replaced 1 with -11 */-11
-}));
+try {
+  var __v_0 = /* NumberMutator: Replaced 1 with NaN */NaN;
+} catch (e) {}
+try {
+  var __v_1 = 'str';
+} catch (e) {}
+try {
+  var __v_2 = undefined;
+} catch (e) {}
+try {
+  var __v_3 = {
+    /* NumberMutator: Replaced 0 with 1 */1: /* NumberMutator: Replaced 1 with -11 */-11
+  };
+} catch (e) {}
 function __f_0(__v_4, __v_5) {
   return __v_4 + __v_5;
 }

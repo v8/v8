@@ -5,14 +5,18 @@
 // Original: try_catch.js
 function blah() {
   try {
-    var a = 10;
+    try {
+      var a = 10;
+    } catch (e) {}
     try {
       console.log(a);
     } catch (e) {}
   } catch (e) {}
   try {
     label: for (var i = 0; i < 100; i++) {
-      var b = 0;
+      try {
+        var b = 0;
+      } catch (e) {}
       try {
         while (b < 10) {
           try {

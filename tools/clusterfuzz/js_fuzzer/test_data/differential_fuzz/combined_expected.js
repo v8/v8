@@ -24,7 +24,9 @@ try {
 } catch (e) {}
 print("v8-foozzie source: v8/differential_fuzz/input1.js");
 // Original: v8/differential_fuzz/input1.js
-var __v_0 = 0;
+try {
+  var __v_0 = 0;
+} catch (e) {}
 try {
   /* DifferentialFuzzMutator: Pretty printing */__prettyPrintExtra(__v_0);
 } catch (e) {}

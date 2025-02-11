@@ -23,8 +23,8 @@ const DEFAULT_TOPLEVEL_PROB = 0.4;
 // Probability to deviate from defaults and use extreme cases.
 const IGNORE_DEFAULT_PROB = 0.05;
 
-// We don't support 'using' and 'async using'.
-const WRAPPABLE_DECL_KINDS = new Set(['var', 'let', 'const']);
+// We don't support 'using' and 'async using'. We wrap var with try-catch.
+const WRAPPABLE_DECL_KINDS = new Set(['let', 'const']);
 
 // This function is defined in resources/fuzz_library.js.
 const WRAP_FUN = babelTemplate('__wrapTC(() => ID)');
@@ -151,6 +151,19 @@ class AddTryCatchMutator extends mutator.Mutator {
       // This covers {While|DoWhile|ForIn|ForOf|For}Statement.
       Loop: accessStatement,
       SwitchStatement: accessStatement,
+      VariableDeclaration: {
+        enter(path) {
+          if (path.node.kind !== 'var' || babelTypes.isLoop(path.parent))
+            return;
+          thisMutator.callWithProb(path, replaceAndSkip);
+        },
+        exit(path) {
+          if (path.node.kind !== 'var' || babelTypes.isLoop(path.parent))
+            return;
+          // Apply nested wrapping (is only executed if not skipped above).
+          replaceAndSkip(path);
+        }
+      },
       VariableDeclarator: {
         enter(path) {
           if (skipReplaceVariableDeclarator(path))

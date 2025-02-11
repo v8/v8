@@ -5,7 +5,9 @@
 // Original: try_catch.js
 function blah() {
   try {
-    var a = 10;
+    try {
+      var a = 10;
+    } catch (e) {}
     try {
       console.log(a);
     } catch (e) {}
