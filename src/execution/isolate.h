@@ -139,6 +139,7 @@ class MaterializedObjectStore;
 class Microtask;
 class MicrotaskQueue;
 class OptimizingCompileDispatcher;
+class OptimizingCompileTaskExecutor;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
@@ -1703,6 +1704,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(optimizing_compile_dispatcher_);
     return optimizing_compile_dispatcher_;
   }
+
+  OptimizingCompileDispatcher* SetOptimizingCompileDispatcherForTesting(
+      OptimizingCompileDispatcher* dispatcher);
+
   // Flushes all pending concurrent optimization jobs from the optimizing
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
@@ -2712,6 +2717,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool detailed_source_positions_for_profiling_;
   bool preprocessing_exception_ = false;
 
+  OptimizingCompileTaskExecutor* optimizing_compile_task_executor_ = nullptr;
   OptimizingCompileDispatcher* optimizing_compile_dispatcher_ = nullptr;
 
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;

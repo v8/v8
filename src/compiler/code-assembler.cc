@@ -222,7 +222,7 @@ void CodeAssembler::BuiltinCompilationScheduler::AwaitAndFinalizeCurrentBatch(
     Isolate* isolate) {
   if (v8_flags.concurrent_builtin_generation) {
     auto* dispatcher = isolate->optimizing_compile_dispatcher();
-    dispatcher->AwaitCompileTasks();
+    dispatcher->WaitUntilCompilationJobsDone();
     builtins_installed_count_ =
         dispatcher->InstallGeneratedBuiltins(builtins_installed_count_);
   } else {

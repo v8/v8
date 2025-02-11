@@ -641,7 +641,7 @@ namespace {
 
 void FinalizeOptimization(Isolate* isolate) {
   DCHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
   isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   isolate->optimizing_compile_dispatcher()->set_finalize(true);
 
@@ -1013,7 +1013,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionForCurrentFrame) {
 
 RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
     isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
     isolate->stack_guard()->ClearInstallCode();
     isolate->optimizing_compile_dispatcher()->set_finalize(false);
@@ -1023,7 +1023,7 @@ RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
   if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->WaitUntilCompilationJobsDone();
 #if V8_ENABLE_MAGLEV
     if (isolate->maglev_concurrent_dispatcher()->is_enabled()) {
       isolate->maglev_concurrent_dispatcher()->AwaitCompileJobs();

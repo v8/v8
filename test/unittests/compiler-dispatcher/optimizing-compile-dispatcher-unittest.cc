@@ -68,7 +68,9 @@ class BlockingCompilationJob : public TurbofanCompilationJob {
 }  // namespace
 
 TEST_F(OptimizingCompileDispatcherTest, Construct) {
-  OptimizingCompileDispatcher dispatcher(i_isolate());
+  OptimizingCompileTaskExecutor task_executor(
+      i_isolate()->IsGeneratingEmbeddedBuiltins());
+  OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
 }
@@ -79,9 +81,13 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   IsCompiledScope is_compiled_scope;
   ASSERT_TRUE(Compiler::Compile(i_isolate(), fun, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope));
+  OptimizingCompileTaskExecutor task_executor(
+      i_isolate()->IsGeneratingEmbeddedBuiltins());
+  OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
+  OptimizingCompileDispatcher* const original =
+      i_isolate()->SetOptimizingCompileDispatcherForTesting(&dispatcher);
 
-  OptimizingCompileDispatcher dispatcher(i_isolate());
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
   std::unique_ptr<TurbofanCompilationJob> compilation_job(job);
@@ -98,6 +104,7 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   job->Signal();
   dispatcher.StartTearDown();
   dispatcher.FinishTearDown();
+  i_isolate()->SetOptimizingCompileDispatcherForTesting(original);
 }
 
 }  // namespace internal
