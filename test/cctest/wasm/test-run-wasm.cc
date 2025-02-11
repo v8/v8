@@ -2505,9 +2505,15 @@ class IsolateScope {
 // f(N,X) where N=<1 => X
 // f(N,X) => f(N-1,X*N).
 
+int GetStackSizeKB() {
+  return static_cast<int>(base::Stack::GetStackStart() -
+                          base::Stack::GetCurrentStackPosition()) /
+         KB;
+}
+
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2542,7 +2548,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2584,7 +2590,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2630,7 +2636,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());
@@ -2669,7 +2675,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
 
 UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   // Run in bounded amount of stack - 8kb.
-  FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
+  FlagScope<int32_t> stack_size(&v8_flags.stack_size, GetStackSizeKB() + 8);
 
   IsolateScope isolate_scope;
   LocalContext current(isolate_scope.isolate());

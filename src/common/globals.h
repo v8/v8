@@ -162,9 +162,8 @@ static_assert(V8_ENABLE_LEAPTIERING_BOOL);
 #endif
 
 #if V8_TARGET_ARCH_ARM
-// Set stack limit lower for ARM and ARM64 than for other architectures because:
-//  - on Arm stack allocating MacroAssembler takes 120K bytes.
-//    See issue crbug.com/405338
+// Set stack limit lower for ARM than for other architectures because stack
+// allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
 #define V8_DEFAULT_STACK_SIZE_KB 864
 #elif V8_TARGET_ARCH_IA32
 // In mid-2022, we're observing an increase in stack overflow crashes on
