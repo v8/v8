@@ -220,16 +220,15 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   double const len = array_buffer->GetByteLength();
 
   // * Let relativeStart be ? ToInteger(start).
-  DirectHandle<Object> relative_start;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_start,
-                                     Object::ToInteger(isolate, start));
+  double relative_start;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, relative_start, Object::IntegerValue(isolate, start));
 
   // * If relativeStart < 0, let first be max((len + relativeStart), 0); else
   //   let first be min(relativeStart, len).
-  double const first =
-      (Object::NumberValue(*relative_start) < 0)
-          ? std::max(len + Object::NumberValue(*relative_start), 0.0)
-          : std::min(Object::NumberValue(*relative_start), len);
+  double const first = (relative_start < 0)
+                           ? std::max(len + relative_start, 0.0)
+                           : std::min(relative_start, len);
 
   // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
   //   ToInteger(end).
@@ -237,10 +236,8 @@ static Tagged<Object> SliceHelper(BuiltinArguments args, Isolate* isolate,
   if (IsUndefined(*end, isolate)) {
     relative_end = len;
   } else {
-    DirectHandle<Object> relative_end_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, relative_end_obj,
-                                       Object::ToInteger(isolate, end));
-    relative_end = Object::NumberValue(*relative_end_obj);
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, relative_end, Object::IntegerValue(isolate, end));
   }
 
   // * If relativeEnd < 0, let final be max((len + relativeEnd), 0); else let

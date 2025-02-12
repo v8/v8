@@ -325,9 +325,9 @@ BUILTIN(AtomicsConditionNotify) {
   if (IsUndefined(*count_obj, isolate)) {
     count = JSAtomicsCondition::kAllWaiters;
   } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_obj,
-                                       Object::ToInteger(isolate, count_obj));
-    double count_double = Object::NumberValue(*count_obj);
+    double count_double;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, count_double, Object::IntegerValue(isolate, count_obj));
     if (count_double <= 0) {
       return Smi::zero();
     } else if (count_double > JSAtomicsCondition::kAllWaiters) {

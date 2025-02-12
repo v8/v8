@@ -30,8 +30,7 @@ bool IsValidCodePoint(Isolate* isolate, DirectHandle<Object> value) {
     return false;
   }
 
-  if (Object::NumberValue(
-          *Object::ToInteger(isolate, value).ToHandleChecked()) !=
+  if (Object::IntegerValue(isolate, value).ToChecked() !=
       Object::NumberValue(*value)) {
     return false;
   }

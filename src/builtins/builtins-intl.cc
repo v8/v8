@@ -1274,9 +1274,9 @@ BUILTIN(SegmentsPrototypeContaining) {
   DirectHandle<Object> index = args.atOrUndefined(isolate, 1);
 
   // 6. Let n be ? ToInteger(index).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, index,
-                                     Object::ToInteger(isolate, index));
-  double const n = Object::NumberValue(*index);
+  double n;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, n, Object::IntegerValue(isolate, index));
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSSegments::Containing(isolate, segments, n));

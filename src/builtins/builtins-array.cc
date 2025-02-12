@@ -138,11 +138,9 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
                                                      double init_if_undefined) {
   double relative_index = init_if_undefined;
   if (!IsUndefined(*index)) {
-    DirectHandle<Object> relative_index_obj;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, relative_index_obj,
-                                     Object::ToInteger(isolate, index),
-                                     Nothing<double>());
-    relative_index = Object::NumberValue(*relative_index_obj);
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, relative_index,
+                                           Object::IntegerValue(isolate, index),
+                                           Nothing<double>());
   }
 
   if (relative_index < 0) {

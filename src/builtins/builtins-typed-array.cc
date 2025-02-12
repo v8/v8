@@ -29,20 +29,11 @@ BUILTIN(TypedArrayPrototypeBuffer) {
 
 namespace {
 
-int64_t CapRelativeIndex(DirectHandle<Object> num, int64_t minimum,
-                         int64_t maximum) {
-  if (V8_LIKELY(IsSmi(*num))) {
-    int64_t relative = Smi::ToInt(*num);
-    return relative < 0 ? std::max<int64_t>(relative + maximum, minimum)
-                        : std::min<int64_t>(relative, maximum);
-  } else {
-    DCHECK(IsHeapNumber(*num));
-    double relative = Cast<HeapNumber>(*num)->value();
-    DCHECK(!std::isnan(relative));
-    return static_cast<int64_t>(
-        relative < 0 ? std::max<double>(relative + maximum, minimum)
-                     : std::min<double>(relative, maximum));
-  }
+int64_t CapRelativeIndex(double relative, int64_t minimum, int64_t maximum) {
+  DCHECK(!std::isnan(relative));
+  return static_cast<int64_t>(
+      relative < 0 ? std::max<double>(relative + maximum, minimum)
+                   : std::min<double>(relative, maximum));
 }
 
 }  // namespace
@@ -62,20 +53,20 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   int64_t final = len;
 
   if (V8_LIKELY(args.length() > 1)) {
-    DirectHandle<Object> num;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, num, Object::ToInteger(isolate, args.at<Object>(1)));
+    double num;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::IntegerValue(isolate, args.at<Object>(1)));
     to = CapRelativeIndex(num, 0, len);
 
     if (args.length() > 2) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
       from = CapRelativeIndex(num, 0, len);
 
       DirectHandle<Object> end = args.atOrUndefined(isolate, 3);
       if (!IsUndefined(*end, isolate)) {
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
-                                           Object::ToInteger(isolate, end));
+        MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, num, Object::IntegerValue(isolate, end));
         final = CapRelativeIndex(num, 0, len);
       }
     }
@@ -173,14 +164,15 @@ BUILTIN(TypedArrayPrototypeFill) {
   if (args.length() > 2) {
     // 6. Let relativeStart be ? ToIntegerOrInfinity(start).
     DirectHandle<Object> num = args.atOrUndefined(isolate, 2);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
-                                       Object::ToInteger(isolate, num));
+    double double_num;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, double_num, Object::IntegerValue(isolate, num));
 
     // 7. If relativeStart = -∞, let startIndex be 0.
     // 8. Else if relativeStart < 0, let startIndex be max(len + relativeStart,
     //    0).
     // 9. Else, let startIndex be min(relativeStart, len).
-    start = CapRelativeIndex(num, 0, len);
+    start = CapRelativeIndex(double_num, 0, len);
 
     // 10. If end is undefined, let relativeEnd be len; else let relativeEnd be
     //     ? ToIntegerOrInfinity(end).
@@ -189,9 +181,9 @@ BUILTIN(TypedArrayPrototypeFill) {
       // 11. If relativeEnd = -∞, let endIndex be 0.
       // 12. Else if relativeEnd < 0, let endIndex be max(len + relativeEnd, 0).
       // 13. Else, let endIndex be min(relativeEnd, len).
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
-                                         Object::ToInteger(isolate, num));
-      end = CapRelativeIndex(num, 0, len);
+      MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, double_num, Object::IntegerValue(isolate, num));
+      end = CapRelativeIndex(double_num, 0, len);
     }
   }
 
@@ -252,9 +244,9 @@ BUILTIN(TypedArrayPrototypeIncludes) {
 
   int64_t index = 0;
   if (args.length() > 2) {
-    DirectHandle<Object> num;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    double num;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
   }
 
@@ -280,9 +272,9 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
 
   int64_t index = 0;
   if (args.length() > 2) {
-    DirectHandle<Object> num;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    double num;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     index = CapRelativeIndex(num, 0, len);
   }
 
@@ -314,9 +306,9 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
 
   int64_t index = len - 1;
   if (args.length() > 2) {
-    DirectHandle<Object> num;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    double num;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::IntegerValue(isolate, args.at<Object>(2)));
     // Set a negative value (-1) for returning -1 if num is negative and
     // len + num is still negative. Upper bound is len - 1.
     index = std::min<int64_t>(CapRelativeIndex(num, -1, len), len - 1);
