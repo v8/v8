@@ -4192,6 +4192,10 @@ V8_EXPORT_PRIVATE extern i::Tagged<i::Object> _v8_internal_Get_Object(
     static auto result = tagged.operator->(); /* There's no default ctor. */  \
     result = tagged.operator->();                                             \
     return result;                                                            \
+  }                                                                           \
+  V8_DONT_STRIP_SYMBOL V8_EXPORT_PRIVATE auto& _As_##Type(                    \
+      i::Tagged<i::HeapObject>& obj) {                                        \
+    return _As_##Type(obj.ptr());                                             \
   }
 
 HEAP_OBJECT_ORDINARY_TYPE_LIST(AS_HELPER_DEF)
