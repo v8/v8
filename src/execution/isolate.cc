@@ -4194,93 +4194,96 @@ Isolate::Isolate(IsolateGroup* isolate_group)
 
 void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)),
-           Internals::kExternalPointerTableBasePointerOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(TrustedPointerTable, base_)),
-           Internals::kTrustedPointerTableBasePointerOffset);
-  CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
-           Internals::kExternalPointerTableSize);
-  CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
-           ExternalPointerTable::kSize);
-  CHECK_EQ(static_cast<int>(sizeof(TrustedPointerTable)),
-           Internals::kTrustedPointerTableSize);
-  CHECK_EQ(static_cast<int>(sizeof(TrustedPointerTable)),
-           TrustedPointerTable::kSize);
+  static_assert(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)) ==
+                Internals::kExternalPointerTableBasePointerOffset);
+  static_assert(static_cast<int>(OFFSET_OF(TrustedPointerTable, base_)) ==
+                Internals::kTrustedPointerTableBasePointerOffset);
+  static_assert(static_cast<int>(sizeof(ExternalPointerTable)) ==
+                Internals::kExternalPointerTableSize);
+  static_assert(static_cast<int>(sizeof(TrustedPointerTable)) ==
+                Internals::kTrustedPointerTableSize);
 #endif
 
-  CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
-           Internals::kIsolateStackGuardOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.is_marking_flag_)),
-           Internals::kVariousBooleanFlagsOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.error_message_param_)),
-      Internals::kErrorMessageParamOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.builtin_tier0_entry_table_)),
-           Internals::kBuiltinTier0EntryTableOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.builtin_tier0_table_)),
-      Internals::kBuiltinTier0TableOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.new_allocation_info_)),
-      Internals::kNewAllocationInfoOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.old_allocation_info_)),
-      Internals::kOldAllocationInfoOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_fp_)),
-           Internals::kIsolateFastCCallCallerFpOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_pc_)),
-           Internals::kIsolateFastCCallCallerPcOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.cage_base_)),
-           Internals::kIsolateCageBaseOffset);
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.long_task_stats_counter_)),
-           Internals::kIsolateLongTaskStatsCounterOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
-           Internals::kIsolateStackGuardOffset);
+  static_assert(OFFSET_OF(Isolate, isolate_data_) == 0);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)) ==
+      Internals::kIsolateStackGuardOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.is_marking_flag_)) ==
+      Internals::kVariousBooleanFlagsOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.error_message_param_)) ==
+                Internals::kErrorMessageParamOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.builtin_tier0_entry_table_)) ==
+                Internals::kBuiltinTier0EntryTableOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.builtin_tier0_table_)) ==
+                Internals::kBuiltinTier0TableOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.new_allocation_info_)) ==
+                Internals::kNewAllocationInfoOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.old_allocation_info_)) ==
+                Internals::kOldAllocationInfoOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_fp_)) ==
+                Internals::kIsolateFastCCallCallerFpOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.fast_c_call_caller_pc_)) ==
+                Internals::kIsolateFastCCallCallerPcOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.cage_base_)) ==
+      Internals::kIsolateCageBaseOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.long_task_stats_counter_)) ==
+                Internals::kIsolateLongTaskStatsCounterOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)) ==
+      Internals::kIsolateStackGuardOffset);
 
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.thread_local_top_)),
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.thread_local_top_)) ==
       Internals::kIsolateThreadLocalTopOffset);
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.handle_scope_data_)),
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.handle_scope_data_)) ==
       Internals::kIsolateHandleScopeDataOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
-           Internals::kIsolateEmbedderDataOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)) ==
+      Internals::kIsolateEmbedderDataOffset);
 #ifdef V8_COMPRESS_POINTERS
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
-           Internals::kIsolateExternalPointerTableOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.external_pointer_table_)) ==
+                Internals::kIsolateExternalPointerTableOffset);
 
-  CHECK_EQ(static_cast<int>(OFFSET_OF(
-               Isolate, isolate_data_.shared_external_pointer_table_)),
-           Internals::kIsolateSharedExternalPointerTableAddressOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.shared_external_pointer_table_)) ==
+                Internals::kIsolateSharedExternalPointerTableAddressOffset);
 #endif
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(
-      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.trusted_cage_base_)),
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.trusted_cage_base_)) ==
       Internals::kIsolateTrustedCageBaseOffset);
 
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.trusted_pointer_table_)),
-           Internals::kIsolateTrustedPointerTableOffset);
+  static_assert(static_cast<int>(
+                    OFFSET_OF(Isolate, isolate_data_.trusted_pointer_table_)) ==
+                Internals::kIsolateTrustedPointerTableOffset);
 
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.shared_trusted_pointer_table_)),
-           Internals::kIsolateSharedTrustedPointerTableAddressOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.shared_trusted_pointer_table_)) ==
+                Internals::kIsolateSharedTrustedPointerTableAddressOffset);
 #endif
-  CHECK_EQ(static_cast<int>(
-               OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
-           Internals::kIsolateApiCallbackThunkArgumentOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(
-               Isolate, isolate_data_.continuation_preserved_embedder_data_)),
-           Internals::kContinuationPreservedEmbedderDataOffset);
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.api_callback_thunk_argument_)) ==
+                Internals::kIsolateApiCallbackThunkArgumentOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(
+          Isolate, isolate_data_.continuation_preserved_embedder_data_)) ==
+      Internals::kContinuationPreservedEmbedderDataOffset);
 
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
-           Internals::kIsolateRootsOffset);
+  static_assert(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)) ==
+      Internals::kIsolateRootsOffset);
 
   CHECK(IsAligned(reinterpret_cast<Address>(&isolate_data_),
                   kIsolateDataAlignment));

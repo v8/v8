@@ -123,9 +123,6 @@ class V8_EXPORT_PRIVATE CodePointerTable
                                    kCodePointerTableReservationSize>;
 
  public:
-  // Size of a CodePointerTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
   static_assert(kMaxCodePointers == kMaxCapacity);
   static_assert(!kSupportsCompaction);
 
@@ -194,8 +191,6 @@ class V8_EXPORT_PRIVATE CodePointerTable
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;
   inline CodePointerHandle IndexToHandle(uint32_t index) const;
 };
-
-static_assert(sizeof(CodePointerTable) == CodePointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8

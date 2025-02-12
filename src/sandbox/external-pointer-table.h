@@ -324,9 +324,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
  public:
   using EvacuateMarkMode = ExternalPointerTableEntry::EvacuateMarkMode;
 
-  // Size of an ExternalPointerTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
   ExternalPointerTable() = default;
   ExternalPointerTable(const ExternalPointerTable&) = delete;
   ExternalPointerTable& operator=(const ExternalPointerTable&) = delete;
@@ -488,8 +485,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 };
-
-static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8

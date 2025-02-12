@@ -159,22 +159,23 @@ struct JSBuiltinDispatchHandleRoot {
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
-#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                             \
-  V(ExternalPointerTable, ExternalPointerTable::kSize, external_pointer_table) \
-  V(SharedExternalPointerTable, kSystemPointerSize,                            \
-    shared_external_pointer_table)                                             \
-  V(CppHeapPointerTable, CppHeapPointerTable::kSize, cpp_heap_pointer_table)
+#define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)      \
+  V(ExternalPointerTable, sizeof(ExternalPointerTable), \
+    external_pointer_table)                             \
+  V(SharedExternalPointerTable, kSystemPointerSize,     \
+    shared_external_pointer_table)                      \
+  V(CppHeapPointerTable, sizeof(CppHeapPointerTable), cpp_heap_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_ENABLE_SANDBOX
-#define ISOLATE_DATA_FIELDS_SANDBOX(V)                                      \
-  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                 \
-  V(TrustedPointerTable, TrustedPointerTable::kSize, trusted_pointer_table) \
-  V(SharedTrustedPointerTable, kSystemPointerSize,                          \
-    shared_trusted_pointer_table)                                           \
-  V(TrustedPointerPublishingScope, kSystemPointerSize,                      \
+#define ISOLATE_DATA_FIELDS_SANDBOX(V)                                       \
+  V(TrustedCageBase, kSystemPointerSize, trusted_cage_base)                  \
+  V(TrustedPointerTable, sizeof(TrustedPointerTable), trusted_pointer_table) \
+  V(SharedTrustedPointerTable, kSystemPointerSize,                           \
+    shared_trusted_pointer_table)                                            \
+  V(TrustedPointerPublishingScope, kSystemPointerSize,                       \
     trusted_pointer_publishing_scope)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)

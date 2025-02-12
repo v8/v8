@@ -138,9 +138,6 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
     : public ExternalEntityTable<TrustedPointerTableEntry,
                                  kTrustedPointerTableReservationSize> {
  public:
-  // Size of a TrustedPointerTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
   static_assert(kMaxTrustedPointers == kMaxCapacity);
   static_assert(!kSupportsCompaction);
 
@@ -213,8 +210,6 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Ensure that the value is valid before storing it into this table.
   inline void Validate(Address pointer, IndirectPointerTag tag);
 };
-
-static_assert(sizeof(TrustedPointerTable) == TrustedPointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8

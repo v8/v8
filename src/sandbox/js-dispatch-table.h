@@ -174,9 +174,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
       ExternalEntityTable<JSDispatchEntry, kJSDispatchTableReservationSize>;
 
  public:
-  // Size of a JSDispatchTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
 #ifdef V8_ENABLE_SANDBOX
   static_assert(kMaxJSDispatchEntries == kMaxCapacity);
 #endif  // V8_ENABLE_SANDBOX
@@ -322,7 +319,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   friend class MarkCompactCollector;
 };
 
-static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);
 }  // namespace internal
 }  // namespace v8
 
