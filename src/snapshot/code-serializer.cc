@@ -49,7 +49,7 @@ CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
     Isolate* isolate, Handle<SharedFunctionInfo> info) {
-  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.SerializeCode");
   NestedTimedHistogramScope histogram_timer(
       isolate->counters()->compile_serialize());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileSerialize);
