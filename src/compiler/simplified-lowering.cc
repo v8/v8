@@ -1820,7 +1820,7 @@ class RepresentationSelector {
         // => Int32Add/Sub
         VisitBinop<T>(node,
                       UseInfo::CheckedSafeIntTruncatingWord32(FeedbackSource{}),
-                      MachineRepresentation::kWord32);
+                      MachineRepresentation::kWord32, type_cache_->kInt32);
         if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
         return;
       }
