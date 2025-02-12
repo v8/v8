@@ -311,6 +311,14 @@ class MutateDbWriter {
           return;
         }
 
+        if (path.parentPath.isMemberExpression() &&
+            path.parent.property == path.node &&
+            babelTypes.isIdentifier(path.parent.object) &&
+            globalIdentifiers.has(path.parent.object.name)) {
+          // Property access on a global name.
+          return;
+        }
+
         let binding = path.scope.getBinding(path.node.name);
         if (!binding) {
           // Unknown dependency. Don't handle this.

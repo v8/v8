@@ -11,6 +11,7 @@
 const assert = require('assert');
 const { execSync } = require("child_process");
 const fs = require('fs');
+const path = require('path');
 const sinon = require('sinon');
 const tempfile = require('tempfile');
 const tempy = require('tempy');
@@ -280,5 +281,28 @@ describe('Regression tests', () => {
         this.settings, 'test_data/regress/empty_db');
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/iterator/expected.js', mutated);
+  });
+});
+
+describe('DB tests', () => {
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it('creates DB with Object.assign', () => {
+    // Test that an Object.assign expression is inserted into the snippet DB.
+    const tmpOut = tempy.directory();
+    const mutateDb = new db.MutateDbWriter(tmpOut);
+    const source = helpers.loadTestData('regress/db/input/input.js');
+    mutateDb.process(source);
+    mutateDb.writeIndex();
+    const expressionFile = path.join(
+        tmpOut,
+        'CallExpression/113f18444843b9cbf6778f4ac8b6f7cf585b280b.json');
+    const content = fs.readFileSync(expressionFile, 'utf-8');
+    assert.deepEqual(
+        '{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)",' +
+        '"isStatement":true,"originalPath":"regress/db/input/input.js",' +
+        '"dependencies":["VAR_0","VAR_1"],"needsSuper":false}', content);
   });
 });
