@@ -7246,11 +7246,16 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
+  DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
-    return vo_string->object()->string_length();
+    if (vo_string->object()->type() == VirtualObject::kConsString) {
+      return vo_string->object()->string_length();
+    }
   }
   if (auto const_string = TryGetConstant(broker(), local_isolate(), string)) {
-    return GetInt32Constant(const_string->AsString().length());
+    if (const_string->IsString()) {
+      return GetInt32Constant(const_string->AsString().length());
+    }
   }
   if (auto wrapper = string->TryCast<UnwrapThinString>()) {
     return BuildLoadStringLength(wrapper->value_input().node());
