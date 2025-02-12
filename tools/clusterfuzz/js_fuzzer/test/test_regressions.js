@@ -137,6 +137,15 @@ describe('Regression tests', () => {
     execFile(file);
   });
 
+  it('does not collide the module builder', () => {
+    const {file, flags} = createFuzzTest(
+        'test_data/regress/empty_db',
+        this.settings,
+        ['regress/dependency_collision/v8/test/mjsunit/wasm/input.js',
+         'regress/dependency_collision/chakra/input.js']);
+    execFile(file);
+  });
+
   it('resolves flag contradictions', () => {
     sandbox.stub(exceptions, 'CONTRADICTORY_FLAGS').value(
         [['--flag1', '--flag2']])

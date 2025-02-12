@@ -30,6 +30,10 @@ const { ObjectMutator } = require('./mutators/object_mutator.js');
 const { VariableMutator } = require('./mutators/variable_mutator.js');
 const { VariableOrObjectMutator } = require('./mutators/variable_or_object_mutation.js');
 
+const CHAKRA_WASM_MODULE_BUILDER_REL = 'chakra/WasmSpec/testsuite/harness/wasm-module-builder.js'
+const CHAKRA_WASM_CONSTANTS_REL = 'chakra/WasmSpec/testsuite/harness/wasm-constants.js'
+const V8_WASM_MODULE_BUILDER_REL = 'v8/test/mjsunit/wasm/wasm-module-builder.js';
+
 const MAX_EXTRA_MUTATIONS = 5;
 
 function defaultSettings() {
@@ -186,6 +190,30 @@ class ScriptMutator {
     }
   }
 
+  /**
+   * Particular dependencies have precedence over others due to duplicate
+   * variable declarations in their sources.
+   *
+   * This is currently only implemented for the wasm-module-builder, which
+   * lives in V8 and in an older version in the Chakra test suite. It could
+   * be generalized for other cases.
+   */
+  resolveCollisions(inputs) {
+    let hasWasmModuleBuilder = false;
+    inputs.forEach(input => {
+      hasWasmModuleBuilder |= input.dependentPaths.filter(
+          (x) => x.endsWith(V8_WASM_MODULE_BUILDER_REL)).length;
+    });
+    if (!hasWasmModuleBuilder) {
+      return;
+    }
+    inputs.forEach(input => {
+      input.dependentPaths = input.dependentPaths.filter(
+          (x) => !x.endsWith(CHAKRA_WASM_MODULE_BUILDER_REL) &&
+                 !x.endsWith(CHAKRA_WASM_CONSTANTS_REL));
+    });
+  }
+
   // Returns parsed dependencies for inputs.
   resolveInputDependencies(inputs) {
     const dependencies = new Map();
@@ -225,6 +253,7 @@ class ScriptMutator {
 
   // Combines input dependencies with fuzzer resources.
   resolveDependencies(inputs) {
+    this.resolveCollisions(inputs);
     const dependencies = this.resolveInputDependencies(inputs);
 
     // Add stubs for non-standard functions in the beginning.
