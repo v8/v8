@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
       : isolate_(isolate),
         enabled_(enabled),
         compile_imports_(std::move(compile_imports)),
-        context_(context),
+        context_(indirect_handle(context)),
         api_method_name_for_errors_(api_method_name_for_errors),
         resolver_(resolver) {}
 
@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
   Isolate* isolate_;
   const WasmEnabledFeatures enabled_;
   CompileTimeImports compile_imports_;
-  DirectHandle<Context> context_;
+  IndirectHandle<Context> context_;
   const char* api_method_name_for_errors_;
   std::shared_ptr<CompilationResultResolver> resolver_;
 
