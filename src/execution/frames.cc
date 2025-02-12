@@ -726,6 +726,7 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
 }
 
 bool StackFrameIteratorForProfiler::IsValidExitFrame(Address fp) const {
+  if (!IsAligned(fp, kSystemPointerSize)) return false;
   if (!IsValidStackAddress(fp)) return false;
   Address sp = ExitFrame::ComputeStackPointer(fp);
   if (!IsValidStackAddress(sp)) return false;
