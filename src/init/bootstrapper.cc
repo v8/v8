@@ -5978,6 +5978,15 @@ void Genesis::InitializeGlobal_js_float16array() {
                                    Context::FLOAT16_ARRAY_FUN_INDEX);
 }
 
+void Genesis::InitializeGlobal_js_regexp_escape() {
+  if (!v8_flags.js_regexp_escape) return;
+
+  DirectHandle<JSFunction> regexp_fun(native_context()->regexp_function(),
+                                      isolate());
+  SimpleInstallFunction(isolate(), regexp_fun, "escape", Builtin::kRegExpEscape,
+                        1, kAdapt);
+}
+
 void Genesis::InitializeGlobal_js_source_phase_imports() {
   if (!v8_flags.js_source_phase_imports) return;
   Factory* factory = isolate()->factory();

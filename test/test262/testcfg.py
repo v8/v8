@@ -68,6 +68,7 @@ FEATURE_FLAGS = {
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
     'Error.isError': '--js-error-iserror',
     'uint8array-base64': '--js-base-64',
+    'RegExp.escape': '--js-regexp-escape',
 }
 
 SKIPPED_FEATURES = set([])

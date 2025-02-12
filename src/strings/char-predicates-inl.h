@@ -53,6 +53,8 @@ inline constexpr bool IsBinaryDigit(base::uc32 c) {
   return c == '0' || c == '1';
 }
 
+inline constexpr bool IsAscii(base::uc32 c) { return !(c & ~0x7F); }
+
 inline constexpr bool IsAsciiLower(base::uc32 c) {
   return base::IsInRange(c, 'a', 'z');
 }

@@ -982,6 +982,8 @@ namespace internal {
       kFlags)                                                                  \
   CPP(RegExpPrototypeToString, kDontAdaptArgumentsSentinel)                    \
   CPP(RegExpRightContextGetter, JSParameterCount(0))                           \
+  /* ES #sec-regexp.escape */                                                  \
+  CPP(RegExpEscape, JSParameterCount(1))                                       \
                                                                                \
   /* RegExp helpers */                                                         \
   TFS(RegExpExecAtom, NeedsContext::kYes, kRegExp, kString, kLastIndex,        \
