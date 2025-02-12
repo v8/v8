@@ -48,6 +48,10 @@ bool SourceTextModuleDescriptor::ModuleRequestComparer::operator()(
             rhs->import_attributes()->size());
   }
 
+  if (lhs->phase() != rhs->phase()) {
+    return lhs->phase() < rhs->phase();
+  }
+
   return false;
 }
 

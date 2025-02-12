@@ -104,14 +104,17 @@ using ::v8::FunctionTemplate;
 using ::v8::HandleScope;
 using ::v8::Local;
 using ::v8::Maybe;
+using ::v8::MaybeLocal;
 using ::v8::Message;
 using ::v8::MessageCallback;
 using ::v8::Module;
+using ::v8::ModuleImportPhase;
 using ::v8::Name;
 using ::v8::None;
 using ::v8::Object;
 using ::v8::ObjectTemplate;
 using ::v8::Persistent;
+using ::v8::Promise;
 using ::v8::PropertyAttribute;
 using ::v8::Script;
 using ::v8::String;
@@ -26591,6 +26594,83 @@ TEST(DynamicImportWithAttributes) {
   i::DirectHandle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->PerformMicrotaskCheckpoint();
   CHECK(result->Equals(i::Cast<i::String>(promise->result())));
+}
+
+bool check_resolve_module_with_import_source_invoked = false;
+MaybeLocal<Module> CheckResolveModuleWithImportSource(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  v8::Isolate* isolate = context->GetIsolate();
+
+  CHECK(!specifier.IsEmpty());
+  String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
+  CHECK_EQ(0, strcmp("my-mod", *specifier_utf8));
+
+  CHECK_EQ(0, import_attributes->Length());
+
+  check_resolve_module_with_import_source_invoked = true;
+
+  return v8::Module::CreateSyntheticModule(
+      isolate, v8_str("my-mod"), {},
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+        // Do nothing.
+        Local<v8::Promise::Resolver> resolver =
+            v8::Promise::Resolver::New(context).ToLocalChecked();
+        resolver->Resolve(context, v8::Undefined(context->GetIsolate()))
+            .ToChecked();
+        return resolver->GetPromise();
+      });
+}
+
+bool check_resolve_source_invoked = false;
+MaybeLocal<Object> CheckResolveSource(Local<Context> context,
+                                      Local<String> specifier,
+                                      Local<FixedArray> import_attributes,
+                                      Local<Module> referrer) {
+  v8::Isolate* isolate = context->GetIsolate();
+
+  CHECK(!specifier.IsEmpty());
+  String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
+  CHECK_EQ(0, strcmp("my-mod", *specifier_utf8));
+
+  CHECK_EQ(0, import_attributes->Length());
+
+  check_resolve_source_invoked = true;
+
+  isolate->ThrowException(v8::Number::New(isolate, 42));
+  return {};
+}
+
+TEST(ImportSourceResolveModuleAndSource) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Check that when importing a module in both source phase and evaluation
+  // phase, both ResolveModuleCallback and ResolveSourceCallback are invoked.
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str(
+      "import mod from 'my-mod';"
+      "import source modSource from 'my-mod';");
+
+  v8::ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false,
+                          false, true);
+  v8::ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  // An error should be thrown in the ResolveSourceCallback.
+  CHECK(module
+            ->InstantiateModule(context.local(),
+                                CheckResolveModuleWithImportSource,
+                                CheckResolveSource)
+            .IsNothing());
+
+  CHECK(check_resolve_module_with_import_source_invoked);
+  CHECK(check_resolve_source_invoked);
 }
 
 void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,

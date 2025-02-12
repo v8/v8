@@ -141,6 +141,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
     const ImportAttributes* import_attributes() const {
       return import_attributes_;
     }
+    ModuleImportPhase phase() const { return phase_; }
 
     int position() const { return position_; }
     int index() const { return index_; }
