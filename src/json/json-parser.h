@@ -40,8 +40,8 @@ class JsonString final {
         has_escape_(false),
         is_index_(true) {}
 
-  JsonString(int start, int length, bool needs_conversion, bool internalize,
-             bool has_escape)
+  JsonString(uint32_t start, uint32_t length, bool needs_conversion,
+             bool internalize, bool has_escape)
       : start_(start),
         length_(length),
         needs_conversion_(needs_conversion),
@@ -64,12 +64,12 @@ class JsonString final {
     return has_escape_;
   }
 
-  int start() const {
+  uint32_t start() const {
     DCHECK(!is_index_);
     return start_;
   }
 
-  int length() const {
+  uint32_t length() const {
     DCHECK(!is_index_);
     return length_;
   }
@@ -83,10 +83,10 @@ class JsonString final {
 
  private:
   union {
-    const int start_;
+    const uint32_t start_;
     const uint32_t index_;
   };
-  const int length_;
+  const uint32_t length_;
   const bool needs_conversion_ : 1;
   const bool internalize_ : 1;
   const bool has_escape_ : 1;
@@ -307,7 +307,7 @@ class JsonParser final {
                             Handle<String> hint = Handle<String>());
 
   template <typename SinkChar>
-  void DecodeString(SinkChar* sink, int start, int length);
+  void DecodeString(SinkChar* sink, uint32_t start, uint32_t length);
 
   template <typename SinkSeqString>
   Handle<String> DecodeString(const JsonString& string,
@@ -399,7 +399,7 @@ class JsonParser final {
     return cursor_ == end_;
   }
 
-  int position() const { return static_cast<int>(cursor_ - chars_); }
+  uint32_t position() const { return static_cast<uint32_t>(cursor_ - chars_); }
 
   Isolate* isolate_;
   const uint64_t hash_seed_;

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -1665,8 +1666,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
   // For information about snapshotting, see below.
   Handle<Object> val_node;
   // Record the start position and end position for the primitive values.
-  int start_position;
-  int end_position;
+  uint32_t start_position;
+  uint32_t end_position;
 
   // Workaround for -Wunused-but-set-variable on old gcc versions (version < 8).
   USE(start_position);
@@ -2106,13 +2107,23 @@ Handle<String> JsonParser<Char>::DecodeString(
     if (!hint.is_null() && Matches(data, hint)) return hint;
   }
 
-  return factory()->InternalizeString(intermediate, 0, string.length());
+  DCHECK_EQ(intermediate->length(), string.length());
+  return factory()->InternalizeString(intermediate);
 }
 
 template <typename Char>
 Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
                                             Handle<String> hint) {
   if (string.length() == 0) return factory()->empty_string();
+  if (string.length() == 1) {
+    uint16_t first_char;
+    if (!string.has_escape()) {
+      first_char = chars_[string.start()];
+    } else {
+      DecodeString(&first_char, string.start(), 1);
+    }
+    return factory()->LookupSingleCharacterStringFromCode(first_char);
+  }
 
   if (string.internalize() && !string.has_escape()) {
     if (!hint.is_null()) {
@@ -2120,9 +2131,9 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
       if (Matches(data, hint)) return hint;
     }
     if (chars_may_relocate_) {
-      return factory()->InternalizeString(Cast<SeqString>(source_),
-                                          string.start(), string.length(),
-                                          string.needs_conversion());
+      return factory()->InternalizeSubString(Cast<SeqString>(source_),
+                                             string.start(), string.length(),
+                                             string.needs_conversion());
     }
     base::Vector<const Char> chars(chars_ + string.start(), string.length());
     return factory()->InternalizeString(chars, string.needs_conversion());
@@ -2142,7 +2153,8 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
 
 template <typename Char>
 template <typename SinkChar>
-void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
+void JsonParser<Char>::DecodeString(SinkChar* sink, uint32_t start,
+                                    uint32_t length) {
   SinkChar* sink_start = sink;
   const Char* cursor = chars_ + start;
   while (true) {
@@ -2207,8 +2219,8 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
 template <typename Char>
 JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   DisallowGarbageCollection no_gc;
-  int start = position();
-  int offset = start;
+  uint32_t start = position();
+  uint32_t offset = start;
   bool has_escape = false;
   base::uc32 bits = 0;
 
@@ -2229,9 +2241,9 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
     }
 
     if (*cursor_ == '"') {
-      int end = position();
+      uint32_t end = position();
       advance();
-      int length = end - offset;
+      uint32_t length = end - offset;
       bool convert = sizeof(Char) == 1 ? bits > unibrow::Latin1::kMaxChar
                                        : bits <= unibrow::Latin1::kMaxChar;
       constexpr int kMaxInternalizedStringValueLength = 10;

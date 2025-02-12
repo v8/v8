@@ -624,25 +624,28 @@ Handle<String> Factory::InternalizeUtf8String(base::Vector<const char> string) {
 template <typename SeqString, template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<SeqString>, DirectHandle<SeqString>>)
-Handle<String> Factory::InternalizeString(HandleType<SeqString> string,
-                                          int from, int length,
-                                          bool convert_encoding) {
+Handle<String> Factory::InternalizeSubString(HandleType<SeqString> string,
+                                             uint32_t from, uint32_t length,
+                                             bool convert_encoding) {
+  // Callers should handle the empty and one-char case themselves.
+  DCHECK_GT(length, 1);
+  DCHECK_IMPLIES(from == 0, length != string->length());
   SeqSubStringKey<SeqString> key(isolate(), string, from, length,
                                  convert_encoding);
   return InternalizeStringWithKey(&key);
 }
 
-template Handle<String> Factory::InternalizeString(
-    Handle<SeqOneByteString> string, int from, int length,
+template Handle<String> Factory::InternalizeSubString(
+    Handle<SeqOneByteString> string, uint32_t from, uint32_t length,
     bool convert_encoding);
-template Handle<String> Factory::InternalizeString(
-    Handle<SeqTwoByteString> string, int from, int length,
+template Handle<String> Factory::InternalizeSubString(
+    Handle<SeqTwoByteString> string, uint32_t from, uint32_t length,
     bool convert_encoding);
-template Handle<String> Factory::InternalizeString(
-    DirectHandle<SeqOneByteString> string, int from, int length,
+template Handle<String> Factory::InternalizeSubString(
+    DirectHandle<SeqOneByteString> string, uint32_t from, uint32_t length,
     bool convert_encoding);
-template Handle<String> Factory::InternalizeString(
-    DirectHandle<SeqTwoByteString> string, int from, int length,
+template Handle<String> Factory::InternalizeSubString(
+    DirectHandle<SeqTwoByteString> string, uint32_t from, uint32_t length,
     bool convert_encoding);
 
 namespace {
@@ -658,8 +661,8 @@ void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
   isolate->Throw(*error_obj);
 #else
   // The default in JS-land is to use Utf8Variant::kLossyUtf8, which never
-  // throws an error, so if there is no WebAssembly compiled in we'll never get
-  // here.
+  // throws an error, so if there is no WebAssembly compiled in we'll never
+  // get here.
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
@@ -4605,7 +4608,6 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
 }
 
 namespace {
-
 inline void InitializeTemplate(Tagged<TemplateInfo> that, ReadOnlyRoots roots,
                                bool do_not_cache) {
   that->set_number_of_properties(0);
