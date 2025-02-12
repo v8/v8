@@ -2766,15 +2766,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
 
 ValueNode* MaglevGraphBuilder::BuildUnwrapThinString(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kString));
-  NodeType known_type;
-  if (EnsureType(input, NodeType::kNonThinString, &known_type)) return input;
+  if (NodeTypeIs(GetType(input), NodeType::kNonThinString)) return input;
   return AddNewNode<UnwrapThinString>({input});
 }
 
 ValueNode* MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kStringOrStringWrapper));
-  NodeType known_type;
-  if (EnsureType(input, NodeType::kString, &known_type)) return input;
+  if (NodeTypeIs(GetType(input), NodeType::kString)) return input;
   return AddNewNode<UnwrapStringWrapper>({input});
 }
 
