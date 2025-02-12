@@ -1773,7 +1773,8 @@ class OutBuffer {
       int remaining_length = static_cast<int>(length - cur_length);
       while (remaining_length > 0) {
         Extend();
-        size_t copy_length = std::min<size_t>(remaining_length, kSegmentLength);
+        size_t copy_length =
+            std::min<size_t>(remaining_length, CurSegmentCapacity());
         CopyChars(cur_, chars, copy_length);
         chars += copy_length;
         cur_ += copy_length;
@@ -1784,8 +1785,18 @@ class OutBuffer {
   }
   size_t length() const {
     if (ZoneUsed()) {
-      return kStackBufferSize + (segments_->length() - 1) * kSegmentLength +
-             CurSegmentLength();
+      DCHECK_GT(segments_->length(), 0);
+      const size_t full_segments = segments_->length() - 1;
+      size_t length = kStackBufferSize;
+      if (full_segments < kNumVariableSegments) {
+        length += ((1u << full_segments) - 1) << kInitialSegmentSizeHighestBit;
+      } else {
+        length += ((1u << kNumVariableSegments) - 1)
+                  << kInitialSegmentSizeHighestBit;
+        length += (full_segments - kNumVariableSegments) * kMaxSegmentSize;
+      }
+      length += CurSegmentLength();
+      return length;
     } else {
       return StackBufferLength();
     }
@@ -1797,9 +1808,13 @@ class OutBuffer {
       CopyChars(dst, stack_buffer_, kStackBufferSize);
       dst += kStackBufferSize;
       // Copy full segments.
+      DCHECK_GT(segments_->length(), 0);
       for (int i = 0; i < segments_->length() - 1; i++) {
-        CopyChars(dst, segments_.value()[i].begin(), kSegmentLength);
-        dst += kSegmentLength;
+        base::Vector<Char> segment = segments_.value()[i];
+        size_t segment_length = segment.size();
+        DCHECK_EQ(segment_length, SegmentCapacity(i));
+        CopyChars(dst, segment.begin(), segment_length);
+        dst += segment_length;
       }
       // Copy last (partially filled) segment.
       base::Vector<Char> segment = segments_->last();
@@ -1811,15 +1826,26 @@ class OutBuffer {
   }
 
  private:
-  static constexpr int kSegmentLength = 2048;
-  static constexpr int kStackBufferSize = 256;
+  static constexpr uint32_t kInitialSegmentSize = 2 * KB;
+  static constexpr uint32_t kMaxSegmentSize = 32 * KB;
+  static_assert(base::bits::IsPowerOfTwo(kInitialSegmentSize));
+  static_assert(base::bits::IsPowerOfTwo(kMaxSegmentSize));
+  static constexpr uint8_t kInitialSegmentSizeHighestBit =
+      kBitsPerInt - base::bits::CountLeadingZeros32(kInitialSegmentSize) - 1;
+  static constexpr uint8_t kMaxSegmentSizeHighestBit =
+      kBitsPerInt - base::bits::CountLeadingZeros32(kMaxSegmentSize) - 1;
+  static constexpr uint8_t kNumVariableSegments =
+      kMaxSegmentSizeHighestBit - kInitialSegmentSizeHighestBit;
+  static constexpr size_t kStackBufferSize = 256;
 
   void Extend() {
     if (!ZoneUsed()) {
       zone_.emplace(allocator_, kJsonStringifierZoneName);
       segments_.emplace(1, &zone_.value());
     }
-    segments_->Add(zone_->AllocateVector<Char>(kSegmentLength), &zone_.value());
+    const size_t new_segment_size = SegmentCapacity(segments_->length());
+    segments_->Add(zone_->AllocateVector<Char>(new_segment_size),
+                   &zone_.value());
     cur_ = segments_->last().begin();
     segment_end_ = segments_->last().end();
   }
@@ -1831,6 +1857,15 @@ class OutBuffer {
   V8_INLINE size_t CurSegmentLength() const {
     DCHECK(ZoneUsed());
     return cur_ - segments_->last().begin();
+  }
+  V8_INLINE size_t SegmentCapacity(size_t segment) {
+    return 1u << std::min<size_t>(segment + kInitialSegmentSizeHighestBit,
+                                  kMaxSegmentSizeHighestBit);
+  }
+  V8_INLINE size_t CurSegmentCapacity() {
+    DCHECK(ZoneUsed());
+    DCHECK_GT(segments_->length(), 0);
+    return SegmentCapacity(segments_->length() - 1);
   }
   V8_INLINE bool ZoneUsed() const { return zone_.has_value(); }
 
