@@ -192,11 +192,11 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  DirectHandle<Object> value(args[1], isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> value(args[0], isolate);
   // Make sure CanonicalValueType fits properly in a Smi.
   static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
+  int raw_type = args.smi_value_at(1);
 
   wasm::CanonicalValueType type =
       wasm::CanonicalValueType::FromRawBitField(raw_type);
