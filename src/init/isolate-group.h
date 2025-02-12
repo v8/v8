@@ -37,7 +37,6 @@ class Sandbox;
 #endif
 class CodeRange;
 class Isolate;
-class OptimizingCompileTaskExecutor;
 class ReadOnlyHeap;
 class ReadOnlyArtifacts;
 class SnapshotData;
@@ -144,8 +143,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     shared_space_isolate_ = isolate;
   }
 
-  OptimizingCompileTaskExecutor* optimizing_compile_task_executor();
-
   ReadOnlyHeap* shared_read_only_heap() const { return shared_read_only_heap_; }
   void set_shared_read_only_heap(ReadOnlyHeap* heap) {
     shared_read_only_heap_ = heap;
@@ -189,7 +186,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   // that default group.
   static IsolateGroup* default_isolate_group_;
 
-  IsolateGroup() = default;
+  IsolateGroup();
   ~IsolateGroup();
   IsolateGroup(const IsolateGroup&) = delete;
   IsolateGroup& operator=(const IsolateGroup&) = delete;
@@ -237,8 +234,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;
-  std::unique_ptr<OptimizingCompileTaskExecutor>
-      optimizing_compile_task_executor_;
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;

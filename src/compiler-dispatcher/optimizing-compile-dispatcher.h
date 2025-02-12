@@ -85,7 +85,7 @@ class V8_EXPORT OptimizingCompileInputQueue {
 // isolates in the future.
 class V8_EXPORT OptimizingCompileTaskExecutor {
  public:
-  OptimizingCompileTaskExecutor();
+  explicit OptimizingCompileTaskExecutor(bool is_generating_embedded_builtins);
   ~OptimizingCompileTaskExecutor();
 
   // Invokes and runs Turbofan for this particular job.
