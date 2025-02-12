@@ -693,8 +693,9 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 
 #ifdef V8_TARGET_ARCH_64_BIT
-DEFINE_EXPERIMENTAL_FEATURE(additive_safe_int_feedback,
-                            "Enable the use of AdditiveSafeInteger feedback")
+DEFINE_BOOL(additive_safe_int_feedback, false,
+            "Enable the use of AdditiveSafeInteger feedback")
+DEFINE_WEAK_IMPLICATION(future, additive_safe_int_feedback)
 #else
 DEFINE_BOOL_READONLY(additive_safe_int_feedback, false,
                      "Enable the use of AdditiveSafeInteger feedback")
