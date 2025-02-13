@@ -450,5 +450,64 @@ def cppgc_pretty_printers(val):
 
 
 gdb.pretty_printers.append(cppgc_pretty_printers)
+class TaggedPrintCommand(gdb.Command):
+    """
+    The equivalent of the print command that deals with tagged objects
+
+    Usage: tp <expression>
+    Example: tp Isolate::Current()->context()->get(3)
+    """
+
+    def __init__(self):
+        super(TaggedPrintCommand, self).__init__("tp", gdb.COMMAND_DATA, gdb.COMPLETE_EXPRESSION)
+
+    def invoke(self, arg, from_tty):
+        """Called when the 'tp' command is invoked."""
+        try:
+            # Split the expression by '->' to handle chained calls.
+            parts = arg.split("->")
+            if not parts:
+                print("Error: No expression provided.")
+                return
+
+            if len(parts) == 1:
+              gdb.execute(f"print {parts[0]}")
+            else:
+              current_val = gdb.parse_and_eval(parts[0])
+              for part in parts[1:-1]:
+                  current_val = self._evaluate_part(current_val, part, False)
+                  if current_val is None:  # Early exit if an evaluation fails.
+                      return
+
+              self._evaluate_part(current_val, parts[-1], True)
+
+        except gdb.error as e:
+            print(f"Error: {e}")
+
+    def _evaluate_part(self, current_val, part, last):
+        """Evaluates a single part of the expression (method call or member access)."""
+
+        storage = None
+        target = f"(({current_val.type}){current_val})"
+
+        type = current_val.type
+        if type.tag and type.tag.startswith("v8::internal::Tagged<"):
+          storage = gdb.parse_and_eval(f"malloc({type.sizeof})").cast(type.pointer())
+          command = f"(({storage.type}){storage})->ptr_ = {current_val['ptr_']}"
+          gdb.parse_and_eval(command)
+          target = f"(({storage.type}){storage})->ToRawPtr()"
+
+        # Check for a method call (ends with parentheses).
+        command = f"{target}->{part}"
+        result = None
+        if last:
+          gdb.execute(f"print {command}")
+        else:
+          result = gdb.parse_and_eval(command)
+        if storage:
+          gdb.parse_and_eval(f"free({storage})")
+        return result
+
+TaggedPrintCommand()
 
 end
