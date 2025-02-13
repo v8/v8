@@ -282,6 +282,15 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/iterator/expected.js', mutated);
   });
+
+  it('does not crash on spurious identifiers', () => {
+    // Test that we don't erroneously load identifiers like `toString` from
+    // the map of additional resources.
+    const source = helpers.loadTestData('regress/resources/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+  });
 });
 
 describe('DB tests', () => {

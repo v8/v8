@@ -17,9 +17,9 @@ const mutator = require('./mutator.js');
 
 // Mapping of identifier->resource name, with additional resources only
 // loaded on demand if the respective identifier is found in the code.
-const IDENTIFIER_RESOURCE_MAP = {
-  'AsyncIterator': 'async_iterator.js',
-};
+const IDENTIFIER_RESOURCE_MAP = new Map([
+  ['AsyncIterator', 'async_iterator.js'],
+]);
 
 class NormalizerContext {
   constructor() {
@@ -102,7 +102,7 @@ class IdentifierNormalizer extends mutator.Mutator {
             return;
           }
           // Check if remaining identifiers require additional resources.
-          const resource = IDENTIFIER_RESOURCE_MAP[path.node.name];
+          const resource = IDENTIFIER_RESOURCE_MAP.get(path.node.name);
           if (resource) {
             thisMutator.context.extraResources.add(resource);
           }
