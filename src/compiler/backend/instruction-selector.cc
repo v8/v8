@@ -33,7 +33,7 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 #define ADAPTER_TEMPLATE
 #define InstructionSelectorTemplate InstructionSelectorT
 #else
@@ -360,7 +360,7 @@ bool InstructionSelectorTemplate::CanCover(node_t user, node_t node) const {
       return this->is_exclusive_user_of(user, node);
     }
   } else {
-#if V8_TARGET_ARCH_X64
+#if TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     // 2. Pure {node}s must be owned by the {user}.
@@ -416,7 +416,7 @@ bool InstructionSelectorTemplate::IsOnlyUserOfNodeInSameBlock(
     }
     return true;
   } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     for (Edge const edge : node->use_edges()) {
@@ -430,7 +430,7 @@ bool InstructionSelectorTemplate::IsOnlyUserOfNodeInSameBlock(
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
     Node* node, size_t projection_index) {
@@ -686,7 +686,7 @@ void InstructionSelectorTemplate::MarkAsRepresentation(
 namespace {
 
 InstructionOperand OperandForDeopt(Isolate* isolate,
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
                                    OperandGeneratorT* g,
 #else
                                    OperandGeneratorT<TurboshaftAdapter>* g,
@@ -777,7 +777,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 InstructionOperand OperandForDeopt(Isolate* isolate,
                                    OperandGeneratorT<TurbofanAdapter>* g,
                                    Node* input, FrameStateInputKind kind,
@@ -947,7 +947,7 @@ class TurboshaftStateObjectDeduplicator {
   ZoneAbslFlatHashMap<uint32_t, uint32_t> string_ids_mapping_;
 };
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 // Returns the number of instruction operands added to inputs.
 template <>
 size_t InstructionSelectorT<TurbofanAdapter>::AddOperandToStateValueDescriptor(
@@ -1032,7 +1032,7 @@ struct InstructionSelectorTemplate::CachedStateValues : public ZoneObject {
   StateValueList::Slice values_;
 };
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 class InstructionSelectorT<TurbofanAdapter>::CachedStateValuesBuilder {
  public:
@@ -1109,7 +1109,7 @@ size_t InstructionSelectorT<TurbofanAdapter>::AddInputsToFrameStateDescriptor(
 }
 #endif
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 size_t AddOperandToStateValueDescriptor(
     InstructionSelectorT* selector, StateValueList* values,
     InstructionOperandVector* inputs, OperandGeneratorT* g,
@@ -1241,7 +1241,7 @@ size_t AddOperandToStateValueDescriptor(
 }
 
 // Returns the number of instruction operands added to inputs.
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 size_t InstructionSelectorT::AddInputsToFrameStateDescriptor(
 #else
 template <>
@@ -1321,7 +1321,7 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
   return entries;
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 size_t InstructionSelectorT<TurbofanAdapter>::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, node_t state_node, OperandGenerator* g,
@@ -1494,7 +1494,7 @@ void InstructionSelectorTemplate::AppendDeoptimizeArguments(
 // An internal helper class for generating the operands to calls.
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 struct CallBufferT {
   using Adapter = TurboshaftAdapter;
 #else
@@ -1575,7 +1575,7 @@ void InstructionSelectorTemplate::InitializeCallBuffer(node_t node,
           }
         }
       } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
         UNREACHABLE();
 #else
         for (Edge const edge : ((node_t)call)->use_edges()) {
@@ -1832,7 +1832,7 @@ bool InstructionSelectorTemplate::IsSourcePositionUsed(node_t node) {
     }
     return false;
   } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     switch (node->opcode()) {
@@ -1879,7 +1879,7 @@ bool InstructionSelectorTemplate::IsSourcePositionUsed(node_t node) {
 }
 
 namespace {
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 bool increment_effect_level_for_node(TurbofanAdapter* adapter, Node* node) {
   const IrOpcode::Value opcode = node->opcode();
   return opcode == IrOpcode::kStore || opcode == IrOpcode::kUnalignedStore ||
@@ -1970,7 +1970,7 @@ void InstructionSelectorTemplate::VisitBlock(block_t block) {
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
       source_position = (*source_positions_)[node];
     } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
       UNREACHABLE();
 #else
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
@@ -2067,7 +2067,7 @@ FlagsCondition InstructionSelectorTemplate::GetComparisonFlagCondition(
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 FlagsCondition
 InstructionSelectorT<TurbofanAdapter>::GetComparisonFlagCondition(
@@ -2088,7 +2088,7 @@ void InstructionSelectorTemplate::MarkPairProjectionsAsWord32(node_t node) {
   }
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::ConsumeEqualZero(
 #else
 template <>
@@ -2120,7 +2120,7 @@ void InstructionSelectorT<TurboshaftAdapter>::ConsumeEqualZero(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitI8x16RelaxedSwizzle(
     node_t node) {
@@ -2128,7 +2128,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitI8x16RelaxedSwizzle(
 }
 #endif
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitI8x16RelaxedSwizzle(turboshaft::OpIndex node) {
   return VisitI8x16Swizzle(node);
 }
@@ -2330,7 +2330,7 @@ void InstructionSelectorTemplate::VisitBitcastTaggedToWord(node_t node) {
   EmitIdentity(node);
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitBitcastWordToTagged(
     node_t node) {
@@ -2339,7 +2339,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitBitcastWordToTagged(
 }
 #endif
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitBitcastWordToTagged(turboshaft::OpIndex node) {
 #else
 template <>
@@ -2351,7 +2351,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWordToTagged(
        g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitBitcastSmiToWord(turboshaft::OpIndex node) {
 #else
 template <>
@@ -2542,7 +2542,7 @@ IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
 
 #endif  // !V8_TARGET_ARCH_ARM64
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitFinishRegion(Node* node) {
   EmitIdentity(node);
@@ -2588,7 +2588,7 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
 ADAPTER_TEMPLATE
 void InstructionSelectorTemplate::VisitIfException(node_t node) {
   OperandGenerator g(this);
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
   if constexpr (Adapter::IsTurbofan) {
     DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
   }
@@ -2619,7 +2619,7 @@ void InstructionSelectorTemplate::VisitPhi(node_t node) {
   }
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitProjection(
 #else
 template <>
@@ -2650,7 +2650,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitProjection(Node* node) {
   OperandGenerator g(this);
@@ -2698,16 +2698,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitProjection(Node* node) {
       UNREACHABLE();
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // TURBOSHAFT_ISEL_ONLY
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 bool InstructionSelectorT::CanDoBranchIfOverflowFusion(
     turboshaft::OpIndex binop) {
 #else
 template <>
 bool InstructionSelectorT<TurboshaftAdapter>::CanDoBranchIfOverflowFusion(
     turboshaft::OpIndex binop) {
-#endif                         // V8_TARGET_ARCH_X64
+#endif                         // TURBOSHAFT_ISEL_ONLY
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const turboshaft::Graph* graph = this->turboshaft_graph();
   DCHECK(graph->Get(binop).template Is<OverflowCheckedBinopOp>() ||
@@ -2871,7 +2871,7 @@ void InstructionSelectorTemplate::VisitCall(node_t node, block_t handler) {
 
   // Pass label of exception handler block.
   if (handler) {
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
     if constexpr (Adapter::IsTurbofan) {
       DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
     }
@@ -3040,7 +3040,7 @@ void InstructionSelectorTemplate::VisitGoto(block_t target) {
   Emit(kArchJmp, g.NoOutput(), g.Label(target));
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitReturn(node_t node) {
 #else
 template <>
@@ -3079,7 +3079,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitReturn(node_t ret) {
   OperandGenerator g(this);
@@ -3169,7 +3169,7 @@ void InstructionSelectorTemplate::TryPrepareScheduleFirstProjection(
       DCHECK_EQ(unop->kind, OverflowCheckedUnaryOp::Kind::kAbs);
     }
   } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     switch (node->opcode()) {
@@ -3216,7 +3216,7 @@ void InstructionSelectorTemplate::TryPrepareScheduleFirstProjection(
       }
     }
   } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     for (Node* use : result->uses()) {
@@ -3344,7 +3344,7 @@ void InstructionSelectorTemplate::VisitStaticAssert(node_t node) {
         "%s",
         this->Get(node).template Cast<turboshaft::StaticAssertOp>().source);
   } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
     UNREACHABLE();
 #else
     asserted->Print(4);
@@ -3356,7 +3356,7 @@ void InstructionSelectorTemplate::VisitStaticAssert(node_t node) {
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitDeadValue(Node* node) {
   OperandGenerator g(this);
@@ -3391,7 +3391,7 @@ void InstructionSelectorTemplate::VisitRetain(node_t node) {
   Emit(kArchNop, g.NoOutput(), g.UseAny(this->input_at(node, 0)));
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitControl(block_t block) {
 #else
 template <>
@@ -3485,7 +3485,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
   }
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 void InstructionSelectorT<TurbofanAdapter>::VisitControl(BasicBlock* block) {
 #ifdef DEBUG
@@ -5025,7 +5025,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
 }
 #endif
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 void InstructionSelectorT::VisitNode(
 #else
 template <>
@@ -6265,7 +6265,7 @@ void InstructionSelectorTemplate::MarkNodeAsNotZeroExtended(node_t node) {
         }
       }
     } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
       UNREACHABLE();
 #else
       for (Edge edge : node->use_edges()) {
@@ -6356,7 +6356,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
 
 }  // namespace
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 FrameStateDescriptor* InstructionSelectorT::GetFrameStateDescriptor(
     node_t node) {
 #else
@@ -6377,7 +6377,7 @@ InstructionSelectorT<TurboshaftAdapter>::GetFrameStateDescriptor(node_t node) {
   return desc;
 }
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <>
 FrameStateDescriptor*
 InstructionSelectorT<TurbofanAdapter>::GetFrameStateDescriptor(node_t node) {
@@ -6400,7 +6400,7 @@ void InstructionSelectorTemplate::SwapShuffleInputs(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template class InstructionSelectorT<TurbofanAdapter>;
 template class InstructionSelectorT<TurboshaftAdapter>;
 
@@ -6437,7 +6437,7 @@ InstructionSelector InstructionSelector::ForTurboshaft(
     EnableTraceTurboJson trace_turbo) {
   return InstructionSelector(
       nullptr,
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
       new InstructionSelectorT(
 #else
       new InstructionSelectorT<TurboshaftAdapter>(
@@ -6449,7 +6449,7 @@ InstructionSelector InstructionSelector::ForTurboshaft(
           enable_scheduling, enable_roots_relative_addressing, trace_turbo));
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 InstructionSelector::InstructionSelector(std::nullptr_t,
                                          InstructionSelectorT* turboshaft_impl)
     : turboshaft_impl_(turboshaft_impl) {}

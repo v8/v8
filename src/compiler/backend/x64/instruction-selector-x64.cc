@@ -524,8 +524,6 @@ TryMatchBaseWithScaledIndexAndDisplacement32(InstructionSelectorT* selector,
 // Adds X64-specific methods for generating operands.
 class X64OperandGeneratorT final : public OperandGeneratorT {
  public:
-  // OPERAND_GENERATOR_T_BOILERPLATE(TurboshaftAdapter)
-
   explicit X64OperandGeneratorT(InstructionSelectorT* selector)
       : OperandGeneratorT(selector) {}
 

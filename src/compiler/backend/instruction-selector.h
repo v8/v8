@@ -29,6 +29,10 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+#define TURBOSHAFT_ISEL_ONLY 1
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -38,16 +42,16 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <typename Adapter>
 #endif
 struct CallBufferT;  // TODO(bmeurer): Remove this.
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <typename Adapter>
 #endif
 class InstructionSelectorT;
 class Linkage;
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 template <typename Adapter>
 #endif
 class OperandGeneratorT;
@@ -134,7 +138,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
  private:
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
   InstructionSelector(std::nullptr_t, InstructionSelectorT* turboshaft_impl);
 #else
   InstructionSelector(InstructionSelectorT<TurbofanAdapter>* turbofan_impl,
@@ -143,7 +147,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionSelector(const InstructionSelector&) = delete;
   InstructionSelector& operator=(const InstructionSelector&) = delete;
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
   InstructionSelectorT* turboshaft_impl_;
 #else
   InstructionSelectorT<TurbofanAdapter>* turbofan_impl_;
@@ -156,7 +160,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 class FlagsContinuationT final {
   using Adapter = TurboshaftAdapter;
 #else
@@ -472,7 +476,7 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 class InstructionSelectorT final : public TurboshaftAdapter {
   using Adapter = TurboshaftAdapter;
 

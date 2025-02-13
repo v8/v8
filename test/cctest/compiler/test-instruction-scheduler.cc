@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 using FlagsContinuation = FlagsContinuationT;
 #else
 using FlagsContinuation = FlagsContinuationT<TurbofanAdapter>;

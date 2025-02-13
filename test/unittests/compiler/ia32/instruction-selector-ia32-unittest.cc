@@ -10,6 +10,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 namespace {
 
 // Immediates (random subset).
@@ -961,6 +963,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDSwizzleConstantTest,
                          ::testing::ValuesIn(kSwizzleConstants));
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#endif
 
 }  // namespace compiler
 }  // namespace internal

@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-#ifndef V8_TARGET_ARCH_X64
+#ifndef TURBOSHAFT_ISEL_ONLY
 InstructionSelectorTest::InstructionSelectorTest()
     : TestWithNativeContextAndZone(kCompressGraphZone),
       rng_(v8_flags.random_seed) {}

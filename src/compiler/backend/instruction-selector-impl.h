@@ -94,7 +94,7 @@ class SwitchInfoT {
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
 class OperandGeneratorT : public TurboshaftAdapter {
   using Adapter = TurboshaftAdapter;
   using selector_t = InstructionSelectorT;
@@ -440,7 +440,7 @@ class OperandGeneratorT : public Adapter {
       }
       UNREACHABLE();
     } else {
-#ifdef V8_TARGET_ARCH_X64
+#ifdef TURBOSHAFT_ISEL_ONLY
       UNREACHABLE();
 #else
       switch (node->opcode()) {
