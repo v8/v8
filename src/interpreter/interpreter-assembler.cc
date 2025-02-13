@@ -1407,9 +1407,9 @@ void InterpreterAssembler::OnStackReplacement(
   // Three cases may cause us to attempt OSR, in the following order:
   //
   // 1) Presence of cached OSR Turbofan/Maglev code.
-  // 2) Presence of cached OSR Sparkplug code.
-  // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
-  //    a Turbofan OSR compilation.
+  // 2) The OSR urgency exceeds the current loop depth - in that case, trigger
+  //    a Turbofan/Maglev OSR compilation.
+  // 3) Presence of cached OSR Sparkplug code.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
   Label osr_to_opt(this), osr_to_sparkplug(this);
@@ -1437,20 +1437,20 @@ void InterpreterAssembler::OnStackReplacement(
   }
 
   // Case 2).
-  if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
-    Goto(&osr_to_sparkplug);
-  } else {
-    DCHECK_EQ(params, OnStackReplacementParams::kDefault);
-    TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
-        LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-    GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
+  {
+    static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
+    TNode<Int32T> osr_urgency = Word32And(
+        osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
+    GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
 
     // Case 3).
-    {
-      static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
-      TNode<Int32T> osr_urgency = Word32And(
-          osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
+    if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
+      Goto(&osr_to_sparkplug);
+    } else {
+      DCHECK_EQ(params, OnStackReplacementParams::kDefault);
+      TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+          LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+      GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
       JumpBackward(relative_jump);
     }
   }
