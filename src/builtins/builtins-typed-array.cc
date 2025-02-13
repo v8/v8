@@ -11,6 +11,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/simd.h"
 #include "third_party/simdutf/simdutf.h"
 
 namespace v8 {
@@ -436,16 +437,6 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
   return Just<simdutf::result>(simd_result);
 }
 
-// http://0x80.pl/notesen/2014-09-21-convert-to-hex.html
-char ConvertNibbleToHex(uint8_t nibble) {
-  const char correction = 'a' - '0' - 10;
-  const char c = nibble + '0';
-  uint8_t temp = 128 - 10 + nibble;
-  uint8_t msb = temp & 0x80;
-  uint8_t mask = msb - (msb >> 7);
-  return c + (mask & correction);
-}
-
 }  // namespace
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
@@ -631,7 +622,10 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     omit_padding = true;
   }
 
-  if (uint8array->IsDetachedOrOutOfBounds()) {
+  bool out_of_bounds = false;
+  size_t length = uint8array->GetLengthOrOutOfBounds(out_of_bounds);
+
+  if (out_of_bounds || uint8array->WasDetached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -646,8 +640,12 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     alphabet = simdutf::base64_options::base64_url_with_padding;
   }
 
-  size_t output_length =
-      simdutf::base64_length_from_binary(uint8array->byte_length(), alphabet);
+  size_t output_length = simdutf::base64_length_from_binary(length, alphabet);
+
+  if (output_length > String::kMaxLength) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidStringLength));
+  }
 
   if (output_length == 0) {
     return *isolate->factory()->empty_string();
@@ -677,8 +675,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     // simdutf library got updated. Also, add a test for it.
     size_t simd_result_size = simdutf::binary_to_base64(
         std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-        uint8array->byte_length(),
-        reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+        length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
     DCHECK_EQ(simd_result_size, output_length);
     USE(simd_result_size);
   }
@@ -704,16 +701,23 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
                                   method_name)));
   }
 
-  if (uint8array->IsDetachedOrOutOfBounds()) {
+  //  3. Let toEncode be ? GetUint8ArrayBytes(O).
+  bool out_of_bounds = false;
+  size_t length = uint8array->GetLengthOrOutOfBounds(out_of_bounds);
+
+  if (out_of_bounds || uint8array->WasDetached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
   }
-  //  3. Let toEncode be ? GetUint8ArrayBytes(O).
-  int byte_length = static_cast<int>(uint8array->GetLength());
 
-  if (byte_length == 0) {
+  if (length > String::kMaxLength / 2) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidStringLength));
+  }
+
+  if (length == 0) {
     return *isolate->factory()->empty_string();
   }
 
@@ -721,26 +725,16 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
       std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store());
 
   //   4. Let out be the empty String.
-  Handle<SeqOneByteString> output;
+  DirectHandle<SeqOneByteString> output;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, output,
-      isolate->factory()->NewRawOneByteString((byte_length) * 2));
+      isolate->factory()->NewRawOneByteString(static_cast<int>(length) * 2));
   //  5. For each byte byte of toEncode, do
   //    a. Let hex be Number::toString(𝔽(byte), 16).
   //    b. Set hex to StringPad(hex, 2, "0", start).
   //    c. Set out to the string-concatenation of out and hex.
-  int index = 0;
-  for (int i = 0; i < byte_length; i++) {
-    uint8_t byte = bytes[i];
-    uint8_t high = byte >> 4;
-    uint8_t low = byte & 0x0F;
-
-    output->SeqOneByteStringSet(index++, ConvertNibbleToHex(high));
-    output->SeqOneByteStringSet(index++, ConvertNibbleToHex(low));
-  }
-
   //  6. Return out.
-  return *output;
+  return Uint8ArrayToHex(bytes, length, output);
 }
 
 }  // namespace internal
