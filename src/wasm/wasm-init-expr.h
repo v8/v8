@@ -244,7 +244,6 @@ class WasmInitExpr : public ZoneObject {
       case kTop:
       case kBottom:
       case kRef:
-      case kRtt:
         UNREACHABLE();
     }
   }

@@ -1040,6 +1040,19 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// Takes a type index, creates a ValueType for (ref $index) and returns its
+// raw bit field. Useful for sandbox tests.
+RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
+  SealHandleScope scope(isolate);
+  if (args.length() != 1 || !IsSmi(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  DisallowGarbageCollection no_gc;
+  uint32_t type_index = Cast<Smi>(args[0]).value();
+  wasm::ValueType t = wasm::ValueType::Ref(wasm::ModuleTypeIndex{type_index});
+  return Smi::FromInt(t.raw_bit_field());
+}
+
 // The GenerateRandomWasmModule function is only implemented in non-official
 // builds (to save binary size). Hence also skip the runtime function in
 // official builds.

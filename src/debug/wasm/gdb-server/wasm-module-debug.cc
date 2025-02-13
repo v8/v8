@@ -404,7 +404,6 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
     case wasm::kRef:
     case wasm::kRefNull:
-    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:
       // Not supported

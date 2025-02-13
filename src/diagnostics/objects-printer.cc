@@ -2630,8 +2630,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         os << base::ReadUnalignedValue<int16_t>(field_address);
         break;
       case wasm::kRef:
-      case wasm::kRefNull:
-      case wasm::kRtt: {
+      case wasm::kRefNull: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
         Address obj = V8HeapCompressionScheme::DecompressTagged(address(), raw);
@@ -2734,7 +2733,6 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
       if (this->length() > kWasmArrayMaximumPrintedElements) os << "\n   ...";
       break;
     }
-    case wasm::kRtt:
     case wasm::kTop:
     case wasm::kBottom:
     case wasm::kVoid:

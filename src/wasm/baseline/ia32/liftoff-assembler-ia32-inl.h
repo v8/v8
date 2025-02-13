@@ -57,7 +57,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kI32:
     case kRefNull:
     case kRef:
-    case kRtt:
       assm->mov(dst.gp(), src);
       break;
     case kI64:
@@ -92,7 +91,6 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kI32:
     case kRefNull:
     case kRef:
-    case kRtt:
       assm->mov(dst, src.gp());
       break;
     case kI64:
@@ -123,7 +121,6 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kRef:
     case kRefNull:
-    case kRtt:
       assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;
@@ -1377,7 +1374,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kI32:
     case kRefNull:
     case kRef:
-    case kRtt:
       mov(dst, reg.gp());
       break;
     case kI64:
@@ -2653,7 +2649,6 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
     switch (kind) {
       case kRef:
       case kRefNull:
-      case kRtt:
         DCHECK(cond == kEqual || cond == kNotEqual);
         [[fallthrough]];
       case kI32:

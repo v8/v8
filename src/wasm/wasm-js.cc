@@ -1989,7 +1989,6 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
           "A global of type 'v128' cannot be created in JavaScript");
       return;
     }
-    case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
@@ -2181,7 +2180,6 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
       case i::wasm::kS128:
         thrower->TypeError("Invalid type v128");
         return false;
-      case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
@@ -2931,7 +2929,6 @@ void WebAssemblyExceptionGetArgImpl(
       case i::wasm::kRefNull:
         decode_index++;
         break;
-      case i::wasm::kRtt:
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
@@ -2986,7 +2983,6 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kS128:
       thrower.TypeError("Invalid type v128");
       return;
-    case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
@@ -3046,7 +3042,6 @@ void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
         return js_api_scope.AssertException();
       }
       break;
-    case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:
@@ -3141,7 +3136,6 @@ void WebAssemblyGlobalSetValueImpl(
       receiver->SetRef(value);
       return;
     }
-    case i::wasm::kRtt:
     case i::wasm::kI8:
     case i::wasm::kI16:
     case i::wasm::kF16:

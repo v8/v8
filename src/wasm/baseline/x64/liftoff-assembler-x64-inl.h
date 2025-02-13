@@ -85,7 +85,6 @@ inline void LoadFromStack(LiftoffAssembler* assm, LiftoffRegister dst,
     case kI64:
     case kRefNull:
     case kRef:
-    case kRtt:
       // Stack slots are uncompressed even when heap pointers are compressed.
       assm->movq(dst.gp(), src);
       break;
@@ -115,7 +114,6 @@ inline void StoreToMemory(LiftoffAssembler* assm, Operand dst,
     case kI64:
     case kRefNull:
     case kRef:
-    case kRtt:
       // Stack slots are uncompressed even when heap pointers are compressed.
       assm->movq(dst, src.gp());
       break;
@@ -162,7 +160,6 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI64:
     case kRef:
     case kRefNull:
-    case kRtt:
       assm->AllocateStackSpace(padding);
       assm->pushq(reg.gp());
       break;
@@ -1082,7 +1079,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kI64:
     case kRefNull:
     case kRef:
-    case kRtt:
       movq(dst, reg.gp());
       break;
     case kF32:
@@ -2323,7 +2319,6 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
         break;
       case kRef:
       case kRefNull:
-      case kRtt:
         DCHECK(cond == kEqual || cond == kNotEqual);
 #if defined(V8_COMPRESS_POINTERS)
         // It's enough to do a 32-bit comparison. This is also necessary for

@@ -182,10 +182,11 @@ void SandboxIsValidObjectAt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Sandbox* sandbox = Sandbox::current();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   auto IsLocatedInMappedMemory = [&](Address address) {
-    // Note that IsOutsideAllocatedSpace is imprecise and may return false for
-    // some addresses outside the allocated space. However, it's probably good
-    // enough for our purposes.
-    return !heap->memory_allocator()->IsOutsideAllocatedSpace(address);
+    if (heap->memory_allocator()->LookupChunkContainingAddress(address) !=
+        nullptr) {
+      return true;
+    }
+    return heap->read_only_space()->ContainsSlow(address);
   };
 
   Tagged<HeapObject> obj;

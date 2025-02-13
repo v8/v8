@@ -734,6 +734,7 @@ namespace internal {
   F(WasmSubstring, 3, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I)                      \
+  F(BuildRefTypeBitfield, 1, 1)                                 \
   F(CheckIsOnCentralStack, 0, 1)                                \
   F(CountUnoptimizedWasmToJSWrapper, 1, 1)                      \
   F(DeserializeWasmModule, 2, 1)                                \

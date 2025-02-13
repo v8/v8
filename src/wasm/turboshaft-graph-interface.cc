@@ -263,7 +263,6 @@ RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(
     case kS128:
       return RegisterRepresentation::Simd128();
     case kVoid:
-    case kRtt:
     case kTop:
     case kBottom:
       UNREACHABLE();
@@ -1115,7 +1114,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case kI8:
       case kI16:
       case kF16:
-      case kRtt:
       case kVoid:
       case kTop:
       case kBottom:
@@ -3599,7 +3597,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         }
         case wasm::kRef:
         case wasm::kRefNull:
-        case wasm::kRtt:
           __ StoreFixedArrayElement(values_array, index, value,
                                     compiler::kFullWriteBarrier);
           index++;
@@ -4552,7 +4549,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         case wasm::kS128:
           array_copy_max_loop_length = 100;
           break;
-        case wasm::kRtt:
         case wasm::kRef:
         case wasm::kRefNull:
           array_copy_max_loop_length = 15;
@@ -5829,7 +5825,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         return __ Simd128Constant(value);
       }
       case kVoid:
-      case kRtt:
       case kRef:
       case kTop:
       case kBottom:
@@ -7788,7 +7783,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           index += 2;
           break;
         }
-        case kRtt:
         case kRef:
         case kRefNull:
           value.op = __ LoadFixedArrayElement(exception_values_array, index);
@@ -8036,7 +8030,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         break;
       case wasm::kF16:
         UNIMPLEMENTED();
-      case wasm::kRtt:
       case wasm::kVoid:
       case kTop:
       case wasm::kBottom:
