@@ -101,6 +101,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return (v8::internal::LocalFactory*)this;
   }
 
+  IsolateGroup* isolate_group() const { return isolate_->isolate_group(); }
+
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 
   bool has_exception() const { return false; }

@@ -1480,7 +1480,6 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
     uint8_t data, SlotAccessor slot_accessor) {
 #ifdef V8_ENABLE_LEAPTIERING
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   DirectHandle<HeapObject> host = slot_accessor.object();
 
   uint32_t parameter_count = source_.GetUint30();
@@ -1495,9 +1494,8 @@ int Deserializer<IsolateT>::ReadAllocateJSDispatchEntry(
   JSDispatchTable::Space* space =
       isolate()->GetJSDispatchTableSpaceFor(host->address());
   JSDispatchHandle handle =
-      jdt->AllocateAndInitializeEntry(space, parameter_count);
+      isolate()->factory()->NewJSDispatchHandle(parameter_count, code, space);
   js_dispatch_entries_.push_back(handle);
-  jdt->SetCodeNoWriteBarrier(handle, *code);
   host->Relaxed_WriteField<JSDispatchHandle::underlying_type>(
       slot_accessor.offset(), handle.value());
   JS_DISPATCH_HANDLE_WRITE_BARRIER(*host, handle);

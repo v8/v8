@@ -137,18 +137,29 @@ template <typename Entry, size_t size>
 std::pair<typename SegmentedTable<Entry, size>::Segment,
           typename SegmentedTable<Entry, size>::FreelistHead>
 SegmentedTable<Entry, size>::AllocateAndInitializeSegment() {
+  if (auto res = TryAllocateAndInitializeSegment()) {
+    return *res;
+  }
+  V8::FatalProcessOutOfMemory(nullptr,
+                              "SegmentedTable::AllocateAndInitializeSegment");
+}
+
+template <typename Entry, size_t size>
+std::optional<std::pair<typename SegmentedTable<Entry, size>::Segment,
+                        typename SegmentedTable<Entry, size>::FreelistHead>>
+SegmentedTable<Entry, size>::TryAllocateAndInitializeSegment() {
   Address start =
       vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
                           kSegmentSize, PagePermissions::kReadWrite);
   if (!start) {
-    V8::FatalProcessOutOfMemory(nullptr, "SegmentedTable::AllocateSegment");
+    return {};
   }
   uint32_t offset = static_cast<uint32_t>((start - vas_->base()));
   Segment segment = Segment::At(offset);
 
   FreelistHead freelist = InitializeFreeList(segment);
 
-  return {segment, freelist};
+  return {{segment, freelist}};
 }
 
 template <typename Entry, size_t size>

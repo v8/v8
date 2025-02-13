@@ -224,12 +224,14 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
   // Allocates a new entry in the table and initialize it.
   //
+  // Note: If possible allocate dispatch handles through the factory.
+  //
   // This method is atomic and can be called from background threads.
-  inline JSDispatchHandle AllocateAndInitializeEntry(Space* space,
-                                                     uint16_t parameter_count);
   inline JSDispatchHandle AllocateAndInitializeEntry(Space* space,
                                                      uint16_t parameter_count,
                                                      Tagged<Code> code);
+  inline std::optional<JSDispatchHandle> TryAllocateAndInitializeEntry(
+      Space* space, uint16_t parameter_count, Tagged<Code> code);
 
   // The following methods are used to pre allocate entries and then initialize
   // them later.

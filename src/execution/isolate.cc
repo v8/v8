@@ -7644,10 +7644,9 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
           parameter_count);
 #else
       CHECK_LT(idx, JSBuiltinDispatchHandleRoot::kTableSize);
-      isolate_data_.builtin_dispatch_table()[idx] =
-          jdt->AllocateAndInitializeEntry(
-              read_only_heap_->js_dispatch_table_space(), parameter_count,
-              code);
+      JSDispatchHandle handle = jdt->AllocateAndInitializeEntry(
+          read_only_heap_->js_dispatch_table_space(), parameter_count, code);
+      isolate_data_.builtin_dispatch_table()[idx] = handle;
 #endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
     }
   }

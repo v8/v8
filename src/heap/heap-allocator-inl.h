@@ -241,6 +241,19 @@ HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
   return HeapObject();
 }
 
+template <typename Function>
+auto HeapAllocator::TryCustomAllocateWithRetry(Function&& Allocate,
+                                               AllocationType allocation) {
+  for (int i = 0; i < 2; ++i) {
+    if (auto maybe = Allocate()) {
+      return maybe;
+    }
+    CollectAllAvailableGarbage(allocation);
+  }
+
+  return typename std::invoke_result<Function>::type();
+}
+
 }  // namespace internal
 }  // namespace v8
 

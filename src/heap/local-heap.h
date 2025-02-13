@@ -236,6 +236,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   pthread_t thread_handle() { return thread_handle_; }
 #endif
 
+  HeapAllocator* allocator() { return &heap_allocator_; }
+
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
   using SafepointRequestedBit = ParkedBit::Next<bool, 1>;

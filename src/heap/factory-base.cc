@@ -1392,6 +1392,28 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
   return impl()->AllocationTypeForInPlaceInternalizableString();
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+template <typename Impl>
+JSDispatchHandle FactoryBase<Impl>::NewJSDispatchHandle(
+    uint16_t parameter_count, DirectHandle<Code> code,
+    JSDispatchTable::Space* space) {
+  JSDispatchTable* jdt = isolate()->isolate_group()->js_dispatch_table();
+
+  auto Allocate = [&]() {
+    return jdt->TryAllocateAndInitializeEntry(space, parameter_count, *code);
+  };
+
+  // Dispatch entries are only freed on major GCs.
+  AllocationType type = AllocationType::kOld;
+  auto allocator = isolate()->heap()->allocator();
+  if (auto res = allocator->TryCustomAllocateWithRetry(Allocate, type)) {
+    return *res;
+  }
+
+  V8::FatalProcessOutOfMemory(nullptr, "Factory::NewJSDispatchHandle");
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 // Instantiate FactoryBase for the two variants we want.
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) FactoryBase<Factory>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)

@@ -67,6 +67,10 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
+  template <typename Function>
+  V8_WARN_UNUSED_RESULT V8_INLINE auto TryCustomAllocateWithRetry(
+      Function&& Allocate, AllocationType allocation);
+
   V8_INLINE bool CanAllocateInReadOnlySpace() const;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

@@ -4738,43 +4738,112 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   }
   DCHECK(InstanceTypeChecker::IsJSFunction(*map));
 
-  // Allocation.
-  Tagged<JSFunction> function =
-      Cast<JSFunction>(factory->New(map, allocation_type_));
-  DisallowGarbageCollection no_gc;
+  Handle<JSFunction> function_handle;
+  bool many_closures_cell = false;
+  {
+    // Allocation.
+    Tagged<JSFunction> function =
+        Cast<JSFunction>(factory->New(map, allocation_type_));
 
-  // Transition the feedback cell after allocating the JSFunction. This is so
-  // that the leap-tiering-relevant one-to-many feedback cell mutation below
-  // happens atomically with the closure count increase here, without the object
-  // verifier potentially observing a many-closures cell with context
-  // specialised code.
-  DirectHandle<FeedbackCell> feedback_cell;
-  FeedbackCell::ClosureCountTransition cell_transition;
-  if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
-    // Track the newly-created closure.
-    cell_transition = feedback_cell->IncrementClosureCount(isolate_);
-  } else {
-    // Fall back to the many_closures_cell.
-    feedback_cell = isolate_->factory()->many_closures_cell();
-    cell_transition = FeedbackCell::kMany;
+    DisallowGarbageCollection no_gc;
+
+    // Transition the feedback cell after allocating the JSFunction. This is so
+    // that the leap-tiering-relevant one-to-many feedback cell mutation below
+    // happens atomically with the closure count increase here, without the
+    // object verifier potentially observing a many-closures cell with context
+    // specialised code.
+    DirectHandle<FeedbackCell> feedback_cell;
+    FeedbackCell::ClosureCountTransition cell_transition;
+    if (maybe_feedback_cell_.ToHandle(&feedback_cell)) {
+      // Track the newly-created closure.
+      cell_transition = feedback_cell->IncrementClosureCount(isolate_);
+    } else {
+      // Fall back to the many_closures_cell.
+      feedback_cell = isolate_->factory()->many_closures_cell();
+      cell_transition = FeedbackCell::kMany;
+      many_closures_cell = true;
+    }
+
+    WriteBarrierMode mode = allocation_type_ == AllocationType::kYoung
+                                ? SKIP_WRITE_BARRIER
+                                : UPDATE_WRITE_BARRIER;
+    // Header initialization.
+    function->initialize_properties(isolate);
+    function->initialize_elements();
+    function->set_shared(*sfi_, mode);
+    function->set_context(*context_, kReleaseStore, mode);
+    function->set_raw_feedback_cell(*feedback_cell, mode);
+
+#ifdef V8_ENABLE_LEAPTIERING
+    if (!many_closures_cell) {
+      // TODO(olivf, 42204201): Here we are explicitly not updating (only
+      // potentially initializing) the code. Worst case the dispatch handle
+      // still contains bytecode or CompileLazy and we'll tier on the next call.
+      // Otoh, if we would UpdateCode we would risk tiering down already
+      // existing closures with optimized code installed.
+      DCHECK_NE(*feedback_cell, *isolate->factory()->many_closures_cell());
+      DCHECK_NE(feedback_cell->dispatch_handle(), kNullJSDispatchHandle);
+
+      JSDispatchHandle dispatch_handle = feedback_cell->dispatch_handle();
+      JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+      Tagged<Code> old_code = jdt->GetCode(dispatch_handle);
+
+      // A write barrier is needed when settings code, because the update can
+      // race with marking which could leave the dispatch slot unmarked.
+      // TODO(olivf): This should be fixed by using a more traditional WB
+      // for dispatch handles (i.e. have a marking queue with dispatch handles
+      // instead of marking through the handle).
+      constexpr WriteBarrierMode mode_if_setting_code =
+          WriteBarrierMode::UPDATE_WRITE_BARRIER;
+
+      // TODO(olivf): We should go through the cases where this is still
+      // needed and maybe find some alternative to initialize it correctly
+      // from the beginning.
+      if (old_code->is_builtin()) {
+        jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+        function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
+      } else {
+        // On a transition of a feedback cell from one closure to many, make
+        // sure that the code on the feedback cell isn't native context
+        // specialized, and if it was, eagerly re-optimize.
+        if (cell_transition == FeedbackCell::kOneToMany &&
+            old_code->is_context_specialized()) {
+          jdt->SetCodeNoWriteBarrier(dispatch_handle, *code);
+          function->set_dispatch_handle(dispatch_handle, mode_if_setting_code);
+          DCHECK(old_code->kind() == CodeKind::MAGLEV ||
+                 old_code->kind() == CodeKind::TURBOFAN_JS);
+          if (!old_code->marked_for_deoptimization()) {
+            function->RequestOptimization(isolate, old_code->kind());
+          }
+        } else {
+          function->set_dispatch_handle(dispatch_handle, mode);
+        }
+      }
+    }
+#else
+    USE(cell_transition, many_closures_cell);
+    function->UpdateCode(*code, mode);
+#endif  // V8_ENABLE_LEAPTIERING
+
+    if (function->has_prototype_slot()) {
+      function->set_prototype_or_initial_map(
+          ReadOnlyRoots(isolate).the_hole_value(), kReleaseStore,
+          SKIP_WRITE_BARRIER);
+    }
+
+    // Potentially body initialization.
+    factory->InitializeJSObjectBody(
+        function, *map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
+
+    function_handle = handle(function, isolate_);
   }
 
-  WriteBarrierMode mode = allocation_type_ == AllocationType::kYoung
-                              ? SKIP_WRITE_BARRIER
-                              : UPDATE_WRITE_BARRIER;
-  // Header initialization.
-  function->initialize_properties(isolate);
-  function->initialize_elements();
-  function->set_shared(*sfi_, mode);
-  function->set_context(*context_, kReleaseStore, mode);
-  function->set_raw_feedback_cell(*feedback_cell, mode);
 #ifdef V8_ENABLE_LEAPTIERING
   // If the FeedbackCell doesn't have a dispatch handle, we need to allocate a
   // dispatch entry now. This should only be the case for functions using the
   // generic many_closures_cell (for example builtin functions), and only for
   // functions using certain kinds of code.
-  if (feedback_cell->dispatch_handle() == kNullJSDispatchHandle) {
-    DCHECK_EQ(*feedback_cell, *factory->many_closures_cell());
+  if (many_closures_cell) {
     // We currently only expect to see these kinds of Code here. For BASELINE
     // code, we will allocate a FeedbackCell after building the JSFunction. See
     // JSFunctionBuilder::Build.
@@ -4784,66 +4853,16 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // TODO(saelo): in the future, we probably want to use
     // code->parameter_count() here instead, but not all Code objects know
     // their parameter count yet.
-    function->AllocateDispatchHandle(
-        isolate, sfi_->internal_formal_parameter_count_with_receiver(), *code,
-        mode);
+    function_handle->clear_dispatch_handle();
+    HeapObject::AllocateAndInstallJSDispatchHandle(
+        function_handle, JSFunction::kDispatchHandleOffset, isolate,
+        sfi_->internal_formal_parameter_count_with_receiver(), code);
   } else {
-    // TODO(olivf, 42204201): Here we are explicitly not updating (only
-    // potentially initializing) the code. Worst case the dispatch handle still
-    // contains bytecode or CompileLazy and we'll tier on the next call. Otoh,
-    // if we would UpdateCode we would risk tiering down already existing
-    // closures with optimized code installed.
-    JSDispatchHandle handle = feedback_cell->dispatch_handle();
-    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-    Tagged<Code> old_code = jdt->GetCode(handle);
-
-    // A write barrier is needed when settings code, because the update can race
-    // with marking which could leave the dispatch slot unmarked.
-    // TODO(olivf): This should be fixed by using a more traditional WB
-    // for dispatch handles (i.e. have a marking queue with dispatch handles
-    // instead of marking through the handle).
-    constexpr WriteBarrierMode mode_if_setting_code =
-        WriteBarrierMode::UPDATE_WRITE_BARRIER;
-
-    // TODO(olivf): We should go through the cases where this is still
-    // needed and maybe find some alternative to initialize it correctly
-    // from the beginning.
-    if (old_code->is_builtin()) {
-      jdt->SetCodeNoWriteBarrier(handle, *code);
-      function->set_dispatch_handle(handle, mode_if_setting_code);
-    } else {
-      // On a transition of a feedback cell from one closure to many, make sure
-      // that the code on the feedback cell isn't native context specialized,
-      // and if it was, eagerly re-optimize.
-      if (cell_transition == FeedbackCell::kOneToMany &&
-          old_code->is_context_specialized()) {
-        jdt->SetCodeNoWriteBarrier(handle, *code);
-        function->set_dispatch_handle(handle, mode_if_setting_code);
-        DCHECK(old_code->kind() == CodeKind::MAGLEV ||
-               old_code->kind() == CodeKind::TURBOFAN_JS);
-        if (!old_code->marked_for_deoptimization()) {
-          function->RequestOptimization(isolate, old_code->kind());
-        }
-      } else {
-        function->set_dispatch_handle(handle, mode);
-      }
-    }
+    DCHECK_NE(function_handle->dispatch_handle(), kNullJSDispatchHandle);
   }
-#else
-  USE(cell_transition);
-  function->UpdateCode(*code, mode);
-#endif  // V8_ENABLE_LEAPTIERING
-  if (function->has_prototype_slot()) {
-    function->set_prototype_or_initial_map(
-        ReadOnlyRoots(isolate).the_hole_value(), kReleaseStore,
-        SKIP_WRITE_BARRIER);
-  }
+#endif
 
-  // Potentially body initialization.
-  factory->InitializeJSObjectBody(
-      function, *map, JSFunction::GetHeaderSize(map->has_prototype_slot()));
-
-  return handle(function, isolate_);
+  return function_handle;
 }
 
 }  // namespace internal

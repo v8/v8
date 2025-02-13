@@ -229,8 +229,10 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 #ifdef V8_ENABLE_LEAPTIERING
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
-    Tagged<Code> initial_code = *BUILTIN_CODE(isolate, CompileLazy);
-    cell->allocate_dispatch_handle(isolate, parameter_count, initial_code);
+    auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
+    FeedbackCell::AllocateAndInstallJSDispatchHandle(
+        cell, FeedbackCell::kDispatchHandleOffset, isolate, parameter_count,
+        initial_code);
 #endif
     cells.push_back(cell);
   }

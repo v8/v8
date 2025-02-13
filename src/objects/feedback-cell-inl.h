@@ -60,15 +60,6 @@ void FeedbackCell::clear_dispatch_handle() {
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void FeedbackCell::allocate_dispatch_handle(Isolate* isolate,
-                                            uint16_t parameter_count,
-                                            Tagged<Code> code,
-                                            WriteBarrierMode mode) {
-  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
-                                     parameter_count, code, mode);
-}
-
 JSDispatchHandle FeedbackCell::dispatch_handle() const {
   return JSDispatchHandle(
       ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));

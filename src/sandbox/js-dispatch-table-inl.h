@@ -142,21 +142,26 @@ void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle) {
 }
 
 JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
-    Space* space, uint16_t parameter_count) {
-  DCHECK(space->BelongsTo(this));
-  uint32_t index = AllocateEntry(space);
-  CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
-  at(index).MakeJSDispatchEntry(kNullAddress, kNullAddress, parameter_count,
-                                space->allocate_black());
-  return IndexToHandle(index);
+    Space* space, uint16_t parameter_count, Tagged<Code> new_code) {
+  if (auto res =
+          TryAllocateAndInitializeEntry(space, parameter_count, new_code)) {
+    return *res;
+  }
+  V8::FatalProcessOutOfMemory(nullptr,
+                              "JSDispatchTable::AllocateAndInitializeEntry");
 }
 
-JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
+std::optional<JSDispatchHandle> JSDispatchTable::TryAllocateAndInitializeEntry(
     Space* space, uint16_t parameter_count, Tagged<Code> new_code) {
   DCHECK(space->BelongsTo(this));
   SBXCHECK(IsCompatibleCode(new_code, parameter_count));
 
-  uint32_t index = AllocateEntry(space);
+  uint32_t index;
+  if (auto maybe_index = TryAllocateEntry(space)) {
+    index = *maybe_index;
+  } else {
+    return {};
+  }
   JSDispatchEntry& entry = at(index);
   CFIMetadataWriteScope write_scope("JSDispatchTable initialize");
   entry.MakeJSDispatchEntry(new_code.address(), new_code->instruction_start(),

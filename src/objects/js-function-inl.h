@@ -186,13 +186,16 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 }
 
 #ifdef V8_ENABLE_LEAPTIERING
-void JSFunction::AllocateDispatchHandle(Isolate* isolate,
-                                        uint16_t parameter_count,
-                                        Tagged<Code> code,
-                                        WriteBarrierMode mode) {
-  DCHECK_EQ(raw_feedback_cell()->dispatch_handle(), kNullJSDispatchHandle);
-  AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
-                                     parameter_count, code, mode);
+// static
+JSDispatchHandle JSFunction::AllocateDispatchHandle(Handle<JSFunction> function,
+                                                    Isolate* isolate,
+                                                    uint16_t parameter_count,
+                                                    DirectHandle<Code> code,
+                                                    WriteBarrierMode mode) {
+  DCHECK_EQ(function->raw_feedback_cell()->dispatch_handle(),
+            kNullJSDispatchHandle);
+  return AllocateAndInstallJSDispatchHandle(
+      function, kDispatchHandleOffset, isolate, parameter_count, code, mode);
 }
 
 void JSFunction::clear_dispatch_handle() {

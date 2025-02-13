@@ -154,6 +154,15 @@ void ExternalEntityTable<Entry, size>::SealReadOnlySegment() {
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
+  if (auto res = TryAllocateEntry(space)) {
+    return *res;
+  }
+  V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::AllocateEntry");
+}
+
+template <typename Entry, size_t size>
+std::optional<uint32_t> ExternalEntityTable<Entry, size>::TryAllocateEntry(
+    Space* space) {
   DCHECK(this->is_initialized());
   DCHECK(space->BelongsTo(this));
 
@@ -182,7 +191,11 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
 
       if (freelist.is_empty()) {
         // Freelist is (still) empty so extend this space by another segment.
-        freelist = Extend(space);
+        if (auto maybe_freelist = TryExtend(space)) {
+          freelist = *maybe_freelist;
+        } else {
+          return {};
+        }
         // Extend() adds one segment to the space and so to its freelist.
         DCHECK_EQ(freelist.length(), kEntriesPerSegment);
       }
@@ -244,8 +257,8 @@ bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
 }
 
 template <typename Entry, size_t size>
-typename ExternalEntityTable<Entry, size>::FreelistHead
-ExternalEntityTable<Entry, size>::Extend(Space* space) {
+std::optional<typename ExternalEntityTable<Entry, size>::FreelistHead>
+ExternalEntityTable<Entry, size>::TryExtend(Space* space) {
   // Freelist should be empty when calling this method.
   DCHECK_EQ(space->freelist_length(), 0);
   // The caller must lock the space's mutex before extending it.
@@ -254,7 +267,10 @@ ExternalEntityTable<Entry, size>::Extend(Space* space) {
   DCHECK(!space->is_internal_read_only_space());
 
   // Allocate the new segment.
-  auto [segment, freelist_head] = this->AllocateAndInitializeSegment();
+  auto extended = this->TryAllocateAndInitializeSegment();
+  if (!extended) return {};
+
+  auto [segment, freelist_head] = *extended;
   Extend(space, segment, freelist_head);
   return freelist_head;
 }

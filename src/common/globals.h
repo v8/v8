@@ -123,6 +123,12 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#ifdef V8_LOWER_LIMITS_MODE
+#define V8_LOWER_LIMITS_MODE_BOOL true
+#else
+#define V8_LOWER_LIMITS_MODE_BOOL false
+#endif
+
 #ifdef V8_STATIC_ROOTS_GENERATION
 #define V8_STATIC_ROOTS_GENERATION_BOOL true
 #else
@@ -558,14 +564,15 @@ constexpr int kJSDispatchTableEntrySizeLog2 = 4;
 // The size of the virtual memory reservation for the JSDispatchTable.
 // As with the other tables, a maximum table size in combination with shifted
 // indices allows omitting bounds checks.
-constexpr size_t kJSDispatchTableReservationSize = 256 * MB;
+constexpr size_t kJSDispatchTableReservationSize =
+    (V8_LOWER_LIMITS_MODE_BOOL ? 16 : 256) * MB;
 // The maximum number of entries in a JSDispatchTable.
 constexpr size_t kMaxJSDispatchEntries =
     kJSDispatchTableReservationSize / kJSDispatchTableEntrySize;
 
 #ifdef V8_TARGET_ARCH_64_BIT
 
-constexpr uint32_t kJSDispatchHandleShift = 8;
+constexpr uint32_t kJSDispatchHandleShift = V8_LOWER_LIMITS_MODE_BOOL ? 12 : 8;
 static_assert((1 << (32 - kJSDispatchHandleShift)) == kMaxJSDispatchEntries,
               "kJSDispatchTableReservationSize and kJSDispatchEntryHandleShift "
               "don't match");

@@ -192,6 +192,9 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   //
   // The segment is initialized with freelist entries.
   std::pair<Segment, FreelistHead> AllocateAndInitializeSegment();
+  // Same as above but fails if there is no space left.
+  std::optional<std::pair<Segment, FreelistHead>>
+  TryAllocateAndInitializeSegment();
 
   // Initialize a table segment with a freelist.
   //
