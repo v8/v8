@@ -2686,3 +2686,293 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({});
   assertEquals(1, instance.exports.main(0));
 })();
+
+(function TestCallRefWithMultipleRefArgs() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_x_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index)]);
+  let kSig_xy_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)]);
+  const funcTypeId = builder.addType(kSig_xy_xy);
+
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 2,  // Calls func2.
+      kExprDrop])
+    .exportAs("main");
+
+  let f1 = builder.addFunction("func1", kSig_xy_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1])
+    .exportFunc();
+
+  builder.addFunction("func2", kSig_x_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprRefFunc, f1.index,
+      kExprCallRef, funcTypeId,  // Calls func1.
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0]);
+
+  let instance = builder.instantiate({});
+  instance.exports.main();
+})();
+
+(function TestIndirectCallToDifferentInstanceWithMultipleRefArgs() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_x_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index)]);
+  let kSig_xy_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_xy);
+
+  let table = new WebAssembly.Table({
+    initial: 10, maximum: 10, element: 'anyfunc',
+  });
+  builder.addImportedTable('o', 'table');
+
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 2,  // Calls func2.
+      kExprDrop])
+    .exportAs("main");
+
+  builder.addFunction("func1", kSig_xy_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1])
+    .exportAs("func1");
+
+  builder.addFunction("func2", kSig_x_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI32Const, 0,
+      kExprCallIndirect, sig_index, kTableZero,  // Indirectly calls func1.
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      table: table,
+    }
+  });
+  table.set(0, instance2.exports.func1);
+
+  let instance1 = builder.instantiate({
+    o: {
+      table: table,
+    }
+  });
+
+  instance1.exports.main();
+})();
+
+(function TestIndirectCallToJSFunctionWithMultipleRefArgs() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_x_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index)]);
+  let kSig_xy_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_xy);
+
+  let table = new WebAssembly.Table({
+    initial: 10, maximum: 10, element: 'anyfunc',
+  });
+  builder.addImportedTable('o', 'table');
+
+  // Function 0
+  builder.addImport("o", "fn", kSig_xy_xy);
+  builder.addExport("fn", 0);
+
+  // Function 1
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 3,  // Calls func3.
+      kExprDrop])
+    .exportAs("main");
+
+  // Function 2
+  builder.addFunction("func2", kSig_xy_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1])
+    .exportAs("func2");
+
+  // Function 3
+  builder.addFunction("func3", kSig_x_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI32Const, 0,
+      kExprCallIndirect, sig_index, kTableZero,  // Calls fn => func2.
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      table: table,
+      fn: (x, y) => { return instance2.exports.func2(x, y); },
+    }
+  });
+  table.set(0, instance2.exports.fn);
+
+  let instance1 = builder.instantiate({
+    o: {
+      table: table,
+      fn: (x, y) => { },
+    }
+  });
+
+  instance1.exports.main();
+})();
+
+(function TestImportedCallToDifferentInstanceWithMultipleRefArgs() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_x_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index)]);
+  let kSig_xy_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_xy);
+
+  // Function 0
+  builder.addImport("o", "fn", kSig_xy_xy);
+
+  // Function 1
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 3,  // Calls func3.
+      kExprDrop])
+    .exportAs("main");
+
+  // Function 2
+  builder.addFunction("func2", kSig_xy_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1])
+    .exportAs("func2");
+
+  // Function 3
+  builder.addFunction("func3", kSig_x_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, 0,  // Calls imported func2.
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      fn: (x, y) => { },
+    }
+  });
+
+  let instance1 = builder.instantiate({
+    o: {
+      fn: instance2.exports.func2,
+    }
+  });
+
+  instance1.exports.main();
+})();
+
+(function TestInmportedCallToJSFunctionWithMultipleRefArgs() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  let array_type_index = builder.addArray(kWasmI32, true);
+  let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
+  let kSig_x_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index)]);
+  let kSig_xy_xy = makeSig(
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
+    [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)]);
+  let sig_index = builder.addType(kSig_xy_xy);
+
+  // Function 0
+  builder.addImport("o", "fn", kSig_xy_xy);
+
+  // Function 1
+  builder.addFunction("main", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(3),
+      kGCPrefix, kExprArrayNewDefault, array_type_index,
+      ...wasmI32Const(5),
+      kGCPrefix, kExprStructNew, struct_type_index,
+      kExprCallFunction, 3,  // Calls func3.
+      kExprDrop])
+    .exportAs("main");
+
+  // Function 2
+  builder.addFunction("func1", kSig_xy_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1])
+    .exportAs("func1");
+
+  // Function 3
+  builder.addFunction("func3", kSig_x_xy)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprCallFunction, 0,  // Calls fn => func2.
+      ...wasmI32Const(1),
+      kGCPrefix, kExprStructSet, struct_type_index, 0]);
+
+  let instance2 = builder.instantiate({
+    o: {
+      fn: (x, y) => { },
+    }
+  });
+
+  let instance1 = builder.instantiate({
+    o: {
+      fn: (x, y) => { return instance2.exports.func1(x, y); },
+    }
+  });
+
+  instance1.exports.main();
+})();

@@ -125,7 +125,7 @@ struct FrameState {
   DirectHandle<Object> GetCaughtException(Isolate* isolate,
                                           uint32_t catch_block_index) const;
   void DisposeCaughtExceptionsArray(Isolate* isolate);
-  DirectHandle<FixedArray> caught_exceptions_;
+  Handle<FixedArray> caught_exceptions_;
 
   inline void ResetHandleScope(Isolate* isolate);
 
@@ -393,7 +393,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   explicit WasmInterpreterThread(Isolate* isolate);
   ~WasmInterpreterThread();
 
-  DirectHandle<FixedArray> reference_stack() const { return reference_stack_; }
+  Handle<FixedArray> reference_stack() const { return reference_stack_; }
 
   bool ExpandStack(size_t additional_required_size) {
     if (current_stack_size_ + additional_required_size > kMaxStackSize) {
@@ -574,7 +574,7 @@ class V8_EXPORT_PRIVATE WasmInterpreterThread {
   // object allocation while the reference arguments are being passed to the
   // callee and while the reference return values are being passed back to the
   // caller.
-  DirectHandle<FixedArray> reference_stack_;
+  Handle<FixedArray> reference_stack_;
   size_t current_ref_stack_size_;
 
   WasmExecutionTimer execution_timer_;
@@ -2082,9 +2082,9 @@ class WasmBytecodeGenerator {
   InstrHandlerSize handler_size_;
   bool current_instr_encoding_failed_;
   bool no_nested_emit_instr_handler_guard_;
-  static size_t total_bytecode_size_;
-  static size_t emitted_short_slot_offset_count_;
-  static size_t emitted_short_memory_offset_count_;
+  static std::atomic<size_t> total_bytecode_size_;
+  static std::atomic<size_t> emitted_short_slot_offset_count_;
+  static std::atomic<size_t> emitted_short_memory_offset_count_;
 
   WasmBytecodeGenerator(const WasmBytecodeGenerator&) = delete;
   WasmBytecodeGenerator& operator=(const WasmBytecodeGenerator&) = delete;

@@ -1394,7 +1394,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // reference structs until initialization. Follow this up with a
   // {DisallowGarbageCollection} scope until initialization.
   Handle<WasmStruct> NewWasmStructUninitialized(const wasm::StructType* type,
-                                                Handle<Map> map);
+                                                DirectHandle<Map> map);
 
   // WasmInterpreterRuntime needs to call NewWasmStructUninitialized and
   // NewWasmArrayUninitialized.

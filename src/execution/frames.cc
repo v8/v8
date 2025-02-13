@@ -2960,15 +2960,15 @@ Handle<Script> FrameSummary::WasmInterpretedFrameSummary::script() const {
                 wasm_instance()->GetIsolate());
 }
 
-Handle<Context> FrameSummary::WasmInterpretedFrameSummary::native_context()
-    const {
+DirectHandle<Context>
+FrameSummary::WasmInterpretedFrameSummary::native_context() const {
   return handle(wasm_instance_->trusted_data(isolate())->native_context(),
                 isolate());
 }
 
-Handle<StackFrameInfo>
+DirectHandle<StackFrameInfo>
 FrameSummary::WasmInterpretedFrameSummary::CreateStackFrameInfo() const {
-  Handle<String> function_name =
+  DirectHandle<String> function_name =
       GetWasmFunctionDebugName(isolate(), instance_data(), function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
                                                  function_name, false);

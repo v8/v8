@@ -567,8 +567,8 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourcePosition() const;
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
-    Handle<Context> native_context() const;
-    Handle<StackFrameInfo> CreateStackFrameInfo() const;
+    DirectHandle<Context> native_context() const;
+    DirectHandle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<WasmInstanceObject> wasm_instance_;

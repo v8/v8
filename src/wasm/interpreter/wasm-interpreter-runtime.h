@@ -182,8 +182,8 @@ class WasmInterpreterRuntime {
   WasmRef WasmToJSObject(WasmRef ref) const;
 
   inline const ArrayType* GetArrayType(uint32_t array_index) const;
-  inline WasmRef GetWasmArrayRefElement(Tagged<WasmArray> array,
-                                        uint32_t index) const;
+  inline DirectHandle<Object> GetWasmArrayRefElement(Tagged<WasmArray> array,
+                                                     uint32_t index) const;
   bool SubtypeCheck(const WasmRef obj, const ValueType obj_type,
                     const DirectHandle<Map> rtt, const ValueType rtt_type,
                     bool null_succeeds) const;

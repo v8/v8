@@ -164,8 +164,9 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
           }
 
           wasm_args[i] = wasm::WasmValue(
-              ref, anyref ? wasm::kWasmAnyRef : wasm::kWasmRefString,
-              trusted_data->module());
+              ref,
+              anyref ? wasm::kCanonicalAnyRef
+                     : wasm::CanonicalValueType::Ref(wasm::HeapType::kString));
           arg_buf_ptr += kSystemPointerSize;
           break;
         }
@@ -1003,8 +1004,8 @@ void WasmInterpreterRuntime::BeginExecution(
             }
           }
           ref_args.push_back(ref);
-          base::WriteUnalignedValue<WasmRef>(reinterpret_cast<Address>(p),
-                                             WasmRef(nullptr));
+          base::WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(p),
+                                              kSlotsZapValue);
           p += sizeof(WasmRef);
           break;
         }
@@ -1138,10 +1139,9 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
                   ExtractWasmRef(ref_result_slot_index++);
               ref = WasmToJSObject(ref);
               function_result_[index] = WasmValue(
-                  ref,
-                  sig->GetReturn(index).kind() == kRef ? kWasmRefString
-                                                       : kWasmAnyRef,
-                  module_);
+                  ref, sig->GetReturn(index).kind() == kRef
+                           ? CanonicalValueType::Ref(HeapType::kString)
+                           : kCanonicalAnyRef);
               dst += sizeof(WasmRef) / kSlotSize;
               break;
             }
@@ -1567,7 +1567,7 @@ void WasmInterpreterRuntime::ExecuteFunction(const uint8_t*& code,
 
   current_frame_.current_function_ = target_function;
   current_frame_.previous_frame_ = &prev_frame_state;
-  current_frame_.caught_exceptions_ = DirectHandle<FixedArray>::null();
+  current_frame_.caught_exceptions_ = Handle<FixedArray>::null();
 
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
   current_frame_.current_stack_height_++;
@@ -1910,9 +1910,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
         DisallowHeapAllocation no_gc;
 
         uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
-        StoreRefArgsIntoStackSlots(
-            fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-            indirect_call.signature);
+        StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset,
+                                   indirect_call.signature);
         bool success = WasmInterpreterObject::RunInterpreter(
             isolate_, frame_pointer, target_instance, entry.function_index(),
             fp);
@@ -1949,9 +1948,8 @@ void WasmInterpreterRuntime::ExecuteIndirectCall(
       // Note that tail calls to host functions do not have to guarantee tail
       // behaviour, so it is ok to recursively allocate C++ stack frames here.
       uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
-      StoreRefArgsIntoStackSlots(
-          fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-          indirect_call.signature);
+      StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset,
+                                 indirect_call.signature);
       ExternalCallResult result = CallExternalJSFunction(
           current_code, module_, object_implicit_arg, indirect_call.signature,
           sp + slot_offset / kSlotSize, slot_offset);
@@ -2024,9 +2022,7 @@ void WasmInterpreterRuntime::ExecuteCallRef(
   // Note that tail calls to host functions do not have to guarantee tail
   // behaviour, so it is ok to recursively allocate C++ stack frames here.
   uint8_t* fp = reinterpret_cast<uint8_t*>(sp) + slot_offset;
-  StoreRefArgsIntoStackSlots(
-      fp, current_frame_.ref_array_current_sp_ + ref_stack_fp_offset,
-      signature);
+  StoreRefArgsIntoStackSlots(fp, ref_stack_fp_offset, signature);
   ExternalCallResult result =
       CallExternalJSFunction(current_code, module_, func_ref, signature,
                              sp + slot_offset / kSlotSize, return_slot_offset);
@@ -2664,9 +2660,9 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
 
     if (is_cast_from_any) {
       // Check for map being a map for a wasm object (struct, array, func).
-      InstanceType obj_type = obj_map->instance_type();
-      if (obj_type < FIRST_WASM_OBJECT_TYPE ||
-          obj_type > LAST_WASM_OBJECT_TYPE) {
+      InstanceType obj_type1 = obj_map->instance_type();
+      if (obj_type1 < FIRST_WASM_OBJECT_TYPE ||
+          obj_type1 > LAST_WASM_OBJECT_TYPE) {
         return false;
       }
     }

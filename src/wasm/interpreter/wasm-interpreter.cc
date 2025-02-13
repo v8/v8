@@ -208,7 +208,7 @@ DirectHandle<Object> FrameState::GetCaughtException(
 void FrameState::DisposeCaughtExceptionsArray(Isolate* isolate) {
   if (!caught_exceptions_.is_null()) {
     isolate->global_handles()->Destroy(caught_exceptions_.location());
-    caught_exceptions_ = DirectHandle<FixedArray>::null();
+    caught_exceptions_ = Handle<FixedArray>::null();
   }
 }
 
@@ -354,7 +354,7 @@ void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
 
 DirectHandle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object) {
-  DirectHandle<WasmInstanceObject> weak_instance =
+  Handle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
   Address* global_handle_location = weak_instance.location();
   GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
@@ -6580,8 +6580,10 @@ class Handlers : public HandlersBase {
       TRAP(TrapReason::kTrapArrayOutOfBounds)
     }
 
-    push<WasmRef>(sp, code, wasm_runtime,
-                  wasm_runtime->GetWasmArrayRefElement(array, index));
+    WasmRef element =
+        Handle<Object>(*wasm_runtime->GetWasmArrayRefElement(array, index),
+                       wasm_runtime->GetIsolate());
+    push<WasmRef>(sp, code, wasm_runtime, element);
 
     NextOp();
   }
@@ -7172,7 +7174,6 @@ PWasmOp* kInstructionTable[kInstructionTableSize] = {
                 FOREACH_LOAD_STORE_INSTR_HANDLER(V)
                     FOREACH_LOAD_STORE_DUPLICATED_INSTR_HANDLER(V)
 #undef V
-
 #endif  // !V8_DRUMBRAKE_BOUNDS_CHECKS
 
 #define V(name) Handlers<false>::name,
@@ -7363,11 +7364,12 @@ pc_t WasmBytecode::GetPcFromTrapCode(const uint8_t* current_code) const {
 }
 
 // static
-size_t WasmBytecodeGenerator::total_bytecode_size_ = 0;
+std::atomic<size_t> WasmBytecodeGenerator::total_bytecode_size_ = 0;
 // static
-size_t WasmBytecodeGenerator::emitted_short_slot_offset_count_ = 0;
+std::atomic<size_t> WasmBytecodeGenerator::emitted_short_slot_offset_count_ = 0;
 // static
-size_t WasmBytecodeGenerator::emitted_short_memory_offset_count_ = 0;
+std::atomic<size_t> WasmBytecodeGenerator::emitted_short_memory_offset_count_ =
+    0;
 
 WasmBytecodeGenerator::WasmBytecodeGenerator(uint32_t function_index,
                                              InterpreterCode* wasm_code,
@@ -8670,13 +8672,15 @@ void WasmInterpreter::GlobalTearDown() {
 
 // static
 void WasmBytecodeGenerator::PrintBytecodeCompressionStats() {
-  printf("Total bytecode size: %zu bytes.\n", total_bytecode_size_);
-  size_t space_saved_in_bytes = 2 * emitted_short_slot_offset_count_ +
-                                4 * emitted_short_memory_offset_count_;
-  double saved_pct = (total_bytecode_size_ + space_saved_in_bytes == 0)
+  size_t total_bytecode_size = std::atomic_load(&total_bytecode_size_);
+  printf("Total bytecode size: %zu bytes.\n", total_bytecode_size);
+  size_t space_saved_in_bytes =
+      2 * std::atomic_load(&emitted_short_slot_offset_count_) +
+      4 * std::atomic_load(&emitted_short_memory_offset_count_);
+  double saved_pct = (total_bytecode_size + space_saved_in_bytes == 0)
                          ? .0
                          : 100.0 * space_saved_in_bytes /
-                               (total_bytecode_size_ + space_saved_in_bytes);
+                               (total_bytecode_size + space_saved_in_bytes);
   printf("Bytes saved: %zu (%.1f%%).\n", space_saved_in_bytes, saved_pct);
 }
 

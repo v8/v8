@@ -146,7 +146,7 @@ inline const ArrayType* WasmInterpreterRuntime::GetArrayType(
   return module_->array_type(ModuleTypeIndex{array_index});
 }
 
-inline WasmRef WasmInterpreterRuntime::GetWasmArrayRefElement(
+inline DirectHandle<Object> WasmInterpreterRuntime::GetWasmArrayRefElement(
     Tagged<WasmArray> array, uint32_t index) const {
   return WasmArray::GetElement(isolate_, handle(array, isolate_), index);
 }

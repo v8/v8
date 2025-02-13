@@ -2076,7 +2076,7 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
 
 #if V8_ENABLE_DRUMBRAKE
 Handle<WasmStruct> Factory::NewWasmStructUninitialized(
-    const wasm::StructType* type, Handle<Map> map) {
+    const wasm::StructType* type, DirectHandle<Map> map) {
   Tagged<HeapObject> raw =
       AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw->set_map_after_allocation(isolate(), *map);
