@@ -127,6 +127,7 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
 }
 
 void MaglevAssembler::Prologue(Graph* graph) {
+  ASM_CODE_COMMENT(this);
   MaglevAssembler::TemporaryRegisterScope temps(this);
   //  We add two extra registers to the scope. Ideally we could add all the
   //  allocatable general registers, except Context, JSFunction, NewTarget and
@@ -147,6 +148,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 
   // Tiering support.
+#ifndef V8_ENABLE_LEAPTIERING
   if (v8_flags.turbofan) {
     using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
     Register flags = D::GetRegisterParameter(D::kFlags);
@@ -169,6 +171,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
     TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
                     needs_processing, flag_reg, Operand(zero_reg));
   }
+#endif
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.
