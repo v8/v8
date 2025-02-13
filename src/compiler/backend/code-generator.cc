@@ -1069,7 +1069,6 @@ base::OwnedVector<uint8_t> CodeGenerator::GenerateWasmDeoptimizationData() {
   // Lazy deopts are not supported in wasm.
   DCHECK_EQ(lazy_deopt_count_, 0);
   // Wasm doesn't use the JS inlining handling via deopt info.
-  // TODO(mliedtke): Re-evaluate if this would offer benefits.
   DCHECK_EQ(inlined_function_count_, 0);
 
   auto deopt_entries =

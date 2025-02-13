@@ -3209,10 +3209,6 @@ class BodyGen {
   template <ValueKind T1, ValueKind T2, ValueKind... Ts>
   void Generate(DataRange* data) {
     // TODO(clemensb): Implement a more even split.
-    // TODO(mliedtke): Instead of splitting we should probably "reserve" amount
-    // x for the first part, any reserved but potentially unused random bytes
-    // should then carry over instead of throwing them away which heavily
-    // reduces the amount of actually used random input bytes.
     auto first_data = data->split();
     Generate<T1>(&first_data);
     Generate<T2, Ts...>(data);
