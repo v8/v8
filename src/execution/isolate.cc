@@ -6509,10 +6509,23 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeDirectHandle<Object> maybe_import_options_argument) {
   DCHECK(!is_execution_terminating());
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
-  if (host_import_module_dynamically_callback_ == nullptr) {
-    DirectHandle<Object> exception =
-        factory()->NewError(error_function(), MessageTemplate::kUnsupported);
-    return NewRejectedPromise(this, api_context, exception);
+
+  switch (phase) {
+    case ModuleImportPhase::kEvaluation:
+      if (host_import_module_dynamically_callback_ == nullptr &&
+          host_import_module_with_phase_dynamically_callback_ == nullptr) {
+        DirectHandle<Object> exception = factory()->NewError(
+            error_function(), MessageTemplate::kUnsupported);
+        return NewRejectedPromise(this, api_context, exception);
+      }
+      break;
+    case ModuleImportPhase::kSource:
+      if (host_import_module_with_phase_dynamically_callback_ == nullptr) {
+        DirectHandle<Object> exception = factory()->NewError(
+            error_function(), MessageTemplate::kUnsupported);
+        return NewRejectedPromise(this, api_context, exception);
+      }
+      break;
   }
 
   DirectHandle<String> specifier_str;
@@ -6554,14 +6567,25 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     case ModuleImportPhase::kEvaluation:
       // TODO(42204365): Deprecate HostImportModuleDynamicallyCallback once
       // HostImportModuleWithPhaseDynamicallyCallback is stable.
-      API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          this, promise,
-          host_import_module_dynamically_callback_(
-              api_context, v8::Utils::ToLocal(host_defined_options),
-              v8::Utils::ToLocal(resource_name),
-              v8::Utils::ToLocal(specifier_str),
-              ToApiHandle<v8::FixedArray>(import_attributes_array)),
-          MaybeDirectHandle<JSPromise>());
+      if (host_import_module_with_phase_dynamically_callback_ != nullptr) {
+        API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            this, promise,
+            host_import_module_with_phase_dynamically_callback_(
+                api_context, v8::Utils::ToLocal(host_defined_options),
+                v8::Utils::ToLocal(resource_name),
+                v8::Utils::ToLocal(specifier_str), phase,
+                ToApiHandle<v8::FixedArray>(import_attributes_array)),
+            MaybeDirectHandle<JSPromise>());
+      } else {
+        API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            this, promise,
+            host_import_module_dynamically_callback_(
+                api_context, v8::Utils::ToLocal(host_defined_options),
+                v8::Utils::ToLocal(resource_name),
+                v8::Utils::ToLocal(specifier_str),
+                ToApiHandle<v8::FixedArray>(import_attributes_array)),
+            MaybeDirectHandle<JSPromise>());
+      }
       break;
     case ModuleImportPhase::kSource:
       CHECK(v8_flags.js_source_phase_imports);
