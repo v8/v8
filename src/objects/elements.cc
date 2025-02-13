@@ -3266,6 +3266,12 @@ class FastHoleyDoubleElementsAccessor
 
 enum IsSharedBuffer : bool { kShared = true, kUnshared = false };
 
+constexpr bool IsFloat16RawBitsZero(uint16_t x) {
+  // IEEE754 comparison returns true for 0 == -0, even though they are two
+  // different bit patterns.
+  return (x & ~0x8000) == 0;
+}
+
 // Super class for all external element arrays.
 template <ElementsKind Kind, typename ElementType>
 class TypedElementsAccessor
@@ -3644,7 +3650,14 @@ class TypedElementsAccessor
           }
           return Just(false);
         }
+      } else if (IsFloat16TypedArrayElementsKind(Kind) && search_value == 0) {
+        for (size_t k = start_from; k < length; ++k) {
+          ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
+          if (IsFloat16RawBitsZero(elem_k)) return Just(true);
+        }
+        return Just(false);
       }
+
       if (AccessorClass::ToTypedSearchValue(search_value,
                                             &typed_search_value)) {
         return Just(false);
@@ -3682,6 +3695,7 @@ class TypedElementsAccessor
       length = typed_array_length;
     }
 
+    auto is_shared = typed_array->buffer()->is_shared() ? kShared : kUnshared;
     ElementType typed_search_value;
 
     ElementType* data_ptr =
@@ -3702,6 +3716,12 @@ class TypedElementsAccessor
         if (std::isnan(search_value)) {
           return Just<int64_t>(-1);
         }
+      } else if (IsFloat16TypedArrayElementsKind(Kind) && search_value == 0) {
+        for (size_t k = start_from; k < length; ++k) {
+          ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
+          if (IsFloat16RawBitsZero(elem_k)) return Just<int64_t>(k);
+        }
+        return Just<int64_t>(-1);
       }
       if (AccessorClass::ToTypedSearchValue(search_value,
                                             &typed_search_value)) {
@@ -3709,7 +3729,6 @@ class TypedElementsAccessor
       }
     }
 
-    auto is_shared = typed_array->buffer()->is_shared() ? kShared : kUnshared;
     for (size_t k = start_from; k < length; ++k) {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just<int64_t>(k);
@@ -3722,6 +3741,7 @@ class TypedElementsAccessor
                                              size_t start_from) {
     DisallowGarbageCollection no_gc;
     Tagged<JSTypedArray> typed_array = Cast<JSTypedArray>(*receiver);
+    auto is_shared = typed_array->buffer()->is_shared() ? kShared : kUnshared;
 
     DCHECK(!typed_array->IsDetachedOrOutOfBounds());
 
@@ -3746,6 +3766,13 @@ class TypedElementsAccessor
           // Strict Equality Comparison of NaN is always false.
           return Just<int64_t>(-1);
         }
+      } else if (IsFloat16TypedArrayElementsKind(Kind) && search_value == 0) {
+        size_t k = start_from;
+        do {
+          ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
+          if (IsFloat16RawBitsZero(elem_k)) return Just<int64_t>(k);
+        } while (k-- != 0);
+        return Just<int64_t>(-1);
       }
       if (AccessorClass::ToTypedSearchValue(search_value,
                                             &typed_search_value)) {
@@ -3765,7 +3792,6 @@ class TypedElementsAccessor
     }
 
     size_t k = start_from;
-    auto is_shared = typed_array->buffer()->is_shared() ? kShared : kUnshared;
     do {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
       if (elem_k == typed_search_value) return Just<int64_t>(k);
