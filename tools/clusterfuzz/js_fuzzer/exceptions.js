@@ -98,6 +98,11 @@ const SOFT_SKIPPED_PATHS = [
     /webgl/,
 ];
 
+// Files that can't be combined with `use strict`.
+const SLOPPY_FILES = new Set([
+  "chakra/UnitTestFramework/UnitTestFramework.js",
+]);
+
 // Flags that lead to false positives. Furthermore choose files using these
 // flags with a lower probability, as the absence of the flags typically
 // renders the tests useless.
@@ -273,7 +278,8 @@ function isTestSoftSkippedRel(relPath) {
 }
 
 function isTestSloppyRel(relPath) {
-  return this.getGeneratedSloppy().has(normalize(relPath));
+  const path = normalize(relPath);
+  return this.getGeneratedSloppy().has(path) || SLOPPY_FILES.has(path);
 }
 
 function filterFlags(flags) {
