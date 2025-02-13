@@ -120,7 +120,7 @@ def main(sys_args=None):
   print(
       f"Created cherry-pick: https://{GERRIT_HOST}/c/{cherry_pick['_number']}")
 
-  has_conflicts = cherry_pick['contains_git_conflicts']
+  has_conflicts = cherry_pick.get('contains_git_conflicts', False)
   if has_conflicts:
     print("==================================================")
     print("WARNING: Cherry-pick created with merge conflicts.")
