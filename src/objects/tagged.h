@@ -705,30 +705,17 @@ class Tagged : public detail::BaseForTagged<T>::type {
     requires(is_subtype_v<U, T>)
       : Base(other) {}
 
-  template <typename U = T>
-  V8_INLINE T& operator*() const
-    requires(std::is_base_of_v<HeapObjectLayout, U>)
-  {
-    return *ToRawPtr();
+  V8_INLINE constexpr decltype(auto) operator*() const {
+    // Indirect operator* through a helper, which has a couple of
+    // implementations for old- and new-layout objects, so that gdb only sees
+    // this single operator* overload.
+    return operator_star_impl();
   }
-  template <typename U = T>
-  V8_INLINE T* operator->() const
-    requires(std::is_base_of_v<HeapObjectLayout, U>)
-  {
-    return ToRawPtr();
-  }
-
-  template <typename U = T>
-  V8_INLINE constexpr T operator*() const
-    requires(!std::is_base_of_v<HeapObjectLayout, U>)
-  {
-    return ToRawPtr();
-  }
-  template <typename U = T>
-  V8_INLINE constexpr detail::TaggedOperatorArrowRef<T> operator->() const
-    requires(!std::is_base_of_v<HeapObjectLayout, U>)
-  {
-    return detail::TaggedOperatorArrowRef<T>{ToRawPtr()};
+  V8_INLINE constexpr decltype(auto) operator->() const {
+    // Indirect operator-> through a helper, which has a couple of
+    // implementations for old- and new-layout objects, so that gdb only sees
+    // this single operator-> overload.
+    return operator_arrow_impl();
   }
 
   // Implicit conversions and explicit casts to/from raw pointers
@@ -764,6 +751,29 @@ class Tagged : public detail::BaseForTagged<T>::type {
   friend Tagged<T> MakeStrong<>(Tagged<MaybeWeak<T>> value);
 
   V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+
+  V8_INLINE T& operator_star_impl() const
+    requires(std::is_base_of_v<HeapObjectLayout, T>)
+  {
+    return *ToRawPtr();
+  }
+  V8_INLINE T* operator_arrow_impl() const
+    requires(std::is_base_of_v<HeapObjectLayout, T>)
+  {
+    return ToRawPtr();
+  }
+
+  V8_INLINE constexpr T operator_star_impl() const
+    requires(!std::is_base_of_v<HeapObjectLayout, T>)
+  {
+    return ToRawPtr();
+  }
+  V8_INLINE constexpr detail::TaggedOperatorArrowRef<T> operator_arrow_impl()
+      const
+    requires(!std::is_base_of_v<HeapObjectLayout, T>)
+  {
+    return detail::TaggedOperatorArrowRef<T>{ToRawPtr()};
+  }
 
   template <typename U = T>
   V8_INLINE T* ToRawPtr() const
