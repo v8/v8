@@ -2313,6 +2313,13 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     __ LeaveFrame(StackFrame::STUB);
   }
 
+  // Check we are actually jumping to an OSR code object. This among other
+  // things ensures that the object contains deoptimization data below.
+  __ Ldr(scratch.W(),
+         FieldMemOperand(maybe_target_code, Code::kOsrOffsetOffset));
+  __ Cmp(scratch.W(), BytecodeOffset::None().ToInt());
+  __ SbxCheck(Condition::kNotEqual, AbortReason::kExpectedOsrCode);
+
   // Check the target has a matching parameter count. This ensures that the OSR
   // code will correctly tear down our frame when leaving.
   __ Ldrh(scratch.W(),

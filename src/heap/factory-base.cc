@@ -32,6 +32,7 @@
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
@@ -93,6 +94,8 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_metadata_size(options.metadata_size);
   code->set_inlined_bytecode_size(options.inlined_bytecode_size);
   code->set_osr_offset(options.osr_offset);
+  SBXCHECK_IMPLIES(options.deoptimization_data.is_null(),
+                   options.osr_offset.IsNone());
   code->set_handler_table_offset(options.handler_table_offset);
   code->set_constant_pool_offset(options.constant_pool_offset);
   code->set_code_comments_offset(options.code_comments_offset);

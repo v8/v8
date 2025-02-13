@@ -56,6 +56,7 @@
 #define SBXCHECK_LT(lhs, rhs) SBXCHECK_WRAPPED(LT, lhs, rhs)
 #define SBXCHECK_LE(lhs, rhs) SBXCHECK_WRAPPED(LE, lhs, rhs)
 #define SBXCHECK_BOUNDS(index, limit) SBXCHECK_WRAPPED(BOUNDS, index, limit)
+#define SBXCHECK_IMPLIES(when, then) SBXCHECK_WRAPPED(IMPLIES, when, then)
 #else
 #define SBXCHECK(condition) DCHECK(condition)
 #define SBXCHECK_EQ(lhs, rhs) DCHECK_EQ(lhs, rhs)
@@ -65,6 +66,7 @@
 #define SBXCHECK_LT(lhs, rhs) DCHECK_LT(lhs, rhs)
 #define SBXCHECK_LE(lhs, rhs) DCHECK_LE(lhs, rhs)
 #define SBXCHECK_BOUNDS(index, limit) DCHECK_BOUNDS(index, limit)
+#define SBXCHECK_IMPLIES(when, then) DCHECK_IMPLIES(when, then)
 #endif
 
 #endif  // V8_SANDBOX_CHECK_H_

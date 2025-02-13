@@ -22,6 +22,7 @@ namespace internal {
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
+  V(kExpectedOsrCode, "Expected OSR code")                                     \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
   V(kExpectedFeedbackCell, "Expected feedback cell")                           \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
