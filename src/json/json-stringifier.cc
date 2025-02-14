@@ -1880,7 +1880,12 @@ class OutBuffer {
 struct ContinuationRecord {
   enum Type {
     kObject,
+    kObjectResume,
     kArray,
+    kArrayResume,
+    kArrayResume_Holey,
+    kArrayResume_WithInterrupts,
+    kArrayResume_Holey_WithInterrupts,
     kString,    // Resume after encoding change.
                 // Object is either string or string wrapper.
                 // |index| is ignored for this type.
@@ -1893,8 +1898,10 @@ struct ContinuationRecord {
                 // (0 = no comma, otherwise add comma).
   };
   Type type;
-  Tagged<JSAny> object;
+  using ObjectT = UnionOf<JSAny, FixedArrayBase>;
+  Tagged<ObjectT> object;
   uint32_t index;
+  uint32_t length;
 };
 
 enum FastJsonStringifierResult {
@@ -1953,22 +1960,21 @@ class FastJsonStringifier {
   FastJsonStringifierResult SerializeJSPrimitiveWrapper(
       Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
       const DisallowGarbageCollection& no_gc);
+  V8_INLINE FastJsonStringifierResult SerializeJSObject(
+      Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult
-  SerializeJSObject(Tagged<JSObject> obj, uint32_t start_idx,
-                    const DisallowGarbageCollection& no_gc);
-  FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array,
-                                             uint32_t start_idx);
+  ResumeJSObject(Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
+                 bool comma, const DisallowGarbageCollection& no_gc);
+  FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array);
   template <ElementsKind kind>
   FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
-      Tagged<JSArray> array, uint32_t length, uint32_t start_index,
-      uint32_t* bailout_idx = nullptr);
+      Tagged<FixedArrayBase> elements, uint32_t start_index, uint32_t length);
   template <ElementsKind kind>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArray(Tagged<JSArray> array,
-                                                          uint32_t length,
-                                                          uint32_t start_index);
-  template <ElementsKind kind, typename T>
-  V8_INLINE FastJsonStringifierResult SerializeFixedArrayElement(
-      Tagged<T> elements, uint32_t i, Tagged<JSArray> array);
+  V8_INLINE FastJsonStringifierResult SerializeFixedArray(
+      Tagged<FixedArrayBase> array, uint32_t start_idx, uint32_t length);
+  template <ElementsKind kind, bool with_interrupt_checks, typename T>
+  V8_INLINE FastJsonStringifierResult
+  SerializeFixedArrayElement(Tagged<T> elements, uint32_t i, uint32_t length);
 
   FastJsonStringifierResult HandleInterruptAndCheckCycle();
   bool CheckCycle();
@@ -2457,89 +2463,93 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
 
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
-    Tagged<JSObject> obj, uint32_t start_idx,
-    const DisallowGarbageCollection& no_gc) {
+    Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc) {
   Tagged<Map> map = obj->map();
   if (V8_UNLIKELY(!CanFastSerializeJSObjectFastPath(
           obj, initial_jsobject_proto_, map, isolate_))) {
     return SLOW_PATH;
   }
-  if (map->NumberOfOwnDescriptors() == 0) {
-    AppendCStringLiteral("{}");
-    return SUCCESS;
-  }
-  size_t length = map->NumberOfOwnDescriptors();
-  if (start_idx < length) {
-    bool comma = true;
-    if (start_idx == 0) {
-      AppendCharacter('{');
-      comma = false;
+  AppendCharacter('{');
+  uint32_t length = map->NumberOfOwnDescriptors();
+  return ResumeJSObject(obj, 0, length, false, no_gc);
+}
+
+template <typename Char>
+FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
+    Tagged<JSObject> obj, uint32_t start_idx, uint32_t length, bool comma,
+    const DisallowGarbageCollection& no_gc) {
+  Tagged<Map> map = obj->map();
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+  InternalIndex::Range range{start_idx, length};
+  for (InternalIndex i : range) {
+    PropertyDetails details = PropertyDetails::Empty();
+    Tagged<Name> name = descriptors->GetKey(i);
+    if (V8_UNLIKELY(IsSymbol(name))) {
+      continue;
     }
-    Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-    InternalIndex::Range range{start_idx, length};
-    for (InternalIndex i : range) {
-      PropertyDetails details = PropertyDetails::Empty();
-      Tagged<Name> name = descriptors->GetKey(i);
-      if (V8_UNLIKELY(IsSymbol(name))) {
-        continue;
-      }
-      DCHECK(IsInternalizedString(name));
-      details = descriptors->GetDetails(i);
-      if (V8_UNLIKELY(details.IsDontEnum())) {
-        continue;
-      }
-      if (V8_UNLIKELY(details.location() != PropertyLocation::kField)) {
-        return SLOW_PATH;
-      }
-      DCHECK_EQ(PropertyKind::kData, details.kind());
-      FieldIndex field_index = FieldIndex::ForDetails(map, details);
-      Tagged<JSAny> property = obj->RawFastPropertyAt(field_index);
-      Tagged<String> key_name = Cast<String>(name);
-      FastJsonStringifierResult result =
-          TrySerializeSimpleObject<true>(property, comma, key_name);
-      switch (result) {
-        case SUCCESS:
-          comma = true;
-          break;
-        case UNDEFINED:
-          break;
-        case JS_OBJECT:
-        case JS_ARRAY: {
-          stack_.emplace_back(ContinuationRecord::kObject, obj,
-                              i.as_uint32() + 1);
-          static_assert(JS_OBJECT - 1 == ContinuationRecord::kObject);
-          static_assert(JS_ARRAY - 1 == ContinuationRecord::kArray);
-          ContinuationRecord::Type type =
-              static_cast<ContinuationRecord::Type>(result - 1);
-          stack_.emplace_back(type, property, 0);
-          result = SerializeObjectKey(key_name, comma, no_gc);
-          if constexpr (is_one_byte) {
-            if (V8_UNLIKELY(result != SUCCESS)) {
-              DCHECK_EQ(result, CHANGE_ENCODING);
-              stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                  comma);
-              return result;
-            }
-          }
-          return result;
-        }
-        case CHANGE_ENCODING:
-          DCHECK(is_one_byte);
-          stack_.emplace_back(ContinuationRecord::kObject, obj,
-                              i.as_uint32() + 1);
-          stack_.emplace_back(ContinuationRecord::kString, property, 0);
-          result = SerializeObjectKey(key_name, comma, no_gc);
+    DCHECK(IsInternalizedString(name));
+    details = descriptors->GetDetails(i);
+    if (V8_UNLIKELY(details.IsDontEnum())) {
+      continue;
+    }
+    if (V8_UNLIKELY(details.location() != PropertyLocation::kField)) {
+      return SLOW_PATH;
+    }
+    DCHECK_EQ(PropertyKind::kData, details.kind());
+    FieldIndex field_index = FieldIndex::ForDetails(map, details);
+    Tagged<JSAny> property = obj->RawFastPropertyAt(field_index);
+    Tagged<String> key_name = Cast<String>(name);
+    FastJsonStringifierResult result =
+        TrySerializeSimpleObject<true>(property, comma, key_name);
+    switch (result) {
+      case SUCCESS:
+        comma = true;
+        break;
+      case UNDEFINED:
+        break;
+      case JS_OBJECT:
+        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
+                            i.as_uint32() + 1, length);
+        stack_.emplace_back(ContinuationRecord::kObject, property, 0);
+        result = SerializeObjectKey(key_name, comma, no_gc);
+        if constexpr (is_one_byte) {
           if (V8_UNLIKELY(result != SUCCESS)) {
+            DCHECK_EQ(result, CHANGE_ENCODING);
             stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
                                 comma);
             return result;
           }
-          DCHECK(IsString(property) || IsStringWrapper(property));
-          return CHANGE_ENCODING;
-        case SLOW_PATH:
-        case EXCEPTION:
+        }
+        return result;
+      case JS_ARRAY:
+        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
+                            i.as_uint32() + 1, length);
+        stack_.emplace_back(ContinuationRecord::kArray, property, 0);
+        result = SerializeObjectKey(key_name, comma, no_gc);
+        if constexpr (is_one_byte) {
+          if (V8_UNLIKELY(result != SUCCESS)) {
+            DCHECK_EQ(result, CHANGE_ENCODING);
+            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
+                                comma);
+            return result;
+          }
+        }
+        return result;
+      case CHANGE_ENCODING:
+        DCHECK(is_one_byte);
+        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
+                            i.as_uint32() + 1, length);
+        stack_.emplace_back(ContinuationRecord::kString, property, 0);
+        result = SerializeObjectKey(key_name, comma, no_gc);
+        if (V8_UNLIKELY(result != SUCCESS)) {
+          stack_.emplace_back(ContinuationRecord::kObjectKey, key_name, comma);
           return result;
-      }
+        }
+        DCHECK(IsString(property) || IsStringWrapper(property));
+        return CHANGE_ENCODING;
+      case SLOW_PATH:
+      case EXCEPTION:
+        return result;
     }
   }
   AppendCharacter('}');
@@ -2548,60 +2558,45 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
 
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSArray(
-    Tagged<JSArray> array, uint32_t start_idx) {
+    Tagged<JSArray> array) {
   if (V8_UNLIKELY(!CanFastSerializeJSArrayFastPath(
           array, initial_jsarray_proto_, isolate_))) {
     return SLOW_PATH;
   }
-  uint32_t length = 0;
-  CHECK(Object::ToArrayLength(array->length(), &length));
-  if (length == 0) {
-    AppendCStringLiteral("[]");
-    return SUCCESS;
-  }
-  FastJsonStringifierResult result = SUCCESS;
-  if (start_idx < length) {
-    if (start_idx == 0) {
-      AppendCharacter('[');
+  AppendCharacter('[');
+  uint32_t length = static_cast<uint32_t>(Object::NumberValue(array->length()));
+  Tagged<FixedArrayBase> elements = array->elements();
+  switch (array->GetElementsKind()) {
+#define CASE(kind)                                                             \
+  case kind:                                                                   \
+    if constexpr (IsHoleyElementsKind(kind)) {                                 \
+      if (V8_UNLIKELY(!Protectors::IsNoElementsIntact(isolate_))) {            \
+        return SLOW_PATH;                                                      \
+      }                                                                        \
+    }                                                                          \
+    if (V8_UNLIKELY(length > kArrayInterruptLength)) {                         \
+      return SerializeFixedArrayWithInterruptCheck<kind>(elements, 0, length); \
+    } else {                                                                   \
+      return SerializeFixedArray<kind>(elements, 0, length);                   \
     }
-    switch (array->GetElementsKind()) {
-#define CASE(kind)                                                        \
-  case kind:                                                              \
-    if constexpr (IsHoleyElementsKind(kind)) {                            \
-      if (V8_UNLIKELY(!Protectors::IsNoElementsIntact(isolate_))) {       \
-        return SLOW_PATH;                                                 \
-      }                                                                   \
-    }                                                                     \
-    if (V8_UNLIKELY(length > kArrayInterruptLength)) {                    \
-      result = SerializeFixedArrayWithInterruptCheck<kind>(array, length, \
-                                                           start_idx);    \
-    } else {                                                              \
-      result = SerializeFixedArray<kind>(array, length, start_idx);       \
-    }                                                                     \
-    break;
-      CASE(PACKED_SMI_ELEMENTS)
-      CASE(PACKED_ELEMENTS)
-      CASE(PACKED_DOUBLE_ELEMENTS)
-      CASE(HOLEY_SMI_ELEMENTS)
-      CASE(HOLEY_ELEMENTS)
-      CASE(HOLEY_DOUBLE_ELEMENTS)
+    CASE(PACKED_SMI_ELEMENTS)
+    CASE(PACKED_ELEMENTS)
+    CASE(PACKED_DOUBLE_ELEMENTS)
+    CASE(HOLEY_SMI_ELEMENTS)
+    CASE(HOLEY_ELEMENTS)
+    CASE(HOLEY_DOUBLE_ELEMENTS)
 #undef CASE
-      default:
-        return SLOW_PATH;
-    }
+    default:
+      return SLOW_PATH;
   }
-  if (result == SUCCESS) {
-    AppendCharacter(']');
-  }
-  return result;
+  UNREACHABLE();
 }
 
 template <typename Char>
 template <ElementsKind kind>
 FastJsonStringifierResult
 FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
-    Tagged<JSArray> array, uint32_t length, uint32_t start_index,
-    uint32_t* bailout_idx) {
+    Tagged<FixedArrayBase> elements, uint32_t start_index, uint32_t length) {
   using ArrayT = std::conditional_t<IsDoubleElementsKind(kind),
                                     FixedDoubleArray, FixedArray>;
 
@@ -2617,11 +2612,14 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
   uint32_t i = start_index;
   while (true) {
     for (; i < limit; i++) {
-      FastJsonStringifierResult result = SerializeFixedArrayElement<kind>(
-          Cast<ArrayT>(array->elements()), i, array);
+      FastJsonStringifierResult result = SerializeFixedArrayElement<kind, true>(
+          Cast<ArrayT>(elements), i, length);
       if (result != SUCCESS) return result;
     }
-    if (i >= length) return SUCCESS;
+    if (i >= length) {
+      AppendCharacter(']');
+      return SUCCESS;
+    }
     DCHECK_LT(limit, kMaxAllowedFastPackedLength);
     limit = std::min(length, limit + kArrayInterruptLength);
     {
@@ -2637,28 +2635,51 @@ FastJsonStringifier<Char>::SerializeFixedArrayWithInterruptCheck(
       }
     }
   }
-  return SUCCESS;
+  UNREACHABLE();
 }
 
 template <typename Char>
 template <ElementsKind kind>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArray(
-    Tagged<JSArray> array, uint32_t limit, uint32_t start_index) {
+    Tagged<FixedArrayBase> elements, uint32_t start_index, uint32_t length) {
   using ArrayT = std::conditional_t<IsDoubleElementsKind(kind),
                                     FixedDoubleArray, FixedArray>;
 
-  for (uint32_t i = start_index; i < limit; i++) {
-    FastJsonStringifierResult result = SerializeFixedArrayElement<kind>(
-        Cast<ArrayT>(array->elements()), i, array);
+  for (uint32_t i = start_index; i < length; i++) {
+    FastJsonStringifierResult result = SerializeFixedArrayElement<kind, false>(
+        Cast<ArrayT>(elements), i, length);
     if (result != SUCCESS) return result;
   }
+  AppendCharacter(']');
   return SUCCESS;
 }
 
+namespace {
+
+consteval ContinuationRecord::Type ContinuationTypeForArray(
+    ElementsKind kind, bool with_interrupt_check) {
+  DCHECK(IsObjectElementsKind(kind));
+  if (IsHoleyElementsKind(kind)) {
+    if (with_interrupt_check) {
+      return ContinuationRecord::kArrayResume_Holey_WithInterrupts;
+    } else {
+      return ContinuationRecord::kArrayResume_Holey;
+    }
+  } else {
+    if (with_interrupt_check) {
+      return ContinuationRecord::kArrayResume_WithInterrupts;
+    } else {
+      return ContinuationRecord::kArrayResume;
+    }
+  }
+}
+
+}  // namespace
+
 template <typename Char>
-template <ElementsKind kind, typename T>
+template <ElementsKind kind, bool with_interrupt_checks, typename T>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
-    Tagged<T> elements, uint32_t i, Tagged<JSArray> array) {
+    Tagged<T> elements, uint32_t i, uint32_t length) {
   if constexpr (IsHoleyElementsKind(kind)) {
     if (elements->is_the_hole(isolate_, i)) {
       Separator(i > 0);
@@ -2681,15 +2702,21 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
         return SUCCESS;
       case CHANGE_ENCODING:
         DCHECK(IsString(obj) || IsStringWrapper(obj));
-        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
+        stack_.emplace_back(
+            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
+            i + 1, length);
         stack_.emplace_back(ContinuationRecord::kString, obj, 0);
         return result;
       case JS_OBJECT:
-        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
+        stack_.emplace_back(
+            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
+            i + 1, length);
         stack_.emplace_back(ContinuationRecord::kObject, obj, 0);
         return result;
       case JS_ARRAY:
-        stack_.emplace_back(ContinuationRecord::kArray, array, i + 1);
+        stack_.emplace_back(
+            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
+            i + 1, length);
         stack_.emplace_back(ContinuationRecord::kArray, obj, 0);
         return result;
       case SUCCESS:
@@ -2730,7 +2757,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     cont = stack_.back();
     stack_.pop_back();
     // Check that we have the object's continuation record.
-    DCHECK_EQ(stack_.back().type, ContinuationRecord::kObject);
+    DCHECK_EQ(stack_.back().type, ContinuationRecord::kObjectResume);
   }
   if (cont.type == ContinuationRecord::kString) {
     Tagged<String> object = Cast<String>(cont.object);
@@ -2743,8 +2770,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     cont = stack_.back();
     stack_.pop_back();
   }
-  DCHECK(cont.type == ContinuationRecord::kObject ||
-         cont.type == ContinuationRecord::kArray);
+  DCHECK(cont.type != ContinuationRecord::kString &&
+         cont.type != ContinuationRecord::kObjectKey);
   return SerializeObject(cont, no_gc);
 }
 
@@ -2795,7 +2822,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   return SerializeObject(
       ContinuationRecord{result == JS_OBJECT ? ContinuationRecord::kObject
                                              : ContinuationRecord::kArray,
-                         object, 0},
+                         object, 0, 0},
       no_gc);
 }
 
@@ -2816,12 +2843,36 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
     }
     switch (cont.type) {
       case ContinuationRecord::kObject: {
-        result =
-            SerializeJSObject(Cast<JSObject>(cont.object), cont.index, no_gc);
+        result = SerializeJSObject(Cast<JSObject>(cont.object), no_gc);
+        break;
+      }
+      case ContinuationRecord::kObjectResume: {
+        result = ResumeJSObject(Cast<JSObject>(cont.object), cont.index,
+                                cont.length, true, no_gc);
         break;
       }
       case ContinuationRecord::kArray: {
-        result = SerializeJSArray(Cast<JSArray>(cont.object), cont.index);
+        result = SerializeJSArray(Cast<JSArray>(cont.object));
+        break;
+      }
+      case ContinuationRecord::kArrayResume: {
+        result = SerializeFixedArray<PACKED_ELEMENTS>(
+            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+        break;
+      }
+      case ContinuationRecord::kArrayResume_Holey: {
+        result = SerializeFixedArray<HOLEY_ELEMENTS>(
+            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+        break;
+      }
+      case ContinuationRecord::kArrayResume_WithInterrupts: {
+        result = SerializeFixedArrayWithInterruptCheck<PACKED_ELEMENTS>(
+            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+        break;
+      }
+      case ContinuationRecord::kArrayResume_Holey_WithInterrupts: {
+        result = SerializeFixedArrayWithInterruptCheck<HOLEY_ELEMENTS>(
+            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
         break;
       }
       default:
@@ -2868,8 +2919,10 @@ bool FastJsonStringifier<Char>::CheckCycle() {
   std::unordered_set<Address> set;
   for (uint32_t i = 0; i < stack_.size(); i++) {
     ContinuationRecord rec = stack_[i];
-    if (rec.type == ContinuationRecord::kObjectKey) continue;
-    Tagged<JSAny> obj = rec.object;
+    if (rec.type == ContinuationRecord::kObjectKey ||
+        rec.type == ContinuationRecord::kString)
+      continue;
+    Tagged<Object> obj = rec.object;
     if (set.find(obj.ptr()) != set.end()) {
       return true;
     }
