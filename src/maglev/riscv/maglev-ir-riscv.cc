@@ -913,29 +913,27 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // We cannot use scratch registers, since they're used in LeaveFrame and
   // DropArguments.
   Register actual_params_size = a5;
-  Register params_size = a6;
 
   // Compute the size of the actual parameters + receiver (in bytes).
   // TODO(leszeks): Consider making this an input into Return to reuse the
   // incoming argc's register (if it's still valid).
   __ LoadWord(actual_params_size,
               MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ Move(params_size, formal_params_size);
-
-  // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ MacroAssembler::Branch(&corrected_args_count, ge, params_size,
-                            Operand(actual_params_size),
-                            Label::Distance::kNear);
-  __ Move(params_size, actual_params_size);
-  __ bind(&corrected_args_count);
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);
 
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label corrected_args_count;
+  __ MacroAssembler::Branch(&corrected_args_count, gt, actual_params_size,
+                            Operand(formal_params_size),
+                            Label::Distance::kNear);
+  __ Move(actual_params_size, formal_params_size);
+
+  __ bind(&corrected_args_count);
   // Drop receiver + arguments according to dynamic arguments size.
-  __ DropArguments(params_size);
+  __ DropArguments(actual_params_size);
   __ Ret();
 }
 
