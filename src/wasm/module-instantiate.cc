@@ -317,6 +317,8 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
 
 bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
                                    DirectHandle<JSReceiver> callable) {
+  Isolate* isolate = Isolate::Current();
+
   DirectHandle<JSFunction> target;
   if (IsJSBoundFunction(*callable)) {
     auto bound_target = Cast<JSBoundFunction>(callable);
@@ -328,7 +330,7 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
       return false;
     }
     DirectHandle<JSReceiver> bound_target_function(
-        bound_target->bound_target_function(), callable->GetIsolate());
+        bound_target->bound_target_function(), isolate);
     if (!IsJSFunction(*bound_target_function)) {
       return false;
     }
@@ -339,7 +341,6 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
     return false;
   }
 
-  Isolate* isolate = target->GetIsolate();
   DirectHandle<SharedFunctionInfo> shared(target->shared(), isolate);
   int api_function_index = -1;
   // The fast API call wrapper currently does not support function overloading.
@@ -481,7 +482,7 @@ WellKnownImport CheckForWellKnownImport(
   Tagged<Object> bound_this = bound->bound_this();
   if (!IsJSFunction(bound_this)) return kGeneric;
   sfi = Cast<JSFunction>(bound_this)->shared();
-  Isolate* isolate = Cast<JSFunction>(bound_this)->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   int out_api_function_index = -1;
   if (v8_flags.wasm_fast_api &&
       IsSupportedWasmFastApiFunction(isolate, sig, sfi,
@@ -713,7 +714,7 @@ ResolvedWasmImport::ResolvedWasmImport(
     CanonicalTypeIndex expected_sig_id, WellKnownImport preknown_import) {
   DCHECK_EQ(expected_sig, wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
                               expected_sig_id));
-  SetCallable(callable->GetIsolate(), callable);
+  SetCallable(Isolate::Current(), callable);
   kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
                       expected_sig_id, preknown_import);
 }
@@ -747,7 +748,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
               expected_sig->parameter_count());
     return ImportCallKind::kJSFunctionArityMatch;
   }
-  Isolate* isolate = callable_->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (IsWasmSuspendingObject(*callable_)) {
     suspend_ = kSuspend;
     SetCallable(isolate, Cast<WasmSuspendingObject>(*callable_)->callable());

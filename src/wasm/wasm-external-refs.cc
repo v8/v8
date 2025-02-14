@@ -840,7 +840,7 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
   if (element_type.is_reference()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
-    Heap* heap = dst_array->GetIsolate()->heap();
+    Heap* heap = Isolate::Current()->heap();
     if (overlapping_ranges) {
       heap->MoveRange(dst_array, dst_slot, src_slot, length,
                       UPDATE_WRITE_BARRIER);
@@ -969,7 +969,7 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
   if (emit_write_barrier) {
     DCHECK(type.is_reference());
     Tagged<WasmArray> array = Cast<WasmArray>(Tagged<Object>(raw_array));
-    Isolate* isolate = array->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     ObjectSlot start(reinterpret_cast<Address>(initial_element_address));
     ObjectSlot end(
         reinterpret_cast<Address>(initial_element_address + bytes_to_set));

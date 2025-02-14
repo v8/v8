@@ -229,8 +229,7 @@ class WeakScriptHandle {
     if (IsString(script->name())) {
       source_url_ = Cast<String>(script->name())->ToCString();
     }
-    auto global_handle =
-        script->GetIsolate()->global_handles()->Create(*script);
+    auto global_handle = isolate->global_handles()->Create(*script);
     location_ = std::make_unique<Address*>(global_handle.location());
     GlobalHandles::MakeWeak(location_.get());
   }

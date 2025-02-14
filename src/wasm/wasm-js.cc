@@ -551,7 +551,7 @@ std::optional<uint64_t> EnforceBigIntUint64(Name argument_name, Local<Value> v,
                                             ErrorThrower* thrower) {
   // Use the internal API, as v8::Value::ToBigInt clears exceptions.
   i::DirectHandle<i::BigInt> bigint;
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  i::Isolate* i_isolate = i::Isolate::Current();
   if (!i::BigInt::FromObject(i_isolate, Utils::OpenDirectHandle(*v))
            .ToHandle(&bigint)) {
     return std::nullopt;

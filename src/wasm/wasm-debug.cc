@@ -927,7 +927,7 @@ void SetBreakOnEntryFlag(Tagged<Script> script, bool enabled) {
   // Update the "break_on_entry" flag on all live instances.
   i::Tagged<i::WeakArrayList> weak_instance_list =
       script->wasm_weak_instance_list();
-  i::Isolate* isolate = script->GetIsolate();
+  i::Isolate* isolate = Isolate::Current();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     if (weak_instance_list->Get(i).IsCleared()) continue;
     i::Tagged<i::WasmInstanceObject> instance = i::Cast<i::WasmInstanceObject>(
@@ -986,7 +986,7 @@ bool WasmScript::SetBreakPointOnFirstBreakableForFunction(
 bool WasmScript::SetBreakPointForFunction(
     DirectHandle<Script> script, int func_index, int offset,
     DirectHandle<BreakPoint> break_point) {
-  Isolate* isolate = script->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   DCHECK_LE(0, func_index);
   DCHECK_NE(0, offset);
@@ -1043,7 +1043,7 @@ bool WasmScript::ClearBreakPoint(DirectHandle<Script> script, int position,
                                  DirectHandle<BreakPoint> break_point) {
   if (!script->has_wasm_breakpoint_infos()) return false;
 
-  Isolate* isolate = script->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
                                             isolate);
 
@@ -1091,7 +1091,7 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
   if (!script->has_wasm_breakpoint_infos()) {
     return false;
   }
-  Isolate* isolate = script->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(),
                                             isolate);
   // If the array exists, it should not be empty.
@@ -1118,14 +1118,14 @@ bool WasmScript::ClearBreakPointById(DirectHandle<Script> script,
 // static
 void WasmScript::ClearAllBreakpoints(Tagged<Script> script) {
   script->set_wasm_breakpoint_infos(
-      ReadOnlyRoots(script->GetIsolate()).empty_fixed_array());
+      ReadOnlyRoots(Isolate::Current()).empty_fixed_array());
   SetBreakOnEntryFlag(script, false);
 }
 
 // static
 void WasmScript::AddBreakpointToInfo(DirectHandle<Script> script, int position,
                                      DirectHandle<BreakPoint> break_point) {
-  Isolate* isolate = script->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> breakpoint_infos;
   if (script->has_wasm_breakpoint_infos()) {
     breakpoint_infos = direct_handle(script->wasm_breakpoint_infos(), isolate);

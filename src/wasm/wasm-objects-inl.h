@@ -159,7 +159,7 @@ uint8_t* WasmGlobalObject::GetS128RawBytes() {
 DirectHandle<Object> WasmGlobalObject::GetRef() {
   // We use this getter for externref, funcref, and stringref.
   DCHECK(type().is_reference());
-  return direct_handle(tagged_buffer()->get(offset()), GetIsolate());
+  return direct_handle(tagged_buffer()->get(offset()), Isolate::Current());
 }
 
 void WasmGlobalObject::SetI32(int32_t value) {
