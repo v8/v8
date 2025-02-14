@@ -9914,7 +9914,8 @@ MaybeReduceResult MaglevGraphBuilder::DoTryReduceMathRound(
   ValueNode* arg = args[0];
   auto arg_repr = arg->value_representation();
   if (arg_repr == ValueRepresentation::kInt32 ||
-      arg_repr == ValueRepresentation::kUint32) {
+      arg_repr == ValueRepresentation::kUint32 ||
+      arg_repr == ValueRepresentation::kIntPtr) {
     return arg;
   }
   if (CheckType(arg, NodeType::kSmi)) return arg;
