@@ -701,7 +701,7 @@ transitioning macro TestIterator(
 
     const _t7: JSArray = iterator::IterableToList(t1, t1);
 
-    iterator::IteratorCloseOnException(t2);
+    iterator::IteratorCloseOnException(t2.object);
   } label Fail {}
 }
 

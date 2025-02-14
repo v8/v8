@@ -190,7 +190,7 @@ void IteratorBuiltinsAssembler::Iterate(
   {
     TNode<HeapObject> message = GetPendingMessage();
     SetPendingMessage(TheHoleConstant());
-    IteratorCloseOnException(context, iterator_record);
+    IteratorCloseOnException(context, iterator_record.object);
     CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
                 message);
     Unreachable();

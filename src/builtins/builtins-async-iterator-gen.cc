@@ -208,7 +208,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
       //   a. Set valueWrapper to Completion(IteratorClose(syncIteratorRecord,
       //      valueWrapper)).
       TorqueStructIteratorRecord sync_iterator_record = {sync_iterator, {}};
-      IteratorCloseOnException(context, sync_iterator_record);
+      IteratorCloseOnException(context, sync_iterator_record.object);
     }
     Goto(&reject_promise);
   }
@@ -446,7 +446,7 @@ TF_BUILTIN(AsyncFromSyncIteratorCloseSyncAndRethrow,
       context, AsyncFromSyncIteratorCloseSyncAndRethrowContext::kSyncIterator));
   // iterator.next field is not used by IteratorCloseOnException.
   TorqueStructIteratorRecord sync_iterator_record = {sync_iterator, {}};
-  IteratorCloseOnException(context, sync_iterator_record);
+  IteratorCloseOnException(context, sync_iterator_record.object);
   Return(CallRuntime(Runtime::kReThrow, context, error));
 }
 

@@ -297,7 +297,7 @@ Reject(JSAny) {
         }
     }
   } catch (e, _message) deferred {
-    iterator::IteratorCloseOnException(iteratorRecord);
+    iterator::IteratorCloseOnException(iteratorRecord.object);
     goto Reject(e);
   } label Done {}
 

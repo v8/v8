@@ -1535,6 +1535,16 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+################################################################################
+# Test expectations should be updated because of crbug.com/381805376
+[ALWAYS, {
+  'staging/sm/Iterator/prototype/every/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/find/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/forEach/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/reduce/check-fn-after-getting-iterator': [SKIP],
+  'staging/sm/Iterator/prototype/some/check-fn-after-getting-iterator': [SKIP],
+}],
+
 ####
 # import test262@6396ebde0316639292530460d1ef961fd9bbe0d4
 [ALWAYS, {
@@ -2611,16 +2621,6 @@
 # import test262@bc5c14176e2b11a78859571eb693f028c8822458
 [ALWAYS, {
  'annexB/built-ins/RegExp/RegExp-trailing-escape-BMP': [SKIP],
- 'built-ins/Iterator/prototype/drop/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/every/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/filter/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/find/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/flatMap/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/forEach/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/map/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/reduce/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/some/argument-validation-failure-closes-underlying': [SKIP],
- 'built-ins/Iterator/prototype/take/argument-validation-failure-closes-underlying': [SKIP],
  'language/expressions/dynamic-import/catch/nested-arrow-import-catch-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
  'language/expressions/dynamic-import/catch/nested-async-arrow-function-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],
  'language/expressions/dynamic-import/catch/nested-async-arrow-function-return-await-import-defer-specifier-tostring-abrupt-rejects': [SKIP],

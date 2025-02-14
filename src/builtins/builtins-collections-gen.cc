@@ -181,7 +181,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     SetPendingMessage(TheHoleConstant());
     // iterator.next field is not used by IteratorCloseOnException.
     TorqueStructIteratorRecord iterator = {var_iterator_object.value(), {}};
-    IteratorCloseOnException(context, iterator);
+    IteratorCloseOnException(context, iterator.object);
     CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
                 message);
     Unreachable();
