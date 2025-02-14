@@ -558,6 +558,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // Some eager deopts also don't invalidate InstructionStream (e.g. when
   // preparing for OSR from Maglev to Turbofan).
   if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
+    if (deopt_reason == DeoptimizeReason::kPrepareForOnStackReplacement &&
+        function->ActiveTierIsMaglev(isolate)) {
+      isolate->tiering_manager()->MarkForTurboFanOptimization(*function);
+    }
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
