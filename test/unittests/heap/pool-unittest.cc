@@ -322,6 +322,7 @@ class PoolTest : public                                     //
   }
 
   static void DoMixinTearDown() {
+    IsolateGroup::ReleaseDefault();
 #ifdef V8_ENABLE_SANDBOX
     Sandbox::current()->TearDown();
 #endif
