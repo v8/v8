@@ -177,6 +177,12 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, RootIndex index) {
+  // Clearly this doesn't maximize convenience, but we don't want to include
+  // all those names in the binary.
+  return os << static_cast<uint16_t>(index);
+}
+
 std::ostream& operator<<(std::ostream& os, GenericBinopOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(Name)              \

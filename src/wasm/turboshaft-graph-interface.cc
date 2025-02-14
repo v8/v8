@@ -5066,10 +5066,25 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (b_type.is_nullable()) {
       GOTO_IF(__ IsNull(b, b_type), done, __ Word32Constant(0));
     }
-    // TODO(jkummerow): Call Builtin::kStringEqual directly.
-    GOTO(done,
-         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringEqual>(
-             decoder, {a, b}));
+
+    // Strings with unequal lengths can't be equal.
+    V<Word32> a_length =
+        __ LoadField<Word32>(a, AccessBuilder::ForStringLength());
+    V<Word32> b_length =
+        __ LoadField<Word32>(b, AccessBuilder::ForStringLength());
+    GOTO_IF_NOT(__ Word32Equal(a_length, b_length), done, __ Word32Constant(0));
+
+    // Comparing the strings' hashes before calling the builtin has been tried,
+    // but isn't likely to be useful unless Wasm gains an ability to trigger
+    // string hash computation (or internalization, for that matter).
+
+    V<WordPtr> length = __ ChangeInt32ToIntPtr(a_length);
+    V<Boolean> result =
+        CallBuiltinByPointer<BuiltinCallDescriptor::StringEqual>(
+            decoder, {a, b, length});
+
+    GOTO(done, __ IsRootConstant(result, RootIndex::kTrueValue));
+
     BIND(done, eq_result);
     return eq_result;
   }
@@ -7497,6 +7512,31 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return CallAndMaybeCatchException(
         decoder, callee, base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                           __ output_graph().graph_zone()),
+        check_for_exception, Descriptor::kEffects);
+  }
+
+  template <typename Descriptor>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
+  CallBuiltinByPointer(
+      FullDecoder* decoder, const typename Descriptor::arguments_t& args,
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires(!Descriptor::kNeedsContext)
+  {
+    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
+
+    V<WordPtr> callee = GetBuiltinPointerTarget(Descriptor::kFunction);
+    auto arguments = std::apply(
+        [](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)...};
+        },
+        args);
+
+    return CallAndMaybeCatchException(
+        decoder, callee, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallBuiltinPointer,
                            __ output_graph().graph_zone()),
         check_for_exception, Descriptor::kEffects);
   }

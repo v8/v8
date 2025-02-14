@@ -127,6 +127,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmStackCheck)                       \
   V(GlobalGet)                            \
   V(GlobalSet)                            \
+  V(RootConstant)                         \
+  V(IsRootConstant)                       \
   V(Null)                                 \
   V(IsNull)                               \
   V(AssertNotNull)                        \
@@ -1036,6 +1038,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 inline std::ostream& operator<<(std::ostream& os, const Operation& op) {
   return os << OperationPrintStyle{op};
 }
+std::ostream& operator<<(std::ostream& os, RootIndex index);
 
 V8_EXPORT_PRIVATE Zone* get_zone(Graph* graph);
 
@@ -6728,6 +6731,47 @@ struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {
   void Validate(const Graph& graph) const { DCHECK(global->mutability); }
 
   auto options() const { return std::tuple{global}; }
+};
+
+struct RootConstantOp : FixedArityOperationT<0, RootConstantOp> {
+  RootIndex index;
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit RootConstantOp(RootIndex index) : Base(), index(index) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return {};
+  }
+
+  void Validate(const Graph& graph) const {}
+
+  auto options() const { return std::tuple{index}; }
+};
+
+struct IsRootConstantOp : FixedArityOperationT<1, IsRootConstantOp> {
+  RootIndex index;
+  static constexpr OpEffects effects = OpEffects();
+
+  V<Object> object() const { return input<Object>(0); }
+
+  IsRootConstantOp(V<Object> object, RootIndex index)
+      : Base(object), index(index) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  auto options() const { return std::tuple{index}; }
 };
 
 struct NullOp : FixedArityOperationT<0, NullOp> {

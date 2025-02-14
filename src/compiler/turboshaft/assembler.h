@@ -4862,6 +4862,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableGlobalSet(trusted_instance_data, value, global);
   }
 
+  V<HeapObject> RootConstant(RootIndex index) {
+    return ReduceIfReachableRootConstant(index);
+  }
+
+  V<Word32> IsRootConstant(V<Object> input, RootIndex index) {
+    return ReduceIfReachableIsRootConstant(input, index);
+  }
+
   V<HeapObject> Null(wasm::ValueType type) {
     return ReduceIfReachableNull(type);
   }
