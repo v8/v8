@@ -211,6 +211,11 @@ bool Script::HasSourceURLComment() const {
   return IsString(source_url()) && Cast<String>(source_url())->length() != 0;
 }
 
+bool Script::HasSourceMappingURLComment() const {
+  return IsString(source_mapping_url()) &&
+         Cast<String>(source_mapping_url())->length() != 0;
+}
+
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
   // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
   // value.

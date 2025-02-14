@@ -4421,11 +4421,17 @@ void Script::TraceScriptRundown() {
   value->SetString("isolate",
                    std::to_string(reinterpret_cast<size_t>(isolate)));
   value->SetBoolean("isModule", this->origin_options().IsModule());
-  value->SetBoolean("hasSourceUrl", this->HasValidSource());
-  if (this->HasValidSource() && IsString(this->GetNameOrSourceURL())) {
-    value->SetString(
-        "sourceMapUrl",
-        Cast<String>(this->GetNameOrSourceURL())->ToCString().get());
+  value->SetBoolean("hasSourceUrl", this->HasSourceURLComment());
+  if (this->HasValidSource()) {
+    if (this->HasSourceURLComment()) {
+      value->SetString("sourceUrl",
+                       Cast<String>(this->source_url())->ToCString().get());
+    }
+    if (this->HasSourceMappingURLComment()) {
+      value->SetString(
+          "sourceMapUrl",
+          Cast<String>(this->source_mapping_url())->ToCString().get());
+    }
   }
   if (IsString(this->name())) {
     value->SetString("url", Cast<String>(this->name())->ToCString().get());
