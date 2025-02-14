@@ -2431,6 +2431,28 @@ static void TestObjectTemplateInheritedWithoutInstanceTemplate(
   }
 }
 
+THREADED_TEST(TestIsPrimitive) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Value> values[] = {
+      v8::Undefined(isolate),
+      v8::Null(isolate),
+      v8::True(isolate),
+      v8::Integer::New(isolate, 10),
+      v8::Number::New(isolate, 3.14),
+      v8::BigInt::NewFromUnsigned(isolate, 10),
+      v8::Symbol::New(isolate),
+      v8::String::NewFromUtf8Literal(isolate, "hello"),
+  };
+  for (auto x : values) {
+    CHECK(x->IsPrimitive());
+  }
+  v8::Local<v8::Value> obj = v8::Object::New(isolate);
+  CHECK(!obj->IsPrimitive());
+}
+
 THREADED_TEST(TestDataTypeChecks) {
   LocalContext env;
   v8::Isolate* isolate = CcTest::isolate();
@@ -2448,6 +2470,7 @@ THREADED_TEST(TestDataTypeChecks) {
   };
   for (auto x : values) {
     CHECK(!x->IsModule());
+    CHECK(!x->IsModuleRequest());
     CHECK(x->IsValue());
     CHECK(!x->IsPrivate());
     CHECK(!x->IsObjectTemplate());
@@ -2463,6 +2486,7 @@ THREADED_TEST(TestDataTypeChecks) {
   v8::Local<v8::Data> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
   CHECK(module->IsModule());
+  CHECK(!module->IsModuleRequest());
   CHECK(!module->IsValue());
   CHECK(!module->IsPrivate());
   CHECK(!module->IsObjectTemplate());
@@ -2472,6 +2496,7 @@ THREADED_TEST(TestDataTypeChecks) {
 
   v8::Local<v8::Data> p = v8::Private::New(isolate);
   CHECK(!p->IsModule());
+  CHECK(!p->IsModuleRequest());
   CHECK(!p->IsValue());
   CHECK(p->IsPrivate());
   CHECK(!p->IsObjectTemplate());
@@ -2481,6 +2506,7 @@ THREADED_TEST(TestDataTypeChecks) {
 
   v8::Local<v8::Data> otmpl = v8::ObjectTemplate::New(isolate);
   CHECK(!otmpl->IsModule());
+  CHECK(!otmpl->IsModuleRequest());
   CHECK(!otmpl->IsValue());
   CHECK(!otmpl->IsPrivate());
   CHECK(otmpl->IsObjectTemplate());
@@ -2488,6 +2514,7 @@ THREADED_TEST(TestDataTypeChecks) {
 
   v8::Local<v8::Data> ftmpl = v8::FunctionTemplate::New(isolate);
   CHECK(!ftmpl->IsModule());
+  CHECK(!ftmpl->IsModuleRequest());
   CHECK(!ftmpl->IsValue());
   CHECK(!ftmpl->IsPrivate());
   CHECK(!ftmpl->IsObjectTemplate());

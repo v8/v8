@@ -961,6 +961,11 @@ SealHandleScope::~SealHandleScope() {
 bool Data::IsModule() const {
   return i::IsModule(*Utils::OpenDirectHandle(this));
 }
+
+bool Data::IsModuleRequest() const {
+  return i::IsModuleRequest(*Utils::OpenDirectHandle(this));
+}
+
 bool Data::IsFixedArray() const {
   return i::IsFixedArray(*Utils::OpenDirectHandle(this));
 }
@@ -3704,6 +3709,11 @@ bool Value::FullIsFalse() const {
   i::Tagged<i::Object> object = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(object)) return false;
   return i::IsFalse(object);
+}
+
+bool Value::IsPrimitive() const {
+  auto object = Utils::OpenDirectHandle(this);
+  return i::IsPrimitive(*object) && !IsPrivateSymbol(*object);
 }
 
 bool Value::IsFunction() const {

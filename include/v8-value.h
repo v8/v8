@@ -367,6 +367,11 @@ class V8_EXPORT Value : public Data {
   bool IsModuleNamespaceObject() const;
 
   /**
+   * Returns true if the value is a primitive.
+   */
+  bool IsPrimitive() const;
+
+  /**
    * Perform `ToPrimitive(value)` as specified in:
    * https://tc39.es/ecma262/#sec-toprimitive.
    */

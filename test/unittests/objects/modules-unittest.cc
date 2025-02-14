@@ -70,6 +70,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     CHECK_EQ(Module::kUninstantiated, module->GetStatus());
     Local<FixedArray> module_requests = module->GetModuleRequests();
     CHECK_EQ(2, module_requests->Length());
+    CHECK(module_requests->Get(context(), 0)->IsModuleRequest());
     Local<ModuleRequest> module_request_0 =
         module_requests->Get(context(), 0).As<ModuleRequest>();
     CHECK(
@@ -81,6 +82,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     CHECK_EQ(7, loc.GetColumnNumber());
     CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
+    CHECK(module_requests->Get(context(), 1)->IsModuleRequest());
     Local<ModuleRequest> module_request_1 =
         module_requests->Get(context(), 1).As<ModuleRequest>();
     CHECK(
