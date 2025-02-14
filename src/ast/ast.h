@@ -544,24 +544,35 @@ class ForEachStatement : public IterationStatement {
     return mode == ITERATE ? "for-of" : "for-in";
   }
 
-  void Initialize(Expression* each, Expression* subject, Statement* body) {
+  void Initialize(Expression* each, Expression* subject, Statement* body,
+                  Scope* subject_scope) {
     IterationStatement::Initialize(body);
     each_ = each;
     subject_ = subject;
+    subject_scope_ = subject_scope;
   }
 
   Expression* each() const { return each_; }
   Expression* subject() const { return subject_; }
+
+  // The parser wraps the `subject` expression into a hidden block scope
+  // in some cases. Otherwise the debugger gets confused when pausing in the
+  // `subject` expression.
+  Scope* subject_scope() const { return subject_scope_; }
 
  protected:
   friend class AstNodeFactory;
   friend Zone;
 
   ForEachStatement(int pos, NodeType type)
-      : IterationStatement(pos, type), each_(nullptr), subject_(nullptr) {}
+      : IterationStatement(pos, type),
+        each_(nullptr),
+        subject_(nullptr),
+        subject_scope_(nullptr) {}
 
   Expression* each_;
   Expression* subject_;
+  Scope* subject_scope_;
 };
 
 class ForInStatement final : public ForEachStatement {

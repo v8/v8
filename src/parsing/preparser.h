@@ -422,8 +422,7 @@ class PreParserStatement {
                   PreParserStatement next, PreParserStatement body,
                   const SourceRange& body_range = {}) {}
   void Initialize(PreParserExpression each, const PreParserExpression& subject,
-                  PreParserStatement body, const SourceRange& body_range = {}) {
-  }
+                  PreParserStatement body, Scope* subject_scope) {}
 
  protected:
   enum Type {

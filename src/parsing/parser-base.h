@@ -6701,13 +6701,21 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   auto loop = factory()->NewForEachStatement(for_info->mode, stmt_pos);
   Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
+  Scope* enumerable_block_scope = NewScope(BLOCK_SCOPE);
+  enumerable_block_scope->set_start_position(position());
+  enumerable_block_scope->set_is_hidden();
   ExpressionT enumerable = impl()->NullExpression();
-  if (for_info->mode == ForEachStatement::ITERATE) {
-    AcceptINScope scope(this, true);
-    enumerable = ParseAssignmentExpression();
-  } else {
-    enumerable = ParseExpression();
+  {
+    BlockState block_state(&scope_, enumerable_block_scope);
+
+    if (for_info->mode == ForEachStatement::ITERATE) {
+      AcceptINScope scope(this, true);
+      enumerable = ParseAssignmentExpression();
+    } else {
+      enumerable = ParseExpression();
+    }
   }
+  enumerable_block_scope->set_end_position(end_position());
 
   Expect(Token::kRightParen);
 
@@ -6734,7 +6742,8 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     }
   }
 
-  loop->Initialize(each_variable, enumerable, body_block);
+  loop->Initialize(each_variable, enumerable, body_block,
+                   enumerable_block_scope);
 
   init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info);
 
@@ -6778,7 +6787,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   }
   impl()->RecordIterationStatementSourceRange(loop, body_range);
   RETURN_IF_PARSE_ERROR;
-  loop->Initialize(expression, enumerable, body);
+  loop->Initialize(expression, enumerable, body, nullptr);
   return loop;
 }
 
@@ -6964,11 +6973,16 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   const bool kAllowIn = true;
   ExpressionT iterable = impl()->NullExpression();
+  Scope* iterable_block_scope = NewScope(BLOCK_SCOPE);
+  iterable_block_scope->set_start_position(position());
+  iterable_block_scope->set_is_hidden();
 
   {
+    BlockState block_state(&scope_, iterable_block_scope);
     AcceptINScope scope(this, kAllowIn);
     iterable = ParseAssignmentExpression();
   }
+  iterable_block_scope->set_end_position(end_position());
 
   Expect(Token::kRightParen);
 
@@ -6998,7 +7012,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     }
   }
 
-  loop->Initialize(each_variable, iterable, body);
+  loop->Initialize(each_variable, iterable, body, iterable_block_scope);
 
   if (!has_declarations) {
     Scope* for_scope = scope()->FinalizeBlockScope();
