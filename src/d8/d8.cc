@@ -3536,7 +3536,6 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
                       .FromMaybe(0);
   Isolate* isolate = info->GetIsolate();
   ResetOnProfileEndListener(isolate);
-  isolate->Exit();
 
   // As we exit the process anyway, we do not dispose the platform and other
   // global data and manually unlock to quell DCHECKs. Other isolates might
@@ -3552,6 +3551,10 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
     i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
         [](const i::ParkedScope& parked) { WaitForRunningWorkers(parked); });
   }
+
+  // Reset thread-locals here only after stopping workers. They are still used
+  // e.g. during heap verification in shared GCs.
+  isolate->Exit();
 
   OnExit(isolate, false);
   base::OS::ExitProcess(exit_code);
