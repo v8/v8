@@ -2755,7 +2755,12 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   if (!object.IsSmi() && (IsJSObject(object) || IsJSArray(object))) {
     Tagged<HeapObject> obj = Cast<HeapObject>(object);
     // Load initial JSObject/JSArray prototypes from native context.
-    Tagged<NativeContext> native_context = obj->map()->map()->native_context();
+    Tagged<Map> meta_map = obj->map()->map();
+    // Don't deal with context-less meta maps.
+    if (meta_map == ReadOnlyRoots(isolate_).meta_map()) {
+      return SLOW_PATH;
+    }
+    Tagged<NativeContext> native_context = meta_map->native_context();
     initial_jsobject_proto_ = native_context->initial_object_prototype();
     initial_jsarray_proto_ = native_context->initial_array_prototype();
     // Prototypes don't have interesting properties (toJSON).
