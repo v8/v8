@@ -259,6 +259,7 @@ void V8::Dispose() {
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   FlagList::ReleaseDynamicAllocations();
+  IsolateGroup::TearDownOncePerProcess();
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }
 

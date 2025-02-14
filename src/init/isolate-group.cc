@@ -165,6 +165,9 @@ void IsolateGroup::InitializeOncePerProcess() {
 #endif
 }
 
+// static
+void IsolateGroup::TearDownOncePerProcess() { ReleaseDefault(); }
+
 void IsolateGroup::Release() {
   DCHECK_LT(0, reference_count_.load());
 #ifdef V8_ENABLE_SANDBOX

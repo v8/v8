@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* New();
 
   static void InitializeOncePerProcess();
+  static void TearDownOncePerProcess();
 
   // Obtain a fresh reference on the isolate group.
   IsolateGroup* Acquire() {
