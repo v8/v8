@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <optional>
+#include <type_traits>
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
@@ -515,7 +516,7 @@ TEST(ToString) {
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.ToStringImpl(m.GetJSContextParameter(), m.Parameter<Object>(1)));
+  m.Return(m.ToStringImpl(m.GetJSContextParameter(), m.Parameter<JSAny>(1)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -2106,11 +2107,23 @@ TEST(PopAndReturnFromTFCBuiltinWithStackParameters) {
 
 namespace {
 
-TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
-  if (IsSmi(*value)) {
+template <typename T>
+TNode<T> MakeConstantNode(CodeStubAssembler& m, Handle<T> value) {
+  if constexpr (std::is_same_v<T, Smi>) {
     return m.SmiConstant(Smi::ToInt(*value));
+  } else if constexpr (std::is_same_v<T, Object>) {
+    if (Is<Smi>(value)) {
+      return m.SmiConstant(Smi::ToInt(*value));
+    }
+    return m.HeapConstantNoHole(Cast<HeapObject>(value));
+  } else if constexpr (is_union_v<T>) {
+    if (Is<Smi>(value)) {
+      return m.SmiConstant(Smi::ToInt(*value));
+    }
+    return m.HeapConstantNoHole(Cast<typename T::template Without<Smi>>(value));
+  } else {
+    return m.HeapConstantNoHole(value);
   }
-  return m.HeapConstantNoHole(Cast<HeapObject>(value));
 }
 
 // Builds a CSA function that calls |target| function with given arguments
@@ -2120,8 +2133,8 @@ TNode<Object> MakeConstantNode(CodeStubAssembler& m, Handle<Object> value) {
 template <typename... Args>
 void CallFunctionWithStackPointerChecks(Isolate* isolate,
                                         Handle<Object> expected_result,
-                                        Handle<Object> target,
-                                        Handle<Object> receiver, Args... args) {
+                                        Handle<JSAny> target,
+                                        Handle<JSAny> receiver, Args... args) {
   // Setup CSA for creating TFJ-style builtin.
   using Descriptor = JSTrampolineDescriptor;
   CodeAssemblerTester asm_tester(isolate, Descriptor());
@@ -2201,7 +2214,7 @@ TEST(PopAndReturnConstant) {
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<JSAny> receiver = isolate->factory()->undefined_value();
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,
@@ -2235,7 +2248,7 @@ TEST(PopAndReturnVariable) {
 
   // Now call this function multiple time also checking that the stack pointer
   // didn't change after the calls.
-  Handle<Object> receiver = isolate->factory()->undefined_value();
+  Handle<JSAny> receiver = isolate->factory()->undefined_value();
   Handle<Smi> expected_result(Smi::FromInt(1234), isolate);
   CallFunctionWithStackPointerChecks(isolate, expected_result, ft.function,
                                      receiver,

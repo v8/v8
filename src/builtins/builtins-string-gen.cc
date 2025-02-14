@@ -1068,7 +1068,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 #endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
-    const TNode<Context> context, const TNode<Object> object,
+    const TNode<Context> context, const TNode<JSAny> object,
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
@@ -1197,9 +1197,9 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto search = Parameter<Object>(Descriptor::kSearch);
-  const auto replace = Parameter<Object>(Descriptor::kReplace);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto search = Parameter<JSAny>(Descriptor::kSearch);
+  const auto replace = Parameter<JSAny>(Descriptor::kReplace);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Smi> smi_zero = SmiConstant(0);
@@ -1361,8 +1361,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<JSAny>(Descriptor::kRegexp);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1382,7 +1382,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //   iii. If ? ToString(flags) does not contain "g", throw a
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
-    TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
+    TNode<JSAnyNotSmi> heap_maybe_regexp = CAST(maybe_regexp);
     regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
                                           &slow);
 
@@ -1446,8 +1446,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<String> s = ToString_Inline(context, receiver);
 
   // 4. Let rx be ? RegExpCreate(R, "g").
-  TNode<Object> rx = regexp_asm.RegExpCreate(context, native_context,
-                                             maybe_regexp, StringConstant("g"));
+  TNode<JSAny> rx = regexp_asm.RegExpCreate(context, native_context,
+                                            maybe_regexp, StringConstant("g"));
 
   // 5. Return ? Invoke(rx, @@matchAll, « S »).
   TNode<Object> match_all_func =
@@ -1542,9 +1542,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  TNode<Object> receiver = args.GetReceiver();
-  const TNode<Object> separator = args.GetOptionalArgumentValue(kSeparatorArg);
-  const TNode<Object> limit = args.GetOptionalArgumentValue(kLimitArg);
+  TNode<JSAny> receiver = args.GetReceiver();
+  const TNode<JSAny> separator = args.GetOptionalArgumentValue(kSeparatorArg);
+  const TNode<JSAny> limit = args.GetOptionalArgumentValue(kLimitArg);
   auto context = Parameter<NativeContext>(Descriptor::kContext);
 
   TNode<Smi> smi_zero = SmiConstant(0);
@@ -1559,8 +1559,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                RootIndex::ksplit_symbol,
                                Context::REGEXP_SPLIT_FUNCTION_INDEX},
       [&]() {
-        args.PopAndReturn(CallBuiltin(Builtin::kRegExpSplit, context, separator,
-                                      receiver, limit));
+        args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
+                                             separator, receiver, limit));
       },
       [&](TNode<Object> fn) {
         args.PopAndReturn(Call(context, fn, separator, receiver, limit));
@@ -1616,9 +1616,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<Object> result =
-      CallRuntime(Runtime::kStringSplit, context, subject_string,
-                  separator_string, limit_number);
+  const TNode<JSAny> result =
+      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                         separator_string, limit_number);
   args.PopAndReturn(result);
 
   BIND(&return_empty_array);

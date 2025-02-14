@@ -1190,7 +1190,7 @@ void CodeAssembler::HandleException(Node* node) {
   Bind(&exception);
   const Operator* op = raw_assembler()->common()->IfException();
   Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  label->AddInputs({UncheckedCast<Object>(exception_value)});
+  label->AddInputs({CAST(exception_value)});
   Goto(label->plain_label());
 
   Bind(&success);
@@ -2049,7 +2049,7 @@ ScopedExceptionHandler::~ScopedExceptionHandler() {
     if (inside_block) {
       assembler_->Goto(&skip);
     }
-    TNode<Object> e;
+    TNode<JSAny> e;
     assembler_->Bind(label_.get(), &e);
     if (exception_ != nullptr) *exception_ = e;
     assembler_->Goto(compatibility_label_);

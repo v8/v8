@@ -285,9 +285,9 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
 
   // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
   // 10a. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
-  TNode<Object> wrapped_result =
-      CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                  caller_context, target_context, result);
+  TNode<JSAny> wrapped_result =
+      CallBuiltin<JSAny>(Builtin::kShadowRealmGetWrappedValue, caller_context,
+                         caller_context, target_context, result);
   args.PopAndReturn(wrapped_result);
 
   // 11. Else,

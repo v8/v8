@@ -42,7 +42,9 @@ type TaggedIndex extends StrongTagged
     generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
-type WeakHeapObject extends Tagged;
+type WeakHeapObject extends Tagged
+    generates 'TNode<MaybeWeak<HeapObject>>'
+    constexpr 'MaybeWeak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;
@@ -809,7 +811,7 @@ extern transitioning macro HasProperty_Inline(
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 
-extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
+extern macro SetPropertyStrict(Context, JSAny, Object, Object): Object;
 
 extern macro ThrowRangeError(
     implicit context: Context)(constexpr MessageTemplate): never;

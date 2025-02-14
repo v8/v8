@@ -34,14 +34,14 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                  Label* shared_struct_or_shared_array);
 
   TNode<UintPtrT> ValidateAtomicAccess(TNode<JSTypedArray> array,
-                                       TNode<Object> index,
+                                       TNode<JSAny> index,
                                        TNode<Context> context);
 
   inline void DebugCheckAtomicIndex(TNode<JSTypedArray> array,
                                     TNode<UintPtrT> index);
 
   void AtomicBinopBuiltinCommon(
-      TNode<Object> maybe_array, TNode<Object> index, TNode<Object> value,
+      TNode<Object> maybe_array, TNode<JSAny> index, TNode<JSAny> value,
       TNode<Context> context, AssemblerFunction function,
       AssemblerFunction64<AtomicInt64> function_int_64,
       AssemblerFunction64<AtomicUint64> function_uint_64,
@@ -152,7 +152,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
 // https://tc39.github.io/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
-    TNode<JSTypedArray> array, TNode<Object> index, TNode<Context> context) {
+    TNode<JSTypedArray> array, TNode<JSAny> index, TNode<Context> context) {
   Label done(this), range_error(this), unreachable(this);
 
   // 1. Assert: typedArray is an Object that has a [[ViewedArrayBuffer]]
@@ -232,7 +232,7 @@ TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromUnsigned64(
 TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   auto maybe_array_or_shared_object =
       Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<Object>(Descriptor::kIndexOrFieldName);
+  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
@@ -320,8 +320,8 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
 TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   auto maybe_array_or_shared_object =
       Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<Object>(Descriptor::kIndexOrFieldName);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
@@ -426,8 +426,8 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   auto maybe_array_or_shared_object =
       Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<Object>(Descriptor::kIndexOrFieldName);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // Inlines AtomicReadModifyWrite
@@ -566,9 +566,9 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   auto maybe_array_or_shared_object =
       Parameter<Object>(Descriptor::kArrayOrSharedObject);
-  auto index_or_field_name = Parameter<Object>(Descriptor::kIndexOrFieldName);
-  auto old_value = Parameter<Object>(Descriptor::kOldValue);
-  auto new_value = Parameter<Object>(Descriptor::kNewValue);
+  auto index_or_field_name = Parameter<JSAny>(Descriptor::kIndexOrFieldName);
+  auto old_value = Parameter<JSAny>(Descriptor::kOldValue);
+  auto new_value = Parameter<JSAny>(Descriptor::kNewValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray).
@@ -721,9 +721,9 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
 
 #define BINOP_BUILTIN(op, method_name)                                        \
   TF_BUILTIN(Atomics##op, SharedArrayBufferBuiltinsAssembler) {               \
-    auto array = Parameter<Object>(Descriptor::kArray);                       \
-    auto index = Parameter<Object>(Descriptor::kIndex);                       \
-    auto value = Parameter<Object>(Descriptor::kValue);                       \
+    auto array = Parameter<JSAny>(Descriptor::kArray);                        \
+    auto index = Parameter<JSAny>(Descriptor::kIndex);                        \
+    auto value = Parameter<JSAny>(Descriptor::kValue);                        \
     auto context = Parameter<Context>(Descriptor::kContext);                  \
     AtomicBinopBuiltinCommon(array, index, value, context,                    \
                              &CodeAssembler::Atomic##op,                      \
@@ -745,7 +745,7 @@ BINOP_BUILTIN(Xor, "Atomics.xor")
 
 // https://tc39.es/ecma262/#sec-atomicreadmodifywrite
 void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
-    TNode<Object> maybe_array, TNode<Object> index, TNode<Object> value,
+    TNode<Object> maybe_array, TNode<JSAny> index, TNode<JSAny> value,
     TNode<Context> context, AssemblerFunction function,
     AssemblerFunction64<AtomicInt64> function_int_64,
     AssemblerFunction64<AtomicUint64> function_uint_64,

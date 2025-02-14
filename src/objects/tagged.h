@@ -184,6 +184,23 @@ struct is_simple_subtype<MaybeWeak<T>, MaybeWeak<T>> : public std::true_type {};
 template <typename T>
 struct is_simple_subtype<ClearedWeakValue, MaybeWeak<T>>
     : public std::true_type {};
+template <>
+struct is_simple_subtype<Smi, MaybeWeak<Object>> : public std::true_type {};
+
+// Special case to match Torque's idea of Object/MaybeObject against the C++
+// one.
+// TODO(leszeks): Clean up what types torque and C++ consider to be unions of
+// other types.
+template <>
+struct is_simple_subtype<MaybeWeak<Object>,
+                         Union<HeapObject, MaybeWeak<HeapObject>, Smi>>
+    : public std::true_type {};
+template <>
+struct is_simple_subtype<Object, Union<HeapObject, Smi>>
+    : public std::true_type {};
+template <>
+struct is_simple_subtype<Object, Union<HeapObject, MaybeWeak<HeapObject>, Smi>>
+    : public std::true_type {};
 
 // Specializations of is_simple_subtype for Union, which allows for trivial
 // subtype checks of Unions without recursing into the full is_subtype trait,
@@ -279,6 +296,9 @@ struct is_complex_subtype<MaybeWeak<Derived>, MaybeWeak<Base>>
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
 static_assert(is_subtype_v<HeapObject, HeapObject>);
+static_assert(is_subtype_v<Smi, MaybeWeak<Object>>);
+static_assert(is_subtype_v<Union<HeapObject, MaybeWeak<HeapObject>, Smi>,
+                           MaybeWeak<Object>>);
 
 // `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
 // de-facto being a subtype of Object.

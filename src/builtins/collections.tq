@@ -35,7 +35,7 @@ extern macro CodeStubAssembler::CloneFixedArray(
     FixedArrayBase, constexpr ExtractFixedArrayFlag): FixedArrayBase;
 
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
-    implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
+    implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
 
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
     implicit context: Context)(OrderedHashSet, Object): bool;

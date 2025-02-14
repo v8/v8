@@ -155,8 +155,8 @@ TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndexBeforeSmiCheck(
   return LoadObjectField(regexp, field_offset);
 }
 
-TNode<Object> RegExpBuiltinsAssembler::SlowLoadLastIndex(TNode<Context> context,
-                                                         TNode<Object> regexp) {
+TNode<JSAny> RegExpBuiltinsAssembler::SlowLoadLastIndex(TNode<Context> context,
+                                                        TNode<JSAny> regexp) {
   return GetProperty(context, regexp, isolate()->factory()->lastIndex_string());
 }
 
@@ -171,7 +171,7 @@ void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
 }
 
 void RegExpBuiltinsAssembler::SlowStoreLastIndex(TNode<Context> context,
-                                                 TNode<Object> regexp,
+                                                 TNode<JSAny> regexp,
                                                  TNode<Object> value) {
   TNode<String> name =
       HeapConstantNoHole(isolate()->factory()->lastIndex_string());
@@ -1153,7 +1153,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
 }
 
 TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
-                                                   TNode<Object> regexp,
+                                                   TNode<JSAny> regexp,
                                                    bool is_fastpath) {
   TVARIABLE(String, result);
   Label runtime(this, Label::kDeferred), done(this, &result);
@@ -1313,16 +1313,16 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(
 // ES#sec-regexp-pattern-flags
 // RegExp ( pattern, flags )
 TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
-  auto pattern = Parameter<Object>(Descriptor::kPattern);
-  auto flags = Parameter<Object>(Descriptor::kFlags);
-  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto pattern = Parameter<JSAny>(Descriptor::kPattern);
+  auto flags = Parameter<JSAny>(Descriptor::kFlags);
+  auto new_target = Parameter<JSAny>(Descriptor::kJSNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   Isolate* isolate = this->isolate();
 
-  TVARIABLE(Object, var_flags, flags);
-  TVARIABLE(Object, var_pattern, pattern);
-  TVARIABLE(Object, var_new_target, new_target);
+  TVARIABLE(JSAny, var_flags, flags);
+  TVARIABLE(JSAny, var_pattern, pattern);
+  TVARIABLE(JSAny, var_new_target, new_target);
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_function =
@@ -1359,8 +1359,8 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     BIND(&if_patternisfastregexp);
     {
-      TNode<Object> source =
-          LoadObjectField(CAST(pattern), JSRegExp::kSourceOffset);
+      TNode<JSAny> source =
+          CAST(LoadObjectField(CAST(pattern), JSRegExp::kSourceOffset));
       var_pattern = source;
 
       {
@@ -1496,7 +1496,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
 
 // Load through the GetProperty stub.
 TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
-                                                     TNode<Object> regexp,
+                                                     TNode<JSAny> regexp,
                                                      JSRegExp::Flag flag) {
   Label out(this), if_true(this), if_false(this);
   TVARIABLE(BoolT, var_result);
@@ -1540,7 +1540,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
 }
 
 TNode<BoolT> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
-                                                 TNode<Object> regexp,
+                                                 TNode<JSAny> regexp,
                                                  JSRegExp::Flag flag,
                                                  bool is_fastpath) {
   return is_fastpath ? FastFlagGetter(CAST(regexp), flag)
@@ -1617,8 +1617,8 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
 
 // ES#sec-createregexpstringiterator
 // CreateRegExpStringIterator ( R, S, global, fullUnicode )
-TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
-    TNode<NativeContext> native_context, TNode<Object> regexp,
+TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
+    TNode<NativeContext> native_context, TNode<JSAny> regexp,
     TNode<String> string, TNode<BoolT> global, TNode<BoolT> full_unicode) {
   TNode<Map> map = CAST(LoadContextElement(
       native_context,
@@ -1656,7 +1656,7 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,
                                  SmiFromInt32(iterator_flags));
 
-  return iterator;
+  return CAST(iterator);
 }
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky
@@ -2100,13 +2100,13 @@ TNode<IntPtrT> RegExpBuiltinsAssembler::RegExpExecInternal_Batched(
   return var_num_matches.value();
 }
 
-TNode<HeapObject> RegExpBuiltinsAssembler::RegExpMatchGlobal(
+TNode<Union<Null, JSArray>> RegExpBuiltinsAssembler::RegExpMatchGlobal(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> subject,
     TNode<RegExpData> data) {
   CSA_DCHECK(this, IsFastRegExpPermissive(context, regexp));
   CSA_DCHECK(this, FastFlagGetter(regexp, JSRegExp::kGlobal));
 
-  TVARIABLE(HeapObject, var_result, NullConstant());
+  TVARIABLE((Union<Null, JSArray>), var_result, NullConstant());
   Label out(this);
   GrowableFixedArray array(state());
 
@@ -2140,7 +2140,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpMatchGlobal(
   Goto(&out);
 
   BIND(&out);
-  return var_result.value();  // NullConstant | JSArray.
+  return var_result.value();
 }
 
 TNode<String> RegExpBuiltinsAssembler::AppendStringSlice(

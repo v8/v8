@@ -683,7 +683,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
     if (!return_type->IsNever()) {
       out() << "      ca_.Goto(&" << catch_name << "_skip);\n";
     }
-    decls() << "      TNode<Object> "
+    decls() << "      TNode<JSAny> "
             << DefinitionToVariable(*exception_object_definition) << ";\n";
     out() << "      ca_.Bind(&" << catch_name << "__label, &"
           << DefinitionToVariable(*exception_object_definition) << ");\n";

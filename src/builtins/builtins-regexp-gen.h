@@ -36,10 +36,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Smi> FastLoadLastIndex(TNode<JSRegExp> regexp) {
     return CAST(FastLoadLastIndexBeforeSmiCheck(regexp));
   }
-  TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
+  TNode<JSAny> SlowLoadLastIndex(TNode<Context> context, TNode<JSAny> regexp);
 
   void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
-  void SlowStoreLastIndex(TNode<Context> context, TNode<Object> regexp,
+  void SlowStoreLastIndex(TNode<Context> context, TNode<JSAny> regexp,
                           TNode<Object> value);
 
   TNode<Smi> LoadCaptureCount(TNode<RegExpData> data);
@@ -187,7 +187,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                             const TNode<Object> object, Label* if_isunmodified,
                             Label* if_ismodified);
 
-  TNode<String> FlagsGetter(TNode<Context> context, TNode<Object> regexp,
+  TNode<String> FlagsGetter(TNode<Context> context, TNode<JSAny> regexp,
                             const bool is_fastpath);
 
   TNode<BoolT> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
@@ -200,9 +200,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> FastFlagGetterUnicodeSets(TNode<JSRegExp> regexp) {
     return FastFlagGetter(regexp, JSRegExp::kUnicodeSets);
   }
-  TNode<BoolT> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
+  TNode<BoolT> SlowFlagGetter(TNode<Context> context, TNode<JSAny> regexp,
                               JSRegExp::Flag flag);
-  TNode<BoolT> FlagGetter(TNode<Context> context, TNode<Object> regexp,
+  TNode<BoolT> FlagGetter(TNode<Context> context, TNode<JSAny> regexp,
                           JSRegExp::Flag flag, bool is_fastpath);
 
   TNode<Object> RegExpInitialize(const TNode<Context> context,
@@ -228,10 +228,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<String> string,
                                           TNode<Smi> limit);
 
-  TNode<HeapObject> RegExpMatchGlobal(TNode<Context> context,
-                                      TNode<JSRegExp> regexp,
-                                      TNode<String> subject,
-                                      TNode<RegExpData> data);
+  TNode<Union<Null, JSArray>> RegExpMatchGlobal(TNode<Context> context,
+                                                TNode<JSRegExp> regexp,
+                                                TNode<String> subject,
+                                                TNode<RegExpData> data);
   TNode<String> AppendStringSlice(TNode<Context> context,
                                   TNode<String> to_string,
                                   TNode<String> from_string,
@@ -248,11 +248,11 @@ class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
   explicit RegExpMatchAllAssembler(compiler::CodeAssemblerState* state)
       : RegExpBuiltinsAssembler(state) {}
 
-  TNode<Object> CreateRegExpStringIterator(TNode<NativeContext> native_context,
-                                           TNode<Object> regexp,
-                                           TNode<String> string,
-                                           TNode<BoolT> global,
-                                           TNode<BoolT> full_unicode);
+  TNode<JSAny> CreateRegExpStringIterator(TNode<NativeContext> native_context,
+                                          TNode<JSAny> regexp,
+                                          TNode<String> string,
+                                          TNode<BoolT> global,
+                                          TNode<BoolT> full_unicode);
 };
 
 }  // namespace internal

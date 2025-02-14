@@ -705,7 +705,8 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
   return CAST(LoadRegister(Register::function_closure()));
 }
 
-TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
+TNode<Union<FeedbackVector, Undefined>>
+InterpreterAssembler::LoadFeedbackVector() {
   return CAST(LoadRegister(Register::feedback_vector()));
 }
 
@@ -726,7 +727,7 @@ void InterpreterAssembler::CallPrologue() {
 void InterpreterAssembler::CallEpilogue() {}
 
 void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
+    TNode<JSAny> function, TNode<Context> context, const RegListNodePair& args,
     ConvertReceiverMode receiver_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
@@ -750,7 +751,7 @@ void InterpreterAssembler::CallJSAndDispatch(
 }
 
 template <class... TArgs>
-void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
+void InterpreterAssembler::CallJSAndDispatch(TNode<JSAny> function,
                                              TNode<Context> context,
                                              TNode<Word32T> arg_count,
                                              ConvertReceiverMode receiver_mode,
@@ -778,29 +779,30 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
 // generator.
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>,
     TNode<Object>);
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
-    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
+    TNode<JSAny> function, TNode<Context> context, const RegListNodePair& args,
     TNode<UintPtrT> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
 
 #ifndef V8_JITLESS
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-  LazyNode<Object> receiver = [=, this] {
-    return LoadRegisterAtOperandIndex(1);
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
+  LazyNode<JSAny> receiver = [=, this] {
+    return CAST(LoadRegisterAtOperandIndex(1));
   };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
@@ -819,9 +821,9 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
 }
 
 TNode<Object> InterpreterAssembler::Construct(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     const RegListNodePair& args, TNode<UintPtrT> slot_id,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);
@@ -877,7 +879,7 @@ TNode<Object> InterpreterAssembler::Construct(
 }
 
 TNode<Object> InterpreterAssembler::ConstructWithSpread(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     const RegListNodePair& args, TNode<UintPtrT> slot_id) {
   // TODO(bmeurer): Unify this with the Construct bytecode feedback
   // above once we have a way to pass the AllocationSite to the Array
@@ -1006,7 +1008,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
 // TODO(v8:13249): Add a FastConstruct variant to avoid pushing arguments twice
 // (once here, and once again in construct stub).
 TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     TNode<TaggedIndex> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
@@ -1015,7 +1017,8 @@ TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
 #ifndef V8_JITLESS
   Label construct(this);
 
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   GotoIf(IsUndefined(maybe_feedback_vector), &construct);
 
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,

@@ -73,7 +73,7 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 }
 
 TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   Return(receiver);
 }
 
@@ -1131,7 +1131,7 @@ TF_BUILTIN(CopyDataPropertiesWithExcludedProperties,
       ReinterpretCast<IntPtrT>(arguments.AtIndexPtr(
           IntPtrSub(excluded_property_count, IntPtrConstant(2))));
 
-  arguments.PopAndReturn(CallBuiltin(
+  arguments.PopAndReturn(CallBuiltin<JSAny>(
       Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack, context,
       source, excluded_property_count, excluded_properties));
 }
@@ -1199,7 +1199,7 @@ TF_BUILTIN(ForInPrepare, CodeStubAssembler) {
 
 TF_BUILTIN(ForInFilter, CodeStubAssembler) {
   auto key = Parameter<String>(Descriptor::kKey);
-  auto object = Parameter<HeapObject>(Descriptor::kObject);
+  auto object = Parameter<JSAnyNotSmi>(Descriptor::kObject);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   Label if_true(this), if_false(this);
@@ -1487,7 +1487,7 @@ void Builtins::Generate_MaglevFunctionEntryStackCheck_WithNewTarget(
 
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
-  auto object = Parameter<Object>(Descriptor::kObject);
+  auto object = Parameter<JSAny>(Descriptor::kObject);
   auto key = Parameter<Object>(Descriptor::kKey);
   auto context = Parameter<Context>(Descriptor::kContext);
   // TODO(duongn): consider tailcalling to GetPropertyWithReceiver(object,
@@ -1496,7 +1496,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
       if_slow(this, Label::kDeferred);
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
-      [=, this](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<Name> unique_name, Label* next_holder,
                 Label* if_bailout) {
@@ -1513,7 +1513,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
       };
 
   CodeStubAssembler::LookupElementInHolder lookup_element_in_holder =
-      [=, this](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
         // Not supported yet.
@@ -1546,16 +1546,16 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
 
 // ES6 [[Get]] operation with Receiver.
 TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
-  auto object = Parameter<Object>(Descriptor::kObject);
+  auto object = Parameter<JSAny>(Descriptor::kObject);
   auto key = Parameter<Object>(Descriptor::kKey);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto on_non_existent = Parameter<Object>(Descriptor::kOnNonExistent);
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
 
   CodeStubAssembler::LookupPropertyInHolder lookup_property_in_holder =
-      [=, this](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<Name> unique_name, Label* next_holder,
                 Label* if_bailout) {
@@ -1570,7 +1570,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       };
 
   CodeStubAssembler::LookupElementInHolder lookup_element_in_holder =
-      [=, this](TNode<HeapObject> receiver, TNode<HeapObject> holder,
+      [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
         // Not supported yet.
@@ -1617,7 +1617,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
 // ES6 [[Set]] operation.
 TF_BUILTIN(SetProperty, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto key = Parameter<Object>(Descriptor::kKey);
   auto value = Parameter<Object>(Descriptor::kValue);
 
@@ -1668,7 +1668,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
 
   // Call runtime, on success just pass the result to the caller and pop all
   // arguments. A smi 0 is returned on failure, an object on success.
-  TNode<Object> maybe_result_or_smi_zero = CallRuntime(
+  TNode<JSAny> maybe_result_or_smi_zero = CallRuntime<JSAny>(
       Runtime::kInstantiateAsmJs, context, function, stdlib, foreign, heap);
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
   args.PopAndReturn(maybe_result_or_smi_zero);

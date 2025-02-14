@@ -1188,6 +1188,8 @@ using JSPrimitive =
 // or a FixedArray.
 using JSAny = Union<Smi, HeapNumber, BigInt, String, Symbol, Boolean, Null,
                     Undefined, JSReceiver>;
+using JSAnyNotSmi = Union<HeapNumber, BigInt, String, Symbol, Boolean, Null,
+                          Undefined, JSReceiver>;
 using JSAnyNotNumeric =
     Union<String, Symbol, Boolean, Null, Undefined, JSReceiver>;
 using JSAnyNotNumber =

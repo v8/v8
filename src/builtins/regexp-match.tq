@@ -16,7 +16,7 @@ const kRegExpDataIndirectPointerTag:
     constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
 extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
-    implicit context: Context)(Object, constexpr Flag, constexpr bool): bool;
+    implicit context: Context)(JSAny, constexpr Flag, constexpr bool): bool;
 
 extern macro LoadTrustedPointerFromObject(
     HeapObject, constexpr int31, constexpr uint64): TrustedObject;

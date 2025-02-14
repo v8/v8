@@ -292,7 +292,7 @@ transitioning javascript builtin RegExpPrototypeUnicodeSetsGetter(
 }
 
 extern transitioning macro RegExpBuiltinsAssembler::FlagsGetter(
-    implicit context: Context)(Object, constexpr bool): String;
+    implicit context: Context)(JSAny, constexpr bool): String;
 
 transitioning macro FastFlagsGetter(
     implicit context: Context)(receiver: FastJSRegExp): String {

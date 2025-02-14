@@ -655,16 +655,16 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                           TypeOracle::GetContextType()};
       } else if (param_name == "receiver") {
         csa_ccfile()
-            << "  TNode<Object> " << generated_name << " = "
+            << "  TNode<JSAny> " << generated_name << " = "
             << (builtin->IsVarArgsJavaScript()
                     ? "arguments.GetReceiver()"
-                    : "UncheckedParameter<Object>(Descriptor::kReceiver)")
+                    : "UncheckedParameter<JSAny>(Descriptor::kReceiver)")
             << ";\n";
         csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "newTarget") {
-        csa_ccfile() << "  TNode<Object> " << generated_name
-                     << " = UncheckedParameter<Object>("
+        csa_ccfile() << "  TNode<JSAny> " << generated_name
+                     << " = UncheckedParameter<JSAny>("
                      << "Descriptor::kJSNewTarget);\n";
         csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};

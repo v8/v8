@@ -281,20 +281,49 @@ std::string UnionType::SimpleNameImpl() const {
   return result.str();
 }
 
+// static
+void UnionType::InsertGeneratedTNodeTypeName(std::set<std::string>& names,
+                                             const Type* t) {
+  if (t->IsUnionType()) {
+    for (const Type* u : ((const UnionType*)t)->types_) {
+      names.insert(u->GetGeneratedTNodeTypeName());
+    }
+  } else {
+    names.insert(t->GetGeneratedTNodeTypeName());
+  }
+}
+
 std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
-  if (types_.size() <= 3) {
-    std::set<std::string> members;
-    for (const Type* t : types_) {
-      members.insert(t->GetGeneratedTNodeTypeName());
-    }
-    if (members == std::set<std::string>{"Smi", "HeapNumber"}) {
-      return "Number";
-    }
-    if (members == std::set<std::string>{"Smi", "HeapNumber", "BigInt"}) {
-      return "Numeric";
+  // For non-tagged unions, use the parent GetGeneratedTNodeTypeName.
+  for (const Type* t : types_) {
+    if (!t->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      return parent()->GetGeneratedTNodeTypeName();
     }
   }
-  return parent()->GetGeneratedTNodeTypeName();
+
+  std::string simple_name = SimpleName();
+  if (simple_name == "Object") return simple_name;
+  if (simple_name == "Number") return simple_name;
+  if (simple_name == "Numeric") return simple_name;
+  if (simple_name == "JSAny") return simple_name;
+  if (simple_name == "JSPrimitive") return simple_name;
+
+  std::set<std::string> names;
+  for (const Type* t : types_) {
+    InsertGeneratedTNodeTypeName(names, t);
+  }
+  std::stringstream result;
+  result << "Union<";
+  bool first = true;
+  for (std::string name : names) {
+    if (!first) {
+      result << ", ";
+    }
+    first = false;
+    result << name;
+  }
+  result << ">";
+  return result.str();
 }
 
 std::string UnionType::GetRuntimeType() const {

@@ -184,7 +184,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   using DescriptorIndexNameValue =
       PrototypeCheckAssembler::DescriptorIndexNameValue;
   void MaybeCallFunctionAtSymbol(
-      const TNode<Context> context, const TNode<Object> object,
+      const TNode<Context> context, const TNode<JSAny> object,
       const TNode<Object> maybe_string, Handle<Symbol> symbol,
       DescriptorIndexNameValue additional_property_to_check,
       const NodeFunction0& regexp_call, const NodeFunction1& generic_call);

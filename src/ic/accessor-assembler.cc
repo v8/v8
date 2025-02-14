@@ -2802,7 +2802,7 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(
 }
 
 void AccessorAssembler::GenericElementLoad(
-    TNode<HeapObject> lookup_start_object, TNode<Map> lookup_start_object_map,
+    TNode<JSAnyNotSmi> lookup_start_object, TNode<Map> lookup_start_object_map,
     TNode<Int32T> lookup_start_object_instance_type, TNode<IntPtrT> index,
     Label* slow) {
   Comment("integer index");
@@ -2876,7 +2876,7 @@ void AccessorAssembler::GenericElementLoad(
 }
 
 void AccessorAssembler::GenericPropertyLoad(
-    TNode<HeapObject> lookup_start_object, TNode<Map> lookup_start_object_map,
+    TNode<JSAnyNotSmi> lookup_start_object, TNode<Map> lookup_start_object_map,
     TNode<Int32T> lookup_start_object_instance_type, const LoadICParameters* p,
     Label* slow, UseStubCache use_stub_cache) {
   DCHECK_EQ(lookup_start_object, p->lookup_start_object());
@@ -2980,7 +2980,7 @@ void AccessorAssembler::GenericPropertyLoad(
   BIND(&if_found_on_lookup_start_object);
   {
     TNode<Object> value = CallGetterIfAccessor(
-        var_value.value(), lookup_start_object, var_details.value(),
+        var_value.value(), CAST(lookup_start_object), var_details.value(),
         p->context(), p->receiver(), p->name(), slow);
     Return(value);
   }
@@ -3144,7 +3144,7 @@ void AccessorAssembler::TryProbeStubCacheTable(
 }
 
 void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
-                                          TNode<Object> lookup_start_object,
+                                          TNode<JSAny> lookup_start_object,
                                           TNode<Map> lookup_start_object_map,
                                           TNode<Name> name, Label* if_handler,
                                           TVariable<MaybeObject>* var_handler,
@@ -3562,8 +3562,8 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSGlobalProxy> receiver =
       CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX));
-  TNode<Object> global =
-      LoadContextElement(native_context, Context::EXTENSION_INDEX);
+  TNode<JSAny> global =
+      CAST(LoadContextElement(native_context, Context::EXTENSION_INDEX));
 
   LazyLoadICParameters p([=] { return context; }, receiver, lazy_name,
                          [=] { return slot; }, vector, global);
@@ -3843,7 +3843,7 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p,
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  TNode<Object> lookup_start_object = p->lookup_start_object();
+  TNode<JSAny> lookup_start_object = p->lookup_start_object();
   TNode<Map> lookup_start_object_map = LoadReceiverMap(lookup_start_object);
   TNode<Name> name = CAST(p->name());
   TNode<FeedbackVector> vector = CAST(p->vector());
@@ -3985,7 +3985,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       TNode<NativeContext> native_context = LoadNativeContext(pp->context());
       StoreICParameters p(
           pp->context(),
-          LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX),
+          CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX)),
           pp->name(), pp->value(), std::nullopt, pp->slot(), pp->vector(),
           StoreICMode::kDefault);
 
@@ -4374,7 +4374,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 void AccessorAssembler::GenerateLoadIC() {
   using Descriptor = LoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4387,7 +4387,7 @@ void AccessorAssembler::GenerateLoadIC() {
 void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   using Descriptor = LoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4421,7 +4421,7 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
 void AccessorAssembler::GenerateLoadIC_Noninlined() {
   using Descriptor = LoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
@@ -4453,7 +4453,7 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
 void AccessorAssembler::GenerateLoadIC_NoFeedback() {
   using Descriptor = LoadNoFeedbackDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto ic_kind = Parameter<Smi>(Descriptor::kICKind);
@@ -4467,7 +4467,7 @@ void AccessorAssembler::GenerateLoadIC_NoFeedback() {
 void AccessorAssembler::GenerateLoadICTrampoline() {
   using Descriptor = LoadDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4479,7 +4479,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
 void AccessorAssembler::GenerateLoadICBaseline() {
   using Descriptor = LoadBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
@@ -4491,7 +4491,7 @@ void AccessorAssembler::GenerateLoadICBaseline() {
 void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
   using Descriptor = LoadDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4504,8 +4504,8 @@ void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
 void AccessorAssembler::GenerateLoadSuperIC() {
   using Descriptor = LoadWithReceiverAndVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  auto lookup_start_object = Parameter<Object>(Descriptor::kLookupStartObject);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto lookup_start_object = Parameter<JSAny>(Descriptor::kLookupStartObject);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4519,7 +4519,7 @@ void AccessorAssembler::GenerateLoadSuperIC() {
 void AccessorAssembler::GenerateLoadSuperICBaseline() {
   using Descriptor = LoadWithReceiverBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto lookup_start_object = Parameter<Object>(Descriptor::kLookupStartObject);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4692,7 +4692,7 @@ void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
 void AccessorAssembler::GenerateKeyedLoadIC() {
   using Descriptor = KeyedLoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4705,7 +4705,7 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
 void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
   using Descriptor = EnumeratedKeyedLoadDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto enum_index = Parameter<Smi>(Descriptor::kEnumIndex);
   auto cache_type = Parameter<Object>(Descriptor::kCacheType);
@@ -4722,7 +4722,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadIC() {
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   using Descriptor = KeyedLoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -4735,7 +4735,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
 void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   using Descriptor = KeyedLoadDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4747,7 +4747,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
 void AccessorAssembler::GenerateKeyedLoadICBaseline() {
   using Descriptor = KeyedLoadBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
@@ -4759,7 +4759,7 @@ void AccessorAssembler::GenerateKeyedLoadICBaseline() {
 void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
   using Descriptor = EnumeratedKeyedLoadBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto enum_index = Parameter<Smi>(Descriptor::kEnumIndex);
   auto cache_type = Parameter<Object>(Descriptor::kCacheType);
@@ -4774,7 +4774,7 @@ void AccessorAssembler::GenerateEnumeratedKeyedLoadICBaseline() {
 void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
   using Descriptor = KeyedLoadDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -4787,7 +4787,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
 void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
   using Descriptor = LoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<FeedbackVector>(Descriptor::kVector);
@@ -4839,7 +4839,7 @@ void AccessorAssembler::GenerateStoreGlobalICBaseline() {
 void AccessorAssembler::GenerateStoreIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = std::nullopt;
@@ -4855,7 +4855,7 @@ void AccessorAssembler::GenerateStoreIC() {
 void AccessorAssembler::GenerateStoreIC_Megamorphic() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = std::nullopt;
@@ -4891,7 +4891,7 @@ void AccessorAssembler::GenerateStoreIC_Megamorphic() {
 void AccessorAssembler::GenerateStoreICTrampoline() {
   using Descriptor = StoreDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4905,7 +4905,7 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
 void AccessorAssembler::GenerateStoreICTrampoline_Megamorphic() {
   using Descriptor = StoreDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4919,7 +4919,7 @@ void AccessorAssembler::GenerateStoreICTrampoline_Megamorphic() {
 void AccessorAssembler::GenerateStoreICBaseline() {
   using Descriptor = StoreBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4933,7 +4933,7 @@ void AccessorAssembler::GenerateStoreICBaseline() {
 void AccessorAssembler::GenerateDefineNamedOwnIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = std::nullopt;
@@ -4951,7 +4951,7 @@ void AccessorAssembler::GenerateDefineNamedOwnIC() {
 void AccessorAssembler::GenerateDefineNamedOwnICTrampoline() {
   using Descriptor = StoreDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4965,7 +4965,7 @@ void AccessorAssembler::GenerateDefineNamedOwnICTrampoline() {
 void AccessorAssembler::GenerateDefineNamedOwnICBaseline() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -4979,7 +4979,7 @@ void AccessorAssembler::GenerateDefineNamedOwnICBaseline() {
 void AccessorAssembler::GenerateKeyedStoreIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = std::nullopt;
@@ -4995,7 +4995,7 @@ void AccessorAssembler::GenerateKeyedStoreIC() {
 void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
   using Descriptor = StoreDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -5009,7 +5009,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
 void AccessorAssembler::GenerateKeyedStoreICTrampoline_Megamorphic() {
   using Descriptor = StoreDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -5023,7 +5023,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline_Megamorphic() {
 void AccessorAssembler::GenerateKeyedStoreICBaseline() {
   using Descriptor = StoreBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -5037,7 +5037,7 @@ void AccessorAssembler::GenerateKeyedStoreICBaseline() {
 void AccessorAssembler::GenerateDefineKeyedOwnIC() {
   using Descriptor = DefineKeyedOwnWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = Parameter<Smi>(Descriptor::kFlags);
@@ -5053,7 +5053,7 @@ void AccessorAssembler::GenerateDefineKeyedOwnIC() {
 void AccessorAssembler::GenerateDefineKeyedOwnICTrampoline() {
   using Descriptor = DefineKeyedOwnDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = Parameter<Smi>(Descriptor::kFlags);
@@ -5068,7 +5068,7 @@ void AccessorAssembler::GenerateDefineKeyedOwnICTrampoline() {
 void AccessorAssembler::GenerateDefineKeyedOwnICBaseline() {
   using Descriptor = DefineKeyedOwnBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = Parameter<Smi>(Descriptor::kFlags);
@@ -5083,7 +5083,7 @@ void AccessorAssembler::GenerateDefineKeyedOwnICBaseline() {
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto array = Parameter<Object>(Descriptor::kReceiver);
+  auto array = Parameter<JSAny>(Descriptor::kReceiver);
   auto index = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto flags = std::nullopt;
@@ -5099,7 +5099,7 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
 void AccessorAssembler::GenerateStoreInArrayLiteralICBaseline() {
   using Descriptor = StoreBaselineDescriptor;
 
-  auto array = Parameter<Object>(Descriptor::kReceiver);
+  auto array = Parameter<JSAny>(Descriptor::kReceiver);
   auto index = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
@@ -5216,7 +5216,7 @@ void AccessorAssembler::GenerateCloneObjectICBaseline() {
 
 void AccessorAssembler::GenerateCloneObjectIC() {
   using Descriptor = CloneObjectWithVectorDescriptor;
-  auto source = Parameter<Object>(Descriptor::kSource);
+  auto source = Parameter<JSAny>(Descriptor::kSource);
   auto flags = Parameter<Smi>(Descriptor::kFlags);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto maybe_vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -5333,7 +5333,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 void AccessorAssembler::GenerateKeyedHasIC() {
   using Descriptor = KeyedHasICWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
@@ -5346,7 +5346,7 @@ void AccessorAssembler::GenerateKeyedHasIC() {
 void AccessorAssembler::GenerateKeyedHasICBaseline() {
   using Descriptor = KeyedHasICBaselineDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
@@ -5358,7 +5358,7 @@ void AccessorAssembler::GenerateKeyedHasICBaseline() {
 void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
   using Descriptor = KeyedHasICWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto context = Parameter<Context>(Descriptor::kContext);
   // TODO(magardn): implement HasProperty handling in KeyedLoadICGeneric
@@ -5369,7 +5369,7 @@ void AccessorAssembler::GenerateKeyedHasIC_Megamorphic() {
 void AccessorAssembler::GenerateKeyedHasIC_PolymorphicName() {
   using Descriptor = LoadWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);

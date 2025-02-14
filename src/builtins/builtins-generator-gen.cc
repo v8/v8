@@ -69,12 +69,12 @@ void GeneratorBuiltinsAssembler::InnerResume(
   // Close the generator if there was an exception.
   TVARIABLE(Object, var_exception);
   Label if_exception(this, Label::kDeferred), if_final_return(this);
-  TNode<Object> result;
+  TNode<JSAny> result;
   {
     compiler::ScopedExceptionHandler handler(this, &if_exception,
                                              &var_exception);
-    result = CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
-                         receiver);
+    result = CallBuiltin<JSAny>(Builtin::kResumeGeneratorTrampoline, context,
+                                value, receiver);
   }
 
   // If the generator is not suspended (i.e., its state is 'executing'),
@@ -97,25 +97,26 @@ void GeneratorBuiltinsAssembler::InnerResume(
     StoreObjectFieldNoWriteBarrier(
         receiver, JSGeneratorObject::kContinuationOffset, closed);
     // Return the wrapped result.
-    args->PopAndReturn(CallBuiltin(Builtin::kCreateIterResultObject, context,
-                                   result, TrueConstant()));
+    args->PopAndReturn(CallBuiltin<JSAny>(Builtin::kCreateIterResultObject,
+                                          context, result, TrueConstant()));
   }
 
   BIND(&if_receiverisclosed);
   {
     // The {receiver} is closed already.
-    TNode<Object> builtin_result;
+    TNode<JSAny> builtin_result;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        builtin_result = CallBuiltin(Builtin::kCreateIterResultObject, context,
-                                     UndefinedConstant(), TrueConstant());
+        builtin_result =
+            CallBuiltin<JSAny>(Builtin::kCreateIterResultObject, context,
+                               UndefinedConstant(), TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        builtin_result = CallBuiltin(Builtin::kCreateIterResultObject, context,
-                                     value, TrueConstant());
+        builtin_result = CallBuiltin<JSAny>(Builtin::kCreateIterResultObject,
+                                            context, value, TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
-        builtin_result = CallRuntime(Runtime::kThrow, context, value);
+        builtin_result = CallRuntime<JSAny>(Runtime::kThrow, context, value);
         break;
       case JSGeneratorObject::kRethrow:
         // Currently only async generators use this mode.

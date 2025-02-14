@@ -73,7 +73,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   // the above. It is essentially the same as "KeyedStoreGeneric" but does not
   // use feedback slot and uses a hardcoded LanguageMode instead of trying
   // to deduce it from the feedback slot's kind.
-  void StoreProperty(TNode<Context> context, TNode<Object> receiver,
+  void StoreProperty(TNode<Context> context, TNode<JSAny> receiver,
                      TNode<Object> key, TNode<Object> value,
                      LanguageMode language_mode);
 
@@ -90,7 +90,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   // Helper that is used by the public KeyedStoreGeneric, KeyedStoreMegamorphic
   // and StoreProperty.
-  void KeyedStoreGeneric(TNode<Context> context, TNode<Object> receiver,
+  void KeyedStoreGeneric(TNode<Context> context, TNode<JSAny> receiver,
                          TNode<Object> key, TNode<Object> value,
                          Maybe<LanguageMode> language_mode,
                          UseStubCache use_stub_cache = kDontUseStubCache,
@@ -249,7 +249,7 @@ void KeyedStoreGenericGenerator::SetProperty(
 // static
 void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
-    TNode<Object> receiver, TNode<Object> key, TNode<Object> value,
+    TNode<JSAny> receiver, TNode<Object> key, TNode<Object> value,
     LanguageMode language_mode) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
   assembler.StoreProperty(context, receiver, key, value, language_mode);
@@ -1191,7 +1191,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
 // Helper that is used by the public KeyedStoreGeneric and by StoreProperty.
 void KeyedStoreGenericAssembler::KeyedStoreGeneric(
-    TNode<Context> context, TNode<Object> receiver_maybe_smi, TNode<Object> key,
+    TNode<Context> context, TNode<JSAny> receiver_maybe_smi, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode,
     UseStubCache use_stub_cache, TNode<TaggedIndex> slot,
     TNode<HeapObject> maybe_vector) {
@@ -1202,7 +1202,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       not_internalized(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver_maybe_smi), &slow);
-  TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+  TNode<JSAnyNotSmi> receiver = CAST(receiver_maybe_smi);
   TNode<Map> receiver_map = LoadMap(receiver);
   TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
@@ -1268,7 +1268,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   using Descriptor = StoreNoFeedbackDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1280,7 +1280,7 @@ void KeyedStoreGenericAssembler::KeyedStoreMegamorphic() {
   DCHECK(IsSet());  // Only [[Set]] handlers are stored in the stub cache.
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1292,7 +1292,7 @@ void KeyedStoreGenericAssembler::KeyedStoreMegamorphic() {
 }
 
 void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
-                                               TNode<Object> receiver,
+                                               TNode<JSAny> receiver,
                                                TNode<Object> key,
                                                TNode<Object> value,
                                                LanguageMode language_mode) {
@@ -1302,7 +1302,7 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
 void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   using Descriptor = StoreNoFeedbackDescriptor;
 
-  auto receiver_maybe_smi = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver_maybe_smi = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1312,7 +1312,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   GotoIf(TaggedIsSmi(receiver_maybe_smi), &miss);
 
   {
-    TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+    TNode<JSAnyNotSmi> receiver = CAST(receiver_maybe_smi);
     TNode<Map> receiver_map = LoadMap(receiver);
     TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
     // Receivers requiring non-standard element accesses (interceptors, access

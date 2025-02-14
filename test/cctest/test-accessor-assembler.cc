@@ -123,7 +123,7 @@ TEST(TryProbeStubCache) {
   stub_cache.Clear();
 
   {
-    auto receiver = m.Parameter<Object>(1);
+    auto receiver = m.Parameter<JSAny>(1);
     auto name = m.Parameter<Name>(2);
     TNode<MaybeObject> expected_handler = m.UncheckedParameter<MaybeObject>(3);
 
