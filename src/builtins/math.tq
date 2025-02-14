@@ -283,6 +283,7 @@ transitioning javascript builtin MathFround(
 }
 
 // ES6 #sec-math.f16round
+@incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin MathF16round(
     js-implicit context: NativeContext)(x: JSAny): Number {
   const x16 = Convert<float16_raw_bits>(ToNumber_Inline(x));

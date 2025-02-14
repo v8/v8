@@ -534,6 +534,7 @@ transitioning javascript builtin DataViewPrototypeGetInt32(
       context, receiver, offset, isLittleEndian, ElementsKind::INT32_ELEMENTS);
 }
 
+@incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin DataViewPrototypeGetFloat16(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const offset: JSAny = arguments[0];
@@ -895,6 +896,7 @@ transitioning javascript builtin DataViewPrototypeSetInt32(
       ElementsKind::INT32_ELEMENTS);
 }
 
+@incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin DataViewPrototypeSetFloat16(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const offset: JSAny = arguments[0];
