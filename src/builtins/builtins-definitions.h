@@ -86,12 +86,18 @@ namespace internal {
  * name (see tools/callstats_groups.py).
  *
  * */
+#define BUILTIN_LIST_BASE_TIERING_TURBOFAN(TFC) \
+  TFC(StartTurbofanOptimizeJob, JSTrampoline)   \
+  TFC(OptimizeTurbofanEager, JSTrampoline)
+
+#define BUILTIN_LIST_BASE_TIERING_MAGLEV(TFC) \
+  TFC(StartMaglevOptimizeJob, JSTrampoline)   \
+  TFC(OptimizeMaglevEager, JSTrampoline)
+
 #define BUILTIN_LIST_BASE_TIERING(TFC)             \
+  BUILTIN_LIST_BASE_TIERING_MAGLEV(TFC)            \
+  BUILTIN_LIST_BASE_TIERING_TURBOFAN(TFC)          \
   TFC(FunctionLogNextExecution, JSTrampoline)      \
-  TFC(StartMaglevOptimizeJob, JSTrampoline)        \
-  TFC(StartTurbofanOptimizeJob, JSTrampoline)      \
-  TFC(OptimizeMaglevEager, JSTrampoline)           \
-  TFC(OptimizeTurbofanEager, JSTrampoline)         \
   TFC(MarkReoptimizeLazyDeoptimized, JSTrampoline) \
   TFC(MarkLazyDeoptimized, JSTrampoline)
 

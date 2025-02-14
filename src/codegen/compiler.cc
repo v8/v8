@@ -3164,6 +3164,7 @@ bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
 void Compiler::CompileOptimized(Isolate* isolate,
                                 DirectHandle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
+  function->PrintOptimizationStatus("^%s", CodeKindToString(code_kind));
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
 

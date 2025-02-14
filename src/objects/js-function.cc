@@ -17,6 +17,7 @@
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/feedback-vector.h"
 #include "src/strings/string-builder-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -65,6 +66,59 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
 
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
   return result;
+}
+
+void JSFunction::PrintOptimizationStatus(const char* format, ...) {
+  if (!v8_flags.trace_opt_status) return;
+  Isolate* const isolate = GetIsolate();
+  PrintF("[optimization status (");
+  {
+    va_list arguments;
+    va_start(arguments, format);
+    base::OS::VPrint(format, arguments);
+    va_end(arguments);
+  }
+  PrintF(")");
+  if (strlen(DebugNameCStr().get()) == 0) {
+    PrintF(" (anonymous %p)", reinterpret_cast<void*>(ptr()));
+  } else {
+    PrintF(" %s", DebugNameCStr().get());
+  }
+  if (!has_feedback_vector()) {
+    PrintF(" !feedback]\n");
+    return;
+  }
+
+  PrintF(" %s", CodeKindToString(GetActiveTier(isolate).value()));
+  if (IsMaglevRequested(isolate)) {
+    PrintF(" ^M");
+
+  } else if (IsTurbofanRequested(isolate)) {
+    PrintF(" ^TF");
+  }
+  Tagged<FeedbackVector> feedback = feedback_vector();
+  Tagged<FeedbackMetadata> metadata = feedback->metadata();
+  for (int i = 0; i < metadata->slot_count(); i++) {
+    FeedbackSlot slot(i);
+    if (metadata->GetKind(slot) == FeedbackSlotKind::kJumpLoop) {
+      Tagged<MaybeObject> value = feedback->Get(slot);
+      if (value.IsCleared()) {
+        PrintF(" .");
+      } else {
+        Tagged<Code> code =
+            Tagged<CodeWrapper>::cast(value.GetHeapObjectAssumeWeak())
+                ->code(isolate);
+        PrintF(" %i:", code->osr_offset().ToInt());
+        if (code->kind() == CodeKind::MAGLEV) {
+          PrintF("m");
+        } else {
+          DCHECK_EQ(CodeKind::TURBOFAN_JS, code->kind());
+          PrintF("t");
+        }
+      }
+    }
+  }
+  PrintF("]\n");
 }
 
 bool JSFunction::HasAttachedOptimizedCode(IsolateForSandbox isolate) const {

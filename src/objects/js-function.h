@@ -98,6 +98,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
                                  Tagged<UnionOf<JSPrototype, Map, Hole>>)
 
+  void PrintOptimizationStatus(const char* reason, ...);
+
   // [shared]: The information about the function that can be shared by
   // instances.
   DECL_ACCESSORS(shared, Tagged<SharedFunctionInfo>)
@@ -240,6 +242,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   inline bool IsLoggingRequested(Isolate* isolate) const;
   inline bool IsOptimizationRequested(Isolate* isolate) const;
+  inline bool IsMaglevRequested(Isolate* isolate) const;
+  inline bool IsTurbofanRequested(Isolate* isolate) const;
   V8_INLINE std::optional<CodeKind> GetRequestedOptimizationIfAny(
       Isolate* isolate,
       ConcurrencyMode mode = ConcurrencyMode::kConcurrent) const;

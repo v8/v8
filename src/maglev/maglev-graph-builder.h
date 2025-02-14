@@ -497,7 +497,9 @@ class MaglevGraphBuilder {
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant,
                      NodeType new_node_type);
   bool ShouldEmitInterruptBudgetChecks() {
-    if (is_inline()) return false;
+    if (is_inline()) {
+      return false;
+    }
     if (compilation_unit()->info()->for_turboshaft_frontend()) {
       // As the top-tier compiler, Turboshaft doesn't need interrupt budget
       // checks.
@@ -508,7 +510,9 @@ class MaglevGraphBuilder {
   bool ShouldEmitOsrInterruptBudgetChecks() {
     if (!v8_flags.turbofan || !v8_flags.use_osr || !v8_flags.osr_from_maglev)
       return false;
-    if (!graph_->is_osr() && !v8_flags.always_osr_from_maglev) return false;
+    if (!graph_->is_osr() && !v8_flags.always_osr_from_maglev) {
+      return false;
+    }
     // TODO(olivf) OSR from maglev requires lazy recompilation (see
     // CompileOptimizedOSRFromMaglev for details). Without this we end up in
     // deopt loops, e.g., in chromium content_unittests.

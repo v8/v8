@@ -286,7 +286,7 @@ bool JSFunction::IsLoggingRequested(Isolate* isolate) const {
 #endif
 }
 
-bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
+bool JSFunction::IsMaglevRequested(Isolate* isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
@@ -298,12 +298,36 @@ bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
     return TieringBuiltin::k##name !=                                          \
            TieringBuiltin::kFunctionLogNextExecution;                          \
   }
-  BUILTIN_LIST_BASE_TIERING(CASE)
+  BUILTIN_LIST_BASE_TIERING_MAGLEV(CASE)
 #undef CASE
   return {};
 #else
-  return IsRequestMaglev(tiering_state()) || IsRequestTurbofan(tiering_state());
+  return IsRequestMaglev(tiering_state());
 #endif
+}
+
+bool JSFunction::IsTurbofanRequested(Isolate* isolate) const {
+#ifdef V8_ENABLE_LEAPTIERING
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
+#define CASE(name, ...)                                                        \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
+    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                   isolate));                                  \
+    return TieringBuiltin::k##name !=                                          \
+           TieringBuiltin::kFunctionLogNextExecution;                          \
+  }
+  BUILTIN_LIST_BASE_TIERING_TURBOFAN(CASE)
+#undef CASE
+  return {};
+#else
+  return IsRequestTurbofan(tiering_state());
+#endif
+}
+
+bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
+  return IsMaglevRequested(isolate) || IsTurbofanRequested(isolate);
 }
 
 std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(

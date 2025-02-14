@@ -961,9 +961,9 @@ DEFINE_BOOL(osr_from_maglev, false,
 DEFINE_FLOAT(
     osr_from_maglev_interrupt_scale_factor, 0.8,
     "Scale interrupt budget reduction for OSR from Maglev vs. OSR to Maglev")
-DEFINE_BOOL(always_osr_from_maglev, false,
+DEFINE_BOOL(always_osr_from_maglev, true,
             "whether we try to OSR to Turbofan from any Maglev")
-DEFINE_VALUE_IMPLICATION(always_osr_from_maglev, osr_from_maglev, true)
+DEFINE_WEAK_IMPLICATION(always_osr_from_maglev, osr_from_maglev)
 
 // Tiering: Turbofan.
 DEFINE_INT(invocation_count_for_turbofan, 3000,
@@ -2484,6 +2484,8 @@ DEFINE_BOOL(lazy_streaming, true,
 DEFINE_BOOL(max_lazy, false, "ignore eager compilation hints")
 DEFINE_IMPLICATION(max_lazy, lazy)
 DEFINE_BOOL(trace_opt, false, "trace optimized compilation")
+DEFINE_BOOL(trace_opt_status, false,
+            "trace the optimization status of functions during tiering events")
 DEFINE_BOOL(trace_opt_verbose, false,
             "extra verbose optimized compilation tracing")
 DEFINE_IMPLICATION(trace_opt_verbose, trace_opt)
