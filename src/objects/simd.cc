@@ -470,6 +470,19 @@ void Uint8ArrayToHexSlow(const char* bytes, size_t length,
   }
 }
 
+V8_ALLOW_UNUSED void HandleRemainingNibbles(const char* bytes, uint8_t* output,
+                                            size_t length, size_t i) {
+  size_t index = 16 * (length / 8);
+  for (; i < length; ++i) {
+    uint8_t byte = bytes[i];
+    uint8_t high = byte >> 4;
+    uint8_t low = byte & 0x0F;
+
+    output[index++] = NibbleToHex(high);
+    output[index++] = NibbleToHex(low);
+  }
+}
+
 /**
 The following procedure converts 16 nibbles at a time:
 
@@ -529,14 +542,44 @@ void Uint8ArrayToHexFastWithSSE(const char* bytes, uint8_t* output,
                      corrected_result);
   }
 
-  index = 16 * (length / 8);
-  for (; i < length; ++i) {
-    uint8_t byte = bytes[i];
-    uint8_t high = byte >> 4;
-    uint8_t low = byte & 0x0F;
-    output[index++] = NibbleToHex(high);
-    output[index++] = NibbleToHex(low);
+  HandleRemainingNibbles(bytes, output, length, i);
+}
+#endif
+
+#ifdef NEON64
+void Uint8ArrayToHexFastWithNeon(const char* bytes, uint8_t* output,
+                                 size_t length) {
+  size_t i;
+  size_t index = 0;
+  alignas(16) uint8_t nibbles_buffer[16];
+  for (i = 0; i + 8 <= length; i += 8) {
+    index = 0;
+    for (size_t j = i; j < i + 8; j++) {
+      nibbles_buffer[index++] = bytes[j] >> 4;    // High nibble
+      nibbles_buffer[index++] = bytes[j] & 0x0F;  // Low nibble
+    }
+
+    // Load data into NEON registers
+    uint8x16_t nibbles = vld1q_u8(nibbles_buffer);
+    uint8x16_t nine = vdupq_n_u8(9);
+    uint8x16_t ascii0 = vdupq_n_u8('0');
+    uint8x16_t correction = vdupq_n_u8('a' - 10 - '0');
+
+    // Make a copy for ASCII conversion
+    uint8x16_t ascii_result = vaddq_u8(nibbles, ascii0);
+
+    // Create a mask for values greater than 9
+    uint8x16_t mask = vcgtq_u8(nibbles, nine);
+
+    // Apply correction
+    uint8x16_t corrected_result = vandq_u8(mask, correction);
+    corrected_result = vaddq_u8(ascii_result, corrected_result);
+
+    // Store the result
+    vst1q_u8(&output[i * 2], corrected_result);
   }
+
+  HandleRemainingNibbles(bytes, output, length, i);
 }
 #endif
 }  // namespace
@@ -549,6 +592,17 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
     {
       DisallowGarbageCollection no_gc;
       Uint8ArrayToHexFastWithSSE(bytes, string_output->GetChars(no_gc), length);
+    }
+    return *string_output;
+  }
+#endif
+
+#ifdef NEON64
+  if (get_vectorization_kind() == SimdKinds::kNeon) {
+    {
+      DisallowGarbageCollection no_gc;
+      Uint8ArrayToHexFastWithNeon(bytes, string_output->GetChars(no_gc),
+                                  length);
     }
     return *string_output;
   }
