@@ -77,6 +77,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   //      captures method and performs the following steps when called:
   //        a. Let O be the this value.
   //        b. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+  DirectHandle<Object> receiver = args.receiver();
   DirectHandle<JSPromise> promise = isolate->factory()->NewJSPromise();
 
   //        c. Let result be Completion(Call(method, O)).
@@ -90,8 +91,8 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
 
-  MaybeDirectHandle<Object> result = Execution::Call(
-      isolate, sync_method, isolate->factory()->undefined_value(), {});
+  MaybeDirectHandle<Object> result =
+      Execution::Call(isolate, sync_method, receiver, {});
 
   DirectHandle<Object> result_handle;
 
