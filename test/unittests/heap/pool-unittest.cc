@@ -334,6 +334,8 @@ class PoolTest : public                                     //
              SetPlatformPageAllocatorForTesting(old_page_allocator_));
     delete tracking_page_allocator_;
     tracking_page_allocator_ = nullptr;
+
+    IsolateGroup::InitializeOncePerProcess();
   }
 
   Heap* heap() { return isolate()->heap(); }
