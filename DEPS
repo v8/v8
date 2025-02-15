@@ -124,7 +124,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '70eb4fac208e1130ac28f448291532b5ed835dc8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0cd653f87eaee835f0abe560a813733e8e78189b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9bdc0a08157f9a3bb36a176ede3298d09bf33d36',
   'buildtools/linux64': {
@@ -240,7 +240,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd49a21c533dc5182efd1b5ba9627bdcdd107993b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '858ffc1da7580703ac0b3fce45a7fc21273d3001',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -300,7 +300,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4337c9955a37b3f2a7b105fd19a2fb82bf9bf5af',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'af48ad2c4fa6d93e3f91b1e122d7e6d7775860e8',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '98e5c670f6b17f75630d88ba9eaf58ee6b7d0443',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -462,7 +462,7 @@ deps = {
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0c785710a8dfff7744cd6b08c04448d2c2e66b0a',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'bf017fc4932dc3996edb547d7912c40aff224919',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '486abb63f264896dd9d3e6fe3be2ac5b4084be22',
   'third_party/re2/src':
