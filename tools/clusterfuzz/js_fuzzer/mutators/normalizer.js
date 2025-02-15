@@ -8,18 +8,13 @@
  * different files. It also simplifies other logic when e.g. determining the
  * type of an identifier.
  */
+
 'use strict';
 
 const babelTypes = require('@babel/types');
 
 const common = require('./common.js');
 const mutator = require('./mutator.js');
-
-// Mapping of identifier->resource name, with additional resources only
-// loaded on demand if the respective identifier is found in the code.
-const IDENTIFIER_RESOURCE_MAP = new Map([
-  ['AsyncIterator', 'async_iterator.js'],
-]);
 
 class NormalizerContext {
   constructor() {
@@ -36,7 +31,6 @@ class IdentifierNormalizer extends mutator.Mutator {
   }
 
   get visitor() {
-    const thisMutator = this;
     const normalizerContext = this.normalizerContext;
     const renamed = new WeakSet();
     const globalMappings = new Map();
@@ -76,45 +70,24 @@ class IdentifierNormalizer extends mutator.Mutator {
     }, {
       // Second pass to rename globals that weren't declared with
       // var/let/const etc.
-      Identifier: {
-        enter(path) {
-          if (!globalMappings.has(path.node.name)) {
-            return;
-          }
-
-          if (path.scope.getBinding(path.node.name)) {
-            // Don't rename if there is a binding that hides the global.
-            return;
-          }
-
-          if (path.node.name === "constructor" &&
-              babelTypes.isClassMethod(path.parent) &&
-              path.parent.key == path.node) {
-            // Don't touch constructors.
-            return;
-          }
-
-          path.node.name = globalMappings.get(path.node.name);
-        },
-        exit(path) {
-          // Ignore already renamed identifiers.
-          if(path.node.name.startsWith('__')) {
-            return;
-          }
-          // Check if remaining identifiers require additional resources.
-          const resource = IDENTIFIER_RESOURCE_MAP.get(path.node.name);
-          if (resource) {
-            thisMutator.context.extraResources.add(resource);
-          }
+      Identifier(path) {
+        if (!globalMappings.has(path.node.name)) {
+          return;
         }
-      },
-      FunctionDeclaration(path) {
-        if (path.node.id && babelTypes.isIdentifier(path.node.id)) {
-          if (common.isFunctionIdentifier(path.node.id.name) &&
-              path.node.async) {
-            thisMutator.context.asyncFunctions.add(path.node.id.name);
-          }
+
+        if (path.scope.getBinding(path.node.name)) {
+          // Don't rename if there is a binding that hides the global.
+          return;
         }
+
+        if (path.node.name === "constructor" &&
+            babelTypes.isClassMethod(path.parent) &&
+            path.parent.key == path.node) {
+          // Don't touch constructors.
+          return;
+        }
+
+        path.node.name = globalMappings.get(path.node.name);
       },
     }];
   }

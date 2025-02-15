@@ -20,6 +20,7 @@ const sourceHelpers = require('./source_helpers.js');
 
 const { AddTryCatchMutator } = require('./mutators/try_catch.js');
 const { ArrayMutator } = require('./mutators/array_mutator.js');
+const { ContextAnalyzer } = require('./mutators/analyzer.js');
 const { CrossOverMutator } = require('./mutators/crossover_mutator.js');
 const { ExpressionMutator } = require('./mutators/expression_mutator.js');
 const { FunctionCallMutator } = require('./mutators/function_call_mutator.js');
@@ -269,11 +270,9 @@ class ScriptMutator {
   // Normalizes, combines and mutates multiple inputs.
   mutateInputs(inputs, dependencies) {
     const normalizerMutator = new IdentifierNormalizer();
-    const context = new MutationContext();
-
     for (const [index, input] of inputs.entries()) {
       try {
-        normalizerMutator.mutate(input, context);
+        normalizerMutator.mutate(input);
       } catch (e) {
         console.log('ERROR: Failed to normalize ', input.relPath);
         throw e;
@@ -285,6 +284,12 @@ class ScriptMutator {
     // Combine ASTs into one. This is so that mutations have more context to
     // cross over content between ASTs (e.g. variables).
     const combinedSource = common.concatPrograms(inputs);
+
+    // Gather some information, useful in subsequent analyses.
+    const analyzerMutator = new ContextAnalyzer();
+    const context = new MutationContext();
+    analyzerMutator.mutate(combinedSource, context);
+
     this.mutate(combinedSource, context);
 
     // Add extra resources determined during mutation.
