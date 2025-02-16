@@ -2286,7 +2286,7 @@
 }], # conservative_stack_scanning
 
 ##############################################################################
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64', {
+['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x', {
   # Stack switching is not supported on all platforms.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-conditional': [SKIP],
@@ -2305,7 +2305,7 @@
   'regress/wasm/regress-361717714': [SKIP],
   'regress/wasm/regress-365376497': [SKIP],
   'regress/wasm/regress-381917890': [SKIP]
-}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64)
+}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x)
 
 ##############################################################################
 ['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64', {

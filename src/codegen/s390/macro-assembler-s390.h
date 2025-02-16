@@ -159,6 +159,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void Call(Label* target);
 
+  void GetLabelAddress(Register dst, Label* target);
+
   // Load the builtin given by the Smi in |builtin_index| into |target|.
   void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
@@ -1156,6 +1158,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ComputeCodeStartAddress(Register dst);
   void LoadPC(Register dst);
 
+  // Enforce platform specific stack alignment.
+  void EnforceStackAlignment();
+
   // Control-flow integrity:
 
   // Define a function entrypoint. This doesn't emit any code for this
@@ -1548,6 +1553,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand,
                         const Register& scratch = no_reg);
+
+  void Zero(const MemOperand& dest);
+  void Zero(const MemOperand& dest1, const MemOperand& dest2);
 
   void DecompressTaggedSigned(Register destination, MemOperand field_operand);
   void DecompressTaggedSigned(Register destination, Register src);

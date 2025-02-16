@@ -75,11 +75,11 @@
 }],
 
 ##############################################################################
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64', {
+['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x', {
   # Stack switching is not supported on all platforms.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
   'wpt/jspi/*': [SKIP]
-}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64)
+}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64 and arch != ppc64 and arch != s390x)
 
 ##############################################################################
 ['cet_shadow_stack', {
