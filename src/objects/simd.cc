@@ -470,16 +470,27 @@ void Uint8ArrayToHexSlow(const char* bytes, size_t length,
   }
 }
 
+inline uint16_t ByteToHex(uint8_t byte) {
+  const uint16_t correction = (('a' - '0' - 10) << 8) + ('a' - '0' - 10);
+#if V8_TARGET_BIG_ENDIAN
+  const uint16_t nibbles = (byte << 4) + (byte & 0xF);
+#else
+  const uint16_t nibbles = ((byte & 0xF) << 8) + (byte >> 4);
+#endif
+  const uint16_t chars = nibbles + 0x3030;
+  const uint16_t temp = 0x8080 - 0x0A0A + nibbles;
+  const uint16_t msb = temp & 0x8080;
+  const uint16_t mask = msb - (msb >> 7);
+  return chars + (mask & correction);
+}
+
 V8_ALLOW_UNUSED void HandleRemainingNibbles(const char* bytes, uint8_t* output,
                                             size_t length, size_t i) {
-  size_t index = 16 * (length / 8);
-  for (; i < length; ++i) {
-    uint8_t byte = bytes[i];
-    uint8_t high = byte >> 4;
-    uint8_t low = byte & 0x0F;
-
-    output[index++] = NibbleToHex(high);
-    output[index++] = NibbleToHex(low);
+  uint16_t* output_pairs = reinterpret_cast<uint16_t*>(output) + i;
+  bytes += i;
+  size_t rest = length & 0x7;
+  for (i = 0; i < rest; i++) {
+    *(output_pairs++) = ByteToHex(*bytes++);
   }
 }
 
