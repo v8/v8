@@ -301,7 +301,11 @@ constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kJavaScriptCallExtraArg1Register = a2;
+#ifdef V8_TARGET_ARCH_RISCV64
 constexpr Register kJavaScriptCallDispatchHandleRegister = a4;
+#else
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
+#endif
 
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;

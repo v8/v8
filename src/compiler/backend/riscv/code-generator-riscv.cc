@@ -709,6 +709,9 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 #ifdef V8_ENABLE_LEAPTIERING
 // Check that {kJavaScriptCallDispatchHandleRegister} is correct.
 void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+#ifdef V8_TARGET_ARCH_RISCV32
+  CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+#else
   DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
 
   // We currently don't check this for JS builtins as those are sometimes
@@ -733,6 +736,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   }
   __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
             actual_parameter_count, Operand(parameter_count_));
+#endif
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

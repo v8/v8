@@ -2639,7 +2639,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-#ifdef V8_ENABLE_LEAPTIERING
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
   __ InvokeFunctionCode(a1, no_reg, a0, InvokeType::kJump);
 #else
   __ Lhu(a2,
@@ -5097,7 +5097,7 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   // Pop return address and frame.
   __ LeaveFrame(StackFrame::INTERPRETED);
 
-#ifdef V8_ENABLE_LEAPTIERING
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
   __ InvokeFunction(a1, a0, InvokeType::kJump,
                     ArgumentAdaptionMode::kDontAdapt);
 #else

@@ -5693,7 +5693,7 @@ void MacroAssembler::CallDebugOnFunctionCall(
   SmiUntag(expected_parameter_count_or_dispatch_handle);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
 void MacroAssembler::InvokeFunction(
     Register function, Register actual_parameter_count, InvokeType type,
     ArgumentAdaptionMode argument_adaption_mode) {
@@ -5808,6 +5808,7 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunctionWithNewTarget(
     Register function, Register new_target, Register actual_parameter_count,
     InvokeType type) {
+  ASM_CODE_COMMENT(this);
   // You can't call a function without a valid frame.
   DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
 
@@ -5834,22 +5835,28 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         Register expected_parameter_count,
                                         Register actual_parameter_count,
                                         InvokeType type) {
+  ASM_CODE_COMMENT(this);
   // You can't call a function without a valid frame.
   DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
   DCHECK_EQ(function, a1);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected_parameter_count,
-                 actual_parameter_count);
+  Label debug_hook, continue_after_hook;
+  {
+    li(t0, ExternalReference::debug_hook_on_function_call_address(isolate()));
+    Lb(t0, MemOperand(t0, 0));
+    BranchShort(&debug_hook, ne, t0, Operand(zero_reg));
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
     LoadRoot(a3, RootIndex::kUndefinedValue);
   }
 
-  Label done;
-  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, type);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
+
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
@@ -5862,6 +5869,15 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       JumpJSFunction(function);
       break;
   }
+
+  Label done;
+  Branch(&done);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected_parameter_count,
+                          actual_parameter_count);
+  Branch(&continue_after_hook);
 
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.
@@ -7365,13 +7381,14 @@ void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
   Jump(code_object);
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
 void MacroAssembler::CallJSFunction(Register function_object,
                                     [[maybe_unused]] uint16_t argument_count) {
   ASM_CODE_COMMENT(this);
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_LEAPTIERING
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
-  Register parameter_count = t1;
+  Register parameter_count = s1;
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Lw(dispatch_handle,
@@ -7399,6 +7416,25 @@ void MacroAssembler::CallJSFunction(Register function_object,
   CallCodeObject(code, kJSEntrypointTag);
 #endif
 }
+#else
+void MacroAssembler::CallJSFunction(Register function_object,
+                                    uint16_t argument_count) {
+  Register code = kJavaScriptCallCodeStartRegister;
+#if V8_ENABLE_LEAPTIERING
+  Register dispatch_handle = s1;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Lw(dispatch_handle,
+     FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
+  Call(code);
+#else
+  LoadTaggedField(code,
+                  FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  CallCodeObject(code);
+#endif  // V8_ENABLE_LEAPTIERING
+}
+#endif
 
 #if V8_ENABLE_LEAPTIERING
 void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
@@ -7425,30 +7461,16 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
   Register code = kJavaScriptCallCodeStartRegister;
 #ifdef V8_ENABLE_LEAPTIERING
-  Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
+  Register dispatch_handle = s1;
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Lw(dispatch_handle,
      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
   Jump(code);
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
-  // We jump through x17 here because for Branch Identification (BTI) we use
-  // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
-  // code. See TailCallBuiltin for more information.
-  DCHECK_NE(code, t6);
-  mv(t6, code);
-  Jump(t6);
 #else
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
@@ -7529,8 +7551,13 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
   Register index = destination;
   li(scratch, ExternalReference::js_dispatch_table_address());
+#ifdef V8_TARGET_ARCH_RISCV32
+  static_assert(kJSDispatchHandleShift == 0);
+  slli(index, dispatch_handle, kJSDispatchTableEntrySizeLog2);
+#else
   srli(index, dispatch_handle, kJSDispatchHandleShift);
   slli(index, index, kJSDispatchTableEntrySizeLog2);
+#endif
   AddWord(scratch, scratch, index);
   LoadWord(destination,
            MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
@@ -7553,6 +7580,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   LoadWord(destination, MemOperand(scratch, offset));
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
@@ -7562,9 +7590,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   slli(index, index, kJSDispatchTableEntrySizeLog2);
   li(scratch, ExternalReference::js_dispatch_table_address());
   AddWord(scratch, scratch, index);
-#ifdef V8_TARGET_ARCH_64_BIT
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
-#endif
   Lhu(destination, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
 
@@ -7579,12 +7605,11 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   slli(index, index, kJSDispatchTableEntrySizeLog2);
   AddWord(scratch, scratch, index);
   LoadWord(entrypoint, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
-#ifdef V8_TARGET_ARCH_64_BIT
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
-#endif
   Lhu(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
-#endif
+#endif  // V8_TARGET_ARCH_RISCV64
+#endif  // V8_ENABLE_LEAPTIERING
 
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::LoadTaggedField(const Register& destination,

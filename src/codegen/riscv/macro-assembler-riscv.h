@@ -1611,7 +1611,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#ifdef V8_ENABLE_LEAPTIERING
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register actual_parameter_count,
@@ -1832,12 +1832,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          JSDispatchHandle dispatch_handle,
                                          Register scratch);
+#ifdef V8_TARGET_ARCH_RISCV64
+  // On 32 bit architectures only the mark bit is shared with the pointer.
+  // see src/sandbox/js-dispatch-table.h
   void LoadParameterCountFromJSDispatchTable(Register destination,
                                              Register dispatch_handle,
                                              Register scratch);
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
+#endif  // V8_TARGET_ARCH_RISCV64
 #endif  // V8_ENABLE_LEAPTIERING
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,

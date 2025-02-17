@@ -164,12 +164,13 @@ void MaglevAssembler::Prologue(Graph* graph) {
     DCHECK(!temps.Available().has(feedback_vector));
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
-    constexpr Register flag_reg = MaglevAssembler::GetFlagsRegister();
-    Condition needs_processing =
-        LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
-            flags, feedback_vector, flag_reg, CodeKind::MAGLEV);
-    TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
-                    needs_processing, flag_reg, Operand(zero_reg));
+    Label needs_processing, done;
+    LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        flags, feedback_vector, CodeKind::MAGLEV, &needs_processing);
+    Jump(&done);
+    bind(&needs_processing);
+    TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot);
+    bind(&done);
   }
 #endif
 
