@@ -1531,7 +1531,7 @@ DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 
 DEFINE_BOOL(
-    typed_array_length_loading, false,
+    typed_array_length_loading, true,
     "Enable specializing loading the TypedArray length in Maglev / Turbofan")
 DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 
