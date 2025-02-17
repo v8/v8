@@ -13367,7 +13367,8 @@ UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
 }
 
 static void TestAllocateAndNewForTwoIsolateGroups(
-    const v8::Isolate::CreateParams& create_params,
+    const v8::Isolate::CreateParams& create_params_1,
+    const v8::Isolate::CreateParams& create_params_2,
     const v8::IsolateGroup& group1, const v8::IsolateGroup& group2) {
   // Allocate() can control groups into which isolates are allocated.
   for (int i = 0; i < 3; i++) {
@@ -13380,9 +13381,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
     CHECK_EQ(group2, isolate2->GetGroup());
 
     // Have to initialize before disposing.
-    v8::Isolate::Initialize(isolate1, create_params);
-    v8::Isolate::Initialize(isolate1bis, create_params);
-    v8::Isolate::Initialize(isolate2, create_params);
+    v8::Isolate::Initialize(isolate1, create_params_1);
+    v8::Isolate::Initialize(isolate1bis, create_params_1);
+    v8::Isolate::Initialize(isolate2, create_params_2);
 
     isolate1->Dispose();
     isolate1bis->Dispose();
@@ -13391,9 +13392,9 @@ static void TestAllocateAndNewForTwoIsolateGroups(
 
   // New() can control groups into which isolates are allocated.
   for (int i = 0; i < 3; i++) {
-    v8::Isolate* isolate1 = v8::Isolate::New(group1, create_params);
-    v8::Isolate* isolate1bis = v8::Isolate::New(group1, create_params);
-    v8::Isolate* isolate2 = v8::Isolate::New(group2, create_params);
+    v8::Isolate* isolate1 = v8::Isolate::New(group1, create_params_1);
+    v8::Isolate* isolate1bis = v8::Isolate::New(group1, create_params_1);
+    v8::Isolate* isolate2 = v8::Isolate::New(group2, create_params_2);
 
     CHECK_EQ(group1, isolate1->GetGroup());
     CHECK_EQ(group1, isolate1bis->GetGroup());
@@ -13411,9 +13412,12 @@ UNINITIALIZED_TEST(DefaultIsolateGroup) {
   CHECK_EQ(group1, group2);
 
   v8::Isolate::CreateParams create_params = CreateTestParams();
-  TestAllocateAndNewForTwoIsolateGroups(create_params, group1, group2);
+  TestAllocateAndNewForTwoIsolateGroups(create_params, create_params, group1,
+                                        group2);
 }
 
+#if defined(V8_COMPRESS_POINTERS) && \
+    !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
 UNINITIALIZED_TEST(TwoIsolateGroups) {
   if (!v8::IsolateGroup::CanCreateNewGroups()) return;
 
@@ -13422,9 +13426,19 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
   groups.push_back(v8::IsolateGroup::Create());
   CHECK_NE(groups[0], groups[1]);
 
-  v8::Isolate::CreateParams create_params = CreateTestParams();
-  TestAllocateAndNewForTwoIsolateGroups(create_params, groups[0], groups[1]);
+  v8::Isolate::CreateParams create_params_1;
+  create_params_1.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator(groups[0]);
+  v8::Isolate::CreateParams create_params_2;
+  create_params_2.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator(groups[1]);
+  CHECK_NE(create_params_1.array_buffer_allocator->GetPageAllocator(),
+           create_params_2.array_buffer_allocator->GetPageAllocator());
+
+  TestAllocateAndNewForTwoIsolateGroups(create_params_1, create_params_2,
+                                        groups[0], groups[1]);
 }
+#endif
 
 unsigned ApiTestFuzzer::linear_congruential_generator;
 std::vector<std::unique_ptr<ApiTestFuzzer>> ApiTestFuzzer::fuzzers_;

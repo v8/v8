@@ -22,6 +22,10 @@
 #include "src/sandbox/js-dispatch-table.h"
 #endif  // V8_ENABLE_LEAPTIERING
 
+#ifdef V8_ENABLE_SANDBOX
+#include "src/base/region-allocator.h"
+#endif
+
 namespace v8 {
 
 namespace base {
@@ -34,7 +38,47 @@ namespace internal {
 #ifdef V8_ENABLE_SANDBOX
 class MemoryChunkMetadata;
 class Sandbox;
+
+// Backend allocator shared by all ArrayBufferAllocator instances inside one
+// sandbox. This way, there is a single region of virtual address space
+// reserved inside a sandbox from which all ArrayBufferAllocators allocate
+// their memory, instead of each allocator creating their own region, which
+// may cause address space exhaustion inside the sandbox.
+// TODO(chromium:1340224): replace this with a more efficient allocator.
+class SandboxedArrayBufferAllocator {
+ public:
+  SandboxedArrayBufferAllocator() = default;
+  SandboxedArrayBufferAllocator(const SandboxedArrayBufferAllocator&) = delete;
+  SandboxedArrayBufferAllocator& operator=(
+      const SandboxedArrayBufferAllocator&) = delete;
+
+  void LazyInitialize(Sandbox* sandbox);
+
+  bool is_initialized() const { return !!sandbox_; }
+
+  v8::PageAllocator* page_allocator();
+
+  ~SandboxedArrayBufferAllocator();
+
+  void* Allocate(size_t length);
+
+  void Free(void* data);
+
+ private:
+  // Use a region allocator with a "page size" of 128 bytes as a reasonable
+  // compromise between the number of regions it has to manage and the amount
+  // of memory wasted due to rounding allocation sizes up to the page size.
+  static constexpr size_t kAllocationGranularity = 128;
+  // The backing memory's accessible region is grown in chunks of this size.
+  static constexpr size_t kChunkSize = 1 * MB;
+
+  std::unique_ptr<base::RegionAllocator> region_alloc_;
+  size_t end_of_accessible_region_ = 0;
+  Sandbox* sandbox_ = nullptr;
+  base::Mutex mutex_;
+};
 #endif
+
 class CodeRange;
 class Isolate;
 class ReadOnlyHeap;
@@ -166,6 +210,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata** metadata_pointer_table() {
     return metadata_pointer_table_;
   }
+
+  SandboxedArrayBufferAllocator* GetSandboxedArrayBufferAllocator();
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
@@ -177,6 +223,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
                          bool can_rehash);
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
+
+  V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
  private:
   friend class base::LeakyObject<IsolateGroup>;
@@ -191,8 +239,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   ~IsolateGroup();
   IsolateGroup(const IsolateGroup&) = delete;
   IsolateGroup& operator=(const IsolateGroup&) = delete;
-
-  V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
   // Only used for testing.
   static void ReleaseDefault();
@@ -242,6 +288,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata*
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
           {nullptr};
+  SandboxedArrayBufferAllocator backend_allocator_;
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING

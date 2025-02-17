@@ -12,11 +12,17 @@
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
+#include "v8-platform.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
 
 class SharedArrayBuffer;
+
+#if defined(V8_COMPRESS_POINTERS) && \
+    !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+class IsolateGroup;
+#endif
 
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
 // Defined using gn arg `v8_array_buffer_internal_field_count`.
@@ -178,10 +184,36 @@ class V8_EXPORT ArrayBuffer : public Object {
     enum class AllocationMode { kNormal, kReservation };
 
     /**
+     * Returns page allocator used by this Allocator instance.
+     *
+     * When the sandbox used by Allocator it is expected that this returns
+     * sandbox's page allocator.
+     * Otherwise, it should return system page allocator.
+     */
+    virtual PageAllocator* GetPageAllocator() { return nullptr; }
+
+#if defined(V8_COMPRESS_POINTERS) && \
+    !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+    /**
      * Convenience allocator.
      *
      * When the sandbox is enabled, this allocator will allocate its backing
-     * memory inside the sandbox. Otherwise, it will rely on malloc/free.
+     * memory inside the sandbox that belongs to passed isolate group.
+     * Otherwise, it will rely on malloc/free.
+     *
+     * Caller takes ownership, i.e. the returned object needs to be freed using
+     * |delete allocator| once it is no longer in use.
+     */
+    static Allocator* NewDefaultAllocator(const IsolateGroup& group);
+#endif  // defined(V8_COMPRESS_POINTERS) &&
+        // !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+
+    /**
+     * Convenience allocator.
+     *
+     * When the sandbox is enabled, this allocator will allocate its backing
+     * memory inside the default global sandbox. Otherwise, it will rely on
+     * malloc/free.
      *
      * Caller takes ownership, i.e. the returned object needs to be freed using
      * |delete allocator| once it is no longer in use.

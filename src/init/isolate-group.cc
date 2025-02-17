@@ -308,5 +308,125 @@ void IsolateGroup::ReleaseDefault() {
   default_isolate_group_ = nullptr;
 }
 
+#ifdef V8_ENABLE_SANDBOX
+void SandboxedArrayBufferAllocator::LazyInitialize(Sandbox* sandbox) {
+  base::MutexGuard guard(&mutex_);
+  if (is_initialized()) {
+    return;
+  }
+  CHECK(sandbox->is_initialized());
+  sandbox_ = sandbox;
+  constexpr size_t max_backing_memory_size = 8ULL * GB;
+  constexpr size_t min_backing_memory_size = 1ULL * GB;
+  size_t backing_memory_size = max_backing_memory_size;
+  Address backing_memory_base = 0;
+  while (!backing_memory_base &&
+         backing_memory_size >= min_backing_memory_size) {
+    backing_memory_base = sandbox_->address_space()->AllocatePages(
+        VirtualAddressSpace::kNoHint, backing_memory_size, kChunkSize,
+        PagePermissions::kNoAccess);
+    if (!backing_memory_base) {
+      backing_memory_size /= 2;
+    }
+  }
+  if (!backing_memory_base) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "Could not reserve backing memory for ArrayBufferAllocators");
+  }
+  DCHECK(IsAligned(backing_memory_base, kChunkSize));
+
+  region_alloc_ = std::make_unique<base::RegionAllocator>(
+      backing_memory_base, backing_memory_size, kAllocationGranularity);
+  end_of_accessible_region_ = region_alloc_->begin();
+
+  // Install an on-merge callback to discard or decommit unused pages.
+  region_alloc_->set_on_merge_callback([this](Address start, size_t size) {
+    mutex_.AssertHeld();
+    Address end = start + size;
+    if (end == region_alloc_->end() &&
+        start <= end_of_accessible_region_ - kChunkSize) {
+      // Can shrink the accessible region.
+      Address new_end_of_accessible_region = RoundUp(start, kChunkSize);
+      size_t size_to_decommit =
+          end_of_accessible_region_ - new_end_of_accessible_region;
+      if (!sandbox_->address_space()->DecommitPages(
+              new_end_of_accessible_region, size_to_decommit)) {
+        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+      }
+      end_of_accessible_region_ = new_end_of_accessible_region;
+    } else if (size >= 2 * kChunkSize) {
+      // Can discard pages. The pages stay accessible, so the size of the
+      // accessible region doesn't change.
+      Address chunk_start = RoundUp(start, kChunkSize);
+      Address chunk_end = RoundDown(start + size, kChunkSize);
+      if (!sandbox_->address_space()->DiscardSystemPages(
+              chunk_start, chunk_end - chunk_start)) {
+        V8::FatalProcessOutOfMemory(nullptr, "SandboxedArrayBufferAllocator()");
+      }
+    }
+  });
+}
+
+SandboxedArrayBufferAllocator::~SandboxedArrayBufferAllocator() {
+  // The sandbox may already have been torn down, in which case there's no
+  // need to free any memory.
+  if (is_initialized() && sandbox_->is_initialized()) {
+    sandbox_->address_space()->FreePages(region_alloc_->begin(),
+                                         region_alloc_->size());
+  }
+}
+
+void* SandboxedArrayBufferAllocator::Allocate(size_t length) {
+  base::MutexGuard guard(&mutex_);
+
+  length = RoundUp(length, kAllocationGranularity);
+  Address region = region_alloc_->AllocateRegion(length);
+  if (region == base::RegionAllocator::kAllocationFailure) return nullptr;
+
+  // Check if the memory is inside the accessible region. If not, grow it.
+  Address end = region + length;
+  size_t length_to_memset = length;
+  if (end > end_of_accessible_region_) {
+    Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
+    size_t size = new_end_of_accessible_region - end_of_accessible_region_;
+    if (!sandbox_->address_space()->SetPagePermissions(
+            end_of_accessible_region_, size, PagePermissions::kReadWrite)) {
+      if (!region_alloc_->FreeRegion(region)) {
+        V8::FatalProcessOutOfMemory(
+            nullptr, "SandboxedArrayBufferAllocator::Allocate()");
+      }
+      return nullptr;
+    }
+
+    // The pages that were inaccessible are guaranteed to be zeroed, so only
+    // memset until the previous end of the accessible region.
+    length_to_memset = end_of_accessible_region_ - region;
+    end_of_accessible_region_ = new_end_of_accessible_region;
+  }
+
+  void* mem = reinterpret_cast<void*>(region);
+  memset(mem, 0, length_to_memset);
+  return mem;
+}
+
+void SandboxedArrayBufferAllocator::Free(void* data) {
+  base::MutexGuard guard(&mutex_);
+  region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
+}
+
+PageAllocator* SandboxedArrayBufferAllocator::page_allocator() {
+  return sandbox_->page_allocator();
+}
+
+SandboxedArrayBufferAllocator*
+IsolateGroup::GetSandboxedArrayBufferAllocator() {
+  // TODO(342905186): Consider initializing it during IsolateGroup
+  // initialization instead of doing it lazily.
+  backend_allocator_.LazyInitialize(sandbox());
+  return &backend_allocator_;
+}
+
+#endif  // V8_ENABLE_SANDBOX
+
 }  // namespace internal
 }  // namespace v8

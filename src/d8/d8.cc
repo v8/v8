@@ -151,6 +151,10 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
+  PageAllocator* GetPageAllocator() override {
+    return allocator_->GetPageAllocator();
+  }
+
  private:
   std::unique_ptr<Allocator> allocator_ =
       std::unique_ptr<Allocator>(NewDefaultAllocator());
@@ -182,7 +186,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
+    v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -190,7 +194,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
-    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
+    v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     i::FreePages(page_allocator, data, allocated);

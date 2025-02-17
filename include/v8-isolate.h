@@ -255,6 +255,7 @@ class V8_EXPORT IsolateGroup {
 
  private:
   friend class Isolate;
+  friend class ArrayBuffer::Allocator;
 
   // The isolate_group pointer should be already acquired.
   explicit IsolateGroup(internal::IsolateGroup*&& isolate_group);
