@@ -110,20 +110,14 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
-  AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
-  if (!result.IsFailure()) {
-    return result;
-  }
+  auto Allocate = [&](AllocationType allocation) {
+    return AllocateRaw(size, allocation, origin, alignment);
+  };
+  auto RetryAllocate = [&](AllocationType allocation) {
+    return RetryAllocateRaw(size, allocation, origin, alignment);
+  };
 
-  // Two GCs before returning failure.
-  for (int i = 0; i < 2; i++) {
-    CollectGarbage(allocation);
-    result = RetryAllocateRaw(size, allocation, origin, alignment);
-    if (!result.IsFailure()) {
-      return result;
-    }
-  }
-  return result;
+  return AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate, allocation);
 }
 
 void HeapAllocator::CollectGarbage(AllocationType allocation) {
@@ -144,19 +138,14 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
 AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
-  AllocationResult result =
-      AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
-  if (!result.IsFailure()) return result;
-
-  CollectAllAvailableGarbage(allocation);
-  result = RetryAllocateRaw(size, allocation, origin, alignment);
-
-  if (!result.IsFailure()) {
-    return result;
-  }
-
-  V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
-                              V8::kHeapOOM);
+  auto Allocate = [&](AllocationType allocation) {
+    return AllocateRaw(size, allocation, origin, alignment);
+  };
+  auto RetryAllocate = [&](AllocationType allocation) {
+    return RetryAllocateRaw(size, allocation, origin, alignment);
+  };
+  return AllocateRawWithRetryOrFailSlowPath(Allocate, RetryAllocate,
+                                            allocation);
 }
 
 void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {

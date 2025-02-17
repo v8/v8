@@ -241,17 +241,45 @@ HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
   return HeapObject();
 }
 
-template <typename Function>
-auto HeapAllocator::TryCustomAllocateWithRetry(Function&& Allocate,
-                                               AllocationType allocation) {
-  for (int i = 0; i < 2; ++i) {
-    if (auto maybe = Allocate()) {
-      return maybe;
-    }
-    CollectAllAvailableGarbage(allocation);
+template <typename AllocateFunction, typename RetryFunction>
+V8_WARN_UNUSED_RESULT auto HeapAllocator::AllocateRawWithLightRetrySlowPath(
+    AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
+    AllocationType allocation) {
+  if (auto result = Allocate(allocation)) [[likely]] {
+    return result;
   }
 
-  return typename std::invoke_result<Function>::type();
+  // Two GCs before returning failure.
+  CollectGarbage(allocation);
+  if (auto result = RetryAllocate(allocation)) {
+    return result;
+  }
+  CollectGarbage(allocation);
+  return RetryAllocate(allocation);
+}
+
+template <typename AllocateFunction, typename RetryFunction>
+auto HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
+    AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
+    AllocationType allocation) {
+  if (auto result = AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate,
+                                                      allocation)) {
+    return result;
+  }
+
+  CollectAllAvailableGarbage(allocation);
+  if (auto result = RetryAllocate(allocation)) {
+    return result;
+  }
+
+  V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
+                              V8::kHeapOOM);
+}
+
+template <typename Function>
+V8_WARN_UNUSED_RESULT auto HeapAllocator::CustomAllocateWithRetryOrFail(
+    Function&& Allocate, AllocationType allocation) {
+  return *AllocateRawWithRetryOrFailSlowPath(Allocate, Allocate, allocation);
 }
 
 }  // namespace internal

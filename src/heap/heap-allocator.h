@@ -67,10 +67,6 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  template <typename Function>
-  V8_WARN_UNUSED_RESULT V8_INLINE auto TryCustomAllocateWithRetry(
-      Function&& Allocate, AllocationType allocation);
-
   V8_INLINE bool CanAllocateInReadOnlySpace() const;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -135,6 +131,10 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
     return &shared_space_allocator_.value();
   }
 
+  template <typename Function>
+  V8_WARN_UNUSED_RESULT V8_INLINE auto CustomAllocateWithRetryOrFail(
+      Function&& Allocate, AllocationType allocation);
+
  private:
   V8_INLINE PagedSpace* code_space() const;
   V8_INLINE CodeLargeObjectSpace* code_lo_space() const;
@@ -152,9 +152,19 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment);
 
+  template <typename AllocateFunction, typename RetryFunction>
+  V8_WARN_UNUSED_RESULT inline auto AllocateRawWithRetryOrFailSlowPath(
+      AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
+      AllocationType allocation);
+
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawWithRetryOrFailSlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment);
+
+  template <typename AllocateFunction, typename RetryFunction>
+  V8_WARN_UNUSED_RESULT inline auto AllocateRawWithLightRetrySlowPath(
+      AllocateFunction&& Allocate, RetryFunction&& RetryAllocate,
+      AllocationType allocation);
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawWithLightRetrySlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
