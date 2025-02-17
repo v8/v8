@@ -18,13 +18,15 @@ const tempy = require('tempy');
 
 const db = require('../db.js');
 const exceptions = require('../exceptions.js');
+const functionCallMutator = require('../mutators/function_call_mutator.js');
 const helpers = require('./helpers.js');
 const random = require('../random.js');
 const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
-const functionCallMutator = require('../mutators/function_call_mutator.js');
+const variableMutator = require('../mutators/variable_mutator.js');
 
 const {CrossOverMutator} = require('../mutators/crossover_mutator.js');
+const {AddTryCatchMutator} = require('../mutators/try_catch.js');
 
 const sandbox = sinon.createSandbox();
 
@@ -290,6 +292,33 @@ describe('Regression tests', () => {
     const mutator = new scriptMutator.ScriptMutator(
         this.settings, 'test_data/regress/empty_db');
     const mutated = mutator.mutateMultiple([source]).code;
+  });
+
+  it('does not mutate loop variables', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Choose replacement in var-or-object mutation.
+    sandbox.stub(random, 'random').callsFake(() => 0.75);
+
+    // We usually skip loop variables with 0.95 - set it to 1.0
+    // for a more predictable test.
+    sandbox.stub(variableMutator, 'SKIP_LOOP_VAR_PROB').value(1.0);
+
+    // Try-catch is not helpful for reading the test output.
+    const stub = sandbox.stub(
+        AddTryCatchMutator.prototype, "mutate").returns(undefined);
+
+    // Maximum variable mutations.
+    this.settings['MUTATE_VARIABLES'] = 1.0;
+    this.settings['ADD_VAR_OR_OBJ_MUTATIONS'] = 1.0;
+
+    const source = helpers.loadTestData('loop_mutations.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('loop_mutations_expected.js', mutated);
   });
 });
 

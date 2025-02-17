@@ -15,6 +15,8 @@ const common = require('./common.js');
 const random = require('../random.js');
 const mutator = require('./mutator.js');
 
+const variableMutator = require('../mutators/variable_mutator.js');
+
 const MAX_MUTATION_RECURSION_DEPTH = 5;
 
 const CHOOSE_MAJOR_GC_PROB = 0.7;
@@ -104,6 +106,12 @@ class VariableOrObjectMutator extends mutator.Mutator {
       const template = maybeGCTemplate('VAR = IDENTIFIER')
       var randomVar = common.randomVariable(path);
       if (!randomVar) {
+        return mutations;
+      }
+
+      // Don't assign to loop variables.
+      if (this.context.loopVariables.has(randomVar.name) &&
+          random.choose(variableMutator.SKIP_LOOP_VAR_PROB)) {
         return mutations;
       }
 
