@@ -185,7 +185,8 @@ class WasmInterpreterRuntime {
   inline DirectHandle<Object> GetWasmArrayRefElement(Tagged<WasmArray> array,
                                                      uint32_t index) const;
   bool SubtypeCheck(const WasmRef obj, const ValueType obj_type,
-                    const DirectHandle<Map> rtt, const ValueType rtt_type,
+                    const DirectHandle<Map> rtt,
+                    const ModuleTypeIndex target_type,
                     bool null_succeeds) const;
   bool RefIsEq(const WasmRef obj, const ValueType obj_type,
                bool null_succeeds) const;

@@ -21,9 +21,6 @@ WasmEnabledFeatures WasmEnabledFeatures::FromFlags() {
   // DrumBrake supports only a subset or older versions of some Wasm features.
   if (v8_flags.wasm_jitless) {
     features.Add(WasmEnabledFeature::legacy_eh);
-    if (v8_flags.experimental_wasm_memory64) {
-      features.Add(WasmEnabledFeature::memory64);
-    }
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 

@@ -5746,8 +5746,7 @@ class Handlers : public HandlersBase {
       DirectHandle<Map> rtt =
           wasm_runtime->RttCanon(target_type.ref_index().index);
       return wasm_runtime->SubtypeCheck(ref, ref_type, rtt,
-                                        ValueType::Rtt(target_type.ref_index()),
-                                        null_succeeds);
+                                        target_type.ref_index(), null_succeeds);
     } else {
       switch (target_type.representation()) {
         case HeapType::kEq:
@@ -8141,7 +8140,6 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   case kExpr##name: {                                                     \
     MemoryAccessImmediate imm(                                            \
         &decoder, wasm_code_->at(pc + 1), sizeof(ctype),                  \
-        !module_->memories.empty() && module_->memories[0].is_memory64(), \
         Decoder::kNoValidation);                                          \
     len = 1 + imm.length;                                                 \
     optional.offset = imm.offset;                                         \
@@ -8167,7 +8165,6 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   case kExpr##name: {                                                     \
     MemoryAccessImmediate imm(                                            \
         &decoder, wasm_code_->at(pc + 1), sizeof(ctype),                  \
-        !module_->memories.empty() && module_->memories[0].is_memory64(), \
         Decoder::kNoValidation);                                          \
     len = 1 + imm.length;                                                 \
     optional.offset = imm.offset;                                         \
@@ -8554,7 +8551,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       MachineType memtype = MachineType::Uint32();
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                IsMemory64(), Decoder::kNoValidation);
+                                Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8563,7 +8560,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
       MachineType memtype = MachineType::Uint64();
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                IsMemory64(), Decoder::kNoValidation);
+                                Decoder::kNoValidation);
       optional->offset = imm.offset;
       *len += imm.length;
       break;
@@ -8577,7 +8574,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     MachineType memtype = MachineType::Type();                              \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              IsMemory64(), Decoder::kNoValidation);        \
+                              Decoder::kNoValidation);                      \
     optional->offset = imm.offset;                                          \
     *len += imm.length;                                                     \
     break;                                                                  \
@@ -8590,7 +8587,7 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     MachineType memtype = MachineType::Type();                             \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              IsMemory64(), Decoder::kNoValidation);       \
+                              Decoder::kNoValidation);                     \
     optional->offset = imm.offset;                                         \
     *len += imm.length;                                                    \
     break;                                                                 \

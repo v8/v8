@@ -2617,7 +2617,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(Tagged<Map> rtt,
 bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
                                           const ValueType obj_type,
                                           const DirectHandle<Map> rtt,
-                                          const ValueType rtt_type,
+                                          const ModuleTypeIndex target_type,
                                           bool null_succeeds) const {
   bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
 
@@ -2634,19 +2634,14 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
 
   // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
   ValueType i31ref = ValueType::Ref(HeapType::kI31);
-  // Ref.extern can also contain Smis, however there isn't any type that
-  // could downcast to ref.extern.
-  DCHECK(!rtt_type.is_reference_to(HeapType::kExtern));
-  // Ref.i31 check has its own implementation.
-  DCHECK(!rtt_type.is_reference_to(HeapType::kI31));
-  if (IsSmi(*obj)) {
-    return IsSubtypeOf(i31ref, rtt_type, module_);
+  if (IsSubtypeOf(i31ref, obj_type, module_) && IsSmi(*obj)) {
+    return false;
   }
 
   if (!IsHeapObject(*obj)) return false;
   Tagged<Map> obj_map = Cast<HeapObject>(obj)->map();
 
-  if (module_->types[rtt_type.ref_index().index].is_final) {
+  if (module_->types[target_type.index].is_final) {
     // In this case, simply check for map equality.
     if (*obj_map != *rtt) {
       return false;
@@ -2667,7 +2662,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
       }
     }
 
-    return SubtypeCheck(obj_map, *rtt, rtt_type.ref_index().index);
+    return SubtypeCheck(obj_map, *rtt, target_type.index);
   }
 
   return true;
