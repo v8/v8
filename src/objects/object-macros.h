@@ -14,6 +14,13 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
+// First, ensure that we do not include object-macros.h twice without including
+// object-macros-undef.h in between.
+#ifdef V8_OBJECT_MACROS_DEFINED
+#error Include object-macros-undef.h before including object-macros.h again
+#endif
+#define V8_OBJECT_MACROS_DEFINED
+
 #include "src/base/memory.h"
 
 // V8 objects are defined as:

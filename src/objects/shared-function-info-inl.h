@@ -26,13 +26,13 @@
 #include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
 
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8::internal {
 
