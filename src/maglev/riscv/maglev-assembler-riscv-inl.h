@@ -210,25 +210,6 @@ inline Register ToRegister(MaglevAssembler* masm,
 }
 
 template <typename... Args>
-struct CountPushHelper;
-
-template <>
-struct CountPushHelper<> {
-  static int Count() { return 0; }
-};
-
-template <typename Arg, typename... Args>
-struct CountPushHelper<Arg, Args...> {
-  static int Count(Arg arg, Args... args) {
-    int arg_count = 1;
-    if constexpr (is_iterator_range<Arg>::value) {
-      arg_count = static_cast<int>(std::distance(arg.begin(), arg.end()));
-    }
-    return arg_count + CountPushHelper<Args...>::Count(args...);
-  }
-};
-
-template <typename... Args>
 struct PushAllHelper;
 
 template <>
@@ -236,16 +217,6 @@ struct PushAllHelper<> {
   static void Push(MaglevAssembler* masm) {}
   static void PushReverse(MaglevAssembler* masm) {}
 };
-
-template <typename... Args>
-inline void PushAll(MaglevAssembler* masm, Args... args) {
-  PushAllHelper<Args...>::Push(masm, args...);
-}
-
-template <typename... Args>
-inline void PushAllReverse(MaglevAssembler* masm, Args... args) {
-  PushAllHelper<Args...>::PushReverse(masm, args...);
-}
 
 inline void PushInput(MaglevAssembler* masm, const Input& input) {
   if (input.operand().IsConstant()) {
@@ -324,12 +295,12 @@ struct PushAllHelper<Arg, Args...> {
 
 template <typename... T>
 void MaglevAssembler::Push(T... vals) {
-  detail::PushAll(this, vals...);
+  detail::PushAllHelper<T...>::Push(this, vals...);
 }
 
 template <typename... T>
 void MaglevAssembler::PushReverse(T... vals) {
-  detail::PushAllReverse(this, vals...);
+  detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) {
