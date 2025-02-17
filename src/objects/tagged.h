@@ -630,6 +630,8 @@ class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandle<MaybeWeak<HeapObject>>;
 #endif
+  template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
+  friend class TaggedField;
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
