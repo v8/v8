@@ -66,7 +66,6 @@ struct PtrComprCageReservationParams
 };
 #endif  // V8_COMPRESS_POINTERS
 
-IsolateGroup::IsolateGroup() {}
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK_EQ(isolate_count_, 0);
@@ -138,9 +137,8 @@ void IsolateGroup::Initialize(bool process_wide) {
 
 // static
 void IsolateGroup::InitializeOncePerProcess() {
-  static base::LeakyObject<IsolateGroup> default_isolate_group;
-  default_isolate_group_ = default_isolate_group.get();
-
+  CHECK_NULL(default_isolate_group_);
+  default_isolate_group_ = new IsolateGroup;
   IsolateGroup* group = GetDefault();
 
   DCHECK_NULL(group->page_allocator_);
@@ -174,10 +172,24 @@ void IsolateGroup::Release() {
   Sandbox* sandbox = sandbox_;
 #endif
   if (--reference_count_ == 0) {
-    delete this;
+#ifdef V8_ENABLE_LEAPTIERING
+    js_dispatch_table_.TearDown();
+#endif  // V8_ENABLE_LEAPTIERING
+
+#ifdef V8_ENABLE_SANDBOX
+    code_pointer_table_.TearDown();
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_COMPRESS_POINTERS
+    DCHECK(reservation_.IsReserved());
+    reservation_.Free();
+#endif  // V8_COMPRESS_POINTERS
+
 #ifdef V8_ENABLE_SANDBOX
     sandbox->TearDown();
-#endif
+#endif  // V8_ENABLE_SANDBOX
+
+    delete this;
   }
 }
 
@@ -292,19 +304,8 @@ void IsolateGroup::ReleaseDefault() {
   IsolateGroup* group = GetDefault();
   CHECK_EQ(group->reference_count_.load(), 1);
   CHECK(!group->has_shared_space_isolate());
-  group->page_allocator_ = nullptr;
-  group->code_range_.reset();
-  group->init_code_range_ = base::ONCE_STATE_UNINITIALIZED;
-#ifdef V8_COMPRESS_POINTERS
-  group->trusted_pointer_compression_cage_ = nullptr;
-  group->pointer_compression_cage_ = nullptr;
-  DCHECK(group->reservation_.IsReserved());
-  group->reservation_.Free();
-#endif  // V8_COMPRESS_POINTERS
-
-#ifdef V8_ENABLE_LEAPTIERING
-  group->js_dispatch_table_.TearDown();
-#endif  // V8_ENABLE_LEAPTIERING
+  group->Release();
+  default_isolate_group_ = nullptr;
 }
 
 }  // namespace internal

@@ -187,7 +187,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   // that default group.
   static IsolateGroup* default_isolate_group_;
 
-  IsolateGroup();
+  IsolateGroup() = default;
   ~IsolateGroup();
   IsolateGroup(const IsolateGroup&) = delete;
   IsolateGroup& operator=(const IsolateGroup&) = delete;
