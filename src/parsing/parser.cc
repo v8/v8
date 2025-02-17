@@ -571,7 +571,8 @@ Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info)
           info->zone(), &scanner_, info->stack_limit(),
           info->ast_value_factory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->v8_file_logger(), info->flags(),
-          true, info->flags().compile_hints_magic_enabled()),
+          true, info->flags().compile_hints_magic_enabled(),
+          info->flags().compile_hints_per_function_magic_enabled()),
       local_isolate_(local_isolate),
       info_(info),
       scanner_(info->character_stream(), flags()),
@@ -2659,12 +2660,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // This is true if we get here through CreateDynamicFunction.
   bool params_need_validation = parameters_end_pos_ != kNoSourcePosition;
+  int compile_hint_position = peek_position();
 
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called() || is_wrapped ||
               params_need_validation ||
               (info()->flags().compile_hints_magic_enabled() &&
-               scanner()->SawMagicCommentCompileHintsAll())
+               scanner()->SawMagicCommentCompileHintsAll()) ||
+              (info()->flags().compile_hints_per_function_magic_enabled() &&
+               scanner()->HasPerFunctionCompileHint(compile_hint_position))
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 
@@ -2704,7 +2708,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
   DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
 
-  int compile_hint_position = peek_position();
   eager_compile_hint =
       GetEmbedderCompileHint(eager_compile_hint, compile_hint_position);
 

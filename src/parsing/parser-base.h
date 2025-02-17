@@ -248,7 +248,8 @@ class ParserBase {
              PendingCompilationErrorHandler* pending_error_handler,
              RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
              UnoptimizedCompileFlags flags, bool parsing_on_main_thread,
-             bool compile_hints_magic_enabled)
+             bool compile_hints_magic_enabled,
+             bool compile_hints_per_function_magic_enabled)
       : scope_(nullptr),
         original_scope_(nullptr),
         function_state_(nullptr),
@@ -267,7 +268,9 @@ class ParserBase {
         info_id_(0),
         has_module_in_scope_chain_(flags_.is_module()),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
-        compile_hints_magic_enabled_(compile_hints_magic_enabled) {
+        compile_hints_magic_enabled_(compile_hints_magic_enabled),
+        compile_hints_per_function_magic_enabled_(
+            compile_hints_per_function_magic_enabled) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
   }
@@ -1745,6 +1748,7 @@ class ParserBase {
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
   bool compile_hints_magic_enabled_;
+  bool compile_hints_per_function_magic_enabled_;
 
   // This struct is used to move information about the next arrow function from
   // the place where the arrow head was parsed to where the body will be parsed.
@@ -5023,14 +5027,16 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   int suspend_count = 0;
 
   FunctionKind kind = formal_parameters.scope->function_kind();
+  int compile_hint_position = formal_parameters.scope->start_position();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       could_be_immediately_invoked ||
               (compile_hints_magic_enabled_ &&
-               scanner_->SawMagicCommentCompileHintsAll())
+               scanner_->SawMagicCommentCompileHintsAll()) ||
+              (compile_hints_per_function_magic_enabled_ &&
+               scanner_->HasPerFunctionCompileHint(compile_hint_position))
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint_;
 
-  int compile_hint_position = formal_parameters.scope->start_position();
   eager_compile_hint =
       impl()->GetEmbedderCompileHint(eager_compile_hint, compile_hint_position);
 

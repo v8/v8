@@ -1718,6 +1718,9 @@ BackgroundCompileTask::BackgroundCompileTask(
   flags_.set_compile_hints_magic_enabled(
       options &
       ScriptCompiler::CompileOptions::kFollowCompileHintsMagicComment);
+  flags_.set_compile_hints_per_function_magic_enabled(
+      options & ScriptCompiler::CompileOptions::
+                    kFollowCompileHintsPerFunctionMagicComment);
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
@@ -4013,6 +4016,9 @@ MaybeDirectHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       flags.set_is_eager(compile_options & ScriptCompiler::kEagerCompile);
       flags.set_compile_hints_magic_enabled(
           compile_options & ScriptCompiler::kFollowCompileHintsMagicComment);
+      flags.set_compile_hints_per_function_magic_enabled(
+          compile_options &
+          ScriptCompiler::kFollowCompileHintsPerFunctionMagicComment);
 
       if (DirectHandle<Script> script; maybe_script.ToHandle(&script)) {
         flags.set_script_id(script->id());

@@ -757,5 +757,141 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentAfterComments) {
   EXPECT_TRUE(FunctionIsCompiled("f1"));
 }
 
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicComment) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_1"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_2"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentSome) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# eagerCompilationData=0GkF\n"
+      "function test_function_1(test_param1) {}\n"
+      "function test_function_2(test_param1) {}\n"
+      "function test_function_3(test_param1) {}\n"
+      "function test_function_4(test_param1) {}\n"
+      "function test_function_5(test_param1) {}\n"
+      "function test_function_6(test_param1) {}\n"
+      "function test_function_7(test_param1) {}\n";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_3"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_5"));
+
+  EXPECT_FALSE(FunctionIsCompiled("test_function_1"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_2"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_4"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_6"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_7"));
+}
+
+TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentContinued) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}"
+      //                    ^ function position
+      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_3(test_param3) {}\n"
+      //                      ^ function position
+      "let test_function_4 = (test_param4) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::
+                  kFollowCompileHintsPerFunctionMagicComment))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_TRUE(FunctionIsCompiled("test_function_1"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_2"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_3"));
+  EXPECT_TRUE(FunctionIsCompiled("test_function_4"));
+}
+
+TEST_F(CompileHintsTest,
+       CompileHintsPerFunctionMagicCommentNotEnabledByCompileOptions) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(NewString(url), 13, 0);
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+
+  // Run the top level code.
+  const char* code =
+      "// a comment here tests that the positions are handled correctly as"
+      "being relative to the compile hints comment end position\n"
+      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "function test_function_1(test_param1) {}\n"
+      //                      ^ function position
+      "let test_function_2 = (test_param2) => {}";
+  //                        ^ function position
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions(
+              v8::ScriptCompiler::CompileOptions::kNoCompileOptions))
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  EXPECT_FALSE(FunctionIsCompiled("test_function_1"));
+  EXPECT_FALSE(FunctionIsCompiled("test_function_2"));
+}
+
 }  // namespace
 }  // namespace v8

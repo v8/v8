@@ -677,6 +677,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceCompileHints = 1 << 2,
     kConsumeCompileHints = 1 << 3,
     kFollowCompileHintsMagicComment = 1 << 4,
+    kFollowCompileHintsPerFunctionMagicComment = 1 << 5,
   };
 
   static inline bool CompileOptionsIsValid(CompileOptions compile_options) {
