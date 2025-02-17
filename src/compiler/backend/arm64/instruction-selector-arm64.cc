@@ -8242,6 +8242,89 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
 }
 }  // namespace
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x2Shuffle(
+    turboshaft::OpIndex node) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  auto view = this->simd_shuffle_view(node);
+  constexpr size_t shuffle_bytes = 2;
+  node_t input0 = view.input(0);
+  node_t input1 = view.input(1);
+  std::array<uint8_t, shuffle_bytes> shuffle;
+  std::copy(view.data(), view.data() + shuffle_bytes, shuffle.begin());
+
+  uint8_t shuffle16x1;
+  if (wasm::SimdShuffle::TryMatch16x1Shuffle(shuffle.data(), &shuffle16x1)) {
+    Emit(kArm64S16x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(shuffle16x1));
+  } else {
+    Emit(kArm64S8x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle)));
+  }
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x4Shuffle(
+    turboshaft::OpIndex node) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  auto view = this->simd_shuffle_view(node);
+  node_t input0 = view.input(0);
+  node_t input1 = view.input(1);
+  constexpr size_t shuffle_bytes = 4;
+  std::array<uint8_t, shuffle_bytes> shuffle;
+  std::copy(view.data(), view.data() + shuffle_bytes, shuffle.begin());
+  std::array<uint8_t, 2> shuffle16x2;
+  uint8_t shuffle32x1;
+
+  if (wasm::SimdShuffle::TryMatch32x1Shuffle(shuffle.data(), &shuffle32x1)) {
+    Emit(kArm64S32x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(shuffle32x1));
+  } else if (wasm::SimdShuffle::TryMatch16x2Shuffle(shuffle.data(),
+                                                    shuffle16x2.data())) {
+    Emit(kArm64S16x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle16x2)));
+  } else {
+    InstructionOperand src0, src1;
+    ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+    Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
+         g.UseImmediate(0), g.UseImmediate(0), g.UseImmediate(0));
+  }
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x8Shuffle(
+    turboshaft::OpIndex node) {
+  Arm64OperandGeneratorT<TurboshaftAdapter> g(this);
+  auto view = this->simd_shuffle_view(node);
+  node_t input0 = view.input(0);
+  node_t input1 = view.input(1);
+  constexpr size_t shuffle_bytes = 8;
+  std::array<uint8_t, shuffle_bytes> shuffle;
+  std::copy(view.data(), view.data() + shuffle_bytes, shuffle.begin());
+  std::array<uint8_t, 2> shuffle32x2;
+  uint8_t shuffle64x1;
+  if (wasm::SimdShuffle::TryMatch64x1Shuffle(shuffle.data(), &shuffle64x1)) {
+    Emit(kArm64S64x1Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1), g.UseImmediate(shuffle64x1));
+  } else if (wasm::SimdShuffle::TryMatch32x2Shuffle(shuffle.data(),
+                                                    shuffle32x2.data())) {
+    Emit(kArm64S32x2Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack2Lanes(shuffle32x2)));
+  } else {
+    // Code generator uses vtbl, arrange sources to form a valid lookup table.
+    InstructionOperand src0, src1;
+    ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
+    Emit(kArm64I8x16Shuffle, g.DefineAsRegister(node), src0, src1,
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[0])),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(&shuffle[4])),
+         g.UseImmediate(0), g.UseImmediate(0));
+  }
+}
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   std::array<uint8_t, kSimd128Size> shuffle;

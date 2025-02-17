@@ -3546,7 +3546,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          Value* result) {
     result->op = __ Simd128Shuffle(
         V<compiler::turboshaft::Simd128>::Cast(input0.op),
-        V<compiler::turboshaft::Simd128>::Cast(input1.op), imm.value);
+        V<compiler::turboshaft::Simd128>::Cast(input1.op),
+        compiler::turboshaft::Simd128ShuffleOp::Kind::kI8x16, imm.value);
   }
 
   void Try(FullDecoder* decoder, Control* block) {

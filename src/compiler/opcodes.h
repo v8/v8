@@ -1143,6 +1143,9 @@
   IF_WASM(V, F32x4AddReduce)              \
   IF_WASM(V, F64x2AddReduce)              \
   IF_WASM(V, I8x16Shuffle)                \
+  IF_WASM(V, I8x8Shuffle)                 \
+  IF_WASM(V, I8x4Shuffle)                 \
+  IF_WASM(V, I8x2Shuffle)                 \
   IF_WASM(V, V128AnyTrue)                 \
   IF_WASM(V, I64x2AllTrue)                \
   IF_WASM(V, I32x4AllTrue)                \

@@ -631,6 +631,10 @@ v8_source_set("v8_unittests_sources") {
       "wasm/wasm-module-sourcemap-unittest.cc",
       "wasm/wasm-usecounters.cc",
     ]
+
+    if (v8_current_cpu == "arm64") {
+      sources += [ "compiler/turboshaft/wasm-shuffle-reducer-unittest.cc" ]
+    }
   }
 
   if (v8_enable_wasm_simd256_revec) {

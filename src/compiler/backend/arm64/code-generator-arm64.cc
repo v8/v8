@@ -780,6 +780,128 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 
 void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 
+int32_t GetLaneMask(int32_t lane_count) { return lane_count * 2 - 1; }
+
+void Shuffle1Helper(MacroAssembler* masm, Arm64OperandConverter i,
+                    VectorFormat f) {
+  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
+  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
+  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
+
+  int32_t shuffle = i.InputInt32(2);
+  int32_t lane_count = LaneCountFromFormat(f);
+  int32_t max_src0_lane = lane_count - 1;
+  int32_t lane_mask = GetLaneMask(lane_count);
+
+  int lane = shuffle & lane_mask;
+  VRegister src = (lane > max_src0_lane) ? src1 : src0;
+  lane &= max_src0_lane;
+  masm->Dup(dst, src, lane);
+}
+
+void Shuffle2Helper(MacroAssembler* masm, Arm64OperandConverter i,
+                    VectorFormat f) {
+  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
+  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
+  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
+  // Check for in-place shuffles, as we may need to use a temporary register
+  // to avoid overwriting an input.
+  if (dst == src0 || dst == src1) {
+    UseScratchRegisterScope scope(masm);
+    VRegister temp = scope.AcquireV(f);
+    if (dst == src0) {
+      masm->Mov(temp, src0);
+      src0 = temp;
+    } else if (dst == src1) {
+      masm->Mov(temp, src1);
+      src1 = temp;
+    }
+  }
+  int32_t shuffle = i.InputInt32(2);
+  int32_t lane_count = LaneCountFromFormat(f);
+  int32_t max_src0_lane = lane_count - 1;
+  int32_t lane_mask = GetLaneMask(lane_count);
+
+  // Perform shuffle as a vmov per lane.
+  for (int i = 0; i < 2; i++) {
+    VRegister src = src0;
+    int lane = shuffle & lane_mask;
+    if (lane > max_src0_lane) {
+      src = src1;
+      lane &= max_src0_lane;
+    }
+    masm->Mov(dst, i, src, lane);
+    shuffle >>= 8;
+  }
+}
+
+void Shuffle4Helper(MacroAssembler* masm, Arm64OperandConverter i,
+                    VectorFormat f) {
+  VRegister dst = VRegister::Create(i.OutputSimd128Register().code(), f);
+  VRegister src0 = VRegister::Create(i.InputSimd128Register(0).code(), f);
+  VRegister src1 = VRegister::Create(i.InputSimd128Register(1).code(), f);
+  // Check for in-place shuffles, as we may need to use a temporary register
+  // to avoid overwriting an input.
+  if (dst == src0 || dst == src1) {
+    UseScratchRegisterScope scope(masm);
+    VRegister temp = scope.AcquireV(f);
+    if (dst == src0) {
+      masm->Mov(temp, src0);
+      src0 = temp;
+    } else if (dst == src1) {
+      masm->Mov(temp, src1);
+      src1 = temp;
+    }
+  }
+  int32_t shuffle = i.InputInt32(2);
+  int32_t lane_count = LaneCountFromFormat(f);
+  int32_t max_src0_lane = lane_count - 1;
+  int32_t lane_mask = GetLaneMask(lane_count);
+
+  // Check whether we can reduce the number of vmovs by performing a dup
+  // first. So, for [1, 1, 2, 1] we can dup lane zero and then perform
+  // a single lane move for lane two.
+  if (src0 == src1 && f == kFormat4S) {
+    const std::array<int, 4> lanes{
+        shuffle & max_src0_lane, shuffle >> 8 & max_src0_lane,
+        shuffle >> 16 & max_src0_lane, shuffle >> 24 & max_src0_lane};
+    std::array<int, 16> lane_counts{};
+    for (int lane : lanes) {
+      ++lane_counts[lane];
+    }
+
+    int duplicate_lane = -1;
+    for (int lane = 0; lane < 16; ++lane) {
+      if (lane_counts[lane] > 1) {
+        duplicate_lane = lane;
+        break;
+      }
+    }
+
+    if (duplicate_lane != -1) {
+      masm->Dup(dst, src0, duplicate_lane);
+      for (int i = 0; i < 4; ++i) {
+        int lane = lanes[i];
+        if (lane == duplicate_lane) continue;
+        masm->Mov(dst, i, src0, lane);
+      }
+      return;
+    }
+  }
+
+  // Perform shuffle as a vmov per lane.
+  for (int i = 0; i < 4; i++) {
+    VRegister src = src0;
+    int lane = shuffle & lane_mask;
+    if (lane > max_src0_lane) {
+      src = src1;
+      lane &= max_src0_lane;
+    }
+    masm->Mov(dst, i, src, lane);
+    shuffle >>= 8;
+  }
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -3079,94 +3201,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usra(dst, i.InputSimd128Register(1).Format(f), i.InputUint8(2) & mask);
       break;
     }
-    case kArm64S64x2Shuffle: {
-      Simd128Register dst = i.OutputSimd128Register().V2D(),
-                      src0 = i.InputSimd128Register(0).V2D(),
-                      src1 = i.InputSimd128Register(1).V2D();
-      UseScratchRegisterScope scope(masm());
-      if (dst == src0 || dst == src1) {
-        VRegister temp = scope.AcquireV(kFormat2D);
-        if (dst == src0) {
-          __ Mov(temp, src0);
-          src0 = temp;
-        } else {
-          DCHECK_EQ(dst, src1);
-          __ Mov(temp, src1);
-          src1 = temp;
-        }
-      }
-      int32_t shuffle = i.InputInt32(2);
-      // Perform shuffle as a vmov per lane.
-      for (int i = 0; i < 2; i++) {
-        VRegister src = src0;
-        int lane = shuffle & 0x7;
-        if (lane >= 2) {
-          src = src1;
-          lane &= 0x1;
-        }
-        __ Mov(dst, i, src, lane);
-        shuffle >>= 8;
-      }
+    case kArm64S8x2Shuffle: {
+      Shuffle2Helper(masm(), i, kFormat16B);
+      break;
+    }
+    case kArm64S16x1Shuffle: {
+      Shuffle1Helper(masm(), i, kFormat8H);
+      break;
+    }
+    case kArm64S16x2Shuffle: {
+      Shuffle2Helper(masm(), i, kFormat8H);
+      break;
+    }
+    case kArm64S32x1Shuffle: {
+      Shuffle1Helper(masm(), i, kFormat4S);
+      break;
+    }
+    case kArm64S32x2Shuffle: {
+      Shuffle2Helper(masm(), i, kFormat4S);
       break;
     }
     case kArm64S32x4Shuffle: {
-      Simd128Register dst = i.OutputSimd128Register().V4S(),
-                      src0 = i.InputSimd128Register(0).V4S(),
-                      src1 = i.InputSimd128Register(1).V4S();
-      // Check for in-place shuffles.
-      // If dst == src0 == src1, then the shuffle is unary and we only use src0.
-      UseScratchRegisterScope scope(masm());
-      VRegister temp = scope.AcquireV(kFormat4S);
-      if (dst == src0) {
-        __ Mov(temp, src0);
-        src0 = temp;
-      } else if (dst == src1) {
-        __ Mov(temp, src1);
-        src1 = temp;
-      }
-      int32_t shuffle = i.InputInt32(2);
-
-      // Check whether we can reduce the number of vmovs by performing a dup
-      // first.
-      if (src0 == src1) {
-        const std::array<int, 4> lanes{shuffle & 0x3, shuffle >> 8 & 0x3,
-                                       shuffle >> 16 & 0x3,
-                                       shuffle >> 24 & 0x3};
-        std::array<int, 4> lane_counts{};
-        for (int lane : lanes) {
-          ++lane_counts[lane];
-        }
-
-        int duplicate_lane = -1;
-        for (int lane = 0; lane < 4; ++lane) {
-          if (lane_counts[lane] > 1) {
-            duplicate_lane = lane;
-            break;
-          }
-        }
-
-        if (duplicate_lane != -1) {
-          __ Dup(dst, src0, duplicate_lane);
-          for (int i = 0; i < 4; ++i) {
-            int lane = lanes[i];
-            if (lane == duplicate_lane) continue;
-            __ Mov(dst, i, src0, lane);
-          }
-          break;
-        }
-      }
-
-      // Perform shuffle as a vmov per lane.
-      for (int i = 0; i < 4; i++) {
-        VRegister src = src0;
-        int lane = shuffle & 0x7;
-        if (lane >= 4) {
-          src = src1;
-          lane &= 0x3;
-        }
-        __ Mov(dst, i, src, lane);
-        shuffle >>= 8;
-      }
+      Shuffle4Helper(masm(), i, kFormat4S);
+      break;
+    }
+    case kArm64S64x1Shuffle: {
+      Shuffle1Helper(masm(), i, kFormat2D);
+      break;
+    }
+    case kArm64S64x2Shuffle: {
+      Shuffle2Helper(masm(), i, kFormat2D);
       break;
     }
       SIMD_BINOP_CASE(kArm64S64x2UnzipLeft, Uzp1, 2D);
