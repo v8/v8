@@ -2648,6 +2648,56 @@ ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
   return AddNewNode<ConsStringMap>({left_map, right_map});
 }
 
+size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
+                                                        int max_depth) {
+  if (auto maybe_constant = TryGetConstant(broker(), local_isolate(), string)) {
+    if (maybe_constant->IsString()) {
+      return maybe_constant->AsString().length();
+    }
+  }
+  switch (string->opcode()) {
+    case Opcode::kNumberToString:
+      return 1;
+    case Opcode::kInlinedAllocation:
+      // TODO(olivf): Add a NodeType::kConsString instead of this check.
+      if (string->Cast<InlinedAllocation>()->object()->type() ==
+          VirtualObject::kConsString) {
+        return ConsString::kMinLength;
+      }
+      break;
+    case Opcode::kStringConcat:
+      if (max_depth == 0) return 0;
+      return StringLengthStaticLowerBound(string->input(0).node(),
+                                          max_depth - 1) +
+             StringLengthStaticLowerBound(string->input(1).node(),
+                                          max_depth - 1);
+    case Opcode::kPhi: {
+      // For the builder pattern where the inputs are cons strings, we will see
+      // a phi from the Select that compares against the empty string. We
+      // can refine the min_length by checking the phi strings. This might
+      // help us elide the Select.
+      if (max_depth == 0) return 0;
+      auto phi = string->Cast<Phi>();
+      if (phi->is_loop_phi() && phi->is_unmerged_loop_phi()) {
+        return 0;
+      }
+      size_t overall_min_length =
+          StringLengthStaticLowerBound(phi->input(0).node(), max_depth - 1);
+      for (int i = 1; i < phi->input_count(); ++i) {
+        size_t min =
+            StringLengthStaticLowerBound(phi->input(i).node(), max_depth - 1);
+        if (min < overall_min_length) {
+          overall_min_length = min;
+        }
+      }
+      return overall_min_length;
+    }
+    default:
+      break;
+  }
+  return 0;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     ValueNode* left, ValueNode* right, AllocationType allocation_type) {
   // This optimization is also done by Turboshaft.
@@ -2661,50 +2711,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   DCHECK(NodeTypeIs(GetType(left), NodeType::kString));
   DCHECK(NodeTypeIs(GetType(right), NodeType::kString));
 
-  auto GetMinLength = [&](ValueNode* input) -> size_t {
-    if (auto maybe_constant =
-            TryGetConstant(broker(), local_isolate(), input)) {
-      return maybe_constant->AsString().length();
-    }
-    switch (input->opcode()) {
-      case Opcode::kNumberToString:
-        return 1;
-      case Opcode::kInlinedAllocation:
-        // TODO(olivf): Add a NodeType::kConsString instead of this check.
-        if (input->Cast<InlinedAllocation>()->object()->type() ==
-            VirtualObject::kConsString) {
-          return ConsString::kMinLength;
-        }
-        break;
-      default:
-        break;
-    }
-    return 0;
-  };
-
-  size_t left_min_length = GetMinLength(left);
-  size_t right_min_length = GetMinLength(right);
+  size_t left_min_length = StringLengthStaticLowerBound(left);
+  size_t right_min_length = StringLengthStaticLowerBound(right);
   bool result_is_cons_string =
       left_min_length + right_min_length >= ConsString::kMinLength;
 
   // TODO(olivf): Support the fast case with a non-cons string fallback.
-  if (!result_is_cons_string) return MaybeReduceResult::Fail();
-
-  // For the builder pattern where the lhs is a cons string, we will see a phi
-  // from the Select that compares against the empty string. We can refine the
-  // min_length by checking the phi inputs. This might help us elide the Select.
-  if (left_min_length == 0) {
-    if (auto left_phi = left->TryCast<Phi>()) {
-      if (!left_phi->is_loop_phi() || !left_phi->is_unmerged_loop_phi()) {
-        left_min_length = GetMinLength(left_phi->input(0).node());
-        for (int i = 1; i < left_phi->input_count(); ++i) {
-          size_t min_length = GetMinLength(left_phi->input(i).node());
-          if (min_length < left_min_length) {
-            left_min_length = min_length;
-          }
-        }
-      }
-    }
+  if (!result_is_cons_string) {
+    return MaybeReduceResult::Fail();
   }
 
   left = BuildUnwrapThinString(left);
