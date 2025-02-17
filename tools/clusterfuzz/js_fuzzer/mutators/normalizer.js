@@ -6,7 +6,7 @@
  * @fileoverview Normalizer.
  * This renames variables so that we don't have collisions when combining
  * different files. It also simplifies other logic when e.g. determining the
- * type of an identifier.
+ * type of an identifier. This also normalizes all loop bodies with blocks.
  */
 
 'use strict';
@@ -34,6 +34,14 @@ class IdentifierNormalizer extends mutator.Mutator {
     const normalizerContext = this.normalizerContext;
     const renamed = new WeakSet();
     const globalMappings = new Map();
+
+    const loopStatement = {
+      enter(path) {
+        if (path.node.body && !babelTypes.isBlockStatement(path.node.body)) {
+          path.node.body = babelTypes.blockStatement([path.node.body]);
+        }
+      }
+    };
 
     return [{
       Scope(path) {
@@ -67,6 +75,10 @@ class IdentifierNormalizer extends mutator.Mutator {
           }
         }
       },
+
+      WhileStatement: loopStatement,
+      DoWhileStatement: loopStatement,
+      ForStatement: loopStatement,
     }, {
       // Second pass to rename globals that weren't declared with
       // var/let/const etc.

@@ -11,6 +11,7 @@
 
 'use strict';
 
+const assert = require('assert');
 const babelTypes = require('@babel/types');
 
 const common = require('./common.js');
@@ -20,13 +21,46 @@ const mutator = require('./mutator.js');
 const ASYNC_ITERATOR_ID = 'AsyncIterator'
 const ASYNC_ITERATOR_RESOURCE = 'async_iterator.js'
 
+// State for keeping track of loops and loop bodies during traversal.
+const LoopState = Object.freeze({
+    LOOP:   Symbol("loop"),
+    BLOCK:  Symbol("block"),
+});
+
 class ContextAnalyzer extends mutator.Mutator {
+  constructor() {
+    super();
+    this.loopStack = [];
+  }
+
+  /**
+   * Return true if the traversal is currently within a loop test part.
+   */
+  isLoopTest() {
+    return this.loopStack.at(-1) === LoopState.LOOP;
+  }
+
   get visitor() {
     const thisMutator = this;
+    const loopStack = this.loopStack;
+
+    const loopStatement = {
+      enter(path) {
+        loopStack.push(LoopState.LOOP);
+      },
+      exit(path) {
+        assert(loopStack.pop() === LoopState.LOOP);
+      }
+    };
+
     return {
       Identifier(path) {
         if (path.node.name === ASYNC_ITERATOR_ID) {
           thisMutator.context.extraResources.add(ASYNC_ITERATOR_RESOURCE);
+        }
+        if (thisMutator.isLoopTest() &&
+            common.isVariableIdentifier(path.node.name)) {
+          thisMutator.context.loopVariables.add(path.node.name);
         }
       },
       FunctionDeclaration(path) {
@@ -35,6 +69,17 @@ class ContextAnalyzer extends mutator.Mutator {
               path.node.async) {
             thisMutator.context.asyncFunctions.add(path.node.id.name);
           }
+        }
+      },
+      WhileStatement: loopStatement,
+      DoWhileStatement: loopStatement,
+      ForStatement: loopStatement,
+      BlockStatement: {
+        enter(path) {
+          loopStack.push(LoopState.BLOCK);
+        },
+        exit(path) {
+          assert(loopStack.pop() === LoopState.BLOCK);
         }
       },
     };

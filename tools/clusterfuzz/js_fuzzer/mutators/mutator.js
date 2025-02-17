@@ -19,6 +19,7 @@ class MutationContext {
   constructor () {
     this.asyncFunctions = new Set();
     this.extraResources = new Set();
+    this.loopVariables = new Set();
   }
 }
 

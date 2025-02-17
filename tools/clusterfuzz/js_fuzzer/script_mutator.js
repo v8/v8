@@ -54,6 +54,16 @@ function defaultSettings() {
   };
 }
 
+/**
+ * Create a context with information, useful in subsequent analyses.
+ */
+function analyzeContext(source) {
+  const analyzer = new ContextAnalyzer();
+  const context = new MutationContext();
+  analyzer.mutate(source, context);
+  return context;
+}
+
 class Result {
   constructor(code, flags) {
     this.code = code;
@@ -285,11 +295,8 @@ class ScriptMutator {
     // cross over content between ASTs (e.g. variables).
     const combinedSource = common.concatPrograms(inputs);
 
-    // Gather some information, useful in subsequent analyses.
-    const analyzerMutator = new ContextAnalyzer();
-    const context = new MutationContext();
-    analyzerMutator.mutate(combinedSource, context);
-
+    // First pass for context information, then run other mutators.
+    const context = analyzeContext(combinedSource);
     this.mutate(combinedSource, context);
 
     // Add extra resources determined during mutation.
@@ -317,6 +324,7 @@ class ScriptMutator {
 }
 
 module.exports = {
+  analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
   ScriptMutator: ScriptMutator,
 };
