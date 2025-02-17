@@ -1832,14 +1832,29 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
     }
     return;
   }
+  UseScratchRegisterScope temps(this);
+  Register x0 = no_reg;
+  if (temps.CanAcquire()) {
+    x0 = temps.Acquire();
+  } else {
+    push(t1);
+    x0 = t1;
+  }
+  Register x1 = no_reg;
+  if (temps.CanAcquire()) {
+    x1 = temps.Acquire();
+  } else {
+    push(t2);
+    x1 = t2;
+  }
   DCHECK_NE(scratch, rs);
   DCHECK_NE(scratch, rd);
+  DCHECK(x0 != x1);
+  DCHECK((rs != x0) && (rs != x1));
+  DCHECK((rd != x0) && (rd != x1));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   if (operand_size == 4) {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK((rd != t6) && (rs != t6));
-    Register x0 = temps.Acquire();
-    Register x1 = temps.Acquire();
     if (scratch == no_reg) {
       ReverseBytesHelper<8>(rd, rs, x0, x1);
       srai(rd, rd, 32);
@@ -1860,11 +1875,7 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
       or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
     }
   } else {
-    UseScratchRegisterScope temps(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
     DCHECK((rd != t6) && (rs != t6));
-    Register x0 = temps.Acquire();
-    Register x1 = temps.Acquire();
     if (scratch == no_reg) {
       ReverseBytesHelper<8>(rd, rs, x0, x1);
     } else {
@@ -1892,6 +1903,12 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
       srli(rd, rd, 8);  // rd <- (x0 & (x1 << 8)) >> 8
       or_(rd, rd, x2);  // (((x0 & x1) << 8)  | ((x0 & (x1 << 8)) >> 8))
     }
+  }
+  if (x1 == t2) {
+    pop(t2);
+  }
+  if (x0 == t1) {
+    pop(t1);
   }
 }
 
@@ -2026,7 +2043,13 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  Register scratch = temps.Acquire();
+  Register scratch = no_reg;
+  if (temps.CanAcquire()) {
+    scratch = temps.Acquire();
+  } else {
+    push(t1);
+    scratch = t1;
+  }
   Register scratch_other = no_reg;
   if (temps.CanAcquire()) {
     scratch_other = temps.Acquire();
@@ -2043,6 +2066,9 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     fmv_d_x(frd, scratch);
   if (scratch_other == t2) {
     pop(t2);
+  }
+  if (scratch == t1) {
+    pop(t1);
   }
 }
 #elif V8_TARGET_ARCH_RISCV32
