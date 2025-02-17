@@ -472,6 +472,14 @@ class V8_EXPORT Value : public Data {
 
   Maybe<bool> InstanceOf(Local<Context> context, Local<Object> object);
 
+  /**
+   * Get the hash of this value. The hash is not guaranteed to be
+   * unique. For |Object| and |Name| instances the result is equal to
+   * |GetIdentityHash|. Hashes are not guaranteed to be stable across
+   * different isolates or processes.
+   */
+  uint32_t GetHash();
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;

@@ -212,8 +212,8 @@ V8_OBJECT class BigInt : public BigIntBase {
 
   bool ToBoolean() { return !is_zero(); }
   uint32_t Hash() {
-    // TODO(jkummerow): Improve this. At least use length and sign.
-    return is_zero() ? 0 : ComputeLongHash(static_cast<uint64_t>(digit(0)));
+    return ComputeUnseededHash(length() | (sign() ? (1 << 30) : 0)) ^
+           ComputeLongHash(static_cast<uint64_t>(is_zero() ? 0 : digit(0)));
   }
 
   bool IsNegative() const { return sign(); }

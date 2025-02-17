@@ -3433,6 +3433,7 @@ THREADED_TEST(IdentityHash) {
   int hash = obj->GetIdentityHash();
   int hash1 = obj->GetIdentityHash();
   CHECK_EQ(hash, hash1);
+  CHECK_EQ(hash, obj->GetHash());
   int hash2 = v8::Object::New(isolate)->GetIdentityHash();
   // Since the identity hash is essentially a random number two consecutive
   // objects should not be assigned the same hash code. If the test below fails

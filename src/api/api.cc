@@ -4489,6 +4489,19 @@ Maybe<bool> Value::InstanceOf(v8::Local<v8::Context> context,
   return Just(i::IsTrue(*result, i_isolate));
 }
 
+uint32_t Value::GetHash() {
+  i::DisallowGarbageCollection no_gc;
+
+  auto self = Utils::OpenDirectHandle(this);
+  i::Tagged<i::Object> hash = i::Object::GetHash(*self);
+  if (IsSmi(hash)) return i::Cast<i::Smi>(hash).value();
+
+  i::DirectHandle<i::JSReceiver> obj = i::Cast<i::JSReceiver>(self);
+  auto i_isolate = obj->GetIsolate();
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  return obj->GetOrCreateIdentityHash(i_isolate).value();
+}
+
 Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
                             v8::Local<Value> key, v8::Local<Value> value) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
