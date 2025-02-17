@@ -29,7 +29,8 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM)
 #define TURBOSHAFT_ISEL_ONLY 1
 #endif
 
