@@ -132,6 +132,18 @@ class AddTryCatchMutator extends mutator.Mutator {
         replaceAndSkip(path);
       }
     };
+    const handleInfiniteLoops = {
+      enter(path) {
+        // Just replace the outer loop and don't progress on the inside if
+        // it's an infinite loop, since sometimes exceptions are used to
+        // break out of the loop.
+        if (path.node.test &&
+            babelTypes.isLiteral(path.node.test) &&
+            path.node.test.value === true) {
+          replaceAndSkip(path);
+        }
+      },
+    };
     return {
       Program: {
         enter(path) {
@@ -179,6 +191,7 @@ class AddTryCatchMutator extends mutator.Mutator {
           thisMutator.callWithProb(path, replaceBlockStatementAndSkip);
         }
       },
+      DoWhileStatement: handleInfiniteLoops,
       ExpressionStatement: accessStatement,
       IfStatement: accessStatement,
       LabeledStatement: {
@@ -225,6 +238,7 @@ class AddTryCatchMutator extends mutator.Mutator {
           replaceVariableDeclarator(path);
         }
       },
+      WhileStatement: handleInfiniteLoops,
       WithStatement: accessStatement,
     };
   }

@@ -338,6 +338,24 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/legacy_scope/expected.js', mutated);
   });
+
+  it('does not try-catch wrap in infinite while loops', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // No top-level wrapping and no skipping try-catch to
+    // deterministically try to wrap within the loop.
+    sandbox.stub(tryCatch, 'DEFAULT_SKIP_PROB').value(0.0);
+    sandbox.stub(tryCatch, 'DEFAULT_TOPLEVEL_PROB').value(0.0);
+    sandbox.stub(tryCatch, 'IGNORE_DEFAULT_PROB').value(0.0);
+
+    const source = helpers.loadTestData('regress/try_catch_while_true/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/try_catch_while_true/expected.js', mutated);
+  });
 });
 
 describe('DB tests', () => {
