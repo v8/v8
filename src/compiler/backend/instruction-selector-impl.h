@@ -17,26 +17,22 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-template <typename Adapter>
 struct CaseInfoT {
   int32_t value;  // The case value.
   int32_t order;  // The order for lowering to comparisons (less means earlier).
-  typename Adapter::block_t
+  typename TurboshaftAdapter::block_t
       branch;  // The basic blocks corresponding to the case value.
 };
 
-template <typename Adapter>
-inline bool operator<(const CaseInfoT<Adapter>& l,
-                      const CaseInfoT<Adapter>& r) {
+inline bool operator<(const CaseInfoT& l, const CaseInfoT& r) {
   return l.order < r.order;
 }
 
 // Helper struct containing data about a table or lookup switch.
-template <typename Adapter>
 class SwitchInfoT {
  public:
-  using CaseInfo = CaseInfoT<Adapter>;
-  using block_t = typename Adapter::block_t;
+  using CaseInfo = CaseInfoT;
+  using block_t = typename TurboshaftAdapter::block_t;
   SwitchInfoT(ZoneVector<CaseInfo> const& cases, int32_t min_value,
               int32_t max_value, block_t default_branch)
       : cases_(cases),
@@ -75,34 +71,11 @@ class SwitchInfoT {
   block_t default_branch_;
 };
 
-#define OPERAND_GENERATOR_T_BOILERPLATE(adapter)             \
-  using super = OperandGeneratorT<adapter>;                  \
-  using node_t = typename adapter::node_t;                   \
-  using optional_node_t = typename adapter::optional_node_t; \
-  using RegisterMode = typename super::RegisterMode;         \
-  using RegisterUseKind = typename super::RegisterUseKind;   \
-  using super::selector;                                     \
-  using super::DefineAsRegister;                             \
-  using super::TempImmediate;                                \
-  using super::UseFixed;                                     \
-  using super::UseImmediate;                                 \
-  using super::UseImmediate64;                               \
-  using super::UseNegatedImmediate;                          \
-  using super::UseRegister;                                  \
-  using super::UseRegisterWithMode;                          \
-  using super::UseUniqueRegister;
-
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-#ifdef TURBOSHAFT_ISEL_ONLY
 class OperandGeneratorT : public TurboshaftAdapter {
   using Adapter = TurboshaftAdapter;
   using selector_t = InstructionSelectorT;
-#else
-template <typename Adapter>
-class OperandGeneratorT : public Adapter {
-  using selector_t = InstructionSelectorT<Adapter>;
-#endif
  public:
   using block_t = typename Adapter::block_t;
   using node_t = typename Adapter::node_t;
@@ -375,7 +348,6 @@ class OperandGeneratorT : public Adapter {
   int GetVReg(node_t node) const { return selector_->GetVirtualRegister(node); }
 
   Constant ToConstant(node_t node) {
-    if constexpr (Adapter::IsTurboshaft) {
       using Kind = turboshaft::ConstantOp::Kind;
       if (const turboshaft::ConstantOp* constant =
               this->turboshaft_graph()
@@ -439,77 +411,6 @@ class OperandGeneratorT : public Adapter {
         }
       }
       UNREACHABLE();
-    } else {
-#ifdef TURBOSHAFT_ISEL_ONLY
-      UNREACHABLE();
-#else
-      switch (node->opcode()) {
-        case IrOpcode::kInt32Constant:
-          return Constant(OpParameter<int32_t>(node->op()));
-        case IrOpcode::kInt64Constant:
-          return Constant(OpParameter<int64_t>(node->op()));
-        case IrOpcode::kTaggedIndexConstant: {
-          // Unencoded index value.
-          intptr_t value =
-              static_cast<intptr_t>(OpParameter<int32_t>(node->op()));
-          DCHECK(TaggedIndex::IsValid(value));
-          // Generate it as 32/64-bit constant in a tagged form.
-          Address tagged_index = TaggedIndex::FromIntptr(value).ptr();
-          if (kSystemPointerSize == kInt32Size) {
-            return Constant(static_cast<int32_t>(tagged_index));
-          } else {
-            return Constant(static_cast<int64_t>(tagged_index));
-          }
-        }
-        case IrOpcode::kFloat32Constant:
-          return Constant(OpParameter<float>(node->op()));
-        case IrOpcode::kRelocatableInt32Constant:
-        case IrOpcode::kRelocatableInt64Constant:
-          return Constant(OpParameter<RelocatablePtrConstantInfo>(node->op()));
-        case IrOpcode::kFloat64Constant:
-        case IrOpcode::kNumberConstant:
-          return Constant(OpParameter<double>(node->op()));
-        case IrOpcode::kExternalConstant:
-          return Constant(OpParameter<ExternalReference>(node->op()));
-        case IrOpcode::kComment: {
-          // We cannot use {intptr_t} here, since the Constant constructor would
-          // be ambiguous on some architectures.
-          using ptrsize_int_t =
-              std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
-          return Constant(reinterpret_cast<ptrsize_int_t>(
-              OpParameter<const char*>(node->op())));
-        }
-        case IrOpcode::kHeapConstant:
-          return Constant(HeapConstantOf(node->op()));
-        case IrOpcode::kCompressedHeapConstant:
-          return Constant(HeapConstantOf(node->op()), true);
-        case IrOpcode::kDeadValue: {
-          switch (DeadValueRepresentationOf(node->op())) {
-            case MachineRepresentation::kBit:
-            case MachineRepresentation::kWord32:
-            case MachineRepresentation::kTagged:
-            case MachineRepresentation::kTaggedSigned:
-            case MachineRepresentation::kTaggedPointer:
-            case MachineRepresentation::kCompressed:
-            case MachineRepresentation::kCompressedPointer:
-              return Constant(static_cast<int32_t>(0));
-            case MachineRepresentation::kWord64:
-              return Constant(static_cast<int64_t>(0));
-            case MachineRepresentation::kFloat64:
-              return Constant(static_cast<double>(0));
-            case MachineRepresentation::kFloat32:
-              return Constant(static_cast<float>(0));
-            default:
-              UNREACHABLE();
-          }
-          break;
-        }
-        default:
-          break;
-      }
-#endif
-    }
-    UNREACHABLE();
   }
 
   Constant ToNegatedConstant(node_t node) {

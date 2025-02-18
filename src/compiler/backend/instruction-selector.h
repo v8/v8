@@ -29,11 +29,6 @@
 #include "src/wasm/simd-shuffle.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
-#define TURBOSHAFT_ISEL_ONLY 1
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -43,22 +38,11 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
-#ifndef TURBOSHAFT_ISEL_ONLY
-template <typename Adapter>
-#endif
 struct CallBufferT;  // TODO(bmeurer): Remove this.
-#ifndef TURBOSHAFT_ISEL_ONLY
-template <typename Adapter>
-#endif
 class InstructionSelectorT;
 class Linkage;
-#ifndef TURBOSHAFT_ISEL_ONLY
-template <typename Adapter>
-#endif
 class OperandGeneratorT;
-template <typename Adapter>
 class SwitchInfoT;
-template <typename Adapter>
 struct CaseInfoT;
 class TurbofanStateObjectDeduplicator;
 class TurboshaftStateObjectDeduplicator;
@@ -89,22 +73,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
    private:
     unsigned bits_;
   };
-
-  static InstructionSelector ForTurbofan(
-      Zone* zone, size_t node_count, Linkage* linkage,
-      InstructionSequence* sequence, Schedule* schedule,
-      SourcePositionTable* source_positions, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
-      JSHeapBroker* broker, size_t* max_unoptimized_frame_height,
-      size_t* max_pushed_argument_count,
-      SourcePositionMode source_position_mode = kCallSourcePositions,
-      Features features = SupportedFeatures(),
-      EnableScheduling enable_scheduling = v8_flags.turbo_instruction_scheduling
-                                               ? kEnableScheduling
-                                               : kDisableScheduling,
-      EnableRootsRelativeAddressing enable_roots_relative_addressing =
-          kDisableRootsRelativeAddressing,
-      EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   static InstructionSelector ForTurboshaft(
       Zone* zone, size_t node_count, Linkage* linkage,
@@ -139,21 +107,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
 
  private:
-#ifdef TURBOSHAFT_ISEL_ONLY
   InstructionSelector(std::nullptr_t, InstructionSelectorT* turboshaft_impl);
-#else
-  InstructionSelector(InstructionSelectorT<TurbofanAdapter>* turbofan_impl,
-                      InstructionSelectorT<TurboshaftAdapter>* turboshaft_impl);
-#endif
   InstructionSelector(const InstructionSelector&) = delete;
   InstructionSelector& operator=(const InstructionSelector&) = delete;
-
-#ifdef TURBOSHAFT_ISEL_ONLY
   InstructionSelectorT* turboshaft_impl_;
-#else
-  InstructionSelectorT<TurbofanAdapter>* turbofan_impl_;
-  InstructionSelectorT<TurboshaftAdapter>* turboshaft_impl_;
-#endif
 };
 
 // The flags continuation is a way to combine a branch or a materialization
@@ -161,13 +118,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-#ifdef TURBOSHAFT_ISEL_ONLY
 class FlagsContinuationT final {
   using Adapter = TurboshaftAdapter;
-#else
-template <typename Adapter>
-class FlagsContinuationT final {
-#endif
 
  public:
   using block_t = typename Adapter::block_t;
@@ -477,7 +429,6 @@ struct PushParameterT {
 enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
-#ifdef TURBOSHAFT_ISEL_ONLY
 class InstructionSelectorT final : public TurboshaftAdapter {
   using Adapter = TurboshaftAdapter;
 
@@ -486,8 +437,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   using PushParameter = PushParameterT<Adapter>;
   using CallBuffer = CallBufferT;
   using FlagsContinuation = FlagsContinuationT;
-  using SwitchInfo = SwitchInfoT<Adapter>;
-  using CaseInfo = CaseInfoT<Adapter>;
+  using SwitchInfo = SwitchInfoT;
+  using CaseInfo = CaseInfoT;
 
   using schedule_t = typename Adapter::schedule_t;
   using block_t = typename Adapter::block_t;
@@ -496,26 +447,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   using optional_node_t = typename Adapter::optional_node_t;
   using id_t = typename Adapter::id_t;
   using source_position_table_t = typename Adapter::source_position_table_t;
-#else
-template <typename Adapter>
-class InstructionSelectorT final : public Adapter {
- public:
-  using OperandGenerator = OperandGeneratorT<Adapter>;
-  using PushParameter = PushParameterT<Adapter>;
-  using CallBuffer = CallBufferT<Adapter>;
-  using FlagsContinuation = FlagsContinuationT<Adapter>;
-  using SwitchInfo = SwitchInfoT<Adapter>;
-  using CaseInfo = CaseInfoT<Adapter>;
-
-  using schedule_t = typename Adapter::schedule_t;
-  using block_t = typename Adapter::block_t;
-  using block_range_t = typename Adapter::block_range_t;
-  using node_t = typename Adapter::node_t;
-  using optional_node_t = typename Adapter::optional_node_t;
-  using id_t = typename Adapter::id_t;
-  using source_position_table_t = typename Adapter::source_position_table_t;
-#endif
-
   using Features = InstructionSelector::Features;
 
   InstructionSelectorT(

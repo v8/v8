@@ -16,7 +16,9 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-#ifndef TURBOSHAFT_ISEL_ONLY
+
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 InstructionSelectorTest::InstructionSelectorTest()
     : TestWithNativeContextAndZone(kCompressGraphZone),
       rng_(v8_flags.random_seed) {}

@@ -12,11 +12,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifdef TURBOSHAFT_ISEL_ONLY
 using FlagsContinuation = FlagsContinuationT;
-#else
-using FlagsContinuation = FlagsContinuationT<TurbofanAdapter>;
-#endif
 
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
