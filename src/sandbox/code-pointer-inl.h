@@ -5,11 +5,13 @@
 #ifndef V8_SANDBOX_CODE_POINTER_INL_H_
 #define V8_SANDBOX_CODE_POINTER_INL_H_
 
+#include "src/sandbox/code-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/code-pointer-table-inl.h"
-#include "src/sandbox/code-pointer.h"
 
 namespace v8 {
 namespace internal {

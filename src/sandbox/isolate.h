@@ -12,8 +12,7 @@
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Isolate;
 
@@ -75,7 +74,8 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
 #endif  // V8_COMPRESS_POINTERS
 };
 
-}  // namespace internal
-}  // namespace v8
+V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox();
+
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_ISOLATE_H_

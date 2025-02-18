@@ -2691,8 +2691,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
 bool WasmExportedFunction::IsWasmExportedFunction(Tagged<Object> object) {
   if (!IsJSFunction(object)) return false;
   Tagged<JSFunction> js_function = Cast<JSFunction>(object);
-  // TODO(396607238): Avoid GetIsolateForSandbox.
-  Tagged<Code> code = js_function->code(GetIsolateForSandbox(js_function));
+  Tagged<Code> code = js_function->code(GetCurrentIsolateForSandbox());
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
 #if V8_ENABLE_DRUMBRAKE
       code->builtin_id() != Builtin::kGenericJSToWasmInterpreterWrapper &&

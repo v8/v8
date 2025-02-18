@@ -5,10 +5,12 @@
 #ifndef V8_SANDBOX_INDIRECT_POINTER_INL_H_
 #define V8_SANDBOX_INDIRECT_POINTER_INL_H_
 
+#include "src/sandbox/indirect-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/sandbox/code-pointer-table-inl.h"
-#include "src/sandbox/indirect-pointer.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 

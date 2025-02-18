@@ -10,8 +10,7 @@
 #include "src/execution/isolate.h"
 #include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
@@ -49,24 +48,30 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
   return true;
 }
 
-// Use this function instead of Internals::GetIsolateForSandbox for internal
+// Use this function instead of `Internals::GetIsolateForSandbox` for internal
 // code, as this function is fully inlinable.
-V8_INLINE static IsolateForSandbox GetIsolateForSandbox(
-    Tagged<HeapObject> object) {
+// Note that this method might return an isolate which is not the "current" one
+// as returned by `Isolate::Current()`. Use `GetCurrentIsolateForSandbox`
+// instead where possible.
+// TODO(396607238): Replace all callers with `GetCurrentIsolateForSandbox()`.
+V8_INLINE IsolateForSandbox GetIsolateForSandbox(Tagged<HeapObject> object) {
 #ifdef V8_ENABLE_SANDBOX
   // This method can be used on shared objects as opposed to
   // GetHeapFromWritableObject because it only returns IsolateForSandbox instead
   // of the Isolate. This is because shared objects will go to shared external
   // pointer table which is the same for main and all worker isolates.
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return Isolate::FromHeap(chunk->GetHeap());
+  Isolate* isolate = Isolate::FromHeap(chunk->GetHeap());
+  // TODO(396607238): Enable the following line, which requires resolving some
+  // inl-header cycles.
+  // SBXCHECK_EQ(isolate, Isolate::Current());
+  return isolate;
 #else
   // Not used in non-sandbox mode.
   return {};
 #endif
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_ISOLATE_UTILS_INL_H_

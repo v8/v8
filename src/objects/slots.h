@@ -14,8 +14,7 @@
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Object;
 class ExposedTrustedObject;
@@ -577,7 +576,19 @@ class WriteProtectedSlot : public SlotT {
   WritableJitAllocation& jit_allocation_;
 };
 
-}  // namespace internal
-}  // namespace v8
+// Copies tagged words from |src| to |dst|. The data spans must not overlap.
+// |src| and |dst| must be kTaggedSize-aligned.
+inline void CopyTagged(Address dst, const Address src, size_t num_tagged);
+
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
+                         size_t counter);
+
+// Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
+template <typename T>
+inline void MemsetTagged(SlotBase<T, Tagged_t> start, Tagged<MaybeObject> value,
+                         size_t counter);
+
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_SLOTS_H_

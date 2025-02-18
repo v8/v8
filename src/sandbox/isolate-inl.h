@@ -5,25 +5,24 @@
 #ifndef V8_SANDBOX_ISOLATE_INL_H_
 #define V8_SANDBOX_ISOLATE_INL_H_
 
-#include "src/execution/isolate.h"
+#include "src/sandbox/isolate.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/isolate-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/indirect-pointer-tag.h"
-#include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 template <typename IsolateT>
 IsolateForSandbox::IsolateForSandbox(IsolateT* isolate)
 #ifdef V8_ENABLE_SANDBOX
-    : isolate_(isolate->ForSandbox()) {
-}
-#else
+    : isolate_(isolate->ForSandbox())
+#endif
 {
 }
-#endif
 
 #ifdef V8_ENABLE_SANDBOX
 ExternalPointerTable& IsolateForSandbox::GetExternalPointerTableFor(
@@ -70,12 +69,10 @@ inline ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
 template <typename IsolateT>
 IsolateForPointerCompression::IsolateForPointerCompression(IsolateT* isolate)
 #ifdef V8_COMPRESS_POINTERS
-    : isolate_(isolate->ForSandbox()) {
-}
-#else
+    : isolate_(isolate->ForSandbox())
+#endif
 {
 }
-#endif
 
 #ifdef V8_COMPRESS_POINTERS
 
@@ -120,7 +117,15 @@ IsolateForPointerCompression::GetCppHeapPointerTableSpace() {
 
 #endif  // V8_COMPRESS_POINTERS
 
-}  // namespace internal
-}  // namespace v8
+V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() {
+#ifdef V8_ENABLE_SANDBOX
+  return Isolate::Current();
+#else
+  // Not used in non-sandbox mode.
+  return {};
+#endif
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_ISOLATE_INL_H_

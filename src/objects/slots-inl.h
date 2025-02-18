@@ -17,7 +17,6 @@
 #include "src/objects/slots.h"
 #include "src/objects/tagged.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
-#include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/utils/memcopy.h"

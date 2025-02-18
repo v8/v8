@@ -6,8 +6,11 @@
 #define V8_EXECUTION_ISOLATE_INL_H_
 
 #include "src/execution/isolate.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"

@@ -12,6 +12,9 @@
 #ifndef V8_OBJECTS_OBJECTS_INL_H_
 #define V8_OBJECTS_OBJECTS_INL_H_
 
+#include "src/objects/objects.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/memory.h"
@@ -37,7 +40,6 @@
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/object-list-macros.h"
-#include "src/objects/objects.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
