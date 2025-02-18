@@ -310,7 +310,9 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   auto intersection = possible_inputs & allowed_inputs_for_uses;
 
   TRACE_UNTAGGING("  + intersection reprs: " << intersection);
-  if (intersection.contains(ValueRepresentation::kInt32)) {
+  if (intersection.contains(ValueRepresentation::kInt32) &&
+      use_reprs.contains_any(UseRepresentationSet{
+          UseRepresentation::kInt32, UseRepresentation::kTruncatedInt32})) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, hoist_untagging);
     return ProcessPhiResult::kChanged;
