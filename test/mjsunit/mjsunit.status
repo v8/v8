@@ -1859,7 +1859,7 @@
 }],  # variant == turboshaft
 
 ##############################################################################
-['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
+['variant == stress and (arch == arm or arch == arm64 or arch == loong64 or arch == mips64el) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'es6/large-classes-properties': [SKIP],
   'generated-transition-stub': [SKIP],
@@ -1867,7 +1867,7 @@
 }],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
+['variant in (nooptimization, jitless) and arch in (arm, arm64, loong64, mips64el) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
 
