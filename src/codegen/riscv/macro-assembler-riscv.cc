@@ -231,12 +231,11 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
     Register flags, Register feedback_vector) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
-  UseScratchRegisterScope temps(this);
-  temps.Include(t0, t1);
   Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available.
   {
     UseScratchRegisterScope temps(this);
+    temps.Include(t0, t1);
     Register scratch = temps.Acquire();
     And(scratch, flags,
         Operand(FeedbackVector::kFlagsTieringStateIsAnyRequested));
@@ -248,6 +247,7 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   bind(&maybe_needs_logging);
   {
     UseScratchRegisterScope temps(this);
+    temps.Include(t0, t1);
     Register scratch = temps.Acquire();
     And(scratch, flags, Operand(FeedbackVector::LogNextExecutionBit::kMask));
     Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg),
@@ -5642,7 +5642,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   Label stack_overflow;
   {
     UseScratchRegisterScope temps(this);
-    StackOverflowCheck(expected_parameter_count, t0, t1, &stack_overflow);
+    temps.Include(t0, t1);
+    StackOverflowCheck(expected_parameter_count, temps.Acquire(),
+                       temps.Acquire(), &stack_overflow);
   }
   // Underapplication. Move the arguments already in the stack, including the
   // receiver and the return address.
@@ -5769,10 +5771,12 @@ void MacroAssembler::InvokeFunctionCode(
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
+  Register scratch = s1;
   {
-    li(t0, ExternalReference::debug_hook_on_function_call_address(isolate()));
-    Lb(t0, MemOperand(t0, 0));
-    BranchShort(&debug_hook, ne, t0, Operand(zero_reg));
+    li(scratch,
+       ExternalReference::debug_hook_on_function_call_address(isolate()));
+    Lb(scratch, MemOperand(scratch, 0));
+    BranchShort(&debug_hook, ne, scratch, Operand(zero_reg));
   }
   bind(&continue_after_hook);
 
@@ -5781,7 +5785,6 @@ void MacroAssembler::InvokeFunctionCode(
     LoadRoot(a3, RootIndex::kUndefinedValue);
   }
 
-  Register scratch = s1;
   if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
     Register expected_parameter_count = a2;
     LoadParameterCountFromJSDispatchTable(expected_parameter_count,
@@ -5869,10 +5872,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
+  Register scratch = s1;
   {
-    li(t0, ExternalReference::debug_hook_on_function_call_address(isolate()));
-    Lb(t0, MemOperand(t0, 0));
-    BranchShort(&debug_hook, ne, t0, Operand(zero_reg));
+    li(scratch,
+       ExternalReference::debug_hook_on_function_call_address(isolate()));
+    Lb(scratch, MemOperand(scratch, 0));
+    BranchShort(&debug_hook, ne, scratch, Operand(zero_reg));
   }
   bind(&continue_after_hook);
 

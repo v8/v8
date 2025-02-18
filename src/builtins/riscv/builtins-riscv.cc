@@ -134,8 +134,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  --      ra: return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  UseScratchRegisterScope temps(masm);
-  temps.Include(t0, t1);
   // Enter a construct frame.
   FrameScope scope(masm, StackFrame::MANUAL);
   Label post_instantiation_deopt_entry, not_create_implicit_receiver;
@@ -155,6 +153,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // -----------------------------------
   {
     UseScratchRegisterScope temps(masm);
+    temps.Include(t1, t2);
     Register func_info = temps.Acquire();
     __ LoadTaggedField(
         func_info, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
@@ -279,6 +278,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
   {
     UseScratchRegisterScope temps(masm);
+    temps.Include(t1, t2);
     Register map = temps.Acquire(), type = temps.Acquire();
     __ GetObjectType(a0, map, type);
 
