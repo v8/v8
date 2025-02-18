@@ -648,6 +648,16 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* value = current->ValueInput(1);
       const VirtualObject* vobject = current->GetVirtualObject(object);
       Variable var;
+      if (value->opcode() == IrOpcode::kTrustedHeapConstant) {
+        // TODO(dmercadier): enable escaping objects containing
+        // TrustedHeapConstants. This is currently disabled because it leads to
+        // bugs when Trusted HeapConstant and regular HeapConstant flow into the
+        // same Phi, which can then be marked as Compressed, messing up the
+        // tagging of the Trusted HeapConstant.
+        current->SetEscaped(object);
+        current->SetEscaped(value);
+        break;
+      }
       // BoundedSize fields cannot currently be materialized by the deoptimizer,
       // so we must not dematerialze them.
       if (vobject && !vobject->HasEscaped() &&
