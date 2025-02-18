@@ -30,7 +30,7 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \
-    defined(V8_TARGET_ARCH_ARM)
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
 #define TURBOSHAFT_ISEL_ONLY 1
 #endif
 
