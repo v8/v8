@@ -1993,8 +1993,7 @@ TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
 
 TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
     TNode<IndirectPointerHandleT> handle) {
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<RawPtrT> table = LoadCodePointerTableBase();
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
   offset = UintPtrAdd(offset,
                       UintPtrConstant(kCodePointerTableEntryCodeObjectOffset));
@@ -2046,8 +2045,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag) {
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<RawPtrT> table = LoadCodePointerTableBase();
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
   TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
   if (tag != 0) {
@@ -2056,6 +2054,17 @@ TNode<RawPtrT> CodeStubAssembler::LoadCodeEntryFromIndirectPointerHandle(
   return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 }
 
+TNode<RawPtrT> CodeStubAssembler::LoadCodePointerTableBase() {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  // Embed the code pointer table address into the code.
+  return ExternalConstant(
+      ExternalReference::code_pointer_table_base_address(isolate()));
+#else
+  // Embed the code pointer table address into the code.
+  return ExternalConstant(
+      ExternalReference::global_code_pointer_table_base_address());
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+}
 #endif  // V8_ENABLE_SANDBOX
 
 void CodeStubAssembler::SetSupportsDynamicParameterCount(

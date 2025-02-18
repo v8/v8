@@ -176,7 +176,9 @@ struct JSBuiltinDispatchHandleRoot {
   V(SharedTrustedPointerTable, kSystemPointerSize,                           \
     shared_trusted_pointer_table)                                            \
   V(TrustedPointerPublishingScope, kSystemPointerSize,                       \
-    trusted_pointer_publishing_scope)
+    trusted_pointer_publishing_scope)                                        \
+  V(CodePointerTableBaseAddress, kSystemPointerSize,                         \
+    code_pointer_table_base_address)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -226,7 +228,9 @@ class IsolateData final {
         stack_guard_(isolate)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        trusted_cage_base_(group->GetTrustedPtrComprCageBase())
+        trusted_cage_base_(group->GetTrustedPtrComprCageBase()),
+        code_pointer_table_base_address_(
+            group->code_pointer_table()->base_address())
 #endif
   {
   }
@@ -489,6 +493,8 @@ class IsolateData final {
   TrustedPointerTable trusted_pointer_table_;
   TrustedPointerTable* shared_trusted_pointer_table_ = nullptr;
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope_ = nullptr;
+
+  const Address code_pointer_table_base_address_;
 #endif  // V8_ENABLE_SANDBOX
 
   // This is a storage for an additional argument for the Api callback thunk

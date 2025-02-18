@@ -4272,6 +4272,10 @@ void Isolate::CheckIsolateLayout() {
   static_assert(static_cast<int>(OFFSET_OF(
                     Isolate, isolate_data_.shared_trusted_pointer_table_)) ==
                 Internals::kIsolateSharedTrustedPointerTableAddressOffset);
+
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.code_pointer_table_base_address_)) ==
+                Internals::kIsolateCodePointerTableBaseAddressOffset);
 #endif
   static_assert(static_cast<int>(OFFSET_OF(
                     Isolate, isolate_data_.api_callback_thunk_argument_)) ==

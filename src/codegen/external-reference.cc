@@ -336,11 +336,22 @@ ExternalReference ExternalReference::shared_trusted_pointer_table_base_address(
       isolate->shared_trusted_pointer_table_base_address());
 }
 
-ExternalReference ExternalReference::code_pointer_table_address() {
-  // TODO(saelo): maybe rename to code_pointer_table_base_address?
+ExternalReference
+ExternalReference::address_of_code_pointer_table_base_address() {
+  return ExternalReference(IsolateFieldId::kCodePointerTableBaseAddress);
+}
+
+ExternalReference ExternalReference::code_pointer_table_base_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->code_pointer_table_base_address());
+}
+
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+ExternalReference ExternalReference::global_code_pointer_table_base_address() {
   return ExternalReference(
       IsolateGroup::current()->code_pointer_table()->base_address());
 }
+#endif
 
 ExternalReference ExternalReference::memory_chunk_metadata_table_address() {
   return ExternalReference(

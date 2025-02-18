@@ -1020,7 +1020,7 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
   DCHECK(!AreAliased(handle, destination));
 
   Register table = destination;
-  Move(table, ExternalReference::code_pointer_table_address());
+  LoadCodePointerTableBase(table);
   ShiftRightU64(handle, handle, Operand(kCodePointerHandleShift));
   ShiftLeftU64(handle, handle, Operand(kCodePointerTableEntrySizeLog2));
   AddS64(handle, table, handle);
@@ -1041,12 +1041,33 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   DCHECK(destination != r0);
   Register table = scratch;
   LoadU32(destination, field_operand, scratch);
-  Move(table, ExternalReference::code_pointer_table_address());
+  LoadCodePointerTableBase(table);
   // TODO(tpearson): can the offset computation be done more efficiently?
   ShiftRightU64(destination, destination, Operand(kCodePointerHandleShift));
   ShiftLeftU64(destination, destination,
                Operand(kCodePointerTableEntrySizeLog2));
   LoadU64(destination, MemOperand(destination, table));
+}
+
+void MacroAssembler::LoadCodePointerTableBase(Register destination) {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  if (!options().isolate_independent_code && isolate()) {
+    // Embed the code pointer table address into the code.
+    Move(destination,
+         ExternalReference::code_pointer_table_base_address(isolate()));
+  } else {
+    // Force indirect load via root register as a workaround for
+    // isolate-independent code (for example, for Wasm).
+    LoadU64(destination,
+            ExternalReferenceAsOperand(
+                ExternalReference::address_of_code_pointer_table_base_address(),
+                destination));
+  }
+#else
+  // Embed the code pointer table address into the code.
+  Move(destination,
+       ExternalReference::global_code_pointer_table_base_address());
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 }
 #endif  // V8_ENABLE_SANDBOX
 

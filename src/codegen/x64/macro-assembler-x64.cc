@@ -657,7 +657,7 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
                                               Register handle) {
   DCHECK(!AreAliased(handle, destination));
   Register table = destination;
-  LoadAddress(table, ExternalReference::code_pointer_table_address());
+  LoadCodePointerTableBase(table);
   shrl(handle, Immediate(kCodePointerHandleShift));
   // The code pointer table entry size is 16 bytes, so we have to do an
   // explicit shift first (times_16 doesn't exist).
@@ -675,8 +675,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   DCHECK(!AreAliased(destination, kScratchRegister));
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
   DCHECK_NE(tag, kInvalidEntrypointTag);
-  LoadAddress(kScratchRegister,
-              ExternalReference::code_pointer_table_address());
+  LoadCodePointerTableBase(kScratchRegister);
   movl(destination, field_operand);
   shrl(destination, Immediate(kCodePointerHandleShift));
   shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
@@ -686,6 +685,25 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
     movq(kScratchRegister, Immediate64(tag));
     xorq(destination, kScratchRegister);
   }
+}
+
+void MacroAssembler::LoadCodePointerTableBase(Register destination) {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  if (!options().isolate_independent_code && isolate()) {
+    // Embed the code pointer table address into the code.
+    LoadAddress(destination,
+                ExternalReference::code_pointer_table_base_address(isolate()));
+  } else {
+    // Force indirect load via root register as a workaround for
+    // isolate-independent code (for example, for Wasm).
+    Load(destination,
+         ExternalReference::address_of_code_pointer_table_base_address());
+  }
+#else
+  // Embed the code pointer table address into the code.
+  LoadAddress(destination,
+              ExternalReference::global_code_pointer_table_base_address());
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 }
 #endif  // V8_ENABLE_SANDBOX
 

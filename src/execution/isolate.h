@@ -2263,6 +2263,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
               (scope == nullptr));
     isolate_data_.trusted_pointer_publishing_scope_ = scope;
   }
+
+  Address code_pointer_table_base_address() {
+    return isolate_data_.code_pointer_table_base_address_;
+  }
 #endif  // V8_ENABLE_SANDBOX
 
   Address continuation_preserved_embedder_data_address() {

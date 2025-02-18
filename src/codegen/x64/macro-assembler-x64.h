@@ -843,6 +843,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void LoadCodeEntrypointViaCodePointer(Register destination,
                                         Operand field_operand,
                                         CodeEntrypointTag tag);
+
+  // Load the value of Code pointer table corresponding to
+  // IsolateGroup::current()->code_pointer_table_.
+  // Only available when the sandbox is enabled.
+  void LoadCodePointerTableBase(Register destination);
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
