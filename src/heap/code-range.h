@@ -131,7 +131,7 @@ class CodeRange final : public VirtualMemoryCage {
   // race during Isolate::Init.
   base::Mutex remap_embedded_builtins_mutex_;
 
-#if !defined(V8_OS_WIN) && defined(DEBUG)
+#if !defined(V8_OS_WIN) && !defined(V8_OS_IOS) && defined(DEBUG)
   bool immutable_ = false;
 #endif
 };

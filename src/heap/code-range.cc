@@ -244,7 +244,9 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
 // Don't pre-commit the code cage on Windows since it uses memory and it's not
 // required for recommit.
-#if !defined(V8_OS_WIN)
+// iOS cannot adjust page permissions for MAP_JIT'd pages, they are set as RWX
+// at the start.
+#if !defined(V8_OS_WIN) && !defined(V8_OS_IOS)
   if (params.page_initialization_mode ==
       base::PageInitializationMode::kRecommitOnly) {
     void* base =
