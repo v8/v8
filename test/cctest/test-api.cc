@@ -8637,6 +8637,7 @@ THREADED_TEST(StringWrite) {
   char utf8buf[0xD800 * 3];
   uint16_t wbuf[100];
   size_t len;
+  size_t processed_characters;
 
   memset(utf8buf, 0x1, 1000);
   len = v8::String::Empty(isolate)->WriteUtf8V2(
@@ -8651,8 +8652,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strcmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83"));
 
   memset(utf8buf, 0x1, 1000);
-  len = str2->WriteUtf8V2(isolate, utf8buf, 8);
+  len = str2->WriteUtf8V2(isolate, utf8buf, 8, String::WriteFlags::kNone,
+                          &processed_characters);
   CHECK_EQ(8, len);
+  CHECK_EQ(5, processed_characters);
   CHECK_EQ(0, strncmp(utf8buf, "abc\xC3\xB0\xE2\x98\x83\x01", 9));
 
   memset(utf8buf, 0x1, 1000);
@@ -8858,8 +8861,10 @@ THREADED_TEST(StringWrite) {
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   utf8buf[5] = 'X';
-  len = str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf));
+  len = str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
+                         String::WriteFlags::kNone, &processed_characters);
   CHECK_EQ(5, len);
+  CHECK_EQ(5, processed_characters);
   CHECK_EQ('X', utf8buf[5]);  // Test that the sixth character is untouched.
   utf8buf[5] = '\0';
   CHECK_EQ(0, strcmp(utf8buf, "abcde"));
@@ -8876,6 +8881,29 @@ THREADED_TEST(StringWrite) {
   str->WriteV2(isolate, 0, 0, nullptr);
   len = str->WriteUtf8V2(isolate, nullptr, 0);
   CHECK_EQ(0, len);
+
+  std::tuple<const char*, size_t, size_t> cases[] = {
+      {"\xC3\xA9", 0, 0},          // é (2-byte) but buffer is 0
+      {"\xC3\xA9", 1, 0},          // é (2-byte) but buffer is 1
+      {"\xE2\x82\xAC", 0, 0},      // € (3-byte) but buffer is 0
+      {"\xE2\x82\xAC", 1, 0},      // € (3-byte) but buffer is 1
+      {"\xE2\x82\xAC", 2, 0},      // € (3-byte) but buffer is 2
+      {"\xF0\x9F\x98\x81", 0, 0},  // 😁 (4-byte) but buffer is 0
+      {"\xF0\x9F\x98\x81", 1, 0},  // 😁 (4-byte) but buffer is 1
+      {"\xF0\x9F\x98\x81", 2, 0},  // 😁 (4-byte) but buffer is 2
+  };
+
+  for (const auto& test_case : cases) {
+    auto test_str =
+        String::NewFromUtf8(isolate, std::get<0>(test_case)).ToLocalChecked();
+    auto test_buffer_capacity = std::get<1>(test_case);
+    char test_buffer[4];
+    len =
+        test_str->WriteUtf8V2(isolate, test_buffer, test_buffer_capacity,
+                              String::WriteFlags::kNone, &processed_characters);
+    CHECK_EQ(std::get<2>(test_case), len);
+    CHECK_EQ(0, processed_characters);
+  }
 }
 
 static void Utf16Helper(LocalContext& context, const char* name,

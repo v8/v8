@@ -257,11 +257,14 @@ class V8_EXPORT String : public Name {
    * \param buffer The buffer into which the string will be written.
    * \param capacity The number of bytes available in the output buffer.
    * \param flags Various flags that influence the behavior of this operation.
+   * \param processed_characters_return The number of processed characters from
+   * the buffer.
    * \return The number of bytes copied to the buffer including the null
    * terminator (if written).
    */
   size_t WriteUtf8V2(Isolate* isolate, char* buffer, size_t capacity,
-                     int flags = WriteFlags::kNone) const;
+                     int flags = WriteFlags::kNone,
+                     size_t* processed_characters_return = nullptr) const;
 
   /**
    * A zero length string.

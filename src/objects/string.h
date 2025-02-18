@@ -555,7 +555,8 @@ V8_OBJECT class String : public Name {
   using Utf8EncodingFlags = base::Flags<Utf8EncodingFlag>;
   static size_t WriteUtf8(Isolate* isolate, DirectHandle<String> string,
                           char* buffer, size_t capacity,
-                          Utf8EncodingFlags flags);
+                          Utf8EncodingFlags flags,
+                          size_t* processed_characters_return = nullptr);
 
   // Returns true if this string has no unpaired surrogates and false otherwise.
   static inline bool IsWellFormedUnicode(Isolate* isolate,

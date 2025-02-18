@@ -6069,7 +6069,8 @@ void String::WriteOneByteV2(Isolate* v8_isolate, uint32_t offset,
 }
 
 size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
-                           int flags) const {
+                           int flags,
+                           size_t* processed_characters_return) const {
   auto str = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, String, WriteUtf8);
@@ -6081,7 +6082,8 @@ size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
   if (flags & String::WriteFlags::kReplaceInvalidUtf8) {
     i_flags |= i::String::Utf8EncodingFlag::kReplaceInvalid;
   }
-  return i::String::WriteUtf8(i_isolate, str, buffer, capacity, i_flags);
+  return i::String::WriteUtf8(i_isolate, str, buffer, capacity, i_flags,
+                              processed_characters_return);
 }
 
 namespace {
