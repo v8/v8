@@ -508,6 +508,10 @@ class ObjectPinningVisitorBase : public RootVisitor {
     DCHECK(!HasWeakHeapObjectTag(object));
     DCHECK(!MapWord::IsPacked(object.ptr()));
     DCHECK(!HeapLayout::IsSelfForwarded(object));
+    if (IsAllocationMemento(object)) {
+      // Don't pin allocation mementos since they should not survive a GC.
+      return;
+    }
     if (scavenger_.PromoteIfLargeObject(object)) {
       // Large objects are not moved and thus don't require pinning. Instead,
       // we scavenge large pages eagerly to keep them from being reclaimed (if
@@ -1345,6 +1349,8 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
   int object_size = object->SizeFromMap(map);
+  PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
+                                           &local_pretenuring_feedback_);
   if (heap_->semi_space_new_space()->ShouldPageBePromoted(object->address())) {
     local_promoted_list_.Push({object, map, object_size});
     promoted_size_ += object_size;
