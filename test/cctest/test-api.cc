@@ -31349,3 +31349,20 @@ TEST(WrappedFunctionWithClass) {
   maybe_instance = the_class->NewInstance(context, 0, nullptr);
   CHECK(!maybe_instance.IsEmpty());
 }
+
+THREADED_TEST(Regress40643872) {
+  if (i::JSTypedArray::kMaxSizeInHeap > 0) return;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Uint8Array> ta =
+      CompileRun("new Uint8Array()").As<v8::Uint8Array>();
+
+  uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
+  v8::MemorySpan<uint8_t> storage(buffer);
+  v8::MemorySpan<uint8_t> contents = ta->GetContents(storage);
+  CHECK_EQ(contents.data(), nullptr);
+  CHECK_EQ(contents.size(), 0);
+}

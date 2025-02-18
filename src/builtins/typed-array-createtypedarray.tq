@@ -99,7 +99,8 @@ transitioning macro TypedArrayInitialize(
   const byteOffset: uintptr = 0;
 
   try {
-    if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
+    if (byteLength > kMaxTypedArrayInHeap || kMaxTypedArrayInHeap == 0)
+      goto AllocateOffHeap;
 
     const buffer = AllocateEmptyOnHeapBuffer();
 
