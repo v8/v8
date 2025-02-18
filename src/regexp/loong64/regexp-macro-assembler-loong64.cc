@@ -1182,7 +1182,7 @@ void RegExpMacroAssemblerLOONG64::CallCheckStackGuardState(
 
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state();
-  __ li(t7, Operand(stack_guard_check));
+  __ li(t5, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
   CHECK(Builtins::IsIsolateIndependent(Builtin::kDirectCEntry));

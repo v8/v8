@@ -291,7 +291,7 @@ void MacroAssembler::LoadIndirectPointerField(Register destination,
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
-  Register handle = temps.hasAvailable() ? temps.Acquire() : t8;
+  Register handle = temps.Acquire();
   Ld_wu(handle, field_operand);
 
   ResolveIndirectPointerHandle(destination, handle, tag);
@@ -617,7 +617,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 
   if (v8_flags.slow_debug_code) {
     UseScratchRegisterScope temps(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+    Register scratch = temps.Acquire();
     Add_d(scratch, object, offset);
     if (slot.contains_indirect_pointer()) {
       LoadIndirectPointerField(scratch, MemOperand(scratch, 0),
@@ -702,7 +702,7 @@ void MacroAssembler::Add_d(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       DCHECK(rj != scratch);
       li(scratch, rk);
       add_d(rd, rj, scratch);
@@ -742,7 +742,6 @@ void MacroAssembler::Sub_d(Register rd, Register rj, const Operand& rk) {
     // No subi_d instr, use addi_d(x, y, -imm).
     addi_d(rd, rj, static_cast<int32_t>(-rk.immediate()));
   } else {
-    DCHECK(rj != t7);
     int li_count = InstrCountForLi64Bit(rk.immediate());
     int li_neg_count = InstrCountForLi64Bit(-rk.immediate());
     if (li_neg_count < li_count && !MustUseReg(rk.rmode())) {
@@ -1049,7 +1048,7 @@ void MacroAssembler::Slt(Register rd, Register rj, const Operand& rk) {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       BlockTrampolinePoolScope block_trampoline_pool(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       DCHECK(rj != scratch);
       li(scratch, rk);
       slt(rd, rj, scratch);
@@ -1067,7 +1066,7 @@ void MacroAssembler::Sltu(Register rd, Register rj, const Operand& rk) {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       BlockTrampolinePoolScope block_trampoline_pool(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       DCHECK(rj != scratch);
       li(scratch, rk);
       sltu(rd, rj, scratch);
@@ -1084,7 +1083,7 @@ void MacroAssembler::Sle(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
       DCHECK(rj != scratch);
       li(scratch, rk);
@@ -1103,7 +1102,7 @@ void MacroAssembler::Sleu(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
       DCHECK(rj != scratch);
       li(scratch, rk);
@@ -1132,7 +1131,7 @@ void MacroAssembler::Sgt(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
       DCHECK(rj != scratch);
       li(scratch, rk);
@@ -1150,7 +1149,7 @@ void MacroAssembler::Sgtu(Register rd, Register rj, const Operand& rk) {
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
       DCHECK(rj != scratch);
       li(scratch, rk);
@@ -1181,26 +1180,26 @@ void MacroAssembler::Rotr_d(Register rd, Register rj, const Operand& rk) {
   }
 }
 
-void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa,
-                            Register scratch) {
+void MacroAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa) {
   DCHECK(sa >= 1 && sa <= 31);
   if (sa <= 4) {
     alsl_w(rd, rj, rk, sa);
   } else {
-    Register tmp = rd == rk ? scratch : rd;
+    UseScratchRegisterScope temps(this);
+    Register tmp = rd == rk ? temps.Acquire() : rd;
     DCHECK(tmp != rk);
     slli_w(tmp, rj, sa);
     add_w(rd, rk, tmp);
   }
 }
 
-void MacroAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
-                            Register scratch) {
+void MacroAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa) {
   DCHECK(sa >= 1 && sa <= 63);
   if (sa <= 4) {
     alsl_d(rd, rj, rk, sa);
   } else {
-    Register tmp = rd == rk ? scratch : rd;
+    UseScratchRegisterScope temps(this);
+    Register tmp = rd == rk ? temps.Acquire() : rd;
     DCHECK(tmp != rk);
     slli_d(tmp, rj, sa);
     add_d(rd, rk, tmp);
@@ -1789,38 +1788,46 @@ void MacroAssembler::Neg_d(FPURegister fd, FPURegister fj) { fneg_d(fd, fj); }
 
 void MacroAssembler::Ffint_d_uw(FPURegister fd, FPURegister fj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  movfr2gr_s(t8, fj);
-  Ffint_d_uw(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  movfr2gr_s(scratch, fj);
+  Ffint_d_uw(fd, scratch);
 }
 
 void MacroAssembler::Ffint_d_uw(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(rj != t7);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rj != scratch);
 
-  Bstrpick_d(t7, rj, 31, 0);
-  movgr2fr_d(fd, t7);
+  Bstrpick_d(scratch, rj, 31, 0);
+  movgr2fr_d(fd, scratch);
   ffint_d_l(fd, fd);
 }
 
 void MacroAssembler::Ffint_d_ul(FPURegister fd, FPURegister fj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  movfr2gr_d(t8, fj);
-  Ffint_d_ul(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  movfr2gr_d(scratch, fj);
+  Ffint_d_ul(fd, scratch);
 }
 
 void MacroAssembler::Ffint_d_ul(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(rj != t7);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rj != scratch);
 
   Label msb_clear, conversion_done;
 
   Branch(&msb_clear, ge, rj, Operand(zero_reg));
 
   // Rj >= 2^63
-  andi(t7, rj, 1);
+  andi(scratch, rj, 1);
   srli_d(rj, rj, 1);
-  or_(t7, t7, rj);
-  movgr2fr_d(fd, t7);
+  or_(scratch, scratch, rj);
+  movgr2fr_d(fd, scratch);
   ffint_d_l(fd, fd);
   fadd_d(fd, fd, fd);
   Branch(&conversion_done);
@@ -1835,38 +1842,46 @@ void MacroAssembler::Ffint_d_ul(FPURegister fd, Register rj) {
 
 void MacroAssembler::Ffint_s_uw(FPURegister fd, FPURegister fj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  movfr2gr_d(t8, fj);
-  Ffint_s_uw(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  movfr2gr_d(scratch, fj);
+  Ffint_s_uw(fd, scratch);
 }
 
 void MacroAssembler::Ffint_s_uw(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(rj != t7);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rj != scratch);
 
-  bstrpick_d(t7, rj, 31, 0);
-  movgr2fr_d(fd, t7);
+  bstrpick_d(scratch, rj, 31, 0);
+  movgr2fr_d(fd, scratch);
   ffint_s_l(fd, fd);
 }
 
 void MacroAssembler::Ffint_s_ul(FPURegister fd, FPURegister fj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  movfr2gr_d(t8, fj);
-  Ffint_s_ul(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  movfr2gr_d(scratch, fj);
+  Ffint_s_ul(fd, scratch);
 }
 
 void MacroAssembler::Ffint_s_ul(FPURegister fd, Register rj) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(rj != t7);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  DCHECK(rj != scratch);
 
   Label positive, conversion_done;
 
   Branch(&positive, ge, rj, Operand(zero_reg));
 
   // Rs >= 2^31.
-  andi(t7, rj, 1);
+  andi(scratch, rj, 1);
   srli_d(rj, rj, 1);
-  or_(t7, t7, rj);
-  movgr2fr_d(fd, t7);
+  or_(scratch, scratch, rj);
+  movgr2fr_d(fd, scratch);
   ffint_s_l(fd, fd);
   fadd_s(fd, fd, fd);
   Branch(&conversion_done);
@@ -1897,46 +1912,40 @@ void MacroAssembler::Ftintrz_l_d(FPURegister fd, FPURegister fj) {
 
 void MacroAssembler::Ftintrz_l_ud(FPURegister fd, FPURegister fj,
                                   FPURegister scratch) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  // Load to GPR.
-  movfr2gr_d(t8, fj);
-  // Reset sign bit.
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch1 = temps.Acquire();
-    li(scratch1, 0x7FFFFFFFFFFFFFFFl);
-    and_(t8, t8, scratch1);
-  }
-  movgr2fr_d(scratch, t8);
-  Ftintrz_l_d(fd, scratch);
+  fabs_d(scratch, fj);
+  ftintrz_l_d(fd, scratch);
 }
 
 void MacroAssembler::Ftintrz_uw_d(FPURegister fd, FPURegister fj,
                                   FPURegister scratch) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ftintrz_uw_d(t8, fj, scratch);
-  movgr2fr_w(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  Ftintrz_uw_d(scratch2, fj, scratch);
+  movgr2fr_w(fd, scratch2);
 }
 
 void MacroAssembler::Ftintrz_uw_s(FPURegister fd, FPURegister fj,
                                   FPURegister scratch) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ftintrz_uw_s(t8, fj, scratch);
-  movgr2fr_w(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  Ftintrz_uw_s(scratch2, fj, scratch);
+  movgr2fr_w(fd, scratch2);
 }
 
 void MacroAssembler::Ftintrz_ul_d(FPURegister fd, FPURegister fj,
                                   FPURegister scratch, Register result) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ftintrz_ul_d(t8, fj, scratch, result);
-  movgr2fr_d(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  Ftintrz_ul_d(scratch2, fj, scratch, result);
+  movgr2fr_d(fd, scratch2);
 }
 
 void MacroAssembler::Ftintrz_ul_s(FPURegister fd, FPURegister fj,
                                   FPURegister scratch, Register result) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ftintrz_ul_s(t8, fj, scratch, result);
-  movgr2fr_d(fd, t8);
+  UseScratchRegisterScope temps(this);
+  Register scratch2 = temps.Acquire();
+  Ftintrz_ul_s(scratch2, fj, scratch, result);
+  movgr2fr_d(fd, scratch2);
 }
 
 void MacroAssembler::Ftintrz_w_d(FPURegister fd, FPURegister fj) {
@@ -1958,7 +1967,6 @@ void MacroAssembler::Ftintrp_w_d(FPURegister fd, FPURegister fj) {
 void MacroAssembler::Ftintrz_uw_d(Register rd, FPURegister fj,
                                   FPURegister scratch) {
   DCHECK(fj != scratch);
-  DCHECK(rd != t7);
 
   {
     // Load 2^32 into scratch as its float representation.
@@ -1990,7 +1998,6 @@ void MacroAssembler::Ftintrz_uw_d(Register rd, FPURegister fj,
 void MacroAssembler::Ftintrz_uw_s(Register rd, FPURegister fj,
                                   FPURegister scratch) {
   DCHECK(fj != scratch);
-  DCHECK(rd != t7);
   {
     // Load 2^32 into scratch as its float representation.
     UseScratchRegisterScope temps(this);
@@ -2020,8 +2027,11 @@ void MacroAssembler::Ftintrz_uw_s(Register rd, FPURegister fj,
 
 void MacroAssembler::Ftintrz_ul_d(Register rd, FPURegister fj,
                                   FPURegister scratch, Register result) {
+  UseScratchRegisterScope temps(this);
+  Register scratch1 = temps.Acquire();
   DCHECK(fj != scratch);
-  DCHECK(result.is_valid() ? !AreAliased(rd, result, t7) : !AreAliased(rd, t7));
+  DCHECK(result.is_valid() ? !AreAliased(rd, result, scratch1)
+                           : !AreAliased(rd, scratch1));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
@@ -2033,8 +2043,8 @@ void MacroAssembler::Ftintrz_ul_d(Register rd, FPURegister fj,
   }
 
   // Load 2^63 into scratch as its double representation.
-  li(t7, 0x43E0000000000000);
-  movgr2fr_d(scratch, t7);
+  li(scratch1, 0x43E0000000000000);
+  movgr2fr_d(scratch, scratch1);
 
   // Test if scratch > fs.
   // If fs < 2^63 or unordered we can convert it normally.
@@ -2057,14 +2067,10 @@ void MacroAssembler::Ftintrz_ul_d(Register rd, FPURegister fj,
   bind(&done);
   if (result.is_valid()) {
     // Conversion is failed if the result is negative.
-    {
-      UseScratchRegisterScope temps(this);
-      Register scratch1 = temps.Acquire();
-      addi_d(scratch1, zero_reg, -1);
-      srli_d(scratch1, scratch1, 1);  // Load 2^62.
-      movfr2gr_d(result, scratch);
-      xor_(result, result, scratch1);
-    }
+    addi_d(scratch1, zero_reg, -1);
+    srli_d(scratch1, scratch1, 1);  // Load 2^62.
+    movfr2gr_d(result, scratch);
+    xor_(result, result, scratch1);
     Slt(result, zero_reg, result);
   }
 
@@ -2131,10 +2137,12 @@ void MacroAssembler::Ftintrz_ul_s(Register rd, FPURegister fj,
 void MacroAssembler::RoundDouble(FPURegister dst, FPURegister src,
                                  FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = t8;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   movfcsr2gr(scratch);
-  li(t7, Operand(mode));
-  movgr2fcsr(t7);
+  li(scratch2, Operand(mode));
+  movgr2fcsr(scratch2);
   frint_d(dst, src);
   movgr2fcsr(scratch);
 }
@@ -2158,10 +2166,12 @@ void MacroAssembler::Round_d(FPURegister dst, FPURegister src) {
 void MacroAssembler::RoundFloat(FPURegister dst, FPURegister src,
                                 FPURoundingMode mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = t8;
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
   movfcsr2gr(scratch);
-  li(t7, Operand(mode));
-  movgr2fcsr(t7);
+  li(scratch2, Operand(mode));
+  movgr2fcsr(scratch2);
   frint_s(dst, src);
   movgr2fcsr(scratch);
 }
@@ -2339,7 +2349,7 @@ void MacroAssembler::Popcnt_w(Register rd, Register rj) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
-  Register scratch2 = t8;
+  Register scratch2 = temps.Acquire();
   srli_w(scratch, rj, 1);
   li(scratch2, B0);
   And(scratch, scratch, scratch2);
@@ -2369,7 +2379,7 @@ void MacroAssembler::Popcnt_d(Register rd, Register rj) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register scratch = temps.Acquire();
-  Register scratch2 = t8;
+  Register scratch2 = temps.Acquire();
   srli_d(scratch, rj, 1);
   li(scratch2, B0);
   And(scratch, scratch, scratch2);
@@ -2588,7 +2598,7 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rj,
   if (COMPRESS_POINTERS_BOOL) {
     Register left = rj;
     if (need_sign_extend) {
-      left = temps.hasAvailable() ? temps.Acquire() : t8;
+      left = temps.Acquire();
       slli_w(left, rj, 0);
     }
     LoadTaggedRoot(right, index);
@@ -2621,7 +2631,7 @@ bool MacroAssembler::BranchShortOrFallback(Label* L, Condition cond,
                                            bool need_link) {
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+  Register scratch = temps.Acquire();
   DCHECK_NE(rj, zero_reg);
 
   // Be careful to always use shifted_branch_offset only just before the
@@ -2865,7 +2875,7 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
     if (IsZero(r2)) {
       Branch(label, cond, scratch0, Operand(zero_reg), need_link);
     } else {
-      Register scratch1 = temps.hasAvailable() ? temps.Acquire() : t8;
+      Register scratch1 = temps.Acquire();
       if (r2.is_reg()) {
         slli_w(scratch1, r2.rm(), 0);
       } else {
@@ -2995,8 +3005,10 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   }
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    li(t7, Operand(target, rmode));
-    jirl(zero_reg, t7, 0);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, Operand(target, rmode));
+    jirl(zero_reg, scratch, 0);
     bind(&skip);
   }
 }
@@ -3028,8 +3040,10 @@ void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void MacroAssembler::Jump(const ExternalReference& reference) {
-  li(t7, reference);
-  Jump(t7);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, reference);
+  Jump(scratch);
 }
 
 // Note: To call gcc-compiled C code on loonarch, you must call through t[0-8].
@@ -3111,11 +3125,15 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   if (RelocInfo::IsNoInfo(rmode) && is_int28(offset_diff)) {
     bl(offset_diff >> 2);
   } else if (RelocInfo::IsNoInfo(rmode) && is_int38(offset_diff)) {
-    pcaddu18i(t7, static_cast<int32_t>(offset_diff) >> 18);
-    jirl(ra, t7, (offset_diff & 0x3ffff) >> 2);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    pcaddu18i(scratch, static_cast<int32_t>(offset_diff) >> 18);
+    jirl(ra, scratch, (offset_diff & 0x3ffff) >> 2);
   } else {
-    li(t7, Operand(static_cast<int64_t>(target), rmode), ADDRESS_LOAD);
-    Call(t7, cc_always, rj, rk);
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    li(scratch, Operand(static_cast<int64_t>(target), rmode), ADDRESS_LOAD);
+    Call(scratch, cc_always, rj, rk);
   }
   bind(&skip);
 }
@@ -3143,7 +3161,7 @@ void MacroAssembler::LoadEntryFromBuiltinIndex(Register builtin_index,
 
   // The builtin_index register contains the builtin index as a Smi.
   SmiUntag(target, builtin_index);
-  Alsl_d(target, target, kRootRegister, kSystemPointerSizeLog2, t7);
+  Alsl_d(target, target, kRootRegister, kSystemPointerSizeLog2);
   Ld_d(target, MemOperand(target, IsolateData::builtin_entry_table_offset()));
 }
 
@@ -3349,7 +3367,7 @@ void MacroAssembler::PushArray(Register array, Register size, Register scratch,
     mov(scratch, zero_reg);
     jmp(&entry);
     bind(&loop);
-    Alsl_d(scratch2, scratch, array, kSystemPointerSizeLog2, t7);
+    Alsl_d(scratch2, scratch, array, kSystemPointerSizeLog2);
     Ld_d(scratch2, MemOperand(scratch2, 0));
     Push(scratch2);
     Add_d(scratch, scratch, Operand(1));
@@ -3359,7 +3377,7 @@ void MacroAssembler::PushArray(Register array, Register size, Register scratch,
     mov(scratch, size);
     jmp(&entry);
     bind(&loop);
-    Alsl_d(scratch2, scratch, array, kSystemPointerSizeLog2, t7);
+    Alsl_d(scratch2, scratch, array, kSystemPointerSizeLog2);
     Ld_d(scratch2, MemOperand(scratch2, 0));
     Push(scratch2);
     bind(&entry);
@@ -4014,12 +4032,14 @@ void MacroAssembler::Abort(AbortReason reason) {
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
     if (root_array_available()) {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       // Generate an indirect call via builtins entry table here in order to
       // ensure that the interpreter_entry_return_pc_offset is the same for
       // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
       // when v8_flags.debug_code is enabled.
-      LoadEntryFromBuiltin(Builtin::kAbort, t7);
-      Call(t7);
+      LoadEntryFromBuiltin(Builtin::kAbort, scratch);
+      Call(scratch);
     } else {
       CallBuiltin(Builtin::kAbort);
     }
@@ -4348,126 +4368,130 @@ void MacroAssembler::AssertJSAny(Register object, Register map_tmp,
 }
 
 void MacroAssembler::AssertNotSmi(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    static_assert(kSmiTag == 0);
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    andi(scratch, object, kSmiTagMask);
-    Check(ne, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  static_assert(kSmiTag == 0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  andi(scratch, object, kSmiTagMask);
+  Check(ne, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::AssertSmi(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    static_assert(kSmiTag == 0);
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    andi(scratch, object, kSmiTagMask);
-    Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  static_assert(kSmiTag == 0);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  andi(scratch, object, kSmiTagMask);
+  Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::AssertStackIsAligned() {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    const int frame_alignment = ActivationFrameAlignment();
-    const int frame_alignment_mask = frame_alignment - 1;
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  const int frame_alignment = ActivationFrameAlignment();
+  const int frame_alignment_mask = frame_alignment - 1;
 
-    if (frame_alignment > kSystemPointerSize) {
-      Label alignment_as_expected;
-      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-      {
-        UseScratchRegisterScope temps(this);
-        Register scratch = temps.Acquire();
-        andi(scratch, sp, frame_alignment_mask);
-        Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
-      }
-      // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      stop();
-      bind(&alignment_as_expected);
+  if (frame_alignment > kSystemPointerSize) {
+    Label alignment_as_expected;
+    DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+    {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      andi(scratch, sp, frame_alignment_mask);
+      Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
     }
+    // Don't use Check here, as it will call Runtime_Abort re-entering here.
+    stop();
+    bind(&alignment_as_expected);
   }
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    static_assert(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, t8,
-          Operand(zero_reg));
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  static_assert(kSmiTag == 0);
+  SmiTst(object, scratch);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, scratch,
+        Operand(zero_reg));
 
-    LoadMap(t8, object);
-    Ld_bu(t8, FieldMemOperand(t8, Map::kBitFieldOffset));
-    And(t8, t8, Operand(Map::Bits1::IsConstructorBit::kMask));
-    Check(ne, AbortReason::kOperandIsNotAConstructor, t8, Operand(zero_reg));
-  }
+  LoadMap(scratch, object);
+  Ld_bu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
+  And(scratch, scratch, Operand(Map::Bits1::IsConstructorBit::kMask));
+  Check(ne, AbortReason::kOperandIsNotAConstructor, scratch, Operand(zero_reg));
 }
 
 void MacroAssembler::AssertFunction(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    static_assert(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
-          Operand(zero_reg));
-    Push(object);
-    LoadMap(object, object);
-    GetInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE, t8);
-    Check(ls, AbortReason::kOperandIsNotAFunction, t8,
-          Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
-    Pop(object);
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  static_assert(kSmiTag == 0);
+  SmiTst(object, scratch);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, scratch,
+        Operand(zero_reg));
+  Push(object);
+  LoadMap(object, object);
+  GetInstanceTypeRange(object, object, FIRST_JS_FUNCTION_TYPE, scratch);
+  Check(ls, AbortReason::kOperandIsNotAFunction, scratch,
+        Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
+  Pop(object);
 }
 
 void MacroAssembler::AssertCallableFunction(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    static_assert(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
-          Operand(zero_reg));
-    Push(object);
-    LoadMap(object, object);
-    GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, t8);
-    Check(ls, AbortReason::kOperandIsNotACallableFunction, t8,
-          Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
-                  FIRST_CALLABLE_JS_FUNCTION_TYPE));
-    Pop(object);
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  static_assert(kSmiTag == 0);
+  SmiTst(object, scratch);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, scratch,
+        Operand(zero_reg));
+  Push(object);
+  LoadMap(object, object);
+  GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                       scratch);
+  Check(ls, AbortReason::kOperandIsNotACallableFunction, scratch,
+        Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                FIRST_CALLABLE_JS_FUNCTION_TYPE));
+  Pop(object);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    static_assert(kSmiTag == 0);
-    SmiTst(object, t8);
-    Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, t8,
-          Operand(zero_reg));
-    GetObjectType(object, t8, t8);
-    Check(eq, AbortReason::kOperandIsNotABoundFunction, t8,
-          Operand(JS_BOUND_FUNCTION_TYPE));
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  static_assert(kSmiTag == 0);
+  SmiTst(object, scratch);
+  Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, scratch,
+        Operand(zero_reg));
+  GetObjectType(object, scratch, scratch);
+  Check(eq, AbortReason::kOperandIsNotABoundFunction, scratch,
+        Operand(JS_BOUND_FUNCTION_TYPE));
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
   static_assert(kSmiTag == 0);
-  SmiTst(object, t8);
-  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, t8,
+  SmiTst(object, scratch);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, scratch,
         Operand(zero_reg));
-  GetObjectType(object, t8, t8);
-  Sub_d(t8, t8, Operand(FIRST_JS_GENERATOR_OBJECT_TYPE));
+  GetObjectType(object, scratch, scratch);
+  Sub_d(scratch, scratch, Operand(FIRST_JS_GENERATOR_OBJECT_TYPE));
   Check(
-      ls, AbortReason::kOperandIsNotAGeneratorObject, t8,
+      ls, AbortReason::kOperandIsNotAGeneratorObject, scratch,
       Operand(LAST_JS_GENERATOR_OBJECT_TYPE - FIRST_JS_GENERATOR_OBJECT_TYPE));
 }
 
@@ -4477,17 +4501,16 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
-  if (v8_flags.debug_code) {
-    ASM_CODE_COMMENT(this);
-    Label done_checking;
-    AssertNotSmi(object);
-    LoadRoot(scratch, RootIndex::kUndefinedValue);
-    Branch(&done_checking, eq, object, Operand(scratch));
-    GetObjectType(object, scratch, scratch);
-    Assert(eq, AbortReason::kExpectedUndefinedOrCell, scratch,
-           Operand(ALLOCATION_SITE_TYPE));
-    bind(&done_checking);
-  }
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Label done_checking;
+  AssertNotSmi(object);
+  LoadRoot(scratch, RootIndex::kUndefinedValue);
+  Branch(&done_checking, eq, object, Operand(scratch));
+  GetObjectType(object, scratch, scratch);
+  Assert(eq, AbortReason::kExpectedUndefinedOrCell, scratch,
+         Operand(ALLOCATION_SITE_TYPE));
+  bind(&done_checking);
 }
 
 #endif  // V8_ENABLE_DEBUG_CODE
@@ -4627,8 +4650,10 @@ int MacroAssembler::CallCFunction(ExternalReference function,
                                   Label* return_location) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  li(t7, function);
-  return CallCFunctionHelper(t7, num_reg_arguments, num_double_arguments,
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, function);
+  return CallCFunctionHelper(scratch, num_reg_arguments, num_double_arguments,
                              set_isolate_data_slots, return_location);
 }
 
@@ -4682,7 +4707,8 @@ int MacroAssembler::CallCFunctionHelper(
       DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
       Label alignment_as_expected;
       {
-        Register scratch = t8;
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.Acquire();
         And(scratch, sp, Operand(frame_alignment_mask));
         Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
@@ -4700,11 +4726,6 @@ int MacroAssembler::CallCFunctionHelper(
   {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-      if (function != t7) {
-        mov(t7, function);
-        function = t7;
-      }
-
       // Save the frame pointer and PC so that the stack layout remains
       // iterable, even without an ExitFrame which normally exists between JS
       // and C frames.
@@ -4752,7 +4773,6 @@ void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
                                    Label* condition_met) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
-  temps.Include(t8);
   Register scratch = temps.Acquire();
   And(scratch, object, Operand(~MemoryChunk::GetAlignmentMaskForAssembler()));
   Ld_d(scratch, MemOperand(scratch, MemoryChunk::FlagsOffset()));
@@ -4819,9 +4839,11 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            Label*) {
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Ld_d(t7,
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Ld_d(scratch,
        MemOperand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(target)));
-  Call(t7);
+  Call(scratch);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
             (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
                                             : Deoptimizer::kEagerDeoptExitSize);

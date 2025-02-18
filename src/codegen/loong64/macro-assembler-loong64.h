@@ -816,11 +816,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   static int ActivationFrameAlignment();
 
   // Load Scaled Address instructions. Parameter sa (shift argument) must be
-  // between [1, 31] (inclusive). The scratch register may be clobbered.
-  void Alsl_w(Register rd, Register rj, Register rk, uint8_t sa,
-              Register scratch = t7);
-  void Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
-              Register scratch = t7);
+  // between [1, 31] (inclusive).
+  void Alsl_w(Register rd, Register rj, Register rk, uint8_t sa);
+  void Alsl_d(Register rd, Register rj, Register rk, uint8_t sa);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.

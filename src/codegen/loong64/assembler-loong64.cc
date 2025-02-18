@@ -157,7 +157,7 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_({t7, t6}),
+      scratch_register_list_({t6, t7, t8}),
       scratch_fpregister_list_({f31}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
