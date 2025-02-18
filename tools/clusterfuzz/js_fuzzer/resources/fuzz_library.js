@@ -56,33 +56,48 @@ function* __getObjects(root = this, level = 0) {
     }
 }
 
-function __getRandomObject(seed) {
-  let objects = [];
-  for (let obj of __getObjects()) {
-    objects.push(obj);
-  }
-
-  return objects[seed % objects.length];
-}
-
-function __getRandomProperty(obj, seed) {
-  let properties = __getProperties(obj);
-  if (!properties.length)
-    return undefined;
-
-  return properties[seed % properties.length];
-}
-
-function __callRandomFunction(obj, seed, ...args)
+var __getRandomObject;
 {
-  let functions = __getProperties(obj, 'function');
-  if (!functions.length)
-    return;
+  let count = 0;
+  __getRandomObject = function(seed) {
+    if (count++ > 50) return this;
+    let objects = [];
+    for (let obj of __getObjects()) {
+      objects.push(obj);
+    }
 
-  let random_function = functions[seed % functions.length];
-  try {
-    obj[random_function](...args);
-  } catch(e) { }
+    return objects[seed % objects.length];
+  };
+}
+
+var __getRandomProperty;
+{
+  let count = 0;
+  __getRandomProperty = function(obj, seed) {
+    if (count++ > 50) return undefined;
+    let properties = __getProperties(obj);
+    if (!properties.length)
+      return undefined;
+
+    return properties[seed % properties.length];
+  };
+}
+
+var __callRandomFunction;
+{
+  let count = 0;
+  __callRandomFunction = function(obj, seed, ...args)
+  {
+    if (count++ > 25) return;
+    let functions = __getProperties(obj, 'function');
+    if (!functions.length)
+      return;
+
+    let random_function = functions[seed % functions.length];
+    try {
+      obj[random_function](...args);
+    } catch(e) { }
+  };
 }
 
 function runNearStackLimit(f) {
