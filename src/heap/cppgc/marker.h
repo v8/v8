@@ -62,9 +62,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
     const bool resume_on_exit_;
   };
 
-  std::unique_ptr<::heap::base::IncrementalMarkingSchedule>
-  CreateDefaultMarkingSchedule(const MarkingConfig&);
-
   virtual ~MarkerBase();
 
   MarkerBase(const MarkerBase&) = delete;

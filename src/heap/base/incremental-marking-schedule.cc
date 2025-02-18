@@ -21,20 +21,19 @@ constexpr auto kTimeDeltaForPredictableSchedule =
 }  // namespace
 
 // static
-std::unique_ptr<IncrementalMarkingSchedule>
-IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep(
+std::unique_ptr<IncrementalMarkingSchedule> IncrementalMarkingSchedule::Create(
     bool predictable_schedule) {
   return std::unique_ptr<IncrementalMarkingSchedule>(
-      new IncrementalMarkingSchedule(
-          kDefaultMinimumMarkedBytesPerIncrementalStep, predictable_schedule));
+      new IncrementalMarkingSchedule(0, predictable_schedule));
 }
 
 // static
 std::unique_ptr<IncrementalMarkingSchedule>
-IncrementalMarkingSchedule::CreateWithZeroMinimumMarkedBytesPerStep(
-    bool predictable_schedule) {
+IncrementalMarkingSchedule::CreateWithMarkedBytesPerStepForTesting(
+    size_t min_marked_bytes_per_step, bool predictable_schedule) {
   return std::unique_ptr<IncrementalMarkingSchedule>(
-      new IncrementalMarkingSchedule(0, predictable_schedule));
+      new IncrementalMarkingSchedule(min_marked_bytes_per_step,
+                                     predictable_schedule));
 }
 
 IncrementalMarkingSchedule::IncrementalMarkingSchedule(

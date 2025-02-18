@@ -51,19 +51,15 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   static constexpr v8::base::TimeDelta kEstimatedMarkingTime =
       v8::base::TimeDelta::FromMilliseconds(500);
 
-  // Minimum number of bytes that should be marked during an incremental
-  // marking step.
-  static constexpr size_t kDefaultMinimumMarkedBytesPerIncrementalStep =
-      64 * 1024;
-
   // Step size used when no progress is being made. This step size should allow
   // for finalizing marking.
   static constexpr size_t kStepSizeWhenNotMakingProgress = 64 * 1024;
 
+  static std::unique_ptr<IncrementalMarkingSchedule> Create(
+      bool predictable_schedule = false);
   static std::unique_ptr<IncrementalMarkingSchedule>
-  CreateWithDefaultMinimumMarkedBytesPerStep(bool predictable_schedule = false);
-  static std::unique_ptr<IncrementalMarkingSchedule>
-  CreateWithZeroMinimumMarkedBytesPerStep(bool predictable_schedule = false);
+  CreateWithMarkedBytesPerStepForTesting(size_t min_marked_bytes_per_step,
+                                         bool predictable_schedule = false);
 
   IncrementalMarkingSchedule(const IncrementalMarkingSchedule&) = delete;
   IncrementalMarkingSchedule& operator=(const IncrementalMarkingSchedule&) =

@@ -42,7 +42,6 @@ struct MarkingConfig {
   StackState stack_state = StackState::kMayContainHeapPointers;
   MarkingType marking_type = MarkingType::kIncremental;
   IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
-  bool bailout_of_marking_when_ahead_of_schedule = false;
 };
 
 struct SweepingConfig {

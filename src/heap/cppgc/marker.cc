@@ -106,15 +106,6 @@ class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
   Handle handle_;
 };
 
-std::unique_ptr<::heap::base::IncrementalMarkingSchedule>
-MarkerBase::CreateDefaultMarkingSchedule(const MarkingConfig& config) {
-  return config.bailout_of_marking_when_ahead_of_schedule
-             ? ::heap::base::IncrementalMarkingSchedule::
-                   CreateWithZeroMinimumMarkedBytesPerStep()
-             : ::heap::base::IncrementalMarkingSchedule::
-                   CreateWithDefaultMinimumMarkedBytesPerStep();
-}
-
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
     MarkerBase* marker, StackState stack_state)
     : marker_(marker),
@@ -775,7 +766,7 @@ Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_),
-      schedule_(MarkerBase::CreateDefaultMarkingSchedule(config)),
+      schedule_(::heap::base::IncrementalMarkingSchedule::Create()),
       concurrent_marker_(heap_, marking_worklists_, *schedule_.get(),
                          platform_) {}
 
