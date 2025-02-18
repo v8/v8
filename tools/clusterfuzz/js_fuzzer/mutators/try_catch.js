@@ -40,6 +40,10 @@ function isFunctionBody(path) {
   return parent && isFunction(parent) && parent.body == path.node;
 }
 
+function hasFunctionDeclaration(body) {
+  return body.some((node) => babelTypes.isFunctionDeclaration(node));
+}
+
 function _rawTryCatch(node) {
   return babelTypes.tryStatement(
       node,
@@ -134,11 +138,11 @@ class AddTryCatchMutator extends mutator.Mutator {
           // Track original source location fraction in [0, 1).
           thisMutator.loc = 0;
           // Target probability for skipping try-catch.
-          thisMutator.skipProb = DEFAULT_SKIP_PROB;
+          thisMutator.skipProb = module.exports.DEFAULT_SKIP_PROB;
           // Target probability for not nesting try-catch.
-          thisMutator.toplevelProb = DEFAULT_TOPLEVEL_PROB;
+          thisMutator.toplevelProb = module.exports.DEFAULT_TOPLEVEL_PROB;
           // Maybe deviate from target probability for the entire test.
-          if (random.choose(IGNORE_DEFAULT_PROB)) {
+          if (random.choose(module.exports.IGNORE_DEFAULT_PROB)) {
             thisMutator.skipProb = random.uniform(0, 0.5);
             thisMutator.toplevelProb = random.uniform(0, 1);
             thisMutator.annotate(
@@ -166,9 +170,12 @@ class AddTryCatchMutator extends mutator.Mutator {
         // We only do this with the lower top-level wrapping probability and
         // don't provide an exit() function here. I.e. if we did descent into
         // the child nodes, we don't additionally wrap the body.
+        // Don't wrap if there's a nested function declaration in the body as
+        // this might break legacy scope compatibility rules.
         if (isFunctionBody(path) &&
             path.node.body &&
-            path.node.body.length) {
+            path.node.body.length &&
+            !hasFunctionDeclaration(path.node.body)) {
           thisMutator.callWithProb(path, replaceBlockStatementAndSkip);
         }
       },
@@ -224,6 +231,9 @@ class AddTryCatchMutator extends mutator.Mutator {
 }
 
 module.exports = {
+  DEFAULT_SKIP_PROB: DEFAULT_SKIP_PROB,
+  DEFAULT_TOPLEVEL_PROB: DEFAULT_TOPLEVEL_PROB,
+  IGNORE_DEFAULT_PROB: IGNORE_DEFAULT_PROB,
   AddTryCatchMutator: AddTryCatchMutator,
   wrapTryCatch: wrapTryCatch,
 }

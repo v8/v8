@@ -23,10 +23,10 @@ const helpers = require('./helpers.js');
 const random = require('../random.js');
 const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
+const tryCatch = require('../mutators/try_catch.js');
 const variableMutator = require('../mutators/variable_mutator.js');
 
 const {CrossOverMutator} = require('../mutators/crossover_mutator.js');
-const {AddTryCatchMutator} = require('../mutators/try_catch.js');
 
 const sandbox = sinon.createSandbox();
 
@@ -308,7 +308,7 @@ describe('Regression tests', () => {
 
     // Try-catch is not helpful for reading the test output.
     const stub = sandbox.stub(
-        AddTryCatchMutator.prototype, "mutate").returns(undefined);
+        tryCatch.AddTryCatchMutator.prototype, "mutate").returns(undefined);
 
     // Maximum variable mutations.
     this.settings['MUTATE_VARIABLES'] = 1.0;
@@ -319,6 +319,24 @@ describe('Regression tests', () => {
         this.settings, 'test_data/regress/empty_db');
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('loop_mutations_expected.js', mutated);
+  });
+
+  it('does not block-wrap nested functions', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Maximum top-level wrapping and no skipping try-catch to
+    // deterministically try to wrap an entire function block.
+    sandbox.stub(tryCatch, 'DEFAULT_SKIP_PROB').value(0.0);
+    sandbox.stub(tryCatch, 'DEFAULT_TOPLEVEL_PROB').value(1.0);
+    sandbox.stub(tryCatch, 'IGNORE_DEFAULT_PROB').value(0.0);
+
+    const source = helpers.loadTestData('regress/legacy_scope/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/legacy_scope/expected.js', mutated);
   });
 });
 
