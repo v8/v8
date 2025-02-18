@@ -4454,6 +4454,7 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
         cases(cases),
         default_case(default_case) {}
 
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
   void PrintOptions(std::ostream& os) const;
   size_t hash_value(HashingStrategy strategy = HashingStrategy::kDefault) const;
   auto options() const { return std::tuple{cases, default_case, default_hint}; }

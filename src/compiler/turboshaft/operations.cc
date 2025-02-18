@@ -1137,6 +1137,15 @@ void SwitchOp::PrintOptions(std::ostream& os) const {
   os << " default: " << default_case << ']';
 }
 
+void SwitchOp::Validate(const Graph& graph) const {
+  // Checking that there are no duplicated cases.
+  std::unordered_set<int> cases_set;
+  for (Case cas : cases) {
+    DCHECK(!cases_set.contains(cas.value));
+    cases_set.insert(cas.value);
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
   switch (kind) {
     case ObjectIsOp::Kind::kArrayBufferView:
