@@ -496,8 +496,9 @@ class V8_EXPORT_PRIVATE UsePosition final
   UsePositionHintType hint_type() const {
     return HintTypeField::decode(flags_);
   }
-  bool HasHint() const;
-  bool HintRegister(int* register_code) const;
+  bool HasHint(const RegisterConfiguration* config, RegisterKind mode) const;
+  bool HintRegister(const RegisterConfiguration* config, RegisterKind mode,
+                    int* register_code) const;
   void SetHint(UsePosition* use_pos);
   void ResolveHint(UsePosition* use_pos);
   bool IsResolved() const {
@@ -868,7 +869,8 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Returns false when no register is hinted, otherwise sets register_index.
   // Uses {current_hint_position_} as a cache, and tries to update it.
-  bool RegisterFromFirstHint(int* register_index);
+  bool RegisterFromFirstHint(const RegisterConfiguration* config,
+                             RegisterKind mode, int* register_index);
 
   UsePosition* current_hint_position() const {
     return positions_span_[current_hint_position_index_];
