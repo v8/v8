@@ -68,8 +68,7 @@ class BlockingCompilationJob : public TurbofanCompilationJob {
 }  // namespace
 
 TEST_F(OptimizingCompileDispatcherTest, Construct) {
-  OptimizingCompileTaskExecutor task_executor(
-      i_isolate()->IsGeneratingEmbeddedBuiltins());
+  OptimizingCompileTaskExecutor task_executor;
   OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
@@ -81,8 +80,7 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   IsCompiledScope is_compiled_scope;
   ASSERT_TRUE(Compiler::Compile(i_isolate(), fun, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope));
-  OptimizingCompileTaskExecutor task_executor(
-      i_isolate()->IsGeneratingEmbeddedBuiltins());
+  OptimizingCompileTaskExecutor task_executor;
   OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
   OptimizingCompileDispatcher* const original =
