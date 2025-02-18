@@ -111,3 +111,20 @@ luci.cq_group(
         timeout_weight = 4,
     ),
 )
+
+luci.cq_group(
+    name = "v8-chromium-branch-cq",
+    watch = cq.refset(
+        repo = "https://chromium.googlesource.com/v8/v8",
+        refs = [
+            "refs/heads/chromium/.+",
+        ],
+    ),
+    retry_config = cq.retry_config(
+        single_quota = 2,
+        global_quota = 4,
+        failure_weight = 2,
+        transient_failure_weight = 1,
+        timeout_weight = 4,
+    ),
+)

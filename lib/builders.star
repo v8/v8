@@ -24,6 +24,13 @@ def v8_basic_builder(defaults, **kwargs):
             cq_group = "v8-branch-cq",
             **cq_branch_properties
         )
+    cq_chromium_branch_properties = kwargs.pop("cq_chromium_branch_properties", None)
+    if cq_chromium_branch_properties != None:
+        luci.cq_tryjob_verifier(
+            kwargs["name"],
+            cq_group = "v8-chromium-branch-cq",
+            **cq_chromium_branch_properties
+        )
     properties = dict(kwargs.pop("properties", {}))
 
     # TODO(https://crbug.com/1372352): Temporary name property for investigation.
@@ -178,6 +185,7 @@ def presubmit_builder(
         bucket,
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
+        cq_chromium_branch_properties = CQ.NONE,
         timeout = 8 * 60,
         console = None):
     try_builder(
@@ -185,6 +193,7 @@ def presubmit_builder(
         bucket = bucket,
         cq_properties = cq_properties,
         cq_branch_properties = cq_branch_properties,
+        cq_chromium_branch_properties = cq_chromium_branch_properties,
         executable = "recipe:run_presubmit",
         dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
         execution_timeout = timeout + 2 * 60,

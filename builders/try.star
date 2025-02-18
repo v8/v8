@@ -13,6 +13,7 @@ presubmit_builder(
     "try",
     cq_properties = CQ.BLOCK_NO_REUSE,
     cq_branch_properties = CQ.BLOCK_NO_REUSE,
+    cq_chromium_branch_properties = CQ.BLOCK_NO_REUSE,
 )
 
 try_builder(
