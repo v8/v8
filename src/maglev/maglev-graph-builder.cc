@@ -2678,7 +2678,8 @@ size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
       // help us elide the Select.
       if (max_depth == 0) return 0;
       auto phi = string->Cast<Phi>();
-      if (phi->is_loop_phi() && phi->is_unmerged_loop_phi()) {
+      if (phi->input_count() == 0 ||
+          (phi->is_loop_phi() && phi->is_unmerged_loop_phi())) {
         return 0;
       }
       size_t overall_min_length =
@@ -5393,6 +5394,18 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
     return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
                                                       store_mode);
   } else {
+    // Detect stores that would create old-to-new references and pretenure the
+    // value.
+    if (v8_flags.maglev_pretenure_store_values) {
+      if (auto alloc = object->TryCast<InlinedAllocation>()) {
+        if (alloc->allocation_block()->allocation_type() ==
+            AllocationType::kOld) {
+          if (auto value_alloc = value->TryCast<InlinedAllocation>()) {
+            value_alloc->allocation_block()->Pretenure();
+          }
+        }
+      }
+    }
     return AddNewNode<StoreTaggedFieldWithWriteBarrier>({object, value}, offset,
                                                         store_mode);
   }

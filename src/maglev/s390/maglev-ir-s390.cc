@@ -134,7 +134,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
 }
 
 void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block());
+  UseRegister(allocation_block_input());
   if (offset() == 0) {
     DefineSameAsFirst(this);
   } else {
@@ -146,7 +146,7 @@ void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   if (offset() != 0) {
     __ lay(ToRegister(result()),
-           MemOperand(ToRegister(allocation_block()), offset()));
+           MemOperand(ToRegister(allocation_block_input()), offset()));
   }
 }
 

@@ -905,6 +905,30 @@ void InlinedAllocation::VerifyInputs(
   CheckValueInputIs(this, 0, Opcode::kAllocationBlock, graph_labeller);
 }
 
+AllocationBlock* InlinedAllocation::allocation_block() {
+  return allocation_block_input().node()->Cast<AllocationBlock>();
+}
+
+void AllocationBlock::Pretenure() {
+  DCHECK(v8_flags.maglev_pretenure_store_values);
+  if (allocation_type_ == AllocationType::kOld) return;
+  allocation_type_ = AllocationType::kOld;
+  for (auto alloc : allocation_list_) {
+    alloc->object()->ForEachDeoptInput([&](ValueNode* value) {
+      if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
+        next_alloc->allocation_block()->Pretenure();
+      } else if (auto phi = value->TryCast<Phi>()) {
+        for (int i = 0; i < phi->input_count(); ++i) {
+          if (auto phi_alloc =
+                  phi->input(i).node()->TryCast<InlinedAllocation>()) {
+            phi_alloc->allocation_block()->Pretenure();
+          }
+        }
+      }
+    });
+  }
+}
+
 // ---
 // Reify constants
 // ---

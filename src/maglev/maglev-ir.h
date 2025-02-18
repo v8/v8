@@ -5864,7 +5864,8 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
         object_(object),
         escape_analysis_result_(EscapeAnalysisResult::kUnknown) {}
 
-  Input& allocation_block() { return input(0); }
+  Input& allocation_block_input() { return input(0); }
+  AllocationBlock* allocation_block();
 
   static constexpr OpProperties kProperties = OpProperties::NotIdempotent();
   static constexpr
@@ -5966,6 +5967,8 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     allocation_list_.Add(alloc);
     size_ += alloc->size();
   }
+
+  void Pretenure();
 
  private:
   AllocationType allocation_type_;

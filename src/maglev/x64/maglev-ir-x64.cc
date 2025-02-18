@@ -27,7 +27,7 @@ namespace maglev {
 // ---
 
 void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block());
+  UseRegister(allocation_block_input());
   if (offset() == 0) {
     DefineSameAsFirst(this);
   } else {
@@ -39,7 +39,7 @@ void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   if (offset() != 0) {
     __ leaq(ToRegister(result()),
-            Operand(ToRegister(allocation_block()), offset()));
+            Operand(ToRegister(allocation_block_input()), offset()));
   }
 }
 

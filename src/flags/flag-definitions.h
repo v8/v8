@@ -586,6 +586,9 @@ DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_BOOL(maglev_cons_string_elision, false,
             "Native support for cons strings and their elision in maglev.")
+DEFINE_BOOL(maglev_pretenure_store_values, false,
+            "Recursively pretenure values which are stored into pretenured "
+            "allocation sites.")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
