@@ -1533,7 +1533,7 @@ DEFINE_EXPERIMENTAL_FEATURE(turbolev, "use Maglev as a frontend for Turboshaft")
 DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 
 DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
-DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
+DEFINE_WEAK_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 
 DEFINE_BOOL(
     typed_array_length_loading, true,
