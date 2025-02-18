@@ -31,7 +31,10 @@ namespace maglev {
 
 namespace {
 
-int IntWidth(int val) { return std::ceil(std::log10(val + 1)); }
+int IntWidth(int val) {
+  if (val == -1) return 2;
+  return std::ceil(std::log10(val + 1));
+}
 
 int MaxIdWidth(MaglevGraphLabeller* graph_labeller, NodeIdT max_node_id,
                int padding_adjustement = 0) {
