@@ -180,6 +180,10 @@ void IsolateGroup::Release() {
     code_pointer_table_.TearDown();
 #endif  // V8_ENABLE_SANDBOX
 
+    // Reset before `reservation_` for pointer compression but disabled external
+    // code space.
+    code_range_.reset();
+
 #ifdef V8_COMPRESS_POINTERS
     DCHECK(reservation_.IsReserved());
     reservation_.Free();
