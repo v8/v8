@@ -103,7 +103,8 @@ class MarkCompactCollector final {
   // Returns whether compaction is running.
   bool StartCompaction(StartCompactionMode mode);
 
-  void StartMarking();
+  void StartMarking(
+      std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule = {});
 
   static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
     return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();

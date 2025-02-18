@@ -276,6 +276,8 @@ class UnifiedHeapConservativeMarkingVisitor final
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
   UnifiedHeapMarker(Heap* v8_heap, cppgc::internal::HeapBase& cpp_heap,
+                    std::shared_ptr<::heap::base::IncrementalMarkingSchedule>
+                        incremental_schedule,
                     cppgc::Platform* platform,
                     cppgc::internal::MarkingConfig config);
 
@@ -298,6 +300,24 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
     return conservative_marking_visitor_;
   }
 
+  void ScheduleIncrementalMarkingTask() final {
+    if (v8_flags.incremental_marking_unified_schedule) {
+      // Not using stand-alone task from CppHeap.
+      return;
+    }
+    MarkerBase::ScheduleIncrementalMarkingTask();
+  }
+
+  void AdvanceMarkingOnAllocationImpl() final {
+    if (v8_flags.incremental_marking_unified_schedule) {
+      mutator_unified_heap_marking_state_.heap()
+          ->incremental_marking()
+          ->AdvanceOnAllocation();
+      return;
+    }
+    MarkerBase::AdvanceMarkingOnAllocationImpl();
+  }
+
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }
 
@@ -317,14 +337,15 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
   MutatorUnifiedHeapMarkingVisitor marking_visitor_;
   UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
-  std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
+  std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
   UnifiedHeapConcurrentMarker concurrent_marker_;
 };
 
-UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
-                                     cppgc::internal::HeapBase& heap,
-                                     cppgc::Platform* platform,
-                                     cppgc::internal::MarkingConfig config)
+UnifiedHeapMarker::UnifiedHeapMarker(
+    Heap* v8_heap, cppgc::internal::HeapBase& heap,
+    std::shared_ptr<::heap::base::IncrementalMarkingSchedule>
+        incremental_schedule,
+    cppgc::Platform* platform, cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
       mutator_unified_heap_marking_state_(v8_heap, nullptr,
                                           config.collection_type),
@@ -332,12 +353,12 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                        mutator_unified_heap_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_),
-      // TODO(391118563): Allow for reusing the V8 schedule to create one
-      // unified schedule for JS and C++.
-      schedule_(::heap::base::IncrementalMarkingSchedule::Create()),
-      concurrent_marker_(heap_, v8_heap, marking_worklists_, *schedule_.get(),
+      schedule_(std::move(incremental_schedule)),
+      concurrent_marker_(heap_, v8_heap, marking_worklists_, schedule(),
                          platform_, mutator_unified_heap_marking_state_,
-                         config.collection_type) {}
+                         config.collection_type) {
+  DCHECK_NOT_NULL(schedule_);
+}
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const GCCycle& cppgc_event) {
@@ -733,8 +754,10 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
       v8_flags.decommit_pooled_pages);
 }
 
-void CppHeap::InitializeMarking(CollectionType collection_type,
-                                GarbageCollectionFlags gc_flags) {
+void CppHeap::InitializeMarking(
+    CollectionType collection_type,
+    std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule,
+    GarbageCollectionFlags gc_flags) {
   DCHECK(!collection_type_);
 
   if (collection_type == CollectionType::kMinor) {
@@ -790,9 +813,15 @@ void CppHeap::InitializeMarking(CollectionType collection_type,
     compactor_.InitializeIfShouldCompact(marking_config.marking_type,
                                          marking_config.stack_state);
   }
+
+  if (!schedule) {
+    schedule =
+        ::heap::base::IncrementalMarkingSchedule::Create(v8_flags.predictable);
+  }
+
   marker_ = std::make_unique<UnifiedHeapMarker>(
-      isolate_ ? isolate()->heap() : nullptr, AsBase(), platform_.get(),
-      marking_config);
+      isolate_ ? isolate()->heap() : nullptr, AsBase(), schedule,
+      platform_.get(), marking_config);
 }
 
 namespace {
@@ -819,6 +848,11 @@ void CppHeap::StartMarking() {
   }
   marker_->StartMarking();
   marking_done_ = false;
+}
+
+size_t CppHeap::last_bytes_marked() const {
+  DCHECK(TracingInitialized());
+  return TracingInitialized() ? marker_->last_bytes_marked() : 0;
 }
 
 bool CppHeap::AdvanceMarking(v8::base::TimeDelta max_duration,
@@ -1079,7 +1113,8 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
     // Perform an atomic GC, with starting incremental/concurrent marking and
     // immediately finalizing the garbage collection.
     if (!IsMarking()) {
-      InitializeMarking(collection_type, GarbageCollectionFlagValues::kForced);
+      InitializeMarking(collection_type, nullptr,
+                        GarbageCollectionFlagValues::kForced);
       StartMarking();
     }
     EnterFinalPause(stack_state);
@@ -1108,7 +1143,7 @@ void CppHeap::StartIncrementalGarbageCollectionForTesting() {
   DCHECK_NULL(isolate_);
   if (IsMarking()) return;
   force_incremental_marking_for_testing_ = true;
-  InitializeMarking(CollectionType::kMajor,
+  InitializeMarking(CollectionType::kMajor, nullptr,
                     GarbageCollectionFlagValues::kForced);
   StartMarking();
   force_incremental_marking_for_testing_ = false;

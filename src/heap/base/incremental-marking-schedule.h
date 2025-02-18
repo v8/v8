@@ -65,10 +65,12 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   IncrementalMarkingSchedule& operator=(const IncrementalMarkingSchedule&) =
       delete;
 
-  // Notifies the schedule that incremental marking has been started.
+  // Notifies the schedule that incremental marking has been started. Can be
+  // called multiple times and is a nop after the first notification.
   void NotifyIncrementalMarkingStart();
 
-  // Notifies the schedule that concurrent marking has been started.
+  // Notifies the schedule that concurrent marking has been started. Can be
+  // called multiple times and is a nop after the first notification.
   void NotifyConcurrentMarkingStart();
 
   // Adds or removes bytes marked on the mutator thread. Must be called from the
