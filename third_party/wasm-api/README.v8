@@ -4,7 +4,7 @@ URL: https://github.com/WebAssembly/wasm-c-api/
 Version: N/A
 Revision: debd0908627e3028b1aa460a4934732c2c3b00a6
 Date: 2025-01-17
-License: Apache 2.0
+License: Apache-2.0
 License File: LICENSE
 Security Critical: yes
 Shipped: yes
