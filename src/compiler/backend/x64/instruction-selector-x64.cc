@@ -88,6 +88,8 @@ bool LhsIsNotOnlyConstant(turboshaft::Graph* graph,
 
 }  // namespace
 
+// TODO(dmercadier): consider taking a DisplacementMode as input so that we can
+// be more permissive towards min_int.
 bool ValueFitsIntoImmediate(int64_t value) {
   // int32_t min will overflow if displacement mode is kNegativeDisplacement.
   constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;

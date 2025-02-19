@@ -690,7 +690,8 @@ v8_source_set("v8_unittests_sources") {
       "assembler/macro-assembler-ia32-unittest.cc",
     ]
     if (v8_enable_turbofan) {
-      sources += [ "compiler/ia32/instruction-selector-ia32-unittest.cc" ]
+      sources +=
+          [ "compiler/ia32/turboshaft-instruction-selector-ia32-unittest.cc" ]
     }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [

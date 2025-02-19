@@ -973,6 +973,8 @@ class MachineOptimizationReducer : public Next {
             // HeapObject & 1 => 1  ("& 1" is a Smi-check)
             if (TryMatchHeapObject(left)) {
               return __ WordConstant(1, rep);
+            } else if (__ Get(left).template Is<Opmask::kSmiConstant>()) {
+              return __ WordConstant(0, rep);
             }
           }
 

@@ -1150,6 +1150,9 @@ TEST_F(TurboshaftInstructionSelectorTest, Int32Mul9BecomesLea) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
 }
 
+// TODO(dmercadier): copy all of the TurboshaftInstructionSelectorMultTest
+// unittests from IA32 (eg, Int32Mul9AddBecomesLea), and make sure they work.
+
 // -----------------------------------------------------------------------------
 // Word32ShiftLeft.
 

@@ -243,6 +243,7 @@ using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
 using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
 using kExternalConstant = ConstantMask::For<ConstantOp::Kind::kExternal>;
 using kHeapConstant = ConstantMask::For<ConstantOp::Kind::kHeapObject>;
+using kSmiConstant = ConstantMask::For<ConstantOp::Kind::kSmi>;
 
 using ProjectionMask = MaskBuilder<ProjectionOp, FIELD(ProjectionOp, index)>;
 
