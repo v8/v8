@@ -771,24 +771,17 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
+                                   Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.AcquireScratch();
-  Register feedback_cell = scratch;
   Register budget = temps.AcquireScratch();
-  __ LoadU64(feedback_cell,
-             MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedField(
-      feedback_cell,
-      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
   __ LoadU32(budget, FieldMemOperand(feedback_cell,
                                      FeedbackCell::kInterruptBudgetOffset));
   __ SubS32(budget, Operand(amount));
   __ StoreU32(budget, FieldMemOperand(feedback_cell,
                                       FeedbackCell::kInterruptBudgetOffset));
   ZoneLabelRef done(masm);
-  __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type,
-                      scratch);
+  __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);
   __ bind(*done);
 }
 
@@ -796,22 +789,23 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
-  set_temporaries_needed(1);
+  UseRegister(feedback_cell());
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kLoop,
-                                amount());
+  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+                                ReduceInterruptBudgetType::kLoop, amount());
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
+  UseRegister(feedback_cell());
   set_temporaries_needed(1);
 }
 void ReduceInterruptBudgetForReturn::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kReturn,
-                                amount());
+  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+                                ReduceInterruptBudgetType::kReturn, amount());
 }
 
 // ---
