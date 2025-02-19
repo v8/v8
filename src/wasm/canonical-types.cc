@@ -581,6 +581,7 @@ bool TypeCanonicalizer::IsArray(CanonicalTypeIndex index) const {
 
 CanonicalTypeIndex TypeCanonicalizer::FindIndex_Slow(
     const CanonicalSig* sig) const {
+  base::MutexGuard mutex_guard(&mutex_);
   // TODO(jkummerow): Make this faster. The plan is to allocate an extra
   // slot in the Zone immediately preceding each CanonicalSig, so we can
   // get from the sig's address to that slot's address via pointer arithmetic.
