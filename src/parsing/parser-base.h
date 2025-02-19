@@ -1206,17 +1206,6 @@ class ParserBase {
          !scanner()->HasLineTerminatorAfterNextNext() &&
          IfNextUsingKeyword(PeekAheadAhead())));
   }
-  FunctionState* AddOneSuspendPointIfBlockContainsAwaitUsing(
-      Scope* scope, FunctionState* function_state) {
-    if (scope->has_await_using_declaration()) {
-      // Since, we handle async disposal of resources by promise chaining, just
-      // one suspend point is needed at the end of the block that contains at
-      // least one `await using`. This suspend point will be placed in the
-      // `finally` block of rewritten block.
-      function_state->AddSuspend();
-    }
-    return function_state;
-  }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
   }
@@ -4437,9 +4426,12 @@ void ParserBase<Impl>::ParseVariableDeclarations(
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
 
+  Scope* target_scope = scope();
+
   switch (peek()) {
     case Token::kVar:
       parsing_result->descriptor.mode = VariableMode::kVar;
+      target_scope = scope()->GetDeclarationScope();
       Consume(Token::kVar);
       break;
     case Token::kConst:
@@ -4475,6 +4467,9 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());
       DCHECK(peek() != Token::kLeftBracket && peek() != Token::kLeftBrace);
       parsing_result->descriptor.mode = VariableMode::kAwaitUsing;
+      if (!target_scope->has_await_using_declaration()) {
+        function_state_->AddSuspend();
+      }
       break;
     default:
       UNREACHABLE();  // by current callers
@@ -4483,9 +4478,6 @@ void ParserBase<Impl>::ParseVariableDeclarations(
 
   VariableDeclarationParsingScope declaration(
       impl(), parsing_result->descriptor.mode, names);
-  Scope* target_scope = IsLexicalVariableMode(parsing_result->descriptor.mode)
-                            ? scope()
-                            : scope()->GetDeclarationScope();
 
   auto declaration_it = target_scope->declarations()->end();
 
@@ -4857,8 +4849,6 @@ void ParserBase<Impl>::ParseFunctionBody(
         ParseStatementList(&inner_body, closing_token);
         if (IsAsyncFunction(kind)) {
           inner_scope->set_end_position(end_position());
-          function_state_ = AddOneSuspendPointIfBlockContainsAwaitUsing(
-              inner_scope, function_state_);
         }
       }
       if (IsDerivedConstructor(kind)) {
@@ -5682,8 +5672,6 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
-  function_state_ =
-      AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
 }
 
 template <typename Impl>
@@ -5894,8 +5882,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
     impl()->RecordBlockSourceRange(body, end_pos);
     body->set_scope(scope()->FinalizeBlockScope());
-    function_state_ =
-        AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
   }
 
   body->InitializeStatements(statements, zone());
@@ -6393,8 +6379,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     scope()->set_end_position(end_pos);
     impl()->RecordSwitchStatementSourceRange(switch_statement, end_pos);
     Scope* switch_scope = scope()->FinalizeBlockScope();
-    function_state_ =
-        AddOneSuspendPointIfBlockContainsAwaitUsing(scope(), function_state_);
     if (switch_scope != nullptr) {
       return impl()->RewriteSwitchStatement(switch_statement, switch_scope);
     }
