@@ -291,6 +291,11 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
       "array");
 
   uint32_t length = src->Length();
+  if (length == 0) {
+    // Early return here to avoid a cast error below, as the EmptyFixedArray
+    // cannot be cast to a FixedDoubleArray.
+    return true;
+  }
   if (length > max_length) {
     return false;
   }
