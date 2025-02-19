@@ -343,7 +343,7 @@ TEST(FlagContradictionsTest, ResolvesNegContradictions) {
   FlagList::EnforceFlagImplications();
   CHECK(v8_flags.fuzzing);
   CHECK(!v8_flags.turbofan);
-  CHECK(v8_flags.always_osr_from_maglev);
+  CHECK(!v8_flags.always_osr_from_maglev);
   CHECK(!v8_flags.osr_from_maglev);
 #endif
 }
