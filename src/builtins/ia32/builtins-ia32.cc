@@ -3485,6 +3485,10 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wrapper_buffer,
   // the parent frame.
   __ mov(original_fp, ebp);
   LoadTargetJumpBuffer(masm, target_continuation, wasm::JumpBuffer::Suspended);
+  // Return address slot. The builtin itself returns by switching to the parent
+  // jump buffer and does not actually use this slot, but it is read by the
+  // profiler.
+  __ Push(Immediate(0));
   // Push the loaded ebp. We know it is null, because there is no frame yet,
   // so we could also push 0 directly. In any case we need to push it, because
   // this marks the base of the stack segment for the stack frame iterator.

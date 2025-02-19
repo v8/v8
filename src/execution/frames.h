@@ -1850,11 +1850,6 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   void AdvanceOneFrame();
 
   bool IsValidStackAddress(Address addr) const {
-#if V8_ENABLE_WEBASSEMBLY
-    for (const std::unique_ptr<wasm::StackMemory>& stack : wasm_stacks_) {
-      if (stack->Contains(addr)) return true;
-    }
-#endif
     return low_bound_ <= addr && addr <= high_bound_;
   }
   bool IsValidState(const StackFrame::State& frame) const;
