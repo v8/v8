@@ -5166,7 +5166,7 @@ void StringConcat::GenerateCode(MaglevAssembler* masm,
 void ConsStringMap::SetValueLocationConstraints() {
   UseRegister(lhs());
   UseRegister(rhs());
-  DefineAsRegister(this);
+  DefineSameAsFirst(this);
 }
 void ConsStringMap::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
@@ -5175,23 +5175,60 @@ void ConsStringMap::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(lhs());
   Register right = ToRegister(rhs());
 
+  bool left_contains_one_byte_res_map =
+      lhs().node()->Is<RootConstant>() &&
+      lhs().node()->Cast<RootConstant>()->index() ==
+          RootIndex::kConsOneByteStringMap;
+
 #ifdef V8_STATIC_ROOTS
-  __ TestInt32AndJumpIfAnySet(left, InstanceTypeChecker::kTwoByteStringMapBit,
-                              &two_byte, Label::kNear);
-  __ TestInt32AndJumpIfAnySet(right, InstanceTypeChecker::kTwoByteStringMapBit,
-                              &two_byte, Label::kNear);
+  static_assert(InstanceTypeChecker::kOneByteStringMapBit == 0 ||
+                InstanceTypeChecker::kTwoByteStringMapBit == 0);
+  auto TestForTwoByte = [&](Register reg, Register second) {
+    if (InstanceTypeChecker::kOneByteStringMapBit == 0) {
+      // Two-byte is represented as 1: Check if either of them have the two-byte
+      // bit set
+      if (second != no_reg) {
+        __ OrInt32(reg, second);
+      }
+      __ TestInt32AndJumpIfAnySet(reg,
+                                  InstanceTypeChecker::kStringMapEncodingMask,
+                                  &two_byte, Label::kNear);
+    } else {
+      // One-byte is represented as 1: Check that both of them have the one-byte
+      // bit set
+      if (second != no_reg) {
+        __ AndInt32(reg, second);
+      }
+      __ TestInt32AndJumpIfAllClear(reg,
+                                    InstanceTypeChecker::kStringMapEncodingMask,
+                                    &two_byte, Label::kNear);
+    }
+  };
+  if (left_contains_one_byte_res_map) {
+    TestForTwoByte(right, no_reg);
+  } else {
+    TestForTwoByte(left, right);
+  }
 #else
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.AcquireScratch();
   static_assert(kTwoByteStringTag == 0);
-  __ LoadByte(scratch, FieldMemOperand(left, Map::kInstanceTypeOffset));
-  __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
-                                Label::kNear);
-  __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
-  __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
-                                Label::kNear);
+  if (left_contains_one_byte_res_map) {
+    __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
+    __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
+                                  Label::kNear);
+  } else {
+    __ LoadByte(left, FieldMemOperand(left, Map::kInstanceTypeOffset));
+    __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
+    __ AndInt32(scratch, left);
+    __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
+                                  Label::kNear);
+  }
 #endif  // V8_STATIC_ROOTS
-  __ LoadRoot(res, RootIndex::kConsOneByteStringMap);
+  DCHECK_EQ(left, res);
+  if (!left_contains_one_byte_res_map) {
+    __ LoadRoot(res, RootIndex::kConsOneByteStringMap);
+  }
   __ Jump(&ok, Label::kNear);
 
   __ bind(&two_byte);

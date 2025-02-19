@@ -554,6 +554,14 @@ inline void MaglevAssembler::OrInt32(Register reg, int mask) {
   orl(reg, Immediate(mask));
 }
 
+inline void MaglevAssembler::AndInt32(Register reg, Register other) {
+  andl(reg, other);
+}
+
+inline void MaglevAssembler::OrInt32(Register reg, Register other) {
+  orl(reg, other);
+}
+
 inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   shll(reg, Immediate(amount));
 }

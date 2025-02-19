@@ -2643,6 +2643,12 @@ ValueNode* MaglevGraphBuilder::BuildNewConsStringMap(ValueNode* left,
       right_info.result_map
           ? right_info.result_map
           : BuildLoadTaggedField(right, HeapObject::kMapOffset);
+  // Sort inputs for CSE. Move constants to the left since the instruction
+  // reuses the lhs input.
+  if (IsConstantNode(right_map->opcode()) ||
+      (!IsConstantNode(left_map->opcode()) && left > right)) {
+    std::swap(left, right);
+  }
   // TODO(olivf): Evaluate if using maglev controlflow to select the map could
   // be faster here.
   return AddNewNode<ConsStringMap>({left_map, right_map});
