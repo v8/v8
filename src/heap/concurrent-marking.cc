@@ -250,6 +250,9 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
     // current thread's cage base values are properly initialized.
     PtrComprCageAccessScope ptr_compr_cage_access_scope(
         concurrent_marking_->heap_->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available.
+    SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
 
     if (delegate->IsJoiningThread()) {
       // TRACE_GC is not needed here because the caller opens the right scope.
