@@ -69,12 +69,27 @@ struct PtrComprCageReservationParams
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK_EQ(isolate_count_, 0);
-  // If pointer compression is enabled but the external code space is disabled,
-  // the pointer cage's page allocator is used for the CodeRange, whose
-  // destructor calls it via VirtualMemory::Free.  Therefore we explicitly clear
-  // the code range here while we know the reservation still has a valid page
-  // allocator.
+
+#ifdef V8_ENABLE_LEAPTIERING
+  js_dispatch_table_.TearDown();
+#endif  // V8_ENABLE_LEAPTIERING
+
+#ifdef V8_ENABLE_SANDBOX
+  code_pointer_table_.TearDown();
+#endif  // V8_ENABLE_SANDBOX
+
+  // Reset before `reservation_` for pointer compression but disabled external
+  // code space.
   code_range_.reset();
+
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(reservation_.IsReserved());
+  reservation_.Free();
+#endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+  sandbox_->TearDown();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef V8_ENABLE_SANDBOX
@@ -168,31 +183,8 @@ void IsolateGroup::TearDownOncePerProcess() { ReleaseDefault(); }
 
 void IsolateGroup::Release() {
   DCHECK_LT(0, reference_count_.load());
-#ifdef V8_ENABLE_SANDBOX
-  Sandbox* sandbox = sandbox_;
-#endif
+
   if (--reference_count_ == 0) {
-#ifdef V8_ENABLE_LEAPTIERING
-    js_dispatch_table_.TearDown();
-#endif  // V8_ENABLE_LEAPTIERING
-
-#ifdef V8_ENABLE_SANDBOX
-    code_pointer_table_.TearDown();
-#endif  // V8_ENABLE_SANDBOX
-
-    // Reset before `reservation_` for pointer compression but disabled external
-    // code space.
-    code_range_.reset();
-
-#ifdef V8_COMPRESS_POINTERS
-    DCHECK(reservation_.IsReserved());
-    reservation_.Free();
-#endif  // V8_COMPRESS_POINTERS
-
-#ifdef V8_ENABLE_SANDBOX
-    sandbox->TearDown();
-#endif  // V8_ENABLE_SANDBOX
-
     delete this;
   }
 }
