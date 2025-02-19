@@ -1564,6 +1564,12 @@
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'test262', 'variant': 'code_serializer', 'shards': 3},
+      # Jit fuzzing.
+      # TODO(http://b/395032421): This is currently only enabled in CI to
+      # get a signal when it fails. If it does, we can also add it to:
+      # v8_linux64_dbg.
+      {'name': 'mjsunit', 'variant': 'jit_fuzzing'},
+      {'name': 'mjsunit', 'variant': 'jit_fuzzing_maglev'},
     ],
   },
   'V8 Linux64 - minor mc - debug': {

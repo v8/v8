@@ -2647,4 +2647,21 @@
   'maglev/regress-1407606': [SKIP],
 }],  # variant == stress_pinning_scavenger
 
+['variant in [jit_fuzzing, jit_fuzzing_maglev]', {
+  # Extremely slow tests.
+  'regress/wasm/regress-808848': [SKIP],
+  'shared-memory/*': [SKIP],
+  'typedarray-growablesharedarraybuffer-atomics': [SKIP],
+
+  # Hangs.
+  'wasm/futex': [SKIP],
+
+  # Slow tests.
+  'wasm/max-params': [PASS, SLOW],
+
+  # Negative tests are not supported, because we pass --no-fail.
+  'bugs/*': [SKIP],
+  'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
+}],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
+
 ]

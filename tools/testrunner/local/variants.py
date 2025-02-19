@@ -15,6 +15,16 @@ ALL_VARIANT_FLAGS = {
     "stress_regexp_jit": [["--regexp-tier-up-ticks=0"]],
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
     "jitless": [["--jitless", "--wasm-jitless-if-available-for-testing"]],
+    # Jit-fuzzing variants pass --no-fail as most test conditions are violated.
+    # We only look for dchecks and crashes. As a result, negative tests like
+    # in the bugs/* directory are not supported.
+    "jit_fuzzing": [["--fuzzing", "--jit-fuzzing", "--no-fail"]],
+    "jit_fuzzing_maglev": [[
+        "--fuzzing",
+        "--jit-fuzzing",
+        "--optimize-on-next-call-optimizes-to-maglev",
+        "--no-fail",
+    ]],
     "sparkplug": [["--sparkplug"]],
     "maglev": [["--maglev"]],
     "maglev_future": [["--maglev", "--maglev-future"]],
