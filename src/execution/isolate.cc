@@ -4458,6 +4458,9 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_->FinishTearDown();
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
+
+    delete optimizing_compile_task_executor_;
+    optimizing_compile_task_executor_ = nullptr;
   }
 
   // At this point there are no more background threads left in this isolate.
@@ -5691,8 +5694,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
 
     if (v8_flags.concurrent_builtin_generation) {
+      optimizing_compile_task_executor_ =
+          new OptimizingCompileTaskExecutor(IsGeneratingEmbeddedBuiltins());
       optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(
-          this, isolate_group_->optimizing_compile_task_executor());
+          this, optimizing_compile_task_executor_);
       optimizing_compile_dispatcher_->set_finalize(false);
     }
 
@@ -5720,8 +5725,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       v8_flags.turbo_profiling) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {
+    optimizing_compile_task_executor_ =
+        new OptimizingCompileTaskExecutor(IsGeneratingEmbeddedBuiltins());
     optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(
-        this, isolate_group_->optimizing_compile_task_executor());
+        this, optimizing_compile_task_executor_);
   }
 
   // Initialize before deserialization since collections may occur,
