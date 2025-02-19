@@ -971,8 +971,11 @@ inline void MaglevAssembler::LoadThinStringValue(Register result,
     TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
     LoadInstanceType(scratch, string);
-    AndInt32(scratch, kThinStringTag);
-    Assert(kEqual, AbortReason::kUnexpectedValue);
+    Label ok;
+    static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+    TestInt32AndJumpIfAnySet(scratch, kThinStringTagBit, &ok);
+    Abort(AbortReason::kUnexpectedValue);
+    bind(&ok);
   }
   LoadTaggedField(result, string, offsetof(ThinString, actual_));
 }
