@@ -1341,6 +1341,10 @@ class MaglevGraphBuilder {
     Print(value);
   }
 
+  ValueNode* GetFeedbackCell() {
+    return GetConstant(GetTopLevelCompilationUnit()->feedback_cell());
+  }
+
   ValueNode* GetClosure() const {
     return current_interpreter_frame_.get(
         interpreter::Register::function_closure());
@@ -2049,7 +2053,7 @@ class MaglevGraphBuilder {
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared,
-      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownJSFunction(
       compiler::JSFunctionRef function, ValueNode* new_target,
@@ -2060,23 +2064,23 @@ class MaglevGraphBuilder {
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared,
-      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
   bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared);
-  ReduceResult BuildEagerInlineCall(
-      ValueNode* context, ValueNode* function, ValueNode* new_target,
-      compiler::SharedFunctionInfoRef shared,
-      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
-      float call_frequency);
+  ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,
+                                    ValueNode* new_target,
+                                    compiler::SharedFunctionInfoRef shared,
+                                    compiler::FeedbackCellRef feedback_cell,
+                                    CallArguments& args, float call_frequency);
   MaybeReduceResult TryBuildInlineCall(
       ValueNode* context, ValueNode* function, ValueNode* new_target,
 #ifdef V8_ENABLE_LEAPTIERING
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared,
-      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ValueNode* BuildGenericCall(ValueNode* target, Call::TargetType target_type,
                               const CallArguments& args);
@@ -2093,7 +2097,7 @@ class MaglevGraphBuilder {
       JSDispatchHandle dispatch_handle,
 #endif
       compiler::SharedFunctionInfoRef shared,
-      compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+      compiler::FeedbackCellRef feedback_cell, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   MaybeReduceResult TryBuildCallKnownApiFunction(
       compiler::JSFunctionRef function, compiler::SharedFunctionInfoRef shared,

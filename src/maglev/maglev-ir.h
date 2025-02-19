@@ -10113,8 +10113,8 @@ class HandleNoHeapWritesInterrupt
 };
 
 class ReduceInterruptBudgetForLoop
-    : public FixedInputNodeT<0, ReduceInterruptBudgetForLoop> {
-  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForLoop>;
+    : public FixedInputNodeT<1, ReduceInterruptBudgetForLoop> {
+  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForLoop>;
 
  public:
   explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
@@ -10122,11 +10122,16 @@ class ReduceInterruptBudgetForLoop
     DCHECK_GT(amount, 0);
   }
 
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
   static constexpr OpProperties kProperties = OpProperties::DeferredCall() |
                                               OpProperties::LazyDeopt() |
                                               OpProperties::NotIdempotent();
 
   int amount() const { return amount_; }
+
+  Input& feedback_cell() { return input(0); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -10138,8 +10143,8 @@ class ReduceInterruptBudgetForLoop
 };
 
 class ReduceInterruptBudgetForReturn
-    : public FixedInputNodeT<0, ReduceInterruptBudgetForReturn> {
-  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForReturn>;
+    : public FixedInputNodeT<1, ReduceInterruptBudgetForReturn> {
+  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForReturn>;
 
  public:
   explicit ReduceInterruptBudgetForReturn(uint64_t bitfield, int amount)
@@ -10147,10 +10152,15 @@ class ReduceInterruptBudgetForReturn
     DCHECK_GT(amount, 0);
   }
 
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::NotIdempotent();
 
   int amount() const { return amount_; }
+
+  Input& feedback_cell() { return input(0); }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

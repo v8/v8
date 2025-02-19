@@ -21,17 +21,17 @@ MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
           MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
                                       function->shared())),
           MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
-                                      function->feedback_vector()))) {}
+                                      function->raw_feedback_cell()))) {}
 
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
     compiler::SharedFunctionInfoRef shared_function_info,
-    compiler::FeedbackVectorRef feedback_vector)
+    compiler::FeedbackCellRef feedback_cell)
     : info_(info),
       caller_(caller),
       shared_function_info_(shared_function_info),
       bytecode_(shared_function_info.GetBytecodeArray(broker())),
-      feedback_(feedback_vector),
+      feedback_cell_(feedback_cell),
       register_count_(bytecode_->register_count()),
       parameter_count_(bytecode_->parameter_count()),
       max_arguments_(bytecode_->max_arguments()),

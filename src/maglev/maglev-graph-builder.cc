@@ -8328,10 +8328,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
-  if (!feedback_vector) {
+  if (!feedback_cell.feedback_vector(broker())) {
     // TODO(verwaest): Soft deopt instead?
     TRACE_CANNOT_INLINE("it has not been compiled/run with feedback yet");
     return {};
@@ -8349,7 +8349,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   if (!CanInlineCall(shared, call_frequency)) return {};
   if (ShouldEagerInlineCall(shared)) {
     return BuildEagerInlineCall(context, function, new_target, shared,
-                                feedback_vector, args, call_frequency);
+                                feedback_cell, args, call_frequency);
   }
 
   // Should we inline call?
@@ -8364,7 +8364,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
     graph()->add_inlined_bytecode_size(bytecode.length());
     return BuildEagerInlineCall(context, function, new_target, shared,
-                                feedback_vector, args, call_frequency);
+                                feedback_cell, args, call_frequency);
   }
 
   TRACE_INLINING("  considering " << shared << " for inlining");
@@ -8373,11 +8373,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 #ifdef V8_ENABLE_LEAPTIERING
                                dispatch_handle,
 #endif
-                               shared, feedback_vector, args, feedback_source);
+                               shared, feedback_cell, args, feedback_source);
 
   // Create a new compilation unit.
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_vector.value());
+      zone(), compilation_unit_, shared, feedback_cell);
   auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
   // TODO(victorgomes): We could delay creating the compilation unit for every
   // candidate, if we InlinedArgumentsDeoptFrame didn't need to point to the
@@ -8400,7 +8400,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
     ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     float call_frequency) {
   DCHECK_EQ(args.mode(), CallArguments::kDefault);
 
@@ -8417,7 +8417,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
 
   // Create a new compilation unit.
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_vector.value());
+      zone(), compilation_unit_, shared, feedback_cell);
 
   // Propagate details.
   auto arguments_vector = GetArgumentsAsArrayOfValueNodes(shared, args);
@@ -10323,7 +10323,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 #ifdef V8_ENABLE_LEAPTIERING
         function.dispatch_handle(),
 #endif
-        shared, function.feedback_vector(broker()), args, feedback_source);
+        shared, function.raw_feedback_cell(broker()), args, feedback_source);
   }
   return res;
 }
@@ -10334,7 +10334,7 @@ CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   ValueNode* receiver = GetConvertReceiver(shared, args);
   size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
@@ -10358,22 +10358,21 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   if (v8_flags.maglev_inlining) {
     RETURN_IF_DONE(TryBuildInlineCall(context, function, new_target,
 #ifdef V8_ENABLE_LEAPTIERING
                                       dispatch_handle,
 #endif
-                                      shared, feedback_vector, args,
+                                      shared, feedback_cell, args,
                                       feedback_source));
   }
   return BuildCallKnownJSFunction(context, function, new_target,
 #ifdef V8_ENABLE_LEAPTIERING
                                   dispatch_handle,
 #endif
-                                  shared, feedback_vector, args,
-                                  feedback_source);
+                                  shared, feedback_cell, args, feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
@@ -10589,7 +10588,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
     JSDispatchHandle dispatch_handle,
 #endif
     compiler::SharedFunctionInfoRef shared,
-    compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
+    compiler::FeedbackCellRef feedback_cell, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   // Do not reduce calls to functions with break points.
   if (args.mode() != CallArguments::kDefault) {
@@ -10609,7 +10608,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
 #ifdef V8_ENABLE_LEAPTIERING
         dispatch_handle,
 #endif
-        shared, feedback_vector, args, feedback_source));
+        shared, feedback_cell, args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
@@ -10853,8 +10852,7 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
         fast_create_closure->feedback_cell().dispatch_handle(),
 #endif
         fast_create_closure->shared_function_info(),
-        fast_create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source);
+        fast_create_closure->feedback_cell(), args, feedback_source);
     RETURN_IF_DONE(result);
   } else if (CreateClosure* create_closure =
                  target_node->TryCast<CreateClosure>()) {
@@ -10863,9 +10861,8 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
 #ifdef V8_ENABLE_LEAPTIERING
         create_closure->feedback_cell().dispatch_handle(),
 #endif
-        create_closure->shared_function_info(),
-        create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source);
+        create_closure->shared_function_info(), create_closure->feedback_cell(),
+        args, feedback_source);
     RETURN_IF_DONE(result);
   }
 
@@ -13575,7 +13572,8 @@ ReduceResult MaglevGraphBuilder::VisitJumpLoop() {
   if (ShouldEmitInterruptBudgetChecks()) {
     int reduction = relative_jump_bytecode_offset *
                     v8_flags.osr_from_maglev_interrupt_scale_factor;
-    AddNewNode<ReduceInterruptBudgetForLoop>({}, reduction > 0 ? reduction : 1);
+    AddNewNode<ReduceInterruptBudgetForLoop>({GetFeedbackCell()},
+                                             reduction > 0 ? reduction : 1);
   } else {
     AddNewNode<HandleNoHeapWritesInterrupt>({});
   }
@@ -14352,7 +14350,7 @@ ReduceResult MaglevGraphBuilder::VisitReturn() {
   // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (ShouldEmitInterruptBudgetChecks() && relative_jump_bytecode_offset > 0) {
-    AddNewNode<ReduceInterruptBudgetForReturn>({},
+    AddNewNode<ReduceInterruptBudgetForReturn>({GetFeedbackCell()},
                                                relative_jump_bytecode_offset);
   }
 
