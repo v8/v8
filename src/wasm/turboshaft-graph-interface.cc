@@ -5913,17 +5913,36 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         BytecodeOffset(decoder->pc_offset()),
         compiler::OutputFrameStateCombine::Ignore(), function_info);
 
-    // TODO(mliedtke): For compile-time and memory reasons (huge deopt data), it
-    // might be beneficial to limit this to an arbitrary lower value.
-    size_t max_input_count =
-        std::numeric_limits<decltype(Operation::input_count)>::max();
-    // Int64 lowering might double the input count.
-    if (!Is64()) max_input_count /= 2;
-    if (builder.Inputs().size() >= max_input_count) {
-      // If there are too many inputs, we cannot create a valid FrameState.
-      // For simplicity reasons disable deopts completely for the rest of the
-      // function. (Note that this is an exceptional case that should not be
-      // relevant for any real-world application.)
+    // Limit the maximum amount of inputs to a deopt node to a reasonably low
+    // value. For each of these values extra metadata needs to be stored for the
+    // deoptimizer while the performance upside of a deoptimization node doesn't
+    // scale with the amount of inputs, so there are diminishing returns.
+    constexpr size_t max_deopt_input_count = 500;
+    // We don't want to include the instruction selector just for this limit.
+    constexpr size_t max_isel_input_count =
+        std::numeric_limits<uint16_t>::max();
+    // Note that the instruction selector has limits on the maximum amount of
+    // inputs for an instruction while nested FrameStates are unfolded, so the
+    // total number of inputs after unfolding needs to be lower than
+    // uint16_t::max (adding a random 42 here for additional "lower-level"
+    // inputs that might not be accounted for in the FrameState inputs.)
+    // The number of inputs might be doubled by the Int64Lowering on 32 bit
+    // platforms.
+    static_assert((max_deopt_input_count * 2 + 42) *
+                      InliningTree::kMaxInliningNestingDepth <
+                  max_isel_input_count);
+    if (builder.Inputs().size() >= max_deopt_input_count) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlining as the deoptimization FrameState takes too many inputs "
+            "(%zu vs. %zu)]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)",
+            builder.Inputs().size(), max_deopt_input_count);
+      }
+      // If there are too many inputs, disable deopts completely for the rest of
+      // the function as the FrameState could be needed by other deoptimization
+      // points in case of nested inlining.
       disable_deopts();
       return OpIndex::Invalid();
     }

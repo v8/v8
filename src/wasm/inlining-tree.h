@@ -85,6 +85,13 @@ class InliningTree : public ZoneObject {
   // a 6-bit bitfield in Turboshaft IR, which we should revisit.
   static constexpr int kMaxInlinedCount = 60;
 
+  // Limit the nesting depth of inlining. Inlining decisions are based on call
+  // counts. A small function with high call counts that is called recursively
+  // would be inlined until all budget is used.
+  // TODO(14108): This still might not lead to ideal results. Other options
+  // could be explored like penalizing nested inlinees.
+  static constexpr uint32_t kMaxInliningNestingDepth = 7;
+
   base::Vector<CasesPerCallSite> function_calls() { return function_calls_; }
   base::Vector<bool> has_non_inlineable_targets() {
     return has_non_inlineable_targets_;
@@ -190,12 +197,6 @@ class InliningTree : public ZoneObject {
   base::Vector<CasesPerCallSite> function_calls_{};
   base::Vector<bool> has_non_inlineable_targets_{};
 
-  // Limit the nesting depth of inlining. Inlining decisions are based on call
-  // counts. A small function with high call counts that is called recursively
-  // would be inlined until all budget is used.
-  // TODO(14108): This still might not lead to ideal results. Other options
-  // could be explored like penalizing nested inlinees.
-  static constexpr uint32_t kMaxInliningNestingDepth = 7;
   uint32_t depth_;
 
   // For tracing.
