@@ -3359,6 +3359,24 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
         static_cast<int>(std::min(size_t{kMaxInt}, zone_bytes)));
   }
 
+  // Add a "0 deopts" sample for the first tier-up of a function that contains
+  // any deopt data. This indicates a baseline of how many functions can
+  // potentially deopt, so that the statistics of having x functions that
+  // deopted at least once becomes more meaningful.
+  if (counters && !result.deopt_data.empty()) {
+    DCHECK(v8_flags.wasm_deopt);
+    bool is_first_tierup = false;
+    {
+      const wasm::TypeFeedbackStorage& feedback = module->type_feedback;
+      base::MutexGuard mutex_guard(&feedback.mutex);
+      is_first_tierup = !feedback.deopt_count_for_function.contains(
+          compilation_data.func_index);
+    }
+    if (is_first_tierup) {
+      counters->wasm_deopts_per_function()->AddSample(0);
+    }
+  }
+
   DCHECK(result.succeeded());
   return result;
 }
