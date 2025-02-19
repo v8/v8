@@ -396,8 +396,7 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
 
 }  // namespace
 
-void MarkCompactCollector::StartMarking(
-    std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule) {
+void MarkCompactCollector::StartMarking() {
   // The state for background thread is saved here and maintained for the whole
   // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
   use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
@@ -414,9 +413,10 @@ void MarkCompactCollector::StartMarking(
 
   // CppHeap's marker must be initialized before the V8 marker to allow
   // exchanging of worklists.
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+  if (heap_->cpp_heap()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-    cpp_heap->InitializeMarking(CppHeap::CollectionType::kMajor, schedule);
+    CppHeap::From(heap_->cpp_heap())
+        ->InitializeMarking(CppHeap::CollectionType::kMajor);
   }
 
   std::vector<Address> contexts =
@@ -770,8 +770,8 @@ void MarkCompactCollector::Prepare() {
     StartMarking();
     if (heap_->cpp_heap_) {
       TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      // `StartMarking()` immediately starts marking which requires V8 worklists
-      // to be set up.
+      // StartTracing immediately starts marking which requires V8 worklists to
+      // be set up.
       CppHeap::From(heap_->cpp_heap_)->StartMarking();
     }
   }

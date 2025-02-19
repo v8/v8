@@ -98,10 +98,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
       v8::base::TimeDelta = kMaximumIncrementalStepDuration,
       size_t marked_bytes_limit = 0);
 
-  // Returns the size of the bytes marked in the last invocation of
-  // `AdvanceMarkingWithLimits()`.
-  size_t last_bytes_marked() const { return last_bytes_marked_; }
-
   // Signals leaving the atomic marking pause. This method expects no more
   // objects to be marked and merely updates marking states if needed.
   void LeaveAtomicPause();
@@ -178,19 +174,17 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // - `time_deadline`: Time deadline that is always respected.
   bool ProcessWorklistsWithDeadline(size_t marked_bytes_deadline,
                                     v8::base::TimeTicks time_deadline);
-  void AdvanceMarkingWithLimitsEpilogue();
 
   void VisitLocalRoots(StackState);
   void VisitCrossThreadRoots();
 
   void MarkNotFullyConstructedObjects();
 
-  virtual void ScheduleIncrementalMarkingTask();
+  void ScheduleIncrementalMarkingTask();
 
   bool IncrementalMarkingStep(StackState);
 
   void AdvanceMarkingOnAllocation();
-  virtual void AdvanceMarkingOnAllocationImpl();
 
   void HandleNotFullyConstructedObjects();
 
@@ -202,7 +196,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   IncrementalMarkingAllocationObserver incremental_marking_allocation_observer_;
   MarkingWorklists marking_worklists_;
   MutatorMarkingState mutator_marking_state_;
-  size_t last_bytes_marked_ = 0;
   bool is_marking_{false};
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};

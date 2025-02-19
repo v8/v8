@@ -259,7 +259,7 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
     // Cancel remaining incremental tasks. Concurrent marking jobs are left to
     // run in parallel with the atomic pause until the mutator thread runs out
     // of work.
-    incremental_marking_handle_.CancelIfNonEmpty();
+    incremental_marking_handle_.Cancel();
     heap().stats_collector()->UnregisterObserver(
         &incremental_marking_allocation_observer_);
   }
@@ -556,10 +556,6 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
                                            StatsCollector::kIncrementalMark);
   StatsCollector::EnabledScope nested_scope(heap().stats_collector(),
                                             StatsCollector::kMarkOnAllocation);
-  AdvanceMarkingOnAllocationImpl();
-}
-
-void MarkerBase::AdvanceMarkingOnAllocationImpl() {
   if (AdvanceMarkingWithLimits()) {
     // Schedule another incremental task for finalizing without a stack.
     ScheduleIncrementalMarkingTask();
@@ -586,46 +582,34 @@ void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
   }
 }
 
-void MarkerBase::AdvanceMarkingWithLimitsEpilogue() {
-  // Epilogue is only needed when marking is not finished.
-  DCHECK_NE(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
-  ScheduleIncrementalMarkingTask();
-  if (config_.marking_type ==
-      MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    concurrent_marker().NotifyIncrementalMutatorStepCompleted();
-  }
-}
-
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
-  if (V8_UNLIKELY(main_marking_disabled_for_testing_)) {
-    AdvanceMarkingWithLimitsEpilogue();
-    return false;
+  bool is_done = false;
+  if (V8_LIKELY(!main_marking_disabled_for_testing_)) {
+    if (marked_bytes_limit == 0) {
+      // `ProcessWorklistsWithDeadline()` below checks against `marked_bytes()`
+      // which are never reset.
+      marked_bytes_limit = mutator_marking_state_.marked_bytes() +
+                           GetNextIncrementalStepDuration(schedule(), heap_);
+    }
+    StatsCollector::EnabledScope deadline_scope(
+        heap().stats_collector(),
+        StatsCollector::kMarkTransitiveClosureWithDeadline, "max_duration_ms",
+        max_duration.InMillisecondsF(), "max_bytes", marked_bytes_limit);
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+    is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
+    schedule().AddMutatorThreadMarkedBytes(
+        mutator_marking_state_.RecentlyMarkedBytes());
   }
-
-  StatsCollector::EnabledScope deadline_scope(
-      heap().stats_collector(),
-      StatsCollector::kMarkTransitiveClosureWithDeadline, "max_duration_ms",
-      max_duration.InMillisecondsF(), "max_bytes", marked_bytes_limit);
-  last_bytes_marked_ = 0;
-  const auto deadline = v8::base::TimeTicks::Now() + max_duration;
-  if (marked_bytes_limit == 0) {
-    marked_bytes_limit = GetNextIncrementalStepDuration(schedule(), heap_);
-  }
-  // `ProcessWorklistsWithDeadline()` below checks against `marked_bytes()`
-  // which are never reset.
-  size_t marked_bytes_deadline =
-      marked_bytes_limit + mutator_marking_state_.marked_bytes();
-  if (marked_bytes_deadline < marked_bytes_limit) {
-    marked_bytes_deadline = SIZE_MAX;
-  }
-  const bool is_done =
-      ProcessWorklistsWithDeadline(marked_bytes_deadline, deadline);
-  last_bytes_marked_ = mutator_marking_state_.RecentlyMarkedBytes();
-  schedule().AddMutatorThreadMarkedBytes(last_bytes_marked_);
   mutator_marking_state_.Publish();
   if (!is_done) {
-    AdvanceMarkingWithLimitsEpilogue();
+    // If marking is atomic, |is_done| should always be true.
+    DCHECK_NE(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
+    ScheduleIncrementalMarkingTask();
+    if (config_.marking_type ==
+        MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+      concurrent_marker().NotifyIncrementalMutatorStepCompleted();
+    }
   }
   return is_done;
 }
