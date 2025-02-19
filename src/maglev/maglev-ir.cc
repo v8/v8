@@ -903,6 +903,7 @@ void InlinedAllocation::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   Base::VerifyInputs(graph_labeller);
   CheckValueInputIs(this, 0, Opcode::kAllocationBlock, graph_labeller);
+  CHECK_LE(object()->type(), VirtualObject::Type::kLast);
 }
 
 AllocationBlock* InlinedAllocation::allocation_block() {

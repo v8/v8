@@ -112,6 +112,14 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       }
     }
 
+#ifdef DEBUG
+    {
+      GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+          verifier(compilation_info);
+      verifier.ProcessGraph(graph);
+    }
+#endif
+
     if (v8_flags.maglev_non_eager_inlining) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Inlining");
@@ -124,6 +132,14 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         PrintGraph(std::cout, compilation_info, graph);
       }
     }
+
+#ifdef DEBUG
+    {
+      GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+          verifier(compilation_info);
+      verifier.ProcessGraph(graph);
+    }
+#endif
 
     if (v8_flags.maglev_licm) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -138,6 +154,14 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
         PrintGraph(std::cout, compilation_info, graph);
       }
     }
+
+#ifdef DEBUG
+    {
+      GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+          verifier(compilation_info);
+      verifier.ProcessGraph(graph);
+    }
+#endif
 
     if (v8_flags.maglev_untagged_phis) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -156,7 +180,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
 #ifdef DEBUG
   {
-    GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
+    GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+        verifier(compilation_info);
     verifier.ProcessGraph(graph);
   }
 #endif
@@ -179,7 +204,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
 #ifdef DEBUG
   {
-    GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
+    GraphProcessor<MaglevGraphVerifier, /* visit_identity_nodes */ true>
+        verifier(compilation_info);
     verifier.ProcessGraph(graph);
   }
 #endif

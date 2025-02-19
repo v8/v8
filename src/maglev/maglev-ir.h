@@ -5410,11 +5410,13 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
  public:
   class List;
 
-  enum Type {
+  enum Type : uint8_t {
     kDefault,
     kHeapNumber,
     kFixedDoubleArray,
     kConsString,
+
+    kLast = kConsString
   };
 
   friend std::ostream& operator<<(std::ostream& out, Type type) {
