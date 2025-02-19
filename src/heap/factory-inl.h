@@ -5,17 +5,19 @@
 #ifndef V8_HEAP_FACTORY_INL_H_
 #define V8_HEAP_FACTORY_INL_H_
 
-#include "src/common/globals.h"
 #include "src/heap/factory.h"
+// Include the non-inl header before the rest of the headers.
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 // TODO(all): Remove the heap-inl.h include below.
+#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/objects/feedback-cell.h"
+#include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"

@@ -44,6 +44,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info-inl.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"

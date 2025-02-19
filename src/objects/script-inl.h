@@ -5,13 +5,14 @@
 #ifndef V8_OBJECTS_SCRIPT_INL_H_
 #define V8_OBJECTS_SCRIPT_INL_H_
 
+#include "src/objects/script.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
-#include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_PROXY_H_
 
 #include "src/objects/js-objects.h"
+#include "src/objects/oddball.h"
 #include "torque-generated/builtin-definitions.h"
 
 // Has to be the last include (doesn't have include guards):

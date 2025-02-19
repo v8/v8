@@ -8,6 +8,9 @@
 #include <optional>
 #include <type_traits>
 
+#include "src/objects/string.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
@@ -16,12 +19,12 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
-#include "src/objects/string.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate.h"

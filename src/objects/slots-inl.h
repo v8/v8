@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_SLOTS_INL_H_
 #define V8_OBJECTS_SLOTS_INL_H_
 
+#include "src/objects/slots.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
@@ -14,7 +17,6 @@
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
-#include "src/objects/slots.h"
 #include "src/objects/tagged.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"

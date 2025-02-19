@@ -5,11 +5,14 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 
+#include "src/objects/descriptor-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"

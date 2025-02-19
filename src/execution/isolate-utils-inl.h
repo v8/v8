@@ -5,8 +5,10 @@
 #ifndef V8_EXECUTION_ISOLATE_UTILS_INL_H_
 #define V8_EXECUTION_ISOLATE_UTILS_INL_H_
 
-#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/isolate.h"
 

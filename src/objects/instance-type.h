@@ -15,6 +15,10 @@
 namespace v8 {
 namespace internal {
 
+class Map;
+template <typename T>
+class Tagged;
+
 // We use the full 16 bits of the instance_type field to encode heap object
 // instance types. All the high-order bits (bits 7-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
@@ -333,6 +337,15 @@ static constexpr InstanceType PROPERTY_DICTIONARY_TYPE =
 #else
 static constexpr InstanceType PROPERTY_DICTIONARY_TYPE = NAME_DICTIONARY_TYPE;
 #endif
+
+namespace InstanceTypeChecker {
+V8_INLINE bool IsSeqString(Tagged<Map>);
+V8_INLINE bool IsConsString(Tagged<Map>);
+V8_INLINE bool IsSlicedString(Tagged<Map>);
+V8_INLINE bool IsThinString(Tagged<Map>);
+V8_INLINE bool IsOneByteString(Tagged<Map>);
+V8_INLINE bool IsTwoByteString(Tagged<Map>);
+}  // namespace InstanceTypeChecker
 
 }  // namespace internal
 }  // namespace v8

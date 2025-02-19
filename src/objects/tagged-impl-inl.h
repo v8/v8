@@ -6,11 +6,13 @@
 #define V8_OBJECTS_TAGGED_IMPL_INL_H_
 
 #include "src/objects/tagged-impl.h"
+// Include the non-inl header before the rest of the headers.
 
 #ifdef V8_COMPRESS_POINTERS
 #include "src/execution/isolate.h"
 #endif
 #include "src/common/ptr-compr-inl.h"
+#include "src/common/ptr-compr.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"

@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_FOREIGN_INL_H_
 #define V8_OBJECTS_FOREIGN_INL_H_
 
+#include "src/objects/foreign.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/foreign.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
-#include "src/sandbox/isolate.h"
+#include "src/sandbox/isolate-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

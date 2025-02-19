@@ -237,6 +237,8 @@ class PtrComprCageAccessScope final {
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
 
+V8_INLINE PtrComprCageBase GetPtrComprCageBase();
+
 }  // namespace v8::internal
 
 #endif  // V8_COMMON_PTR_COMPR_H_

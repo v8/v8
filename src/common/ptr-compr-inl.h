@@ -5,6 +5,9 @@
 #ifndef V8_COMMON_PTR_COMPR_INL_H_
 #define V8_COMMON_PTR_COMPR_INL_H_
 
+#include "src/common/ptr-compr.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate-inl.h"

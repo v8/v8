@@ -7,13 +7,17 @@
 
 #include <optional>
 
+#include "src/objects/fixed-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/hole.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/objects-inl.h"
