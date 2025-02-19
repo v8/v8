@@ -2733,7 +2733,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // between a deopt due to wrong instance and deopt due to wrong target.
         V<FrameState> frame_state =
             CreateFrameState(decoder, imm.sig, &index, args);
-        bool use_deopt_slowpath = deopts_enabled_;
+        bool use_deopt_slowpath = deopts_enabled();
         DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
         if (use_deopt_slowpath &&
             inlining_decisions_->has_non_inlineable_targets()[feedback_slot_]) {
@@ -3013,7 +3013,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       TSBlock* merge = __ NewBlock();
       __ Goto(case_blocks[0]);
 
-      bool use_deopt_slowpath = deopts_enabled_;
+      bool use_deopt_slowpath = deopts_enabled();
       for (size_t i = 0; i < feedback_cases.size(); i++) {
         __ Bind(case_blocks[i]);
         InliningTree* tree = feedback_cases[i];
@@ -3654,14 +3654,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
-    if (deopts_enabled_) {
+    if (deopts_enabled()) {
       if (v8_flags.trace_wasm_inlining) {
         PrintF(
             "[function %d%s: Disabling deoptimizations for speculative "
-            "inlineing due to legacy exception handling usage]\n",
+            "inlining due to legacy exception handling usage]\n",
             func_index_, mode_ == kRegular ? "" : " (inlined)");
       }
-      deopts_enabled_ = false;
+      disable_deopts();
     }
 
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
@@ -3762,7 +3762,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
 
-    if (deopts_enabled_) {
+    if (deopts_enabled()) {
       if (v8_flags.trace_wasm_inlining) {
         // TODO(42204618): Would it be worthwhile to add support for this?
         // The difficulty is the handling of the exception which is handled as a
@@ -3770,10 +3770,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         // Turboshaft (and it would need to be passed on in the FrameState).
         PrintF(
             "[function %d%s: Disabling deoptimizations for speculative "
-            "inlineing due to legacy exception handling usage]\n",
+            "inlining due to legacy exception handling usage]\n",
             func_index_, mode_ == kRegular ? "" : " (inlined)");
       }
-      deopts_enabled_ = false;
+      disable_deopts();
     }
 
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
@@ -5924,7 +5924,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       // For simplicity reasons disable deopts completely for the rest of the
       // function. (Note that this is an exceptional case that should not be
       // relevant for any real-world application.)
-      deopts_enabled_ = false;
+      disable_deopts();
       return OpIndex::Invalid();
     }
 
@@ -5935,7 +5935,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
                   V<FrameState> frame_state) {
-    CHECK(deopts_enabled_);
+    CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ DeoptimizeIfNot(deopt_condition, frame_state,
                        DeoptimizeReason::kWrongCallTarget,
@@ -5943,7 +5943,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void Deopt(FullDecoder* decoder, V<FrameState> frame_state) {
-    CHECK(deopts_enabled_);
+    CHECK(deopts_enabled());
     DCHECK(frame_state.valid());
     __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
                   compiler::FeedbackSource());
@@ -8195,7 +8195,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     OptionalV<FrameState> frame_state;
-    if (deopts_enabled_) {
+    if (deopts_enabled()) {
       frame_state = is_tail_call
                         ? parent_frame_state_
                         : CreateFrameState(decoder, sig, /*funcref*/ nullptr,
@@ -8222,7 +8222,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     inlinee_decoder.interface().set_parent_position(call_position);
     // Explicitly disable deopts if it has already been disabled for this
     // function.
-    if (!deopts_enabled_) {
+    if (!deopts_enabled()) {
       inlinee_decoder.interface().disable_deopts();
     }
     if (v8_flags.liftoff) {
@@ -8401,6 +8401,29 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void disable_deopts() { deopts_enabled_ = false; }
+  bool deopts_enabled() {
+    if (!deopts_enabled_.has_value()) {
+      deopts_enabled_ = v8_flags.wasm_deopt;
+      if (v8_flags.wasm_deopt) {
+        const wasm::TypeFeedbackStorage& feedback = env_->module->type_feedback;
+        base::MutexGuard mutex_guard(&feedback.mutex);
+        auto iter = feedback.deopt_count_for_function.find(func_index_);
+        if (iter != feedback.deopt_count_for_function.end() &&
+            iter->second >= v8_flags.wasm_deopts_per_function_limit) {
+          deopts_enabled_ = false;
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Disabling deoptimizations for speculative "
+                "inlining as the deoptimization limit (%u) for this function "
+                "is reached or exceeded (%zu)]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                iter->second, v8_flags.wasm_deopts_per_function_limit.value());
+          }
+        }
+      }
+    }
+    return deopts_enabled_.value();
+  }
 
   V<WasmTrustedInstanceData> trusted_instance_data(bool element_is_shared) {
     DCHECK_IMPLIES(shared_, element_is_shared);
@@ -8470,7 +8493,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   SourcePosition parent_position_;
   bool is_inlined_tail_call_ = false;
 
-  bool deopts_enabled_ = v8_flags.wasm_deopt;
+  std::optional<bool> deopts_enabled_;
   OptionalV<FrameState> parent_frame_state_;
 };
 

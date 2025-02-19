@@ -1751,6 +1751,12 @@ DEFINE_WEAK_IMPLICATION(future, wasm_deopt)
 // Deopt only works in combination with feedback.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 
+// Note that this limit doesn't guarantee an upper bound, as e.g. with multiple
+// frames of the same function on the stack, many more deopts can happen.
+DEFINE_SIZE_T(wasm_deopts_per_function_limit, 50,
+              "limit of wasm deopts for a single function after which no "
+              "further deopt points are emitted in Turbofan")
+
 // Declare command-line flags for Wasm features. Warning: avoid using these
 // flags directly in the implementation. Instead accept
 // wasm::WasmEnabledFeatures for configurability.
