@@ -4311,7 +4311,7 @@ static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
   return REMOVE_SLOT;
 }
 
-static inline void UpdateStrongCodeSlot(Tagged<HeapObject> host,
+static inline void UpdateStrongCodeSlot(IsolateForSandbox isolate,
                                         PtrComprCageBase cage_base,
                                         PtrComprCageBase code_cage_base,
                                         InstructionStreamSlot slot) {
@@ -4325,8 +4325,7 @@ static inline void UpdateStrongCodeSlot(Tagged<HeapObject> host,
         slot.address() - Code::kInstructionStreamOffset));
     Tagged<InstructionStream> instruction_stream =
         code->instruction_stream(code_cage_base);
-    code->UpdateInstructionStart(GetIsolateForSandbox(host),
-                                 instruction_stream);
+    code->UpdateInstructionStart(isolate, instruction_stream);
   }
 }
 
@@ -4338,7 +4337,7 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
                                       public RootVisitor {
  public:
   explicit PointersUpdatingVisitor(Heap* heap)
-      : ObjectVisitorWithCageBases(heap) {}
+      : ObjectVisitorWithCageBases(heap), isolate_(heap->isolate()) {}
 
   void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) override {
     UpdateStrongSlotInternal(cage_base(), p);
@@ -4364,7 +4363,7 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
 
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
-    UpdateStrongCodeSlot(host, cage_base(), code_cage_base(), slot);
+    UpdateStrongCodeSlot(isolate_, cage_base(), code_cage_base(), slot);
   }
 
   void VisitRootPointer(Root root, const char* description,
@@ -4425,6 +4424,8 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
                                         MaybeObjectSlot slot) {
     UpdateSlot(cage_base, slot);
   }
+
+  IsolateForSandbox isolate_;
 };
 
 static Tagged<String> UpdateReferenceInExternalStringTableEntry(
@@ -5346,11 +5347,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 #endif
     RememberedSet<TRUSTED_TO_CODE>::Iterate(
         chunk_,
-        [=](MaybeObjectSlot slot) {
-          Tagged<HeapObject> host = HeapObject::FromAddress(
-              slot.address() - Code::kInstructionStreamOffset);
-          DCHECK(IsCode(host, cage_base));
-          UpdateStrongCodeSlot(host, cage_base, code_cage_base,
+        [cage_base, code_cage_base,
+         isolate = IsolateForSandbox{heap_->isolate()}](MaybeObjectSlot slot) {
+          DCHECK(IsCode(HeapObject::FromAddress(slot.address() -
+                                                Code::kInstructionStreamOffset),
+                        cage_base));
+          UpdateStrongCodeSlot(isolate, cage_base, code_cage_base,
                                InstructionStreamSlot(slot.address()));
           // Always keep slot since all slots are dropped at once after
           // iteration.
