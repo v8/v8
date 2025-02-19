@@ -21,6 +21,7 @@
 #include "src/objects/tagged.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/unicode-decoder.h"
+#include "third_party/simdutf/simdutf.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -563,11 +564,12 @@ V8_OBJECT class String : public Name {
                                          DirectHandle<String> string);
 
   static inline bool IsAscii(const char* chars, uint32_t length) {
-    return IsAscii(reinterpret_cast<const uint8_t*>(chars), length);
+    return simdutf::validate_ascii(chars, length);
   }
 
   static inline bool IsAscii(const uint8_t* chars, uint32_t length) {
-    return NonAsciiStart(chars, length) >= length;
+    return simdutf::validate_ascii(reinterpret_cast<const char*>(chars),
+                                   length);
   }
 
   static inline uint32_t NonOneByteStart(const base::uc16* chars,

@@ -7648,6 +7648,7 @@ v8_executable("d8") {
     ":v8_libplatform",
     ":v8_tracing",
     "//build/win:default_exe_manifest",
+    "//third_party/simdutf:simdutf",
   ]
 
   if (is_posix || is_fuchsia) {
