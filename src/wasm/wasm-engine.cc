@@ -2015,7 +2015,7 @@ void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 616);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8408);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);

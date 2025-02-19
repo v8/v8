@@ -402,6 +402,102 @@ class TypeCanonicalizer {
     CanonicalTypeIndex index;
   };
 
+  // Conceptually a vector of CanonicalType. Modification generally requires
+  // synchronization, read-only access can be done without locking.
+  class CanonicalTypeVector {
+    static constexpr uint32_t kSegmentSize = 1024;
+    static constexpr uint32_t kNumSegments =
+        (kMaxCanonicalTypes + kSegmentSize - 1) / kSegmentSize;
+    static_assert(kSegmentSize * kNumSegments >= kMaxCanonicalTypes);
+    static_assert(
+        kNumSegments <= 1024,
+        "Reconsider this data structures when increasing kMaxCanonicalTypes");
+
+   public:
+    const CanonicalType* operator[](CanonicalTypeIndex index) const {
+      uint32_t segment_idx = index.index / kSegmentSize;
+      // Only check against the static constant here; uninitialized segments are
+      // {nullptr}, so accessing them crashes.
+      SBXCHECK_GT(kNumSegments, segment_idx);
+      Segment* segment = segments_[segment_idx].load(std::memory_order_relaxed);
+      const CanonicalType* type = (*segment)[index.index % kSegmentSize];
+      // DCHECK is sufficient as returning {nullptr} is safe.
+      DCHECK_NOT_NULL(type);
+      return type;
+    }
+
+    const CanonicalType* operator[](CanonicalValueType type) const {
+      DCHECK(type.has_index());
+      return (*this)[type.ref_index()];
+    }
+
+    void reserve(uint32_t size, Zone* zone) {
+      DCHECK_GE(kMaxCanonicalTypes, size);
+      uint32_t segment_idx = size / kSegmentSize;
+      // Stop on the first segment (iterating backwards) which already exists.
+      while (!segments_[segment_idx].load(std::memory_order_relaxed)) {
+        segments_[segment_idx].store(zone->New<Segment>(),
+                                     std::memory_order_relaxed);
+        if (segment_idx-- == 0) break;
+      }
+    }
+
+    void set(CanonicalTypeIndex index, const CanonicalType* type) {
+      // No checking needed, this is only executed after CheckMaxCanonicalIndex.
+      uint32_t segment_idx = index.index / kSegmentSize;
+      Segment* segment = segments_[segment_idx].load(std::memory_order_relaxed);
+      segment->set(index.index % kSegmentSize, type);
+    }
+
+    void ClearForTesting() {
+      for (uint32_t i = 0; i < kNumSegments; ++i) {
+        if (segments_[i].load(std::memory_order_relaxed) == nullptr) break;
+        segments_[i].store(nullptr, std::memory_order_relaxed);
+      }
+    }
+
+    const CanonicalTypeIndex FindIndex_Slow(const CanonicalSig* sig) const {
+      for (uint32_t i = 0; i < kNumSegments; ++i) {
+        Segment* segment = segments_[i].load(std::memory_order_relaxed);
+        // If callers have a CanonicalSig* to pass into this function, the
+        // type canonicalizer must know about this sig, hence we must find it
+        // before hitting a `nullptr` segment.
+        DCHECK_NOT_NULL(segment);
+        for (uint32_t k = 0; k < kSegmentSize; ++k) {
+          const CanonicalType* type = (*segment)[k];
+          // Again: We expect to find the signature before hitting uninitialized
+          // slots.
+          DCHECK_NOT_NULL(type);
+          if (type->kind == CanonicalType::kFunction &&
+              type->function_sig == sig) {
+            return CanonicalTypeIndex{i * kSegmentSize + k};
+          }
+        }
+      }
+      UNREACHABLE();
+    }
+
+   private:
+    class Segment {
+     public:
+      const CanonicalType* operator[](uint32_t index) const {
+        DCHECK_GT(kSegmentSize, index);
+        return content_[index].load(std::memory_order_relaxed);
+      }
+
+      void set(uint32_t index, const CanonicalType* type) {
+        DCHECK_GT(kSegmentSize, index);
+        DCHECK_NULL(content_[index].load(std::memory_order_relaxed));
+        content_[index].store(type, std::memory_order_relaxed);
+      }
+
+     private:
+      std::atomic<const CanonicalType*> content_[kSegmentSize]{};
+    };
+
+    std::atomic<Segment*> segments_[kNumSegments]{};
+  };
+
   void AddPredefinedArrayTypes();
 
   CanonicalTypeIndex FindCanonicalGroup(const CanonicalGroup&) const;
@@ -418,14 +514,6 @@ class TypeCanonicalizer {
 
   void CheckMaxCanonicalIndex() const;
 
-  const CanonicalType* get(CanonicalTypeIndex index) const {
-    return canonical_types_[index.index];
-  }
-  const CanonicalType* get(CanonicalValueType type) const {
-    DCHECK(type.has_index());
-    return get(type.ref_index());
-  }
-
   bool IsShared(CanonicalValueType type) const;
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
@@ -434,7 +522,7 @@ class TypeCanonicalizer {
   // Set of all known canonical recgroups of size 1.
   std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
   // Maps canonical indices back to the types.
-  std::vector<const CanonicalType*> canonical_types_;
+  CanonicalTypeVector canonical_types_;
   AccountingAllocator allocator_;
   Zone zone_{&allocator_, "canonical type zone"};
   mutable base::Mutex mutex_;
