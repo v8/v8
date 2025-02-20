@@ -81,7 +81,7 @@ class MaglevCompilationInfo final {
   }
   MaybeIndirectHandle<Code> get_code() { return code_; }
 
-  bool for_turboshaft_frontend() const { return for_turboshaft_frontend_; }
+  bool is_turbolev() const { return is_turbolev_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -160,7 +160,7 @@ class MaglevCompilationInfo final {
 
   // When this MaglevCompilationInfo is created to be used in Turboshaft's
   // frontend, {for_turboshaft_frontend_} is true.
-  bool for_turboshaft_frontend_ = false;
+  bool is_turbolev_ = false;
 
   // True if some inlinees were skipped due to total size constraints.
   bool could_not_inline_all_candidates_ = false;

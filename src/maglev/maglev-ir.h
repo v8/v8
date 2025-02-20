@@ -150,6 +150,10 @@ class ExceptionHandlerInfo;
   V(BuiltinStringFromCharCode)      \
   V(BuiltinStringPrototypeCharCodeOrCodePointAt)
 
+#define TURBOLEV_VALUE_NODE_LIST(V) \
+  V(MapPrototypeGet)                \
+  V(MapPrototypeGetInt32Key)
+
 #define VALUE_NODE_LIST(V)                          \
   V(Identity)                                       \
   V(AllocationBlock)                                \
@@ -303,7 +307,8 @@ class ExceptionHandlerInfo;
   FLOAT64_OPERATIONS_NODE_LIST(V)                   \
   SMI_OPERATIONS_NODE_LIST(V)                       \
   GENERIC_OPERATIONS_NODE_LIST(V)                   \
-  INLINE_BUILTIN_NODE_LIST(V)
+  INLINE_BUILTIN_NODE_LIST(V)                       \
+  TURBOLEV_VALUE_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
   V(ConstantGapMove)          \
@@ -7208,6 +7213,50 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
 
  private:
   Mode mode_;
+};
+
+class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
+  using Base = FixedInputValueNodeT<2, MapPrototypeGet>;
+
+ public:
+  explicit MapPrototypeGet(uint64_t bitfield) : Base(bitfield) {}
+
+  // Note that this node will eventually do a Call in Turbolev, but the `Call`
+  // property is only useful for Maglev codegen and carries no other meaning
+  // that's Turbolev-relevant.
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::CanRead() |
+                                              OpProperties::TaggedValue();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  Input& table_input() { return input(0); }
+  Input& key_input() { return input(1); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class MapPrototypeGetInt32Key
+    : public FixedInputValueNodeT<2, MapPrototypeGetInt32Key> {
+  using Base = FixedInputValueNodeT<2, MapPrototypeGetInt32Key>;
+
+ public:
+  explicit MapPrototypeGetInt32Key(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::CanRead() |
+                                              OpProperties::TaggedValue();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  Input& table_input() { return input(0); }
+  Input& key_input() { return input(1); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class PolymorphicAccessInfo {

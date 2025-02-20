@@ -87,7 +87,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
       toplevel_function_(function),
       osr_offset_(osr_offset),
       owns_broker_(!js_broker.has_value()),
-      for_turboshaft_frontend_(for_turboshaft_frontend)
+      is_turbolev_(for_turboshaft_frontend)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V

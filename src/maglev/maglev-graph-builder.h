@@ -419,6 +419,8 @@ class MaglevGraphBuilder {
 
   uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
+  bool is_turbolev() const { return is_turbolev_; }
+
  private:
   // Helper class for building a subgraph with its own control flow, that is not
   // attached to any bytecode.
@@ -500,7 +502,7 @@ class MaglevGraphBuilder {
     if (is_inline()) {
       return false;
     }
-    if (compilation_unit()->info()->for_turboshaft_frontend()) {
+    if (is_turbolev()) {
       // As the top-tier compiler, Turboshaft doesn't need interrupt budget
       // checks.
       return false;
@@ -1981,6 +1983,8 @@ class MaglevGraphBuilder {
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
+  V(ArrayPrototypePush)                        \
+  V(ArrayPrototypePop)                         \
   V(DataViewPrototypeGetInt8)                  \
   V(DataViewPrototypeSetInt8)                  \
   V(DataViewPrototypeGetInt16)                 \
@@ -1992,6 +1996,7 @@ class MaglevGraphBuilder {
   V(FunctionPrototypeApply)                    \
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \
+  V(MapPrototypeGet)                           \
   V(ObjectPrototypeGetProto)                   \
   V(ObjectGetPrototypeOf)                      \
   V(ReflectGetPrototypeOf)                     \
@@ -2000,8 +2005,6 @@ class MaglevGraphBuilder {
   V(MathCeil)                                  \
   V(MathFloor)                                 \
   V(MathPow)                                   \
-  V(ArrayPrototypePush)                        \
-  V(ArrayPrototypePop)                         \
   V(MathAbs)                                   \
   V(MathRound)                                 \
   V(StringConstructor)                         \
@@ -3101,6 +3104,8 @@ class MaglevGraphBuilder {
   compiler::FeedbackSource current_speculation_feedback_;
 
   ValueNode* inlined_new_target_ = nullptr;
+
+  bool is_turbolev_ = false;
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;

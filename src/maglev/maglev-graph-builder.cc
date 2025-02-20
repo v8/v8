@@ -935,6 +935,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                             compilation_unit_->zone()),
           is_inline() ? caller_details->virtual_objects
                       : VirtualObject::List()),
+      is_turbolev_(compilation_unit->info()->is_turbolev()),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
@@ -2708,7 +2709,7 @@ size_t MaglevGraphBuilder::StringLengthStaticLowerBound(ValueNode* string,
 MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     ValueNode* left, ValueNode* right, AllocationType allocation_type) {
   // This optimization is also done by Turboshaft.
-  if (compilation_unit_->info()->for_turboshaft_frontend()) {
+  if (is_turbolev()) {
     return ReduceResult::Fail();
   }
   if (!v8_flags.maglev_cons_string_elision) {
@@ -4679,6 +4680,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kBuiltinStringFromCharCode:
     case Opcode::kBuiltinStringPrototypeCharCodeOrCodePointAt:
     case Opcode::kConsStringMap:
+    case Opcode::kMapPrototypeGet:
+    case Opcode::kMapPrototypeGetInt32Key:
       return NodeType::kUnknown;
   }
 }
@@ -9363,6 +9366,97 @@ MaglevGraphBuilder::BuildJSArrayBuiltinMapSwitchOnElementsKind(
   return any_successful ? ReduceResult::Done() : ReduceResult::DoneWithAbort();
 }
 
+namespace {
+bool AllOfInstanceTypesUnsafe(const PossibleMaps& maps,
+                              std::function<bool(InstanceType)> f) {
+  auto instance_type = [f](compiler::MapRef map) {
+    return f(map.instance_type());
+  };
+  return std::all_of(maps.begin(), maps.end(), instance_type);
+}
+bool AllOfInstanceTypesAre(const PossibleMaps& maps, InstanceType type) {
+  CHECK(!InstanceTypeChecker::IsString(type));
+  return AllOfInstanceTypesUnsafe(
+      maps, [type](InstanceType other) { return type == other; });
+}
+}  // namespace
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceMapPrototypeGet(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  if (!is_turbolev()) {
+    // TODO(dmercadier): consider also doing this lowering for Maglev. This is
+    // currently not done, because to be efficient, this lowering would need to
+    // inline FindOrderedHashMapEntryInt32Key (cf
+    // turboshaft/machine-lowering-reducer-inl.h), which might be a bit too
+    // low-level for Maglev.
+    return {};
+  }
+
+  if (args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Map.prototype.Get - no receiver"
+                << std::endl;
+    }
+    return {};
+  }
+  if (args.count() != 1) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Map.prototype.Get - invalid "
+                   "argument count"
+                << std::endl;
+    }
+    return {};
+  }
+
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  const NodeInfo* receiver_info = known_node_aspects().TryGetInfoFor(receiver);
+  // If the map set is not found, then we don't know anything about the map of
+  // the receiver, so bail.
+  if (!receiver_info || !receiver_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Map.prototype.Get - unknown receiver map"
+          << std::endl;
+    }
+    return {};
+  }
+
+  const PossibleMaps& possible_receiver_maps = receiver_info->possible_maps();
+  // If the set of possible maps is empty, then there's no possible map for this
+  // receiver, therefore this path is unreachable at runtime. We're unlikely to
+  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
+  // but check it in case another checking operation fails to statically
+  // unconditionally deopt.
+  if (possible_receiver_maps.is_empty()) {
+    // TODO(leszeks): Add an unreachable assert here.
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!AllOfInstanceTypesAre(possible_receiver_maps, JS_MAP_TYPE)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout
+          << "  ! Failed to reduce Map.prototype.Get - wrong receiver maps "
+          << std::endl;
+    }
+    return {};
+  }
+
+  ValueNode* key = args[0];
+  ValueNode* table = BuildLoadTaggedField(receiver, JSCollection::kTableOffset);
+
+  ValueNode* entry;
+  auto key_info = known_node_aspects().TryGetInfoFor(key);
+  if (key_info && key_info->alternative().int32()) {
+    entry = AddNewNode<MapPrototypeGetInt32Key>(
+        {table, key_info->alternative().int32()});
+  } else {
+    entry = AddNewNode<MapPrototypeGet>({table, key});
+  }
+
+  return entry;
+}
+
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
     compiler::JSFunctionRef target, CallArguments& args) {
   if (!CanSpeculateCall()) return {};
@@ -12775,8 +12869,7 @@ InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
   DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
   if (!current_allocation_block_ ||
       current_allocation_block_->allocation_type() != allocation_type ||
-      !v8_flags.inline_new ||
-      compilation_unit()->info()->for_turboshaft_frontend()) {
+      !v8_flags.inline_new || is_turbolev()) {
     current_allocation_block_ =
         AddNewNode<AllocationBlock>({}, allocation_type);
   }

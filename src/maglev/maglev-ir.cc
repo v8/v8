@@ -1098,6 +1098,15 @@ void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
 // Arch agnostic nodes
 // ---
 
+#define TURBOLEV_UNREACHABLE_NODE(Name)                               \
+  void Name::SetValueLocationConstraints() { UNREACHABLE(); }         \
+  void Name::GenerateCode(MaglevAssembler*, const ProcessingState&) { \
+    UNREACHABLE();                                                    \
+  }
+
+TURBOLEV_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
+#undef TURBOLEV_UNREACHABLE_NODE
+
 void ExternalConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void ExternalConstant::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {}

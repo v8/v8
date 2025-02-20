@@ -80,6 +80,7 @@ class AccessBuilderTS : public AllStatic {
   }
   TF_ELEMENT_ACCESS(SeqOneByteString, Word32, ForSeqOneByteStringCharacter)
   TF_ELEMENT_ACCESS(SeqTwoByteString, Word32, ForSeqTwoByteStringCharacter)
+  TF_ELEMENT_ACCESS(Object, Object, ForOrderedHashMapEntryValue)
 #undef TF_ELEMENT_ACCESS
 
   template <IsTagged T>

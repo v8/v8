@@ -21,6 +21,7 @@
 #include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/access-builder.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
@@ -508,6 +509,10 @@ class GraphBuildingNodeProcessor {
     // Constants are not in a block in Maglev but are in Turboshaft. We bind a
     // block now, so that Constants can then be emitted.
     __ Bind(__ NewBlock());
+
+    // Initializing undefined constant so that we don't need to recreate it too
+    // often.
+    undefined_value_ = __ HeapConstant(local_factory_->undefined_value());
 
     if (maglev_compilation_unit_->bytecode()
             .incoming_new_target_or_generator_register()
@@ -1315,7 +1320,7 @@ class GraphBuildingNodeProcessor {
       // Setting missing arguments to Undefined.
       for (int i = actual_parameter_count; i < node->expected_parameter_count();
            i++) {
-        arguments.push_back(__ HeapConstant(local_factory_->undefined_value()));
+        arguments.push_back(undefined_value_);
       }
       arguments.push_back(Map(node->context()));
       GENERATE_AND_MAP_BUILTIN_CALL(
@@ -1333,7 +1338,7 @@ class GraphBuildingNodeProcessor {
       // Setting missing arguments to Undefined.
       for (int i = actual_parameter_count; i < node->expected_parameter_count();
            i++) {
-        arguments.push_back(__ HeapConstant(local_factory_->undefined_value()));
+        arguments.push_back(undefined_value_);
       }
       arguments.push_back(Map(node->new_target()));
       arguments.push_back(__ Word32Constant(actual_parameter_count));
@@ -2066,6 +2071,43 @@ class GraphBuildingNodeProcessor {
 
     GENERATE_AND_MAP_BUILTIN_CALL(node, Builtin::kStoreInArrayLiteralIC,
                                   frame_state, base::VectorOf(arguments));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::MapPrototypeGet* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> table = Map(node->table_input());
+    V<Smi> key = Map(node->key_input());
+
+    V<Smi> entry = __ FindOrderedHashMapEntry(table, key);
+    ScopedVar<Object, AssemblerT> result(this, undefined_value_);
+
+    IF_NOT (__ TaggedEqual(entry, __ SmiConstant(Smi::FromInt(-1)))) {
+      result =
+          __ LoadElement(table, AccessBuilderTS::ForOrderedHashMapEntryValue(),
+                         __ ChangeInt32ToIntPtr(__ UntagSmi(entry)));
+    }
+
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::MapPrototypeGetInt32Key* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> table = Map(node->table_input());
+    V<Word32> key = Map(node->key_input());
+
+    V<WordPtr> entry = __ FindOrderedHashMapEntryForInt32Key(table, key);
+    ScopedVar<Object, AssemblerT> result(this, undefined_value_);
+
+    IF_NOT (__ Word32Equal(__ TruncateWordPtrToWord32(entry), -1)) {
+      result = __ LoadElement(
+          table, AccessBuilderTS::ForOrderedHashMapEntryValue(), entry);
+    }
+
+    SetMap(node, result);
+
     return maglev::ProcessResult::kContinue;
   }
 
@@ -4305,8 +4347,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     V<Word32> cond = RootEqual(node->object_input(), RootIndex::kTheHoleValue);
     SetMap(node,
-           __ Select(cond, __ HeapConstant(local_factory_->undefined_value()),
-                     Map<Object>(node->object_input()),
+           __ Select(cond, undefined_value_, Map<Object>(node->object_input()),
                      RegisterRepresentation::Tagged(), BranchHint::kNone,
                      SelectOp::Implementation::kBranch));
     return maglev::ProcessResult::kContinue;
@@ -4837,8 +4878,7 @@ class GraphBuildingNodeProcessor {
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(frame.javascript_target().object()));
       // kJavaScriptCallNewTargetRegister
-      builder.AddInput(MachineType::AnyTagged(),
-                       __ HeapConstant(local_factory_->undefined_value()));
+      builder.AddInput(MachineType::AnyTagged(), undefined_value_);
       // kJavaScriptCallArgCountRegister
       builder.AddInput(
           MachineType::AnyTagged(),
@@ -5784,6 +5824,8 @@ class GraphBuildingNodeProcessor {
   ZoneUnorderedMap<const maglev::NodeBase*, OpIndex> node_mapping_;
   ZoneUnorderedMap<const maglev::BasicBlock*, Block*> block_mapping_;
   ZoneUnorderedMap<int, Variable> regs_to_vars_;
+
+  V<HeapObject> undefined_value_;
 
   // The {deduplicator_} is used when building frame states containing escaped
   // objects. It could be a local object in `BuildFrameState`, but it's instead
