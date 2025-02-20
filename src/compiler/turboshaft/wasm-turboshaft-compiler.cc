@@ -23,8 +23,7 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::WasmDetectedFeatures* detected, Counters* counters) {
   wasm::WasmCompilationResult result =
       Pipeline::GenerateWasmCode(env, data, detected, counters);
-  if (result.failed()) return {};
-
+  DCHECK(result.succeeded());
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result.result_tier);
   DCHECK_NULL(result.assumptions);
   result.assumptions = std::move(data.assumptions);

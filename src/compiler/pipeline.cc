@@ -2950,9 +2950,10 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
 
   data.BeginPhaseKind("V8.InstructionSelection");
 
-  const bool success = GenerateCodeFromTurboshaftGraph(
-      &linkage, turboshaft_pipeline, &pipeline, data.osr_helper_ptr());
-  if (!success) return {};
+  // Instruction selection for JavaScript may fail, but for Wasm we should
+  // always succeed (e.g., by enforcing limits in earlier phases).
+  CHECK(GenerateCodeFromTurboshaftGraph(&linkage, turboshaft_pipeline,
+                                        &pipeline, data.osr_helper_ptr()));
 
   CodeGenerator* code_generator = turboshaft_data.code_generator();
 
