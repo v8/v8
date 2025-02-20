@@ -79,12 +79,9 @@ void CppHeapPointerTableEntry::Mark() {
 
   // We don't need to perform the CAS in a loop: if the new value is not equal
   // to the old value, then the mutator must've just written a new value into
-  // the entry. This in turn must've set the marking bit already (see e.g.
-  // SetPointer()), so we don't need to do it again.
-  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
-                                                  std::memory_order_relaxed);
-  DCHECK(success || old_payload.HasMarkBitSet());
-  USE(success);
+  // the entry. The mutator will also set the markbit through the write barrier.
+  payload_.compare_exchange_strong(old_payload, new_payload,
+                                   std::memory_order_relaxed);
 }
 
 void CppHeapPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
