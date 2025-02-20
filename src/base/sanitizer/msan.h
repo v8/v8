@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// MemorySanitizer support.
-
 #ifndef V8_BASE_SANITIZER_MSAN_H_
 #define V8_BASE_SANITIZER_MSAN_H_
+
+// MemorySanitizer support.
 
 #include "src/base/macros.h"
 #include "src/base/memory.h"

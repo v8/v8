@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
+#define V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
+
 #ifndef INCLUDED_FROM_MACRO_ASSEMBLER_H
 #error This header must be included via macro-assembler.h
 #endif
-
-#ifndef V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
-#define V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
 
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
@@ -786,7 +786,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
   void Move(Register dst, const MemOperand& src) {
-    // TODO: use scratch register scope instead of r0
+    // TODO(johnyan): Use scratch register scope instead of r0.
     LoadU64(dst, src, r0);
   }
 

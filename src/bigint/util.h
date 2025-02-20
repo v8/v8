@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BIGINT_UTIL_H_
+#define V8_BIGINT_UTIL_H_
+
 // "Generic" helper functions (not specific to BigInts).
 
 #include <stdint.h>
@@ -11,9 +14,6 @@
 #ifdef _MSC_VER
 #include <intrin.h>  // For _BitScanReverse.
 #endif
-
-#ifndef V8_BIGINT_UTIL_H_
-#define V8_BIGINT_UTIL_H_
 
 // Integer division, rounding up.
 #define DIV_CEIL(x, y) (((x)-1) / (y) + 1)

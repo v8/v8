@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_PPC_SIMULATOR_PPC_H_
+#define V8_EXECUTION_PPC_SIMULATOR_PPC_H_
+
 // Declares a Simulator for PPC instructions if we are not generating a native
 // PPC binary. This Simulator allows us to run and debug PPC code generation on
 // regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a PPC HW platform.
-
-#ifndef V8_EXECUTION_PPC_SIMULATOR_PPC_H_
-#define V8_EXECUTION_PPC_SIMULATOR_PPC_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"

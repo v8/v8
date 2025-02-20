@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDE_V8_FAST_API_CALLS_H_
+#define INCLUDE_V8_FAST_API_CALLS_H_
+
 /**
  * This file provides additional API on top of the default one for making
  * API calls, which come from embedder C++ functions. The functions are being
@@ -215,9 +218,6 @@
  * would not result in a fast call but would fall back to executing the
  * associated SlowCallback.
  */
-
-#ifndef INCLUDE_V8_FAST_API_CALLS_H_
-#define INCLUDE_V8_FAST_API_CALLS_H_
 
 #include <stddef.h>
 #include <stdint.h>

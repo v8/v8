@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// A simple interpreter for the Irregexp byte code.
-
 #ifndef V8_REGEXP_REGEXP_INTERPRETER_H_
 #define V8_REGEXP_REGEXP_INTERPRETER_H_
+
+// A simple interpreter for the Irregexp byte code.
 
 #include "src/regexp/regexp.h"
 

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_PLURAL_RULES_INL_H_
+#define V8_OBJECTS_JS_PLURAL_RULES_INL_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_PLURAL_RULES_INL_H_
-#define V8_OBJECTS_JS_PLURAL_RULES_INL_H_
 
 #include "src/api/api-inl.h"
 #include "src/objects/js-plural-rules.h"

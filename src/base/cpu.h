@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_CPU_H_
+#define V8_BASE_CPU_H_
+
 // This module contains the architecture-specific code. This make the rest of
 // the code less dependent on differences between different processor
 // architecture.
@@ -9,9 +12,6 @@
 // implementation for a particular architecture is put in cpu_<arch>.cc.
 // The build system then uses the implementation for the target architecture.
 //
-
-#ifndef V8_BASE_CPU_H_
-#define V8_BASE_CPU_H_
 
 #include "src/base/base-export.h"
 #include "src/base/macros.h"

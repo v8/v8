@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !V8_ENABLE_WEBASSEMBLY
-#error This header should only be included if WebAssembly is enabled.
-#endif  // !V8_ENABLE_WEBASSEMBLY
-
 #ifndef V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 #define V8_WASM_WASM_DISASSEMBLER_IMPL_H_
 
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 

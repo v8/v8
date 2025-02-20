@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_PLATFORM_PLATFORM_H_
+#define V8_BASE_PLATFORM_PLATFORM_H_
+
 // This module contains the platform-specific code. This make the rest of the
 // code less dependent on operating system, compilers and runtime libraries.
 // This module does specifically not deal with differences between different
@@ -17,9 +20,6 @@
 // slower. It would require factory methods for selecting the right
 // implementation and the overhead of virtual methods for performance
 // sensitive like mutex locking/unlocking.
-
-#ifndef V8_BASE_PLATFORM_PLATFORM_H_
-#define V8_BASE_PLATFORM_PLATFORM_H_
 
 #include <cstdarg>
 #include <cstdint>

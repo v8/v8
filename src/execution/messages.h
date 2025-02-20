@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_MESSAGES_H_
+#define V8_EXECUTION_MESSAGES_H_
+
 // The infrastructure used for (localized) message reporting in V8.
 //
 // Note: there's a big unresolved issue about ownership of the data
 // structures used by this framework.
-
-#ifndef V8_EXECUTION_MESSAGES_H_
-#define V8_EXECUTION_MESSAGES_H_
 
 #include <memory>
 

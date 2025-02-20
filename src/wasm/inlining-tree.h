@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_INLINING_TREE_H_
+#define V8_WASM_INLINING_TREE_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_INLINING_TREE_H_
-#define V8_WASM_INLINING_TREE_H_
-
+#include <cinttypes>
 #include <cstdint>
 #include <queue>
 #include <vector>
@@ -264,11 +265,11 @@ void InliningTree::FullyExpand() {
       if (top != this) {
         PrintF(
             "[function %d: in function %d, considering call #%d, case #%d, to "
-            "function %d (count=%d, size=%d, score=%lld)... ",
+            "function %d (count=%d, size=%d, score=%" PRId64 ")... ",
             data_->topmost_caller_index, top->caller_index_,
             top->feedback_slot_, static_cast<int>(top->case_),
             static_cast<int>(top->function_index_), top->call_count_,
-            top->wire_byte_size_, static_cast<long long>(top->score()));
+            top->wire_byte_size_, static_cast<int64_t>(top->score()));
       } else {
         PrintF("[function %d: expanding topmost caller... ",
                data_->topmost_caller_index);

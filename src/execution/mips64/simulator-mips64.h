@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
+#define V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
+
 // Declares a Simulator for MIPS instructions if we are not generating a native
 // MIPS binary. This Simulator allows us to run and debug MIPS code generation
 // on regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a MIPS HW platform.
-
-#ifndef V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
-#define V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"

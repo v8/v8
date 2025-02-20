@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
+
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"

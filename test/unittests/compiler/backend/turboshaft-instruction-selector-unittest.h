@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
-#define V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#ifndef V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
+#define V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
 #include <set>
@@ -618,4 +618,4 @@ class TurboshaftInstructionSelectorTestWithParam
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#endif  // V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_

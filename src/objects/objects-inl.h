@@ -1,16 +1,15 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
+#ifndef V8_OBJECTS_OBJECTS_INL_H_
+#define V8_OBJECTS_OBJECTS_INL_H_
+
 // Review notes:
 //
 // - The use of macros in these inline functions may seem superfluous
 // but it is absolutely needed to make sure gcc generates optimal
 // code. gcc is not happy when attempting to inline too deep.
-//
-
-#ifndef V8_OBJECTS_OBJECTS_INL_H_
-#define V8_OBJECTS_OBJECTS_INL_H_
 
 #include "src/objects/objects.h"
 // Include the non-inl header before the rest of the headers.

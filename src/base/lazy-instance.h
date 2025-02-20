@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_LAZY_INSTANCE_H_
+#define V8_BASE_LAZY_INSTANCE_H_
+
 // The LazyInstance<Type, Traits> class manages a single instance of Type,
 // which will be lazily created on the first time it's accessed.  This class is
 // useful for places you would normally use a function-level static, but you
@@ -64,9 +67,6 @@
 //   OS::Mutex() which returns a new private OS-dependent subclass of Mutex).
 //   The macro LAZY_DYNAMIC_INSTANCE_INITIALIZER must be used to initialize
 //   dynamic lazy instances.
-
-#ifndef V8_BASE_LAZY_INSTANCE_H_
-#define V8_BASE_LAZY_INSTANCE_H_
 
 #include <type_traits>
 

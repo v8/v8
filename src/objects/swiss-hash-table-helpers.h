@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
+#define V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
+
 // Collection of swiss table helpers that are independent from a specific
 // container, like SwissNameDictionary. Taken almost in verbatim from Abseil,
 // comments in this file indicate what is taken from what Abseil file.
@@ -13,9 +16,6 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/memory.h"
-
-#ifndef V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
-#define V8_OBJECTS_SWISS_HASH_TABLE_HELPERS_H_
 
 // The following #defines are taken from Abseil's have_sse.h (but renamed).
 #ifndef V8_SWISS_TABLE_HAVE_SSE2_HOST

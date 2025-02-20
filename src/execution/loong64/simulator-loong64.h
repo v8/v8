@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_LOONG64_SIMULATOR_LOONG64_H_
+#define V8_EXECUTION_LOONG64_SIMULATOR_LOONG64_H_
+
 // Declares a Simulator for loongisa instructions if we are not generating a
 // native loongisa binary. This Simulator allows us to run and debug loongisa
 // code generation on regular desktop machines. V8 calls into generated code via
 // the GeneratedCode wrapper, which will start execution in the Simulator or
 // forwards to the real entry on a loongisa HW platform.
-
-#ifndef V8_EXECUTION_LOONG64_SIMULATOR_LOONG64_H_
-#define V8_EXECUTION_LOONG64_SIMULATOR_LOONG64_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"

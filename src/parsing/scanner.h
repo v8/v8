@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Features shared by parsing and pre-parsing scanners.
-
 #ifndef V8_PARSING_SCANNER_H_
 #define V8_PARSING_SCANNER_H_
+
+// Features shared by parsing and pre-parsing scanners.
 
 #include <algorithm>
 #include <memory>

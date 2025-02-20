@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_ARM_SIMULATOR_ARM_H_
+#define V8_EXECUTION_ARM_SIMULATOR_ARM_H_
+
 // Declares a Simulator for ARM instructions if we are not generating a native
 // ARM binary. This Simulator allows us to run and debug ARM code generation on
 // regular desktop machines.
 // V8 calls into generated code by using the GeneratedCode class,
 // which will start execution in the Simulator or forwards to the real entry
 // on an ARM HW platform.
-
-#ifndef V8_EXECUTION_ARM_SIMULATOR_ARM_H_
-#define V8_EXECUTION_ARM_SIMULATOR_ARM_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"

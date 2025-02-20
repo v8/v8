@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_ONCE_H_
+#define V8_BASE_ONCE_H_
+
 // emulates google3/base/once.h
 //
 // This header is intended to be included only by v8's internal code. Users
@@ -48,9 +51,6 @@
 // but it is technically not guaranteed.  Unfortunately, Win32 provides no way
 // whatsoever to statically-initialize its synchronization primitives, so our
 // only choice is to assume that dynamic initialization is single-threaded.
-
-#ifndef V8_BASE_ONCE_H_
-#define V8_BASE_ONCE_H_
 
 #include <stddef.h>
 #include <stdint.h>

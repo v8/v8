@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file defines the public interface to v8_debug_helper.
-
 #ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
 #define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_H_
+
+// This file defines the public interface to v8_debug_helper.
 
 #include <cstdint>
 #include <memory>
