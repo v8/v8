@@ -4493,6 +4493,8 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   }
   // Discard code compiled for a discarded native context without finalization.
   if (function->native_context()->global_object()->IsDetached()) {
+    CompilerTracer::TraceAbortedMaglevCompile(
+        isolate, function, BailoutReason::kDetachedNativeContext);
     return;
   }
 
@@ -4531,6 +4533,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     CompilerTracer::TraceFinishMaglevCompile(
         isolate, function, job->is_osr(), job->prepare_in_ms(),
         job->execute_in_ms(), job->finalize_in_ms());
+  } else {
+    CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
+                                              job->bailout_reason_);
   }
   function->SetTieringInProgress(false, osr_offset);
 #endif

@@ -137,6 +137,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();
+    bailout_reason_ = BailoutReason::kGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
   EndPhaseKind();
@@ -147,8 +148,11 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   BeginPhaseKind("V8.MaglevFinalizeJob");
   Handle<Code> code;
-  if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
+  auto [maybe_code, bailout_reason] =
+      maglev::MaglevCompiler::GenerateCode(isolate, info());
+  if (!maybe_code.ToHandle(&code)) {
     EndPhaseKind();
+    bailout_reason_ = bailout_reason;
     return CompilationJob::FAILED;
   }
   // Functions with many inline candidates are sensitive to correct call

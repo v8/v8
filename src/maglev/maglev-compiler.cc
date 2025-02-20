@@ -267,7 +267,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 }
 
 // static
-MaybeHandle<Code> MaglevCompiler::GenerateCode(
+std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
     Isolate* isolate, MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   MaglevCodeGenerator* const code_generator =
@@ -284,7 +284,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
           ->shared_function_info()
           .object()
           ->set_maglev_compilation_failed(true);
-      return {};
+      return {{}, BailoutReason::kCodeGenerationFailed};
     }
   }
 
@@ -297,7 +297,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
       // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly.
       compilation_info->toplevel_function()->SetInterruptBudget(
           isolate, BudgetModification::kReduce);
-      return {};
+      return {{}, BailoutReason::kBailedOutDueToDependencyChange};
     }
   }
 
@@ -313,7 +313,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
 #endif
   }
 
-  return code;
+  return {code, BailoutReason::kNoReason};
 }
 
 }  // namespace maglev
