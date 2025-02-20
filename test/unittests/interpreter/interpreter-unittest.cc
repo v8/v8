@@ -606,7 +606,9 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
        BinaryOperationFeedback::kSignedSmall},
       {Token::kAdd, LiteralForTest(Smi::kMaxValue), LiteralForTest(1),
        i_isolate()->factory()->NewHeapNumber(Smi::kMaxValue + 1.0),
-       BinaryOperationFeedback::kAdditiveSafeInteger},
+       v8_flags.additive_safe_int_feedback
+           ? BinaryOperationFeedback::kAdditiveSafeInteger
+           : BinaryOperationFeedback::kNumber},
       {Token::kAdd, LiteralForTest(3.1415), LiteralForTest(3),
        i_isolate()->factory()->NewHeapNumber(3.1415 + 3),
        BinaryOperationFeedback::kNumber},
@@ -740,7 +742,9 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
        BinaryOperationFeedback::kSignedSmall},
       {Token::kAdd, LiteralForTest(2), Smi::kMaxValue,
        i_isolate()->factory()->NewHeapNumber(Smi::kMaxValue + 2.0),
-       BinaryOperationFeedback::kAdditiveSafeInteger},
+       v8_flags.additive_safe_int_feedback
+           ? BinaryOperationFeedback::kAdditiveSafeInteger
+           : BinaryOperationFeedback::kNumber},
       {Token::kAdd, LiteralForTest(3.1415), 2,
        i_isolate()->factory()->NewHeapNumber(3.1415 + 2.0),
        BinaryOperationFeedback::kNumber},

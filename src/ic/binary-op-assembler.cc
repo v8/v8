@@ -107,7 +107,9 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         var_fadd_lhs = SmiToFloat64(lhs_smi);
         var_fadd_rhs = SmiToFloat64(rhs_smi);
         var_type_feedback =
-            SmiConstant(BinaryOperationFeedback::kAdditiveSafeInteger);
+            SelectSmiConstant(IsAdditiveSafeIntegerFeedbackEnabled(),
+                              BinaryOperationFeedback::kAdditiveSafeInteger,
+                              BinaryOperationFeedback::kNumber);
         Goto(&do_fadd);
       }
     }
