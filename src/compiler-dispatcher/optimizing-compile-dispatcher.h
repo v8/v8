@@ -35,20 +35,15 @@ class V8_EXPORT OptimizingCompileInputQueue {
  public:
   inline bool IsAvailable() {
     base::MutexGuard access(&mutex_);
-    return length_ < capacity_;
+    return queue_.size() < capacity_;
   }
 
-  inline int Length() {
+  inline size_t Length() {
     base::MutexGuard access_queue(&mutex_);
-    return length_;
+    return queue_.size();
   }
 
-  explicit OptimizingCompileInputQueue(int capacity)
-      : capacity_(capacity), length_(0), shift_(0) {
-    queue_ = NewArray<TurbofanCompilationJob*>(capacity_);
-  }
-
-  ~OptimizingCompileInputQueue() { DeleteArray(queue_); }
+  explicit OptimizingCompileInputQueue(int capacity) : capacity_(capacity) {}
 
   TurbofanCompilationJob* Dequeue(OptimizingCompileTaskState& task_state);
   TurbofanCompilationJob* DequeueIfIsolateMatches(Isolate* isolate);
@@ -61,17 +56,9 @@ class V8_EXPORT OptimizingCompileInputQueue {
   void Prioritize(Tagged<SharedFunctionInfo> function);
 
  private:
-  inline int QueueIndex(int i) {
-    int result = (i + shift_) % capacity_;
-    DCHECK_LE(0, result);
-    DCHECK_LT(result, capacity_);
-    return result;
-  }
+  std::deque<TurbofanCompilationJob*> queue_;
+  size_t capacity_;
 
-  TurbofanCompilationJob** queue_;
-  int capacity_;
-  int length_;
-  int shift_;
   base::Mutex mutex_;
   base::ConditionVariable task_finished_;
 

@@ -351,57 +351,42 @@ void OptimizingCompileDispatcher::Prioritize(
 void OptimizingCompileInputQueue::Prioritize(
     Tagged<SharedFunctionInfo> function) {
   base::MutexGuard access(&mutex_);
-  if (length_ > 1) {
-    for (int i = length_ - 1; i > 1; --i) {
-      if (*queue_[QueueIndex(i)]->compilation_info()->shared_info() ==
-          function) {
-        std::swap(queue_[QueueIndex(i)], queue_[QueueIndex(0)]);
-        return;
-      }
-    }
+  auto it = std::find_if(
+      queue_.begin(), queue_.end(), [function](TurbofanCompilationJob* job) {
+        return *job->compilation_info()->shared_info() == function;
+      });
+
+  if (it != queue_.end()) {
+    std::iter_swap(it, queue_.begin());
   }
 }
 
 void OptimizingCompileInputQueue::FlushJobsForIsolate(Isolate* isolate) {
   base::MutexGuard access(&mutex_);
-  int target = 0;
-  int initial_length = length_;
-  for (int i = 0; i < initial_length; ++i) {
-    TurbofanCompilationJob* job = queue_[QueueIndex(i)];
-    DCHECK_NOT_NULL(job);
-    if (job->isolate() == isolate) {
-      Compiler::DisposeTurbofanCompilationJob(isolate, job);
-      delete job;
-      length_--;
-      queue_[QueueIndex(target)] = nullptr;
-    } else {
-      queue_[QueueIndex(target)] = job;
-      target++;
-    }
-  }
+  std::erase_if(queue_, [isolate](TurbofanCompilationJob* job) {
+    if (job->isolate() != isolate) return false;
+    Compiler::DisposeTurbofanCompilationJob(isolate, job);
+    delete job;
+    return true;
+  });
 }
 
 bool OptimizingCompileInputQueue::HasJobForIsolate(Isolate* isolate) {
   mutex_.AssertHeld();
-  for (int i = 0; i < length_; i++) {
-    TurbofanCompilationJob* job = queue_[QueueIndex(i)];
-    DCHECK_NOT_NULL(job);
-    if (job->isolate() == isolate) {
-      return true;
-    }
-  }
-  return false;
+  return std::find_if(queue_.begin(), queue_.end(),
+                      [isolate](TurbofanCompilationJob* job) {
+                        return job->isolate() == isolate;
+                      }) != queue_.end();
 }
 
 TurbofanCompilationJob* OptimizingCompileInputQueue::Dequeue(
     OptimizingCompileTaskState& task_state) {
   base::MutexGuard access(&mutex_);
   DCHECK_NULL(task_state.isolate);
-  if (length_ == 0) return nullptr;
-  TurbofanCompilationJob* job = queue_[QueueIndex(0)];
+  if (queue_.empty()) return nullptr;
+  TurbofanCompilationJob* job = queue_.front();
+  queue_.pop_front();
   DCHECK_NOT_NULL(job);
-  shift_ = QueueIndex(1);
-  length_--;
   task_state.isolate = job->isolate();
   return job;
 }
@@ -409,21 +394,19 @@ TurbofanCompilationJob* OptimizingCompileInputQueue::Dequeue(
 TurbofanCompilationJob* OptimizingCompileInputQueue::DequeueIfIsolateMatches(
     Isolate* isolate) {
   base::MutexGuard access(&mutex_);
-  if (length_ == 0) return nullptr;
-  TurbofanCompilationJob* job = queue_[QueueIndex(0)];
+  if (queue_.empty()) return nullptr;
+  TurbofanCompilationJob* job = queue_.front();
   DCHECK_NOT_NULL(job);
   if (job->isolate() != isolate) return nullptr;
-  shift_ = QueueIndex(1);
-  length_--;
+  queue_.pop_front();
   return job;
 }
 
 bool OptimizingCompileInputQueue::Enqueue(
     std::unique_ptr<TurbofanCompilationJob>& job) {
   base::MutexGuard access(&mutex_);
-  if (length_ < capacity_) {
-    queue_[QueueIndex(length_)] = job.release();
-    length_++;
+  if (queue_.size() < capacity_) {
+    queue_.push_back(job.release());
     return true;
   } else {
     return false;
