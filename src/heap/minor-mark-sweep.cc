@@ -549,7 +549,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
       isolate->traced_handles()->ResetYoungDeadNodes(
           &IsUnmarkedObjectInYoungGeneration);
     } else {
-      isolate->traced_handles()->ProcessYoungObjects(
+      isolate->traced_handles()->ProcessWeakYoungObjects(
           nullptr, &IsUnmarkedObjectInYoungGeneration);
     }
   }

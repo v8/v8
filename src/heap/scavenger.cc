@@ -859,7 +859,7 @@ void ScavengerCollector::CollectGarbage() {
       GlobalHandlesWeakRootsUpdatingVisitor visitor;
       isolate_->global_handles()->ProcessWeakYoungObjects(
           &visitor, &IsUnscavengedHeapObjectSlot);
-      isolate_->traced_handles()->ProcessYoungObjects(
+      isolate_->traced_handles()->ProcessWeakYoungObjects(
           &visitor, &IsUnscavengedHeapObjectSlot);
     }
 

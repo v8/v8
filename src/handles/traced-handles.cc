@@ -361,17 +361,26 @@ void TracedHandles::ResetYoungDeadNodes(
   }
 }
 
-void TracedHandles::ComputeWeaknessForYoungObjects() {
-  if (!v8_flags.reclaim_unmodified_wrappers) return;
-
+bool TracedHandles::SupportsClearingWeakNonLiveWrappers() {
+  if (!v8_flags.reclaim_unmodified_wrappers) {
+    return false;
+  }
+  if (!isolate_->heap()->GetEmbedderRootsHandler()) {
+    return false;
+  }
   // Treat all objects as roots during incremental marking to avoid corrupting
   // marking worklists.
   DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking_);
-  if (is_marking_) return;
+  if (is_marking_) {
+    return false;
+  }
+  return true;
+}
 
-  auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
-  if (!handler) return;
-
+void TracedHandles::ComputeWeaknessForYoungObjects() {
+  if (!SupportsClearingWeakNonLiveWrappers()) {
+    return;
+  }
   for (auto* block : young_blocks_) {
     DCHECK(block->InYoungList());
     for (auto* node : *block) {
@@ -386,19 +395,20 @@ void TracedHandles::ComputeWeaknessForYoungObjects() {
   }
 }
 
-void TracedHandles::ProcessYoungObjects(
+void TracedHandles::ProcessWeakYoungObjects(
     RootVisitor* visitor, WeakSlotCallbackWithHeap should_reset_handle) {
-  if (!v8_flags.reclaim_unmodified_wrappers) return;
+  if (!SupportsClearingWeakNonLiveWrappers()) {
+    return;
+  }
 
-  auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
-  if (!handler) return;
-
-  // ResetRoot should not trigger allocations in CppGC.
-  if (auto* cpp_heap = CppHeap::From(isolate_->heap()->cpp_heap())) {
+  auto* heap = isolate_->heap();
+  // ResetRoot() below should not trigger allocations in CppGC.
+  if (auto* cpp_heap = CppHeap::From(heap->cpp_heap())) {
     cpp_heap->EnterDisallowGCScope();
     cpp_heap->EnterNoGCScope();
   }
 
+  auto* const handler = heap->GetEmbedderRootsHandler();
   for (auto it = young_blocks_.begin(); it != young_blocks_.end();) {
     TracedNodeBlock* block = *it;
     DCHECK(block->InYoungList());
@@ -408,27 +418,27 @@ void TracedHandles::ProcessYoungObjects(
     it++;
 
     for (auto* node : *block) {
-      if (!node->is_in_young_list()) continue;
+      if (!node->is_weak()) {
+        continue;
+      }
       DCHECK(node->is_in_use());
+      DCHECK(node->is_in_young_list());
 
-      bool should_reset =
-          should_reset_handle(isolate_->heap(), node->location());
+      const bool should_reset = should_reset_handle(heap, node->location());
       if (should_reset) {
-        CHECK(node->is_weak());
-        CHECK(!is_marking_);
+        DCHECK(!is_marking_);
         FullObjectSlot slot = node->location();
         handler->ResetRoot(
             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&slot));
         // Mark as cleared due to weak semantics.
         node->set_raw_object(kTracedHandleMinorGCWeakResetZapValue);
-        CHECK(!node->is_in_use());
+        DCHECK(!node->is_in_use());
+        DCHECK(!node->is_weak());
       } else {
-        if (node->is_weak()) {
-          node->set_weak(false);
-          if (visitor) {
-            visitor->VisitRootPointer(Root::kGlobalHandles, nullptr,
-                                      node->location());
-          }
+        node->set_weak(false);
+        if (visitor) {
+          visitor->VisitRootPointer(Root::kTracedHandles, nullptr,
+                                    node->location());
         }
       }
     }

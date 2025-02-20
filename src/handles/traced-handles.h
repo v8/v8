@@ -301,9 +301,10 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   // - `JSObject::IsUnmodifiedApiObject` returns true;
   // - the `EmbedderRootsHandler` also does not consider them as roots;
   void ComputeWeaknessForYoungObjects();
-
-  void ProcessYoungObjects(RootVisitor* v,
-                           WeakSlotCallbackWithHeap should_reset_handle);
+  // Processes the weak objects that have been computed in
+  // `ComputeWeaknessForYoungObjects()`.
+  void ProcessWeakYoungObjects(RootVisitor* v,
+                               WeakSlotCallbackWithHeap should_reset_handle);
 
   void Iterate(RootVisitor*);
   void IterateYoung(RootVisitor*);
@@ -333,6 +334,8 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   void Destroy(TracedNodeBlock& node_block, TracedNode& node);
   void Copy(const TracedNode& from_node, Address** to);
   void Move(TracedNode& from_node, Address** from, Address** to);
+
+  bool SupportsClearingWeakNonLiveWrappers();
 
   TracedNodeBlock::OverallList blocks_;
   size_t num_blocks_ = 0;
