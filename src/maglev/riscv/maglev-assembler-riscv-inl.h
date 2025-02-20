@@ -746,6 +746,13 @@ inline void MaglevAssembler::OrInt32(Register reg, int mask) {
   Or(reg, reg, Operand(mask));
 }
 
+inline void MaglevAssembler::AndInt32(Register reg, Register other) {
+  And(reg, reg, other);
+}
+inline void MaglevAssembler::OrInt32(Register reg, Register other) {
+  Or(reg, reg, other);
+}
+
 inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   Sll32(reg, reg, Operand(amount));
 }
