@@ -38,7 +38,6 @@
 
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
 

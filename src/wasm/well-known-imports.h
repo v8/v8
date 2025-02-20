@@ -12,7 +12,6 @@
 #include <atomic>
 #include <memory>
 
-#include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
 
 namespace v8::internal::wasm {

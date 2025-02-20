@@ -10,7 +10,6 @@
 #include "src/base/atomicops.h"
 #include "src/base/bounds.h"
 #include "src/base/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/tagged-payload.h"

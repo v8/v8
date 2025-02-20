@@ -11,7 +11,6 @@
 #include "include/v8config.h"
 #include "src/api/api.h"
 #include "src/base/logging.h"
-#include "src/base/platform/mutex.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
