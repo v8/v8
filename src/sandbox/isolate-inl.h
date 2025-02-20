@@ -16,15 +16,8 @@
 
 namespace v8::internal {
 
-template <typename IsolateT>
-IsolateForSandbox::IsolateForSandbox(IsolateT* isolate)
 #ifdef V8_ENABLE_SANDBOX
-    : isolate_(isolate->ForSandbox())
-#endif
-{
-}
 
-#ifdef V8_ENABLE_SANDBOX
 ExternalPointerTable& IsolateForSandbox::GetExternalPointerTableFor(
     ExternalPointerTagRange tag_range) {
   IsolateForPointerCompression isolate(isolate_);
@@ -58,21 +51,17 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
              : isolate_->heap()->trusted_pointer_space();
 }
 
-inline ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
+ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
     Tagged<HeapObject> witness, ExternalPointerHandle handle) {
   DCHECK(!HeapLayout::InWritableSharedSpace(witness));
   return isolate_->external_pointer_table().GetTag(handle);
 }
 
-#endif  // V8_ENABLE_SANDBOX
-
-template <typename IsolateT>
-IsolateForPointerCompression::IsolateForPointerCompression(IsolateT* isolate)
-#ifdef V8_COMPRESS_POINTERS
-    : isolate_(isolate->ForSandbox())
-#endif
-{
+V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() {
+  return Isolate::Current();
 }
+
+#endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_COMPRESS_POINTERS
 
@@ -116,15 +105,6 @@ IsolateForPointerCompression::GetCppHeapPointerTableSpace() {
 }
 
 #endif  // V8_COMPRESS_POINTERS
-
-V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() {
-#ifdef V8_ENABLE_SANDBOX
-  return Isolate::Current();
-#else
-  // Not used in non-sandbox mode.
-  return {};
-#endif
-}
 
 }  // namespace v8::internal
 
