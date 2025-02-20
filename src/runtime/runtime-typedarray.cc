@@ -129,8 +129,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   }
 #endif
 
-  size_t length = array->GetLength();
-  DCHECK_LT(1, length);
+  const size_t byte_length = array->GetByteLength();
 
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
@@ -144,27 +143,32 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {
-    const size_t bytes = array->GetByteLength();
-    if (bytes <= static_cast<unsigned>(
-                     ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
-      array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
+    if (byte_length <= static_cast<unsigned>(
+                           ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
+      array_copy =
+          isolate->factory()->NewByteArray(static_cast<int>(byte_length));
       data_copy_ptr = array_copy->begin();
     } else {
       // Allocate copy in C++ heap.
-      offheap_copy.resize(bytes);
+      offheap_copy.resize(byte_length);
       data_copy_ptr = &offheap_copy[0];
     }
     base::Relaxed_Memcpy(static_cast<base::Atomic8*>(data_copy_ptr),
-                         static_cast<base::Atomic8*>(array->DataPtr()), bytes);
+                         static_cast<base::Atomic8*>(array->DataPtr()),
+                         byte_length);
   }
 
   DisallowGarbageCollection no_gc;
+
+  size_t length = array->GetLength();
+  DCHECK_LT(1, length);
 
   switch (array->type()) {
 #define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                            \
   case kExternal##Type##Array: {                                             \
     ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)        \
                             : static_cast<ctype*>(array->DataPtr());         \
+    SBXCHECK(length * sizeof(ctype) == byte_length);                         \
     if (kExternal##Type##Array == kExternalFloat64Array ||                   \
         kExternal##Type##Array == kExternalFloat32Array) {                   \
       if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {          \
@@ -195,9 +199,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (copy_data) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
-    const size_t bytes = array->GetByteLength();
     base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
-                         static_cast<base::Atomic8*>(data_copy_ptr), bytes);
+                         static_cast<base::Atomic8*>(data_copy_ptr),
+                         byte_length);
   }
 
   return *array;
