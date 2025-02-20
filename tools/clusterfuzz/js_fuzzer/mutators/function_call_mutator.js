@@ -33,14 +33,16 @@ function _liftExpressionsToStatements(path, nodes) {
  * probability. Additionally this doesn't include the current function.
  */
 function availableReplacementFunctionNames(path, context) {
-  let available = common.availableFunctionNames(path);
+  const available = common.availableFunctionNames(path);
   const oldFunc = path.node.callee.name;
 
   // The available set is a fresh set which we can mutate here.
   available.delete(oldFunc);
 
   // Disregard infinitely running functions.
-  available = available.difference(context.infiniteFunctions);
+  for (const name of context.infiniteFunctions.values()) {
+    available.delete(name);
+  }
 
   // If we don't care to maintain the async property, just use all functions.
   if (random.choose(module.exports.REPLACE_CROSS_ASYNC_PROB)) {
