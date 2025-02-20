@@ -1397,6 +1397,9 @@
 
   # Suspect to stress other tests when run in background.
   'huge-typedarrays': [PASS, HEAVY, NO_VARIANTS],
+
+  # TODO(thibaudm): investigate timeout.
+  'regress/wasm/regress-392928805': [SKIP]
 }],  # 'system == windows'
 
 ##############################################################################
