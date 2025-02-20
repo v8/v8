@@ -164,6 +164,7 @@ in_category(
         name = "V8 Linux64 - sandbox testing",
         parent_builder = "V8 Clusterfuzz Linux64 sandbox testing - release builder",
         bucket = "ci",
+        properties = {"builder_group": "client.v8.clusterfuzz"},
         barrier = BARRIER.TREE_CLOSER,
     ),
     v8_builder(
