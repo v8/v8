@@ -133,6 +133,14 @@ function isInWhileLoop(path) {
   return Boolean(whileStatement);
 }
 
+function isInfiniteLoop(node) {
+  // Approximates if node is a trivial infinite while loop. Assumes that node
+  // is either a while or dowhile statement.
+  return (node.test &&
+          babelTypes.isLiteral(node.test) &&
+          node.test.value === true);
+}
+
 function* _availableIdentifierNamesGen(path, filter) {
   // TODO(ochang): Consider globals that aren't declared with let/var etc.
   const allBindings = path.scope.getAllBindings();
@@ -373,6 +381,7 @@ module.exports = {
   randomVariable: randomVariable,
   isInForLoopCondition: isInForLoopCondition,
   isInWhileLoop: isInWhileLoop,
+  isInfiniteLoop: isInfiniteLoop,
   isLargeNode: isLargeNode,
   isVariableIdentifier: isVariableIdentifier,
   isFunctionIdentifier: isFunctionIdentifier,

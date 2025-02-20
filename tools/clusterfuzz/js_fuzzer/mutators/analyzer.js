@@ -47,6 +47,19 @@ class ContextAnalyzer extends mutator.Mutator {
     const loopStatement = {
       enter(path) {
         loopStack.push(LoopState.LOOP);
+
+        // Mark functions that contain empty infinite loops.
+        if (common.isInfiniteLoop(path.node) &&
+            path.node.body &&
+            babelTypes.isBlockStatement(path.node.body) &&
+            !path.node.body.body.length) {
+          const fun = path.findParent((p) => p.isFunctionDeclaration());
+          if (fun && fun.node && fun.node.id &&
+              babelTypes.isIdentifier(fun.node.id) &&
+              common.isFunctionIdentifier(fun.node.id.name)) {
+            thisMutator.context.infiniteFunctions.add(fun.node.id.name);
+          }
+        }
       },
       exit(path) {
         assert(loopStack.pop() === LoopState.LOOP);

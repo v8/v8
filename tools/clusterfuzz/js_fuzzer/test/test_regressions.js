@@ -356,6 +356,22 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/try_catch_while_true/expected.js', mutated);
   });
+
+  it('does not replace with diverging functions', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Go only into function-call replacements.
+    sandbox.stub(random, 'random').callsFake(() => { return 0.2; });
+    this.settings['MUTATE_FUNCTION_CALLS'] = 1.0;
+
+    const source = helpers.loadTestData('regress/infinite_loop_fun/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/infinite_loop_fun/expected.js', mutated);
+  });
 });
 
 describe('DB tests', () => {

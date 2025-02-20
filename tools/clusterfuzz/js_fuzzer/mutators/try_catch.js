@@ -137,9 +137,7 @@ class AddTryCatchMutator extends mutator.Mutator {
         // Just replace the outer loop and don't progress on the inside if
         // it's an infinite loop, since sometimes exceptions are used to
         // break out of the loop.
-        if (path.node.test &&
-            babelTypes.isLiteral(path.node.test) &&
-            path.node.test.value === true) {
+        if (common.isInfiniteLoop(path.node)) {
           replaceAndSkip(path);
         }
       },
