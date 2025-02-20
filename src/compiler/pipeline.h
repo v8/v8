@@ -155,11 +155,6 @@ class Pipeline : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateTurboshaftCodeForTesting(
       CallDescriptor* call_descriptor, turboshaft::PipelineData* data);
 
-  // Run just the register allocator phases.
-  V8_EXPORT_PRIVATE static void AllocateRegistersForTesting(
-      const RegisterConfiguration* config, InstructionSequence* sequence,
-      bool run_verifier);
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);
 };

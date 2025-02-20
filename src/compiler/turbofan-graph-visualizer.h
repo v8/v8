@@ -78,7 +78,7 @@ class JSONEscaped {
   std::string str_;
 };
 
-struct TurboJsonFile : public std::ofstream {
+struct V8_EXPORT_PRIVATE TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
   ~TurboJsonFile() override;
 };

@@ -300,6 +300,14 @@ class V8_EXPORT_PRIVATE PipelineData {
     }
   }
 
+  void InitializeInstructionComponentWithSequence(
+      InstructionSequence* sequence) {
+    DCHECK(!instruction_component_.has_value());
+    instruction_component_.emplace(zone_stats());
+    instruction_component_->sequence =
+        InstructionComponent::Pointer<InstructionSequence>(sequence);
+  }
+
   void ClearInstructionComponent() {
     DCHECK(instruction_component_.has_value());
     instruction_component_.reset();

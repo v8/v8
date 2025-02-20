@@ -513,7 +513,6 @@ v8_source_set("v8_unittests_sources") {
       "compiler/control-equivalence-unittest.cc",
       "compiler/csa-load-elimination-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
-      "compiler/decompression-optimizer-unittest.cc",
       "compiler/diamond-unittest.cc",
       "compiler/frame-unittest.cc",
       "compiler/function-tester.cc",

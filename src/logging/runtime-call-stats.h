@@ -336,16 +336,12 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BitcastElision)                    \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BranchConditionDuplication)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAEarlyOptimization)              \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CSAOptimization)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)                \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecompressionOptimization)         \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                    \
@@ -360,7 +356,6 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LocateSpillSlots)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopExitElimination)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, LoopPeeling)                       \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MachineOperatorOptimization)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PairingOptimization)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MeetRegisterConstraints)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, MemoryOptimization)                \
@@ -404,7 +399,6 @@ class RuntimeCallTimer final {
                               TurboshaftSimplificationAndNormalization)       \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftOptimize)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftProfileApplication)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftSpecialRPOScheduling)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftStoreStoreElimination)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftTagUntagLowering)        \

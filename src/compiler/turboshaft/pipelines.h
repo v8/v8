@@ -45,7 +45,7 @@ struct SimplificationAndNormalizationPhase {
   void Run(PipelineData* data, Zone* temp_zone);
 };
 
-class Pipeline {
+class V8_EXPORT_PRIVATE Pipeline {
  public:
   explicit Pipeline(PipelineData* data) : data_(data) {}
 
@@ -404,92 +404,7 @@ class Pipeline {
   }
 
   void AllocateRegisters(const RegisterConfiguration* config,
-                         CallDescriptor* call_descriptor, bool run_verifier) {
-    // Don't track usage for this zone in compiler stats.
-    std::unique_ptr<Zone> verifier_zone;
-    RegisterAllocatorVerifier* verifier = nullptr;
-    if (run_verifier) {
-      AccountingAllocator* allocator = data()->allocator();
-      DCHECK_NOT_NULL(allocator);
-      verifier_zone.reset(
-          new Zone(allocator, kRegisterAllocatorVerifierZoneName));
-      verifier = verifier_zone->New<RegisterAllocatorVerifier>(
-          verifier_zone.get(), config, data()->sequence(), data()->frame());
-    }
-
-#ifdef DEBUG
-    data_->sequence()->ValidateEdgeSplitForm();
-    data_->sequence()->ValidateDeferredBlockEntryPaths();
-    data_->sequence()->ValidateDeferredBlockExitPaths();
-#endif
-
-    data_->InitializeRegisterComponent(config, call_descriptor);
-
-    Run<MeetRegisterConstraintsPhase>();
-    Run<ResolvePhisPhase>();
-    Run<BuildLiveRangesPhase>();
-    Run<BuildLiveRangeBundlesPhase>();
-
-    TraceSequence("before register allocation");
-    if (verifier != nullptr) {
-      CHECK(!data_->register_allocation_data()->ExistsUseWithoutDefinition());
-      CHECK(data_->register_allocation_data()
-                ->RangesDefinedInDeferredStayInDeferred());
-    }
-
-    if (data_->info()->trace_turbo_json() && !MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(data_->isolate());
-      tcf << AsC1VRegisterAllocationData("PreAllocation",
-                                         data_->register_allocation_data());
-    }
-
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-
-    if (data_->sequence()->HasFPVirtualRegisters()) {
-      Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
-    }
-
-    if (data_->sequence()->HasSimd128VirtualRegisters() &&
-        (kFPAliasing == AliasingKind::kIndependent)) {
-      Run<AllocateSimd128RegistersPhase<LinearScanAllocator>>();
-    }
-
-    Run<DecideSpillingModePhase>();
-    Run<AssignSpillSlotsPhase>();
-    Run<CommitAssignmentPhase>();
-
-    // TODO(chromium:725559): remove this check once
-    // we understand the cause of the bug. We keep just the
-    // check at the end of the allocation.
-    if (verifier != nullptr) {
-      verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
-    }
-
-    Run<ConnectRangesPhase>();
-
-    Run<ResolveControlFlowPhase>();
-
-    Run<PopulateReferenceMapsPhase>();
-
-    if (v8_flags.turbo_move_optimization) {
-      Run<OptimizeMovesPhase>();
-    }
-
-    TraceSequence("after register allocation");
-
-    if (verifier != nullptr) {
-      verifier->VerifyAssignment("End of regalloc pipeline.");
-      verifier->VerifyGapMoves();
-    }
-
-    if (data_->info()->trace_turbo_json() && !MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(data_->isolate());
-      tcf << AsC1VRegisterAllocationData("CodeGen",
-                                         data_->register_allocation_data());
-    }
-
-    data()->ClearRegisterComponent();
-  }
+                         CallDescriptor* call_descriptor, bool run_verifier);
 
   void AssembleCode(Linkage* linkage) {
     BeginPhaseKind("V8.TFCodeGeneration");
