@@ -332,7 +332,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Return the allocated bytes in the active semispace.
   size_t Size() const final;
 
-  size_t SizeOfObjects() const final { return Size() + QuarantinedSize(); }
+  size_t SizeOfObjects() const final { return Size(); }
 
   // Return the allocatable capacity of a semispace.
   size_t Capacity() const final {
@@ -373,8 +373,8 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Return the available bytes without growing.
   size_t Available() const final {
-    DCHECK_GE(Capacity(), Size());
-    return Capacity() - Size();
+    DCHECK_GE(Capacity(), Size() - QuarantinedSize());
+    return Capacity() - (Size() - QuarantinedSize());
   }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {

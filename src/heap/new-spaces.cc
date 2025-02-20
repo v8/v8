@@ -70,7 +70,7 @@ bool SemiSpace::EnsureCapacity(size_t capacity) {
       id_ == kToSpace ? quarantined_pages_count_ : 0;
   const int num_pages =
       static_cast<int>((capacity / PageMetadata::kPageSize) -
-                       memory_chunk_list_.size() + quarantined_pages);
+                       memory_chunk_list_.size() - quarantined_pages);
   if (num_pages >= 0) {
     for (int pages_added = 0; pages_added < num_pages; pages_added++) {
       if (!AllocateFreshPage()) {
@@ -511,6 +511,7 @@ bool SemiSpaceNewSpace::EnsureCurrentCapacity() {
 
 void SemiSpaceNewSpace::ResetCurrentSpace() {
   to_space_.Reset();
+  quarantined_size_ = 0;
   // Clear all mark-bits in the to-space.
   for (PageMetadata* p : to_space_) {
     if (!v8_flags.separate_gc_phases) {
@@ -720,7 +721,8 @@ size_t SemiSpaceNewSpace::Size() const {
   size_t top = allocation_top();
 
   DCHECK_GE(top, to_space_.page_low());
-  return (to_space_.current_capacity() - PageMetadata::kPageSize) /
+  return QuarantinedSize() +
+         (to_space_.current_capacity() - PageMetadata::kPageSize) /
              PageMetadata::kPageSize *
              MemoryChunkLayout::AllocatableMemoryInDataPage() +
          static_cast<size_t>(top - to_space_.page_low());
