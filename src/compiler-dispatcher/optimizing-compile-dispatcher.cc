@@ -108,13 +108,28 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
   OptimizingCompileTaskExecutor* task_executor_;
 };
 
-OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor(
-    bool is_generating_embedded_builtins)
+OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor()
     : input_queue_(v8_flags.concurrent_recompilation_queue_length),
-      recompilation_delay_(v8_flags.concurrent_recompilation_delay) {
+      recompilation_delay_(v8_flags.concurrent_recompilation_delay) {}
+
+OptimizingCompileTaskExecutor::~OptimizingCompileTaskExecutor() {
+  DCHECK_EQ(input_queue_.Length(), 0);
+
+  if (job_handle_) {
+    DCHECK(job_handle_->IsValid());
+
+    // Wait for the job handle to complete, so that we know the queue
+    // pointers are safe.
+    job_handle_->Cancel();
+  }
+}
+
+void OptimizingCompileTaskExecutor::EnsureInitialized() {
+  if (is_initialized_) return;
+  is_initialized_ = true;
+
   if (v8_flags.concurrent_recompilation ||
-      (v8_flags.concurrent_builtin_generation &&
-       is_generating_embedded_builtins)) {
+      v8_flags.concurrent_builtin_generation) {
     int max_tasks;
 
     if (v8_flags.concurrent_turbofan_max_threads == 0) {
@@ -127,16 +142,6 @@ OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor(
         base::OwnedVector<OptimizingCompileTaskState>::New(max_tasks);
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         kTaskPriority, std::make_unique<CompileTask>(this));
-  }
-}
-
-OptimizingCompileTaskExecutor::~OptimizingCompileTaskExecutor() {
-  DCHECK_EQ(input_queue_.Length(), 0);
-
-  if (job_handle_ && job_handle_->IsValid()) {
-    // Wait for the job handle to complete, so that we know the queue
-    // pointers are safe.
-    job_handle_->Cancel();
   }
 }
 
@@ -227,7 +232,6 @@ OptimizingCompileDispatcher::OptimizingCompileDispatcher(
     : isolate_(isolate), task_executor_(task_executor) {}
 
 OptimizingCompileDispatcher::~OptimizingCompileDispatcher() {
-  DCHECK_EQ(0, input_queue().Length());
   DCHECK_EQ(output_queue_.size(), 0);
 }
 

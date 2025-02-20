@@ -85,8 +85,11 @@ class V8_EXPORT OptimizingCompileInputQueue {
 // isolates in the future.
 class V8_EXPORT OptimizingCompileTaskExecutor {
  public:
-  explicit OptimizingCompileTaskExecutor(bool is_generating_embedded_builtins);
+  OptimizingCompileTaskExecutor();
   ~OptimizingCompileTaskExecutor();
+
+  // Creates Job with PostJob.
+  void EnsureInitialized();
 
   // Invokes and runs Turbofan for this particular job.
   void CompileNext(Isolate* isolate, LocalIsolate& local_isolate,
@@ -141,6 +144,9 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
   std::unique_ptr<JobHandle> job_handle_;
 
   base::OwnedVector<OptimizingCompileTaskState> task_states_;
+
+  // Used to avoid creating the JobHandle twice.
+  bool is_initialized_ = false;
 
   friend class OptimizingCompileDispatcher;
 };
