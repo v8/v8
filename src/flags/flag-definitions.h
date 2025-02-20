@@ -1221,9 +1221,14 @@ DEFINE_BOOL(
 DEFINE_BOOL(turbo_wasm_address_reassociation, true,
             "refactor address components for immediate indexing")
 
+DEFINE_BOOL(concurrent_turbo_tracing, false,
+            "allow concurrent compilation to happen in combination with "
+            "trace-turbo* flags")
+
 DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_NEG_IMPLICATION(trace_turbo, concurrent_builtin_generation)
+DEFINE_WEAK_IMPLICATION(trace_turbo, concurrent_turbo_tracing)
 DEFINE_STRING(trace_turbo_path, nullptr,
               "directory to dump generated TurboFan IR to")
 DEFINE_STRING(trace_turbo_filter, "*",

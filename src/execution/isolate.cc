@@ -5721,8 +5721,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // embedded blob setup).
   init_memcopy_functions();
 
-  if (v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
-      v8_flags.turbo_profiling) {
+  if ((v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
+       v8_flags.turbo_profiling) &&
+      !v8_flags.concurrent_turbo_tracing) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompileDispatcher::Enabled()) {
     optimizing_compile_task_executor_ =
