@@ -313,7 +313,7 @@ inline bool IsBigIntTypedArrayElementsKind(ElementsKind kind) {
          kind == RAB_GSAB_BIGUINT64_ELEMENTS;
 }
 
-inline bool IsFloat16TypedArrayElementsKind(ElementsKind kind) {
+inline constexpr bool IsFloat16TypedArrayElementsKind(ElementsKind kind) {
   return kind == FLOAT16_ELEMENTS || kind == RAB_GSAB_FLOAT16_ELEMENTS;
 }
 

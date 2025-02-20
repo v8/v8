@@ -3766,13 +3766,6 @@ class TypedElementsAccessor
           // Strict Equality Comparison of NaN is always false.
           return Just<int64_t>(-1);
         }
-      } else if (IsFloat16TypedArrayElementsKind(Kind) && search_value == 0) {
-        size_t k = start_from;
-        do {
-          ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
-          if (IsFloat16RawBitsZero(elem_k)) return Just<int64_t>(k);
-        } while (k-- != 0);
-        return Just<int64_t>(-1);
       }
       if (AccessorClass::ToTypedSearchValue(search_value,
                                             &typed_search_value)) {
@@ -3794,6 +3787,12 @@ class TypedElementsAccessor
     size_t k = start_from;
     do {
       ElementType elem_k = AccessorClass::GetImpl(data_ptr + k, is_shared);
+      if constexpr (IsFloat16TypedArrayElementsKind(Kind)) {
+        if (IsFloat16RawBitsZero(typed_search_value) &&
+            IsFloat16RawBitsZero(elem_k)) {
+          return Just<int64_t>(k);
+        }
+      }
       if (elem_k == typed_search_value) return Just<int64_t>(k);
     } while (k-- != 0);
     return Just<int64_t>(-1);
@@ -4056,10 +4055,11 @@ class TypedElementsAccessor
       for (size_t i = 0; i < length; i++) {
         Tagged<Object> elem = source_store->get(static_cast<int>(i));
         ElementType elem_k;
-        if (IsFloat16TypedArrayElementsKind(Kind))
+        if (IsFloat16TypedArrayElementsKind(Kind)) {
           elem_k = fp16_ieee_from_fp32_value(Smi::ToInt(elem));
-        else
+        } else {
           elem_k = FromScalar(Smi::ToInt(elem));
+        }
         SetImpl(dest_data + i, elem_k, destination_shared);
       }
       return true;
@@ -4071,10 +4071,11 @@ class TypedElementsAccessor
         } else {
           Tagged<Object> elem = source_store->get(static_cast<int>(i));
           ElementType elem_k;
-          if (IsFloat16TypedArrayElementsKind(Kind))
+          if (IsFloat16TypedArrayElementsKind(Kind)) {
             elem_k = fp16_ieee_from_fp32_value(Smi::ToInt(elem));
-          else
+          } else {
             elem_k = FromScalar(Smi::ToInt(elem));
+          }
           SetImpl(dest_data + i, elem_k, destination_shared);
         }
       }
