@@ -83,13 +83,15 @@ def v8_builder(defaults = None, **kwargs):
     in_list = kwargs.pop("in_list", None)
     defaults = defaults or bucket_defaults[bucket_name]
     barrier = kwargs.pop("barrier", BARRIER.NONE)
+    parent_builder = kwargs.pop("parent_builder", None)
     if barrier.closes_tree:
         notifies = kwargs.pop("notifies", [])
-        if kwargs.get("executable") != "recipe:v8":
+        if parent_builder:
+            notifies.append("v8 tree closer")
+        elif kwargs.get("executable") != "recipe:v8":
             notifies.append("generic tree closer")
         notifies.append("infra-failure")
         kwargs["notifies"] = notifies
-    parent_builder = kwargs.pop("parent_builder", None)
     if parent_builder:
         resolve_parent_triggering(kwargs, bucket_name, parent_builder)
     kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
