@@ -98,7 +98,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
                                  Tagged<UnionOf<JSPrototype, Map, Hole>>)
 
-  void PrintOptimizationStatus(const char* reason, ...);
+  void TraceOptimizationStatus(const char* reason, ...);
 
   // [shared]: The information about the function that can be shared by
   // instances.

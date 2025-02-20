@@ -406,12 +406,17 @@ void JSFunction::SetTieringInProgress(bool in_progress,
   if (!has_feedback_vector()) return;
   if (osr_offset.IsNone()) {
 #ifdef V8_ENABLE_LEAPTIERING
+    bool was_in_progress = tiering_in_progress();
     feedback_vector()->set_tiering_in_progress(in_progress);
+    if (!in_progress && was_in_progress) {
+      SetInterruptBudget(GetIsolate(), BudgetModification::kReduce);
+    }
 #else
     if (in_progress) {
       feedback_vector()->set_tiering_state(TieringState::kInProgress);
     } else if (tiering_in_progress()) {
       feedback_vector()->reset_tiering_state();
+      SetInterruptBudget(GetIsolate(), BudgetModification::kReduce);
     }
 #endif  // V8_ENABLE_LEAPTIERING
   } else {

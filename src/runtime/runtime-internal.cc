@@ -400,7 +400,7 @@ Tagged<Object> BytecodeBudgetInterrupt(Isolate* isolate, RuntimeArguments& args,
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-  function->PrintOptimizationStatus("budget from %s",
+  function->TraceOptimizationStatus("budget from %s",
                                     CodeKindToString(code_kind));
   TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterrupt");
 

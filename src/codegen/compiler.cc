@@ -1345,6 +1345,12 @@ MaybeHandle<Code> GetOrCompileOptimized(
     Isolate* isolate, DirectHandle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
+  if (IsOSR(osr_offset)) {
+    function->TraceOptimizationStatus(
+        "^%s (osr %i)", CodeKindToString(code_kind), osr_offset.ToInt());
+  } else {
+    function->TraceOptimizationStatus("^%s", CodeKindToString(code_kind));
+  }
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
   DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
@@ -1400,9 +1406,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
 
     if (IsOSR(osr_offset)) {
       // One OSR job per function at a time.
-      if (function->osr_tiering_in_progress()) {
-        return {};
-      }
+      if (function->osr_tiering_in_progress()) return {};
     }
   }
 
@@ -3167,7 +3171,7 @@ bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
 void Compiler::CompileOptimized(Isolate* isolate,
                                 DirectHandle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
-  function->PrintOptimizationStatus("^%s", CodeKindToString(code_kind));
+  function->TraceOptimizationStatus("^%s", CodeKindToString(code_kind));
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
@@ -4480,9 +4484,9 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   DirectHandle<JSFunction> function = job->function();
   BytecodeOffset osr_offset = job->osr_offset();
-  function->SetTieringInProgress(false, osr_offset);
 
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
+    function->SetTieringInProgress(false, osr_offset);
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kHigherTierAvailable);
     return;
@@ -4528,6 +4532,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
         isolate, function, job->is_osr(), job->prepare_in_ms(),
         job->execute_in_ms(), job->finalize_in_ms());
   }
+  function->SetTieringInProgress(false, osr_offset);
 #endif
 }
 

@@ -68,7 +68,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
   return result;
 }
 
-void JSFunction::PrintOptimizationStatus(const char* format, ...) {
+void JSFunction::TraceOptimizationStatus(const char* format, ...) {
   if (!v8_flags.trace_opt_status) return;
   Isolate* const isolate = GetIsolate();
   PrintF("[optimization status (");
