@@ -87,8 +87,7 @@ class V8_EXPORT CppHeap {
    *
    * After this call, object allocation is prohibited.
    */
-  V8_DEPRECATE_SOON(
-      "Terminate gets automatically called in the CppHeap destructor")
+  V8_DEPRECATED("Terminate gets automatically called in the CppHeap destructor")
   void Terminate();
 
   /**
