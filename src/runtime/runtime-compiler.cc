@@ -254,8 +254,7 @@ RUNTIME_FUNCTION(Runtime_MarkLazyDeoptimized) {
   if (reoptimize) {
     // Set the budget such that we have one invocation which allows us to detect
     // if any ICs need updating before re-optimization.
-    function->raw_feedback_cell()->set_interrupt_budget(
-        function->shared()->GetBytecodeArray(isolate)->BytecodeArraySize());
+    function->raw_feedback_cell()->set_interrupt_budget(1);
   } else {
     function->SetInterruptBudget(isolate, BudgetModification::kRaise,
                                  CodeKind::INTERPRETED_FUNCTION);

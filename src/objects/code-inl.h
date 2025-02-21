@@ -537,18 +537,12 @@ inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
           case LazyDeoptimizeReason::kAllocationSiteTenuringChange:
           case LazyDeoptimizeReason::kAllocationSiteTransitionChange:
           case LazyDeoptimizeReason::kEmptyContextExtensionChange:
-          case LazyDeoptimizeReason::kExceptionCaught:
-          case LazyDeoptimizeReason::kFieldTypeConstChange:
           case LazyDeoptimizeReason::kFrameValueMaterialized:
           case LazyDeoptimizeReason::kPropertyCellChange:
-          case LazyDeoptimizeReason::kPrototypeChange:
           case LazyDeoptimizeReason::kScriptContextSlotPropertyChange:
-            jdt->SetTieringRequest(
-                handle,
-                v8_flags.maglev ? TieringBuiltin::kStartMaglevOptimizeJob
-                                : TieringBuiltin::kStartTurbofanOptimizeJob,
-                isolate);
-            break;
+          case LazyDeoptimizeReason::kPrototypeChange:
+          case LazyDeoptimizeReason::kExceptionCaught:
+          case LazyDeoptimizeReason::kFieldTypeConstChange:
           case LazyDeoptimizeReason::kFieldRepresentationChange:
           case LazyDeoptimizeReason::kFieldTypeChange:
           case LazyDeoptimizeReason::kInitialMapChange:
