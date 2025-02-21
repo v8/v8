@@ -360,6 +360,22 @@ function getOriginalPath(node) {
   return node.__path;
 }
 
+function getOriginalPath(node) {
+  // Original path is invalid in cloned nodes.
+  if (node !== node.__self) {
+    return undefined;
+  }
+  return node.__path;
+}
+
+function setLargeLoop(node) {
+  node.__is_large_loop = true;
+}
+
+function isLargeLoop(node) {
+  return Boolean(node.__is_large_loop);
+}
+
 // Estimate the size of a node in raw source characters.
 function isLargeNode(node) {
   // Ignore array holes inserted by us (null) or previously cloned nodes
@@ -382,6 +398,7 @@ module.exports = {
   isInForLoopCondition: isInForLoopCondition,
   isInWhileLoop: isInWhileLoop,
   isInfiniteLoop: isInfiniteLoop,
+  isLargeLoop: isLargeLoop,
   isLargeNode: isLargeNode,
   isVariableIdentifier: isVariableIdentifier,
   isFunctionIdentifier: isFunctionIdentifier,
@@ -393,6 +410,7 @@ module.exports = {
   randomProperty: randomProperty,
   randomSeed: randomSeed,
   randomValue: randomValue,
+  setLargeLoop: setLargeLoop,
   getOriginalPath: getOriginalPath,
   setOriginalPath: setOriginalPath,
   getSourceLoc: getSourceLoc,
