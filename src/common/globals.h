@@ -2050,6 +2050,7 @@ enum class VariableMode : uint8_t {
   kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
                             // same name in the same scope.
 
+  kFirstImmutableLexicalVariableMode = kConst,
   kLastLexicalVariableMode = kAwaitUsing,
 };
 
@@ -2087,6 +2088,19 @@ inline const char* VariableMode2String(VariableMode mode) {
   UNREACHABLE();
 }
 #endif
+
+inline const char* ImmutableLexicalVariableModeToString(VariableMode mode) {
+  switch (mode) {
+    case VariableMode::kConst:
+      return "const";
+    case VariableMode::kUsing:
+      return "using";
+    case VariableMode::kAwaitUsing:
+      return "await using";
+    default:
+      UNREACHABLE();
+  }
+}
 
 enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
@@ -2126,8 +2140,8 @@ inline bool IsSerializableVariableMode(VariableMode mode) {
 }
 
 inline bool IsImmutableLexicalVariableMode(VariableMode mode) {
-  return mode == VariableMode::kConst || mode == VariableMode::kUsing ||
-         mode == VariableMode::kAwaitUsing;
+  return mode >= VariableMode::kFirstImmutableLexicalVariableMode &&
+         mode <= VariableMode::kLastLexicalVariableMode;
 }
 
 inline bool IsImmutableLexicalOrPrivateVariableMode(VariableMode mode) {

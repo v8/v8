@@ -4575,12 +4575,14 @@ void ParserBase<Impl>::ParseVariableDeclarations(
 
       if (var_context != kForStatement || !PeekInOrOf()) {
         // ES6 'const' and binding patterns require initializers.
-        if (parsing_result->descriptor.mode == VariableMode::kConst ||
+        if (IsImmutableLexicalVariableMode(parsing_result->descriptor.mode) ||
             impl()->IsNull(name)) {
           impl()->ReportMessageAt(
               Scanner::Location(decl_pos, end_position()),
               MessageTemplate::kDeclarationMissingInitializer,
-              impl()->IsNull(name) ? "destructuring" : "const");
+              impl()->IsNull(name) ? "destructuring"
+                                   : ImmutableLexicalVariableModeToString(
+                                         parsing_result->descriptor.mode));
           return;
         }
         // 'let x' initializes 'x' to undefined.
