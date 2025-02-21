@@ -4317,6 +4317,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ LoadU64(r8, MemOperand(target_fun, kSystemPointerSize));
   __ StoreReturnAddressAndCall(r8);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // r9 and r13 are used to store argc and argv on z/OS instead
   // of r6 and r8 since r6 is not callee saved.
   __ mov(r6, r9);
