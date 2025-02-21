@@ -396,10 +396,13 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
                            *left, broker()->local_isolate_or_isolate()) ||
                        SharedStringAccessGuardIfNeeded::IsNeeded(
                            *right, broker()->local_isolate_or_isolate());
-  SharedStringAccessGuardIfNeeded access_guard(
-      require_guard ? broker()->local_isolate_or_isolate() : nullptr);
 
-  if (left->IsOneByteRepresentation() && right->IsOneByteRepresentation()) {
+  // Check string representation of both strings. This does not require the
+  // SharedStringAccessGuardIfNeeded as the representation is stable.
+  const bool result_is_one_byte_string =
+      left->IsOneByteRepresentation() && right->IsOneByteRepresentation();
+
+  if (result_is_one_byte_string) {
     // {left} and {right} are 1-byte ==> the result will be 1-byte.
     // Note that we need a canonical handle, because we insert in
     // {created_strings_} the handle's address, which is kinda meaningless if
@@ -412,6 +415,8 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
             .ToHandleChecked());
     created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
+    SharedStringAccessGuardIfNeeded access_guard(
+        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), access_guard);
     String::WriteToFlat(*right,
@@ -429,6 +434,8 @@ Handle<String> JSNativeContextSpecialization::Concatenate(
             .ToHandleChecked());
     created_strings_.insert(flat);
     DisallowGarbageCollection no_gc;
+    SharedStringAccessGuardIfNeeded access_guard(
+        require_guard ? broker()->local_isolate_or_isolate() : nullptr);
     String::WriteToFlat(*left, flat->GetChars(no_gc, access_guard), 0,
                         left->length(), access_guard);
     String::WriteToFlat(*right,
