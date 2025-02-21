@@ -4475,19 +4475,17 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // elements kind change in one go. If seal or freeze with Smi or Double
   // elements kind, we will transition to Object elements kind first to make
   // sure of valid element access.
-  if (v8_flags.enable_sealed_frozen_elements_kind) {
-    switch (object->map()->elements_kind()) {
-      case PACKED_SMI_ELEMENTS:
-      case PACKED_DOUBLE_ELEMENTS:
-        JSObject::TransitionElementsKind(object, PACKED_ELEMENTS);
-        break;
-      case HOLEY_SMI_ELEMENTS:
-      case HOLEY_DOUBLE_ELEMENTS:
-        JSObject::TransitionElementsKind(object, HOLEY_ELEMENTS);
-        break;
-      default:
-        break;
-    }
+  switch (object->map()->elements_kind()) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
+      JSObject::TransitionElementsKind(object, PACKED_ELEMENTS);
+      break;
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
+      JSObject::TransitionElementsKind(object, HOLEY_ELEMENTS);
+      break;
+    default:
+      break;
   }
 
   // Make sure we only use this element dictionary in case we can't transition

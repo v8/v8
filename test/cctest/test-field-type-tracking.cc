@@ -2352,16 +2352,9 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {SEALED, factory->sealed_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind
-           ? HOLEY_NONEXTENSIBLE_ELEMENTS
-           : DICTIONARY_ELEMENTS}};
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
 
   for (auto& direction :
        {UpdateDirectionCheck::kFwd, UpdateDirectionCheck::kBwd}) {
@@ -2407,16 +2400,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {SEALED, factory->sealed_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind
-           ? HOLEY_NONEXTENSIBLE_ELEMENTS
-           : DICTIONARY_ELEMENTS}};
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
 
   for (auto& direction :
        {UpdateDirectionCheck::kFwd, UpdateDirectionCheck::kBwd}) {
@@ -2801,16 +2787,9 @@ TEST(ElementsKindTransitionFromMapOwningDescriptorLegacy) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {SEALED, factory->sealed_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind
-           ? HOLEY_NONEXTENSIBLE_ELEMENTS
-           : DICTIONARY_ELEMENTS}};
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],
@@ -2871,16 +2850,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptorLegacy) {
   };
   Factory* factory = isolate->factory();
   TestConfig configs[] = {
-      {FROZEN, factory->frozen_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_FROZEN_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {SEALED, factory->sealed_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
-                                                   : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(),
-       v8_flags.enable_sealed_frozen_elements_kind
-           ? HOLEY_NONEXTENSIBLE_ELEMENTS
-           : DICTIONARY_ELEMENTS}};
+      {FROZEN, factory->frozen_symbol(), HOLEY_FROZEN_ELEMENTS},
+      {SEALED, factory->sealed_symbol(), HOLEY_SEALED_ELEMENTS},
+      {NONE, factory->nonextensible_symbol(), HOLEY_NONEXTENSIBLE_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         &configs[i],

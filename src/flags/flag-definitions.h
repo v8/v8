@@ -938,10 +938,6 @@ DEFINE_EXPERIMENTAL_FEATURE(feedback_normalization,
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
-// Flag for sealed, frozen elements kind instead of dictionary elements kind
-DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
-                     "Enable sealed, frozen elements kind")
-
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
