@@ -62,6 +62,8 @@ class PropertyAccessInfo;
 // adding/defining a field which already exists).
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas, kDefine };
 
+enum class RequestConstDependency { kYes, kNo };
+
 inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral ||
          mode == AccessMode::kDefine;

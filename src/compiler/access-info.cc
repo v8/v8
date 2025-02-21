@@ -426,7 +426,8 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     MapRef receiver_map, MapRef map, NameRef name, OptionalJSObjectRef holder,
-    InternalIndex descriptor, AccessMode access_mode) const {
+    InternalIndex descriptor, AccessMode access_mode,
+    RequestConstDependency request_constness) const {
   DCHECK(descriptor.is_found());
   // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
   DirectHandle<DescriptorArray> descriptors =
@@ -511,23 +512,22 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
           map, field_owner_map, descriptor,
           descriptors_field_type_ref.value()));
 
-  PropertyConstness constness =
-      dependencies()->DependOnFieldConstness(map, field_owner_map, descriptor);
-
-  switch (constness) {
-    case PropertyConstness::kMutable:
-      return PropertyAccessInfo::DataField(
-          broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
-          field_index, details_representation, field_type, field_owner_map,
-          field_map, holder, {});
-
-    case PropertyConstness::kConst:
-      return PropertyAccessInfo::FastDataConstant(
-          zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_owner_map, field_map,
-          holder, {});
+  std::optional<const CompilationDependency*> constness;
+  if (request_constness == RequestConstDependency::kYes) {
+    constness = dependencies()->TryFieldConstnessDependencyOffTheRecord(
+        map, field_owner_map, descriptor);
   }
-  UNREACHABLE();
+  if (constness) {
+    unrecorded_dependencies.push_back(*constness);
+    return PropertyAccessInfo::FastDataConstant(
+        zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
+        details_representation, field_type, field_owner_map, field_map, holder,
+        {});
+  }
+  return PropertyAccessInfo::DataField(
+      broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
+      field_index, details_representation, field_type, field_owner_map,
+      field_map, holder, {});
 }
 
 namespace {
@@ -538,7 +538,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     Isolate* isolate, Zone* zone, JSHeapBroker* broker,
     const AccessInfoFactory* ai_factory, MapRef receiver_map, NameRef name,
     MapRef holder_map, OptionalJSObjectRef holder, AccessMode access_mode,
-    AccessorsObjectGetter get_accessors) {
+    AccessorsObjectGetter get_accessors,
+    RequestConstDependency request_constness) {
   if (holder_map.instance_type() == JS_MODULE_NAMESPACE_TYPE) {
     DCHECK(holder_map.object()->is_prototype_map());
     DirectHandle<PrototypeInfo> proto_info = broker->CanonicalPersistentHandle(
@@ -631,7 +632,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
           TryMakeRef(broker, cached_property_name.value());
       if (cached_property_name_ref.has_value()) {
         PropertyAccessInfo access_info = ai_factory->ComputePropertyAccessInfo(
-            holder_map, cached_property_name_ref.value(), access_mode);
+            holder_map, cached_property_name_ref.value(), access_mode,
+            request_constness);
         if (!access_info.IsInvalid()) return access_info;
       }
     }
@@ -652,7 +654,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     MapRef receiver_map, NameRef name, MapRef holder_map,
     OptionalJSObjectRef holder, InternalIndex descriptor,
-    AccessMode access_mode) const {
+    AccessMode access_mode, RequestConstDependency request_constness) const {
   DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
       holder_map.object()->instance_descriptors(kRelaxedLoad));
@@ -663,15 +665,15 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     return broker()->CanonicalPersistentHandle(
         descriptors->GetStrongValue(descriptor));
   };
-  return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
-                                  receiver_map, name, holder_map, holder,
-                                  access_mode, get_accessors);
+  return AccessorAccessInfoHelper(
+      isolate(), zone(), broker(), this, receiver_map, name, holder_map, holder,
+      access_mode, get_accessors, request_constness);
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
     MapRef receiver_map, NameRef name, JSObjectRef holder,
     InternalIndex dictionary_index, AccessMode access_mode,
-    PropertyDetails details) const {
+    PropertyDetails details, RequestConstDependency request_constness) const {
   CHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(holder.map(broker()).object()->is_prototype_map());
   DCHECK_EQ(access_mode, AccessMode::kLoad);
@@ -692,7 +694,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
   };
   return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
                                   receiver_map, name, holder.map(broker()),
-                                  holder, access_mode, get_accessors);
+                                  holder, access_mode, get_accessors,
+                                  request_constness);
 }
 
 bool AccessInfoFactory::TryLoadPropertyDetails(
@@ -740,7 +743,8 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    MapRef map, NameRef name, AccessMode access_mode) const {
+    MapRef map, NameRef name, AccessMode access_mode,
+    RequestConstDependency request_constness) const {
   CHECK(name.IsUniqueName());
 
   // Dictionary property const tracking is unsupported with concurrent inlining.
@@ -803,7 +807,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           // prototype. According to ES6 section 9.1.9 [[Set]], we need to
           // create a new data property on the receiver. We can still optimize
           // if such a transition already exists.
-          return LookupTransition(receiver_map, name, holder, NONE);
+          return LookupTransition(receiver_map, name, holder, NONE,
+                                  request_constness);
         }
       }
 
@@ -831,7 +836,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
         // TryLoadPropertyDetails only succeeds if we know the holder.
         return ComputeDictionaryProtoAccessInfo(
-            receiver_map, name, holder.value(), index, access_mode, details);
+            receiver_map, name, holder.value(), index, access_mode, details,
+            request_constness);
       }
 
       if (dictionary_prototype_on_chain) {
@@ -854,7 +860,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       if (details.location() == PropertyLocation::kField) {
         if (details.kind() == PropertyKind::kData) {
           return ComputeDataFieldAccessInfo(receiver_map, map, name, holder,
-                                            index, access_mode);
+                                            index, access_mode,
+                                            request_constness);
         } else {
           DCHECK_EQ(PropertyKind::kAccessor, details.kind());
           // TODO(turbofan): Add support for general accessors?
@@ -864,7 +871,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         return ComputeAccessorDescriptorAccessInfo(receiver_map, name, map,
-                                                   holder, index, access_mode);
+                                                   holder, index, access_mode,
+                                                   request_constness);
       }
 
       UNREACHABLE();
@@ -892,7 +900,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         // non-enumerable.
         attrs = DONT_ENUM;
       }
-      return LookupTransition(receiver_map, name, holder, attrs);
+      return LookupTransition(receiver_map, name, holder, attrs,
+                              request_constness);
     }
 
     // Don't lookup private symbols on the prototype chain.
@@ -940,7 +949,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       // to transition to a new data property.
       // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
       if (access_mode == AccessMode::kStore) {
-        return LookupTransition(receiver_map, name, holder, NONE);
+        return LookupTransition(receiver_map, name, holder, NONE,
+                                request_constness);
       }
 
       // The property was not found (access returns undefined or throws
@@ -1140,7 +1150,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
 
 PropertyAccessInfo AccessInfoFactory::LookupTransition(
     MapRef map, NameRef name, OptionalJSObjectRef holder,
-    PropertyAttributes attrs) const {
+    PropertyAttributes attrs, RequestConstDependency request_constness) const {
   // Check if the {map} has a data transition with the given {name}.
   Tagged<Map> transition =
       TransitionsAccessor(isolate(), *map.object(), true)
@@ -1222,20 +1232,23 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.
-  switch (dependencies()->DependOnFieldConstness(transition_map, transition_map,
-                                                 number)) {
-    case PropertyConstness::kMutable:
-      return PropertyAccessInfo::DataField(
-          broker(), zone(), map, std::move(unrecorded_dependencies),
-          field_index, details_representation, field_type, transition_map,
-          field_map, holder, transition_map);
-    case PropertyConstness::kConst:
-      return PropertyAccessInfo::FastDataConstant(
-          zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, transition_map, field_map, holder,
-          transition_map);
+  std::optional<const CompilationDependency*> constness;
+  if (request_constness == RequestConstDependency::kYes) {
+    constness = dependencies()->TryFieldConstnessDependencyOffTheRecord(
+        transition_map, transition_map, number);
   }
-  UNREACHABLE();
+
+  if (constness) {
+    unrecorded_dependencies.push_back(*constness);
+    return PropertyAccessInfo::FastDataConstant(
+        zone(), map, std::move(unrecorded_dependencies), field_index,
+        details_representation, field_type, transition_map, field_map, holder,
+        transition_map);
+  }
+  return PropertyAccessInfo::DataField(
+      broker(), zone(), map, std::move(unrecorded_dependencies), field_index,
+      details_representation, field_type, transition_map, field_map, holder,
+      transition_map);
 }
 
 }  // namespace compiler

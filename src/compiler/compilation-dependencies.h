@@ -78,6 +78,9 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   // used to mutate fields without deoptimization of the dependent code.
   PropertyConstness DependOnFieldConstness(MapRef map, MapRef owner,
                                            InternalIndex descriptor);
+  std::optional<CompilationDependency const*>
+  TryFieldConstnessDependencyOffTheRecord(MapRef map, MapRef owner,
+                                          InternalIndex descriptor);
 
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.

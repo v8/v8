@@ -6113,6 +6113,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
   ZoneVector<compiler::PropertyAccessInfo> access_infos(zone());
   ZoneVector<compiler::PropertyAccessInfo> access_infos_for_feedback(zone());
 
+  auto depend_on_constness = access_mode == compiler::AccessMode::kLoad
+                                 ? compiler::RequestConstDependency::kYes
+                                 : compiler::RequestConstDependency::kNo;
   for (compiler::MapRef map : inferred_maps) {
     if (map.is_deprecated()) continue;
 
@@ -6124,8 +6127,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       return {};
     }
 
-    compiler::PropertyAccessInfo access_info =
-        broker()->GetPropertyAccessInfo(map, feedback.name(), access_mode);
+    compiler::PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+        map, feedback.name(), access_mode, depend_on_constness);
     access_infos_for_feedback.push_back(access_info);
   }
 
