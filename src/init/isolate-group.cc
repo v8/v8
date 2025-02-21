@@ -31,6 +31,26 @@ IsolateGroup* IsolateGroup::current_non_inlined() { return current_; }
 void IsolateGroup::set_current_non_inlined(IsolateGroup* group) {
   current_ = group;
 }
+
+class IsolateGroupAccessScope final {
+ public:
+  explicit IsolateGroupAccessScope(IsolateGroup* group)
+      : previous_(IsolateGroup::current()) {
+    IsolateGroup::set_current(group);
+  }
+
+  ~IsolateGroupAccessScope() { IsolateGroup::set_current(previous_); }
+
+ private:
+  IsolateGroup* previous_;
+};
+#else
+class IsolateGroupAccessScope final {
+ public:
+  explicit IsolateGroupAccessScope(IsolateGroup*) {}
+
+  ~IsolateGroupAccessScope() {}
+};
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 IsolateGroup* IsolateGroup::default_isolate_group_ = nullptr;
@@ -291,14 +311,13 @@ IsolateGroup* IsolateGroup::New() {
   group->Initialize(false);
 #endif
   CHECK_NOT_NULL(group->page_allocator_);
-#if defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+
   // We need to set this early, because it is needed while initializing the
   // external reference table, eg. in the js_dispatch_table_address and
   // code_pointer_table_address functions.  This is also done in
   // IsolateGroup::InitializeOncePerProcess for the single-IsolateGroup
   // configurations.
-  set_current(group);
-#endif
+  IsolateGroupAccessScope group_access_scope(group);
   ExternalReferenceTable::InitializeOncePerIsolateGroup(
       group->external_ref_table());
   return group;

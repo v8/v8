@@ -13449,6 +13449,12 @@ UNINITIALIZED_TEST(DefaultIsolateGroup) {
 
 #if defined(V8_COMPRESS_POINTERS) && \
     !defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+UNINITIALIZED_TEST(IsolateGroupCreation) {
+  i::IsolateGroup::set_current(nullptr);
+  v8::IsolateGroup group = v8::IsolateGroup::Create();
+  CHECK_NULL(i::IsolateGroup::current());
+}
+
 UNINITIALIZED_TEST(TwoIsolateGroups) {
   if (!v8::IsolateGroup::CanCreateNewGroups()) return;
 
