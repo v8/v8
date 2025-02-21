@@ -14,7 +14,6 @@
 #include "src/logging/counters.h"
 #include "src/objects/contexts.h"
 #include "src/objects/elements-inl.h"
-#include "src/objects/elements-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -107,12 +106,9 @@ inline bool IsJSArrayWithExtensibleFastElements(Isolate* isolate,
                                                 DirectHandle<JSArray>* array) {
   if (!TryCast<JSArray>(receiver, array)) return false;
   ElementsKind origin_kind = (*array)->GetElementsKind();
-  if (IsFastElementsKind(origin_kind)) {
-    DCHECK(!IsDictionaryElementsKind(origin_kind));
-    DCHECK((*array)->map()->is_extensible());
-    return true;
-  }
-  return false;
+  if (IsDictionaryElementsKind(origin_kind)) return false;
+  if (!(*array)->map()->is_extensible()) return false;
+  return true;
 }
 
 // Checks if the receiver is a JSArray with fast elements which can add new
