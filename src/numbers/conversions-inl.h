@@ -310,7 +310,13 @@ bool TryNumberToSize(Tagged<Object> number, size_t* result) {
     // So we might as well cast the limit first, and use < instead of <=.
     double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
     if (value >= 0 && value < maxSize) {
-      *result = static_cast<size_t>(value);
+      size_t size = static_cast<size_t>(value);
+#ifdef V8_ENABLE_SANDBOX
+      if (size > kMaxSafeBufferSizeForSandbox) {
+        return false;
+      }
+#endif
+      *result = size;
       return true;
     } else {
       return false;
