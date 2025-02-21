@@ -1078,6 +1078,10 @@ DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate,
   ElementsKind from_kind = map->elements_kind();
   if (from_kind == to_kind) return map;
 
+  // We should never be trying to go backwards in the elements kind manifold.
+  DCHECK_IMPLIES(IsHoleyElementsKind(from_kind),
+                 to_kind != GetPackedElementsKind(from_kind));
+
   Tagged<Context> native_context = isolate->context()->native_context();
   if (from_kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
     if (*map == native_context->fast_aliased_arguments_map()) {
@@ -1104,13 +1108,6 @@ DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate,
   }
 
   DCHECK(!IsUndefined(*map, isolate));
-  // Check if we can go back in the elements kind transition chain.
-  if (IsHoleyElementsKind(from_kind) &&
-      to_kind == GetPackedElementsKind(from_kind) &&
-      IsMap(map->GetBackPointer()) &&
-      Cast<Map>(map->GetBackPointer())->elements_kind() == to_kind) {
-    return direct_handle(Cast<Map>(map->GetBackPointer()), isolate);
-  }
 
   bool allow_store_transition = IsTransitionElementsKind(from_kind);
   // Only store fast element maps in ascending generality.
