@@ -155,6 +155,13 @@ class VariableOrObjectMutator extends mutator.Mutator {
     const thisMutator = this;
 
     return {
+      ForStatement(path) {
+        // Var/obj mutations in large loops often lead to timeouts.
+        if (common.isLargeLoop(path.node) &&
+            random.choose(mutator.SKIP_LARGE_LOOP_MUTATION_PROB)) {
+          path.skip();
+        }
+      },
       ExpressionStatement(path) {
         if (!random.choose(settings.ADD_VAR_OR_OBJ_MUTATIONS)) {
           return;

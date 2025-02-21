@@ -85,20 +85,32 @@ class CrossOverMutator extends mutator.Mutator {
   constructor(settings, db) {
     super();
     this.settings = settings;
-    this.db = db;
+    this._db = db;
+  }
+
+  // For testing.
+  db() {
+    return this._db;
   }
 
   get visitor() {
     const thisMutator = this;
 
     return [{
+      ForStatement(path) {
+        // Cross-over insertions in large loops often lead to timeouts.
+        if (common.isLargeLoop(path.node) &&
+            random.choose(mutator.SKIP_LARGE_LOOP_MUTATION_PROB)) {
+          path.skip();
+        }
+      },
       ExpressionStatement(path) {
         if (!random.choose(thisMutator.settings.MUTATE_CROSSOVER_INSERT)) {
           return;
         }
 
         const canHaveSuper = Boolean(path.findParent(x => x.isClassMethod()));
-        const randomExpression = thisMutator.db.getRandomStatement(
+        const randomExpression = thisMutator.db().getRandomStatement(
             {canHaveSuper: canHaveSuper});
 
         if (randomExpression.needsSuper &&

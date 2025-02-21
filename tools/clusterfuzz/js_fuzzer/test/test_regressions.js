@@ -16,6 +16,8 @@ const sinon = require('sinon');
 const tempfile = require('tempfile');
 const tempy = require('tempy');
 
+const baseMutator = require('../mutators/mutator.js');
+const crossOver = require('../mutators/crossover_mutator.js');
 const db = require('../db.js');
 const exceptions = require('../exceptions.js');
 const functionCallMutator = require('../mutators/function_call_mutator.js');
@@ -26,7 +28,6 @@ const sourceHelpers = require('../source_helpers.js');
 const tryCatch = require('../mutators/try_catch.js');
 const variableMutator = require('../mutators/variable_mutator.js');
 
-const {CrossOverMutator} = require('../mutators/crossover_mutator.js');
 
 const sandbox = sinon.createSandbox();
 
@@ -176,7 +177,7 @@ describe('Regression tests', () => {
     sandbox.stub(random, 'choose').callsFake(() => { return true; });
 
     const fakeDb = new db.MutateDb(db_path);
-    const mutator = new CrossOverMutator(settings, fakeDb);
+    const mutator = new crossOver.CrossOverMutator(settings, fakeDb);
 
     // An input with a couple of insertion spots in constructors and
     // methods of two classes. One root and one a subclass.
@@ -211,7 +212,7 @@ describe('Regression tests', () => {
     this.settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
     const fakeDb = new db.MutateDb(
         'test_data/regress/duplicates/duplicates_db');
-    const mutator = new CrossOverMutator(this.settings, fakeDb);
+    const mutator = new crossOver.CrossOverMutator(this.settings, fakeDb);
 
     const source = helpers.loadTestData('regress/duplicates/input.js');
     mutator.mutate(source);
@@ -307,7 +308,7 @@ describe('Regression tests', () => {
     sandbox.stub(variableMutator, 'SKIP_LOOP_VAR_PROB').value(1.0);
 
     // Try-catch is not helpful for reading the test output.
-    const stub = sandbox.stub(
+    sandbox.stub(
         tryCatch.AddTryCatchMutator.prototype, "mutate").returns(undefined);
 
     // Maximum variable mutations.
@@ -371,6 +372,30 @@ describe('Regression tests', () => {
         this.settings, 'test_data/regress/empty_db');
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/infinite_loop_fun/expected.js', mutated);
+  });
+
+  it('mutates less in large loops', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Try-catch is not helpful for reading the test output.
+    sandbox.stub(
+        tryCatch.AddTryCatchMutator.prototype, "mutate").returns(undefined);
+
+    // Maximum var/obj and cross-over mutations.
+    this.settings['ADD_VAR_OR_OBJ_MUTATIONS'] = 1.0;
+    this.settings['MUTATE_CROSSOVER_INSERT'] = 1.0;
+    const fakeDb = new db.MutateDb(
+        'test_data/regress/duplicates/duplicates_db');
+    sandbox.stub(crossOver.CrossOverMutator.prototype, "db").returns(fakeDb);
+
+    // Test case with large loops.
+    const source = helpers.loadTestData('regress/large_loops/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/large_loops/expected.js', mutated);
   });
 });
 
