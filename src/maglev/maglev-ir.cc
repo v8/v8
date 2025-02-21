@@ -3822,6 +3822,37 @@ void CheckDetectableCallable::GenerateCode(MaglevAssembler* masm,
                         deopt);
 }
 
+void CheckJSReceiverOrNullOrUndefined::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  set_temporaries_needed(1);
+}
+void CheckJSReceiverOrNullOrUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    __ EmitEagerDeoptIfSmi(
+        this, object, DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
+  }
+
+  Label done;
+  // Undetectable (document.all) is a JSReceiverOrNullOrUndefined. We already
+  // checked for Smis above, so no check needed here.
+  __ JumpIfUndetectable(object, scratch, CheckType::kOmitHeapObjectCheck,
+                        &done);
+  __ JumpIfObjectTypeNotInRange(
+      object, FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE,
+      __ GetDeoptLabel(
+          this, DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined));
+  __ Jump(&done);
+  __ bind(&done);
+}
+
 void CheckNotHole::SetValueLocationConstraints() {
   UseRegister(object_input());
 }

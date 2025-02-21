@@ -2199,6 +2199,7 @@ class MaglevGraphBuilder {
   void BuildCheckNumber(ValueNode* object);
   void BuildCheckHeapObject(ValueNode* object);
   void BuildCheckJSReceiver(ValueNode* object);
+  void BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckStringOrStringWrapper(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);

@@ -3271,8 +3271,20 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kAny:
     case CompareOperationHint::kBigInt64:
     case CompareOperationHint::kBigInt:
-    case CompareOperationHint::kReceiverOrNullOrUndefined:
       break;
+    case CompareOperationHint::kReceiverOrNullOrUndefined: {
+      if (kOperation == Operation::kEqual) {
+        break;
+      }
+      DCHECK_EQ(kOperation, Operation::kStrictEqual);
+
+      ValueNode* left = LoadRegister(0);
+      ValueNode* right = GetAccumulator();
+      BuildCheckJSReceiverOrNullOrUndefined(left);
+      BuildCheckJSReceiverOrNullOrUndefined(right);
+      SetAccumulator(BuildTaggedEqual(left, right));
+      return ReduceResult::Done();
+    }
     case CompareOperationHint::kReceiver: {
       DCHECK(kOperation == Operation::kEqual ||
              kOperation == Operation::kStrictEqual);
@@ -4890,6 +4902,16 @@ void MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   if (EnsureType(object, NodeType::kJSReceiver, &known_type)) return;
   AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
                                 FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
+}
+
+void MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
+    ValueNode* object) {
+  NodeType known_type;
+  if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
+    return;
+  }
+  AddNewNode<CheckJSReceiverOrNullOrUndefined>({object},
+                                               GetCheckType(known_type));
 }
 
 namespace {

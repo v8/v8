@@ -3466,6 +3466,30 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CheckJSReceiverOrNullOrUndefined* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> object = Map(node->object_input());
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+
+    ObjectIsOp::InputAssumptions assumptions;
+    switch (node->check_type()) {
+      case maglev::CheckType::kCheckHeapObject:
+        assumptions = ObjectIsOp::InputAssumptions::kNone;
+        break;
+      case maglev::CheckType::kOmitHeapObjectCheck:
+        assumptions = ObjectIsOp::InputAssumptions::kHeapObject;
+        break;
+    }
+
+    __ DeoptimizeIfNot(
+        __ ObjectIs(object, ObjectIsOp::Kind::kReceiverOrNullOrUndefined,
+                    assumptions),
+        frame_state, DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
+        node->eager_deopt_info()->feedback_to_update());
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::BranchIfToBooleanTrue* node,
                                 const maglev::ProcessingState& state) {
     TruncateJSPrimitiveToUntaggedOp::InputAssumptions assumption =

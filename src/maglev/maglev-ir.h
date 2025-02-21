@@ -333,6 +333,7 @@ class ExceptionHandlerInfo;
   V(CheckMapsWithMigration)                   \
   V(CheckMapsWithAlreadyLoadedMap)            \
   V(CheckDetectableCallable)                  \
+  V(CheckJSReceiverOrNullOrUndefined)         \
   V(CheckNotHole)                             \
   V(CheckHoleyFloat64NotHole)                 \
   V(CheckNumber)                              \
@@ -632,15 +633,18 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
  *            |              .---.-----.------- AnyHeapObject ---------.
  *            |             /   /      |                |              |
  *            |            /   /       |                |              |
- *      NumberOrOddball   /   /   JSReceiver   StringOrStringWrapper  Name
- *         /      \      /   /   /     |    \       /         \       /  \
- *        /        \    /   /   /      |     \     /           \     /    \
- * NumberOrBoolean Oddball / Callable JSArray String            String   Symbol
- *      /      \   /      /                   Wrapper            |
- *   Number   Boolean    /                                     NonThin
- *    /  \              /                                      String
- * Smi    \            /                                         |
- *          HeapNumber                                       Internalized
+ *            |            |  |    JSReceiver           |              |
+ *            |            |  |  .-OrNullOrUndefined    |              |
+ *            |            |  | |        |              |              |
+ *      NumberOrOddball   /   | |     JSReceiver     StringOr          Name
+ *         /      \      /   /  |    /     |    \    StringWrapper     /  \
+ *        /        \    /   /   |   /      |     \     /        \     /    \
+ * NumberOrBoolean Oddball /    | Callable JSArray  String      String   Symbol
+ *      /      \   /   \  /     |                   Wrapper         |
+ *   Number   Boolean   \/      |                               NonThin
+ *    /  \              /\      |                               String
+ * Smi    \            /  \     |                                   |
+ *          HeapNumber     --- NullOrUndefined                 Internalized
  *                                                             String
  *
  * Ensure that each super-type mentioned in the following NODE_TYPE_LIST
@@ -648,25 +652,27 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
  *
  * TODO(olivf): Rename Unknown to Any.
  */
-#define NODE_TYPE_LIST(V)                                  \
-  V(Unknown, 0)                                            \
-  V(NumberOrOddball, (1 << 1) | kUnknown)                  \
-  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)          \
-  V(Number, (1 << 3) | kNumberOrBoolean)                   \
-  V(Smi, (1 << 4) | kNumber)                               \
-  V(AnyHeapObject, (1 << 5) | kUnknown)                    \
-  V(HeapNumber, kAnyHeapObject | kNumber)                  \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball) \
-  V(Boolean, kOddball | kNumberOrBoolean)                  \
-  V(Name, (1 << 7) | kAnyHeapObject)                       \
-  V(StringOrStringWrapper, (1 << 8) | kAnyHeapObject)      \
-  V(String, kName | kStringOrStringWrapper)                \
-  V(NonThinString, (1 << 9) | kString)                     \
-  V(InternalizedString, (1 << 10) | kNonThinString)        \
-  V(Symbol, (1 << 11) | kName)                             \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
-  V(JSArray, (1 << 13) | kJSReceiver)                      \
-  V(Callable, (1 << 14) | kJSReceiver)                     \
+#define NODE_TYPE_LIST(V)                                     \
+  V(Unknown, 0)                                               \
+  V(NumberOrOddball, (1 << 1) | kUnknown)                     \
+  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)             \
+  V(Number, (1 << 3) | kNumberOrBoolean)                      \
+  V(Smi, (1 << 4) | kNumber)                                  \
+  V(AnyHeapObject, (1 << 5) | kUnknown)                       \
+  V(HeapNumber, kAnyHeapObject | kNumber)                     \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)    \
+  V(Boolean, kOddball | kNumberOrBoolean)                     \
+  V(JSReceiverOrNullOrUndefined, (1 << 7) | kAnyHeapObject)   \
+  V(NullOrUndefined, kOddball | kJSReceiverOrNullOrUndefined) \
+  V(Name, (1 << 8) | kAnyHeapObject)                          \
+  V(StringOrStringWrapper, (1 << 9) | kAnyHeapObject)         \
+  V(String, kName | kStringOrStringWrapper)                   \
+  V(NonThinString, (1 << 10) | kString)                       \
+  V(InternalizedString, (1 << 11) | kNonThinString)           \
+  V(Symbol, (1 << 12) | kName)                                \
+  V(JSReceiver, (1 << 13) | kJSReceiverOrNullOrUndefined)     \
+  V(JSArray, (1 << 14) | kJSReceiver)                         \
+  V(Callable, (1 << 15) | kJSReceiver)                        \
   V(StringWrapper, kStringOrStringWrapper | kJSReceiver)
 
 enum class NodeType : uint32_t {
@@ -704,7 +710,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.IsSymbolMap()) return NodeType::kSymbol;
   if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
-  if (map.IsOddballMap()) return NodeType::kOddball;
+  if (map.IsOddballMap()) return NodeType::kNullOrUndefined;
   if (map.IsCallableJSFunctionMap()) return NodeType::kCallable;
   if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
   return NodeType::kAnyHeapObject;
@@ -785,6 +791,10 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
       return map.IsJSArrayMap();
     case NodeType::kCallable:
       return map.is_callable();
+    case NodeType::kNullOrUndefined:
+      return map.IsOddballMap() && !map.IsBooleanMap(broker);
+    case NodeType::kJSReceiverOrNullOrUndefined:
+      return map.IsJSReceiverMap() || map.is_undetectable();
   }
 
     // This is some composed type. We could speed this up by exploiting the tree
@@ -10092,6 +10102,32 @@ class CheckDerivedConstructResult
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckJSReceiverOrNullOrUndefined
+    : public FixedInputNodeT<1, CheckJSReceiverOrNullOrUndefined> {
+  using Base = FixedInputNodeT<1, CheckJSReceiverOrNullOrUndefined>;
+
+ public:
+  explicit CheckJSReceiverOrNullOrUndefined(uint64_t bitfield,
+                                            CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& object_input() { return input(0); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
 class CheckNotHole : public FixedInputNodeT<1, CheckNotHole> {
