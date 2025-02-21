@@ -303,8 +303,9 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   // CheckedSmiUntag into a float64. This would cause us to loose the smi check
   // which in turn can invalidate assumptions on aliasing values.
   if (hoist_untagging.size() && node->uses_require_31_bit_value()) {
-    allowed_inputs_for_uses.Remove(
-        {ValueRepresentation::kFloat64, ValueRepresentation::kHoleyFloat64});
+    TRACE_UNTAGGING("  => Leaving tagged [depends on smi check]");
+    EnsurePhiInputsTagged(node);
+    return default_result;
   }
 
   auto intersection = possible_inputs & allowed_inputs_for_uses;
