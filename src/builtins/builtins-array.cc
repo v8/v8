@@ -97,34 +97,37 @@ void MatchArrayElementsKindToArguments(Isolate* isolate,
   }
 }
 
-// Returns |false| if not applicable.
-// TODO(szuend): Refactor this function because it is getting hard to
-//               understand what each call-site actually checks.
+// Checks if the receiver is a JSArray with fast elements that are mutable.
+// This is enough for deleting elements, but not enough for adding them (cf.
+// IsJSArrayWithAddableFastElements). Returns |false| if not applicable.
 V8_WARN_UNUSED_RESULT
-inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
-                                                  DirectHandle<Object> receiver,
-                                                  BuiltinArguments* args,
-                                                  int first_arg_index,
-                                                  int num_arguments) {
-  if (!IsJSArray(*receiver)) return false;
-  DirectHandle<JSArray> array = Cast<JSArray>(receiver);
-  ElementsKind origin_kind = array->GetElementsKind();
+inline bool IsJSArrayWithExtensibleFastElements(Isolate* isolate,
+                                                DirectHandle<Object> receiver,
+                                                DirectHandle<JSArray>* array) {
+  if (!TryCast<JSArray>(receiver, array)) return false;
+  ElementsKind origin_kind = (*array)->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
-  if (!array->map()->is_extensible()) return false;
-  if (args == nullptr) return true;
+  if (!(*array)->map()->is_extensible()) return false;
+  return true;
+}
+
+// Checks if the receiver is a JSArray with fast elements which can add new
+// elements. Returns |false| if not applicable.
+V8_WARN_UNUSED_RESULT
+inline bool IsJSArrayWithAddableFastElements(Isolate* isolate,
+                                             DirectHandle<Object> receiver,
+                                             DirectHandle<JSArray>* array) {
+  if (!IsJSArrayWithExtensibleFastElements(isolate, receiver, array))
+    return false;
 
   // If there may be elements accessors in the prototype chain, the fast path
   // cannot be used if there arguments to add to the array.
-  if (!IsJSArrayFastElementMovingAllowed(isolate, *array)) return false;
+  if (!IsJSArrayFastElementMovingAllowed(isolate, **array)) return false;
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
-  if (isolate->IsInitialArrayPrototype(*array)) return false;
+  if (isolate->IsInitialArrayPrototype(**array)) return false;
 
-  // Need to ensure that the arguments passed in args can be contained in
-  // the array.
-  MatchArrayElementsKindToArguments(isolate, array, args, first_arg_index,
-                                    num_arguments);
   return true;
 }
 
@@ -218,21 +221,24 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   if (end_index > kMaxUInt32) return Just(false);
   if (!IsJSObject(*receiver)) return Just(false);
 
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, args, 1, 1)) {
+  DirectHandle<JSArray> array;
+  if (!IsJSArrayWithAddableFastElements(isolate, receiver, &array)) {
     return Just(false);
   }
 
-  DirectHandle<JSArray> array = Cast<JSArray>(receiver);
+  // Need to ensure that the fill value can be contained in the array.
+  ElementsKind origin_kind = array->GetElementsKind();
 
-  // If no argument was provided, we fill the array with 'undefined'.
-  // EnsureJSArrayWith... does not handle that case so we do it here.
-  // TODO(szuend): Pass target elements kind to EnsureJSArrayWith... when
-  //               it gets refactored.
-  if (args->length() == 1 && array->GetElementsKind() != PACKED_ELEMENTS) {
-    // Use a short-lived HandleScope to avoid creating several copies of the
-    // elements handle which would cause issues when left-trimming later-on.
-    HandleScope scope(isolate);
-    JSObject::TransitionElementsKind(array, PACKED_ELEMENTS);
+  // We do not need to transition for PACKED/HOLEY_ELEMENTS.
+  if (!IsObjectElementsKind(origin_kind)) {
+    ElementsKind target_kind = Object::OptimalElementsKind(*value, isolate);
+
+    if (target_kind != origin_kind) {
+      // Use a short-lived HandleScope to avoid creating several copies of the
+      // elements handle which would cause issues when left-trimming later-on.
+      HandleScope scope(isolate);
+      JSObject::TransitionElementsKind(array, target_kind);
+    }
   }
 
   DCHECK_LE(start_index, kMaxUInt32);
@@ -379,25 +385,29 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1,
-                                             args.length() - 1)) {
+  DirectHandle<JSArray> array;
+  if (!IsJSArrayWithAddableFastElements(isolate, receiver, &array)) {
     return GenericArrayPush(isolate, &args);
   }
 
-  DirectHandle<JSArray> array = Cast<JSArray>(receiver);
   bool has_read_only_length = JSArray::HasReadOnlyLength(array);
-
   if (has_read_only_length) {
     return GenericArrayPush(isolate, &args);
   }
 
   // Fast Elements Path
   int to_add = args.length() - 1;
-  uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
-  if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
+  if (to_add == 0) {
+    uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
+    return *isolate->factory()->NewNumberFromUint(len);
+  }
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
   DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
+
+  // Need to ensure that the values to be pushed can be contained in the array.
+  MatchArrayElementsKindToArguments(isolate, array, &args, 1,
+                                    args.length() - 1);
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
@@ -469,11 +479,10 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0,
-                                             0)) {
+  DirectHandle<JSArray> array;
+  if (!IsJSArrayWithExtensibleFastElements(isolate, receiver, &array)) {
     return GenericArrayPop(isolate, &args);
   }
-  DirectHandle<JSArray> array = Cast<JSArray>(receiver);
 
   uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
 
@@ -483,7 +492,7 @@ BUILTIN(ArrayPop) {
   if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   DirectHandle<Object> result;
-  if (IsJSArrayFastElementMovingAllowed(isolate, Cast<JSArray>(*receiver))) {
+  if (IsJSArrayFastElementMovingAllowed(isolate, *array)) {
     // Fast Elements Path
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, array->GetElementsAccessor()->Pop(array));
@@ -516,13 +525,13 @@ V8_WARN_UNUSED_RESULT bool CanUseFastArrayShift(
     Isolate* isolate, DirectHandle<JSReceiver> receiver) {
   if (V8_COMPRESS_POINTERS_8GB_BOOL) return false;
 
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0,
-                                             0) ||
-      !IsJSArrayFastElementMovingAllowed(isolate, Cast<JSArray>(*receiver))) {
+  DirectHandle<JSArray> array;
+  if (!IsJSArrayWithExtensibleFastElements(isolate, receiver, &array)) {
     return false;
   }
-
-  DirectHandle<JSArray> array = Cast<JSArray>(receiver);
+  if (!IsJSArrayFastElementMovingAllowed(isolate, *array)) {
+    return false;
+  }
   return !JSArray::HasReadOnlyLength(array);
 }
 
