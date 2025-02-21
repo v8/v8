@@ -549,6 +549,7 @@ class ModuleDecoderImpl : public Decoder {
       case kWasmFunctionTypeCode:    return "func";
       case kWasmStructTypeCode:      return "struct";
       case kWasmArrayTypeCode:       return "array";
+      case kWasmContTypeCode:        return "cont";
       default:                       return "unknown";
         // clang-format on
     }
@@ -599,6 +600,24 @@ class ModuleDecoderImpl : public Decoder {
         }
         return {type, kNoSuperType, is_final, shared};
       }
+      case kWasmContTypeCode: {
+        if (!enabled_features_.has_wasmfx()) {
+          error(pc() - 1,
+                "core stack switching not enabled (enable with "
+                "--experimental-wasm-wasmfx)");
+        }
+
+        auto pos = pc();
+        HeapType hp = consume_heap_type();
+
+        if (!hp.is_index()) {
+          error(pos, "cont type must refer to a signature index");
+          return {};
+        }
+
+        ContType* type = module_->signature_zone.New<ContType>(hp.ref_index());
+        return {type, kNoSuperType, is_final, shared};
+      }
       default:
         if (tracer_) tracer_->NextLine();
         errorf(pc() - 1, "unknown type form: %d", kind);
@@ -640,6 +659,25 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
+  bool check_typedefinition(size_t typeindex) {
+    TypeDefinition type = module_->types[typeindex];
+
+    if (type.kind == TypeDefinition::kCont) {
+      // This 'punches a hole' in the abstraction...
+      const TypeDefinition contfun_type =
+          module_->types[type.cont_type->contfun_typeindex().index];
+
+      if (contfun_type.kind != TypeDefinition::kFunction) {
+        error(pc(), "expecting an index to a function type definition");
+        return false;
+      } else {
+        return true;
+      }
+    } else {
+      return true;
+    }
+  }
+
   void DecodeTypeSection() {
     TypeCanonicalizer* type_canon = GetTypeCanonicalizer();
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
@@ -672,6 +710,12 @@ class ModuleDecoderImpl : public Decoder {
           module_->types[initial_size + j] = type;
         }
         if (failed()) return;
+
+        for (uint32_t j = 0; j < group_size; j++) {
+          if (!check_typedefinition(initial_size + j)) {
+            return;
+          }
+        }
         type_canon->AddRecursiveGroup(module_.get(), group_size);
         if (tracer_) {
           tracer_->Description("end of rec. group");
@@ -690,6 +734,9 @@ class ModuleDecoderImpl : public Decoder {
         TypeDefinition type = consume_subtype_definition(initial_size);
         if (ok()) {
           module_->types[initial_size] = type;
+          if (!check_typedefinition(initial_size)) {
+            return;
+          }
           type_canon->AddRecursiveSingletonGroup(module_.get());
         }
       }
@@ -2288,6 +2335,23 @@ class ModuleDecoderImpl : public Decoder {
     }
     consume_bytes(length, "value type");
     return result;
+  }
+
+  HeapType consume_heap_type() {
+    auto [heap_type, length] =
+        value_type_reader::read_heap_type<FullValidationTag>(
+            this, pc_,
+            module_->origin == kWasmOrigin ? enabled_features_
+                                           : WasmEnabledFeatures::None());
+
+    value_type_reader::ValidateHeapType<FullValidationTag>(
+        this, pc_, module_.get(), heap_type);
+    if (tracer_) {
+      tracer_->Bytes(pc_, length);
+      tracer_->Description(heap_type);
+    }
+    consume_bytes(length, "heap type");
+    return heap_type;
   }
 
   ValueType consume_storage_type() {

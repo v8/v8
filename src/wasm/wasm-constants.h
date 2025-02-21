@@ -49,6 +49,8 @@ enum ValueTypeCode : uint8_t {
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
   kExnRefCode = 0x69,           // -0x17
+  kContRefCode = 0x68,          // -0x18
+  kNoContCode = 0x75,           // -0x0b
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
   kStringViewWtf16Code = 0x62,  // -0x1e
@@ -60,6 +62,7 @@ constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmContTypeCode = 0x5d;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
 constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;

@@ -38,6 +38,8 @@ bool IsJSCompatibleSignature(const CanonicalSig* sig) {
         case HeapType::kStringViewIter:
         case HeapType::kExn:
         case HeapType::kNoExn:
+        case HeapType::kCont:
+        case HeapType::kNoCont:
           return false;
         default:
           break;

@@ -45,6 +45,8 @@ namespace module_decoder_unittest {
 #define NOP_BODY 2, 0, kExprNop
 
 #define SIG_ENTRY_i_i SIG_ENTRY_x_x(kI32Code, kI32Code)
+#define SIG_ENTRY_k_i SIG_ENTRY_x_x(kContRefCode, kI32Code)
+#define SIG_ENTRY_i_k SIG_ENTRY_x_x(kI32Code, kContRefCode)
 
 #define UNKNOWN_SECTION(size) 0, U32V_1(size + 5), ADD_COUNT('l', 'u', 'l', 'z')
 #define TYPE_SECTION(count, ...) SECTION(Type, U32V_1(count), __VA_ARGS__)
@@ -187,6 +189,8 @@ struct ValueTypePair {
     {kExternRefCode, kWasmExternRef},              // --
     {kNoExternCode, kWasmNullExternRef},           // --
     {kNoExnCode, kWasmNullExnRef},                 // --
+    {kContRefCode, kWasmContRef},                  // --
+    {kNoContCode, kWasmNullContRef},               // --
     {kAnyRefCode, kWasmAnyRef},                    // --
     {kEqRefCode, kWasmEqRef},                      // --
     {kI31RefCode, kWasmI31Ref},                    // --
@@ -2231,6 +2235,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
   WASM_FEATURE_SCOPE(stringref);
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_x(ret_type.code)};
@@ -2247,6 +2252,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
   WASM_FEATURE_SCOPE(stringref);
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
     const uint8_t data[] = {SIG_ENTRY_v_x(param_type.code)};
@@ -2263,6 +2269,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
   WASM_FEATURE_SCOPE(stringref);
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2283,6 +2290,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
   WASM_FEATURE_SCOPE(stringref);
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2305,6 +2313,7 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
 TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
   WASM_FEATURE_SCOPE(stringref);
   WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -3501,6 +3510,68 @@ TEST_F(WasmModuleVerifyTest, InvalidSharedGlobal) {
       "invalid global flags 0x3 (enable via --experimental-wasm-shared)");
 }
 
+TEST_F(WasmModuleVerifyTest, ContTypesBasic) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  // Test a fairly generic cont pattern
+  static const uint8_t cont_group[] = {
+      SECTION(Type,            // --
+              ENTRY_COUNT(1),  // one group, four entries
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4), SIG_ENTRY_i_k,
+              SIG_ENTRY_k_i, CONT_ENTRY(0), CONT_ENTRY(1))};
+
+  EXPECT_VERIFIES(cont_group);
+}
+
+TEST_F(WasmModuleVerifyTest, ContTypesNonFunc) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  // Invalid cont type definition: must reference a function type
+  static const uint8_t bad_cont_group[] = {SECTION(
+      Type, ENTRY_COUNT(2), WASM_STRUCT_DEF(FIELD_COUNT(0)), CONT_ENTRY(0))};
+
+  EXPECT_FAILURE(bad_cont_group);
+}
+
+TEST_F(WasmModuleVerifyTest, ContTypesSubtype) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  // Subtyping of continuation types
+  static const uint8_t cont_sub_group[] = {
+      SECTION(Type,                                         // --
+              ENTRY_COUNT(2),                               // two groups
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4),  // --
+              SIG_ENTRY_i_k,                                // --
+              SIG_ENTRY_k_i,                                // --
+              kWasmSubtypeCode, 0,           // 0 supertypes, non-final
+              CONT_ENTRY(0), CONT_ENTRY(1),  // --
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
+              // one supertype which is a cont type
+              kWasmSubtypeCode, 1, 2, CONT_ENTRY(0))};  // --
+  EXPECT_VERIFIES(cont_sub_group);
+}
+
+TEST_F(WasmModuleVerifyTest, ContTypesNotSubtype) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  // Continuation types must subtype other continuation types
+  static const uint8_t cont_bad_sub_group[] = {SECTION(
+      Type,                                         // --
+      ENTRY_COUNT(2),                               // two groups
+      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
+      SIG_ENTRY_i_k, CONT_ENTRY(0), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+      kWasmSubtypeCode, 1, 0,  // supertype count, invalid super
+      CONT_ENTRY(0))};
+  EXPECT_FAILURE(cont_bad_sub_group);
+
+  static const uint8_t wrong_cont_sub_group[] = {SECTION(
+      Type,                                         // --
+      ENTRY_COUNT(2),                               // two groups
+      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(4),  // --
+      SIG_ENTRY_i_k, SIG_ENTRY_k_i, kWasmSubtypeCode,
+      0,  // 0 supertypes, non-final
+      CONT_ENTRY(0), CONT_ENTRY(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+      kWasmSubtypeCode, 1, 2,  // referenced function not subtype of super
+      CONT_ENTRY(1))};
+  EXPECT_FAILURE(wrong_cont_sub_group);
+}
+
 #undef EXPECT_INIT_EXPR
 #undef EXPECT_INIT_EXPR_FAIL
 #undef WASM_INIT_EXPR_I32V_1
@@ -3520,6 +3591,8 @@ TEST_F(WasmModuleVerifyTest, InvalidSharedGlobal) {
 #undef EMPTY_BODY
 #undef NOP_BODY
 #undef SIG_ENTRY_i_i
+#undef SIG_ENTRY_i_k
+#undef SIG_ENTRY_k_i
 #undef UNKNOWN_SECTION
 #undef ADD_COUNT
 #undef SECTION

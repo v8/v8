@@ -312,6 +312,39 @@ class CanonicalArrayType : public ArrayTypeBase {
   CanonicalValueType rep_;
 };
 
+class ContType : public ZoneObject {
+ public:
+  constexpr explicit ContType(ModuleTypeIndex idx) : index_(idx) {}
+
+  bool operator==(const ContType& other) const {
+    return index_ == other.index_;
+  }
+  bool operator!=(const ContType& other) const {
+    return index_ != other.index_;
+  }
+
+  ModuleTypeIndex contfun_typeindex() const { return index_; }
+
+ private:
+  ModuleTypeIndex index_;
+};
+
+class CanonicalContType : public ZoneObject {
+ public:
+  explicit CanonicalContType(CanonicalTypeIndex idx) : index_(idx) {}
+
+  bool operator==(const CanonicalContType& other) const {
+    return index_ == other.index_;
+  }
+  bool operator!=(const CanonicalContType& other) const {
+    return index_ != other.index_;
+  }
+
+  CanonicalTypeIndex contfun_typeindex() const { return index_; }
+
+ private:
+  CanonicalTypeIndex index_;
+};
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_STRUCT_TYPES_H_

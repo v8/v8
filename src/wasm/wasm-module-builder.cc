@@ -723,6 +723,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           buffer->write_u8(array_type->mutability() ? 1 : 0);
           break;
         }
+        case TypeDefinition::kCont: {
+          const ContType* cont_type = type.cont_type;
+          buffer->write_u8(kWasmContTypeCode);
+          buffer->write_u32v(cont_type->contfun_typeindex());
+          break;
+        }
       }
     }
 

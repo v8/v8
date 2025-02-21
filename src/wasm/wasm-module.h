@@ -448,7 +448,7 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
 constexpr ModuleTypeIndex kNoSuperType = ModuleTypeIndex::Invalid();
 
 struct TypeDefinition {
-  enum Kind : int8_t { kFunction, kStruct, kArray };
+  enum Kind : int8_t { kFunction, kStruct, kArray, kCont };
 
   constexpr TypeDefinition(const FunctionSig* sig, ModuleTypeIndex supertype,
                            bool is_final, bool is_shared)
@@ -473,6 +473,15 @@ struct TypeDefinition {
         kind(kArray),
         is_final(is_final),
         is_shared(is_shared) {}
+
+  constexpr TypeDefinition(const ContType* type, ModuleTypeIndex supertype,
+                           bool is_final, bool is_shared)
+      : cont_type(type),
+        supertype{supertype},
+        kind(kCont),
+        is_final(is_final),
+        is_shared(is_shared) {}
+
   constexpr TypeDefinition() = default;
 
   bool operator==(const TypeDefinition& other) const {
@@ -494,6 +503,7 @@ struct TypeDefinition {
     const FunctionSig* function_sig = nullptr;
     const StructType* struct_type;
     const ArrayType* array_type;
+    const ContType* cont_type;
   };
   ModuleTypeIndex supertype{kNoSuperType};
   Kind kind = kFunction;
@@ -805,6 +815,12 @@ struct V8_EXPORT_PRIVATE WasmModule {
     AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
   }
 
+  void AddContTypeForTesting(const ContType* type, ModuleTypeIndex supertype,
+                             bool is_final, bool is_shared) {
+    DCHECK_NOT_NULL(type);
+    AddTypeForTesting(TypeDefinition(type, supertype, is_final, is_shared));
+  }
+
   // ================ Accessors ================================================
   bool has_type(ModuleTypeIndex index) const {
     return index.index < types.size();
@@ -840,6 +856,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
     size_t num_types = types.size();
     V8_ASSUME(index.index < num_types);
     return types[index.index].function_sig;
+  }
+
+  bool has_conttype(ModuleTypeIndex index) const {
+    return index.index < types.size() &&
+           types[index.index].kind == TypeDefinition::kCont;
   }
 
   CanonicalTypeIndex canonical_sig_id(ModuleTypeIndex index) const {

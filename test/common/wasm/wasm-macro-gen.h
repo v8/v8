@@ -927,6 +927,9 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define SIZEOF_SIG_ENTRY_xx_xx 7
 #define SIZEOF_SIG_ENTRY_x_xxx 7
 
+#define CONT_ENTRY(f) kWasmContTypeCode, f
+#define SIZEOF_CONT_ENTRY 2
+
 #define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<uint8_t>(depth)
 #define WASM_BRV_IF(depth, val, cond) \
   val, cond, kExprBrIf, static_cast<uint8_t>(depth)

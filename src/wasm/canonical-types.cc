@@ -285,6 +285,7 @@ bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
       super.heap_representation_non_shared();
   switch (sub_repr_non_shared) {
     case HeapType::kFunc:
+    case HeapType::kCont:
     case HeapType::kAny:
     case HeapType::kExtern:
     case HeapType::kExn:
@@ -309,10 +310,11 @@ bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
     case HeapType::kTop:
       UNREACHABLE();
     case HeapType::kNone:
-      // none is a subtype of every non-func, non-extern and non-exn reference
-      // type under wasm-gc.
+      // none is a subtype of every non-func, non-cont, non-extern and non-exn
+      // reference type under wasm-gc.
       if (super.has_index()) {
-        return canonical_types_[super]->kind != CanonicalType::kFunction;
+        return canonical_types_[super]->kind != CanonicalType::kFunction &&
+               canonical_types_[super]->kind != CanonicalType::kCont;
       }
       return super_repr_non_shared == HeapType::kAny ||
              super_repr_non_shared == HeapType::kEq ||
@@ -338,6 +340,13 @@ bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
       }
       return super_repr_non_shared == HeapType::kNoFunc ||
              super_repr_non_shared == HeapType::kFunc;
+    case HeapType::kNoCont:
+      // nocont is a subtype of every continuation type.
+      if (super.has_index()) {
+        return canonical_types_[super]->kind == CanonicalType::kCont;
+      }
+      return super_repr_non_shared == HeapType::kNoCont ||
+             super_repr_non_shared == HeapType::kCont;
     default:
       break;
   }
@@ -348,11 +357,14 @@ bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
   switch (super_repr_non_shared) {
     case HeapType::kFunc:
       return canonical_types_[sub_index]->kind == CanonicalType::kFunction;
+    case HeapType::kCont:
+      return canonical_types_[sub_index]->kind == CanonicalType::kCont;
     case HeapType::kStruct:
       return canonical_types_[sub_index]->kind == CanonicalType::kStruct;
     case HeapType::kEq:
     case HeapType::kAny:
-      return canonical_types_[sub_index]->kind != CanonicalType::kFunction;
+      return canonical_types_[sub_index]->kind != CanonicalType::kFunction &&
+             canonical_types_[sub_index]->kind != CanonicalType::kCont;
     case HeapType::kArray:
       return canonical_types_[sub_index]->kind == CanonicalType::kArray;
     case HeapType::kI31:
@@ -367,6 +379,7 @@ bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
     case HeapType::kNoExn:
+    case HeapType::kNoCont:
       return false;
     case HeapType::kBottom:
     case HeapType::kTop:
@@ -460,6 +473,14 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       CanonicalArrayType* array_type = zone_.New<CanonicalArrayType>(
           element_type, type.array_type->mutability());
       return CanonicalType(array_type, supertype, type.is_final,
+                           type.is_shared);
+    }
+    case TypeDefinition::kCont: {
+      CanonicalTypeIndex canonical_index =
+          CanonicalizeTypeIndex(type.cont_type->contfun_typeindex());
+      CanonicalContType* canonical_cont =
+          zone_.New<CanonicalContType>(canonical_index);
+      return CanonicalType(canonical_cont, supertype, type.is_final,
                            type.is_shared);
     }
   }

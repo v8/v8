@@ -121,6 +121,9 @@ class HeapTypeBase {
     kNoFunc,                  //
     kNoExtern,                //
     kNoExn,                   //
+    kCont,                    // shorthand: k.
+    kContShared,
+    kNoCont,  // bottom continuation type
     kFuncShared,
     kEqShared,
     kI31Shared,
@@ -138,6 +141,7 @@ class HeapTypeBase {
     kNoFuncShared,
     kNoExternShared,
     kNoExnShared,
+    kNoContShared,
     // This value is an internal type (not part of the Wasm spec) that
     // is the common supertype across all type hierarchies.  It should never
     // appear in validated Wasm programs, but is used to signify that we don't
@@ -205,6 +209,10 @@ class HeapTypeBase {
         return std::string("noexn");
       case kExn:
         return std::string("exn");
+      case kCont:
+        return std::string("cont");
+      case kNoCont:
+        return std::string("nocont");
       case kFuncShared:
         return std::string("shared func");
       case kEqShared:
@@ -331,8 +339,10 @@ class HeapTypeBase {
       case kStringViewWtf8:
       case kStringViewWtf16:
       case kStringViewIter:
+      case kCont:
       case kNone:
       case kNoFunc:
+      case kNoCont:
       case kNoExtern:
       case kNoExn:
       case kBottom:
@@ -378,6 +388,8 @@ class HeapType : public HeapTypeBase {
     switch (code) {
       case ValueTypeCode::kFuncRefCode:
         return HeapType(is_shared ? kFuncShared : kFunc);
+      case ValueTypeCode::kContRefCode:
+        return HeapType(is_shared ? kContShared : kCont);
       case ValueTypeCode::kEqRefCode:
         return HeapType(is_shared ? kEqShared : kEq);
       case ValueTypeCode::kI31RefCode:
@@ -408,6 +420,8 @@ class HeapType : public HeapTypeBase {
         return HeapType(is_shared ? kNoFuncShared : kNoFunc);
       case ValueTypeCode::kNoExnCode:
         return HeapType(is_shared ? kNoExnShared : kNoExn);
+      case ValueTypeCode::kNoContCode:
+        return HeapType(is_shared ? kNoContShared : kNoCont);
       default:
         return HeapType(kBottom);
     }
@@ -455,6 +469,8 @@ class HeapType : public HeapTypeBase {
       case kStringViewIter:
       case kStringViewIterShared:
         return mask | kStringViewIterCode;
+      case kCont:
+        return mask | kContRefCode;
       case kNone:
       case kNoneShared:
         return mask | kNoneCode;
@@ -467,6 +483,8 @@ class HeapType : public HeapTypeBase {
       case kNoExn:
       case kNoExnShared:
         return mask | kNoExnCode;
+      case kNoCont:
+        return mask | kNoContCode;
       default:
         DCHECK(is_index());
         return static_cast<int32_t>(representation());
@@ -654,6 +672,7 @@ class ValueTypeBase {
                                   is_reference_to(HeapType::kNoExn) ||
                                   is_reference_to(HeapType::kNoExtern) ||
                                   is_reference_to(HeapType::kNoFunc) ||
+                                  is_reference_to(HeapType::kNoCont) ||
                                   is_reference_to(HeapType::kNoneShared) ||
                                   is_reference_to(HeapType::kNoExnShared) ||
                                   is_reference_to(HeapType::kNoExternShared) ||
@@ -732,6 +751,8 @@ class ValueTypeBase {
         switch (heap_representation()) {
           case HeapType::kFunc:
             return kFuncRefCode;
+          case HeapType::kCont:
+            return kContRefCode;
           case HeapType::kEq:
             return kEqRefCode;
           case HeapType::kExtern:
@@ -754,6 +775,8 @@ class ValueTypeBase {
             return kNoExternCode;
           case HeapType::kNoFunc:
             return kNoFuncCode;
+          case HeapType::kNoCont:
+            return kNoContCode;
           default:
             return kRefNullCode;
         }
@@ -815,6 +838,9 @@ class ValueTypeBase {
               break;
             case HeapType::kNoFunc:
               buf << "nullfuncref";
+              break;
+            case HeapType::kNoCont:
+              buf << "nullcontref";
               break;
             default:
               buf << heap_type().name() << "ref";
@@ -1132,6 +1158,8 @@ constexpr ValueType kWasmNullExternRef =
     ValueType::RefNull(HeapType::kNoExtern);
 constexpr ValueType kWasmNullExnRef = ValueType::RefNull(HeapType::kNoExn);
 constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
+constexpr ValueType kWasmContRef = ValueType::RefNull(HeapType::kCont);
+constexpr ValueType kWasmNullContRef = ValueType::RefNull(HeapType::kNoCont);
 
 constexpr CanonicalValueType kCanonicalI8 = CanonicalValueType::Primitive(kI8);
 constexpr CanonicalValueType kCanonicalI16 =

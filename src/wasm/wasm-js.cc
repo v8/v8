@@ -2652,6 +2652,8 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       return false;
     case internal::wasm::HeapType::kExn:
     case internal::wasm::HeapType::kNoExn:
+    case internal::wasm::HeapType::kCont:
+    case internal::wasm::HeapType::kNoCont:
       thrower->TypeError("invalid type %s", type.name().c_str());
       return false;
     default:

@@ -273,19 +273,21 @@ class MjsunitNamesProvider {
   }
 
   // Format: HeapType::* enum value, JS global constant.
-#define ABSTRACT_TYPE_LIST(V)                                     \
-  V(kAny, kWasmAnyRef, kAnyRefCode)                               \
-  V(kArray, kWasmArrayRef, kArrayRefCode)                         \
-  V(kEq, kWasmEqRef, kEqRefCode)                                  \
-  V(kExn, kWasmExnRef, kExnRefCode)                               \
-  V(kExtern, kWasmExternRef, kExternRefCode)                      \
-  V(kFunc, kWasmFuncRef, kFuncRefCode)                            \
-  V(kI31, kWasmI31Ref, kI31RefCode)                               \
-  V(kNone, kWasmNullRef, kNullRefCode)                            \
-  V(kNoExn, kWasmNullExnRef, kNullExnRefCode)                     \
-  V(kNoExtern, kWasmNullExternRef, kNullExternRefCode)            \
-  V(kNoFunc, kWasmNullFuncRef, kNullFuncRefCode)                  \
-  V(kString, kWasmStringRef, kStringRefCode)                      \
+#define ABSTRACT_TYPE_LIST(V)                          \
+  V(kAny, kWasmAnyRef, kAnyRefCode)                    \
+  V(kArray, kWasmArrayRef, kArrayRefCode)              \
+  V(kCont, kWasmContRef, kContRefCode)                 \
+  V(kEq, kWasmEqRef, kEqRefCode)                       \
+  V(kExn, kWasmExnRef, kExnRefCode)                    \
+  V(kExtern, kWasmExternRef, kExternRefCode)           \
+  V(kFunc, kWasmFuncRef, kFuncRefCode)                 \
+  V(kI31, kWasmI31Ref, kI31RefCode)                    \
+  V(kNoCont, kWasmNullContRef, kNullContRefCode)       \
+  V(kNoExn, kWasmNullExnRef, kNullExnRefCode)          \
+  V(kNoExtern, kWasmNullExternRef, kNullExternRefCode) \
+  V(kNoFunc, kWasmNullFuncRef, kNullFuncRefCode)       \
+  V(kNone, kWasmNullRef, kNullRefCode)                 \
+  V(kString, kWasmStringRef, kStringRefCode)           \
   V(kStruct, kWasmStructRef, kStructRefCode)
 
 // Same, but for types where the shorthand is non-nullable.

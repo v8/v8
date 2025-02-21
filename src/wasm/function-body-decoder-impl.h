@@ -270,6 +270,16 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               HeapType::from_code(code, is_shared).name().c_str());
         }
         return {HeapType::from_code(code, is_shared), length};
+      case kNoContCode:
+      case kContRefCode:
+        if (!VALIDATE(enabled.has_wasmfx())) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "invalid heap type '%s', enable with "
+              "--experimental-wasm-wasmfx",
+              HeapType::from_code(code, is_shared).name().c_str());
+        }
+        return {HeapType::from_code(code, is_shared), length};
       default:
         DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                    heap_index);
@@ -341,6 +351,24 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
                            : ValueType::Ref(HeapType::from_code(code, false));
       return {type, 1};
     }
+    case kNoContCode:
+      if (!VALIDATE(enabled.has_wasmfx())) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid value type '%s', enable with --experimental-wasm-wasmfx",
+            HeapType::from_code(code, false).name().c_str());
+        return {kWasmBottom, 0};
+      }
+      return {kWasmNullContRef, 1};
+    case kContRefCode:
+      if (!VALIDATE(enabled.has_wasmfx())) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "invalid value type '%s', enable with --experimental-wasm-wasmfx",
+            HeapType::from_code(code, false).name().c_str());
+        return {kWasmBottom, 0};
+      }
+      return {kWasmContRef, 1};
     case kI32Code:
       return {kWasmI32, 1};
     case kI64Code:

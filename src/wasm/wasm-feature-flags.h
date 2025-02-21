@@ -70,7 +70,12 @@
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
-  V(memory_control, "memory control", false)
+  V(memory_control, "memory control", false)                                   \
+                                                                               \
+  /* Core stack switching, main proposal */                                    \
+  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* V8 side owner: fgm */                                                     \
+  V(wasmfx, "core stack switching", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

@@ -3163,6 +3163,12 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       case HeapType::kNoExn:
         *error_message = "invalid type (ref null noexn)";
         return {};
+      case HeapType::kNoCont:
+        *error_message = "invalid type (ref null nocont)";
+        return {};
+      case HeapType::kCont:
+        *error_message = "invalid type (ref null cont)";
+        return {};
       default:
         return expected.use_wasm_null() ? isolate->factory()->wasm_null()
                                         : value;
@@ -3198,6 +3204,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     }
     case HeapType::kExn:
       *error_message = "invalid type (ref exn)";
+      return {};
+    case HeapType::kCont:
+      *error_message = "invalid type (ref cont)";
       return {};
     case HeapType::kStruct: {
       if (IsWasmStruct(*value)) {
@@ -3259,6 +3268,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
     case HeapType::kNoFunc:
     case HeapType::kNoExtern:
     case HeapType::kNoExn:
+    case HeapType::kNoCont:
     case HeapType::kNone: {
       *error_message = "only null allowed for null types";
       return {};

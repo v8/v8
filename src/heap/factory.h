@@ -92,6 +92,7 @@ class WasmInterpreterRuntime;
 
 class ArrayType;
 class StructType;
+class ContType;
 struct WasmElemSegment;
 class WasmValue;
 enum class OnResume : int;
