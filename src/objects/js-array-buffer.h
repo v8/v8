@@ -360,6 +360,7 @@ class JSTypedArray
   inline bool is_on_heap(AcquireLoadTag tag) const;
 
   // Only valid to call when IsVariableLength() is true.
+  size_t GetVariableByteLengthOrOutOfBounds(bool& out_of_bounds) const;
   size_t GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const;
 
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
