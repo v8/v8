@@ -119,7 +119,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
         Object::GetProperty(isolate, value,
                             isolate->factory()->async_dispose_symbol()));
     //   b. If method is undefined, then
-    if (IsUndefined(*method)) {
+    if (IsNullOrUndefined(*method)) {
       //    i. Set method to ? GetMethod(V, @@dispose).
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, method,
