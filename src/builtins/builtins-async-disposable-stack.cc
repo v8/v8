@@ -94,12 +94,11 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   MaybeDirectHandle<Object> result =
       Execution::Call(isolate, sync_method, receiver, {});
 
-  DirectHandle<Object> result_handle;
-
-  if (result.ToHandle(&result_handle)) {
+  if (!result.is_null()) {
     //        e. Perform ? Call(promiseCapability.[[Resolve]], undefined, «
     //        undefined »).
-    JSPromise::Resolve(promise, result_handle).ToHandleChecked();
+    JSPromise::Resolve(promise, isolate->factory()->undefined_value())
+        .ToHandleChecked();
   } else {
     Tagged<Object> exception = isolate->exception();
     if (!isolate->is_catchable_by_javascript(exception)) {
