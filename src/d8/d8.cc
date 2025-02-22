@@ -82,6 +82,10 @@
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
 
+#ifdef V8_ENABLE_PARTITION_ALLOC
+#include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
+#endif  // V8_ENABLE_PARTITION_ALLOC
+
 #if V8_OS_POSIX
 #include <signal.h>
 #endif  // V8_OS_POSIX
@@ -6418,6 +6422,11 @@ void d8_install_sigterm_handler() {
 }  // namespace
 
 int Shell::Main(int argc, char* argv[]) {
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  allocator_shim::ConfigurePartitionsForTesting();
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();

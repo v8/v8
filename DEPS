@@ -89,6 +89,11 @@ vars = {
   'fuchsia_version': 'version:27.20250207.1.1',
 
   # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling partition_alloc_version
+  # and whatever else without interference from each other.
+  'partition_alloc_version': 'f32541744d6a7305af151078470f0cb07bc3ea4f',
+
+  # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
   # and whatever else without interference from each other.
   'android_sdk_build-tools_version': 'DxwAZ3hD551Neu6ycuW5CPnXFrdleRBd93oX1eB_m9YC',
@@ -460,6 +465,10 @@ deps = {
     ],
     'dep_type': 'cipd',
     'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
+  },
+  'third_party/partition_alloc': {
+    'url': Var('chromium_url') + '/chromium/src/base/allocator/partition_allocator.git@' + Var('partition_alloc_version'),
+    'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '453a8a40196bea0033d205a6d0c1a0075aee65b1',

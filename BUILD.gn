@@ -483,6 +483,14 @@ declare_args() {
 
   # Experimental testing mode where various limits are artificially set lower.
   v8_lower_limits_mode = false
+
+  # Enables the use of partition_alloc as the default allocator for standalone
+  # V8. This should be used for benchmarking and testing purposes to more
+  # closely mimic in-browser behavior.
+  #
+  # Currently used in d8.
+  v8_enable_partition_alloc =
+      !build_with_v8_embedder && !(defined(build_with_node) && build_with_node)
 }
 
 # Derived defaults.
@@ -795,6 +803,10 @@ if (v8_expose_public_symbols == "") {
 if (v8_wasm_random_fuzzers == "") {
   v8_wasm_random_fuzzers = !is_official_build
 }
+
+assert(
+    !build_with_chromium || !v8_enable_partition_alloc,
+    "V8 using partition_alloc from Chromium is not implemented at the moment")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -7664,6 +7676,11 @@ v8_executable("d8") {
   }
   if (current_os == "zos" && is_component_build) {
     deps += [ ":zoslib" ]
+  }
+
+  if (v8_enable_partition_alloc) {
+    defines += [ "V8_ENABLE_PARTITION_ALLOC" ]
+    deps += [ "//third_party/partition_alloc" ]
   }
 }
 
