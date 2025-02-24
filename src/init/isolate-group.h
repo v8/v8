@@ -56,6 +56,9 @@ class SandboxedArrayBufferAllocator {
 
   bool is_initialized() const { return !!sandbox_; }
 
+  // Returns page allocator that's supposed to be used for allocating pages
+  // for V8 heap. In case pointer compression is enabled it allocates pages
+  // within the pointer compression cage.
   v8::PageAllocator* page_allocator();
 
   ~SandboxedArrayBufferAllocator();
@@ -203,7 +206,12 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   }
 
   ReadOnlyArtifacts* InitializeReadOnlyArtifacts();
-  void ClearReadOnlyArtifacts();
+
+  // Unlike page_allocator() this one is supposed to be used for allocation
+  // of memory for array backing stores or Wasm memory. When pointer compression
+  // is enabled it allocates memory outside of the pointer compression
+  // cage. When sandbox is enabled, it allocates memory within the sandbox.
+  PageAllocator* GetBackingStorePageAllocator();
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox() { return sandbox_; }

@@ -163,10 +163,11 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  private:
   friend class GlobalBackingStoreRegistry;
 
-  BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
-               size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool is_wasm_memory64,
-               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
+  BackingStore(PageAllocator* page_allocator, void* buffer_start,
+               size_t byte_length, size_t max_byte_length, size_t byte_capacity,
+               SharedFlag shared, ResizableFlag resizable, bool is_wasm_memory,
+               bool is_wasm_memory64, bool has_guard_regions,
+               bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -185,6 +186,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // identify stores used by several ArrayBuffers or WebAssembly memories
   // (reported by the inspector as [[ArrayBufferData]] internal property)
   const uint32_t id_;
+
+  v8::PageAllocator* page_allocator_ = nullptr;
 
   union TypeSpecificData {
     TypeSpecificData() : v8_api_array_buffer_allocator(nullptr) {}
