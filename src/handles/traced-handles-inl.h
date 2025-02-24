@@ -120,8 +120,8 @@ FullObjectSlot TracedHandles::Create(
   // `Publish()`.
   if (needs_young_bit_update && !block->InYoungList()) {
     young_blocks_.PushFront(block);
-    block->SetInYoungList(true);
     DCHECK(block->InYoungList());
+    num_young_blocks_++;
   }
   if (needs_black_allocation) {
     WriteBarrier::MarkingFromTracedHandle(object);

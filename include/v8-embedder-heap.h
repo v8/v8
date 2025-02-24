@@ -42,8 +42,7 @@ class V8_EXPORT EmbedderRootsHandler {
    * |false| is returned, |ResetRoot()| will be recalled for the same handle.
    */
   virtual bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) {
-    ResetRoot(handle);
-    return true;
+    return false;
   }
 
  private:
