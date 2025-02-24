@@ -59,12 +59,6 @@ BUILTIN(DisposableStackPrototypeUse) {
   CHECK_RECEIVER(JSSyncDisposableStack, disposable_stack, kMethodName);
   DirectHandle<JSAny> value = args.at<JSAny>(1);
 
-  // use(value) does nothing when the value is null or undefined, so return
-  // early.
-  if (IsNullOrUndefined(*value)) {
-    return *value;
-  }
-
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   //    ReferenceError exception.
   if (disposable_stack->state() == DisposableStackState::kDisposed) {
@@ -75,14 +69,21 @@ BUILTIN(DisposableStackPrototypeUse) {
             isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
 
+  // 4. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
+  // value, sync-dispose).
+
+  //    (a. If V is either null or undefined and hint is sync-dispose, then
+  //       i. Return unused.)
+  if (IsNullOrUndefined(*value)) {
+    return *value;
+  }
+
   DirectHandle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(
           isolate, value, DisposeMethodHint::kSyncDispose));
 
-  // 4. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
-  //    value, sync-dispose).
   JSDisposableStackBase::Add(isolate, disposable_stack, value, method,
                              DisposeMethodCallType::kValueIsReceiver,
                              DisposeMethodHint::kSyncDispose);
