@@ -1306,15 +1306,6 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForCall(
 
 DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
   if (!is_inline()) return nullptr;
-  if (caller_details_->deopt_frame == nullptr) {
-    // TODO(victorgomes): Do we even benefit from lazily computing this deopt
-    // frame for eagerly inline functions?
-    DCHECK(!v8_flags.maglev_non_eager_inlining ||
-           ShouldEagerInlineCall(compilation_unit_->shared_function_info()));
-    caller_details_->deopt_frame =
-        caller_details()->builder->GetDeoptFrameForCall(
-            compilation_unit_, GetClosure(), caller_details_->arguments);
-  }
   return caller_details_->deopt_frame;
 }
 
@@ -8330,13 +8321,8 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
   return true;
 }
 
-MaglevCompilationUnit* MaglevGraphBuilder::GetTopLevelCompilationUnit() const {
-  if (!is_inline()) return compilation_unit_;
-  return caller_details()->builder->GetTopLevelCompilationUnit();
-}
-
 bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
-  return GetTopLevelCompilationUnit()
+  return compilation_unit_->GetTopLevelCompilationUnit()
       ->shared_function_info()
       .object()
       ->PassesFilter(v8_flags.maglev_print_filter);
@@ -8416,14 +8402,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   DeoptFrame* deopt_frame =
       GetDeoptFrameForCall(inner_unit, function, arguments);
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
-      this, inner_unit, BytecodeOffset(iterator_.current_offset()),
-      current_source_position_, arguments, deopt_frame,
+      inner_unit, current_source_position_, arguments, deopt_frame,
       zone()->New<KnownNodeAspects>(zone()),
       current_interpreter_frame_.virtual_objects(),
       /* loop effects */ nullptr,
       ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(zone()),
-      CatchBlockDetails{}, CatchBlockDeoptFrameDistance() + 1, IsInsideLoop(),
-      call_frequency, generic_call);
+      CatchBlockDetails{}, IsInsideLoop(), call_frequency, generic_call);
   graph()->inlineable_calls().push_back(caller_details);
   return generic_call;
 }
@@ -8441,9 +8425,10 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       catch_block_details.state->exception_handler_was_used()) {
     // Merge the current state into the handler state.
     catch_block_details.state->MergeThrow(
-        GetCurrentCatchBlockGraphBuilder(), catch_block_details.unit,
+        catch_block_details.builder, catch_block_details.unit,
         *current_interpreter_frame_.known_node_aspects(),
         current_interpreter_frame_.virtual_objects());
+    catch_block_details.deopt_frame_distance++;
   }
 
   // Create a new compilation unit.
@@ -8452,26 +8437,19 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
 
   // Propagate details.
   auto arguments_vector = GetArgumentsAsArrayOfValueNodes(shared, args);
-  MaglevCallerDetails caller_details{
-      this,
-      inner_unit,
-      BytecodeOffset(iterator_.current_offset()),
-      current_source_position_,
-      arguments_vector,
-      /* deopt_frame */ nullptr,
+  DeoptFrame* deopt_frame =
+      GetDeoptFrameForCall(inner_unit, function, arguments_vector);
+  MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
+      inner_unit, current_source_position_, arguments_vector, deopt_frame,
       current_interpreter_frame_.known_node_aspects(),
-      current_interpreter_frame_.virtual_objects(),
-      loop_effects_,
-      unobserved_context_slot_stores_,
-      catch_block_details,
-      CatchBlockDeoptFrameDistance() + 1,
-      IsInsideLoop(),
+      current_interpreter_frame_.virtual_objects(), loop_effects_,
+      unobserved_context_slot_stores_, catch_block_details, IsInsideLoop(),
       call_frequency,
-      /* generic_call_node */ nullptr};
+      /* generic_call_node */ nullptr);
 
   // Create a new graph builder for the inlined function.
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
-                                         &caller_details);
+                                         caller_details);
 
   // Set the inner graph builder to build in the current block.
   inner_graph_builder.current_block_ = current_block_;
@@ -8486,12 +8464,15 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   }
 
   // Propagate information back to the caller.
+  latest_checkpointed_frame_.reset();
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
   unobserved_context_slot_stores_ =
       inner_graph_builder.unobserved_context_slot_stores_;
   current_interpreter_frame_.set_virtual_objects(
       inner_graph_builder.current_interpreter_frame_.virtual_objects());
+  current_for_in_state.receiver_needs_map_check =
+      inner_graph_builder.current_for_in_state.receiver_needs_map_check;
 
   // Resume execution using the final block of the inner builder.
   current_block_ = inner_graph_builder.current_block_;

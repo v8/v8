@@ -80,6 +80,7 @@ class MaglevCompilationUnit : public ZoneObject {
   }
 
   void RegisterNodeInGraphLabeller(const Node* node);
+  const MaglevCompilationUnit* GetTopLevelCompilationUnit() const;
 
  private:
   MaglevCompilationInfo* const info_;

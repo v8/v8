@@ -179,15 +179,12 @@ struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   MergePointInterpreterFrameState* state = nullptr;
   const MaglevCompilationUnit* unit = nullptr;
+  int deopt_frame_distance = 0;
+  MaglevGraphBuilder* builder = nullptr;
 };
 
 struct MaglevCallerDetails {
-  // TODO(victorgomes): Remove access to this field for non-greedy inlining.
-  MaglevGraphBuilder* builder;
   MaglevCompilationUnit* callee;
-  // TODO(victorgomes): If deopt_frame is not computed lazily, we can get rid of
-  // this field.
-  BytecodeOffset bytecode_offset;
   SourcePosition call_site_positiion;
   base::Vector<ValueNode*> arguments;
   DeoptFrame* deopt_frame;
@@ -197,7 +194,6 @@ struct MaglevCallerDetails {
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
   CatchBlockDetails catch_block;
-  int catch_deopt_frame_distance;
   bool is_inside_loop;
   float call_frequency;
   // Only available if non-greedy inlining, otherwise nullptr.
@@ -399,7 +395,6 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
-  MaglevCompilationUnit* GetTopLevelCompilationUnit() const;
   bool TopLevelFunctionPassMaglevPrintFilter();
 
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs) {
@@ -1134,14 +1129,14 @@ class MaglevGraphBuilder {
         }
 
         new (node->exception_handler_info()) ExceptionHandlerInfo(
-            catch_block.ref, CatchBlockDeoptFrameDistance());
+            catch_block.ref, catch_block.deopt_frame_distance);
         DCHECK(node->exception_handler_info()->HasExceptionHandler());
         DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
         // Merge the current state into the handler state.
         DCHECK_NOT_NULL(catch_block.state);
         catch_block.state->MergeThrow(
-            GetCurrentCatchBlockGraphBuilder(), catch_block.unit,
+            catch_block.builder, catch_block.unit,
             *current_interpreter_frame_.known_node_aspects(),
             current_interpreter_frame_.virtual_objects());
       } else {
@@ -1158,33 +1153,17 @@ class MaglevGraphBuilder {
   // region.
   bool IsInsideTryBlock() const { return catch_block_stack_.size() > 0; }
 
-  int CatchBlockDeoptFrameDistance() const {
-    if (IsInsideTryBlock() || !is_inline()) return 0;
-    DCHECK_GT(caller_details()->catch_deopt_frame_distance, 0);
-    return caller_details()->catch_deopt_frame_distance;
-  }
-
   CatchBlockDetails GetCurrentTryCatchBlock() {
     if (IsInsideTryBlock()) {
       // Inside a try-block.
       int offset = catch_block_stack_.top().handler;
-      return {&jump_targets_[offset], merge_states_[offset], compilation_unit_};
+      return {&jump_targets_[offset], merge_states_[offset], compilation_unit_,
+              0, this};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};
     }
     return caller_details_->catch_block;
-  }
-
-  MaglevGraphBuilder* GetCurrentCatchBlockGraphBuilder() {
-    if (IsInsideTryBlock() || !is_inline()) return this;
-    MaglevGraphBuilder* builder = this;
-    for (int depth = 0; depth < caller_details()->catch_deopt_frame_distance;
-         depth++) {
-      DCHECK_NOT_NULL(builder->caller_details());
-      builder = builder->caller_details()->builder;
-    }
-    return builder;
   }
 
   bool ContextMayAlias(ValueNode* context,
@@ -1344,7 +1323,8 @@ class MaglevGraphBuilder {
   }
 
   ValueNode* GetFeedbackCell() {
-    return GetConstant(GetTopLevelCompilationUnit()->feedback_cell());
+    return GetConstant(
+        compilation_unit_->GetTopLevelCompilationUnit()->feedback_cell());
   }
 
   ValueNode* GetClosure() const {
@@ -1783,13 +1763,7 @@ class MaglevGraphBuilder {
     // All user-observable side effects need to clear state that is cached on
     // the builder. This reset has to be propagated up through the parents.
     // TODO(leszeks): What side effects aren't observable? Maybe migrations?
-    // TODO(victorgomes): We shouldn't do this for the parent builders in case
-    // of non-greedy inlining.
-    for (MaglevGraphBuilder* builder = this; builder != nullptr;
-         builder = builder->caller_details_ ? builder->caller_details_->builder
-                                            : nullptr) {
-      builder->ResetBuilderCachedState<is_possible_map_change>();
-    }
+    ResetBuilderCachedState<is_possible_map_change>();
   }
 
   template <bool is_possible_map_change = true>

@@ -81,9 +81,11 @@ class MaglevInliner {
       MaglevCallerDetails* details = graph_->inlineable_calls().back();
       graph_->inlineable_calls().pop_back();
       ValueNode* result = BuildInlineFunction(details);
-      GraphProcessor<UpdateInputsProcessor> substitute_use(
-          details->generic_call_node, result);
-      substitute_use.ProcessGraph(graph_);
+      if (result) {
+        GraphProcessor<UpdateInputsProcessor> substitute_use(
+            details->generic_call_node, result);
+        substitute_use.ProcessGraph(graph_);
+      }
     }
   }
 
@@ -123,8 +125,13 @@ class MaglevInliner {
         generic_node->new_target().node());
 
     if (result.IsDoneWithAbort()) {
-      // TODO(victorgomes): Not yet supported.
-      UNREACHABLE();
+      // Restore the rest of the graph.
+      // TODO(victorgomes): Some of these basic blocks might be unreachable now.
+      // Remove them in a different pass.
+      for (auto bb : saved_bb) {
+        graph_->Add(bb);
+      }
+      return nullptr;
     }
 
     DCHECK(result.IsDoneWithValue());

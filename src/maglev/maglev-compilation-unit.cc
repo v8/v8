@@ -74,6 +74,15 @@ void MaglevCompilationUnit::RegisterNodeInGraphLabeller(const Node* node) {
   }
 }
 
+const MaglevCompilationUnit* MaglevCompilationUnit::GetTopLevelCompilationUnit()
+    const {
+  const MaglevCompilationUnit* unit = this;
+  while (unit->is_inline()) {
+    unit = unit->caller();
+  }
+  return unit;
+}
+
 bool MaglevCompilationUnit::is_osr() const {
   return inlining_depth_ == 0 && info_->toplevel_is_osr();
 }
