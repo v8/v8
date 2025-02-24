@@ -938,9 +938,8 @@ OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
-PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
-    MapRef map, NameRef name, AccessMode access_mode,
-    RequestConstDependency request_constness) {
+PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
+                                                       AccessMode access_mode) {
   DCHECK_NOT_NULL(dependencies_);
 
   PropertyAccessTarget target({map, name, access_mode});
@@ -948,8 +947,8 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   if (it != property_access_infos_.end()) return it->second;
 
   AccessInfoFactory factory(this, zone());
-  PropertyAccessInfo access_info = factory.ComputePropertyAccessInfo(
-      map, name, access_mode, request_constness);
+  PropertyAccessInfo access_info =
+      factory.ComputePropertyAccessInfo(map, name, access_mode);
   TRACE(this, "Storing PropertyAccessInfo for "
                   << access_mode << " of property " << name << " on map "
                   << map);

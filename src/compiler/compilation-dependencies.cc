@@ -1276,28 +1276,6 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   return PropertyConstness::kConst;
 }
 
-std::optional<CompilationDependency const*>
-CompilationDependencies::TryFieldConstnessDependencyOffTheRecord(
-    MapRef map, MapRef owner, InternalIndex descriptor) {
-  PropertyConstness constness =
-      map.GetPropertyDetails(broker_, descriptor).constness();
-  if (constness == PropertyConstness::kMutable) return {};
-
-  // If the map can have fast elements transitions, then the field can be only
-  // considered constant if the map does not transition.
-  if (Map::CanHaveFastTransitionableElementsKind(map.instance_type())) {
-    // If the map can already transition away, let us report the field as
-    // mutable.
-    if (!map.is_stable()) {
-      return {};
-    }
-    DependOnStableMap(map);
-  }
-
-  DCHECK_EQ(constness, PropertyConstness::kConst);
-  return zone_->New<FieldConstnessDependency>(map, owner, descriptor);
-}
-
 void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();

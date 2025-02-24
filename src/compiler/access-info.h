@@ -247,14 +247,13 @@ class AccessInfoFactory final {
       ElementAccessFeedback const& feedback,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
-  PropertyAccessInfo ComputePropertyAccessInfo(
-      MapRef map, NameRef name, AccessMode access_mode,
-      RequestConstDependency request_constness) const;
+  PropertyAccessInfo ComputePropertyAccessInfo(MapRef map, NameRef name,
+                                               AccessMode access_mode) const;
 
   PropertyAccessInfo ComputeDictionaryProtoAccessInfo(
       MapRef receiver_map, NameRef name, JSObjectRef holder,
-      InternalIndex dict_index, AccessMode access_mode, PropertyDetails details,
-      RequestConstDependency request_constness) const;
+      InternalIndex dict_index, AccessMode access_mode,
+      PropertyDetails details) const;
 
   // Merge as many of the given {infos} as possible and record any dependencies.
   // Return false iff any of them was invalid, in which case no dependencies are
@@ -274,17 +273,17 @@ class AccessInfoFactory final {
   std::optional<ElementAccessInfo> ConsolidateElementLoad(
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
-  PropertyAccessInfo LookupTransition(
-      MapRef map, NameRef name, OptionalJSObjectRef holder,
-      PropertyAttributes attrs, RequestConstDependency request_constness) const;
-  PropertyAccessInfo ComputeDataFieldAccessInfo(
-      MapRef receiver_map, MapRef map, NameRef name, OptionalJSObjectRef holder,
-      InternalIndex descriptor, AccessMode access_mode,
-      RequestConstDependency request_constness) const;
+  PropertyAccessInfo LookupTransition(MapRef map, NameRef name,
+                                      OptionalJSObjectRef holder,
+                                      PropertyAttributes attrs) const;
+  PropertyAccessInfo ComputeDataFieldAccessInfo(MapRef receiver_map, MapRef map,
+                                                NameRef name,
+                                                OptionalJSObjectRef holder,
+                                                InternalIndex descriptor,
+                                                AccessMode access_mode) const;
   PropertyAccessInfo ComputeAccessorDescriptorAccessInfo(
       MapRef receiver_map, NameRef name, MapRef map, OptionalJSObjectRef holder,
-      InternalIndex descriptor, AccessMode access_mode,
-      RequestConstDependency request_constness) const;
+      InternalIndex descriptor, AccessMode access_mode) const;
 
   PropertyAccessInfo Invalid() const {
     return PropertyAccessInfo::Invalid(zone());

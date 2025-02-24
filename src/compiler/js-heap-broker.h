@@ -243,9 +243,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   OptionalNameRef GetNameFeedback(FeedbackNexus const& nexus);
 
-  PropertyAccessInfo GetPropertyAccessInfo(
-      MapRef map, NameRef name, AccessMode access_mode,
-      RequestConstDependency request_constness = RequestConstDependency::kYes);
+  PropertyAccessInfo GetPropertyAccessInfo(MapRef map, NameRef name,
+                                           AccessMode access_mode);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
