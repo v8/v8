@@ -1880,22 +1880,23 @@ class OutBuffer {
 struct ContinuationRecord {
   enum Type {
     kObject,
-    kObjectResume,
     kArray,
+    kObjectResume,
     kArrayResume,
     kArrayResume_Holey,
     kArrayResume_WithInterrupts,
     kArrayResume_Holey_WithInterrupts,
-    kString,    // Resume after encoding change.
-                // Object is either string or string wrapper.
-                // |index| is ignored for this type.
-    kObjectKey  // For encoding changes triggered by object keys.
-                // This is required (instead of simply resuming with the
-                // object/index that triggered the change), to avoid
-                // re-serializing '{' if the first property key triggered
-                // the change.
-                // |index| is used to indicate comma requirement
-                // (0 = no comma, otherwise add comma).
+    kSimpleObject,  // Resume after encoding change.
+                    // Object is any simple object that can be serialized
+                    // successfully with TrySerializeSimpleObject(). |index| is
+                    // ignored for this type.
+    kObjectKey      // For encoding changes triggered by object keys.
+                    // This is required (instead of simply resuming with the
+                    // object/index that triggered the change), to avoid
+                    // re-serializing '{' if the first property key triggered
+                    // the change.
+                    // |index| is used to indicate comma requirement
+                    // (0 = no comma, otherwise add comma).
   };
   Type type;
   using ObjectT = UnionOf<JSAny, FixedArrayBase>;
@@ -1910,6 +1911,7 @@ enum FastJsonStringifierResult {
   JS_ARRAY,
   UNDEFINED,
   CHANGE_ENCODING,
+  CHANGE_ENCODING_KEY,
   SLOW_PATH,
   EXCEPTION
 };
@@ -2123,7 +2125,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
   } else {
     if constexpr (is_one_byte) {
       if (InstanceTypeChecker::IsTwoByteString(map)) {
-        return CHANGE_ENCODING;
+        return CHANGE_ENCODING_KEY;
       }
     } else {
       if (map == roots.internalized_two_byte_string_map()) {
@@ -2161,7 +2163,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
     Tagged<String> obj, bool comma, const DisallowGarbageCollection& no_gc) {
   using StringChar = StringT::Char;
   if constexpr (is_one_byte && sizeof(StringChar) == 2) {
-    return CHANGE_ENCODING;
+    return CHANGE_ENCODING_KEY;
   } else {
     Tagged<StringT> string = Cast<StringT>(obj);
     const StringChar* chars;
@@ -2186,6 +2188,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
     Tagged<HeapObject> obj, bool comma, Tagged<String> key,
     const DisallowGarbageCollection& no_gc) {
   using StringChar = StringT::Char;
+  if constexpr (deferred_key) {
+    FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
+    if (V8_UNLIKELY(result != SUCCESS)) return result;
+  }
   if constexpr (is_one_byte && sizeof(StringChar) == 2) {
     return CHANGE_ENCODING;
   } else {
@@ -2197,10 +2203,6 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
       chars = string->GetChars();
     }
     const uint32_t length = string->length();
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
     AppendCharacter('"');
     AppendStringChecked(chars, length, no_gc);
     AppendCharacter('"');
@@ -2461,6 +2463,18 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
   UNREACHABLE();
 }
 
+namespace {
+
+constexpr ContinuationRecord::Type ContinuationTypeFromResult(
+    FastJsonStringifierResult result) {
+  DCHECK(result == JS_OBJECT || result == JS_ARRAY);
+  static_assert(JS_OBJECT - 1 == ContinuationRecord::kObject);
+  static_assert(JS_ARRAY - 1 == ContinuationRecord::kArray);
+  return static_cast<ContinuationRecord::Type>(result - 1);
+}
+
+}  // namespace
+
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
     Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc) {
@@ -2508,27 +2522,14 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       case UNDEFINED:
         break;
       case JS_OBJECT:
-        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                            i.as_uint32() + 1, length);
-        stack_.emplace_back(ContinuationRecord::kObject, property, 0);
-        result = SerializeObjectKey(key_name, comma, no_gc);
-        if constexpr (is_one_byte) {
-          if (V8_UNLIKELY(result != SUCCESS)) {
-            DCHECK_EQ(result, CHANGE_ENCODING);
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
-            return result;
-          }
-        }
-        return result;
       case JS_ARRAY:
         stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
                             i.as_uint32() + 1, length);
-        stack_.emplace_back(ContinuationRecord::kArray, property, 0);
+        stack_.emplace_back(ContinuationTypeFromResult(result), property, 0);
         result = SerializeObjectKey(key_name, comma, no_gc);
         if constexpr (is_one_byte) {
           if (V8_UNLIKELY(result != SUCCESS)) {
-            DCHECK_EQ(result, CHANGE_ENCODING);
+            DCHECK_EQ(result, CHANGE_ENCODING_KEY);
             stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
                                 comma);
             return result;
@@ -2536,17 +2537,15 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         }
         return result;
       case CHANGE_ENCODING:
+      case CHANGE_ENCODING_KEY:
         DCHECK(is_one_byte);
         stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
                             i.as_uint32() + 1, length);
-        stack_.emplace_back(ContinuationRecord::kString, property, 0);
-        result = SerializeObjectKey(key_name, comma, no_gc);
-        if (V8_UNLIKELY(result != SUCCESS)) {
+        stack_.emplace_back(ContinuationRecord::kSimpleObject, property, 0);
+        if (result == CHANGE_ENCODING_KEY) {
           stack_.emplace_back(ContinuationRecord::kObjectKey, key_name, comma);
-          return result;
         }
-        DCHECK(IsString(property) || IsStringWrapper(property));
-        return CHANGE_ENCODING;
+        return result;
       case SLOW_PATH:
       case EXCEPTION:
         return result;
@@ -2705,24 +2704,21 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
         stack_.emplace_back(
             ContinuationTypeForArray(kind, with_interrupt_checks), elements,
             i + 1, length);
-        stack_.emplace_back(ContinuationRecord::kString, obj, 0);
+        stack_.emplace_back(ContinuationRecord::kSimpleObject, obj, 0);
         return result;
       case JS_OBJECT:
-        stack_.emplace_back(
-            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
-            i + 1, length);
-        stack_.emplace_back(ContinuationRecord::kObject, obj, 0);
-        return result;
       case JS_ARRAY:
         stack_.emplace_back(
             ContinuationTypeForArray(kind, with_interrupt_checks), elements,
             i + 1, length);
-        stack_.emplace_back(ContinuationRecord::kArray, obj, 0);
+        stack_.emplace_back(ContinuationTypeFromResult(result), obj, 0);
         return result;
       case SUCCESS:
       case SLOW_PATH:
       case EXCEPTION:
         return result;
+      case CHANGE_ENCODING_KEY:
+        UNREACHABLE();
     }
     UNREACHABLE();
   }
@@ -2759,9 +2755,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     // Check that we have the object's continuation record.
     DCHECK_EQ(stack_.back().type, ContinuationRecord::kObjectResume);
   }
-  if (cont.type == ContinuationRecord::kString) {
-    Tagged<String> object = Cast<String>(cont.object);
-    FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
+  if (cont.type == ContinuationRecord::kSimpleObject) {
+    FastJsonStringifierResult result =
+        TrySerializeSimpleObject<false>(Cast<JSAny>(cont.object));
     DCHECK_EQ(result, SUCCESS);
 
     // Early return if a top-level string triggered the encoding change.
@@ -2770,7 +2766,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     cont = stack_.back();
     stack_.pop_back();
   }
-  DCHECK(cont.type != ContinuationRecord::kString &&
+  DCHECK(cont.type != ContinuationRecord::kSimpleObject &&
          cont.type != ContinuationRecord::kObjectKey);
   return SerializeObject(cont, no_gc);
 }
@@ -2807,10 +2803,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
 
   // Serialize object.
   FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
+  DCHECK_NE(result, CHANGE_ENCODING_KEY);
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
       DCHECK(IsString(object) || IsStringWrapper(object));
-      stack_.emplace_back(ContinuationRecord::kString, object, 0);
+      stack_.emplace_back(ContinuationRecord::kSimpleObject, object, 0);
       return result;
     }
   } else {
@@ -2920,7 +2917,7 @@ bool FastJsonStringifier<Char>::CheckCycle() {
   for (uint32_t i = 0; i < stack_.size(); i++) {
     ContinuationRecord rec = stack_[i];
     if (rec.type == ContinuationRecord::kObjectKey ||
-        rec.type == ContinuationRecord::kString)
+        rec.type == ContinuationRecord::kSimpleObject)
       continue;
     Tagged<Object> obj = rec.object;
     if (set.find(obj.ptr()) != set.end()) {
@@ -3108,10 +3105,11 @@ MaybeDirectHandle<Object> FastJsonStringify(Isolate* isolate,
       one_byte_stringifier.SerializeObject(*object, no_gc);
   bool result_is_one_byte = true;
 
-  if (result == CHANGE_ENCODING) {
+  if (result == CHANGE_ENCODING || result == CHANGE_ENCODING_KEY) {
     two_byte_stringifier.emplace(isolate);
     result = two_byte_stringifier->ResumeFrom(one_byte_stringifier, no_gc);
     DCHECK_NE(result, CHANGE_ENCODING);
+    DCHECK_NE(result, CHANGE_ENCODING_KEY);
     result_is_one_byte = false;
   }
 
