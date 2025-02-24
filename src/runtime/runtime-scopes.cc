@@ -300,24 +300,27 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
 
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
-  DirectHandle<Smi> has_await_using = args.at<Smi>(3);
+  Handle<Object> continuation_message = args.at<Object>(3);
+  DirectHandle<Smi> has_await_using = args.at<Smi>(4);
+
+  if (*continuation_token ==
+      Smi::FromInt(static_cast<int>(
+          interpreter::TryFinallyContinuationToken::kRethrowToken))) {
+    disposable_stack->set_error(*continuation_error);
+    disposable_stack->set_error_message(*continuation_message);
+  }
 
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSDisposableStackBase::DisposeResources(
           isolate, disposable_stack,
-          (*continuation_token !=
-           Smi::FromInt(static_cast<int>(
-               interpreter::TryFinallyContinuationToken::kRethrowToken)))
-              ? MaybeHandle<Object>()
-              : continuation_error,
           static_cast<DisposableStackResourcesType>(
               Smi::ToInt(*has_await_using))));
   return *result;

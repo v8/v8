@@ -114,8 +114,7 @@ BUILTIN(DisposableStackPrototypeDispose) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack, {},
-          DisposableStackResourcesType::kAllSync));
+          isolate, disposable_stack, DisposableStackResourcesType::kAllSync));
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
