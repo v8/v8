@@ -3030,7 +3030,7 @@ MachineOperatorBuilder* MachineOperatorReducer::machine() const {
   return mcgraph()->machine();
 }
 
-Graph* MachineOperatorReducer::graph() const { return mcgraph()->graph(); }
+TFGraph* MachineOperatorReducer::graph() const { return mcgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal

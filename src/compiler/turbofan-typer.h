@@ -27,14 +27,15 @@ class V8_EXPORT_PRIVATE Typer {
   };
   using Flags = base::Flags<Flag>;
 
-  Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+  Typer(JSHeapBroker* broker, Flags flags, TFGraph* graph,
         TickCounter* tick_counter);
   ~Typer();
   Typer(const Typer&) = delete;
   Typer& operator=(const Typer&) = delete;
 
   void Run();
-  // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
+  // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on
+  // TFGraph.
   void Run(const ZoneVector<Node*>& roots,
            LoopVariableOptimizer* induction_vars);
 
@@ -43,13 +44,13 @@ class V8_EXPORT_PRIVATE Typer {
   class Decorator;
 
   Flags flags() const { return flags_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
   OperationTyper* operation_typer() { return &operation_typer_; }
   JSHeapBroker* broker() const { return broker_; }
 
   Flags const flags_;
-  Graph* const graph_;
+  TFGraph* const graph_;
   Decorator* decorator_;
   TypeCache const* cache_;
   JSHeapBroker* broker_;

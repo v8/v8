@@ -66,7 +66,7 @@ class GraphTest : public TestWithNativeContextAndZone {
   Matcher<Node*> IsUndefinedConstant();
 
   CommonOperatorBuilder* common() { return &data_->common_; }
-  Graph* graph() { return &data_->graph_; }
+  TFGraph* graph() { return &data_->graph_; }
   SourcePositionTable* source_positions() { return &data_->source_positions_; }
   NodeOriginTable* node_origins() { return &data_->node_origins_; }
   JSHeapBroker* broker() { return &data_->broker_; }
@@ -94,7 +94,7 @@ class GraphTest : public TestWithNativeContextAndZone {
     Data(Isolate* isolate, Zone* zone, int num_parameters);
     ~Data();
     CommonOperatorBuilder common_;
-    Graph graph_;
+    TFGraph graph_;
     JSHeapBroker broker_;
     JSHeapBrokerScopeForTesting broker_scope_;
     std::optional<PersistentHandlesScope> persistent_scope_;

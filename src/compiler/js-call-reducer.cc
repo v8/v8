@@ -2327,7 +2327,7 @@ struct PromiseCtorFrameStateParams {
 // but probably not worth the effort.
 FrameState CreateConstructInvokeStubFrameState(
     Node* node, Node* outer_frame_state, SharedFunctionInfoRef shared,
-    Node* context, CommonOperatorBuilder* common, Graph* graph) {
+    Node* context, CommonOperatorBuilder* common, TFGraph* graph) {
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(FrameStateType::kConstructInvokeStub,
                                            1, 0, 0, shared.object(), {});
@@ -2353,7 +2353,7 @@ FrameState CreateConstructInvokeStubFrameState(
 
 FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
-    Graph* graph) {
+    TFGraph* graph) {
   DCHECK_EQ(1,
             params.shared.internal_formal_parameter_count_without_receiver());
   return CreateConstructInvokeStubFrameState(
@@ -9016,7 +9016,7 @@ CompilationDependencies* JSCallReducer::dependencies() const {
   return broker()->dependencies();
 }
 
-Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
+TFGraph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
 

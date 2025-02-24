@@ -61,7 +61,7 @@ class LoopFinderTester : HandleAndZoneScope {
   Isolate* isolate;
   TickCounter tick_counter;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   JSGraph jsgraph;
   Node* start;
   Node* end;

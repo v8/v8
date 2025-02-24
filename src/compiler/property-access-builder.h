@@ -20,7 +20,7 @@ namespace compiler {
 
 class CommonOperatorBuilder;
 class CompilationDependencies;
-class Graph;
+class TFGraph;
 class JSGraph;
 class JSHeapBroker;
 class PropertyAccessInfo;
@@ -78,7 +78,7 @@ class PropertyAccessBuilder {
   CompilationDependencies* dependencies() const {
     return broker_->dependencies();
   }
-  Graph* graph() const;
+  TFGraph* graph() const;
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;

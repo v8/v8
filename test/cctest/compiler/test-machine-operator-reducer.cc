@@ -100,7 +100,7 @@ class ReducerTester : public HandleAndZoneScope {
   const Operator* unop;
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* maxuint32;

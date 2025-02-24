@@ -376,7 +376,7 @@ static const char* SafeMnemonic(Node* node) {
   return node == nullptr ? "null" : node->op()->mnemonic();
 }
 
-JSONGraphWriter::JSONGraphWriter(std::ostream& os, const Graph* graph,
+JSONGraphWriter::JSONGraphWriter(std::ostream& os, const TFGraph* graph,
                                  const SourcePositionTable* positions,
                                  const NodeOriginTable* origins)
     : os_(os),

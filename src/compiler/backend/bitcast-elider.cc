@@ -88,7 +88,7 @@ void BitcastElider::ProcessGraph() {
   }
 }
 
-BitcastElider::BitcastElider(Zone* zone, Graph* graph, bool is_builtin)
+BitcastElider::BitcastElider(Zone* zone, TFGraph* graph, bool is_builtin)
     : graph_(graph),
       to_visit_(zone),
       seen_(graph, 2),

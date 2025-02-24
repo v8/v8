@@ -10,11 +10,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-GraphTrimmer::GraphTrimmer(Zone* zone, Graph* graph)
+GraphTrimmer::GraphTrimmer(Zone* zone, TFGraph* graph)
     : graph_(graph), is_live_(graph, 2), live_(zone) {
   live_.reserve(graph->NodeCount());
 }
-
 
 GraphTrimmer::~GraphTrimmer() = default;
 

@@ -243,7 +243,7 @@ class Int32Signature : public MachineSignature {
 };
 
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
-                          Graph* graph, Schedule* schedule = nullptr) {
+                          TFGraph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
                                 CodeKind::FOR_TESTING);
@@ -429,7 +429,7 @@ class Computer {
     {
       // Build the graph for the computation.
       Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-      Graph graph(&zone);
+      TFGraph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       build(desc, &raw);
       inner = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
@@ -444,7 +444,7 @@ class Computer {
       {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-        Graph graph(&zone);
+        TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(inner);
@@ -478,7 +478,7 @@ class Computer {
       {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-        Graph graph(&zone);
+        TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* base = raw.PointerConstant(io.input);
@@ -561,7 +561,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   {
     // Writes all parameters into the output buffer.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     Node* base = raw.PointerConstant(output);
     for (int i = 0; i < kNumParams; i++) {
@@ -578,7 +578,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
@@ -947,7 +947,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     Isolate* isolate = CcTest::InitIsolateOnce();
     // Build the actual select.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     RawMachineAssembler r(isolate, &graph, desc);
     r.Return(r.Parameter(which));
     inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
@@ -1043,7 +1043,7 @@ void MixedParamTest(int start) {
     {
       // build the select.
       Zone select_zone(&allocator, ZONE_NAME, kCompressGraphZone);
-      Graph graph(&select_zone);
+      TFGraph graph(&select_zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
       select = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
@@ -1060,7 +1060,7 @@ void MixedParamTest(int start) {
       {
         // Wrap the select code with a callable function that passes constants.
         Zone wrap_zone(&allocator, ZONE_NAME, kCompressGraphZone);
-        Graph graph(&wrap_zone);
+        TFGraph graph(&wrap_zone);
         CallDescriptor* cdesc =
             Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -1159,7 +1159,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
   // Create inner function g. g has lots of parameters so that they are passed
   // over the stack.
   Handle<Code> inner;
-  Graph graph(&zone);
+  TFGraph graph(&zone);
   RawMachineAssembler g(isolate, &graph, desc);
 
   g.Store(slot_type.representation(), g.Parameter(11), g.Parameter(10),

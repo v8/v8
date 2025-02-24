@@ -21,7 +21,7 @@ namespace {
 
 class MachineRepresentationInferrer {
  public:
-  MachineRepresentationInferrer(Schedule const* schedule, Graph const* graph,
+  MachineRepresentationInferrer(Schedule const* schedule, TFGraph const* graph,
                                 Linkage* linkage, Zone* zone)
       : schedule_(schedule),
         linkage_(linkage),
@@ -1081,7 +1081,7 @@ class MachineRepresentationChecker {
 
 }  // namespace
 
-void MachineGraphVerifier::Run(Graph* graph, Schedule const* const schedule,
+void MachineGraphVerifier::Run(TFGraph* graph, Schedule const* const schedule,
                                Linkage* linkage, bool is_stub, const char* name,
                                Zone* temp_zone) {
   MachineRepresentationInferrer representation_inferrer(schedule, graph,

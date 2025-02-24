@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-LinearScheduler::LinearScheduler(Zone* zone, Graph* graph)
+LinearScheduler::LinearScheduler(Zone* zone, TFGraph* graph)
     : graph_(graph), control_level_(zone), early_schedule_position_(zone) {
   ComputeControlLevel();
 }

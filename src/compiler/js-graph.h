@@ -21,12 +21,12 @@ namespace compiler {
 class SimplifiedOperatorBuilder;
 class Typer;
 
-// Implements a facade on a Graph, enhancing the graph with JS-specific
+// Implements a facade on a TFGraph, enhancing the graph with JS-specific
 // notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
 class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
  public:
-  JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
+  JSGraph(Isolate* isolate, TFGraph* graph, CommonOperatorBuilder* common,
           JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
           MachineOperatorBuilder* machine)
       : MachineGraph(graph, common, machine),

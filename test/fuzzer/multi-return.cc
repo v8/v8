@@ -207,7 +207,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   RawMachineAssembler callee(
-      i_isolate, zone.New<Graph>(&zone), desc,
+      i_isolate, zone.New<TFGraph>(&zone), desc,
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -265,7 +265,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CallDescriptor* wrapper_desc =
       Linkage::GetSimplifiedCDescriptor(&zone, sig_builder.Get());
   RawMachineAssembler caller(
-      i_isolate, zone.New<Graph>(&zone), wrapper_desc,
+      i_isolate, zone.New<TFGraph>(&zone), wrapper_desc,
       MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
 

@@ -21,7 +21,7 @@ namespace internal {
 namespace compiler {
 
 CommonOperatorReducer::CommonOperatorReducer(
-    Editor* editor, Graph* graph, JSHeapBroker* broker,
+    Editor* editor, TFGraph* graph, JSHeapBroker* broker,
     CommonOperatorBuilder* common, MachineOperatorBuilder* machine,
     Zone* temp_zone, BranchSemantics default_branch_semantics)
     : AdvancedReducer(editor),

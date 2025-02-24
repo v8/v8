@@ -446,7 +446,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   }
 
   const wasm::FunctionSig* sig = wasm_module_->functions[fct_index].sig;
-  Graph::SubgraphScope graph_scope(graph());
+  TFGraph::SubgraphScope graph_scope(graph());
   WasmGraphBuilder builder(nullptr, zone(), jsgraph(), sig, source_positions_,
                            WasmGraphBuilder::kJSFunctionAbiMode, isolate(),
                            native_module->enabled_features());
@@ -487,7 +487,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   Node* wrapper_end_node;
   size_t subgraph_min_node_id;
   {
-    Graph::SubgraphScope scope(graph());
+    TFGraph::SubgraphScope scope(graph());
     graph()->SetEnd(nullptr);
 
     // Create a nested frame state inside the frame state attached to the
@@ -794,7 +794,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* end;
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
-    Graph::SubgraphScope scope(graph());
+    TFGraph::SubgraphScope scope(graph());
     BytecodeGraphBuilderFlags flags(
         BytecodeGraphBuilderFlag::kSkipFirstStackAndTierupCheck);
     if (info_->analyze_environment_liveness()) {
@@ -963,7 +963,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                     exception_target, uncaught_subcalls, call.argument_count());
 }
 
-Graph* JSInliner::graph() const { return jsgraph()->graph(); }
+TFGraph* JSInliner::graph() const { return jsgraph()->graph(); }
 
 JSOperatorBuilder* JSInliner::javascript() const {
   return jsgraph()->javascript();

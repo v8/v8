@@ -318,7 +318,7 @@ class EscapeAnalysisTracker : public ZoneObject {
 };
 
 EffectGraphReducer::EffectGraphReducer(
-    Graph* graph, std::function<void(Node*, Reduction*)> reduce,
+    TFGraph* graph, std::function<void(Node*, Reduction*)> reduce,
     TickCounter* tick_counter, Zone* zone)
     : graph_(graph),
       state_(graph, kNumStates),

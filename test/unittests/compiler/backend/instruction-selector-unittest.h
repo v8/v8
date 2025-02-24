@@ -37,7 +37,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(test->isolate(),
-                              test->zone()->New<Graph>(test->zone()),
+                              test->zone()->New<TFGraph>(test->zone()),
                               MakeCallDescriptor(test->zone(), return_type),
                               MachineType::PointerRepresentation(),
                               MachineOperatorBuilder::kAllOptionalOps),
@@ -45,7 +45,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
               MachineType::PointerRepresentation(),
               MachineOperatorBuilder::kAllOptionalOps,
@@ -54,7 +54,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type),
               MachineType::PointerRepresentation(),
@@ -64,7 +64,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
                   MachineType parameter0_type, MachineType parameter1_type,
                   MachineType parameter2_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type, parameter2_type),
               MachineType::PointerRepresentation(),

@@ -46,7 +46,7 @@ namespace compiler {
 
 class CodeAssemblerState;
 class CallDescriptor;
-class Graph;
+class TFGraph;
 class InstructionSequence;
 class JSGraph;
 class JSHeapBroker;
@@ -121,7 +121,7 @@ class Pipeline : public AllStatic {
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
       Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
+      std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
@@ -148,7 +148,7 @@ class Pipeline : public AllStatic {
   // {nullptr}, then compute a new schedule for code generation.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
-      CallDescriptor* call_descriptor, Graph* graph,
+      CallDescriptor* call_descriptor, TFGraph* graph,
       const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run the instruction selector on a turboshaft graph and generate code.

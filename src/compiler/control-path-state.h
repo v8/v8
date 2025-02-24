@@ -86,7 +86,8 @@ class ControlPathState {
 template <typename NodeState, NodeUniqueness node_uniqueness>
 class AdvancedReducerWithControlPathState : public AdvancedReducer {
  protected:
-  AdvancedReducerWithControlPathState(Editor* editor, Zone* zone, Graph* graph)
+  AdvancedReducerWithControlPathState(Editor* editor, Zone* zone,
+                                      TFGraph* graph)
       : AdvancedReducer(editor),
         zone_(zone),
         node_states_(graph->NodeCount(), zone),

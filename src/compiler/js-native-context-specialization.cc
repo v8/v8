@@ -4313,7 +4313,7 @@ JSNativeContextSpecialization::ReleaseEffectAndControlFromAssembler(
   return {gasm->effect(), gasm->control()};
 }
 
-Graph* JSNativeContextSpecialization::graph() const {
+TFGraph* JSNativeContextSpecialization::graph() const {
   return jsgraph()->graph();
 }
 

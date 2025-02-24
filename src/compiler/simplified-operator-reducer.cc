@@ -315,7 +315,7 @@ Factory* SimplifiedOperatorReducer::factory() const {
   return jsgraph()->isolate()->factory();
 }
 
-Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
+TFGraph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();

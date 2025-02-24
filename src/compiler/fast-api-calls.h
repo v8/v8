@@ -47,7 +47,7 @@ using ConvertReturnValue = std::function<Node*(const CFunctionInfo*, Node*)>;
 using InitializeOptions = std::function<void(Node*)>;
 using GenerateSlowApiCall = std::function<Node*()>;
 
-Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
+Node* BuildFastApiCall(Isolate* isolate, TFGraph* graph,
                        GraphAssembler* graph_assembler,
                        FastApiCallFunction c_function, Node* data_argument,
                        const GetParameter& get_parameter,

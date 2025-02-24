@@ -40,7 +40,7 @@ class TurbofanCompilationJob;
 namespace compiler {
 // Forward declarations for some compiler data structures.
 class CallDescriptor;
-class Graph;
+class TFGraph;
 class MachineGraph;
 class Node;
 class NodeOriginTable;
@@ -203,7 +203,7 @@ class WasmGraphBuilder {
   bool has_simd() const { return has_simd_; }
 
   MachineGraph* mcgraph() { return mcgraph_; }
-  Graph* graph();
+  TFGraph* graph();
   Zone* graph_zone();
 
  protected:

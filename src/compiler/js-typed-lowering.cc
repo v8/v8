@@ -461,7 +461,7 @@ class JSBinopReduction final {
   Type type() { return NodeProperties::GetType(node_); }
 
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
-  Graph* graph() const { return lowering_->graph(); }
+  TFGraph* graph() const { return lowering_->graph(); }
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
   Isolate* isolate() { return jsgraph()->isolate(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
@@ -2947,7 +2947,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 
-Graph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
+TFGraph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
 
 CompilationDependencies* JSTypedLowering::dependencies() const {
   return broker()->dependencies();

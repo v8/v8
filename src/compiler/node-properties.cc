@@ -149,15 +149,14 @@ void NodeProperties::RemoveValueInputs(Node* node) {
   }
 }
 
-
-void NodeProperties::MergeControlToEnd(Graph* graph,
+void NodeProperties::MergeControlToEnd(TFGraph* graph,
                                        CommonOperatorBuilder* common,
                                        Node* node) {
   graph->end()->AppendInput(graph->zone(), node);
   graph->end()->set_op(common->End(graph->end()->InputCount()));
 }
 
-void NodeProperties::RemoveControlFromEnd(Graph* graph,
+void NodeProperties::RemoveControlFromEnd(TFGraph* graph,
                                           CommonOperatorBuilder* common,
                                           Node* node) {
   int index_to_remove = -1;

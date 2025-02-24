@@ -1495,7 +1495,7 @@ struct PrintGraphPhase {
 
   void Run(TFPipelineData* data, Zone* temp_zone, const char* phase) {
     OptimizedCompilationInfo* info = data->info();
-    Graph* graph = data->graph();
+    TFGraph* graph = data->graph();
     if (info->trace_turbo_json()) {  // Print JSON.
       UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
@@ -1563,7 +1563,7 @@ struct VerifyGraphPhase {
 class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
  public:
   WasmHeapStubCompilationJob(Isolate* isolate, CallDescriptor* call_descriptor,
-                             std::unique_ptr<Zone> zone, Graph* graph,
+                             std::unique_ptr<Zone> zone, TFGraph* graph,
                              CodeKind kind, std::unique_ptr<char[]> debug_name,
                              const AssemblerOptions& options)
       // Note that the OptimizedCompilationInfo is not initialized at the time
@@ -1601,7 +1601,7 @@ class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
   CallDescriptor* const call_descriptor_;
   ZoneStats zone_stats_;
   const std::unique_ptr<Zone> zone_;
-  Graph* const graph_;
+  TFGraph* const graph_;
   turboshaft::PipelineData turboshaft_data_;
   TFPipelineData data_;
   PipelineImpl pipeline_;
@@ -1684,7 +1684,7 @@ class WasmTurboshaftWrapperCompilationJob final
 // static
 std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
     Isolate* isolate, CallDescriptor* call_descriptor,
-    std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
+    std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
     std::unique_ptr<char[]> debug_name, const AssemblerOptions& options) {
   return std::make_unique<WasmHeapStubCompilationJob>(
       isolate, call_descriptor, std::move(zone), graph, kind,
@@ -2100,7 +2100,7 @@ int HashGraphForPGO(const turboshaft::Graph* graph) {
 // version that was profiled. Hash collisions are not catastrophic; in the worst
 // case, we just defer some blocks that ideally shouldn't be deferred. The
 // result value is in the valid Smi range.
-int HashGraphForPGO(const Graph* graph) {
+int HashGraphForPGO(const TFGraph* graph) {
   AccountingAllocator allocator;
   Zone local_zone(&allocator, ZONE_NAME);
 
@@ -2599,7 +2599,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
     const char* debug_name, const AssemblerOptions& options,
     SourcePositionTable* source_positions) {
-  Graph* graph = mcgraph->graph();
+  TFGraph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
                                 kind);
   // Construct a pipeline for scheduling and code generation.
@@ -2795,7 +2795,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   // TODO(nicohartmann): We should not allocate TurboFan graph(s) here but
   // instead use only Turboshaft.
   compiler::MachineGraph* mcgraph = graph_zone.New<compiler::MachineGraph>(
-      graph_zone.New<compiler::Graph>(&graph_zone),
+      graph_zone.New<compiler::TFGraph>(&graph_zone),
       graph_zone.New<CommonOperatorBuilder>(&graph_zone),
       graph_zone.New<MachineOperatorBuilder>(
           &graph_zone, MachineType::PointerRepresentation(),
@@ -3112,8 +3112,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
-    CallDescriptor* call_descriptor, Graph* graph, const AssemblerOptions& opts,
-    Schedule* schedule) {
+    CallDescriptor* call_descriptor, TFGraph* graph,
+    const AssemblerOptions& opts, Schedule* schedule) {
   // TODO(nicohartmann): Callers should properly set this, but it's hard to do
   // this through testing logic shared between JS and Wasm.
   AssemblerOptions options = opts;

@@ -23,7 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 struct FieldAccess;
-class Graph;
+class TFGraph;
 class JSGraph;
 
 class V8_EXPORT_PRIVATE LoadElimination final
@@ -353,7 +353,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
   CommonOperatorBuilder* common() const;
   Isolate* isolate() const;
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return node_states_.zone(); }

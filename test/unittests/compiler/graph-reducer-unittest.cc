@@ -88,7 +88,7 @@ class InPlaceABReducer final : public Reducer {
 // Replaces all "A" operators with "B" operators by allocating new nodes.
 class NewABReducer final : public Reducer {
  public:
-  explicit NewABReducer(Graph* graph) : graph_(graph) {}
+  explicit NewABReducer(TFGraph* graph) : graph_(graph) {}
 
   const char* reducer_name() const override { return "NewABReducer"; }
 
@@ -109,14 +109,14 @@ class NewABReducer final : public Reducer {
   }
 
  private:
-  Graph* const graph_;
+  TFGraph* const graph_;
 };
 
 
 // Wraps all "kOpA0" nodes in "kOpB1" operators by allocating new nodes.
 class A0Wrapper final : public Reducer {
  public:
-  explicit A0Wrapper(Graph* graph) : graph_(graph) {}
+  explicit A0Wrapper(TFGraph* graph) : graph_(graph) {}
 
   const char* reducer_name() const override { return "A0Wrapper"; }
 
@@ -130,14 +130,14 @@ class A0Wrapper final : public Reducer {
   }
 
  private:
-  Graph* const graph_;
+  TFGraph* const graph_;
 };
 
 
 // Wraps all "kOpB0" nodes in two "kOpC1" operators by allocating new nodes.
 class B0Wrapper final : public Reducer {
  public:
-  explicit B0Wrapper(Graph* graph) : graph_(graph) {}
+  explicit B0Wrapper(TFGraph* graph) : graph_(graph) {}
 
   const char* reducer_name() const override { return "B0Wrapper"; }
 
@@ -151,7 +151,7 @@ class B0Wrapper final : public Reducer {
   }
 
  private:
-  Graph* const graph_;
+  TFGraph* const graph_;
 };
 
 
@@ -238,11 +238,11 @@ class AdvancedReducerTest : public TestWithZone {
   AdvancedReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
 
  protected:
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
   TickCounter* tick_counter() { return &tick_counter_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   TickCounter tick_counter_;
 };
 
@@ -467,11 +467,11 @@ class GraphReducerTest : public TestWithZone {
     reducer.ReduceGraph();
   }
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
   TickCounter* tick_counter() { return &tick_counter_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   TickCounter tick_counter_;
 };
 
@@ -784,7 +784,7 @@ TEST_F(GraphReducerTest, Sorter1) {
 namespace {
 
 // Generate a node graph with the given permutations.
-void GenDAG(Graph* graph, int* p3, int* p2, int* p1) {
+void GenDAG(TFGraph* graph, int* p3, int* p2, int* p1) {
   Node* level4 = graph->NewNode(&kOpA0);
   Node* level3[] = {graph->NewNode(&kOpA1, level4),
                     graph->NewNode(&kOpA1, level4)};

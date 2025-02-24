@@ -43,7 +43,8 @@ FunctionTester::FunctionTester(Isolate* isolate, const char* source,
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Graph* graph, int param_count)
+FunctionTester::FunctionTester(Isolate* isolate, TFGraph* graph,
+                               int param_count)
     : isolate(isolate),
       function(NewFunction(BuildFunction(param_count).c_str())),
       flags_(0) {
@@ -146,7 +147,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> f) {
 
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
-Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
+Handle<JSFunction> FunctionTester::CompileGraph(TFGraph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,

@@ -593,7 +593,7 @@ MachineOperatorBuilder* WasmLoadElimination::machine() const {
   return jsgraph()->machine();
 }
 
-Graph* WasmLoadElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* WasmLoadElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* WasmLoadElimination::isolate() const { return jsgraph()->isolate(); }
 

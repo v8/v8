@@ -30,7 +30,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
+            main_isolate(), main_zone()->template New<TFGraph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
@@ -47,7 +47,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             main_isolate(),
             CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
+            main_isolate(), main_zone()->template New<TFGraph>(main_zone()),
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),

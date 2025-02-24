@@ -156,7 +156,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
     Node* outer_frame_state,
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(),
     const wasm::CanonicalSig* signature = nullptr) {
-  Graph* const graph = jsgraph->graph();
+  TFGraph* const graph = jsgraph->graph();
   CommonOperatorBuilder* const common = jsgraph->common();
 
   const Operator* op_param =
@@ -314,7 +314,7 @@ Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
 
 FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
                            OutputFrameStateCombine changed_state_combine) {
-  Graph* graph = jsgraph->graph();
+  TFGraph* graph = jsgraph->graph();
   CommonOperatorBuilder* common = jsgraph->common();
 
   DCHECK_EQ(IrOpcode::kFrameState, frame_state->op()->opcode());

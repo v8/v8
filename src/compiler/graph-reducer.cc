@@ -39,9 +39,9 @@ Reduction Reducer::Reduce(Node* node,
   return reduction;
 }
 
-GraphReducer::GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
-                           JSHeapBroker* broker, Node* dead,
-                           ObserveNodeManager* observe_node_manager)
+GraphReducer::GraphReducer(Zone* zone, TFGraph* graph,
+                           TickCounter* tick_counter, JSHeapBroker* broker,
+                           Node* dead, ObserveNodeManager* observe_node_manager)
     : graph_(graph),
       dead_(dead),
       state_(graph, 4),

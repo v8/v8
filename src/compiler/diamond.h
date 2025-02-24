@@ -15,14 +15,14 @@ namespace compiler {
 
 // A helper to make it easier to build diamond-shaped control patterns.
 struct Diamond {
-  Graph* graph;
+  TFGraph* graph;
   CommonOperatorBuilder* common;
   Node* branch;
   Node* if_true;
   Node* if_false;
   Node* merge;
 
-  Diamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
+  Diamond(TFGraph* g, CommonOperatorBuilder* b, Node* cond,
           BranchHint hint = BranchHint::kNone,
           BranchSemantics semantics = BranchSemantics::kUnspecified) {
     graph = g;

@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class PipelineImpl;
 class TFPipelineData;
 

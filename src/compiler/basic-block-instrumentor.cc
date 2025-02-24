@@ -56,7 +56,7 @@ static const Operator* PointerConstant(CommonOperatorBuilder* common,
 }
 
 BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
-    OptimizedCompilationInfo* info, Graph* graph, Schedule* schedule,
+    OptimizedCompilationInfo* info, TFGraph* graph, Schedule* schedule,
     Isolate* isolate) {
   // Basic block profiling disables concurrent compilation, so handle deref is
   // fine.

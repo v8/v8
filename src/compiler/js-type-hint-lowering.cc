@@ -311,7 +311,7 @@ class JSSpeculativeBinopBuilder final {
 
   JSGraph* jsgraph() const { return lowering_->jsgraph(); }
   Isolate* isolate() const { return jsgraph()->isolate(); }
-  Graph* graph() const { return jsgraph()->graph(); }
+  TFGraph* graph() const { return jsgraph()->graph(); }
   JSOperatorBuilder* javascript() { return jsgraph()->javascript(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }

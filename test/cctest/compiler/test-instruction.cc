@@ -33,7 +33,7 @@ class InstructionTester : public HandleAndZoneScope {
         machine(zone()),
         code(nullptr) {}
 
-  Graph graph;
+  TFGraph graph;
   Schedule schedule;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;

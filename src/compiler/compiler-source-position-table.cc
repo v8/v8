@@ -25,7 +25,7 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
   SourcePositionTable* source_positions_;
 };
 
-SourcePositionTable::SourcePositionTable(Graph* graph)
+SourcePositionTable::SourcePositionTable(TFGraph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_position_(SourcePosition::Unknown()),

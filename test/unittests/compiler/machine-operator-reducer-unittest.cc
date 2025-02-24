@@ -100,8 +100,8 @@ class MachineOperatorReducerTest : public GraphTest {
 
  private:
   struct Data {
-    Data(Isolate* isolate, Zone* zone, Graph* graph, TickCounter* tick_counter,
-         JSHeapBroker* broker)
+    Data(Isolate* isolate, Zone* zone, TFGraph* graph,
+         TickCounter* tick_counter, JSHeapBroker* broker)
         : machine_(zone, MachineType::PointerRepresentation(),
                    MachineOperatorBuilder::kAllOptionalOps),
           common_(zone),

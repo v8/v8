@@ -35,7 +35,7 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+Typer::Typer(JSHeapBroker* broker, Flags flags, TFGraph* graph,
              TickCounter* tick_counter)
     : flags_(flags),
       graph_(graph),
@@ -308,7 +308,7 @@ class Typer::Visitor : public Reducer {
   Type Weaken(Node* node, Type current_type, Type previous_type);
 
   Zone* zone() { return typer_->zone(); }
-  Graph* graph() { return typer_->graph(); }
+  TFGraph* graph() { return typer_->graph(); }
   JSHeapBroker* broker() { return typer_->broker(); }
 
   void SetWeakened(NodeId node_id) { weakened_nodes_.insert(node_id); }

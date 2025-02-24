@@ -26,7 +26,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+Int64Lowering::Int64Lowering(TFGraph* graph, MachineOperatorBuilder* machine,
                              CommonOperatorBuilder* common,
                              SimplifiedOperatorBuilder* simplified, Zone* zone,
                              Signature<MachineRepresentation>* signature)

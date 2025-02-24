@@ -59,7 +59,7 @@ struct TempLoopInfo {
 // (including loop phis).
 class LoopFinderImpl {
  public:
-  LoopFinderImpl(Graph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
+  LoopFinderImpl(TFGraph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
                  Zone* zone)
       : zone_(zone),
         end_(graph->end()),
@@ -533,7 +533,7 @@ class LoopFinderImpl {
   }
 };
 
-LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
+LoopTree* LoopFinder::BuildLoopTree(TFGraph* graph, TickCounter* tick_counter,
                                     Zone* zone) {
   LoopTree* loop_tree =
       graph->zone()->New<LoopTree>(graph->NodeCount(), graph->zone());

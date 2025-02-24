@@ -83,7 +83,7 @@ class WasmGCOperatorReducer final
                                       wasm::TypeInModule type,
                                       bool in_new_block);
 
-  Graph* graph() { return mcgraph_->graph(); }
+  TFGraph* graph() { return mcgraph_->graph(); }
   CommonOperatorBuilder* common() { return mcgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return gasm_.simplified(); }
 

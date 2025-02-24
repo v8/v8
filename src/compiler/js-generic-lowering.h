@@ -54,7 +54,7 @@ class JSGenericLowering final : public AdvancedReducer {
   Zone* zone() const;
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  Graph* graph() const;
+  TFGraph* graph() const;
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
   JSHeapBroker* broker() const { return broker_; }

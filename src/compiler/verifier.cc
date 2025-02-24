@@ -2047,7 +2047,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   }
 }
 
-void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
+void Verifier::Run(TFGraph* graph, Typing typing, CheckInputs check_inputs,
                    CodeType code_type) {
   CHECK_NOT_NULL(graph->start());
   CHECK_NOT_NULL(graph->end());
@@ -2071,7 +2071,6 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
     }
   }
 }
-
 
 // -----------------------------------------------------------------------------
 

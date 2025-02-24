@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
+DeadCodeElimination::DeadCodeElimination(Editor* editor, TFGraph* graph,
                                          CommonOperatorBuilder* common,
                                          Zone* temp_zone)
     : AdvancedReducer(editor),

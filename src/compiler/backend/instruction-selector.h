@@ -13,12 +13,9 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler/node.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/utils.h"
@@ -119,19 +116,13 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
 class FlagsContinuationT final {
-  using Adapter = TurboshaftAdapter;
-
  public:
-  using block_t = typename Adapter::block_t;
-  using node_t = typename Adapter::node_t;
-  using id_t = typename Adapter::id_t;
-
   struct ConditionalCompare {
     InstructionCode code;
     FlagsCondition compare_condition;
     FlagsCondition default_flags;
-    node_t lhs;
-    node_t rhs;
+    turboshaft::OpIndex lhs;
+    turboshaft::OpIndex rhs;
   };
   // This limit covered almost all the opportunities when compiling the debug
   // builtins.
@@ -143,7 +134,8 @@ class FlagsContinuationT final {
   // Creates a new flags continuation from the given condition and true/false
   // blocks.
   static FlagsContinuationT ForBranch(FlagsCondition condition,
-                                      block_t true_block, block_t false_block) {
+                                      turboshaft::Block* true_block,
+                                      turboshaft::Block* false_block) {
     return FlagsContinuationT(kFlags_branch, condition, true_block,
                               false_block);
   }
@@ -152,23 +144,24 @@ class FlagsContinuationT final {
   // and true/false blocks.
   static FlagsContinuationT ForConditionalBranch(
       compare_chain_t& compares, uint32_t num_conditional_compares,
-      FlagsCondition branch_condition, block_t true_block,
-      block_t false_block) {
+      FlagsCondition branch_condition, turboshaft::Block* true_block,
+      turboshaft::Block* false_block) {
     return FlagsContinuationT(compares, num_conditional_compares,
                               branch_condition, true_block, false_block);
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuationT ForDeoptimize(FlagsCondition condition,
-                                          DeoptimizeReason reason, id_t node_id,
+                                          DeoptimizeReason reason,
+                                          uint32_t node_id,
                                           FeedbackSource const& feedback,
-                                          node_t frame_state) {
+                                          turboshaft::OpIndex frame_state) {
     return FlagsContinuationT(kFlags_deoptimize, condition, reason, node_id,
                               feedback, frame_state);
   }
   static FlagsContinuationT ForDeoptimizeForTesting(
-      FlagsCondition condition, DeoptimizeReason reason, id_t node_id,
-      FeedbackSource const& feedback, node_t frame_state) {
+      FlagsCondition condition, DeoptimizeReason reason, uint32_t node_id,
+      FeedbackSource const& feedback, turboshaft::OpIndex frame_state) {
     // test-instruction-scheduler.cc passes a dummy Node* as frame_state.
     // Contents don't matter as long as it's not nullptr.
     return FlagsContinuationT(kFlags_deoptimize, condition, reason, node_id,
@@ -176,7 +169,8 @@ class FlagsContinuationT final {
   }
 
   // Creates a new flags continuation for a boolean value.
-  static FlagsContinuationT ForSet(FlagsCondition condition, node_t result) {
+  static FlagsContinuationT ForSet(FlagsCondition condition,
+                                   turboshaft::OpIndex result) {
     return FlagsContinuationT(condition, result);
   }
 
@@ -184,7 +178,7 @@ class FlagsContinuationT final {
   static FlagsContinuationT ForConditionalSet(compare_chain_t& compares,
                                               uint32_t num_conditional_compares,
                                               FlagsCondition set_condition,
-                                              node_t result) {
+                                              turboshaft::OpIndex result) {
     return FlagsContinuationT(compares, num_conditional_compares, set_condition,
                               result);
   }
@@ -194,8 +188,10 @@ class FlagsContinuationT final {
     return FlagsContinuationT(condition, trap_id);
   }
 
-  static FlagsContinuationT ForSelect(FlagsCondition condition, node_t result,
-                                      node_t true_value, node_t false_value) {
+  static FlagsContinuationT ForSelect(FlagsCondition condition,
+                                      turboshaft::OpIndex result,
+                                      turboshaft::OpIndex true_value,
+                                      turboshaft::OpIndex false_value) {
     return FlagsContinuationT(condition, result, true_value, false_value);
   }
 
@@ -221,7 +217,7 @@ class FlagsContinuationT final {
     DCHECK(IsDeoptimize());
     return reason_;
   }
-  id_t node_id() const {
+  uint32_t node_id() const {
     DCHECK(IsDeoptimize());
     return node_id_;
   }
@@ -229,11 +225,11 @@ class FlagsContinuationT final {
     DCHECK(IsDeoptimize());
     return feedback_;
   }
-  node_t frame_state() const {
+  turboshaft::OpIndex frame_state() const {
     DCHECK(IsDeoptimize());
     return frame_state_or_result_;
   }
-  node_t result() const {
+  turboshaft::OpIndex result() const {
     DCHECK(IsSet() || IsConditionalSet() || IsSelect());
     return frame_state_or_result_;
   }
@@ -241,19 +237,19 @@ class FlagsContinuationT final {
     DCHECK(IsTrap());
     return trap_id_;
   }
-  block_t true_block() const {
+  turboshaft::Block* true_block() const {
     DCHECK(IsBranch() || IsConditionalBranch());
     return true_block_;
   }
-  block_t false_block() const {
+  turboshaft::Block* false_block() const {
     DCHECK(IsBranch() || IsConditionalBranch());
     return false_block_;
   }
-  node_t true_value() const {
+  turboshaft::OpIndex true_value() const {
     DCHECK(IsSelect());
     return true_value_;
   }
-  node_t false_value() const {
+  turboshaft::OpIndex false_value() const {
     DCHECK(IsSelect());
     return false_value_;
   }
@@ -322,7 +318,8 @@ class FlagsContinuationT final {
 
  private:
   FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
-                     block_t true_block, block_t false_block)
+                     turboshaft::Block* true_block,
+                     turboshaft::Block* false_block)
       : mode_(mode),
         condition_(condition),
         true_block_(true_block),
@@ -334,8 +331,9 @@ class FlagsContinuationT final {
 
   FlagsContinuationT(compare_chain_t& compares,
                      uint32_t num_conditional_compares,
-                     FlagsCondition branch_condition, block_t true_block,
-                     block_t false_block)
+                     FlagsCondition branch_condition,
+                     turboshaft::Block* true_block,
+                     turboshaft::Block* false_block)
       : mode_(kFlags_conditional_branch),
         condition_(compares.front().compare_condition),
         final_condition_(branch_condition),
@@ -348,8 +346,9 @@ class FlagsContinuationT final {
   }
 
   FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
-                     DeoptimizeReason reason, id_t node_id,
-                     FeedbackSource const& feedback, node_t frame_state)
+                     DeoptimizeReason reason, uint32_t node_id,
+                     FeedbackSource const& feedback,
+                     turboshaft::OpIndex frame_state)
       : mode_(mode),
         condition_(condition),
         reason_(reason),
@@ -357,41 +356,42 @@ class FlagsContinuationT final {
         feedback_(feedback),
         frame_state_or_result_(frame_state) {
     DCHECK(mode == kFlags_deoptimize);
-    DCHECK(Adapter::valid(frame_state));
+    DCHECK(frame_state.valid());
   }
 
-  FlagsContinuationT(FlagsCondition condition, node_t result)
+  FlagsContinuationT(FlagsCondition condition, turboshaft::OpIndex result)
       : mode_(kFlags_set),
         condition_(condition),
         frame_state_or_result_(result) {
-    DCHECK(Adapter::valid(result));
+    DCHECK(result.valid());
   }
 
   FlagsContinuationT(compare_chain_t& compares,
                      uint32_t num_conditional_compares,
-                     FlagsCondition set_condition, node_t result)
+                     FlagsCondition set_condition, turboshaft::OpIndex result)
       : mode_(kFlags_conditional_set),
         condition_(compares.front().compare_condition),
         final_condition_(set_condition),
         num_conditional_compares_(num_conditional_compares),
         compares_(compares),
         frame_state_or_result_(result) {
-    DCHECK(Adapter::valid(result));
+    DCHECK(result.valid());
   }
 
   FlagsContinuationT(FlagsCondition condition, TrapId trap_id)
       : mode_(kFlags_trap), condition_(condition), trap_id_(trap_id) {}
 
-  FlagsContinuationT(FlagsCondition condition, node_t result, node_t true_value,
-                     node_t false_value)
+  FlagsContinuationT(FlagsCondition condition, turboshaft::OpIndex result,
+                     turboshaft::OpIndex true_value,
+                     turboshaft::OpIndex false_value)
       : mode_(kFlags_select),
         condition_(condition),
         frame_state_or_result_(result),
         true_value_(true_value),
         false_value_(false_value) {
-    DCHECK(Adapter::valid(result));
-    DCHECK(Adapter::valid(true_value));
-    DCHECK(Adapter::valid(false_value));
+    DCHECK(result.valid());
+    DCHECK(true_value.valid());
+    DCHECK(false_value.valid());
   }
 
   FlagsMode const mode_;
@@ -402,27 +402,26 @@ class FlagsContinuationT final {
                                        // kFlags_conditional_set.
   compare_chain_t compares_;  // Only valid if mode_ == kFlags_conditional_set.
   DeoptimizeReason reason_;         // Only valid if mode_ == kFlags_deoptimize*
-  id_t node_id_;                    // Only valid if mode_ == kFlags_deoptimize*
+  uint32_t node_id_;                // Only valid if mode_ == kFlags_deoptimize*
   FeedbackSource feedback_;         // Only valid if mode_ == kFlags_deoptimize*
-  node_t frame_state_or_result_;    // Only valid if mode_ == kFlags_deoptimize*
+  turboshaft::OpIndex
+      frame_state_or_result_;       // Only valid if mode_ == kFlags_deoptimize*
                                     // or mode_ == kFlags_set.
-  block_t true_block_;              // Only valid if mode_ == kFlags_branch*.
-  block_t false_block_;             // Only valid if mode_ == kFlags_branch*.
+  turboshaft::Block* true_block_;   // Only valid if mode_ == kFlags_branch*.
+  turboshaft::Block* false_block_;  // Only valid if mode_ == kFlags_branch*.
   TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
-  node_t true_value_;               // Only valid if mode_ == kFlags_select.
-  node_t false_value_;              // Only valid if mode_ == kFlags_select.
+  turboshaft::OpIndex true_value_;  // Only valid if mode_ == kFlags_select.
+  turboshaft::OpIndex false_value_;  // Only valid if mode_ == kFlags_select.
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
-template <typename Adapter>
 struct PushParameterT {
-  using node_t = typename Adapter::node_t;
-  PushParameterT(node_t n = {},
+  PushParameterT(turboshaft::OpIndex n = {},
                  LinkageLocation l = LinkageLocation::ForAnyRegister())
       : node(n), location(l) {}
 
-  node_t node;
+  turboshaft::OpIndex node;
   LinkageLocation location;
 };
 
@@ -430,28 +429,21 @@ enum class FrameStateInputKind { kAny, kStackSlot };
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelectorT final : public TurboshaftAdapter {
-  using Adapter = TurboshaftAdapter;
-
  public:
   using OperandGenerator = OperandGeneratorT;
-  using PushParameter = PushParameterT<Adapter>;
+  using PushParameter = PushParameterT;
   using CallBuffer = CallBufferT;
   using FlagsContinuation = FlagsContinuationT;
   using SwitchInfo = SwitchInfoT;
   using CaseInfo = CaseInfoT;
 
-  using schedule_t = typename Adapter::schedule_t;
-  using block_t = typename Adapter::block_t;
-  using block_range_t = typename Adapter::block_range_t;
-  using node_t = typename Adapter::node_t;
-  using optional_node_t = typename Adapter::optional_node_t;
-  using id_t = typename Adapter::id_t;
-  using source_position_table_t = typename Adapter::source_position_table_t;
+  using source_position_table_t =
+      turboshaft::GrowingOpIndexSidetable<SourcePosition>;
   using Features = InstructionSelector::Features;
 
   InstructionSelectorT(
       Zone* zone, size_t node_count, Linkage* linkage,
-      InstructionSequence* sequence, schedule_t schedule,
+      InstructionSequence* sequence, turboshaft::Graph* schedule,
       source_position_table_t* source_positions, Frame* frame,
       InstructionSelector::EnableSwitchJumpTable enable_switch_jump_table,
       TickCounter* tick_counter, JSHeapBroker* broker,
@@ -543,7 +535,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
-  void EmitIdentity(node_t node);
+  void EmitIdentity(turboshaft::OpIndex node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -570,9 +562,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // For pure nodes, CanCover(a,b) is checked to avoid duplicated execution:
   // If this is not the case, code for b must still be generated for other
   // users, and fusing is unlikely to improve performance.
-  bool CanCover(node_t user, node_t node) const;
+  bool CanCover(turboshaft::OpIndex user, turboshaft::OpIndex node) const;
 
-  bool CanCoverProtectedLoad(node_t user, node_t node) const;
+  bool CanCoverProtectedLoad(turboshaft::OpIndex user,
+                             turboshaft::OpIndex node) const;
 
   // Used in pattern matching during code generation.
   // This function checks that {node} and {user} are in the same basic block,
@@ -597,35 +590,38 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // visiting Word32Compare, we would then have to select an instruction for
   // OtherOp *afterwards*, which means we would attempt to use the result of
   // the add before we have defined it.
-  bool IsOnlyUserOfNodeInSameBlock(node_t user, node_t node) const;
+  bool IsOnlyUserOfNodeInSameBlock(turboshaft::OpIndex user,
+                                   turboshaft::OpIndex node) const;
 
   // Checks if {node} was already defined, and therefore code was already
   // generated for it.
-  bool IsDefined(node_t node) const;
+  bool IsDefined(turboshaft::OpIndex node) const;
 
   // Checks if {node} has any uses, and therefore code has to be generated for
   // it. Always returns {true} if the node has effect IsRequiredWhenUnused.
-  bool IsUsed(node_t node) const;
+  bool IsUsed(turboshaft::OpIndex node) const;
   // Checks if {node} has any uses, and therefore code has to be generated for
   // it. Ignores the IsRequiredWhenUnused effect.
-  bool IsReallyUsed(node_t node) const;
+  bool IsReallyUsed(turboshaft::OpIndex node) const;
 
   // Checks if {node} is currently live.
-  bool IsLive(node_t node) const { return !IsDefined(node) && IsUsed(node); }
+  bool IsLive(turboshaft::OpIndex node) const {
+    return !IsDefined(node) && IsUsed(node);
+  }
   // Checks if {node} is currently live, ignoring the IsRequiredWhenUnused
   // effect.
-  bool IsReallyLive(node_t node) const {
+  bool IsReallyLive(turboshaft::OpIndex node) const {
     return !IsDefined(node) && IsReallyUsed(node);
   }
 
   // Gets the effect level of {node}.
-  int GetEffectLevel(node_t node) const;
+  int GetEffectLevel(turboshaft::OpIndex node) const;
 
   // Gets the effect level of {node}, appropriately adjusted based on
   // continuation flags if the node is a branch.
-  int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
+  int GetEffectLevel(turboshaft::OpIndex node, FlagsContinuation* cont) const;
 
-  int GetVirtualRegister(node_t node);
+  int GetVirtualRegister(turboshaft::OpIndex node);
   const std::map<uint32_t, int> GetVirtualRegistersForTesting() const;
 
   // Check if we can generate loads and stores of ExternalConstants relative
@@ -641,7 +637,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
     return instr_origins_;
   }
 
-  node_t FindProjection(node_t node, size_t projection_index);
+  turboshaft::OptionalOpIndex FindProjection(turboshaft::OpIndex node,
+                                             size_t projection_index);
 
   // When we want to do branch-if-overflow fusion, we need to be mindful of the
   // 1st projection of the OverflowBinop:
@@ -650,31 +647,23 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   //     fusion will lead to emitting the 1st projection, and any non-defined
   //     operation is earlier in the graph by construction, which means that it
   //     won't be able to use the 1st projection that will now be defined later.
-  bool CanDoBranchIfOverflowFusion(node_t node);
+  bool CanDoBranchIfOverflowFusion(turboshaft::OpIndex node);
 
   // Records that this ProtectedLoad node can be deleted if not used, even
   // though it has a required_when_unused effect.
-  void SetProtectedLoadToRemove(node_t node) {
-    if constexpr (Adapter::IsTurboshaft) {
-      DCHECK(this->IsProtectedLoad(node));
-      protected_loads_to_remove_->Add(this->id(node));
-    } else {
-      UNREACHABLE();
-    }
+  void SetProtectedLoadToRemove(turboshaft::OpIndex node) {
+    DCHECK(this->IsProtectedLoad(node));
+    protected_loads_to_remove_->Add(this->id(node));
   }
 
   // Records that this node embeds a ProtectedLoad as operand, and so it is
   // itself a "protected" instruction, for which we'll need to record the source
   // position.
-  void MarkAsProtected(node_t node) {
-    if constexpr (Adapter::IsTurboshaft) {
-      additional_protected_instructions_->Add(this->id(node));
-    } else {
-      UNREACHABLE();
-    }
+  void MarkAsProtected(turboshaft::OpIndex node) {
+    additional_protected_instructions_->Add(this->id(node));
   }
 
-  void UpdateSourcePosition(Instruction* instruction, node_t node);
+  void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
 
  private:
   friend OperandGenerator;
@@ -685,9 +674,9 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   }
 
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
-                                 DeoptimizeReason reason, id_t node_id,
+                                 DeoptimizeReason reason, uint32_t node_id,
                                  FeedbackSource const& feedback,
-                                 node_t frame_state,
+                                 turboshaft::OpIndex frame_state,
                                  DeoptimizeKind kind = DeoptimizeKind::kEager);
 
   void EmitTableSwitch(const SwitchInfo& sw,
@@ -697,49 +686,50 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
-  void SetRename(node_t node, node_t rename);
+  void SetRename(turboshaft::OpIndex node, turboshaft::OpIndex rename);
   void UpdateRenames(Instruction* instruction);
   void UpdateRenamesInPhi(PhiInstruction* phi);
 
   // Inform the instruction selection that {node} was just defined.
-  void MarkAsDefined(node_t node);
+  void MarkAsDefined(turboshaft::OpIndex node);
 
   // Inform the instruction selection that {node} has at least one use and we
   // will need to generate code for it.
-  void MarkAsUsed(node_t node);
+  void MarkAsUsed(turboshaft::OpIndex node);
 
   // Sets the effect level of {node}.
-  void SetEffectLevel(node_t node, int effect_level);
+  void SetEffectLevel(turboshaft::OpIndex node, int effect_level);
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  void MarkAsRepresentation(MachineRepresentation rep, node_t node);
+  void MarkAsRepresentation(MachineRepresentation rep,
+                            turboshaft::OpIndex node);
   void MarkAsRepresentation(turboshaft::RegisterRepresentation rep,
-                            node_t node) {
+                            turboshaft::OpIndex node) {
     MarkAsRepresentation(rep.machine_representation(), node);
   }
-  void MarkAsWord32(node_t node) {
+  void MarkAsWord32(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kWord32, node);
   }
-  void MarkAsWord64(node_t node) {
+  void MarkAsWord64(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kWord64, node);
   }
-  void MarkAsFloat32(node_t node) {
+  void MarkAsFloat32(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kFloat32, node);
   }
-  void MarkAsFloat64(node_t node) {
+  void MarkAsFloat64(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kFloat64, node);
   }
-  void MarkAsSimd128(node_t node) {
+  void MarkAsSimd128(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  void MarkAsSimd256(node_t node) {
+  void MarkAsSimd256(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kSimd256, node);
   }
-  void MarkAsTagged(node_t node) {
+  void MarkAsTagged(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
-  void MarkAsCompressed(node_t node) {
+  void MarkAsCompressed(turboshaft::OpIndex node) {
     MarkAsRepresentation(MachineRepresentation::kCompressed, node);
   }
 
@@ -761,19 +751,17 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // to the inputs and outputs of the call.
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
-  void InitializeCallBuffer(node_t call, CallBuffer* buffer,
+  void InitializeCallBuffer(turboshaft::OpIndex call, CallBuffer* buffer,
                             CallBufferFlags flags, int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
 
   void UpdateMaxPushedArgumentCount(size_t count);
 
-  using StateObjectDeduplicator =
-      std::conditional_t<std::is_same_v<Adapter, TurboshaftAdapter>,
-                         TurboshaftStateObjectDeduplicator,
-                         TurbofanStateObjectDeduplicator>;
-  FrameStateDescriptor* GetFrameStateDescriptor(node_t node);
+  using StateObjectDeduplicator = TurboshaftStateObjectDeduplicator;
+  FrameStateDescriptor* GetFrameStateDescriptor(turboshaft::OpIndex node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
-                                         node_t state, OperandGenerator* g,
+                                         turboshaft::OpIndex state,
+                                         OperandGenerator* g,
                                          StateObjectDeduplicator* deduplicator,
                                          InstructionOperandVector* inputs,
                                          FrameStateInputKind kind, Zone* zone);
@@ -781,13 +769,14 @@ class InstructionSelectorT final : public TurboshaftAdapter {
                                          InstructionOperandVector* inputs,
                                          OperandGenerator* g,
                                          StateObjectDeduplicator* deduplicator,
-                                         node_t node, FrameStateInputKind kind,
-                                         Zone* zone);
+                                         turboshaft::OpIndex node,
+                                         FrameStateInputKind kind, Zone* zone);
   size_t AddOperandToStateValueDescriptor(StateValueList* values,
                                           InstructionOperandVector* inputs,
                                           OperandGenerator* g,
                                           StateObjectDeduplicator* deduplicator,
-                                          node_t input, MachineType type,
+                                          turboshaft::OpIndex input,
+                                          MachineType type,
                                           FrameStateInputKind kind, Zone* zone);
 
   // ===========================================================================
@@ -795,20 +784,20 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // ===========================================================================
 
   // Visit nodes in the given block and generate code.
-  void VisitBlock(block_t block);
+  void VisitBlock(const turboshaft::Block* block);
 
   // Visit the node for the control flow at the end of the block, generating
   // code if necessary.
-  void VisitControl(block_t block);
+  void VisitControl(const turboshaft::Block* block);
 
   // Visit the node and generate code, if any.
-  void VisitNode(node_t node);
+  void VisitNode(turboshaft::OpIndex node);
 
   // Visit the node and generate code for IEEE 754 functions.
-  void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
-  void VisitFloat64Ieee754Unop(node_t, InstructionCode code);
+  void VisitFloat64Ieee754Binop(turboshaft::OpIndex, InstructionCode code);
+  void VisitFloat64Ieee754Unop(turboshaft::OpIndex, InstructionCode code);
 
-#define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
+#define DECLARE_GENERATOR_T(x) void Visit##x(turboshaft::OpIndex node);
   DECLARE_GENERATOR_T(Word32And)
   DECLARE_GENERATOR_T(Word32Xor)
   DECLARE_GENERATOR_T(Int32Add)
@@ -1035,46 +1024,53 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 #undef DECLARE_GENERATOR_T
 
   // Visit the load node with a value and opcode to replace with.
-  void VisitLoad(node_t node, node_t value, InstructionCode opcode);
+  void VisitLoad(turboshaft::OpIndex node, turboshaft::OpIndex value,
+                 InstructionCode opcode);
   void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
-  void VisitParameter(node_t node);
-  void VisitIfException(node_t node);
-  void VisitOsrValue(node_t node);
-  void VisitPhi(node_t node);
-  void VisitProjection(node_t node);
-  void VisitConstant(node_t node);
-  void VisitCall(node_t call, block_t handler = {});
-  void VisitDeoptimizeIf(node_t node);
-  void VisitDeoptimizeUnless(node_t node);
+  void VisitParameter(turboshaft::OpIndex node);
+  void VisitIfException(turboshaft::OpIndex node);
+  void VisitOsrValue(turboshaft::OpIndex node);
+  void VisitPhi(turboshaft::OpIndex node);
+  void VisitProjection(turboshaft::OpIndex node);
+  void VisitConstant(turboshaft::OpIndex node);
+  void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
+  void VisitDeoptimizeIf(turboshaft::OpIndex node);
+  void VisitDeoptimizeUnless(turboshaft::OpIndex node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
-  void VisitTrapIf(node_t node, TrapId trap_id);
-  void VisitTrapUnless(node_t node, TrapId trap_id);
-  void VisitTailCall(node_t call);
-  void VisitGoto(block_t target);
-  void VisitBranch(node_t input, block_t tbranch, block_t fbranch);
-  void VisitSwitch(node_t node, const SwitchInfo& sw);
-  void VisitDeoptimize(DeoptimizeReason reason, id_t node_id,
-                       FeedbackSource const& feedback, node_t frame_state);
-  void VisitSelect(node_t node);
-  void VisitReturn(node_t node);
+  void VisitTrapIf(turboshaft::OpIndex node, TrapId trap_id);
+  void VisitTrapUnless(turboshaft::OpIndex node, TrapId trap_id);
+  void VisitTailCall(turboshaft::OpIndex call);
+  void VisitGoto(turboshaft::Block* target);
+  void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,
+                   turboshaft::Block* fbranch);
+  void VisitSwitch(turboshaft::OpIndex node, const SwitchInfo& sw);
+  void VisitDeoptimize(DeoptimizeReason reason, uint32_t node_id,
+                       FeedbackSource const& feedback,
+                       turboshaft::OpIndex frame_state);
+  void VisitSelect(turboshaft::OpIndex node);
+  void VisitReturn(turboshaft::OpIndex node);
   void VisitThrow(Node* node);
-  void VisitRetain(node_t node);
-  void VisitUnreachable(node_t node);
-  void VisitStaticAssert(node_t node);
+  void VisitRetain(turboshaft::OpIndex node);
+  void VisitUnreachable(turboshaft::OpIndex node);
+  void VisitStaticAssert(turboshaft::OpIndex node);
   void VisitDeadValue(Node* node);
-  void VisitBitcastWord32PairToFloat64(node_t node);
+  void VisitBitcastWord32PairToFloat64(turboshaft::OpIndex node);
 
-  void TryPrepareScheduleFirstProjection(node_t maybe_projection);
+  void TryPrepareScheduleFirstProjection(turboshaft::OpIndex maybe_projection);
 
-  void VisitStackPointerGreaterThan(node_t node, FlagsContinuation* cont);
+  void VisitStackPointerGreaterThan(turboshaft::OpIndex node,
+                                    FlagsContinuation* cont);
 
-  void VisitWordCompareZero(node_t user, node_t value, FlagsContinuation* cont);
+  void VisitWordCompareZero(turboshaft::OpIndex user, turboshaft::OpIndex value,
+                            FlagsContinuation* cont);
 
   void EmitPrepareArguments(ZoneVector<PushParameter>* arguments,
-                            const CallDescriptor* call_descriptor, node_t node);
+                            const CallDescriptor* call_descriptor,
+                            turboshaft::OpIndex node);
   void EmitPrepareResults(ZoneVector<PushParameter>* results,
-                          const CallDescriptor* call_descriptor, node_t node);
+                          const CallDescriptor* call_descriptor,
+                          turboshaft::OpIndex node);
 
   // In LOONG64, calling convention uses free GP param register to pass
   // floating-point arguments when no FP param register is available. But
@@ -1084,12 +1080,12 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // Moving floating-point param from GP param register to FPR to participate in
   // subsequent operations, whether CallCFunction or normal floating-point
   // operations.
-  void EmitMoveParamToFPR(node_t node, int index);
+  void EmitMoveParamToFPR(turboshaft::OpIndex node, int index);
 
   bool CanProduceSignalingNaN(Node* node);
 
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,
-                                     node_t node);
+                                     turboshaft::OpIndex node);
 
   void ConsumeEqualZero(turboshaft::OpIndex* user, turboshaft::OpIndex* value,
                         FlagsContinuation* cont);
@@ -1097,13 +1093,13 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
-  void VisitI8x16RelaxedSwizzle(node_t node);
+  void VisitI8x16RelaxedSwizzle(turboshaft::OpIndex node);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
   // indices, and a boolean indicating if the shuffle is a swizzle (one input).
   template <const int simd_size = kSimd128Size>
-  void CanonicalizeShuffle(typename Adapter::SimdShuffleView& view,
+  void CanonicalizeShuffle(TurboshaftAdapter::SimdShuffleView& view,
                            uint8_t* shuffle, bool* is_swizzle)
     requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
   {
@@ -1134,28 +1130,28 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
-  void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
+  void SwapShuffleInputs(TurboshaftAdapter::SimdShuffleView& node);
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
-  void VisitSimd256LoadTransform(node_t node);
+  void VisitSimd256LoadTransform(turboshaft::OpIndex node);
 
 #ifdef V8_TARGET_ARCH_X64
-  void VisitSimd256Shufd(node_t node);
-  void VisitSimd256Shufps(node_t node);
-  void VisitSimd256Unpack(node_t node);
-  void VisitSimdPack128To256(node_t node);
+  void VisitSimd256Shufd(turboshaft::OpIndex node);
+  void VisitSimd256Shufps(turboshaft::OpIndex node);
+  void VisitSimd256Unpack(turboshaft::OpIndex node);
+  void VisitSimdPack128To256(turboshaft::OpIndex node);
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #ifdef V8_TARGET_ARCH_X64
-  bool CanOptimizeF64x2PromoteLowF32x4(node_t node);
+  bool CanOptimizeF64x2PromoteLowF32x4(turboshaft::OpIndex node);
 #endif
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
 
-  schedule_t schedule() const { return schedule_; }
+  turboshaft::Graph* schedule() const { return schedule_; }
   Linkage* linkage() const { return linkage_; }
   InstructionSequence* sequence() const { return sequence_; }
   base::Vector<const turboshaft::OpIndex> turboshaft_uses(
@@ -1174,14 +1170,15 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   FlagsCondition GetComparisonFlagCondition(
       const turboshaft::ComparisonOp& op) const;
 
-  void MarkPairProjectionsAsWord32(node_t node);
-  bool IsSourcePositionUsed(node_t node);
-  void VisitWord32AtomicBinaryOperation(node_t node, ArchOpcode int8_op,
-                                        ArchOpcode uint8_op,
+  void MarkPairProjectionsAsWord32(turboshaft::OpIndex node);
+  bool IsSourcePositionUsed(turboshaft::OpIndex node);
+  void VisitWord32AtomicBinaryOperation(turboshaft::OpIndex node,
+                                        ArchOpcode int8_op, ArchOpcode uint8_op,
                                         ArchOpcode int16_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode word32_op);
-  void VisitWord64AtomicBinaryOperation(node_t node, ArchOpcode uint8_op,
+  void VisitWord64AtomicBinaryOperation(turboshaft::OpIndex node,
+                                        ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);
@@ -1189,9 +1186,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
                                     ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
-  bool ZeroExtendsWord32ToWord64(node_t node, int recursion_depth = 0);
-  void MarkNodeAsNotZeroExtended(node_t node);
-  bool ZeroExtendsWord32ToWord64NoPhis(node_t node);
+  bool ZeroExtendsWord32ToWord64(turboshaft::OpIndex node,
+                                 int recursion_depth = 0);
+  void MarkNodeAsNotZeroExtended(turboshaft::OpIndex node);
+  bool ZeroExtendsWord32ToWord64NoPhis(turboshaft::OpIndex node);
 
   enum class Upper32BitsState : uint8_t {
     kNotYetChecked,
@@ -1201,10 +1199,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
 #endif  // V8_TARGET_ARCH_64_BIT
 
   struct FrameStateInput {
-    FrameStateInput(node_t node_, FrameStateInputKind kind_)
+    FrameStateInput(turboshaft::OpIndex node_, FrameStateInputKind kind_)
         : node(node_), kind(kind_) {}
 
-    node_t node;
+    turboshaft::OpIndex node;
     FrameStateInputKind kind;
 
     struct Hash {
@@ -1233,8 +1231,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   source_position_table_t* const source_positions_;
   InstructionSelector::SourcePositionMode const source_position_mode_;
   Features features_;
-  schedule_t const schedule_;
-  block_t current_block_;
+  turboshaft::Graph* const schedule_;
+  const turboshaft::Block* current_block_;
   ZoneVector<Instruction*> instructions_;
   InstructionOperandVector continuation_inputs_;
   InstructionOperandVector continuation_outputs_;

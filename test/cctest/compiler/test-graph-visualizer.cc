@@ -28,7 +28,7 @@ static Operator dummy_operator6(IrOpcode::kParameter, Operator::kNoWrite,
 
 TEST(NodeWithNullInputReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -47,7 +47,7 @@ TEST(NodeWithNullInputReachableFromEnd) {
 
 TEST(NodeWithNullControlReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -66,7 +66,7 @@ TEST(NodeWithNullControlReachableFromEnd) {
 
 TEST(NodeWithNullInputReachableFromStart) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -85,7 +85,7 @@ TEST(NodeWithNullInputReachableFromStart) {
 
 TEST(NodeWithNullControlReachableFromStart) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -102,7 +102,7 @@ TEST(NodeWithNullControlReachableFromStart) {
 
 TEST(NodeNetworkOfDummiesReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));

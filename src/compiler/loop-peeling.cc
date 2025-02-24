@@ -267,7 +267,7 @@ void LoopPeeler::PeelInnerLoopsOfTree() {
 }
 
 // static
-void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
+void LoopPeeler::EliminateLoopExits(TFGraph* graph, Zone* tmp_zone) {
   ZoneQueue<Node*> queue(tmp_zone);
   BitVector visited(static_cast<int>(graph->NodeCount()), tmp_zone);
   queue.push(graph->end());

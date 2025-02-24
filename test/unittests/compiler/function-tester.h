@@ -21,7 +21,7 @@ class FunctionTester {
   explicit FunctionTester(Isolate* i_isolate, const char* source,
                           uint32_t flags = 0);
 
-  FunctionTester(Isolate* i_isolate, Graph* graph, int param_count);
+  FunctionTester(Isolate* i_isolate, TFGraph* graph, int param_count);
 
   FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code,
                  int param_count);
@@ -141,7 +141,7 @@ class FunctionTester {
 
   // Compile the given machine graph instead of the source of the function
   // and replace the JSFunction's code with the result.
-  Handle<JSFunction> CompileGraph(Graph* graph);
+  Handle<JSFunction> CompileGraph(TFGraph* graph);
 
   // Takes a JSFunction and runs it through the test version of the optimizing
   // pipeline, allocating the temporary compilation artifacts in a given Zone.

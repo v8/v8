@@ -2017,7 +2017,7 @@ Factory* JSCreateLowering::factory() const {
   return jsgraph()->isolate()->factory();
 }
 
-Graph* JSCreateLowering::graph() const { return jsgraph()->graph(); }
+TFGraph* JSCreateLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* JSCreateLowering::common() const {
   return jsgraph()->common();

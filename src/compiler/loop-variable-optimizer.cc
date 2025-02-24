@@ -22,7 +22,7 @@ namespace compiler {
     if (v8_flags.trace_turbo_loop) PrintF(__VA_ARGS__); \
   } while (false)
 
-LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
+LoopVariableOptimizer::LoopVariableOptimizer(TFGraph* graph,
                                              CommonOperatorBuilder* common,
                                              Zone* zone)
     : graph_(graph),

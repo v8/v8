@@ -40,7 +40,7 @@ class NodeOriginTable::Decorator final : public GraphDecorator {
   NodeOriginTable* origins_;
 };
 
-NodeOriginTable::NodeOriginTable(Graph* graph)
+NodeOriginTable::NodeOriginTable(TFGraph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_origin_(NodeOrigin::Unknown()),

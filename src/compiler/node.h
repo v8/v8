@@ -18,8 +18,7 @@ namespace compiler {
 
 // Forward declarations.
 class Edge;
-class Graph;
-
+class TFGraph;
 
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a

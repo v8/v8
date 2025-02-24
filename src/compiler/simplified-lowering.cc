@@ -244,7 +244,7 @@ inline bool IsLargeBigInt(Type type) {
 
 class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
  public:
-  JSONGraphWriterWithVerifierTypes(std::ostream& os, const Graph* graph,
+  JSONGraphWriterWithVerifierTypes(std::ostream& os, const TFGraph* graph,
                                    const SourcePositionTable* positions,
                                    const NodeOriginTable* origins,
                                    SimplifiedLoweringVerifier* verifier)
@@ -1645,7 +1645,7 @@ class RepresentationSelector {
     return write_barrier_kind;
   }
 
-  Graph* graph() const { return jsgraph_->graph(); }
+  TFGraph* graph() const { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() const {
     return jsgraph_->simplified();

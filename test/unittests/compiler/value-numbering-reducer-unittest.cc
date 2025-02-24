@@ -38,10 +38,10 @@ class ValueNumberingReducerTest : public TestWithZone {
  protected:
   Reduction Reduce(Node* node) { return reducer_.Reduce(node); }
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   ValueNumberingReducer reducer_;
 };
 

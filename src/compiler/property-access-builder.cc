@@ -22,7 +22,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph* PropertyAccessBuilder::graph() const { return jsgraph()->graph(); }
+TFGraph* PropertyAccessBuilder::graph() const { return jsgraph()->graph(); }
 
 Isolate* PropertyAccessBuilder::isolate() const { return jsgraph()->isolate(); }
 

@@ -17,7 +17,7 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(
-    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    Isolate* isolate, TFGraph* graph, CallDescriptor* call_descriptor,
     MachineRepresentation word, MachineOperatorBuilder::Flags flags,
     MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
@@ -107,7 +107,7 @@ Schedule* RawMachineAssembler::ExportForTest() {
   return schedule;
 }
 
-Graph* RawMachineAssembler::ExportForOptimization() {
+TFGraph* RawMachineAssembler::ExportForOptimization() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
   if (v8_flags.trace_turbo_scheduler) {
@@ -127,7 +127,8 @@ Graph* RawMachineAssembler::ExportForOptimization() {
   return graph();
 }
 
-void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
+void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule,
+                                              TFGraph* graph,
                                               CommonOperatorBuilder* common) {
   for (bool changed = true; changed;) {
     changed = false;

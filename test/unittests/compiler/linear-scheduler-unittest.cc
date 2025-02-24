@@ -29,12 +29,12 @@ class LinearSchedulerTest : public TestWithIsolateAndZone {
         common_(zone()),
         simplified_(zone()) {}
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
   CommonOperatorBuilder* common() { return &common_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
 };

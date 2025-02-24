@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
                             Node** control);
 
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const;

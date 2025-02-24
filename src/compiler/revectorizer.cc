@@ -884,7 +884,7 @@ void SLPTree::ForEach(FunctionType callback) {
 
 //////////////////////////////////////////////////////
 
-Revectorizer::Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph,
+Revectorizer::Revectorizer(Zone* zone, TFGraph* graph, MachineGraph* mcgraph,
                            SourcePositionTable* source_positions)
     : zone_(zone),
       graph_(graph),

@@ -259,7 +259,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       gasm_.Goto(&done);
       gasm_.Bind(&done);
       // Add TypeGuard for graph typing.
-      Graph* graph = mcgraph_->graph();
+      TFGraph* graph = mcgraph_->graph();
       wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
           wasm::HeapType::kArray,
           null_succeeds ? wasm::kNullable : wasm::kNonNullable);
@@ -368,7 +368,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   MachineGraph* mcgraph_;
   const wasm::FunctionBody& body_;
   Node** parameters_;
-  Graph* graph_;
+  TFGraph* graph_;
   Node* trusted_data_node_;
   WasmGraphAssembler gasm_;
   SourcePositionTable* source_position_table_ = nullptr;

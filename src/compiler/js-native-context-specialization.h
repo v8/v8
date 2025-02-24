@@ -258,7 +258,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   std::pair<Node*, Node*> ReleaseEffectAndControlFromAssembler(
       JSGraphAssembler* assembler);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
 
   JSHeapBroker* broker() const { return broker_; }

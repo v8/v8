@@ -22,7 +22,7 @@ class JSCacheTesterHelper {
         main_common_(zone),
         main_javascript_(zone),
         main_machine_(zone) {}
-  Graph main_graph_;
+  TFGraph main_graph_;
   CommonOperatorBuilder main_common_;
   JSOperatorBuilder main_javascript_;
   MachineOperatorBuilder main_machine_;

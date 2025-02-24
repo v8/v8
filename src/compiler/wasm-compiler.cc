@@ -497,7 +497,7 @@ Node* WasmGraphBuilder::BuildSafeStore(int offset, wasm::ValueTypeBase type,
                           control);
 }
 
-Graph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
+TFGraph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
 
 Zone* WasmGraphBuilder::graph_zone() { return graph()->zone(); }
 
@@ -1066,7 +1066,7 @@ namespace {
 
 MachineGraph* CreateCommonMachineGraph(Zone* zone) {
   return zone->New<MachineGraph>(
-      zone->New<Graph>(zone), zone->New<CommonOperatorBuilder>(zone),
+      zone->New<TFGraph>(zone), zone->New<CommonOperatorBuilder>(zone),
       zone->New<MachineOperatorBuilder>(
           zone, MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
@@ -1168,7 +1168,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate,
 
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
       isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  Graph* graph = zone->New<Graph>(zone.get());
+  TFGraph* graph = zone->New<TFGraph>(zone.get());
   CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
   MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
       zone.get(), MachineType::PointerRepresentation(),

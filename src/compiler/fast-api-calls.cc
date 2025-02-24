@@ -135,7 +135,7 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 
 class FastApiCallBuilder {
  public:
-  FastApiCallBuilder(Isolate* isolate, Graph* graph,
+  FastApiCallBuilder(Isolate* isolate, TFGraph* graph,
                      GraphAssembler* graph_assembler,
                      const GetParameter& get_parameter,
                      const ConvertReturnValue& convert_return_value,
@@ -159,10 +159,10 @@ class FastApiCallBuilder {
   void PropagateException();
 
   Isolate* isolate() const { return isolate_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   GraphAssembler* gasm() const { return graph_assembler_; }
   Isolate* isolate_;
-  Graph* graph_;
+  TFGraph* graph_;
   GraphAssembler* graph_assembler_;
   const GetParameter& get_parameter_;
   const ConvertReturnValue& convert_return_value_;
@@ -368,7 +368,7 @@ Node* FastApiCallBuilder::Build(FastApiCallFunction c_function,
 
 #undef __
 
-Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
+Node* BuildFastApiCall(Isolate* isolate, TFGraph* graph,
                        GraphAssembler* graph_assembler,
                        FastApiCallFunction c_function, Node* data_argument,
                        const GetParameter& get_parameter,

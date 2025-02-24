@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-NodeMarkerBase::NodeMarkerBase(Graph* graph, uint32_t num_states)
+NodeMarkerBase::NodeMarkerBase(TFGraph* graph, uint32_t num_states)
     : mark_min_(graph->mark_max_), mark_max_(graph->mark_max_ += num_states) {
   DCHECK_NE(0u, num_states);        // user error!
   DCHECK_LT(mark_min_, mark_max_);  // check for wraparound.

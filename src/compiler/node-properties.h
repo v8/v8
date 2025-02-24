@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class Operator;
 class CommonOperatorBuilder;
 
@@ -160,13 +160,13 @@ class V8_EXPORT_PRIVATE NodeProperties {
 
   // Merge the control node {node} into the end of the graph, introducing a
   // merge node or expanding an existing merge node if necessary.
-  static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
+  static void MergeControlToEnd(TFGraph* graph, CommonOperatorBuilder* common,
                                 Node* node);
 
   // Removes the control node {node} from the end of the graph, reducing the
   // existing merge node's input count.
-  static void RemoveControlFromEnd(Graph* graph, CommonOperatorBuilder* common,
-                                   Node* node);
+  static void RemoveControlFromEnd(TFGraph* graph,
+                                   CommonOperatorBuilder* common, Node* node);
 
   // Replace all uses of {node} with the given replacement nodes. All occurring
   // use kinds need to be replaced, {nullptr} is only valid if a use kind is

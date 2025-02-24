@@ -393,7 +393,7 @@ class BytecodeGraphBuilder {
                           operand_index, local_isolate_))));
   }
 
-  Graph* graph() const { return jsgraph_->graph(); }
+  TFGraph* graph() const { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -611,7 +611,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   int RegisterToValuesIndex(interpreter::Register the_register) const;
 
   Zone* zone() const { return builder_->local_zone(); }
-  Graph* graph() const { return builder_->graph(); }
+  TFGraph* graph() const { return builder_->graph(); }
   CommonOperatorBuilder* common() const { return builder_->common(); }
   BytecodeGraphBuilder* builder() const { return builder_; }
   const NodeVector* values() const { return &values_; }

@@ -53,7 +53,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   Typer typer;
   Node* context_node;
   CompilationDependencies deps;

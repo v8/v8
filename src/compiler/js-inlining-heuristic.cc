@@ -855,7 +855,7 @@ void JSInliningHeuristic::PrintCandidates() {
   }
 }
 
-Graph* JSInliningHeuristic::graph() const { return jsgraph()->graph(); }
+TFGraph* JSInliningHeuristic::graph() const { return jsgraph()->graph(); }
 
 CompilationDependencies* JSInliningHeuristic::dependencies() const {
   return broker()->dependencies();

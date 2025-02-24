@@ -9,12 +9,6 @@
 
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/compiler/common-operator.h"
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/node-matchers.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
-#include "src/compiler/schedule.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -22,38 +16,12 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/use-map.h"
 
-
 namespace v8::internal::compiler {
-namespace detail {
-template <typename...>
-struct AnyTurbofanNodeOrBlock;
-template <typename Head, typename... Tail>
-struct AnyTurbofanNodeOrBlock<Head, Tail...> {
-  static constexpr bool value = std::is_same_v<Head, Node*> ||
-                                std::is_same_v<Head, BasicBlock*> ||
-                                AnyTurbofanNodeOrBlock<Tail...>::value;
-};
-template <>
-struct AnyTurbofanNodeOrBlock<> {
-  static constexpr bool value = false;
-};
-}  // namespace detail
 
 struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   static constexpr bool IsTurbofan = false;
   static constexpr bool IsTurboshaft = true;
   static constexpr bool AllowsImplicitWord64ToWord32Truncation = true;
-  // TODO(nicohartmann@): Rename schedule_t once Turbofan is gone.
-  using schedule_t = turboshaft::Graph*;
-  using block_t = turboshaft::Block*;
-  using block_range_t = ZoneVector<block_t>;
-  using node_t = turboshaft::OpIndex;
-  using optional_node_t = turboshaft::OptionalOpIndex;
-  using inputs_t = base::Vector<const node_t>;
-  using opcode_t = turboshaft::Opcode;
-  using id_t = uint32_t;
-  using source_position_table_t =
-      turboshaft::GrowingOpIndexSidetable<SourcePosition>;
 
   explicit TurboshaftAdapter(turboshaft::Graph* graph)
       : turboshaft::OperationMatcher(*graph), graph_(graph) {}
@@ -62,7 +30,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     using Kind = turboshaft::ConstantOp::Kind;
 
    public:
-    ConstantView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    ConstantView(turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       op_ = &graph->Get(node_).Cast<turboshaft::ConstantOp>();
     }
 
@@ -126,16 +95,17 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       }
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::ConstantOp* op_;
   };
 
   class CallView {
    public:
-    explicit CallView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    explicit CallView(turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       call_op_ = graph->Get(node_).TryCast<turboshaft::CallOp>();
       if (call_op_ != nullptr) return;
       tail_call_op_ = graph->Get(node_).TryCast<turboshaft::TailCallOp>();
@@ -152,16 +122,16 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       }
       UNREACHABLE();
     }
-    node_t callee() const {
+    turboshaft::OpIndex callee() const {
       if (call_op_) return call_op_->callee();
       if (tail_call_op_) return tail_call_op_->callee();
       UNREACHABLE();
     }
-    node_t frame_state() const {
+    turboshaft::OpIndex frame_state() const {
       if (call_op_) return call_op_->frame_state().value();
       UNREACHABLE();
     }
-    base::Vector<const node_t> arguments() const {
+    base::Vector<const turboshaft::OpIndex> arguments() const {
       if (call_op_) return call_op_->arguments();
       if (tail_call_op_) return tail_call_op_->arguments();
       UNREACHABLE();
@@ -178,32 +148,33 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::CallOp* call_op_;
     const turboshaft::TailCallOp* tail_call_op_;
   };
 
   class BranchView {
    public:
-    explicit BranchView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    explicit BranchView(turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       op_ = &graph->Get(node_).Cast<turboshaft::BranchOp>();
     }
 
-    node_t condition() const { return op_->condition(); }
+    turboshaft::OpIndex condition() const { return op_->condition(); }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::BranchOp* op_;
   };
 
   class WordBinopView {
    public:
-    explicit WordBinopView(turboshaft::Graph* graph, node_t node)
+    explicit WordBinopView(turboshaft::Graph* graph, turboshaft::OpIndex node)
         : node_(node) {
       op_ = &graph->Get(node_).Cast<turboshaft::WordBinopOp>();
       left_ = op_->left();
@@ -221,33 +192,33 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       }
     }
 
-    node_t left() const { return left_; }
-    node_t right() const { return right_; }
+    turboshaft::OpIndex left() const { return left_; }
+    turboshaft::OpIndex right() const { return right_; }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::WordBinopOp* op_;
-    node_t left_;
-    node_t right_;
+    turboshaft::OpIndex left_;
+    turboshaft::OpIndex right_;
     bool can_put_constant_right_;
   };
 
   class LoadView {
    public:
-    LoadView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    LoadView(turboshaft::Graph* graph, turboshaft::OpIndex node) : node_(node) {
       switch (graph->Get(node_).opcode) {
-        case opcode_t::kLoad:
+        case turboshaft::Opcode::kLoad:
           load_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
           break;
 #if V8_ENABLE_WEBASSEMBLY
-        case opcode_t::kSimd128LoadTransform:
+        case turboshaft::Opcode::kSimd128LoadTransform:
           load_transform_ =
               &graph->Get(node_).Cast<turboshaft::Simd128LoadTransformOp>();
           break;
 #if V8_ENABLE_WASM_SIMD256_REVEC
-        case opcode_t::kSimd256LoadTransform:
+        case turboshaft::Opcode::kSimd256LoadTransform:
           load_transform256_ =
               &graph->Get(node_).Cast<turboshaft::Simd256LoadTransformOp>();
           break;
@@ -293,7 +264,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
     bool is_atomic() const { return kind().is_atomic; }
 
-    node_t base() const {
+    turboshaft::OpIndex base() const {
       if (load_) return load_->base();
 #if V8_ENABLE_WEBASSEMBLY
       if (load_transform_) return load_transform_->base();
@@ -303,7 +274,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 #endif
       UNREACHABLE();
     }
-    node_t index() const {
+    turboshaft::OpIndex index() const {
       if (load_) return load_->index().value_or_invalid();
 #if V8_ENABLE_WEBASSEMBLY
       if (load_transform_) return load_transform_->index();
@@ -353,7 +324,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
     turboshaft::LoadOp::Kind kind() const {
@@ -367,7 +338,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
 
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::LoadOp* load_ = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
     const turboshaft::Simd128LoadTransformOp* load_transform_ = nullptr;
@@ -379,7 +350,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
   class StoreView {
    public:
-    StoreView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    StoreView(turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       op_ = &graph->Get(node_).Cast<turboshaft::StoreOp>();
     }
 
@@ -402,9 +374,9 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
     bool is_atomic() const { return op_->kind.is_atomic; }
 
-    node_t base() const { return op_->base(); }
-    optional_node_t index() const { return op_->index(); }
-    node_t value() const { return op_->value(); }
+    turboshaft::OpIndex base() const { return op_->base(); }
+    turboshaft::OptionalOpIndex index() const { return op_->index(); }
+    turboshaft::OpIndex value() const { return op_->value(); }
     IndirectPointerTag indirect_pointer_tag() const {
       return static_cast<IndirectPointerTag>(op_->indirect_pointer_tag());
     }
@@ -429,16 +401,17 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return op_->kind.with_trap_handler && op_->kind.trap_on_null;
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::StoreOp* op_;
   };
 
   class DeoptimizeView {
    public:
-    DeoptimizeView(const turboshaft::Graph* graph, node_t node) : node_(node) {
+    DeoptimizeView(const turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       const auto& op = graph->Get(node);
       if (op.Is<turboshaft::DeoptimizeOp>()) {
         deoptimize_op_ = &op.Cast<turboshaft::DeoptimizeOp>();
@@ -452,7 +425,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
     DeoptimizeReason reason() const { return parameters_->reason(); }
     FeedbackSource feedback() const { return parameters_->feedback(); }
-    node_t frame_state() const {
+    turboshaft::OpIndex frame_state() const {
       return deoptimize_op_ ? deoptimize_op_->frame_state()
                             : deoptimize_if_op_->frame_state();
     }
@@ -465,15 +438,15 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return deoptimize_if_op_ != nullptr && deoptimize_if_op_->negated;
     }
 
-    node_t condition() const {
+    turboshaft::OpIndex condition() const {
       DCHECK(is_deoptimize_if() || is_deoptimize_unless());
       return deoptimize_if_op_->condition();
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::DeoptimizeOp* deoptimize_op_ = nullptr;
     const turboshaft::DeoptimizeIfOp* deoptimize_if_op_ = nullptr;
     const DeoptimizeParameters* parameters_;
@@ -481,44 +454,49 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
   class AtomicRMWView {
    public:
-    AtomicRMWView(const turboshaft::Graph* graph, node_t node) : node_(node) {
+    AtomicRMWView(const turboshaft::Graph* graph, turboshaft::OpIndex node)
+        : node_(node) {
       op_ = &graph->Get(node).Cast<turboshaft::AtomicRMWOp>();
     }
 
-    node_t base() const { return op_->base(); }
-    node_t index() const { return op_->index(); }
-    node_t value() const { return op_->value(); }
-    node_t expected() const {
+    turboshaft::OpIndex base() const { return op_->base(); }
+    turboshaft::OpIndex index() const { return op_->index(); }
+    turboshaft::OpIndex value() const { return op_->value(); }
+    turboshaft::OpIndex expected() const {
       DCHECK_EQ(op_->bin_op, turboshaft::AtomicRMWOp::BinOp::kCompareExchange);
       return op_->expected().value_or_invalid();
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     const turboshaft::AtomicRMWOp* op_;
   };
 
   class Word32AtomicPairStoreView {
    public:
     explicit Word32AtomicPairStoreView(const turboshaft::Graph* graph,
-                                       node_t node)
+                                       turboshaft::OpIndex node)
         : store_(graph->Get(node).Cast<turboshaft::AtomicWord32PairOp>()) {}
 
-    node_t base() const { return store_.base(); }
-    node_t index() const { return store_.index().value(); }
-    node_t value_low() const { return store_.value_low().value(); }
-    node_t value_high() const { return store_.value_high().value(); }
+    turboshaft::OpIndex base() const { return store_.base(); }
+    turboshaft::OpIndex index() const { return store_.index().value(); }
+    turboshaft::OpIndex value_low() const { return store_.value_low().value(); }
+    turboshaft::OpIndex value_high() const {
+      return store_.value_high().value();
+    }
 
    private:
     const turboshaft::AtomicWord32PairOp& store_;
   };
 
 #if V8_ENABLE_WEBASSEMBLY
+  // TODO(391750831): Inline this.
   class SimdShuffleView {
    public:
-    explicit SimdShuffleView(const turboshaft::Graph* graph, node_t node)
+    explicit SimdShuffleView(const turboshaft::Graph* graph,
+                             turboshaft::OpIndex node)
         : node_(node) {
       op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
       // Initialize input mapping.
@@ -534,7 +512,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 
     const uint8_t* data() const { return op128_->shuffle; }
 
-    node_t input(int index) const {
+    turboshaft::OpIndex input(int index) const {
       DCHECK_LT(index, op128_->input_count);
       return op128_->input(input_mapping_[index]);
     }
@@ -546,19 +524,19 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       input_mapping_[1] = input_mapping_[0];
     }
 
-    operator node_t() const { return node_; }
+    operator turboshaft::OpIndex() const { return node_; }
 
    private:
-    node_t node_;
+    turboshaft::OpIndex node_;
     base::SmallVector<int, 2> input_mapping_;
     const turboshaft::Simd128ShuffleOp* op128_;
   };
 #endif
 
-  bool is_constant(node_t node) const {
+  bool is_constant(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::ConstantOp>();
   }
-  bool is_load(node_t node) const {
+  bool is_load(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::LoadOp>()
 #if V8_ENABLE_WEBASSEMBLY
            || graph_->Get(node).Is<turboshaft::Simd128LoadTransformOp>()
@@ -568,89 +546,102 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
 #endif
         ;
   }
-  bool is_load_root_register(node_t node) const {
+  bool is_load_root_register(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::LoadRootRegisterOp>();
   }
-  ConstantView constant_view(node_t node) { return ConstantView{graph_, node}; }
-  CallView call_view(node_t node) { return CallView{graph_, node}; }
-  BranchView branch_view(node_t node) { return BranchView(graph_, node); }
-  WordBinopView word_binop_view(node_t node) {
+  ConstantView constant_view(turboshaft::OpIndex node) {
+    return ConstantView{graph_, node};
+  }
+  CallView call_view(turboshaft::OpIndex node) {
+    return CallView{graph_, node};
+  }
+  BranchView branch_view(turboshaft::OpIndex node) {
+    return BranchView(graph_, node);
+  }
+  WordBinopView word_binop_view(turboshaft::OpIndex node) {
     return WordBinopView(graph_, node);
   }
-  LoadView load_view(node_t node) {
+  LoadView load_view(turboshaft::OpIndex node) {
     DCHECK(is_load(node));
     return LoadView(graph_, node);
   }
-  StoreView store_view(node_t node) { return StoreView(graph_, node); }
-  DeoptimizeView deoptimize_view(node_t node) {
+  StoreView store_view(turboshaft::OpIndex node) {
+    return StoreView(graph_, node);
+  }
+  DeoptimizeView deoptimize_view(turboshaft::OpIndex node) {
     return DeoptimizeView(graph_, node);
   }
-  AtomicRMWView atomic_rmw_view(node_t node) {
+  AtomicRMWView atomic_rmw_view(turboshaft::OpIndex node) {
     return AtomicRMWView(graph_, node);
   }
-  Word32AtomicPairStoreView word32_atomic_pair_store_view(node_t node) {
+  Word32AtomicPairStoreView word32_atomic_pair_store_view(
+      turboshaft::OpIndex node) {
     return Word32AtomicPairStoreView(graph_, node);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  SimdShuffleView simd_shuffle_view(node_t node) {
+  SimdShuffleView simd_shuffle_view(turboshaft::OpIndex node) {
     return SimdShuffleView(graph_, node);
   }
 #endif
 
   turboshaft::Graph* turboshaft_graph() const { return graph_; }
 
-  block_t block(schedule_t schedule, node_t node) const {
+  turboshaft::Block* block(turboshaft::Graph* schedule,
+                           turboshaft::OpIndex node) const {
     // TODO(nicohartmann@): This might be too slow and we should consider
     // precomputing.
     return &schedule->Get(schedule->BlockOf(node));
   }
 
-  RpoNumber rpo_number(block_t block) const {
+  RpoNumber rpo_number(const turboshaft::Block* block) const {
     return RpoNumber::FromInt(block->index().id());
   }
 
-  const block_range_t& rpo_order(schedule_t schedule) {
+  const ZoneVector<turboshaft::Block*>& rpo_order(turboshaft::Graph* schedule) {
     return schedule->blocks_vector();
   }
 
-  bool IsLoopHeader(block_t block) const { return block->IsLoop(); }
+  bool IsLoopHeader(const turboshaft::Block* block) const {
+    return block->IsLoop();
+  }
 
-  size_t PredecessorCount(block_t block) const {
+  size_t PredecessorCount(const turboshaft::Block* block) const {
     return block->PredecessorCount();
   }
-  block_t PredecessorAt(block_t block, size_t index) const {
+  turboshaft::Block* PredecessorAt(const turboshaft::Block* block,
+                                   size_t index) const {
     return block->Predecessors()[index];
   }
 
   base::iterator_range<turboshaft::Graph::OpIndexIterator> nodes(
-      block_t block) {
+      const turboshaft::Block* block) {
     return graph_->OperationIndices(*block);
   }
 
-  bool IsPhi(node_t node) const {
+  bool IsPhi(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::PhiOp>();
   }
-  MachineRepresentation phi_representation_of(node_t node) const {
+  MachineRepresentation phi_representation_of(turboshaft::OpIndex node) const {
     DCHECK(IsPhi(node));
     const turboshaft::PhiOp& phi = graph_->Get(node).Cast<turboshaft::PhiOp>();
     return phi.rep.machine_representation();
   }
-  bool IsRetain(node_t node) const {
+  bool IsRetain(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::RetainOp>();
   }
-  bool IsHeapConstant(node_t node) const {
+  bool IsHeapConstant(turboshaft::OpIndex node) const {
     turboshaft::ConstantOp* constant =
         graph_->Get(node).TryCast<turboshaft::ConstantOp>();
     if (constant == nullptr) return false;
     return constant->kind == turboshaft::ConstantOp::Kind::kHeapObject;
   }
-  bool IsExternalConstant(node_t node) const {
+  bool IsExternalConstant(turboshaft::OpIndex node) const {
     turboshaft::ConstantOp* constant =
         graph_->Get(node).TryCast<turboshaft::ConstantOp>();
     if (constant == nullptr) return false;
     return constant->kind == turboshaft::ConstantOp::Kind::kExternal;
   }
-  bool IsRelocatableWasmConstant(node_t node) const {
+  bool IsRelocatableWasmConstant(turboshaft::OpIndex node) const {
     turboshaft::ConstantOp* constant =
         graph_->Get(node).TryCast<turboshaft::ConstantOp>();
     if (constant == nullptr) return false;
@@ -659,10 +650,10 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
                turboshaft::ConstantOp::Kind::kRelocatableWasmCall,
                turboshaft::ConstantOp::Kind::kRelocatableWasmStubCall);
   }
-  bool IsLoadOrLoadImmutable(node_t node) const {
+  bool IsLoadOrLoadImmutable(turboshaft::OpIndex node) const {
     return graph_->Get(node).opcode == turboshaft::Opcode::kLoad;
   }
-  bool IsProtectedLoad(node_t node) const {
+  bool IsProtectedLoad(turboshaft::OpIndex node) const {
 #if V8_ENABLE_WEBASSEMBLY
     if (graph_->Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
       return true;
@@ -680,17 +671,23 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return LoadView(graph_, node).is_protected(&traps_on_null);
   }
 
-  int value_input_count(node_t node) const {
+  int value_input_count(turboshaft::OpIndex node) const {
     return graph_->Get(node).input_count;
   }
-  node_t input_at(node_t node, size_t index) const {
+  turboshaft::OpIndex input_at(turboshaft::OpIndex node, size_t index) const {
     return graph_->Get(node).input(index);
   }
-  inputs_t inputs(node_t node) const { return graph_->Get(node).inputs(); }
-  opcode_t opcode(node_t node) const { return graph_->Get(node).opcode; }
-  bool is_exclusive_user_of(node_t user, node_t value) const {
-    DCHECK(valid(user));
-    DCHECK(valid(value));
+  base::Vector<const turboshaft::OpIndex> inputs(
+      turboshaft::OpIndex node) const {
+    return graph_->Get(node).inputs();
+  }
+  turboshaft::Opcode opcode(turboshaft::OpIndex node) const {
+    return graph_->Get(node).opcode;
+  }
+  bool is_exclusive_user_of(turboshaft::OpIndex user,
+                            turboshaft::OpIndex value) const {
+    DCHECK(user.valid());
+    DCHECK(value.valid());
     const turboshaft::Operation& value_op = graph_->Get(value);
     const turboshaft::Operation& user_op = graph_->Get(user);
     size_t use_count = base::count_if(
@@ -738,46 +735,45 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
            !value_op.saturated_use_count.IsSaturated();
   }
 
-  id_t id(node_t node) const { return node.id(); }
-  static bool valid(node_t node) { return node.valid(); }
-  static bool valid(optional_node_t node) { return node.valid(); }
-  static node_t value(optional_node_t node) {
-    DCHECK(valid(node));
+  uint32_t id(turboshaft::OpIndex node) const { return node.id(); }
+  static turboshaft::OpIndex value(turboshaft::OptionalOpIndex node) {
+    DCHECK(node.valid());
     return node.value();
   }
 
-  node_t block_terminator(block_t block) const {
+  turboshaft::OpIndex block_terminator(const turboshaft::Block* block) const {
     return graph_->PreviousIndex(block->end());
   }
-  node_t parent_frame_state(node_t node) const {
+  turboshaft::OpIndex parent_frame_state(turboshaft::OpIndex node) const {
     const turboshaft::FrameStateOp& frame_state =
         graph_->Get(node).Cast<turboshaft::FrameStateOp>();
     return frame_state.parent_frame_state();
   }
-  int parameter_index_of(node_t node) const {
+  int parameter_index_of(turboshaft::OpIndex node) const {
     const turboshaft::ParameterOp& parameter =
         graph_->Get(node).Cast<turboshaft::ParameterOp>();
     return parameter.parameter_index;
   }
-  bool is_projection(node_t node) const {
+  bool is_projection(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::ProjectionOp>();
   }
-  size_t projection_index_of(node_t node) const {
+  size_t projection_index_of(turboshaft::OpIndex node) const {
     DCHECK(is_projection(node));
     const turboshaft::ProjectionOp& projection =
         graph_->Get(node).Cast<turboshaft::ProjectionOp>();
     return projection.index;
   }
-  int osr_value_index_of(node_t node) const {
+  int osr_value_index_of(turboshaft::OpIndex node) const {
     const turboshaft::OsrValueOp& osr_value =
         graph_->Get(node).Cast<turboshaft::OsrValueOp>();
     return osr_value.index;
   }
 
-  bool is_truncate_word64_to_word32(node_t node) const {
+  bool is_truncate_word64_to_word32(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::Opmask::kTruncateWord64ToWord32>();
   }
-  node_t remove_truncate_word64_to_word32(node_t node) const {
+  turboshaft::OpIndex remove_truncate_word64_to_word32(
+      turboshaft::OpIndex node) const {
     if (const turboshaft::ChangeOp* change =
             graph_->Get(node)
                 .TryCast<turboshaft::Opmask::kTruncateWord64ToWord32>()) {
@@ -786,17 +782,18 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return node;
   }
 
-  bool is_stack_slot(node_t node) const {
+  bool is_stack_slot(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::StackSlotOp>();
   }
-  StackSlotRepresentation stack_slot_representation_of(node_t node) const {
+  StackSlotRepresentation stack_slot_representation_of(
+      turboshaft::OpIndex node) const {
     DCHECK(is_stack_slot(node));
     const turboshaft::StackSlotOp& stack_slot =
         graph_->Get(node).Cast<turboshaft::StackSlotOp>();
     return StackSlotRepresentation(stack_slot.size, stack_slot.alignment,
                                    stack_slot.is_tagged);
   }
-  bool is_integer_constant(node_t node) const {
+  bool is_integer_constant(turboshaft::OpIndex node) const {
     if (const auto constant =
             graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {
       return constant->kind == turboshaft::ConstantOp::Kind::kWord32 ||
@@ -804,17 +801,17 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     }
     return false;
   }
-  int64_t integer_constant(node_t node) const {
+  int64_t integer_constant(turboshaft::OpIndex node) const {
     const turboshaft::ConstantOp* constant =
         graph_->Get(node).TryCast<turboshaft::ConstantOp>();
     DCHECK_NOT_NULL(constant);
     return constant->signed_integral();
   }
 
-  bool IsRequiredWhenUnused(node_t node) const {
+  bool IsRequiredWhenUnused(turboshaft::OpIndex node) const {
     return graph_->Get(node).IsRequiredWhenUnused();
   }
-  bool IsCommutative(node_t node) const {
+  bool IsCommutative(turboshaft::OpIndex node) const {
     const turboshaft::Operation& op = graph_->Get(node);
     if (const auto word_binop = op.TryCast<turboshaft::WordBinopOp>()) {
       return turboshaft::WordBinopOp::IsCommutative(word_binop->kind);

@@ -65,7 +65,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CodeKind kind, const char* name,
                                        Builtin builtin)
     : raw_assembler_(new RawMachineAssembler(
-          isolate, zone->New<Graph>(zone), call_descriptor,
+          isolate, zone->New<TFGraph>(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements())),
@@ -120,7 +120,7 @@ class BreakOnNodeDecorator final : public GraphDecorator {
 };
 
 void CodeAssembler::BreakOnNode(int node_id) {
-  Graph* graph = raw_assembler()->graph();
+  TFGraph* graph = raw_assembler()->graph();
   Zone* zone = graph->zone();
   GraphDecorator* decorator =
       zone->New<BreakOnNodeDecorator>(static_cast<NodeId>(node_id));

@@ -83,7 +83,7 @@ class JSInliner final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }

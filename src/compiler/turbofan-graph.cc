@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone)
+TFGraph::TFGraph(Zone* zone)
     : zone_(zone),
       start_(nullptr),
       end_(nullptr),
@@ -29,56 +29,56 @@ Graph::Graph(Zone* zone)
   CHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
 }
 
-void Graph::Decorate(Node* node) {
+void TFGraph::Decorate(Node* node) {
   for (GraphDecorator* const decorator : decorators_) {
     decorator->Decorate(node);
   }
 }
 
-void Graph::AddDecorator(GraphDecorator* decorator) {
+void TFGraph::AddDecorator(GraphDecorator* decorator) {
   decorators_.push_back(decorator);
 }
 
-void Graph::RemoveDecorator(GraphDecorator* decorator) {
+void TFGraph::RemoveDecorator(GraphDecorator* decorator) {
   auto const it = std::find(decorators_.begin(), decorators_.end(), decorator);
   DCHECK(it != decorators_.end());
   decorators_.erase(it);
 }
 
-Node* Graph::NewNode(const Operator* op, int input_count, Node* const* inputs,
-                     bool incomplete) {
+Node* TFGraph::NewNode(const Operator* op, int input_count, Node* const* inputs,
+                       bool incomplete) {
   Node* node = NewNodeUnchecked(op, input_count, inputs, incomplete);
   Verifier::VerifyNode(node);
   return node;
 }
 
-Node* Graph::NewNodeUnchecked(const Operator* op, int input_count,
-                              Node* const* inputs, bool incomplete) {
+Node* TFGraph::NewNodeUnchecked(const Operator* op, int input_count,
+                                Node* const* inputs, bool incomplete) {
   Node* const node =
       Node::New(zone(), NextNodeId(), op, input_count, inputs, incomplete);
   Decorate(node);
   return node;
 }
 
-Node* Graph::CloneNode(const Node* node) {
+Node* TFGraph::CloneNode(const Node* node) {
   DCHECK_NOT_NULL(node);
   Node* const clone = Node::Clone(zone(), NextNodeId(), node);
   Decorate(clone);
   return clone;
 }
 
-NodeId Graph::NextNodeId() {
+NodeId TFGraph::NextNodeId() {
   // A node's id is internally stored in a bit field using fewer bits than
   // NodeId (see Node::IdField). Hence the addition below won't ever overflow.
   DCHECK_LT(next_node_id_, std::numeric_limits<NodeId>::max());
   return next_node_id_++;
 }
 
-void Graph::Print() const { StdoutStream{} << AsRPO(*this); }
+void TFGraph::Print() const { StdoutStream{} << AsRPO(*this); }
 
-void Graph::RecordSimdStore(Node* store) { simd_stores_.push_back(store); }
+void TFGraph::RecordSimdStore(Node* store) { simd_stores_.push_back(store); }
 
-ZoneVector<Node*> const& Graph::GetSimdStoreNodes() { return simd_stores_; }
+ZoneVector<Node*> const& TFGraph::GetSimdStoreNodes() { return simd_stores_; }
 
 }  // namespace compiler
 }  // namespace internal

@@ -21,7 +21,7 @@ class JSGraph;
 // nodes when creating ObjectState, StateValues and FrameState nodes
 class NodeHashCache {
  public:
-  NodeHashCache(Graph* graph, Zone* zone)
+  NodeHashCache(TFGraph* graph, Zone* zone)
       : graph_(graph), cache_(zone), temp_nodes_(zone) {}
 
   // Handle to a conceptually new mutable node. Tries to reuse existing nodes
@@ -64,7 +64,7 @@ class NodeHashCache {
   Node* Query(Node* node);
   void Insert(Node* node) { cache_.insert(node); }
 
-  Graph* graph_;
+  TFGraph* graph_;
   struct NodeEquals {
     bool operator()(Node* a, Node* b) const {
       return NodeProperties::Equals(a, b);

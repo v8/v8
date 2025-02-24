@@ -286,7 +286,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* temp_zone() const { return temp_zone_; }
   Isolate* isolate() const;

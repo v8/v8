@@ -29,18 +29,18 @@ using Mark = uint32_t;
 // out-of-line data associated with each node.
 using NodeId = uint32_t;
 
-class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
+class V8_EXPORT_PRIVATE TFGraph final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  explicit Graph(Zone* zone);
-  Graph(const Graph&) = delete;
-  Graph& operator=(const Graph&) = delete;
+  explicit TFGraph(Zone* zone);
+  TFGraph(const TFGraph&) = delete;
+  TFGraph& operator=(const TFGraph&) = delete;
 
   // Scope used when creating a subgraph for inlining. Automatically preserves
   // the original start and end nodes of the graph, and resets them when you
   // leave the scope.
   class V8_NODISCARD SubgraphScope final {
    public:
-    explicit SubgraphScope(Graph* graph)
+    explicit SubgraphScope(TFGraph* graph)
         : graph_(graph), start_(graph->start()), end_(graph->end()) {}
     ~SubgraphScope() {
       graph_->SetStart(start_);
@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
     SubgraphScope& operator=(const SubgraphScope&) = delete;
 
    private:
-    Graph* const graph_;
+    TFGraph* const graph_;
     Node* const start_;
     Node* const end_;
   };

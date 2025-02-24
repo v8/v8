@@ -1674,7 +1674,7 @@ TEST(Regress_1171759) {
 
   HandleAndZoneScope handles(kCompressGraphZone);
   RawMachineAssembler m(handles.main_isolate(),
-                        handles.main_zone()->New<Graph>(handles.main_zone()),
+                        handles.main_zone()->New<TFGraph>(handles.main_zone()),
                         desc, MachineType::PointerRepresentation(),
                         InstructionSelector::SupportedMachineOperatorFlags());
 

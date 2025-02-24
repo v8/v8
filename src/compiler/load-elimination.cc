@@ -1565,7 +1565,7 @@ CommonOperatorBuilder* LoadElimination::common() const {
   return jsgraph()->common();
 }
 
-Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* LoadElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* LoadElimination::isolate() const { return jsgraph()->isolate(); }
 

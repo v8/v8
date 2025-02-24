@@ -990,7 +990,7 @@ Factory* TypedOptimization::factory() const {
   return jsgraph()->isolate()->factory();
 }
 
-Graph* TypedOptimization::graph() const { return jsgraph()->graph(); }
+TFGraph* TypedOptimization::graph() const { return jsgraph()->graph(); }
 
 SimplifiedOperatorBuilder* TypedOptimization::simplified() const {
   return jsgraph()->simplified();

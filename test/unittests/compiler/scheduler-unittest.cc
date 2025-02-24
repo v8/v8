@@ -64,7 +64,7 @@ class SchedulerTest : public TestWithIsolateAndZone {
     return node_count;
   }
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
   CommonOperatorBuilder* common() { return &common_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   JSOperatorBuilder* js() { return &js_; }
@@ -72,7 +72,7 @@ class SchedulerTest : public TestWithIsolateAndZone {
 
  private:
   TickCounter tick_counter_;
-  Graph graph_;
+  TFGraph graph_;
   CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
   JSOperatorBuilder js_;
@@ -118,7 +118,7 @@ TEST_F(SchedulerTest, BuildScheduleOneParameter) {
 
 namespace {
 
-Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common, Node* cond) {
+Node* CreateDiamond(TFGraph* graph, CommonOperatorBuilder* common, Node* cond) {
   Node* tv = graph->NewNode(common->Int32Constant(6));
   Node* fv = graph->NewNode(common->Int32Constant(7));
   Node* br = graph->NewNode(common->Branch(), cond, graph->start());
@@ -165,7 +165,7 @@ TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond1) {
 }
 
 TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond2) {
-  Graph* g = graph();
+  TFGraph* g = graph();
   Node* start = g->NewNode(common()->Start(1));
   g->SetStart(start);
 

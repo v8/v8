@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Isolate* isolate() { return jsgraph_->isolate(); }
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
-  Graph* graph() { return jsgraph()->graph(); }
+  TFGraph* graph() { return jsgraph()->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }

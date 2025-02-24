@@ -32,7 +32,7 @@ class WireBytesStorage;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class LiveRange;
 class TopLevelLiveRange;
 class Instruction;
@@ -157,7 +157,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
 
 class JSONGraphWriter {
  public:
-  JSONGraphWriter(std::ostream& os, const Graph* graph,
+  JSONGraphWriter(std::ostream& os, const TFGraph* graph,
                   const SourcePositionTable* positions,
                   const NodeOriginTable* origins);
 
@@ -176,7 +176,7 @@ class JSONGraphWriter {
  protected:
   std::ostream& os_;
   Zone* zone_;
-  const Graph* graph_;
+  const TFGraph* graph_;
   const SourcePositionTable* positions_;
   const NodeOriginTable* origins_;
   bool first_node_;
@@ -184,14 +184,14 @@ class JSONGraphWriter {
 };
 
 struct GraphAsJSON {
-  GraphAsJSON(const Graph& g, SourcePositionTable* p, NodeOriginTable* o)
+  GraphAsJSON(const TFGraph& g, SourcePositionTable* p, NodeOriginTable* o)
       : graph(g), positions(p), origins(o) {}
-  const Graph& graph;
+  const TFGraph& graph;
   const SourcePositionTable* positions;
   const NodeOriginTable* origins;
 };
 
-V8_INLINE V8_EXPORT_PRIVATE GraphAsJSON AsJSON(const Graph& g,
+V8_INLINE V8_EXPORT_PRIVATE GraphAsJSON AsJSON(const TFGraph& g,
                                                SourcePositionTable* p,
                                                NodeOriginTable* o) {
   return GraphAsJSON(g, p, o);
@@ -201,8 +201,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const GraphAsJSON& ad);
 
 struct AsRPO {
-  explicit AsRPO(const Graph& g) : graph(g) {}
-  const Graph& graph;
+  explicit AsRPO(const TFGraph& g) : graph(g) {}
+  const TFGraph& graph;
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const AsRPO& ad);
