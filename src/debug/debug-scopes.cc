@@ -852,6 +852,12 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     int context_index = scope_info->ContextHeaderLength() + it->index();
     Handle<Object> value(context->get(context_index), isolate_);
+    if (v8_flags.script_context_mutable_heap_number &&
+        context->IsScriptContext()) {
+      value = indirect_handle(Context::LoadScriptContextElement(
+                                  context, it->index(), value, isolate_),
+                              isolate_);
+    }
     if (visitor(name, value, scope_type)) return true;
   }
   return false;
@@ -1194,7 +1200,13 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
     DirectHandle<Context> script_context(
         script_contexts->get(lookup_result.context_index), isolate_);
-    script_context->set(lookup_result.slot_index, *new_value);
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
+      Context::StoreScriptContextAndUpdateSlotProperty(
+          script_context, lookup_result.slot_index, new_value, isolate_);
+    } else {
+      script_context->set(lookup_result.slot_index, *new_value);
+    }
     return true;
   }
 
