@@ -6173,27 +6173,45 @@ void MacroAssembler::SubOverflow64(Register dst, Register left,
 }
 
 void MacroAssembler::MulOverflow32(Register dst, Register left,
-                                   const Operand& right, Register overflow) {
+                                   const Operand& right, Register overflow,
+                                   bool sign_extend_inputs) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Register right_reg = no_reg;
   Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
   if (!right.is_reg()) {
     li(scratch, Operand(right));
     right_reg = scratch;
   } else {
     right_reg = right.rm();
   }
-
-  DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
-         overflow != scratch2);
+  Register rs1 = no_reg;
+  Register rs2 = no_reg;
   DCHECK(overflow != left && overflow != right_reg);
-  sext_w(overflow, left);
-  sext_w(scratch2, right_reg);
-
-  mul(overflow, overflow, scratch2);
+  if (sign_extend_inputs) {
+    sext_w(overflow, left);
+    // if right operand wasn't a register then we can overwrite right_reg
+    if (!right.is_reg()) {
+      rs2 = right_reg;
+      sext_w(right_reg, right_reg);
+    } else {
+      rs2 = scratch;
+      sext_w(scratch, right_reg);
+    }
+    rs1 = overflow;
+  } else {
+    // we can skip sext_w on register inputs if not requested
+    rs1 = left;
+    rs2 = right_reg;
+    if (!right.is_reg()) {
+      sext_w(right_reg, right_reg);
+    } else {
+      AssertSignExtended(rs2);
+    }
+    AssertSignExtended(rs1);
+  }
+  mul(overflow, rs1, rs2);
   sext_w(dst, overflow);
   xor_(overflow, overflow, dst);
 }
@@ -6293,7 +6311,8 @@ void MacroAssembler::SubOverflow(Register dst, Register left,
 }
 
 void MacroAssembler::MulOverflow32(Register dst, Register left,
-                                   const Operand& right, Register overflow) {
+                                   const Operand& right, Register overflow,
+                                   bool sign_extend_inputs) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -6450,6 +6469,14 @@ void MacroAssembler::AssertZeroExtended(Register int32_register) {
          int32_register, Operand(kMaxUInt32));
 }
 
+void MacroAssembler::AssertSignExtended(Register int32_register) {
+  if (!v8_flags.slow_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Assert(Condition::le, AbortReason::k32BitValueInRegisterIsNotSignExtended,
+         int32_register, Operand(kMaxInt));
+  Assert(Condition::ge, AbortReason::k32BitValueInRegisterIsNotSignExtended,
+         int32_register, Operand(kMinInt));
+}
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::Check(Condition cc, AbortReason reason, Register rs,

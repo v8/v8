@@ -699,6 +699,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // not have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if a 64 bit register containing a 32 bit payload does
+  // not have all zeros or all ones in the top 32 bits, enabled via
+  // --debug-code.
+  void AssertSignExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
+
   int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 
   // Before calling a C-function from generated code, align arguments on stack.
@@ -1100,7 +1105,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   // MulOverflow32 sets overflow register to zero if no overflow occured
   void MulOverflow32(Register dst, Register left, const Operand& right,
-                     Register overflow);
+                     Register overflow, bool sign_extend_inputs = true);
   // MulOverflow64 sets overflow register to zero if no overflow occured
   void MulOverflow64(Register dst, Register left, const Operand& right,
                      Register overflow);

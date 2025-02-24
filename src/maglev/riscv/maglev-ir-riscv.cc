@@ -299,7 +299,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
   }
 
   Register scratch = temps.Acquire();
-  __ MulOverflow32(res, left, Operand(right), scratch);
+  __ MulOverflow32(res, left, Operand(right), scratch, false);
 
   static_assert(Int32MultiplyWithOverflow::kProperties.can_eager_deopt());
   // if res != (res[0:31] sign extended to 64 bits), then the multiplication
