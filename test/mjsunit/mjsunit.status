@@ -250,6 +250,9 @@
   # TODO(thibaudm): Register allocation struggles with the function in this
   # test, which has the maximum allowed number of parameters.
   'regress/regress-crbug-724153': [SLOW],
+
+  # TODO(crbug.com/398650919): Investigate and reenable.
+  'regress/regress-12657': [SKIP],
 }],  # ALWAYS
 
 ################################################################################
