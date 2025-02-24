@@ -106,7 +106,7 @@ BUILTIN(DisposableStackPrototypeDispose) {
   }
 
   // 4. Set disposableStack.[[DisposableState]] to disposed.
-  // Will be done in DisposeResources call.
+  disposable_stack->set_state(DisposableStackState::kDisposed);
 
   // 5. Return ? DisposeResources(disposableStack.[[DisposeCapability]],
   //    NormalCompletion(undefined)).

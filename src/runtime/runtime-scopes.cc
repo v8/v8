@@ -316,6 +316,8 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
     disposable_stack->set_error_message(*continuation_message);
   }
 
+  disposable_stack->set_state(DisposableStackState::kDisposed);
+
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,

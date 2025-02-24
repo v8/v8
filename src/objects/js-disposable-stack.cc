@@ -48,6 +48,7 @@ MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
     DisposableStackResourcesType resources_type) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
+  DCHECK_EQ(disposable_stack->state(), DisposableStackState::kDisposed);
 
   DirectHandle<FixedArray> stack(disposable_stack->stack(), isolate);
 
@@ -172,7 +173,6 @@ MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
   // 6. Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
   disposable_stack->set_stack(ReadOnlyRoots(isolate).empty_fixed_array());
   disposable_stack->set_length(0);
-  disposable_stack->set_state(DisposableStackState::kDisposed);
 
   Handle<Object> existing_error_handle(disposable_stack->error(), isolate);
   DirectHandle<Object> existing_error_message_handle(
