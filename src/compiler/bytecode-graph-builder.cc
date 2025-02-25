@@ -4013,7 +4013,7 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
   Node* generator =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
-  // We assume we are restoring registers starting fromm index 0.
+  // We assume we are restoring registers starting from index 0.
   CHECK_EQ(0, first_reg.index());
 
   const BytecodeLivenessState* liveness = bytecode_analysis().GetOutLivenessFor(

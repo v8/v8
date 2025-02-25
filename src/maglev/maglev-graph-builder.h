@@ -813,7 +813,7 @@ class MaglevGraphBuilder {
         }
         ProcessMergePointAtExceptionHandlerStart(offset);
       } else if (merge_state->is_unmerged_unreachable_loop()) {
-        // We encoutered a loop header that is only reachable by the JumpLoop
+        // We encountered a loop header that is only reachable by the JumpLoop
         // back-edge, but the bytecode_analysis didn't notice upfront. This can
         // e.g. be a loop that is entered on a dead fall-through.
         static_assert(kLoopsMustBeEnteredThroughHeader);
@@ -2868,7 +2868,7 @@ class MaglevGraphBuilder {
         if (iterator.GetJumpTargetOffset() < entrypoint_) {
           static_assert(kLoopsMustBeEnteredThroughHeader);
           if (predecessor_count(iterator.GetJumpTargetOffset()) == 1) {
-            // We encoutered a JumpLoop whose loop header is not reachable
+            // We encountered a JumpLoop whose loop header is not reachable
             // otherwise. This loop is either dead or the JumpLoop will bail
             // with DeoptimizeReason::kOSREarlyExit.
             InitializePredecessorCount(iterator.GetJumpTargetOffset(), 0);

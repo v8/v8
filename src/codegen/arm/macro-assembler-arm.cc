@@ -166,7 +166,7 @@ void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
   // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
   mov_label_offset(dest, target);
   // mov_label_offset computes offset of the |target| relative to the "current
-  // InstructionStream object pointer" which is essentally pc_offset() of the
+  // InstructionStream object pointer" which is essentially pc_offset() of the
   // label added with (InstructionStream::kHeaderSize - kHeapObjectTag).
   // Compute "current InstructionStream object pointer" and add it to the
   // offset in |lr| register.
@@ -3068,7 +3068,7 @@ void MacroAssembler::I64x2AllTrue(Register dst, QwNeonRegister src) {
   // = !(max(a,b) == 0 || max(c,d) == 0)
   // = max(a,b) != 0 && max(c,d) != 0
   // = (a != 0 || b != 0) && (c != 0 || d != 0)
-  // = defintion of i64x2.all_true.
+  // = definition of i64x2.all_true.
 }
 
 void MacroAssembler::I64x2Abs(QwNeonRegister dst, QwNeonRegister src) {

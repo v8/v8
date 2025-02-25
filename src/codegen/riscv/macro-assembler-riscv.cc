@@ -2683,7 +2683,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
         RelocInfo::IsWasmCodePointerTableEntry(j.rmode()) ||
         RelocInfo::IsJSDispatchHandle(j.rmode())) {
-      // These reloc datas are 32-bit values.
+      // These reloc data are 32-bit values.
       DCHECK(is_int32(j.immediate()) || is_uint32(j.immediate()));
       RecordRelocInfo(j.rmode());
 #if V8_TARGET_ARCH_RISCV64
@@ -6216,15 +6216,16 @@ void MacroAssembler::MulOverflow64(Register dst, Register left,
   DCHECK(left != scratch2 && right_reg != scratch2 && dst != scratch2 &&
          overflow != scratch2);
   DCHECK(overflow != left && overflow != right_reg);
-  // use this sequence of "mulh/mul" according to recommendation of ISA Spec 7.1
-  // upper part
+  // Use this sequence of "mulh/mul" according to recommendation of ISA
+  // Spec 7.1.
+  // Upper part.
   mulh(scratch2, left, right_reg);
-  // lower part
+  // Lower part.
   mul(dst, left, right_reg);
-  // expand the sign of the lower part to 64bit
+  // Expand the sign of the lower part to 64bit.
   srai(overflow, dst, 63);
-  // if the upper part is not eqaul to the expanded sign bit of the lower part,
-  // overflow happens
+  // If the upper part is not equal to the expanded sign bit of the lower part,
+  // overflow happens.
   xor_(overflow, overflow, scratch2);
 }
 
@@ -7085,8 +7086,8 @@ void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
 
   // For RISCV, fmin_s returns the other non-NaN operand as result if only one
   // operand is NaN; but for JS, if any operand is NaN, result is Nan. The
-  // following handles the discrepency between handling of NaN between ISA and
-  // JS semantics
+  // following handles the discrepancy in the handling of NaN between ISA and
+  // JS semantics.
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   if (std::is_same<float, F_TYPE>::value) {

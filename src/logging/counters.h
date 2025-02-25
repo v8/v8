@@ -381,7 +381,7 @@ class V8_NODISCARD AggregatedHistogramTimerScope {
 };
 
 // AggretatedMemoryHistogram collects (time, value) sample pairs and turns
-// them into time-uniform samples for the backing historgram, such that the
+// them into time-uniform samples for the backing histogram, such that the
 // backing histogram receives one sample every T ms, where the T is controlled
 // by the v8_flags.histogram_interval.
 //

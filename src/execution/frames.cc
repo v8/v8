@@ -555,7 +555,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
   const Address fast_c_fp = isolate->isolate_data()->fast_c_call_caller_fp();
   if (fast_c_fp != kNullAddress) {
     // 'Fast C calls' are a special type of C call where we call directly from
-    // JS to C without an exit frame inbetween. The CEntryStub is responsible
+    // JS to C without an exit frame in between. The CEntryStub is responsible
     // for setting Isolate::c_entry_fp, meaning that it won't be set for fast C
     // calls. To keep the stack iterable, we store the FP and PC of the caller
     // of the fast C call on the isolate. This is guaranteed to be the topmost

@@ -101,9 +101,9 @@ void ImplementationVisitor::BeginGeneratedFiles() {
       file << "#include \"torque-generated/" +
                   SourceFileMap::PathFromV8RootWithoutExtension(source) +
                   "-tq-csa.h\"\n";
-      // Now that required include files are collected while generting the file,
-      // we only know the full set at the end. Insert a marker here that is
-      // replaced with the list of includes at the very end.
+      // Now that required include files are collected while generating the
+      // file, we only know the full set at the end. Insert a marker here that
+      // is replaced with the list of includes at the very end.
       // TODO(nicohartmann@): This is not the most beautiful way to do this,
       // replace once the cpp file builder is available, where this can be
       // handled easily.

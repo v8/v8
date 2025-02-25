@@ -1045,7 +1045,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   } else {
     DCHECK_EQ(mode, InterpreterEntryTrampolineMode::kForProfiling);
     // Both versions must be the same up to this point otherwise the builtins
-    // will not be interchangable.
+    // will not be interchangeable.
     CHECK_EQ(
         masm->isolate()->heap()->interpreter_entry_return_pc_offset().value(),
         masm->pc_offset());

@@ -1601,7 +1601,7 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     if (RelocInfo::IsWasmCanonicalSigId(j.rmode()) ||
         RelocInfo::IsWasmCodePointerTableEntry(j.rmode()) ||
         RelocInfo::IsJSDispatchHandle(j.rmode())) {
-      // These reloc datas are 32-bit values.
+      // These reloc data are 32-bit values.
       DCHECK(is_int32(immediate) || is_uint32(immediate));
       return;
     }
