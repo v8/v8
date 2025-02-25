@@ -412,10 +412,22 @@ class OperandGeneratorT : public TurboshaftAdapter {
   }
 
   Constant ToNegatedConstant(turboshaft::OpIndex node) {
-    auto constant = this->constant_view(node);
-    if (constant.is_int32()) return Constant(-constant.int32_value());
-    DCHECK(constant.is_int64());
-    return Constant(-constant.int64_value());
+    const turboshaft::ConstantOp& constant =
+        Get(node).Cast<turboshaft::ConstantOp>();
+    switch (constant.kind) {
+      case turboshaft::ConstantOp::Kind::kWord32:
+        return Constant(-static_cast<int32_t>(constant.word32()));
+      case turboshaft::ConstantOp::Kind::kWord64:
+        return Constant(-static_cast<int64_t>(constant.word64()));
+      case turboshaft::ConstantOp::Kind::kSmi:
+        if (Is64()) {
+          return Constant(-static_cast<int64_t>(constant.smi().ptr()));
+        } else {
+          return Constant(-static_cast<int32_t>(constant.smi().ptr()));
+        }
+      default:
+        UNREACHABLE();
+    }
   }
 
   UnallocatedOperand Define(turboshaft::OpIndex node,

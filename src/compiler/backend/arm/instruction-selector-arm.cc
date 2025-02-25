@@ -37,8 +37,8 @@ class ArmOperandGeneratorT : public OperandGeneratorT {
   }
 
   bool CanBeImmediate(OpIndex node, InstructionCode opcode) {
-    if (!selector()->is_integer_constant(node)) return false;
-    int64_t value64 = selector()->integer_constant(node);
+    int64_t value64;
+    if (!selector()->MatchSignedIntegralConstant(node, &value64)) return false;
     DCHECK(base::IsInRange(value64, std::numeric_limits<int32_t>::min(),
                            std::numeric_limits<int32_t>::max()));
     int32_t value = static_cast<int32_t>(value64);
@@ -408,13 +408,14 @@ void EmitLoad(InstructionSelectorT* selector, InstructionCode opcode,
   size_t input_count = 2;
 
   const Operation& base_op = selector->Get(base);
+  int64_t index_constant;
   if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->is_integer_constant(index)) {
+      selector->MatchSignedIntegralConstant(index, &index_constant)) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          selector->integer_constant(index) +
+          index_constant +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -820,9 +821,10 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
 
     if (external_base &&
         selector->CanAddressRelativeToRootsRegister(*external_base)) {
-      if (selector->is_integer_constant(index)) {
+      int64_t index_constant;
+      if (selector->MatchSignedIntegralConstant(index, &index_constant)) {
         ptrdiff_t const delta =
-            selector->integer_constant(index) +
+            index_constant +
             MacroAssemblerBase::RootRegisterOffsetForExternalReference(
                 selector->isolate(), *external_base);
         int input_count = 2;
@@ -1078,17 +1080,15 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
     }
   }
 
-  if (is_integer_constant(bitwise_and.right())) {
-    uint32_t const value = integer_constant(bitwise_and.right());
+  if (uint32_t value;
+      MatchIntegralWord32Constant(bitwise_and.right(), &value)) {
     uint32_t width = base::bits::CountPopulation(value);
     uint32_t leading_zeros = base::bits::CountLeadingZeros32(value);
 
     // Try to merge SHR operations on the left hand input into this AND.
     if (lhs.Is<Opmask::kWord32ShiftRightLogical>()) {
       const ShiftOp& shr = lhs.Cast<ShiftOp>();
-      if (is_integer_constant(shr.right())) {
-        uint32_t const shift = integer_constant(shr.right());
-
+      if (uint32_t shift; MatchIntegralWord32Constant(shr.right(), &shift)) {
         if (((shift == 8) || (shift == 16) || (shift == 24)) &&
             (value == 0xFF)) {
           // Merge SHR into AND by emitting a UXTB instruction with a
@@ -1259,15 +1259,13 @@ void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
   ArmOperandGeneratorT g(this);
   const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shr.left());
-  if (IsSupported(ARMv7) && lhs.Is<Opmask::kWord32BitwiseAnd>() &&
-      this->is_integer_constant(shr.right()) &&
-      base::IsInRange(this->integer_constant(shr.right()), 0, 31)) {
-    uint32_t lsb = this->integer_constant(shr.right());
+  if (uint32_t lsb; IsSupported(ARMv7) && lhs.Is<Opmask::kWord32BitwiseAnd>() &&
+                    MatchIntegralWord32Constant(shr.right(), &lsb) &&
+                    base::IsInRange(lsb, 0, 31)) {
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right())) {
-      uint32_t value =
-          static_cast<uint32_t>(this->integer_constant(bitwise_and.right())) >>
-          lsb << lsb;
+    if (uint32_t value;
+        MatchIntegralWord32Constant(bitwise_and.right(), &value)) {
+      value = value >> lsb << lsb;
       uint32_t width = base::bits::CountPopulation(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if ((width != 0) && (msb + width + lsb == 32)) {
@@ -1285,10 +1283,9 @@ void InstructionSelectorT::VisitWord32Sar(OpIndex node) {
   const Operation& lhs = this->Get(sar.left());
   if (CanCover(node, sar.left()) && lhs.Is<Opmask::kWord32ShiftLeft>()) {
     const ShiftOp& shl = lhs.Cast<ShiftOp>();
-    if (this->is_integer_constant(sar.right()) &&
-        this->is_integer_constant(shl.right())) {
-      uint32_t sar_by = this->integer_constant(sar.right());
-      uint32_t shl_by = this->integer_constant(shl.right());
+    if (uint32_t sar_by, shl_by;
+        MatchIntegralWord32Constant(sar.right(), &sar_by) &&
+        MatchIntegralWord32Constant(shl.right(), &shl_by)) {
       if ((sar_by == shl_by) && (sar_by == 16)) {
         Emit(kArmSxth, g.DefineAsRegister(node), g.UseRegister(shl.left()),
              g.TempImmediate(0));
@@ -1391,7 +1388,8 @@ void VisitWord32PairShift(InstructionSelectorT* selector,
   // no register aliasing of input registers with output registers.
   InstructionOperand shift_operand;
   OpIndex shift_by = selector->input_at(node, 2);
-  if (selector->is_integer_constant(shift_by)) {
+  int64_t unused;
+  if (selector->MatchSignedIntegralConstant(shift_by, &unused)) {
     shift_operand = g.UseImmediate(shift_by);
   } else {
     shift_operand = g.UseUniqueRegister(shift_by);

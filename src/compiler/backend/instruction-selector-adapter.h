@@ -26,82 +26,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   explicit TurboshaftAdapter(turboshaft::Graph* graph)
       : turboshaft::OperationMatcher(*graph), graph_(graph) {}
 
-  class ConstantView {
-    using Kind = turboshaft::ConstantOp::Kind;
-
-   public:
-    ConstantView(turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      op_ = &graph->Get(node_).Cast<turboshaft::ConstantOp>();
-    }
-
-    bool is_int32() const {
-      return op_->kind == Kind::kWord32 || (op_->kind == Kind::kSmi && !Is64());
-    }
-    bool is_relocatable_int32() const {
-      // We don't have this in turboshaft currently.
-      return false;
-    }
-    int32_t int32_value() const {
-      DCHECK(is_int32() || is_relocatable_int32());
-      if (op_->kind == Kind::kWord32) {
-        return op_->word32();
-      } else {
-        DCHECK_EQ(op_->kind, Kind::kSmi);
-        DCHECK(!Is64());
-        return static_cast<int32_t>(op_->smi().ptr());
-      }
-    }
-    bool is_int64() const {
-      return op_->kind == Kind::kWord64 || (op_->kind == Kind::kSmi && Is64());
-    }
-    bool is_relocatable_int64() const {
-      return op_->kind == Kind::kRelocatableWasmCall ||
-             op_->kind == Kind::kRelocatableWasmStubCall;
-    }
-    int64_t int64_value() const {
-      if (op_->kind == Kind::kWord64) {
-        return op_->word64();
-      } else if (op_->kind == Kind::kSmi) {
-        DCHECK(Is64());
-        return static_cast<int64_t>(op_->smi().ptr());
-      } else {
-        DCHECK(is_relocatable_int64());
-        return static_cast<int64_t>(op_->integral());
-      }
-    }
-    bool is_heap_object() const { return op_->kind == Kind::kHeapObject; }
-    bool is_compressed_heap_object() const {
-      return op_->kind == Kind::kCompressedHeapObject;
-    }
-    IndirectHandle<HeapObject> heap_object_value() const {
-      DCHECK(is_heap_object() || is_compressed_heap_object());
-      return op_->handle();
-    }
-    bool is_number() const { return op_->kind == Kind::kNumber; }
-    bool is_number_zero() const {
-      if (!is_number()) return false;
-      return op_->number().get_bits() == 0;
-    }
-    bool is_float() const {
-      return op_->kind == Kind::kFloat32 || op_->kind == Kind::kFloat64;
-    }
-    bool is_float_zero() const {
-      if (!is_float()) return false;
-      if (op_->kind == Kind::kFloat32) {
-        return op_->float32().get_bits() == 0;
-      } else {
-        return op_->float64().get_bits() == 0;
-      }
-    }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::ConstantOp* op_;
-  };
-
   class CallView {
    public:
     explicit CallView(turboshaft::Graph* graph, turboshaft::OpIndex node)
@@ -533,9 +457,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   };
 #endif
 
-  bool is_constant(turboshaft::OpIndex node) const {
-    return graph_->Get(node).Is<turboshaft::ConstantOp>();
-  }
   bool is_load(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::LoadOp>()
 #if V8_ENABLE_WEBASSEMBLY
@@ -548,9 +469,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   bool is_load_root_register(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::LoadRootRegisterOp>();
-  }
-  ConstantView constant_view(turboshaft::OpIndex node) {
-    return ConstantView{graph_, node};
   }
   CallView call_view(turboshaft::OpIndex node) {
     return CallView{graph_, node};
@@ -793,21 +711,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return StackSlotRepresentation(stack_slot.size, stack_slot.alignment,
                                    stack_slot.is_tagged);
   }
-  bool is_integer_constant(turboshaft::OpIndex node) const {
-    if (const auto constant =
-            graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {
-      return constant->kind == turboshaft::ConstantOp::Kind::kWord32 ||
-             constant->kind == turboshaft::ConstantOp::Kind::kWord64;
-    }
-    return false;
-  }
-  int64_t integer_constant(turboshaft::OpIndex node) const {
-    const turboshaft::ConstantOp* constant =
-        graph_->Get(node).TryCast<turboshaft::ConstantOp>();
-    DCHECK_NOT_NULL(constant);
-    return constant->signed_integral();
-  }
-
   bool IsRequiredWhenUnused(turboshaft::OpIndex node) const {
     return graph_->Get(node).IsRequiredWhenUnused();
   }

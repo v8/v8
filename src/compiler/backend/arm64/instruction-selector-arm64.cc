@@ -53,12 +53,14 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool IsImmediateZero(OpIndex node) {
-    if (this->is_constant(node)) {
-      auto constant = selector()->constant_view(node);
-      if ((IsIntegerConstant(constant) &&
-           GetIntegerConstantValue(constant) == 0) ||
-          constant.is_float_zero()) {
-        return true;
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if (constant->IsIntegral() && constant->integral() == 0) return true;
+      if (constant->kind == ConstantOp::Kind::kFloat32) {
+        return constant->float32().get_bits() == 0;
+      }
+      if (constant->kind == ConstantOp::Kind::kFloat64) {
+        return constant->float64().get_bits() == 0;
       }
     }
     return false;
@@ -86,33 +88,28 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
   // Use the provided node if it has the required value, or create a
   // TempImmediate otherwise.
   InstructionOperand UseImmediateOrTemp(OpIndex node, int32_t value) {
-    if (selector()->integer_constant(node) == value) {
+    if (selector()->Get(node).Cast<ConstantOp>().signed_integral() == value) {
       return UseImmediate(node);
     }
     return TempImmediate(value);
   }
 
   bool IsIntegerConstant(OpIndex node) const {
-    return selector()->is_integer_constant(node);
-  }
-
-  int64_t GetIntegerConstantValue(TurboshaftAdapter::ConstantView constant) {
-    if (constant.is_int32()) {
-      return constant.int32_value();
-    }
-    DCHECK(constant.is_int64());
-    return constant.int64_value();
+    int64_t unused;
+    return selector()->MatchSignedIntegralConstant(node, &unused);
   }
 
   std::optional<int64_t> GetOptionalIntegerConstant(OpIndex operation) {
-    if (!this->IsIntegerConstant(operation)) return {};
-    return this->GetIntegerConstantValue(selector()->constant_view(operation));
+    if (int64_t constant; MatchSignedIntegralConstant(operation, &constant)) {
+      return constant;
+    }
+    return std::nullopt;
   }
 
   bool CanBeImmediate(OpIndex node, ImmediateMode mode) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_compressed_heap_object()) {
+    const ConstantOp* constant = selector()->Get(node).TryCast<ConstantOp>();
+    if (!constant) return false;
+    if (constant->kind == ConstantOp::Kind::kCompressedHeapObject) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -120,7 +117,7 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      Handle<HeapObject> value = constant.heap_object_value();
+      Handle<HeapObject> value = constant->handle();
       if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
@@ -130,8 +127,9 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
       return false;
     }
 
-    return IsIntegerConstant(constant) &&
-           CanBeImmediate(GetIntegerConstantValue(constant), mode);
+    int64_t value;
+    return selector()->MatchSignedIntegralConstant(node, &value) &&
+           CanBeImmediate(value, mode);
   }
 
   bool CanBeImmediate(int64_t value, ImmediateMode mode) {
@@ -170,10 +168,12 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool CanBeLoadStoreShiftImmediate(OpIndex node, MachineRepresentation rep) {
-    if (!selector()->is_constant(node)) return false;
-    auto constant = selector()->constant_view(node);
-    return IsIntegerConstant(constant) &&
-           (GetIntegerConstantValue(constant) == ElementSizeLog2Of(rep));
+    if (uint64_t constant;
+        selector()->MatchUnsignedIntegralConstant(node, &constant) &&
+        constant == static_cast<uint64_t>(ElementSizeLog2Of(rep))) {
+      return true;
+    }
+    return false;
   }
 
  private:
@@ -210,8 +210,10 @@ void VisitRR(InstructionSelectorT* selector, InstructionCode opcode,
 void VisitSimdShiftRRR(InstructionSelectorT* selector, ArchOpcode opcode,
                        OpIndex node, int width) {
   Arm64OperandGeneratorT g(selector);
-  if (selector->is_integer_constant(selector->input_at(node, 1))) {
-    if (selector->integer_constant(selector->input_at(node, 1)) % width == 0) {
+  int64_t constant;
+  if (selector->MatchSignedIntegralConstant(selector->input_at(node, 1),
+                                            &constant)) {
+    if (constant % width == 0) {
       selector->EmitIdentity(node);
     } else {
       selector->Emit(opcode, g.DefineAsRegister(node),
@@ -605,8 +607,9 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(shift.left());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] = g.UseImmediate(
-        static_cast<int>(selector->integer_constant(shift.right()) & 0x3F));
+    int64_t constant;
+    selector->MatchSignedIntegralConstant(shift.right(), &constant);
+    inputs[input_count++] = g.UseImmediate(static_cast<int>(constant & 0x3F));
   } else if (can_commute && TryMatchAnyShift(selector, binop_idx, left_node,
                                              &opcode, !is_add_sub, rep)) {
     if (must_commute_cond) cont->Commute();
@@ -614,8 +617,9 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
     inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(shift.left());
     // We only need at most the last 6 bits of the shift.
-    inputs[input_count++] = g.UseImmediate(
-        static_cast<int>(selector->integer_constant(shift.right()) & 0x3F));
+    int64_t constant;
+    selector->MatchSignedIntegralConstant(shift.right(), &constant);
+    inputs[input_count++] = g.UseImmediate(static_cast<int>(constant & 0x3F));
   } else {
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
@@ -937,13 +941,15 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   output_op = g.DefineAsRegister(output.valid() ? output.value() : node);
 
   const Operation& base_op = selector->Get(base);
-  if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->is_integer_constant(index)) {
+  int64_t index_constant;
+  const bool is_index_constant =
+      selector->MatchSignedIntegralConstant(index, &index_constant);
+  if (base_op.Is<Opmask::kExternalConstant>() && is_index_constant) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          selector->integer_constant(index) +
+          index_constant +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -959,9 +965,9 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 
   if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(selector->is_integer_constant(index));
+    DCHECK(is_index_constant);
     input_count = 1;
-    inputs[0] = g.UseImmediate64(selector->integer_constant(index));
+    inputs[0] = g.UseImmediate64(index_constant);
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -969,11 +975,10 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
 
   inputs[0] = g.UseRegister(base);
 
-  if (selector->is_integer_constant(index)) {
-    int64_t offset = selector->integer_constant(index);
-    if (g.CanBeImmediate(offset, immediate_mode)) {
+  if (is_index_constant) {
+    if (g.CanBeImmediate(index_constant, immediate_mode)) {
       input_count = 2;
-      inputs[1] = g.UseImmediate64(offset);
+      inputs[1] = g.UseImmediate64(index_constant);
       opcode |= AddressingModeField::encode(kMode_MRI);
     } else {
       input_count = 2;
@@ -1954,10 +1959,10 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
   const WordBinopOp& bitwise_and =
       this->Get(node).Cast<Opmask::kWord32BitwiseAnd>();
   const Operation& lhs = this->Get(bitwise_and.left());
-  if (lhs.Is<Opmask::kWord32ShiftRightLogical>() &&
+  if (int64_t constant_rhs;
+      lhs.Is<Opmask::kWord32ShiftRightLogical>() &&
       CanCover(node, bitwise_and.left()) &&
-      this->is_integer_constant(bitwise_and.right())) {
-    int64_t constant_rhs = this->integer_constant(bitwise_and.right());
+      MatchSignedIntegralConstant(bitwise_and.right(), &constant_rhs)) {
     DCHECK(base::IsInRange(constant_rhs, std::numeric_limits<int32_t>::min(),
                            std::numeric_limits<int32_t>::max()));
     uint32_t mask = static_cast<uint32_t>(constant_rhs);
@@ -1971,9 +1976,10 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       const ShiftOp& lhs_shift = lhs.Cast<Opmask::kWord32ShiftRightLogical>();
-      if (this->is_integer_constant(lhs_shift.right())) {
+      if (int64_t constant;
+          MatchSignedIntegralConstant(lhs_shift.right(), &constant)) {
         // Any shift value can match; int32 shifts use `value % 32`.
-        uint32_t lsb = this->integer_constant(lhs_shift.right()) & 0x1F;
+        uint32_t lsb = constant & 0x1F;
 
         // Ubfx cannot extract bits past the register size, however since
         // shifting the original value would have introduced some zeros we can
@@ -2001,10 +2007,10 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
   const WordBinopOp& bitwise_and = Get(node).Cast<Opmask::kWord64BitwiseAnd>();
   const Operation& lhs = Get(bitwise_and.left());
 
-  if (lhs.Is<Opmask::kWord64ShiftRightLogical>() &&
+  if (uint64_t mask;
+      lhs.Is<Opmask::kWord64ShiftRightLogical>() &&
       CanCover(node, bitwise_and.left()) &&
-      is_integer_constant(bitwise_and.right())) {
-    uint64_t mask = integer_constant(bitwise_and.right());
+      MatchUnsignedIntegralConstant(bitwise_and.right(), &mask)) {
     uint64_t mask_width = base::bits::CountPopulation(mask);
     uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
     if ((mask_width != 0) && (mask_width != 64) &&
@@ -2015,8 +2021,8 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
       // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
       // significant bits.
       const ShiftOp& shift = lhs.Cast<ShiftOp>();
-      if (is_integer_constant(shift.right())) {
-        int64_t shift_by = integer_constant(shift.right());
+      if (int64_t shift_by;
+          MatchSignedIntegralConstant(shift.right(), &shift_by)) {
         // Any shift value can match; int64 shifts use `value % 64`.
         uint32_t lsb = static_cast<uint32_t>(shift_by & 0x3F);
 
@@ -2068,15 +2074,15 @@ void InstructionSelectorT::VisitWord64Xor(OpIndex node) {
 void InstructionSelectorT::VisitWord32Shl(OpIndex node) {
   const ShiftOp& shift_op = Get(node).Cast<ShiftOp>();
   const Operation& lhs = Get(shift_op.left());
-  if (lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
-      is_integer_constant(shift_op.right())) {
-    uint32_t shift_by =
-        static_cast<uint32_t>(integer_constant(shift_op.right()));
+  if (uint64_t constant_left;
+      lhs.Is<Opmask::kWord32BitwiseAnd>() && CanCover(node, shift_op.left()) &&
+      MatchUnsignedIntegralConstant(shift_op.right(), &constant_left)) {
+    uint32_t shift_by = static_cast<uint32_t>(constant_left);
     if (base::IsInRange(shift_by, 1, 31)) {
       const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-      if (is_integer_constant(bitwise_and.right())) {
-        uint32_t mask =
-            static_cast<uint32_t>(integer_constant(bitwise_and.right()));
+      if (uint64_t constant_right;
+          MatchUnsignedIntegralConstant(bitwise_and.right(), &constant_right)) {
+        uint32_t mask = static_cast<uint32_t>(constant_right);
 
         uint32_t mask_width = base::bits::CountPopulation(mask);
         uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
@@ -2202,9 +2208,11 @@ bool TryEmitBitfieldExtract32(InstructionSelectorT* selector, OpIndex node) {
 void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
   const ShiftOp& shift = Get(node).Cast<ShiftOp>();
   const Operation& lhs = Get(shift.left());
-  if (lhs.Is<Opmask::kWord32BitwiseAnd>() &&
-      is_integer_constant(shift.right())) {
-    uint32_t lsb = integer_constant(shift.right()) & 0x1F;
+  uint64_t constant_right;
+  const bool right_is_constant =
+      MatchUnsignedIntegralConstant(shift.right(), &constant_right);
+  if (lhs.Is<Opmask::kWord32BitwiseAnd>() && right_is_constant) {
+    uint32_t lsb = constant_right & 0x1F;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
     uint32_t constant_bitmask;
     if (MatchIntegralWord32Constant(bitwise_and.right(), &constant_bitmask) &&
@@ -2228,13 +2236,13 @@ void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
     return;
   }
 
-  if (lhs.Is<Opmask::kWord32UnsignedMulOverflownBits>() &&
-      is_integer_constant(shift.right()) && CanCover(node, shift.left())) {
+  if (lhs.Is<Opmask::kWord32UnsignedMulOverflownBits>() && right_is_constant &&
+      CanCover(node, shift.left())) {
     // Combine this shift with the multiply and shift that would be generated
     // by Uint32MulHigh.
     Arm64OperandGeneratorT g(this);
     const WordBinopOp& mul = lhs.Cast<WordBinopOp>();
-    int shift_by = integer_constant(shift.right()) & 0x1F;
+    int shift_by = constant_right & 0x1F;
     InstructionOperand const smull_operand = g.TempRegister();
     Emit(kArm64Umull, smull_operand, g.UseRegister(mul.left()),
          g.UseRegister(mul.right()));
@@ -2249,8 +2257,9 @@ void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
 void InstructionSelectorT::VisitWord64Shr(OpIndex node) {
   const ShiftOp& op = Get(node).Cast<ShiftOp>();
   const Operation& lhs = Get(op.left());
-  if (lhs.Is<Opmask::kWord64BitwiseAnd>() && is_integer_constant(op.right())) {
-    uint32_t lsb = integer_constant(op.right()) & 0x3F;
+  if (uint64_t constant; lhs.Is<Opmask::kWord64BitwiseAnd>() &&
+                         MatchUnsignedIntegralConstant(op.right(), &constant)) {
+    uint32_t lsb = constant & 0x3F;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
     uint64_t constant_and_rhs;
     if (MatchIntegralWord64Constant(bitwise_and.right(), &constant_and_rhs) &&
@@ -2281,13 +2290,16 @@ void InstructionSelectorT::VisitWord32Sar(OpIndex node) {
 
   const ShiftOp& shift = Get(node).Cast<ShiftOp>();
   const Operation& lhs = Get(shift.left());
-  if (lhs.Is<Opmask::kWord32SignedMulOverflownBits>() &&
-      is_integer_constant(shift.right()) && CanCover(node, shift.left())) {
+  uint64_t constant_right;
+  const bool right_is_constant =
+      MatchUnsignedIntegralConstant(shift.right(), &constant_right);
+  if (lhs.Is<Opmask::kWord32SignedMulOverflownBits>() && right_is_constant &&
+      CanCover(node, shift.left())) {
     // Combine this shift with the multiply and shift that would be generated
     // by Int32MulHigh.
     Arm64OperandGeneratorT g(this);
     const WordBinopOp& mul_overflow = lhs.Cast<WordBinopOp>();
-    int shift_by = integer_constant(shift.right()) & 0x1F;
+    int shift_by = constant_right & 0x1F;
     InstructionOperand const smull_operand = g.TempRegister();
     Emit(kArm64Smull, smull_operand, g.UseRegister(mul_overflow.left()),
          g.UseRegister(mul_overflow.right()));
@@ -2296,7 +2308,7 @@ void InstructionSelectorT::VisitWord32Sar(OpIndex node) {
     return;
   }
 
-  if (lhs.Is<Opmask::kWord32Add>() && is_integer_constant(shift.right()) &&
+  if (lhs.Is<Opmask::kWord32Add>() && right_is_constant &&
       CanCover(node, shift.left())) {
     const WordBinopOp& add = Get(shift.left()).Cast<WordBinopOp>();
     const Operation& lhs = Get(add.left());
@@ -2910,10 +2922,10 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
        input_op.Is<Opmask::kWord32ShiftRightArithmeticShiftOutZeros>()) &&
       CanCover(node, change_op.input())) {
     const ShiftOp& sar = input_op.Cast<ShiftOp>();
-    if (this->is_integer_constant(sar.right())) {
+    if (int64_t constant; MatchSignedIntegralConstant(sar.right(), &constant)) {
       Arm64OperandGeneratorT g(this);
       // Mask the shift amount, to keep the same semantics as Word32Sar.
-      int right = this->integer_constant(sar.right()) & 0x1F;
+      int right = constant & 0x1F;
       Emit(kArm64Sbfx, g.DefineAsRegister(node), g.UseRegister(sar.left()),
            g.TempImmediate(right), g.TempImmediate(32 - right));
       return;
@@ -3340,14 +3352,12 @@ void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
     std::swap(left, right);
   }
 
-  if (opcode == kArm64Cmp && selector->is_constant(right)) {
-    auto constant = selector->constant_view(right);
-    if (g.IsIntegerConstant(constant)) {
-      if (TryEmitCbzOrTbz<64>(selector, left,
-                              g.GetIntegerConstantValue(constant), node,
-                              cont->condition(), cont)) {
-        return;
-      }
+  int64_t constant;
+  if (opcode == kArm64Cmp &&
+      selector->MatchSignedIntegralConstant(right, &constant)) {
+    if (TryEmitCbzOrTbz<64>(selector, left, constant, node, cont->condition(),
+                            cont)) {
+      return;
     }
   }
 
@@ -3363,16 +3373,16 @@ void VisitWord32Compare(InstructionSelectorT* selector, OpIndex node,
   OpIndex rhs = compare.input(1);
   FlagsCondition cond = cont->condition();
 
-  if (selector->is_integer_constant(rhs) &&
-      TryEmitCbzOrTbz<32>(
-          selector, lhs, static_cast<uint32_t>(selector->integer_constant(rhs)),
-          node, cond, cont)) {
+  if (uint64_t constant;
+      selector->MatchUnsignedIntegralConstant(rhs, &constant) &&
+      TryEmitCbzOrTbz<32>(selector, lhs, static_cast<uint32_t>(constant), node,
+                          cond, cont)) {
     return;
   }
-  if (selector->is_integer_constant(lhs) &&
-      TryEmitCbzOrTbz<32>(
-          selector, rhs, static_cast<uint32_t>(selector->integer_constant(lhs)),
-          node, CommuteFlagsCondition(cond), cont)) {
+  if (uint64_t constant;
+      selector->MatchUnsignedIntegralConstant(lhs, &constant) &&
+      TryEmitCbzOrTbz<32>(selector, rhs, static_cast<uint32_t>(constant), node,
+                          CommuteFlagsCondition(cond), cont)) {
     return;
   }
 
@@ -5015,10 +5025,13 @@ bool ShraHelper(InstructionSelectorT* selector, OpIndex node, int lane_size,
   }
   const Simd128ShiftOp& shiftop =
       selector->Get(m.matched_input()).Cast<Simd128ShiftOp>();
-  if (!selector->is_integer_constant(shiftop.shift())) return false;
+  int64_t constant;
+  if (!selector->MatchSignedIntegralConstant(shiftop.shift(), &constant)) {
+    return false;
+  }
 
   // If shifting by zero, just do the addition
-  if (selector->integer_constant(shiftop.shift()) % lane_size == 0) {
+  if (constant % lane_size == 0) {
     selector->Emit(add_code, g.DefineAsRegister(node),
                    g.UseRegister(shiftop.input()),
                    g.UseRegister(m.other_input()));

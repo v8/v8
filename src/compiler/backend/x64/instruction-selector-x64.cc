@@ -100,47 +100,68 @@ bool CanBeImmediate(InstructionSelectorT* selector, OpIndex node) {
   // is surprising because we often use the pattern
   // `if (CanBeImmediate()) { GetImmediateIntegerValue }`. We should make sure
   // that both functions are in sync.
-  if (!selector->is_constant(node)) return false;
-  auto constant = selector->constant_view(node);
-  if (constant.is_compressed_heap_object()) {
-    if (!COMPRESS_POINTERS_BOOL) return false;
-    // For builtin code we need static roots
-    if (selector->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+  const Operation& op = selector->Get(node);
+  if (!op.Is<ConstantOp>()) return false;
+  const ConstantOp& constant = op.Cast<ConstantOp>();
+  switch (constant.kind) {
+    case ConstantOp::Kind::kCompressedHeapObject: {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector->isolate()->roots_table();
+      RootIndex root_index;
+      Handle<HeapObject> value = constant.handle();
+      if (roots_table.IsRootHandle(value, &root_index)) {
+        return RootsTable::IsReadOnly(root_index);
+      }
       return false;
     }
-    const RootsTable& roots_table = selector->isolate()->roots_table();
-    RootIndex root_index;
-    Handle<HeapObject> value = constant.heap_object_value();
-    if (roots_table.IsRootHandle(value, &root_index)) {
-      return RootsTable::IsReadOnly(root_index);
+    case ConstantOp::Kind::kWord32: {
+      const int32_t value = constant.word32();
+      // int32_t min will overflow if displacement mode is
+      // kNegativeDisplacement.
+      return value != std::numeric_limits<int32_t>::min();
     }
-    return false;
+    case ConstantOp::Kind::kWord64: {
+      const int64_t value = constant.word64();
+      return ValueFitsIntoImmediate(value);
+    }
+    case ConstantOp::Kind::kSmi: {
+      if (Is64()) {
+        const int64_t value = constant.smi().ptr();
+        return ValueFitsIntoImmediate(value);
+      } else {
+        const int32_t value = constant.smi().ptr();
+        // int32_t min will overflow if displacement mode is
+        // kNegativeDisplacement.
+        return value != std::numeric_limits<int32_t>::min();
+      }
+    }
+    case ConstantOp::Kind::kNumber:
+      return constant.number().get_bits() == 0;
+    default:
+      return false;
   }
-  if (constant.is_int32() || constant.is_relocatable_int32()) {
-    const int32_t value = constant.int32_value();
-    // int32_t min will overflow if displacement mode is
-    // kNegativeDisplacement.
-    return value != std::numeric_limits<int32_t>::min();
-  }
-  if (constant.is_int64()) {
-    const int64_t value = constant.int64_value();
-    return ValueFitsIntoImmediate(value);
-  }
-  if (constant.is_number_zero()) {
-    return true;
-  }
-  return false;
 }
 
 int32_t GetImmediateIntegerValue(InstructionSelectorT* selector, OpIndex node) {
   DCHECK(CanBeImmediate(selector, node));
-  auto constant = selector->constant_view(node);
-  if (constant.is_int32()) return constant.int32_value();
-  if (constant.is_int64()) {
-    return static_cast<int32_t>(constant.int64_value());
+  const ConstantOp& constant = selector->Get(node).Cast<ConstantOp>();
+  switch (constant.kind) {
+    case ConstantOp::Kind::kWord32:
+      return constant.word32();
+    case ConstantOp::Kind::kWord64:
+      return static_cast<int32_t>(constant.word64());
+    case ConstantOp::Kind::kSmi:
+      return static_cast<int32_t>(constant.smi().ptr());
+    case ConstantOp::Kind::kNumber:
+      DCHECK_EQ(constant.number().get_bits(), 0);
+      return 0;
+    default:
+      UNREACHABLE();
   }
-  DCHECK(constant.is_number_zero());
-  return 0;
 }
 
 struct ScaledIndexMatch {
@@ -1590,7 +1611,7 @@ static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
   auto left = selector->input_at(node, 0);
   auto right = selector->input_at(node, 1);
   if (selector->IsCommutative(node)) {
-    if (selector->is_constant(left) && !selector->is_constant(right)) {
+    if (selector->Is<ConstantOp>(left) && !selector->Is<ConstantOp>(right)) {
       std::swap(left, right);
     }
   }
@@ -3159,8 +3180,8 @@ MachineType MachineTypeForNarrow(InstructionSelectorT* selector, OpIndex node,
                                  OpIndex hint_node) {
   if (selector->IsLoadOrLoadImmutable(hint_node)) {
     MachineType hint = selector->load_view(hint_node).loaded_rep();
-    if (selector->is_integer_constant(node)) {
-      int64_t constant = selector->integer_constant(node);
+    int64_t constant;
+    if (selector->MatchSignedIntegralConstant(node, &constant)) {
       if (hint == MachineType::Int8()) {
         if (constant >= std::numeric_limits<int8_t>::min() &&
             constant <= std::numeric_limits<int8_t>::max()) {
@@ -3227,8 +3248,9 @@ MachineType MachineTypeForNarrowWordAnd(InstructionSelectorT* selector,
                                                                : OpIndex{};
 
   if (and_constant_node.valid()) {
-    int64_t and_constant = selector->integer_constant(and_constant_node);
-    int64_t cmp_constant = selector->integer_constant(constant_node);
+    int64_t and_constant, cmp_constant;
+    selector->MatchSignedIntegralConstant(and_constant_node, &and_constant);
+    selector->MatchSignedIntegralConstant(constant_node, &cmp_constant);
     if (and_constant >= 0 && cmp_constant >= 0) {
       int64_t constant =
           and_constant > cmp_constant ? and_constant : cmp_constant;
@@ -3360,7 +3382,8 @@ OpIndex RemoveUnnecessaryWordAnd(InstructionSelectorT* selector,
   }
 
   if (and_constant_node.valid()) {
-    int64_t and_constant = selector->integer_constant(and_constant_node);
+    int64_t and_constant;
+    selector->MatchSignedIntegralConstant(and_constant_node, &and_constant);
     if (and_constant == mask) return and_other_node;
   }
   return and_node;

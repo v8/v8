@@ -372,26 +372,31 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
 
   bool CanBeImmediate(OpIndex node) {
     if (this->IsExternalConstant(node)) return true;
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_int32() || constant.is_relocatable_int32() ||
-        constant.is_relocatable_int64()) {
-      return true;
+    if (const ConstantOp* constant = Get(node).TryCast<ConstantOp>()) {
+      switch (constant->kind) {
+        case ConstantOp::Kind::kWord32:
+        case ConstantOp::Kind::kRelocatableWasmCall:
+        case ConstantOp::Kind::kRelocatableWasmStubCall:
+        case ConstantOp::Kind::kSmi:
+          return true;
+        case ConstantOp::Kind::kNumber:
+          return constant->number().get_bits() == 0;
+        default:
+          break;
+      }
     }
-    if (constant.is_number_zero()) {
-      return true;
-    }
-    // If we want to support HeapConstant nodes here, we must find a way
-    // to check that they're not in new-space without dereferencing the
-    // handle (which isn't safe to do concurrently).
     return false;
   }
 
   int32_t GetImmediateIntegerValue(OpIndex node) {
     DCHECK(CanBeImmediate(node));
-    auto constant = this->constant_view(node);
-    if (constant.is_int32()) return constant.int32_value();
-    DCHECK(constant.is_number_zero());
+    const ConstantOp& constant = Get(node).Cast<ConstantOp>();
+    if (constant.kind == ConstantOp::Kind::kWord32) return constant.word32();
+    if (constant.kind == ConstantOp::Kind::kSmi) {
+      return static_cast<int32_t>(constant.smi().ptr());
+    }
+    DCHECK_EQ(constant.kind, ConstantOp::Kind::kNumber);
+    DCHECK_EQ(constant.number().get_bits(), 0);
     return 0;
   }
 
@@ -410,12 +415,17 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
     if (displacement_mode == kNegativeDisplacement) {
       displacement = base::bits::WraparoundNeg32(displacement);
     }
-    if (base.valid() && this->is_constant(base)) {
-      auto constant_base = this->constant_view(base);
-      if (constant_base.is_int32()) {
-        displacement = base::bits::WraparoundAdd32(displacement,
-                                                   constant_base.int32_value());
-        base = OpIndex{};
+    if (base.valid()) {
+      if (const ConstantOp* constant = Get(base).TryCast<ConstantOp>()) {
+        if (constant->kind == ConstantOp::Kind::kWord32) {
+          displacement =
+              base::bits::WraparoundAdd32(displacement, constant->word32());
+          base = OpIndex{};
+        } else if (constant->kind == ConstantOp::Kind::kSmi) {
+          displacement = base::bits::WraparoundAdd32(
+              displacement, static_cast<int32_t>(constant->smi().ptr()));
+          base = OpIndex{};
+        }
       }
     }
     if (base.valid()) {
@@ -1936,8 +1946,8 @@ MachineType MachineTypeForNarrow(InstructionSelectorT* selector, OpIndex node,
                                  OpIndex hint_node) {
   if (selector->IsLoadOrLoadImmutable(hint_node)) {
     MachineType hint = selector->load_view(hint_node).loaded_rep();
-    if (selector->is_integer_constant(node)) {
-      int64_t constant = selector->integer_constant(node);
+    if (int64_t constant;
+        selector->MatchSignedIntegralConstant(node, &constant)) {
       if (hint == MachineType::Int8()) {
         if (constant >= std::numeric_limits<int8_t>::min() &&
             constant <= std::numeric_limits<int8_t>::max()) {
