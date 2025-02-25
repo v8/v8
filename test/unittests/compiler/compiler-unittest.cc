@@ -29,7 +29,7 @@ namespace v8 {
 using CompilerTest = TestWithContext;
 namespace internal {
 
-static Handle<Object> GetGlobalProperty(const char* name) {
+static DirectHandle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent());
   return JSReceiver::GetProperty(isolate, isolate->global_object(), name)
       .ToHandleChecked();
@@ -957,7 +957,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
       "    }"
       "  }"
       "})";
-  Handle<String> source_string =
+  IndirectHandle<String> source_string =
       isolate()
           ->factory()
           ->NewStringFromUtf8(base::CStrVector(source))
@@ -969,7 +969,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
   const int kHId = 3;
 
   // Compile the script once to warm up the compilation cache.
-  Handle<JSFunction> old_g;
+  IndirectHandle<JSFunction> old_g;
   IsCompiledScope old_g_bytecode_keepalive;
   ([&]() V8_NOINLINE {
     // Compile in a new handle scope inside a non-inlined function, so that the
@@ -1011,7 +1011,7 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
     CHECK(f->is_compiled(isolate()));
 
     // Execute f to get g's SFI (no g bytecode yet)
-    Handle<JSFunction> g = Cast<JSFunction>(
+    IndirectHandle<JSFunction> g = Cast<JSFunction>(
         Execution::Call(isolate(), f, global, {}).ToHandleChecked());
     CHECK(!g->is_compiled(isolate()));
 
@@ -1034,11 +1034,16 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
     old_g = scope.CloseAndEscape(g);
   })();
-  DirectHandle<Script> old_script(Cast<Script>(old_g->shared()->script()),
-                                  isolate());
+
+  IndirectHandle<Script> old_script(Cast<Script>(old_g->shared()->script()),
+                                    isolate());
 
   // Make sure bytecode is cleared...
   for (int i = 0; i < 3; ++i) {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate()->heap());
     InvokeMajorGC();
   }
   CHECK(!old_g->is_compiled(isolate()));
