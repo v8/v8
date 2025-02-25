@@ -584,9 +584,9 @@ DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
 DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
-DEFINE_BOOL(maglev_cons_string_elision, false,
+DEFINE_BOOL(maglev_cons_string_elision, true,
             "Native support for cons strings and their elision in maglev.")
-DEFINE_BOOL(maglev_pretenure_store_values, false,
+DEFINE_BOOL(maglev_pretenure_store_values, true,
             "Recursively pretenure values which are stored into pretenured "
             "allocation sites.")
 DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
@@ -594,8 +594,6 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_cons_string_elision)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_pretenure_store_values)
 // This might be too big of a hammer but we must prohibit moving the C++
 // trampolines while we are executing a C++ code.
 DEFINE_NEG_IMPLICATION(maglev_inline_api_calls, compact_code_space_with_stack)
