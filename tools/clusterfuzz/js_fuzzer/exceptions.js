@@ -44,6 +44,10 @@ const SKIPPED_FILES = [
 
     // Just recursively loads itself.
     'regress-8510.js',
+
+    // Contains an expected SyntaxError. From:
+    // spidermonkey/non262/Unicode/regress-352044-02-n.js
+    'regress-352044-02-n.js',
 ];
 
 const SKIPPED_DIRECTORIES = [
