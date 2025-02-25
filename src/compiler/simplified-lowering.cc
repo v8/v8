@@ -5018,7 +5018,10 @@ template <>
 void RepresentationSelector::SetOutput<RETYPE>(
     Node* node, MachineRepresentation representation, Type restriction_type) {
   NodeInfo* const info = GetInfo(node);
-  DCHECK(restriction_type.Is(info->restriction_type()));
+  Type node_static_type = NodeProperties::GetTypeOrAny(node);
+  DCHECK(Type::Intersect(restriction_type, node_static_type, zone_)
+             .Is(info->restriction_type()));
+  USE(node_static_type);
   info->set_output(representation);
 }
 
@@ -5026,8 +5029,11 @@ template <>
 void RepresentationSelector::SetOutput<LOWER>(
     Node* node, MachineRepresentation representation, Type restriction_type) {
   NodeInfo* const info = GetInfo(node);
+  Type node_static_type = NodeProperties::GetTypeOrAny(node);
   DCHECK_EQ(info->representation(), representation);
-  DCHECK(restriction_type.Is(info->restriction_type()));
+  DCHECK(Type::Intersect(restriction_type, node_static_type, zone_)
+             .Is(info->restriction_type()));
+  USE(node_static_type);
   USE(info);
 }
 

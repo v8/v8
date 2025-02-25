@@ -939,6 +939,7 @@
 
   # Needs 64-bit integer add.
   'additive-safe-int-feedback': [SKIP],
+  'regress-398879933': [SKIP],
 
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
@@ -1989,6 +1990,7 @@
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
   'additive-safe-int-feedback': [SKIP],
+  'regress-398879933': [SKIP],
   # Type assertions block the propagation of word64 truncation useinfo,
   # leading to differences in representation selection.
   'compiler/bigint-multiply-truncate': [SKIP],
@@ -2505,6 +2507,7 @@
   'turboshaft/extras-cped': [SKIP],
   # Maglev does not support additive safe ints.
   'additive-safe-int-feedback': [SKIP],
+  'regress-398879933': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
 
 ['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)) and (arch != arm)', {
