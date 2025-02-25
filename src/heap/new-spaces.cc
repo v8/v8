@@ -457,13 +457,10 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
   ResetCurrentSpace();
 }
 
-void SemiSpaceNewSpace::Grow() {
+void SemiSpaceNewSpace::Grow(size_t new_capacity) {
   heap()->safepoint()->AssertActive();
-  // Double the semispace size but only up to maximum capacity.
-  DCHECK(TotalCapacity() < MaximumCapacity());
-  size_t new_capacity = std::min(
-      MaximumCapacity(),
-      static_cast<size_t>(v8_flags.semi_space_growth_factor) * TotalCapacity());
+  DCHECK_LT(TotalCapacity(), MaximumCapacity());
+  DCHECK_LE(new_capacity, MaximumCapacity());
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -479,15 +476,12 @@ void SemiSpaceNewSpace::set_age_mark_to_top() {
   to_space_.set_age_mark(allocation_top());
 }
 
-void SemiSpaceNewSpace::Shrink() {
-  size_t new_capacity = std::max(InitialTotalCapacity(), 2 * Size());
-  size_t rounded_new_capacity =
-      ::RoundUp(new_capacity, PageMetadata::kPageSize);
-  if (rounded_new_capacity < TotalCapacity()) {
-    to_space_.ShrinkTo(rounded_new_capacity);
+void SemiSpaceNewSpace::Shrink(size_t new_capacity) {
+  if (new_capacity < TotalCapacity()) {
+    to_space_.ShrinkTo(new_capacity);
     // Only shrink from-space if we managed to shrink to-space.
     if (from_space_.IsCommitted()) from_space_.Reset();
-    from_space_.ShrinkTo(rounded_new_capacity);
+    from_space_.ShrinkTo(new_capacity);
   }
   DCHECK_SEMISPACE_ALLOCATION_TOP(allocation_top(), to_space_);
   if (!from_space_.IsCommitted()) return;
@@ -911,15 +905,11 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
   return page;
 }
 
-void PagedSpaceForNewSpace::Grow() {
+void PagedSpaceForNewSpace::Grow(size_t new_capacity) {
   heap()->safepoint()->AssertActive();
-  // Double the space size but only up to maximum capacity.
-  DCHECK(TotalCapacity() < MaximumCapacity());
-  target_capacity_ =
-      std::min(MaximumCapacity(),
-               RoundUp(static_cast<size_t>(v8_flags.semi_space_growth_factor) *
-                           TotalCapacity(),
-                       PageMetadata::kPageSize));
+  DCHECK_LT(TotalCapacity(), MaximumCapacity());
+  DCHECK_LE(new_capacity, MaximumCapacity());
+  target_capacity_ = new_capacity;
 }
 
 bool PagedSpaceForNewSpace::StartShrinking() {

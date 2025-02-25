@@ -961,17 +961,7 @@ void ScavengerCollector::CollectGarbage() {
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 
-  const auto resize_mode = heap_->ShouldResizeNewSpace();
-  switch (resize_mode) {
-    case Heap::ResizeNewSpaceMode::kShrink:
-      heap_->ReduceNewSpaceSize();
-      break;
-    case Heap::ResizeNewSpaceMode::kGrow:
-      heap_->ExpandNewSpaceSize();
-      break;
-    case Heap::ResizeNewSpaceMode::kNone:
-      break;
-  }
+  heap_->ResizeNewSpace();
 }
 
 void ScavengerCollector::SweepArrayBufferExtensions() {

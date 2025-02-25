@@ -384,18 +384,15 @@ bool InCorrectGeneration(Tagged<HeapObject> object) {
 
 void GrowNewSpace(Heap* heap) {
   IsolateSafepointScope scope(heap);
-  NewSpace* new_space = heap->new_space();
-  if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
-    new_space->Grow();
-  }
-  CHECK(new_space->EnsureCurrentCapacity());
+  heap->ExpandNewSpaceSizeForTesting();
+  CHECK(heap->new_space()->EnsureCurrentCapacity());
 }
 
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
   IsolateSafepointScope scope(heap);
   NewSpace* new_space = heap->new_space();
   while (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
-    new_space->Grow();
+    heap->ExpandNewSpaceSizeForTesting();
   }
   CHECK(new_space->EnsureCurrentCapacity());
 }

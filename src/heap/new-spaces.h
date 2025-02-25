@@ -272,7 +272,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual size_t AllocatedSinceLastGC() const = 0;
 
   // Grow the capacity of the space.
-  virtual void Grow() = 0;
+  virtual void Grow(size_t new_capacity) = 0;
 
   virtual void MakeIterable() = 0;
 
@@ -324,10 +324,10 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.
-  void Grow() final;
+  void Grow(size_t new_capacity) final;
 
   // Shrink the capacity of the semispaces.
-  void Shrink();
+  void Shrink(size_t new_capacity);
 
   // Return the allocated bytes in the active semispace.
   size_t Size() const final;
@@ -561,7 +561,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void TearDown() { PagedSpaceBase::TearDown(); }
 
   // Grow the capacity of the space.
-  void Grow();
+  void Grow(size_t new_capacity);
 
   // Shrink the capacity of the space.
   bool StartShrinking();
@@ -657,7 +657,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   // Grow the capacity of the space.
-  void Grow() final { paged_space_.Grow(); }
+  void Grow(size_t new_capacity) final { paged_space_.Grow(new_capacity); }
 
   // Shrink the capacity of the space.
   bool StartShrinking() { return paged_space_.StartShrinking(); }

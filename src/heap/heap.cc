@@ -4,6 +4,7 @@
 
 #include "src/heap/heap.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cinttypes>
 #include <iomanip>
@@ -3834,17 +3835,52 @@ Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
   return should_grow ? ResizeNewSpaceMode::kGrow : ResizeNewSpaceMode::kShrink;
 }
 
+void Heap::ResizeNewSpace() {
+  const ResizeNewSpaceMode mode = ShouldResizeNewSpace();
+  ResizeNewSpaceUsingMode(mode);
+}
+
+void Heap::ResizeNewSpaceUsingMode(ResizeNewSpaceMode mode) {
+  switch (mode) {
+    case ResizeNewSpaceMode::kShrink:
+      ReduceNewSpaceSize();
+      break;
+    case ResizeNewSpaceMode::kGrow:
+      ExpandNewSpaceSize();
+      break;
+    case ResizeNewSpaceMode::kNone:
+      break;
+  }
+}
+
+void Heap::ReduceNewSpaceSizeForTesting() { ReduceNewSpaceSize(); }
+void Heap::ExpandNewSpaceSizeForTesting() { ExpandNewSpaceSize(); }
+
 void Heap::ExpandNewSpaceSize() {
   // Grow the size of new space if there is room to grow, and enough data
   // has survived scavenge since the last expansion.
-  new_space_->Grow();
-  new_lo_space()->SetCapacity(new_space()->TotalCapacity());
+  const size_t suggested_capacity =
+      static_cast<size_t>(v8_flags.semi_space_growth_factor) *
+      new_space_->TotalCapacity();
+  const size_t chosen_capacity =
+      std::min(suggested_capacity, new_space_->MaximumCapacity());
+  DCHECK(IsAligned(chosen_capacity, PageMetadata::kPageSize));
+
+  if (chosen_capacity > new_space_->TotalCapacity()) {
+    new_space_->Grow(chosen_capacity);
+    new_lo_space()->SetCapacity(new_space()->TotalCapacity());
+  }
 }
 
 void Heap::ReduceNewSpaceSize() {
   // MinorMS shrinks new space as part of sweeping.
   if (!v8_flags.minor_ms) {
-    SemiSpaceNewSpace::From(new_space())->Shrink();
+    SemiSpaceNewSpace* semi_new_space = SemiSpaceNewSpace::From(new_space());
+    size_t new_capacity = std::max(semi_new_space->InitialTotalCapacity(),
+                                   2 * semi_new_space->Size());
+    size_t rounded_new_capacity =
+        ::RoundUp(new_capacity, PageMetadata::kPageSize);
+    semi_new_space->Shrink(rounded_new_capacity);
   } else {
     paged_new_space()->FinishShrinking();
   }

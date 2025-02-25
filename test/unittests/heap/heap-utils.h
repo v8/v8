@@ -109,9 +109,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   void GrowNewSpace() {
     IsolateSafepointScope scope(heap());
     NewSpace* new_space = heap()->new_space();
-    if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
-      new_space->Grow();
-    }
+    heap()->ExpandNewSpaceSizeForTesting();
     CHECK(new_space->EnsureCurrentCapacity());
   }
 

@@ -236,7 +236,7 @@ TEST_F(HeapTest, HeapLayout) {
 namespace {
 void ShrinkNewSpace(NewSpace* new_space) {
   if (!v8_flags.minor_ms) {
-    SemiSpaceNewSpace::From(new_space)->Shrink();
+    new_space->heap()->ReduceNewSpaceSizeForTesting();
     return;
   }
   // MinorMS shrinks the space as part of sweeping. Here we fake a GC cycle, in
@@ -457,7 +457,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
-    new_space->Grow();
+    heap->ExpandNewSpaceSizeForTesting();
     CHECK(new_space->EnsureCurrentCapacity());
   }
   InvokeMinorGC();

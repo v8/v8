@@ -571,6 +571,9 @@ class Heap final {
       ArrayBufferExtension* extension, int64_t delta);
   void DetachArrayBufferExtension(ArrayBufferExtension* extension);
 
+  V8_EXPORT_PRIVATE void ExpandNewSpaceSizeForTesting();
+  V8_EXPORT_PRIVATE void ReduceNewSpaceSizeForTesting();
+
   IsolateSafepoint* safepoint() { return safepoint_.get(); }
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs() const;
@@ -1794,6 +1797,9 @@ class Heap final {
 
   enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
   ResizeNewSpaceMode ShouldResizeNewSpace();
+
+  void ResizeNewSpace();
+  void ResizeNewSpaceUsingMode(ResizeNewSpaceMode mode);
   void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 

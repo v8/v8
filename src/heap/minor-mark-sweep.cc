@@ -398,16 +398,7 @@ void MinorMarkSweepCollector::Finish() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH_ENSURE_CAPACITY);
-    switch (resize_new_space_) {
-      case ResizeNewSpaceMode::kShrink:
-        heap_->ReduceNewSpaceSize();
-        break;
-      case ResizeNewSpaceMode::kGrow:
-        heap_->ExpandNewSpaceSize();
-        break;
-      case ResizeNewSpaceMode::kNone:
-        break;
-    }
+    heap_->ResizeNewSpaceUsingMode(resize_new_space_);
     resize_new_space_ = ResizeNewSpaceMode::kNone;
 
     if (!v8_flags.sticky_mark_bits &&
