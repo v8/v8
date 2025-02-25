@@ -398,8 +398,7 @@ void MinorMarkSweepCollector::Finish() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH_ENSURE_CAPACITY);
-    heap_->ResizeNewSpaceUsingMode(resize_new_space_);
-    resize_new_space_ = ResizeNewSpaceMode::kNone;
+    heap_->ResizeNewSpace();
 
     if (!v8_flags.sticky_mark_bits &&
         !heap_->new_space()->EnsureCurrentCapacity()) {
@@ -909,11 +908,7 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
   int will_be_swept = 0;
   bool has_promoted_pages = false;
 
-  DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
-  resize_new_space_ = heap_->ShouldResizeNewSpace();
-  if (resize_new_space_ == Heap::ResizeNewSpaceMode::kShrink) {
-    paged_space->StartShrinking();
-  }
+  heap_->StartResizeNewSpace();
 
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     PageMetadata* p = *(it++);
@@ -963,8 +958,6 @@ void MinorMarkSweepCollector::StartSweepNewSpaceWithStickyBits() {
   paged_space->ClearAllocatorState();
 
   int will_be_swept = 0;
-
-  DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
 
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     PageMetadata* p = *(it++);

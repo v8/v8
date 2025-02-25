@@ -879,15 +879,7 @@ void MarkCompactCollector::Finish() {
     if (!new_space->EnsureCurrentCapacity()) {
       heap_->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
     }
-    // With Minor MS we have already set the mode at the beginning of sweeping
-    // the young generation.
-    if (!v8_flags.minor_ms) {
-      DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
-      heap_->ResizeNewSpace();
-    } else {
-      heap_->ResizeNewSpaceUsingMode(resize_new_space_);
-      resize_new_space_ = ResizeNewSpaceMode::kNone;
-    }
+    heap_->ResizeNewSpace();
   }
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_FINISH);
@@ -5918,11 +5910,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
   int will_be_swept = 0;
 
-  DCHECK_EQ(Heap::ResizeNewSpaceMode::kNone, resize_new_space_);
-  resize_new_space_ = heap_->ShouldResizeNewSpace();
-  if (resize_new_space_ == Heap::ResizeNewSpaceMode::kShrink) {
-    paged_space->StartShrinking();
-  }
+  heap_->StartResizeNewSpace();
 
   DCHECK(empty_new_space_pages_to_be_swept_.empty());
   for (auto it = paged_space->begin(); it != paged_space->end();) {

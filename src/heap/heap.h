@@ -1798,8 +1798,8 @@ class Heap final {
   enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
   ResizeNewSpaceMode ShouldResizeNewSpace();
 
+  void StartResizeNewSpace();
   void ResizeNewSpace();
-  void ResizeNewSpaceUsingMode(ResizeNewSpaceMode mode);
   void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 

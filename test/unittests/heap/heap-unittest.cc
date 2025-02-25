@@ -251,7 +251,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
                      GarbageCollectionReason::kTesting, "heap unittest",
                      GCTracer::MarkingType::kAtomic);
   tracer->StartAtomicPause();
-  paged_new_space->StartShrinking();
+  paged_new_space->StartShrinking(paged_new_space->MinimumCapacity());
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {

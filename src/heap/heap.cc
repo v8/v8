@@ -1557,6 +1557,7 @@ void Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   CHECK(isolate_->IsOnCentralStack());
+  DCHECK_EQ(resize_new_space_mode_, ResizeNewSpaceMode::kNone);
 
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
@@ -3835,12 +3836,33 @@ Heap::ResizeNewSpaceMode Heap::ShouldResizeNewSpace() {
   return should_grow ? ResizeNewSpaceMode::kGrow : ResizeNewSpaceMode::kShrink;
 }
 
-void Heap::ResizeNewSpace() {
-  const ResizeNewSpaceMode mode = ShouldResizeNewSpace();
-  ResizeNewSpaceUsingMode(mode);
+namespace {
+size_t ComputeReducedNewSpaceSize(NewSpace* new_space) {
+  size_t new_capacity =
+      std::max(new_space->MinimumCapacity(), 2 * new_space->Size());
+  size_t rounded_new_capacity =
+      ::RoundUp(new_capacity, PageMetadata::kPageSize);
+  return rounded_new_capacity;
+}
+}  // anonymous namespace
+
+void Heap::StartResizeNewSpace() {
+  DCHECK_EQ(ResizeNewSpaceMode::kNone, resize_new_space_mode_);
+  DCHECK(v8_flags.minor_ms);
+  resize_new_space_mode_ = ShouldResizeNewSpace();
+  if (resize_new_space_mode_ == ResizeNewSpaceMode::kShrink) {
+    size_t reduced_capacity = ComputeReducedNewSpaceSize(new_space());
+    paged_new_space()->StartShrinking(reduced_capacity);
+  }
 }
 
-void Heap::ResizeNewSpaceUsingMode(ResizeNewSpaceMode mode) {
+void Heap::ResizeNewSpace() {
+  DCHECK_IMPLIES(!v8_flags.minor_ms,
+                 resize_new_space_mode_ == ResizeNewSpaceMode::kNone);
+  const ResizeNewSpaceMode mode =
+      v8_flags.minor_ms ? resize_new_space_mode_ : ShouldResizeNewSpace();
+  resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
+
   switch (mode) {
     case ResizeNewSpaceMode::kShrink:
       ReduceNewSpaceSize();
@@ -3873,15 +3895,11 @@ void Heap::ExpandNewSpaceSize() {
 }
 
 void Heap::ReduceNewSpaceSize() {
-  // MinorMS shrinks new space as part of sweeping.
   if (!v8_flags.minor_ms) {
-    SemiSpaceNewSpace* semi_new_space = SemiSpaceNewSpace::From(new_space());
-    size_t new_capacity = std::max(semi_new_space->InitialTotalCapacity(),
-                                   2 * semi_new_space->Size());
-    size_t rounded_new_capacity =
-        ::RoundUp(new_capacity, PageMetadata::kPageSize);
-    semi_new_space->Shrink(rounded_new_capacity);
+    const size_t reduced_capacity = ComputeReducedNewSpaceSize(new_space());
+    semi_space_new_space()->Shrink(reduced_capacity);
   } else {
+    // MinorMS starts shrinking new space as part of sweeping.
     paged_new_space()->FinishShrinking();
   }
   new_lo_space_->SetCapacity(new_space()->TotalCapacity());

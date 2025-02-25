@@ -912,10 +912,8 @@ void PagedSpaceForNewSpace::Grow(size_t new_capacity) {
   target_capacity_ = new_capacity;
 }
 
-bool PagedSpaceForNewSpace::StartShrinking() {
+bool PagedSpaceForNewSpace::StartShrinking(size_t new_target_capacity) {
   DCHECK(heap()->tracer()->IsInAtomicPause());
-  size_t new_target_capacity =
-      RoundUp(std::max(initial_capacity_, 2 * Size()), PageMetadata::kPageSize);
   if (new_target_capacity > target_capacity_) return false;
   target_capacity_ = new_target_capacity;
   return true;

@@ -268,6 +268,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;
+  virtual size_t MinimumCapacity() const = 0;
   virtual size_t MaximumCapacity() const = 0;
   virtual size_t AllocatedSinceLastGC() const = 0;
 
@@ -392,6 +393,12 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   size_t MaximumCapacity() const final {
     DCHECK(to_space_.maximum_capacity() == from_space_.maximum_capacity());
     return to_space_.maximum_capacity();
+  }
+
+  // Returns the minimum capacity of a semispace.
+  size_t MinimumCapacity() const final {
+    DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
+    return to_space_.minimum_capacity();
   }
 
   // Returns the initial capacity of a semispace.
@@ -564,10 +571,13 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Grow(size_t new_capacity);
 
   // Shrink the capacity of the space.
-  bool StartShrinking();
+  bool StartShrinking(size_t new_target_capacity);
   void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const;
+
+  // Return the minimum capacity of the space.
+  size_t MinimumCapacity() const { return initial_capacity_; }
 
   // Return the maximum capacity of the space.
   size_t MaximumCapacity() const { return max_capacity_; }
@@ -660,7 +670,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   void Grow(size_t new_capacity) final { paged_space_.Grow(new_capacity); }
 
   // Shrink the capacity of the space.
-  bool StartShrinking() { return paged_space_.StartShrinking(); }
+  bool StartShrinking(size_t new_target_capacity) {
+    return paged_space_.StartShrinking(new_target_capacity);
+  }
   void FinishShrinking() { paged_space_.FinishShrinking(); }
 
   // Return the allocated bytes in the active space.
@@ -698,6 +710,11 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   size_t AllocatedSinceLastGC() const final {
     return paged_space_.AllocatedSinceLastGC();
+  }
+
+  // Return the maximum capacity of the space.
+  size_t MinimumCapacity() const final {
+    return paged_space_.MinimumCapacity();
   }
 
   // Return the maximum capacity of the space.

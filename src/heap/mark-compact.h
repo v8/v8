@@ -453,8 +453,6 @@ class MarkCompactCollector final {
   //   around.
   unsigned epoch_ = 0;
 
-  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
-
   // Bytecode flushing is disabled when the code coverage mode is changed. Since
   // that can happen while a GC is happening and we need the
   // code_flush_mode_ to remain the same through out a GC, we record this at
