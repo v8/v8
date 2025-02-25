@@ -9,10 +9,16 @@ var document = {
 
 // Original: spidermonkey/shell.js
 console.log('/shell.js');
-if (!ok) throw new Error(`*****tion failed: ${f} did not throw as expected`);
+if (!ok) ;
 
 // Original: spidermonkey/test/shell.js
 console.log('/test/shell.js');
+function testFun(test) {
+  if (test) ;
+}
+testFun(() => {
+  ;
+});
 
 // Original: spidermonkey/load1.js
 console.log('load1.js');
@@ -24,4 +30,9 @@ console.log('load2.js');
 console.log('load.js');
 if (!ok) throw new Error(`*****tion failed: Some text`);
 print("*****tion failed: Some text");
+try {
+  if (test) {
+    throw Exception();
+  }
+} catch (e) {}
 check()`\01`;

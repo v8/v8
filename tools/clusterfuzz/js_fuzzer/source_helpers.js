@@ -425,6 +425,19 @@ function removeComments(ast) {
 }
 
 /**
+ * Replace all throw statements with no-ops to reduce bailouts from
+ * dependencies.
+ */
+function neuralizeThrows(ast) {
+  babelTraverse(ast, {
+    ThrowStatement(path) {
+      path.replaceWith(babelTypes.emptyStatement());
+      path.skip();
+    }
+  });
+}
+
+/**
  * Return true if there's any code incompatible with strict mode.
  */
 function hasSloppyCode(ast) {
@@ -488,6 +501,10 @@ function loadDependency(corpus, relPath) {
   let dependency = dependencyCache.get(absPath);
   if (!dependency) {
     const source = loadSource(corpus, relPath);
+
+    // Reduce bailouts from dependencies by removing throws.
+    neuralizeThrows(source.ast);
+
     dependency = new CachedSource(source);
     dependencyCache.set(absPath, dependency);
   }
