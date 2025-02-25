@@ -244,31 +244,25 @@ RUNTIME_FUNCTION(Runtime_InitializeDisposableStack) {
   return *disposable_stack;
 }
 
-Tagged<Object> AddToDisposableStack(Isolate* isolate,
-                                    DirectHandle<JSDisposableStackBase> stack,
-                                    DirectHandle<JSAny> value,
-                                    DisposeMethodCallType type,
-                                    DisposeMethodHint hint) {
-  // a. If V is either null or undefined and hint is sync-dispose, return
-  // unused.
-  if (IsNullOrUndefined(*value) && hint == DisposeMethodHint::kSyncDispose) {
-    return *value;
-  } else if (IsNullOrUndefined(*value) &&
-             hint == DisposeMethodHint::kAsyncDispose) {
-    value = isolate->factory()->undefined_value();
-  }
-
+namespace {
+Maybe<bool> AddToDisposableStack(Isolate* isolate,
+                                 DirectHandle<JSDisposableStackBase> stack,
+                                 DirectHandle<JSAny> value,
+                                 DisposeMethodCallType type,
+                                 DisposeMethodHint hint) {
   DirectHandle<Object> method;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
-                                                           hint));
+                                                           hint),
+      Nothing<bool>());
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.
   JSDisposableStackBase::Add(isolate, stack, value, method, type, hint);
-  return *value;
+  return Just(true);
 }
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   HandleScope scope(isolate);
@@ -277,11 +271,15 @@ RUNTIME_FUNCTION(Runtime_AddDisposableValue) {
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
   DirectHandle<JSAny> value = args.at<JSAny>(1);
 
-  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
-  // hint, [[DisposeMethod]]: method }.
-  return AddToDisposableStack(isolate, stack, value,
-                              DisposeMethodCallType::kValueIsReceiver,
-                              DisposeMethodHint::kSyncDispose);
+  // a. If V is either null or undefined and hint is sync-dispose, return
+  // unused.
+  if (!IsNullOrUndefined(*value)) {
+    MAYBE_RETURN(AddToDisposableStack(isolate, stack, value,
+                                      DisposeMethodCallType::kValueIsReceiver,
+                                      DisposeMethodHint::kSyncDispose),
+                 ReadOnlyRoots(isolate).exception());
+  }
+  return *value;
 }
 
 RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
@@ -291,11 +289,19 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
   DirectHandle<JSDisposableStackBase> stack = args.at<JSDisposableStackBase>(0);
   DirectHandle<JSAny> value = args.at<JSAny>(1);
 
-  // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
-  // hint, [[DisposeMethod]]: method }.
-  return AddToDisposableStack(isolate, stack, value,
-                              DisposeMethodCallType::kValueIsReceiver,
-                              DisposeMethodHint::kAsyncDispose);
+  // CreateDisposableResource
+  // 1. If method is not present, then
+  //   a. If V is either null or undefined, then
+  //     i. Set V to undefined.
+  //     ii. Set method to undefined.
+  MAYBE_RETURN(AddToDisposableStack(isolate, stack,
+                                    IsNullOrUndefined(*value)
+                                        ? isolate->factory()->undefined_value()
+                                        : value,
+                                    DisposeMethodCallType::kValueIsReceiver,
+                                    DisposeMethodHint::kAsyncDispose),
+               ReadOnlyRoots(isolate).exception());
+  return *value;
 }
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
