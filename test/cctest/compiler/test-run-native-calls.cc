@@ -84,14 +84,6 @@ class RegisterPairs : public Pairs {
               GetRegConfig()->allocatable_general_codes()) {}
 };
 
-// Pairs of float registers.
-class Float32RegisterPairs : public Pairs {
- public:
-  Float32RegisterPairs()
-      : Pairs(100, GetRegConfig()->num_allocatable_float_registers(),
-              GetRegConfig()->allocatable_float_codes()) {}
-};
-
 
 // Pairs of double registers.
 class Float64RegisterPairs : public Pairs {
@@ -856,7 +848,12 @@ TEST(Float32Select_registers) {
   int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
-  Float32RegisterPairs pairs;
+  // Although we want to create 32-bit float register parameters for this test,
+  // wasm::LinkageAllocator (used by RegisterConfig below) expects an array of
+  // double registers. On arm, it uses this array to allocate a D register
+  // first, and remaps it to an (even-numbered) S register if a Float32 was
+  // requested (see wasm::LinkageAllocator::NextFpReg).
+  Float64RegisterPairs pairs;
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   while (pairs.More()) {

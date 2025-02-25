@@ -94,16 +94,13 @@ UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
   DCHECK(pos_.IsValid());
 }
 
-bool UsePosition::HasHint(const RegisterConfiguration* config,
-                          RegisterKind mode) const {
+bool UsePosition::HasHint() const {
   int hint_register;
-  return HintRegister(config, mode, &hint_register);
+  return HintRegister(&hint_register);
 }
 
-bool UsePosition::HintRegister(const RegisterConfiguration* config,
-                               RegisterKind mode, int* register_code) const {
+bool UsePosition::HintRegister(int* register_code) const {
   if (hint_ == nullptr) return false;
-  int code = *register_code;
   switch (HintTypeField::decode(flags_)) {
     case UsePositionHintType::kNone:
     case UsePositionHintType::kUnresolved:
@@ -112,37 +109,25 @@ bool UsePosition::HintRegister(const RegisterConfiguration* config,
       UsePosition* use_pos = reinterpret_cast<UsePosition*>(hint_);
       int assigned_register = AssignedRegisterField::decode(use_pos->flags_);
       if (assigned_register == kUnassignedRegister) return false;
-      code = assigned_register;
-      break;
+      *register_code = assigned_register;
+      return true;
     }
     case UsePositionHintType::kOperand: {
       InstructionOperand* operand =
           reinterpret_cast<InstructionOperand*>(hint_);
-      code = LocationOperand::cast(operand)->register_code();
-      break;
+      *register_code = LocationOperand::cast(operand)->register_code();
+      return true;
     }
     case UsePositionHintType::kPhi: {
       RegisterAllocationData::PhiMapValue* phi =
           reinterpret_cast<RegisterAllocationData::PhiMapValue*>(hint_);
       int assigned_register = phi->assigned_register();
       if (assigned_register == kUnassignedRegister) return false;
-      code = assigned_register;
-      break;
+      *register_code = assigned_register;
+      return true;
     }
   }
-  // This verification is needed at least on ia32, where xmm0 can be used as a
-  // fixed register but is not allocatable. Conservatively check this on all
-  // platforms and for all register kinds.
-  if ((mode == RegisterKind::kGeneral &&
-       config->IsAllocatableGeneralCode(code)) ||
-      (mode == RegisterKind::kDouble &&
-       config->IsAllocatableDoubleCode(code)) ||
-      (mode == RegisterKind::kSimd128 &&
-       config->IsAllocatableSimd128Code(code))) {
-    *register_code = code;
-    return true;
-  }
-  return false;
+  UNREACHABLE();
 }
 
 UsePositionHintType UsePosition::HintTypeForOperand(
@@ -299,8 +284,7 @@ RegisterKind LiveRange::kind() const {
   }
 }
 
-bool LiveRange::RegisterFromFirstHint(const RegisterConfiguration* config,
-                                      RegisterKind mode, int* register_index) {
+bool LiveRange::RegisterFromFirstHint(int* register_index) {
   DCHECK_LE(current_hint_position_index_, positions_span_.size());
   if (current_hint_position_index_ == positions_span_.size()) {
     return false;
@@ -312,7 +296,7 @@ bool LiveRange::RegisterFromFirstHint(const RegisterConfiguration* config,
   bool needs_revisit = false;
   UsePosition** pos_it = positions_span_.begin() + current_hint_position_index_;
   for (; pos_it != positions_span_.end(); ++pos_it) {
-    if ((*pos_it)->HintRegister(config, mode, register_index)) {
+    if ((*pos_it)->HintRegister(register_index)) {
       break;
     }
     // Phi and use position hints can be assigned during allocation which
@@ -326,9 +310,9 @@ bool LiveRange::RegisterFromFirstHint(const RegisterConfiguration* config,
         std::distance(positions_span_.begin(), pos_it);
   }
 #ifdef DEBUG
-  UsePosition** pos_check_it = std::find_if(
-      positions_span_.begin(), positions_span_.end(),
-      [config, mode](UsePosition* pos) { return pos->HasHint(config, mode); });
+  UsePosition** pos_check_it =
+      std::find_if(positions_span_.begin(), positions_span_.end(),
+                   [](UsePosition* pos) { return pos->HasHint(); });
   CHECK_EQ(pos_it, pos_check_it);
 #endif
   return pos_it != positions_span_.end();
@@ -1520,6 +1504,19 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
   } else if (operand->HasFixedFPRegisterPolicy()) {
     DCHECK(IsFloatingPoint(rep));
     DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, virtual_register);
+    if (rep == MachineRepresentation::kFloat16 ||
+        rep == MachineRepresentation::kFloat32) {
+      DCHECK(data()->config()->IsAllocatableFloatCode(
+          operand->fixed_register_index()));
+    } else if (rep == MachineRepresentation::kFloat64) {
+      DCHECK(data()->config()->IsAllocatableDoubleCode(
+          operand->fixed_register_index()));
+    } else if (rep == MachineRepresentation::kSimd128) {
+      DCHECK(data()->config()->IsAllocatableSimd128Code(
+          operand->fixed_register_index()));
+    } else {
+      UNREACHABLE();
+    }
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
   } else {
@@ -4112,8 +4109,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
     LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
-      current->RegisterFromFirstHint(data()->config(), mode(),
-                                     &hint_register) ||
+      current->RegisterFromFirstHint(&hint_register) ||
       current->RegisterFromBundle(&hint_register)) {
     TRACE(
         "Found reg hint %s (free until [%d) for live range %d:%d (end %d[).\n",
@@ -4185,7 +4181,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
-      current->RegisterFromFirstHint(data()->config(), mode(), &hint_reg) ||
+      current->RegisterFromFirstHint(&hint_reg) ||
       current->RegisterFromBundle(&hint_reg);
 
   int reg =
@@ -4332,7 +4328,7 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   // Compute register hint if it exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
-      register_use->HintRegister(data()->config(), mode(), &hint_reg) ||
+      register_use->HintRegister(&hint_reg) ||
       current->RegisterFromBundle(&hint_reg);
   int reg = PickRegisterThatIsAvailableLongest(current, hint_reg, use_pos);
 

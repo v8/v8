@@ -41,13 +41,13 @@ namespace internal {
 #define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm0)                               \
   V(xmm1)                               \
   V(xmm2)                               \
   V(xmm3)                               \
   V(xmm4)                               \
   V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)
+  V(xmm6)
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -154,7 +154,8 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
 
-constexpr DoubleRegister kFPReturnRegister0 = xmm1;  // xmm0 isn't allocatable.
+constexpr DoubleRegister kFPReturnRegister0 = xmm0;
+constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 }  // namespace internal
 }  // namespace v8
