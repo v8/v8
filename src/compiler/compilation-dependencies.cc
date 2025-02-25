@@ -1276,6 +1276,26 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   return PropertyConstness::kConst;
 }
 
+CompilationDependency const*
+CompilationDependencies::FieldConstnessDependencyOffTheRecord(
+    MapRef map, MapRef owner, InternalIndex descriptor) {
+  DCHECK_EQ(map.GetPropertyDetails(broker_, descriptor).constness(),
+            PropertyConstness::kConst);
+
+  // If the map can have fast elements transitions, then the field can be only
+  // considered constant if the map does not transition.
+  if (Map::CanHaveFastTransitionableElementsKind(map.instance_type())) {
+    // If the map can already transition away, let us report the field as
+    // mutable.
+    if (!map.is_stable()) {
+      return {};
+    }
+    DependOnStableMap(map);
+  }
+
+  return zone_->New<FieldConstnessDependency>(map, owner, descriptor);
+}
+
 void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
