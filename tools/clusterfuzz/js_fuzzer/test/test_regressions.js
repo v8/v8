@@ -397,6 +397,41 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/large_loops/expected.js', mutated);
   });
+
+  // TODO(https://crbug.com/389069288): This still needs fixing, though it's
+  // probably rare that usage of 'arguments' and assigning to 'arguments'
+  // happen in the same test case. Due to the assignment, all occurences
+  // are normalized. Such an assignment is not allowed in strict mode and
+  // causes a syntax error in this case. We'd need to fix this in a way that
+  // unnormalized argument assignment is not mixed with strict-mode cases.
+  //
+  // It's analogue with eval and undefined, though the strict-mode rules are
+  // asymmetric:
+  //
+  // Not allowed in strict mode:
+  // let eval = 0;
+  // let arguments = 0;
+  // arguments = 0;
+  // undefined = 0;
+  // eval = 0
+  //
+  // Allowed in strict mode:
+  // let undefined = 0;
+  it('does not normalize arguments', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Try-catch is not helpful for reading the test output.
+    sandbox.stub(
+        tryCatch.AddTryCatchMutator.prototype, "mutate").returns(undefined);
+
+    const source = helpers.loadTestData('regress/arguments/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/arguments/expected.js', mutated);
+  });
 });
 
 describe('DB tests', () => {
