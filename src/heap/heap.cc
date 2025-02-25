@@ -1366,11 +1366,16 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   isolate()->ClearSerializerData();
   isolate()->compilation_cache()->Clear();
 
-  const GCFlags gc_flags =
-      GCFlag::kReduceMemoryFootprint |
-      (gc_reason == GarbageCollectionReason::kLowMemoryNotification
-           ? GCFlag::kForced
-           : GCFlag::kNoFlags);
+  GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
+
+  if (gc_reason == GarbageCollectionReason::kLastResort) {
+    gc_flags |= GCFlag::kLastResort;
+  }
+
+  if (gc_reason == GarbageCollectionReason::kLowMemoryNotification) {
+    gc_flags |= GCFlag::kForced;
+  }
+
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
     const size_t roots_before = num_roots();
     current_gc_flags_ = gc_flags;

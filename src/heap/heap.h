@@ -185,6 +185,7 @@ enum class GCFlag : uint8_t {
   // GCs that are forced, either through testing configurations (requiring
   // --expose-gc) or through DevTools (using LowMemoryNotification).
   kForced = 1 << 1,
+  kLastResort = 1 << 2,
 };
 
 using GCFlags = base::Flags<GCFlag, uint8_t>;
@@ -1614,6 +1615,8 @@ class Heap final {
   bool ShouldReduceMemory() const {
     return current_gc_flags_ & GCFlag::kReduceMemoryFootprint;
   }
+
+  bool IsLastResortGC() { return current_gc_flags_ & GCFlag::kLastResort; }
 
   MarkingState* marking_state() { return &marking_state_; }
 

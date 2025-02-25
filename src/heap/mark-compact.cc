@@ -388,7 +388,13 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
     // doesn't do anything if either one of them isn't enabled.
     DCHECK(v8_flags.fuzzing || v8_flags.flush_baseline_code ||
            v8_flags.flush_bytecode);
-    code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
+    code_flush_mode.Add(CodeFlushMode::kForceFlush);
+  }
+
+  if (isolate->heap()->IsLastResortGC() &&
+      (v8_flags.flush_code_based_on_time ||
+       v8_flags.flush_code_based_on_tab_visibility)) {
+    code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
 
   return code_flush_mode;

@@ -462,7 +462,9 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
 template <typename ConcreteVisitor>
 bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushCode(
     Tagged<SharedFunctionInfo> sfi) const {
-  return IsStressFlushingEnabled(code_flush_mode_) || IsOld(sfi);
+  // This method is used both for flushing bytecode and baseline code.
+  // During last resort GCs and stress testing we consider all code old.
+  return IsOld(sfi) || V8_UNLIKELY(IsForceFlushingEnabled(code_flush_mode_));
 }
 
 template <typename ConcreteVisitor>

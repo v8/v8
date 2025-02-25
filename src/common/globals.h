@@ -1596,7 +1596,7 @@ enum class PageSize { kRegular, kLarge };
 enum class CodeFlushMode {
   kFlushBytecode,
   kFlushBaselineCode,
-  kStressFlushCode,
+  kForceFlush,
 };
 
 enum class ExternalBackingStoreType {
@@ -1618,8 +1618,8 @@ bool inline IsByteCodeFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
   return mode.contains(CodeFlushMode::kFlushBytecode);
 }
 
-bool inline IsStressFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
-  return mode.contains(CodeFlushMode::kStressFlushCode);
+bool inline IsForceFlushingEnabled(base::EnumSet<CodeFlushMode> mode) {
+  return mode.contains(CodeFlushMode::kForceFlush);
 }
 
 bool inline IsFlushingDisabled(base::EnumSet<CodeFlushMode> mode) {
