@@ -54,8 +54,6 @@ constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
 
 class StackMemory {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kWasmStackMemoryTag;
-
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());
   }

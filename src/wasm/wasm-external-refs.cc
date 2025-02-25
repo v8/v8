@@ -994,9 +994,7 @@ void return_switch(Isolate* isolate, Address raw_continuation) {
 
   Tagged<WasmContinuationObject> continuation =
       Cast<WasmContinuationObject>(Tagged<Object>{raw_continuation});
-  wasm::StackMemory* stack =
-      reinterpret_cast<StackMemory*>(continuation->stack());
-  isolate->RetireWasmStack(stack);
+  isolate->RetireWasmStack(continuation);
   isolate->SyncStackLimit();
 }
 

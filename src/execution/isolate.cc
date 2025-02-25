@@ -2328,9 +2328,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       } else {
         // We reached the base of the wasm stack. Follow the chain of
         // continuations to find the parent stack and reset the iterator.
-        wasm::StackMemory* stack =
-            reinterpret_cast<wasm::StackMemory*>(iter.continuation()->stack());
-        RetireWasmStack(stack);
+        RetireWasmStack(iter.continuation());
         iter.Advance();
         wasm::StackMemory* parent =
             reinterpret_cast<wasm::StackMemory*>(iter.continuation()->stack());
@@ -3860,7 +3858,9 @@ void Isolate::UpdateCentralStackInfo() {
   }
 }
 
-void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
+void Isolate::RetireWasmStack(Tagged<WasmContinuationObject> continuation) {
+  wasm::StackMemory* stack =
+      reinterpret_cast<wasm::StackMemory*>(continuation->stack());
   stack->jmpbuf()->state = wasm::JumpBuffer::Retired;
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
@@ -3876,6 +3876,9 @@ void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
   for (size_t i = 0; i < wasm_stacks().size(); ++i) {
     SLOW_DCHECK(wasm_stacks()[i]->index() == i);
   }
+#if V8_ENABLE_SANDBOX
+  continuation->set_stack(this, kNullAddress);
+#endif
   stack_pool().Add(std::move(stack_ptr));
 }
 
