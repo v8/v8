@@ -892,6 +892,9 @@
 
   # Tests ICU-specific behavior.
   'regress/regress-crbug-1414292': [SKIP],
+
+  # Requires ICU for toLocaleString()
+  'regress/regress-398067539': [SKIP],
 }],  # 'not i18n'
 
 ##############################################################################
