@@ -3433,7 +3433,7 @@ DEFINE_BOOL(parallel_pause_for_gc_in_background, true,
 DEFINE_BOOL(incremental_marking_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
 
-DEFINE_BOOL(update_allocation_limits_after_loading, false,
+DEFINE_BOOL(update_allocation_limits_after_loading, true,
             "force recomputation of allocation limites when leaving the "
             "loading RAIL mode (either on a RAIL mode change or incremental "
             "marking start).")
