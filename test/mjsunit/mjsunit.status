@@ -928,6 +928,7 @@
   'wasm/simd-lane-memory64': [SKIP],
   'regress/regress-1320641': [SKIP],
   'regress/regress-354626177': [SKIP],
+  'regress/wasm/regress-398439335': [SKIP],
 
   # Float parameters are not supported in the fast api on these platforms
   'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],

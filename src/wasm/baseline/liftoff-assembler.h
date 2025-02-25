@@ -995,7 +995,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, LoadTransformationKind transform,
-                            uint32_t* protected_load_pc);
+                            uint32_t* protected_load_pc, bool i64_offset);
   inline void LoadLane(LiftoffRegister dst, LiftoffRegister src, Register addr,
                        Register offset_reg, uintptr_t offset_imm, LoadType type,
                        uint8_t lane, uint32_t* protected_load_pc,

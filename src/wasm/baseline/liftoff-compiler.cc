@@ -3783,8 +3783,9 @@ class LiftoffCompiler {
     Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
+    bool i64_offset = imm.memory->is_memory64();
     __ LoadTransform(value, addr, index, offset, type, transform,
-                     &protected_load_pc);
+                     &protected_load_pc, i64_offset);
 
     if (imm.memory->bounds_checks == kTrapHandler) {
       protected_instructions_.emplace_back(

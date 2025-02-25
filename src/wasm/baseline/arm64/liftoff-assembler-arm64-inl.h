@@ -2233,13 +2233,15 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
-                                     uint32_t* protected_load_pc) {
+                                     uint32_t* protected_load_pc,
+                                     bool i64_offset) {
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       transform == LoadTransformationKind::kSplat
           ? MemOperand{liftoff::GetEffectiveAddress(this, &temps, src_addr,
                                                     offset_reg, offset_imm)}
-          : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+          : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm,
+                              i64_offset);
   *protected_load_pc = pc_offset();
   MachineType memtype = type.mem_type();
 
