@@ -82,6 +82,13 @@ class MaglevInliner {
       graph_->inlineable_calls().pop_back();
       ValueNode* result = BuildInlineFunction(details);
       if (result) {
+        if (auto alloc = result->TryCast<InlinedAllocation>()) {
+          // TODO(victorgomes): Support eliding VOs.
+          alloc->ForceEscaping();
+#ifdef DEBUG
+          alloc->set_is_returned_value_from_inline_call();
+#endif  // DEBUG
+        }
         GraphProcessor<UpdateInputsProcessor> substitute_use(
             details->generic_call_node, result);
         substitute_use.ProcessGraph(graph_);

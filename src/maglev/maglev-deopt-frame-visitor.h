@@ -134,19 +134,32 @@ void DeepForEachInputAndVirtualObject(
     }
     if (auto alloc = node->template TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-      CHECK_NOT_NULL(vobject);
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        input_location++;  // Reserved for the inlined allocation.
-        return DeepForVirtualObject<mode>(vobject, input_location,
-                                          virtual_objects, f);
-      } else {
-        f(node, input_location);
-        input_location += vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+      if (vobject) {
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          input_location++;  // Reserved for the inlined allocation.
+          return DeepForVirtualObject<mode>(vobject, input_location,
+                                            virtual_objects, f);
+        } else {
+          f(node, input_location);
+          input_location +=
+              vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+        }
+        return;
       }
-    } else {
-      f(node, input_location);
-      input_location++;
+      // If the allocation isn't in the virtual object list, it's the
+      // return value from an (non-eager) inlined call. The value is escaping,
+      // as we don't have enough information for object materialization during
+      // deoptimization.
+      // TODO(victorgomes): Support eliding VOs returned by a non-eager
+      // inlined call.
+      DCHECK_NULL(vobject);
+      DCHECK(v8_flags.maglev_non_eager_inlining);
+      DCHECK((alloc->HasBeenAnalysed() && alloc->HasEscaped()) ||
+             alloc->IsEscaping());
+      DCHECK(alloc->is_returned_value_from_inline_call());
     }
+    f(node, input_location);
+    input_location++;
   };
   DeepForEachInputSingleFrameImpl<mode>(frame, input_location, update_node,
                                         is_result_register);

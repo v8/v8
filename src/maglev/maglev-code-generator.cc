@@ -1604,14 +1604,25 @@ class MaglevFrameTranslationBuilder {
     size_t input_locations_to_advance = 1;
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-      CHECK_NOT_NULL(vobject);
-      if (alloc->HasBeenElided()) {
-        input_location++;
-        BuildVirtualObject(vobject, input_location, virtual_objects);
-        return;
+      if (vobject) {
+        if (alloc->HasBeenElided()) {
+          input_location++;
+          BuildVirtualObject(vobject, input_location, virtual_objects);
+          return;
+        }
+        input_locations_to_advance +=
+            vobject->InputLocationSizeNeeded(virtual_objects);
+      } else {
+        // If the allocation isn't in the virtual object list, it's the
+        // return value from an (non-eager) inlined call. The value is escaping,
+        // as we don't have enough information for object materialization during
+        // deoptimization.
+        // TODO(victorgomes): Support eliding VOs returned by a non-eager
+        // inlined call.
+        DCHECK(v8_flags.maglev_non_eager_inlining);
+        DCHECK(alloc->HasEscaped());
+        DCHECK(alloc->is_returned_value_from_inline_call());
       }
-      input_locations_to_advance +=
-          vobject->InputLocationSizeNeeded(virtual_objects);
     }
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
