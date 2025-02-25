@@ -294,11 +294,10 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)                                   \
-  V(js_explicit_resource_management, "explicit resource management")         \
-  V(js_float16array,                                                         \
-    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
-  V(js_regexp_escape, "RegExp.escape")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)                           \
+  V(js_explicit_resource_management, "explicit resource management") \
+  V(js_float16array,                                                 \
+    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                    \
@@ -322,7 +321,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(js_regexp_modifiers, "RegExp modifiers")                           \
   V(js_promise_try, "Promise.try")                                     \
   V(js_atomics_pause, "Atomics.pause")                                 \
-  V(js_error_iserror, "Error.isError")
+  V(js_error_iserror, "Error.isError")                                 \
+  V(js_regexp_escape, "RegExp.escape")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
