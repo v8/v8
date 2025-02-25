@@ -1563,6 +1563,9 @@
 
   # BUG(v8:13433)
   'compiler/array-slice-clone': [SKIP],
+
+  # Times out with asan.
+  'wasm/max-wasm-functions': [PASS, ['asan', SKIP]],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
