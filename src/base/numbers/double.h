@@ -5,6 +5,8 @@
 #ifndef V8_BASE_NUMBERS_DOUBLE_H_
 #define V8_BASE_NUMBERS_DOUBLE_H_
 
+#include <bit>
+
 #include "src/base/macros.h"
 #include "src/base/numbers/diy-fp.h"
 

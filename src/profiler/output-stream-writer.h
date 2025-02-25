@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <charconv>
 #include <string>
+#include <system_error>
 
 #include "include/v8-profiler.h"
 #include "include/v8config.h"
