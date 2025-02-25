@@ -5842,6 +5842,30 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
+    compiler::OptionalJSObjectRef constant_holder =
+        TryGetConstantDataFieldHolder(access_info, receiver);
+    if (constant_holder) {
+      auto constant_value = constant_holder.value();
+      if (access_info.field_representation().IsDouble()) {
+        std::optional<Float64> constant =
+            TryFoldLoadConstantDoubleField(constant_value, access_info);
+        if (constant.has_value()) {
+          if (constant->is_nan()) {
+            AddNewNode<CheckFloat64IsNan>({GetAccumulator()});
+          } else {
+            AddNewNode<CheckValueEqualsFloat64>({GetAccumulator()},
+                                                constant.value());
+          }
+          return ReduceResult::Done();
+        }
+      } else {
+        compiler::OptionalObjectRef constant =
+            TryFoldLoadConstantDataField(constant_value, access_info);
+        if (constant.has_value()) {
+          return BuildCheckValue(GetAccumulator(), constant.value());
+        }
+      }
+    }
     return EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
   }
 
