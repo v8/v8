@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file
 
-#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
-
 #include "src/objects/objects-inl.h"
+#include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 namespace v8 {
 namespace internal {
@@ -63,7 +62,6 @@ struct Conversion {
   MachineType src_machine_type;
 };
 
-
 // ----------------------------------------------------------------------------
 // Logical instructions.
 // ----------------------------------------------------------------------------
@@ -86,7 +84,6 @@ const MachInst2 kLogicalInstructions[] = {
 // Shift instructions.
 // ----------------------------------------------------------------------------
 
-
 const MachInst2 kShiftInstructions[] = {
     {&RawMachineAssembler::Word32Shl, "Word32Shl", kMips64Shl,
      MachineType::Int32()},
@@ -105,11 +102,9 @@ const MachInst2 kShiftInstructions[] = {
     {&RawMachineAssembler::Word64Ror, "Word64Ror", kMips64Dror,
      MachineType::Int64()}};
 
-
 // ----------------------------------------------------------------------------
 // MUL/DIV instructions.
 // ----------------------------------------------------------------------------
-
 
 const MachInst2 kMulDivInstructions[] = {
     {&RawMachineAssembler::Int32Mul, "Int32Mul", kMips64Mul,
@@ -129,11 +124,9 @@ const MachInst2 kMulDivInstructions[] = {
     {&RawMachineAssembler::Float64Div, "Float64Div", kMips64DivD,
      MachineType::Float64()}};
 
-
 // ----------------------------------------------------------------------------
 // MOD instructions.
 // ----------------------------------------------------------------------------
-
 
 const MachInst2 kModInstructions[] = {
     {&RawMachineAssembler::Int32Mod, "Int32Mod", kMips64Mod,
@@ -143,11 +136,9 @@ const MachInst2 kModInstructions[] = {
     {&RawMachineAssembler::Float64Mod, "Float64Mod", kMips64ModD,
      MachineType::Float64()}};
 
-
 // ----------------------------------------------------------------------------
 // Arithmetic FPU instructions.
 // ----------------------------------------------------------------------------
-
 
 const MachInst2 kFPArithInstructions[] = {
     {&RawMachineAssembler::Float64Add, "Float64Add", kMips64AddD,
@@ -155,11 +146,9 @@ const MachInst2 kFPArithInstructions[] = {
     {&RawMachineAssembler::Float64Sub, "Float64Sub", kMips64SubD,
      MachineType::Float64()}};
 
-
 // ----------------------------------------------------------------------------
 // IntArithTest instructions, two nodes.
 // ----------------------------------------------------------------------------
-
 
 const MachInst2 kAddSubInstructions[] = {
     {&RawMachineAssembler::Int32Add, "Int32Add", kMips64Add,
@@ -171,11 +160,9 @@ const MachInst2 kAddSubInstructions[] = {
     {&RawMachineAssembler::Int64Sub, "Int64Sub", kMips64Dsub,
      MachineType::Int64()}};
 
-
 // ----------------------------------------------------------------------------
 // IntArithTest instructions, one node.
 // ----------------------------------------------------------------------------
-
 
 const MachInst1 kAddSubOneInstructions[] = {
     {&RawMachineAssembler::Int32Neg, "Int32Neg", kMips64Sub,
@@ -183,11 +170,9 @@ const MachInst1 kAddSubOneInstructions[] = {
     {&RawMachineAssembler::Int64Neg, "Int64Neg", kMips64Dsub,
      MachineType::Int64()}};
 
-
 // ----------------------------------------------------------------------------
 // Arithmetic compare instructions.
 // ----------------------------------------------------------------------------
-
 
 const IntCmp kCmpInstructions[] = {
     {{&RawMachineAssembler::WordEqual, "WordEqual", kMips64Cmp,
@@ -220,7 +205,6 @@ const IntCmp kCmpInstructions[] = {
     {{&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
       kMips64Cmp, MachineType::Uint32()},
      1U}};
-
 
 // ----------------------------------------------------------------------------
 // Conversion instructions.
@@ -437,7 +421,6 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 64`, but we also test
   // that immediates outside this range are handled properly (modulo-64).
@@ -479,7 +462,6 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word32AndToClearBits) {
   TRACED_FORRANGE(int32_t, shift, 1, 31) {
     int32_t mask = ~((1 << shift) - 1);
@@ -505,7 +487,6 @@ TEST_F(InstructionSelectorTest, Word32AndToClearBits) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word64AndToClearBits) {
   TRACED_FORRANGE(int32_t, shift, 1, 31) {
     int64_t mask = ~((1 << shift) - 1);
@@ -530,7 +511,6 @@ TEST_F(InstructionSelectorTest, Word64AndToClearBits) {
     EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
   }
 }
-
 
 // ----------------------------------------------------------------------------
 // Logical instructions.
@@ -575,7 +555,6 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -596,7 +575,6 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
-
 
 TEST_F(InstructionSelectorTest, Word64XorMinusOneWithWord64Or) {
   {
@@ -621,7 +599,6 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithWord64Or) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -644,7 +621,6 @@ TEST_F(InstructionSelectorTest, Word32XorMinusOneWithWord32Or) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
-
 
 TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
@@ -684,7 +660,6 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   // The available shift operand range is `0 <= imm < 64`, but we also test
   // that immediates outside this range are handled properly (modulo-64).
@@ -723,7 +698,6 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
   TRACED_FORRANGE(int32_t, shift, 0, 30) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -741,7 +715,6 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
     EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
   }
 }
-
 
 TEST_F(InstructionSelectorTest, Word64ShlWithWord64And) {
   TRACED_FORRANGE(int32_t, shift, 0, 62) {
@@ -1013,7 +986,6 @@ TEST_F(InstructionSelectorTest, ChangeFloat64ToInt32OfChangeFloat32ToFloat64) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest,
        TruncateFloat64ToFloat32OfChangeInt32ToFloat64) {
   {
@@ -1029,7 +1001,6 @@ TEST_F(InstructionSelectorTest,
   }
 }
 
-
 TEST_F(InstructionSelectorTest, CombineShiftsWithMul) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -1043,7 +1014,6 @@ TEST_F(InstructionSelectorTest, CombineShiftsWithMul) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
-
 
 TEST_F(InstructionSelectorTest, CombineShiftsWithDivMod) {
   {
@@ -1247,7 +1217,6 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
 // Loads and stores.
 // ----------------------------------------------------------------------------
 
-
 namespace {
 
 struct MemoryAccess {
@@ -1266,7 +1235,6 @@ static const MemoryAccess kMemoryAccesses[] = {
     {MachineType::Float64(), kMips64Ldc1, kMips64Sdc1},
     {MachineType::Int64(), kMips64Ld, kMips64Sd}};
 
-
 struct MemoryAccessImm {
   MachineType type;
   ArchOpcode load_opcode;
@@ -1276,11 +1244,9 @@ struct MemoryAccessImm {
   const int32_t immediates[40];
 };
 
-
 std::ostream& operator<<(std::ostream& os, const MemoryAccessImm& acc) {
   return os << acc.type;
 }
-
 
 struct MemoryAccessImm1 {
   MachineType type;
@@ -1290,7 +1256,6 @@ struct MemoryAccessImm1 {
       const InstructionOperand*) const;
   const int32_t immediates[5];
 };
-
 
 std::ostream& operator<<(std::ostream& os, const MemoryAccessImm1& acc) {
   return os << acc.type;
@@ -1313,64 +1278,71 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccessImm2& acc) {
 // Loads and stores immediate values
 // ----------------------------------------------------------------------------
 
-
 const MemoryAccessImm kMemoryAccessesImm[] = {
     {MachineType::Int8(),
      kMips64Lb,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Uint8(),
      kMips64Lbu,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Int16(),
      kMips64Lh,
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Uint16(),
      kMips64Lhu,
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Int32(),
      kMips64Lw,
      kMips64Sw,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Float32(),
      kMips64Lwc1,
      kMips64Swc1,
      &InstructionSelectorTest::Stream::IsDouble,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Float64(),
      kMips64Ldc1,
      kMips64Sdc1,
      &InstructionSelectorTest::Stream::IsDouble,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}},
     {MachineType::Int64(),
      kMips64Ld,
      kMips64Sd,
      &InstructionSelectorTest::Stream::IsInteger,
-     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
-      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
-      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}}};
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91,
+      -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
+      39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
+      286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}}};
 
 const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
     {MachineType::Int8(),
@@ -1472,7 +1444,6 @@ TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
 }
 
-
 TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
@@ -1514,11 +1485,9 @@ TEST_P(InstructionSelectorMemoryAccessImmTest, LoadWithImmediateIndex) {
   }
 }
 
-
 // ----------------------------------------------------------------------------
 // Store immediate.
 // ----------------------------------------------------------------------------
-
 
 TEST_P(InstructionSelectorMemoryAccessImmTest, StoreWithImmediateIndex) {
   const MemoryAccessImm memacc = GetParam();
@@ -1642,7 +1611,6 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
 // kMips64Cmp with zero testing.
 // ----------------------------------------------------------------------------
 
-
 TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -1669,7 +1637,6 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
 }
-
 
 TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
   {
@@ -1698,7 +1665,6 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
   }
 }
 
-
 TEST_F(InstructionSelectorTest, Word32Clz) {
   StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
@@ -1712,7 +1678,6 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
-
 
 TEST_F(InstructionSelectorTest, Word64Clz) {
   StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64());
@@ -1728,7 +1693,6 @@ TEST_F(InstructionSelectorTest, Word64Clz) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
-
 TEST_F(InstructionSelectorTest, Float32Abs) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
   Node* const p0 = m.Parameter(0);
@@ -1742,7 +1706,6 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
-
 
 TEST_F(InstructionSelectorTest, Float64Abs) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
@@ -1758,7 +1721,6 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
 
-
 TEST_F(InstructionSelectorTest, Float64Max) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64());
@@ -1773,7 +1735,6 @@ TEST_F(InstructionSelectorTest, Float64Max) {
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
 }
-
 
 TEST_F(InstructionSelectorTest, Float64Min) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
