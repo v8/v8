@@ -700,7 +700,7 @@ int RegExpImpl::IrregexpPrepare(Isolate* isolate,
   DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
-  bool is_one_byte = subject->IsOneByteRepresentation();
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
   if (!RegExpImpl::EnsureCompiledIrregexp(isolate, re_data, subject,
                                           is_one_byte)) {
     return -1;
@@ -721,7 +721,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
   DCHECK_GE(output_size,
             JSRegExp::RegistersForCaptureCount(regexp_data->capture_count()));
 
-  bool is_one_byte = subject->IsOneByteRepresentation();
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
 
   if (!regexp_data->ShouldProduceBytecode()) {
     do {
@@ -749,7 +749,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
       // the, potentially, different subject (the string can switch between
       // being internal and external, and even between being Latin1 and
       // UC16, but the characters are always the same).
-      is_one_byte = subject->IsOneByteRepresentation();
+      is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
     } while (true);
     UNREACHABLE();
   } else {
@@ -774,7 +774,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate,
         // The string has changed representation, and we must restart the
         // match. We need to reset the tier up to start over with compilation.
         if (v8_flags.regexp_tier_up) regexp_data->ResetLastTierUpTick();
-        is_one_byte = subject->IsOneByteRepresentation();
+        is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
         EnsureCompiledIrregexp(isolate, regexp_data, subject, is_one_byte);
       } else {
         DCHECK(result == IrregexpInterpreter::EXCEPTION ||

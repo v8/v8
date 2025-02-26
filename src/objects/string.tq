@@ -21,6 +21,33 @@ extern class String extends Name {
     return IsOneByteStringMap(this.map);
   }
 
+  // Keep this in sync with the C++ String::IsOneByteRepresentationUnderneath.
+  macro IsOneByteRepresentationUnderneath(): bool {
+    let string = this;
+    while (true) {
+      typeswitch (string) {
+        case (cons: ConsString): {
+          dcheck(cons.IsFlat());
+          string = cons.first;
+        }
+        case (thin: ThinString): {
+          // Internalized strings can't change representation.
+          dcheck(
+              thin.IsOneByteRepresentation() ==
+              thin.actual.IsOneByteRepresentation());
+          return thin.IsOneByteRepresentation();
+        }
+        case (slice: SlicedString): {
+          string = slice.parent;
+        }
+        case (str: String): {
+          return str.IsOneByteRepresentation();
+        }
+      }
+    }
+    VerifiedUnreachable();
+  }
+
   const length: int32;
 }
 

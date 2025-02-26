@@ -368,6 +368,24 @@ bool String::IsTwoByteRepresentation() const {
   return InstanceTypeChecker::IsTwoByteString(map());
 }
 
+// static
+bool String::IsOneByteRepresentationUnderneath(Tagged<String> string) {
+  while (true) {
+    uint32_t type = string->map()->instance_type();
+    static_assert(kIsIndirectStringTag != 0);
+    static_assert((kIsIndirectStringMask & kStringEncodingMask) == 0);
+    DCHECK(string->IsFlat());
+    switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
+      case kOneByteStringTag:
+        return true;
+      case kTwoByteStringTag:
+        return false;
+      default:  // Cons, sliced, thin, strings need to go deeper.
+        string = string->GetUnderlying();
+    }
+  }
+}
+
 base::uc32 FlatStringReader::Get(uint32_t index) const {
   if (is_one_byte_) {
     return Get<uint8_t>(index);
@@ -1102,7 +1120,7 @@ bool String::IsWellFormedUnicode(Isolate* isolate,
   // InstanceType. See
   // https://docs.google.com/document/d/15f-1c_Ysw3lvjy_Gx0SmmD9qeO8UuXuAbWIpWCnTDO8/
   string = Flatten(isolate, string);
-  if (string->IsOneByteRepresentation()) return true;
+  if (String::IsOneByteRepresentationUnderneath(*string)) return true;
   DisallowGarbageCollection no_gc;
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());

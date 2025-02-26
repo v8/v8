@@ -302,7 +302,7 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
                                              DirectHandle<String> source) {
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
-  bool one_byte = source->IsOneByteRepresentation();
+  bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
   bool needs_escapes = false;
   int additional_escape_chars =
       one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)

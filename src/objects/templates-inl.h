@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TEMPLATES_INL_H_
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
