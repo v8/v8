@@ -156,6 +156,7 @@ function _findDependentCodePath(filePath, baseDirectory, caseSensitive=true) {
  */
 function resolveDependencies(originalFilePath, ast) {
   const dependencies = new Set();
+  const orphanedDeclarations = new Set();
 
   babelTraverse(ast, {
     CallExpression(path) {
@@ -166,6 +167,15 @@ function resolveDependencies(originalFilePath, ast) {
       }
 
       let loadValue = path.node.arguments[0].extra.rawValue;
+
+      // If the load we're removing initialized a variable, we need to also
+      // eliminate the entire declaration in the end.
+      if(path.parentPath.isVariableDeclarator() &&
+         path.parentPath.parentPath.isVariableDeclaration() &&
+         path.parentPath.node.init == path.node) {
+        // Using a set so that we don't attempt to remove a path twice.
+        orphanedDeclarations.add(path.parentPath.parentPath);
+      }
 
       // Remove load call.
       path.remove();
@@ -210,6 +220,12 @@ function resolveDependencies(originalFilePath, ast) {
       }
     }
   });
+
+  // Remove declarations where we eliminated the initializers.
+  for (const decl of orphanedDeclarations) {
+    decl.remove();
+  }
+
   return Array.from(dependencies);
 }
 
