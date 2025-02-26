@@ -7329,7 +7329,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
     }
   }
   if (auto wrapper = string->TryCast<UnwrapThinString>()) {
-    return BuildLoadStringLength(wrapper->value_input().node());
+    ValueNode* input = wrapper->value_input().node();
+    if (NodeTypeIs(GetType(input), NodeType::kString)) {
+      return BuildLoadStringLength(input);
+    }
   }
   if (MaybeReduceResult result = TryFindLoadedProperty(
           known_node_aspects().loaded_constant_properties, string,
