@@ -315,12 +315,21 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   Handle<Object> continuation_message = args.at<Object>(3);
   DirectHandle<Smi> has_await_using = args.at<Smi>(4);
 
-  if (*continuation_token ==
-      Smi::FromInt(static_cast<int>(
-          interpreter::TryFinallyContinuationToken::kRethrowToken))) {
+  // If state is not kDisposed, then the disposing of the resources has
+  // not started yet. So, if the continuation token is kRethrow we need
+  // to set error and error message on the disposable stack.
+  if (disposable_stack->state() != DisposableStackState::kDisposed &&
+      *continuation_token ==
+          Smi::FromInt(static_cast<int>(
+              interpreter::TryFinallyContinuationToken::kRethrowToken))) {
     disposable_stack->set_error(*continuation_error);
     disposable_stack->set_error_message(*continuation_message);
   }
+
+  DCHECK_IMPLIES(
+      disposable_stack->state() == DisposableStackState::kDisposed,
+      static_cast<DisposableStackResourcesType>(Smi::ToInt(*has_await_using)) ==
+          DisposableStackResourcesType::kAtLeastOneAsync);
 
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
