@@ -704,7 +704,6 @@ v8_source_set("v8_unittests_sources") {
     ]
     if (v8_enable_turbofan) {
       sources += [
-        "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
         "compiler/riscv64/turboshaft-instruction-selector-riscv64-unittest.cc",
       ]
     }
@@ -718,7 +717,6 @@ v8_source_set("v8_unittests_sources") {
     ]
     if (v8_enable_turbofan) {
       sources += [
-        "compiler/riscv32/instruction-selector-riscv32-unittest.cc",
         "compiler/riscv32/turboshaft-instruction-selector-riscv32-unittest.cc",
       ]
     }
