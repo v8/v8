@@ -1071,9 +1071,6 @@
   'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
 
   # https://issues.chromium.org/u/0/issues/42204365
-  'language/module-code/source-phase-import/import-source-binding-name': [FAIL],
-  'language/module-code/source-phase-import/import-source-binding-name-2': [FAIL],
-  'language/module-code/source-phase-import/import-source-newlines': [FAIL],
 
   # https://issues.chromium.org/u/1/issues/368208157
   'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
@@ -2495,7 +2492,6 @@
   'staging/sm/extensions/DataView-construct-arguments-detaching': [FAIL],
   'staging/sm/extensions/DataView-set-arguments-detaching': [FAIL],
   'staging/sm/extensions/element-setting-ToNumber-detaches': [FAIL],
-  'staging/sm/extensions/inc-dec-functioncall': [FAIL],
   'staging/sm/extensions/recursion': [FAIL],
   'staging/sm/extensions/regress-650753': [FAIL],
   'staging/sm/extensions/typedarray-copyWithin-arguments-detaching': [FAIL],
@@ -2517,7 +2513,6 @@
   'staging/sm/regress/regress-563221': [FAIL],
   'staging/sm/regress/regress-592556-c35': [FAIL],
   'staging/sm/regress/regress-596103': [FAIL],
-  'staging/sm/regress/regress-609617': [FAIL],
   'staging/sm/statements/for-in-with-gc-and-unvisited-deletion': [FAIL],
   'staging/sm/statements/property-reference-self-assignment': [FAIL],
   'staging/sm/Temporal/Calendar/compare-to-datetimeformat': [FAIL],
@@ -2685,5 +2680,36 @@
  'language/expressions/dynamic-import/syntax/valid/top-level-import-defer-script-code-valid': [SKIP],
 }],
 # end import test262@bc5c14176e2b11a78859571eb693f028c8822458
+###
+
+####
+# import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+[ALWAYS, {
+ 'built-ins/NativeErrors/SuppressedError/order-of-args-evaluation': [SKIP],
+ 'built-ins/Temporal/PlainMonthDay/prototype/equals/argument-string-invalid': [SKIP],
+ 'built-ins/Temporal/PlainDate/prototype/era/branding': [SKIP],
+ 'built-ins/Temporal/PlainDate/prototype/era/prop-desc': [SKIP],
+ 'built-ins/Temporal/PlainDate/prototype/eraYear/branding': [SKIP],
+ 'built-ins/Temporal/PlainDate/prototype/eraYear/prop-desc': [SKIP],
+ 'built-ins/Temporal/PlainDateTime/prototype/era/branding': [SKIP],
+ 'built-ins/Temporal/PlainDateTime/prototype/era/prop-desc': [SKIP],
+ 'built-ins/Temporal/PlainDateTime/prototype/eraYear/branding': [SKIP],
+ 'built-ins/Temporal/PlainDateTime/prototype/eraYear/prop-desc': [SKIP],
+ 'built-ins/Temporal/PlainYearMonth/prototype/era/branding': [SKIP],
+ 'built-ins/Temporal/PlainYearMonth/prototype/era/prop-desc': [SKIP],
+ 'built-ins/Temporal/PlainYearMonth/prototype/eraYear/branding': [SKIP],
+ 'built-ins/Temporal/PlainYearMonth/prototype/eraYear/prop-desc': [SKIP],
+ 'built-ins/Temporal/ZonedDateTime/prototype/era/branding': [SKIP],
+ 'built-ins/Temporal/ZonedDateTime/prototype/era/prop-desc': [SKIP],
+ 'built-ins/Temporal/ZonedDateTime/prototype/eraYear/branding': [SKIP],
+ 'built-ins/Temporal/ZonedDateTime/prototype/eraYear/prop-desc': [SKIP],
+ 'intl402/DurationFormat/prototype/format/taint-temporal-duration-prototype': [SKIP],
+ 'intl402/DurationFormat/prototype/format/temporal-duration-string-arg': [SKIP],
+ 'intl402/DurationFormat/prototype/formatToParts/taint-temporal-duration-prototype': [SKIP],
+ 'intl402/DurationFormat/prototype/formatToParts/temporal-duration-string-arg': [SKIP],
+ 'intl402/Locale/getters': [SKIP],
+ 'intl402/Temporal/Duration/prototype/toLocaleString/returns-same-results-as-DurationFormat': [SKIP],
+}],
+# end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
 ###
 ]
