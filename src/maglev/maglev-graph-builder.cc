@@ -3522,7 +3522,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
     }
     broker()->dependencies()->DependOnScriptContextSlotProperty(
         context_ref, index, property, broker());
-    return BuildCheckValue(value, *constant);
+    return BuildCheckNumericalValueOrByReference(value, *constant);
   }
 
   if (!v8_flags.script_context_mutable_heap_number) {
@@ -4036,16 +4036,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
     case PropertyCellType::kUndefined:
       return {};
     case PropertyCellType::kConstant: {
-      // TODO(victorgomes): Support non-internalized string.
-      if (property_cell_value.IsString() &&
-          !property_cell_value.IsInternalizedString()) {
-        return {};
-      }
       // Record a code dependency on the cell, and just deoptimize if the new
       // value doesn't match the previous value stored inside the cell.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
       ValueNode* value = GetAccumulator();
-      return BuildCheckValue(value, property_cell_value);
+      return BuildCheckNumericalValueOrByReference(value, property_cell_value);
     }
     case PropertyCellType::kConstantType: {
       // We rely on stability further below.
@@ -5850,19 +5845,18 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
         std::optional<Float64> constant =
             TryFoldLoadConstantDoubleField(constant_value, access_info);
         if (constant.has_value()) {
-          if (constant->is_nan()) {
-            AddNewNode<CheckFloat64IsNan>({GetAccumulator()});
-          } else {
+          if (!constant->is_nan()) {
             AddNewNode<CheckValueEqualsFloat64>({GetAccumulator()},
                                                 constant.value());
+            return ReduceResult::Done();
           }
-          return ReduceResult::Done();
         }
       } else {
         compiler::OptionalObjectRef constant =
             TryFoldLoadConstantDataField(constant_value, access_info);
         if (constant.has_value()) {
-          return BuildCheckValue(GetAccumulator(), constant.value());
+          return BuildCheckNumericalValueOrByReference(GetAccumulator(),
+                                                       constant.value());
         }
       }
     }
@@ -7542,7 +7536,8 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
     case compiler::ProcessedFeedback::kNamedAccess: {
       ValueNode* key = GetAccumulator();
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
-      RETURN_IF_ABORT(BuildCheckValue(key, name));
+      RETURN_IF_ABORT(
+          BuildCheckInternalizedStringValueOrByReference(key, name));
 
       MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
@@ -10505,8 +10500,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
                                   shared, feedback_cell, args, feedback_source);
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
-                                                 compiler::HeapObjectRef ref) {
+ReduceResult MaglevGraphBuilder::BuildCheckValueByReference(
+    ValueNode* node, compiler::HeapObjectRef ref) {
   DCHECK(!ref.IsSmi());
   DCHECK(!ref.IsHeapNumber());
 
@@ -10519,24 +10514,28 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     }
     return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
   }
-  if (ref.IsString()) {
-    DCHECK(ref.IsInternalizedString());
-    AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
-    SetKnownValue(node, ref, NodeType::kString);
-  } else {
-    AddNewNode<CheckValue>({node}, ref);
-    SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
-  }
+  AddNewNode<CheckValue>({node}, ref);
+  SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
 
   return ReduceResult::Done();
 }
 
-ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
-                                                 compiler::ObjectRef ref) {
+ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
+    ValueNode* node, compiler::ObjectRef ref) {
   if (ref.IsHeapObject() && !ref.IsHeapNumber()) {
-    return BuildCheckValue(node, ref.AsHeapObject());
+    return BuildCheckValueByReference(node, ref.AsHeapObject());
   }
   return BuildCheckNumericalValue(node, ref);
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
+    ValueNode* node, compiler::HeapObjectRef ref) {
+  if (!IsConstantNode(node->opcode()) && ref.IsInternalizedString()) {
+    AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
+    SetKnownValue(node, ref, NodeType::kString);
+    return ReduceResult::Done();
+  }
+  return BuildCheckValueByReference(node, ref);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
@@ -10708,7 +10707,7 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForTarget(
     ValueNode* target_node, compiler::JSFunctionRef target, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  RETURN_IF_ABORT(BuildCheckValue(target_node, target));
+  RETURN_IF_ABORT(BuildCheckValueByReference(target_node, target));
   return TryReduceCallForConstant(target, args, feedback_source);
 }
 
@@ -10751,7 +10750,8 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
 
   ValueNode* function = GetValueOrUndefined(args.receiver());
   if (maybe_receiver.has_value()) {
-    RETURN_IF_ABORT(BuildCheckValue(function, maybe_receiver.value()));
+    RETURN_IF_ABORT(
+        BuildCheckValueByReference(function, maybe_receiver.value()));
     function = GetConstant(maybe_receiver.value());
   }
 
@@ -10805,7 +10805,7 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
           broker()->target_native_context();
       compiler::JSFunctionRef apply_function =
           native_context.function_prototype_apply(broker());
-      RETURN_IF_ABORT(BuildCheckValue(target_node, apply_function));
+      RETURN_IF_ABORT(BuildCheckValueByReference(target_node, apply_function));
       PROCESS_AND_RETURN_IF_DONE(
           TryReduceFunctionPrototypeApplyCallWithReceiver(feedback_target, args,
                                                           feedback_source),
@@ -10814,7 +10814,7 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
     } else {
       DCHECK_EQ(CallFeedbackContent::kTarget, content);
     }
-    RETURN_IF_ABORT(BuildCheckValue(target_node, feedback_target));
+    RETURN_IF_ABORT(BuildCheckValueByReference(target_node, feedback_target));
   }
 
   PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source),
@@ -11561,7 +11561,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
-        RETURN_IF_ABORT(BuildCheckValue(target, builtin));
+        RETURN_IF_ABORT(BuildCheckValueByReference(target, builtin));
         ValueNode* result = BuildInlinedAllocation(CreateJSConstructor(builtin),
                                                    AllocationType::kYoung);
         // TODO(leszeks): Don't eagerly clear the raw allocation, have the
@@ -11582,7 +11582,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
-  RETURN_IF_ABORT(BuildCheckValue(target, function));
+  RETURN_IF_ABORT(BuildCheckValueByReference(target, function));
 
   int construct_arg_count = static_cast<int>(args.count());
   base::Vector<ValueNode*> construct_arguments_without_receiver =
@@ -11723,7 +11723,7 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
     // for the resulting arrays.
     compiler::JSFunctionRef array_function =
         broker()->target_native_context().array_function(broker());
-    RETURN_IF_ABORT(BuildCheckValue(target, array_function));
+    RETURN_IF_ABORT(BuildCheckValueByReference(target, array_function));
     PROCESS_AND_RETURN_IF_DONE(
         TryReduceConstructArrayConstructor(array_function, args,
                                            feedback_target->AsAllocationSite()),
@@ -12049,7 +12049,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     ValueNode* callable_node;
     if (callable_node_if_not_constant) {
       // Check that {callable_node_if_not_constant} is actually {callable}.
-      RETURN_IF_ABORT(BuildCheckValue(callable_node_if_not_constant, callable));
+      RETURN_IF_ABORT(
+          BuildCheckValueByReference(callable_node_if_not_constant, callable));
       callable_node = callable_node_if_not_constant;
     } else {
       callable_node = GetConstant(callable);

@@ -2197,8 +2197,12 @@ class MaglevGraphBuilder {
       std::optional<MaglevSubGraphBuilder::Label>& if_not_matched);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
-  ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
-  ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
+  ReduceResult BuildCheckInternalizedStringValueOrByReference(
+      ValueNode* node, compiler::HeapObjectRef ref);
+  ReduceResult BuildCheckNumericalValueOrByReference(ValueNode* node,
+                                                     compiler::ObjectRef ref);
+  ReduceResult BuildCheckValueByReference(ValueNode* node,
+                                          compiler::HeapObjectRef ref);
   ReduceResult BuildCheckNumericalValue(ValueNode* node,
                                         compiler::ObjectRef ref);
 
