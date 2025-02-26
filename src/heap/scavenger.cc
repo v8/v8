@@ -699,7 +699,8 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes =
         it.second;
     DCHECK(chunk->IsFromPage());
-    if (new_space.ShouldPageBePromoted(chunk->address())) {
+    if (v8_flags.scavenger_promote_quarantined_pages &&
+        new_space.ShouldPageBePromoted(chunk->address())) {
       new_space.PromotePageToOldSpace(
           static_cast<PageMetadata*>(chunk->Metadata()));
       DCHECK(!chunk->InYoungGeneration());
@@ -1341,7 +1342,8 @@ void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map) {
   int object_size = object->SizeFromMap(map);
   PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
                                            &local_pretenuring_feedback_);
-  if (heap_->semi_space_new_space()->ShouldPageBePromoted(object->address())) {
+  if (v8_flags.scavenger_promote_quarantined_pages &&
+      heap_->semi_space_new_space()->ShouldPageBePromoted(object->address())) {
     local_promoted_list_.Push({object, map, object_size});
     promoted_size_ += object_size;
   } else {

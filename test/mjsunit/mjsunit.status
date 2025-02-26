@@ -2662,6 +2662,7 @@
 
 ['variant == stress_pinning_scavenger', {
   'regress/regress-12657': [SKIP],
+  'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
 }],  # variant == stress_pinning_scavenger
 

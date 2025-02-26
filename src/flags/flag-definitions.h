@@ -509,6 +509,10 @@ DEFINE_EXPERIMENTAL_FEATURE(scavenger_precise_pinning_objects,
                             "won't move.")
 DEFINE_IMPLICATION(scavenger_precise_pinning_objects, separate_gc_phases)
 
+DEFINE_BOOL(scavenger_promote_quarantined_pages, true,
+            "Quarantined pages in the intermediate generation will be promoted "
+            "to old space")
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else
