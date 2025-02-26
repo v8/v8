@@ -109,3 +109,18 @@ try {
     } catch (e) {}
   });
 } catch (e) {}
+function foo() {
+  let a = 0;
+  let b = 1;
+  try {
+    boom();
+  } catch (e) {}
+  return {
+    a: a,
+    b: b
+  };
+}
+let {
+  a: x,
+  b: y
+} = __wrapTC(() => foo());

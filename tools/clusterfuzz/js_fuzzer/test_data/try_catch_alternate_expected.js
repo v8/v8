@@ -62,3 +62,16 @@ call(() => {
   1;
   2;
 });
+function foo() {
+  let a = 0;
+  let b = 1;
+  boom();
+  return {
+    a: a,
+    b: b
+  };
+}
+let {
+  a: x,
+  b: y
+} = foo();

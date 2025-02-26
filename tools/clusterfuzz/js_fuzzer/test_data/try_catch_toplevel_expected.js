@@ -83,3 +83,20 @@ try {
     2;
   });
 } catch (e) {}
+function foo() {
+  try {
+    let a = 0;
+    let b = 1;
+    boom();
+    return {
+      a: a,
+      b: b
+    };
+  } catch (e) {
+    return {};
+  }
+}
+let {
+  a: x,
+  b: y
+} = __wrapTC(() => foo());

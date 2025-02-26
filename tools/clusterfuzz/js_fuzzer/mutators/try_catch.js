@@ -6,6 +6,7 @@
  * @fileoverview Try catch wrapper.
  */
 
+const assert = require('assert');
 const babelTemplate = require('@babel/template').default;
 const babelTypes = require('@babel/types');
 
@@ -44,12 +45,12 @@ function hasFunctionDeclaration(body) {
   return body.some((node) => babelTypes.isFunctionDeclaration(node));
 }
 
-function _rawTryCatch(node) {
+function _rawTryCatch(node, catchBlock=[]) {
   return babelTypes.tryStatement(
       node,
       babelTypes.catchClause(
           babelTypes.identifier('e'),
-          babelTypes.blockStatement([])));
+          babelTypes.blockStatement(catchBlock)));
 }
 
 function wrapTryCatch(node) {
@@ -57,7 +58,21 @@ function wrapTryCatch(node) {
 }
 
 function wrapBlockWithTryCatch(block) {
-  return babelTypes.blockStatement([_rawTryCatch(block)]);
+  assert(block.body);
+  assert(block.body.length);  // We don't wrap empty blocks.
+  const lastStatement = block.body.at(-1);
+
+  // If the block ended with the return of an object expression,
+  // we also return an empty object expression in the catch block,
+  // which reduces problems if the returned value is destructured.
+  let catchBlock = [];
+  if (babelTypes.isReturnStatement(lastStatement) &&
+      lastStatement.argument &&
+      babelTypes.isObjectExpression(lastStatement.argument)) {
+    catchBlock.push(
+        babelTypes.returnStatement(babelTypes.objectExpression([])));
+  }
+  return babelTypes.blockStatement([_rawTryCatch(block, catchBlock)]);
 }
 
 function skipReplaceVariableDeclarator(path) {
