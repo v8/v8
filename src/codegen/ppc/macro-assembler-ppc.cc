@@ -119,7 +119,7 @@ void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
   // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
   mov_label_offset(dest, target);
   // mov_label_offset computes offset of the |target| relative to the "current
-  // InstructionStream object pointer" which is essentally pc_offset() of the
+  // InstructionStream object pointer" which is essentially pc_offset() of the
   // label added with (InstructionStream::kHeaderSize - kHeapObjectTag).
   // Compute "current InstructionStream object pointer" and add it to the
   // offset in |lr| register.
