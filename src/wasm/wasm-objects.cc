@@ -383,40 +383,47 @@ void WasmTableObject::Set(Isolate* isolate, DirectHandle<WasmTableObject> table,
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
 
-  switch (table->unsafe_type().heap_representation_non_shared()) {
-    case wasm::HeapType::kExtern:
-    case wasm::HeapType::kString:
-    case wasm::HeapType::kStringViewWtf8:
-    case wasm::HeapType::kStringViewWtf16:
-    case wasm::HeapType::kStringViewIter:
-    case wasm::HeapType::kEq:
-    case wasm::HeapType::kStruct:
-    case wasm::HeapType::kArray:
-    case wasm::HeapType::kAny:
-    case wasm::HeapType::kI31:
-    case wasm::HeapType::kNone:
-    case wasm::HeapType::kNoFunc:
-    case wasm::HeapType::kNoExtern:
-    case wasm::HeapType::kExn:
-    case wasm::HeapType::kNoExn:
-      entries->set(entry_index, *entry);
-      return;
-    case wasm::HeapType::kFunc:
+  wasm::ValueType unsafe_type = table->unsafe_type();
+  if (unsafe_type.has_index()) {
+    DCHECK(table->has_trusted_data());
+    const wasm::WasmModule* module = table->trusted_data(isolate)->module();
+    if (module->has_signature(table->type(module).ref_index())) {
       SetFunctionTableEntry(isolate, table, entry_index, entry);
       return;
-    case wasm::HeapType::kBottom:
-    case wasm::HeapType::kTop:
-      UNREACHABLE();
-    default:
-      DCHECK(table->has_trusted_data());
-      const wasm::WasmModule* module = table->trusted_data(isolate)->module();
-      if (module->has_signature(table->type(module).ref_index())) {
-        SetFunctionTableEntry(isolate, table, entry_index, entry);
-        return;
-      }
+    }
+    entries->set(entry_index, *entry);
+    return;
+  }
+  switch (unsafe_type.generic_kind()) {
+    case wasm::GenericKind::kExtern:
+    case wasm::GenericKind::kString:
+    case wasm::GenericKind::kStringViewWtf8:
+    case wasm::GenericKind::kStringViewWtf16:
+    case wasm::GenericKind::kStringViewIter:
+    case wasm::GenericKind::kEq:
+    case wasm::GenericKind::kStruct:
+    case wasm::GenericKind::kArray:
+    case wasm::GenericKind::kAny:
+    case wasm::GenericKind::kI31:
+    case wasm::GenericKind::kNone:
+    case wasm::GenericKind::kNoFunc:
+    case wasm::GenericKind::kNoExtern:
+    case wasm::GenericKind::kExn:
+    case wasm::GenericKind::kNoExn:
+    case wasm::GenericKind::kCont:
+    case wasm::GenericKind::kNoCont:
       entries->set(entry_index, *entry);
       return;
+    case wasm::GenericKind::kFunc:
+      SetFunctionTableEntry(isolate, table, entry_index, entry);
+      return;
+    case wasm::GenericKind::kBottom:
+    case wasm::GenericKind::kTop:
+    case wasm::GenericKind::kVoid:
+    case wasm::GenericKind::kExternString:
+      break;
   }
+  UNREACHABLE();
 }
 
 DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
@@ -434,38 +441,45 @@ DirectHandle<Object> WasmTableObject::Get(Isolate* isolate,
   if (IsWasmNull(*entry, isolate)) return entry;
   if (IsWasmFuncRef(*entry)) return entry;
 
-  switch (table->unsafe_type().heap_representation_non_shared()) {
-    case wasm::HeapType::kStringViewWtf8:
-    case wasm::HeapType::kStringViewWtf16:
-    case wasm::HeapType::kStringViewIter:
-    case wasm::HeapType::kExtern:
-    case wasm::HeapType::kString:
-    case wasm::HeapType::kEq:
-    case wasm::HeapType::kI31:
-    case wasm::HeapType::kStruct:
-    case wasm::HeapType::kArray:
-    case wasm::HeapType::kAny:
-    case wasm::HeapType::kNone:
-    case wasm::HeapType::kNoFunc:
-    case wasm::HeapType::kNoExtern:
-    case wasm::HeapType::kExn:
-    case wasm::HeapType::kNoExn:
+  wasm::ValueType unsafe_type = table->unsafe_type();
+  if (unsafe_type.has_index()) {
+    DCHECK(table->has_trusted_data());
+    const WasmModule* module = table->trusted_data(isolate)->module();
+    wasm::ModuleTypeIndex element_type = table->type(module).ref_index();
+    if (module->has_array(element_type) || module->has_struct(element_type)) {
       return entry;
-    case wasm::HeapType::kFunc:
-      // Placeholder; handled below.
-      break;
-    case wasm::HeapType::kBottom:
-    case wasm::HeapType::kTop:
-      UNREACHABLE();
-    default:
-      DCHECK(table->has_trusted_data());
-      const WasmModule* module = table->trusted_data(isolate)->module();
-      wasm::ModuleTypeIndex element_type = table->type(module).ref_index();
-      if (module->has_array(element_type) || module->has_struct(element_type)) {
+    }
+    DCHECK(module->has_signature(element_type));
+    // Fall through.
+  } else {
+    switch (unsafe_type.generic_kind()) {
+      case wasm::GenericKind::kStringViewWtf8:
+      case wasm::GenericKind::kStringViewWtf16:
+      case wasm::GenericKind::kStringViewIter:
+      case wasm::GenericKind::kExtern:
+      case wasm::GenericKind::kString:
+      case wasm::GenericKind::kEq:
+      case wasm::GenericKind::kI31:
+      case wasm::GenericKind::kStruct:
+      case wasm::GenericKind::kArray:
+      case wasm::GenericKind::kAny:
+      case wasm::GenericKind::kNone:
+      case wasm::GenericKind::kNoFunc:
+      case wasm::GenericKind::kNoExtern:
+      case wasm::GenericKind::kExn:
+      case wasm::GenericKind::kNoExn:
+      case wasm::GenericKind::kCont:
+      case wasm::GenericKind::kNoCont:
         return entry;
-      }
-      DCHECK(module->has_signature(element_type));
-      break;
+      case wasm::GenericKind::kFunc:
+        // Placeholder; handled below.
+        break;
+      case wasm::GenericKind::kBottom:
+      case wasm::GenericKind::kTop:
+      case wasm::GenericKind::kVoid:
+      case wasm::GenericKind::kExternString:
+        UNREACHABLE();
+    }
   }
 
   // {entry} is not a valid entry in the table. It has to be a placeholder
@@ -507,7 +521,8 @@ bool FunctionSigMatchesTable(wasm::CanonicalTypeIndex sig_id,
   // types before installing the dispatch table entry. There are three
   // alternative success conditions:
   // (1) Generic "funcref" tables can hold any function entry.
-  if (table_type.heap_representation_non_shared() == wasm::HeapType::kFunc) {
+  if (!table_type.has_index() &&
+      table_type.generic_kind() == wasm::GenericKind::kFunc) {
     return true;
   }
   // (2) Most function types are expected to be final, so they can be compared
@@ -2874,10 +2889,12 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  const wasm::CanonicalValueType no_array_element =
-      wasm::CanonicalValueType::Primitive(wasm::kBottom);
+  const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
+  wasm::CanonicalValueType heaptype =
+      wasm::CanonicalValueType::Ref(type, shared, wasm::RefTypeKind::kFunction);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      type, no_array_element, opt_rtt_parent);
+      heaptype, no_array_element, opt_rtt_parent);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
@@ -3340,8 +3357,7 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          const char** error_message) {
   CanonicalValueType canonical;
   if (expected.has_index()) {
-    CanonicalTypeIndex index = module->canonical_type_id(expected.ref_index());
-    canonical = CanonicalValueType::FromIndex(expected.kind(), index);
+    canonical = module->canonical_type(expected);
   } else {
     canonical = CanonicalValueType{expected};
   }

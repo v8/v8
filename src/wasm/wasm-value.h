@@ -46,7 +46,7 @@ ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 // A wasm value with type information.
 class WasmValue {
  public:
-  WasmValue() : type_(CanonicalValueType::Primitive(kVoid)), bit_pattern_{} {}
+  WasmValue() : type_(kWasmVoid), bit_pattern_{} {}
 
 #define DEFINE_TYPE_SPECIFIC_METHODS(name, localtype, ctype)                  \
   explicit WasmValue(ctype v) : type_(localtype), bit_pattern_{} {            \

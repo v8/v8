@@ -2586,7 +2586,7 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
-  os << "\n - canonical type index: " << canonical_type_index();
+  os << "\n - canonical type: " << type().name();
   os << "\n - element type: " << element_type().name();
   os << "\n - supertypes: ";
   for (int i = 0; i < supertypes_length(); i++) {

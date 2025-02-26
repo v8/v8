@@ -285,7 +285,7 @@ ValueType GetValueTypeHelper(WasmModuleGenerationOptions options,
     // Return user-defined type.
     return ValueType::RefMaybeNull(
         ModuleTypeIndex{chosen_id - static_cast<uint32_t>(types.size())},
-        nullability);
+        nullability, kNotShared, RefTypeKind::kOther /* unknown */);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
   if (types[chosen_id].is_reference()) {
@@ -319,7 +319,7 @@ uint32_t GenerateRefTypeElementSegment(DataRange* range,
   DCHECK(element_type.has_index());
   WasmModuleBuilder::WasmElemSegment segment(
       builder->zone(), element_type, false,
-      WasmInitExpr::RefNullConst(element_type.heap_representation()));
+      WasmInitExpr::RefNullConst(element_type.heap_type()));
   size_t element_count = range->get<uint8_t>() % 11;
   for (size_t i = 0; i < element_count; ++i) {
     segment.entries.emplace_back(
@@ -1147,7 +1147,9 @@ class BodyGen {
         builder_->EmitWithU32V(kExprReturnCallIndirect, sig_index);
         builder_->EmitByte(table_index);
       } else {
-        GenerateRef(HeapType(sig_index), data);
+        GenerateRef(
+            HeapType::Index(sig_index, kNotShared, RefTypeKind::kFunction),
+            data);
         builder_->EmitWithU32V(kExprReturnCallRef, sig_index);
       }
       return;
@@ -1165,7 +1167,9 @@ class BodyGen {
         builder_->EmitWithU32V(kExprCallIndirect, sig_index);
         builder_->EmitByte(table_index);
       } else {
-        GenerateRef(HeapType(sig_index), data);
+        GenerateRef(
+            HeapType::Index(sig_index, kNotShared, RefTypeKind::kFunction),
+            data);
         builder_->EmitWithU32V(kExprCallRef, sig_index);
       }
     }
@@ -1194,6 +1198,11 @@ class BodyGen {
     bool is_valid() const { return type != kWasmVoid; }
   };
 
+  ValueType AsNullable(ValueType original) {
+    if (!original.is_ref()) return original;
+    return original.AsNullable();
+  }
+
   Var GetRandomLocal(DataRange* data, ValueType type = kWasmTop) {
     const size_t locals_count = all_locals_count();
     if (locals_count == 0) return {};
@@ -1202,7 +1211,7 @@ class BodyGen {
     // TODO(14034): Ideally we would check for subtyping here over type
     // equality, but we don't have a module.
     while (type != kWasmTop && local_type(index) != type &&
-           local_type(index).AsNullable() != type) {
+           AsNullable(local_type(index)) != type) {
       index = (index + 1) % locals_count;
       if (index == start_index) return {};
     }
@@ -1457,7 +1466,7 @@ class BodyGen {
             // Generate offset, length.
             // TODO(14034): Change the distribution here to make it more likely
             // that the numbers are in range.
-            Generate(base::VectorOf({kWasmI32, kWasmI32}), data);
+            Generate({kWasmI32, kWasmI32}, data);
             // Generate array.new_elem instruction.
             builder_->EmitWithPrefix(kExprArrayNewElem);
             builder_->EmitU32V(index);
@@ -1471,7 +1480,7 @@ class BodyGen {
             int data_index =
                 data->get<uint8_t>() % builder_->builder()->NumDataSegments();
             // Generate offset, length.
-            Generate(base::VectorOf({kWasmI32, kWasmI32}), data);
+            Generate({kWasmI32, kWasmI32}, data);
             builder_->EmitWithPrefix(kExprArrayNewData);
             builder_->EmitU32V(index);
             builder_->EmitU32V(data_index);
@@ -1661,7 +1670,9 @@ class BodyGen {
 
     if (!array_indices.empty()) {
       int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
-      GenerateRef(HeapType(array_indices[index]), data, kNullable);
+      GenerateRef(HeapType::Index(array_indices[index], kNotShared,
+                                  RefTypeKind::kArray),
+                  data, kNullable);
       Generate(kWasmI32, data);
       if (builder->GetArrayType(array_indices[index])
               ->element_type()
@@ -1693,7 +1704,7 @@ class BodyGen {
   }
 
   void i31_get(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kI31), data);
+    GenerateRef(kWasmI31Ref, data);
     if (data->get<bool>()) {
       builder_->EmitWithPrefix(kExprI31GetS);
     } else {
@@ -1703,7 +1714,7 @@ class BodyGen {
 
   void array_len(DataRange* data) {
     DCHECK_NE(0, arrays_.size());  // We always emit at least one array type.
-    GenerateRef(HeapType(HeapType::kArray), data);
+    GenerateRef(kWasmArrayRef, data);
     builder_->EmitWithPrefix(kExprArrayLen);
   }
 
@@ -1715,9 +1726,11 @@ class BodyGen {
     ModuleTypeIndex array_index =
         arrays_[data->get<uint8_t>() % arrays_.size()];
     DCHECK(builder_->builder()->IsArrayType(array_index));
-    GenerateRef(HeapType(array_index), data);  // destination
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data);                         // destination
     Generate(kWasmI32, data);                  // destination index
-    GenerateRef(HeapType(array_index), data);  // source
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data);                         // source
     Generate(kWasmI32, data);                  // source index
     Generate(kWasmI32, data);                  // length
     builder_->EmitWithPrefix(kExprArrayCopy);
@@ -1734,7 +1747,8 @@ class BodyGen {
                                  ->GetArrayType(array_index)
                                  ->element_type()
                                  .Unpacked();
-    GenerateRef(HeapType(array_index), data);  // array
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data);                         // array
     Generate(kWasmI32, data);                  // offset
     Generate(element_type, data);              // value
     Generate(kWasmI32, data);                  // length
@@ -1761,8 +1775,8 @@ class BodyGen {
     int data_index =
         data->get<uint8_t>() % builder_->builder()->NumDataSegments();
     // Generate array, index, data_offset, length.
-    Generate(base::VectorOf({ValueType::RefNull(array_index), kWasmI32,
-                             kWasmI32, kWasmI32}),
+    Generate({ValueType::RefNull(array_index, kNotShared, RefTypeKind::kArray),
+              kWasmI32, kWasmI32, kWasmI32},
              data);
     builder_->EmitWithPrefix(kExprArrayInitData);
     builder_->EmitU32V(array_index);
@@ -1791,8 +1805,8 @@ class BodyGen {
     // Generate array, index, elem_offset, length.
     // TODO(14034): Change the distribution here to make it more likely
     // that the numbers are in range.
-    Generate(base::VectorOf({ValueType::RefNull(array_index), kWasmI32,
-                             kWasmI32, kWasmI32}),
+    Generate({ValueType::RefNull(array_index, kNotShared, RefTypeKind::kArray),
+              kWasmI32, kWasmI32, kWasmI32},
              data);
     // Generate array.new_elem instruction.
     builder_->EmitWithPrefix(kExprArrayInitElem);
@@ -1815,7 +1829,9 @@ class BodyGen {
     }
 
     int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
-    GenerateRef(HeapType(array_indices[index]), data);
+    GenerateRef(
+        HeapType::Index(array_indices[index], kNotShared, RefTypeKind::kArray),
+        data);
     Generate(kWasmI32, data);
     Generate(
         builder->GetArrayType(array_indices[index])->element_type().Unpacked(),
@@ -1841,7 +1857,9 @@ class BodyGen {
     }
     if (!field_index.empty()) {
       int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
-      GenerateRef(HeapType(struct_index[index]), data, kNullable);
+      GenerateRef(HeapType::Index(struct_index[index], kNotShared,
+                                  RefTypeKind::kStruct),
+                  data, kNullable);
       if (builder->GetStructType(struct_index[index])
               ->field(field_index[index])
               .is_packed()) {
@@ -1887,97 +1905,117 @@ class BodyGen {
       case HeapType::kStruct:
       case HeapType::kI31:
       case HeapType::kNone:
-        return HeapType(HeapType::kAny);
+        return kWasmAnyRef;
       case HeapType::kExtern:
       case HeapType::kNoExtern:
-        return HeapType(HeapType::kExtern);
+        return kWasmExternRef;
       case HeapType::kExn:
       case HeapType::kNoExn:
-        return HeapType(HeapType::kExn);
+        return kWasmExnRef;
       case HeapType::kFunc:
       case HeapType::kNoFunc:
-        return HeapType(HeapType::kFunc);
+        return kWasmFuncRef;
       default:
         DCHECK(type.is_index());
         if (builder_->builder()->IsSignature(type.ref_index())) {
-          return HeapType(HeapType::kFunc);
+          return kWasmFuncRef;
         }
         DCHECK(builder_->builder()->IsStructType(type.ref_index()) ||
                builder_->builder()->IsArrayType(type.ref_index()));
-        return HeapType(HeapType::kAny);
+        return kWasmAnyRef;
     }
   }
 
   HeapType choose_sub_type(HeapType type, DataRange* data) {
     switch (type.representation()) {
       case HeapType::kAny: {
-        constexpr HeapType::Representation generic_types[] = {
-            HeapType::kAny,    HeapType::kEq,  HeapType::kArray,
-            HeapType::kStruct, HeapType::kI31, HeapType::kNone,
+        constexpr GenericKind generic_types[] = {
+            GenericKind::kAny,    GenericKind::kEq,  GenericKind::kArray,
+            GenericKind::kStruct, GenericKind::kI31, GenericKind::kNone,
         };
         size_t choice =
             data->get<uint8_t>() %
             (arrays_.size() + structs_.size() + arraysize(generic_types));
 
-        if (choice < arrays_.size()) return HeapType(arrays_[choice]);
+        if (choice < arrays_.size()) {
+          return HeapType::Index(arrays_[choice], kNotShared,
+                                 RefTypeKind::kArray);
+        }
         choice -= arrays_.size();
-        if (choice < structs_.size()) return HeapType(structs_[choice]);
+        if (choice < structs_.size()) {
+          return HeapType::Index(structs_[choice], kNotShared,
+                                 RefTypeKind::kStruct);
+        }
         choice -= structs_.size();
-        return HeapType(generic_types[choice]);
+        return HeapType::Generic(generic_types[choice], kNotShared);
       }
       case HeapType::kEq: {
-        constexpr HeapType::Representation generic_types[] = {
-            HeapType::kEq,  HeapType::kArray, HeapType::kStruct,
-            HeapType::kI31, HeapType::kNone,
+        constexpr GenericKind generic_types[] = {
+            GenericKind::kEq,  GenericKind::kArray, GenericKind::kStruct,
+            GenericKind::kI31, GenericKind::kNone,
         };
         size_t choice =
             data->get<uint8_t>() %
             (arrays_.size() + structs_.size() + arraysize(generic_types));
 
-        if (choice < arrays_.size()) return HeapType(arrays_[choice]);
+        if (choice < arrays_.size()) {
+          return HeapType::Index(arrays_[choice], kNotShared,
+                                 RefTypeKind::kArray);
+        }
         choice -= arrays_.size();
-        if (choice < structs_.size()) return HeapType(structs_[choice]);
+        if (choice < structs_.size()) {
+          return HeapType::Index(structs_[choice], kNotShared,
+                                 RefTypeKind::kStruct);
+        }
         choice -= structs_.size();
-        return HeapType(generic_types[choice]);
+        return HeapType::Generic(generic_types[choice], kNotShared);
       }
       case HeapType::kStruct: {
-        constexpr HeapType::Representation generic_types[] = {
-            HeapType::kStruct,
-            HeapType::kNone,
+        constexpr GenericKind generic_types[] = {
+            GenericKind::kStruct,
+            GenericKind::kNone,
         };
         const size_t type_count = structs_.size();
         const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
-                   ? HeapType(generic_types[choice - type_count])
-                   : HeapType(structs_[choice]);
+                   ? HeapType::Generic(generic_types[choice - type_count],
+                                       kNotShared)
+                   : HeapType::Index(structs_[choice], kNotShared,
+                                     RefTypeKind::kStruct);
       }
       case HeapType::kArray: {
-        constexpr HeapType::Representation generic_types[] = {
-            HeapType::kArray,
-            HeapType::kNone,
+        constexpr GenericKind generic_types[] = {
+            GenericKind::kArray,
+            GenericKind::kNone,
         };
         const size_t type_count = arrays_.size();
         const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
-                   ? HeapType(generic_types[choice - type_count])
-                   : HeapType(arrays_[choice]);
+                   ? HeapType::Generic(generic_types[choice - type_count],
+                                       kNotShared)
+                   : HeapType::Index(arrays_[choice], kNotShared,
+                                     RefTypeKind::kArray);
       }
       case HeapType::kFunc: {
-        constexpr HeapType::Representation generic_types[] = {
-            HeapType::kFunc, HeapType::kNoFunc};
+        constexpr GenericKind generic_types[] = {GenericKind::kFunc,
+                                                 GenericKind::kNoFunc};
         const size_t type_count = functions_.size();
         const size_t choice =
             data->get<uint8_t>() % (type_count + arraysize(generic_types));
         return choice >= type_count
-                   ? HeapType(generic_types[choice - type_count])
-                   : HeapType(functions_[choice]);
+                   ? HeapType::Generic(generic_types[choice - type_count],
+                                       kNotShared)
+                   : HeapType::Index(functions_[choice], kNotShared,
+                                     RefTypeKind::kFunction);
       }
       case HeapType::kExtern:
         // About 10% of chosen subtypes will be kNoExtern.
-        return HeapType(data->get<uint8_t>() > 25 ? HeapType::kExtern
-                                                  : HeapType::kNoExtern);
+        return HeapType::Generic(data->get<uint8_t>() > 25
+                                     ? GenericKind::kExtern
+                                     : GenericKind::kNoExtern,
+                                 kNotShared);
       default:
         if (!type.is_index()) {
           // No logic implemented to find a sub-type.
@@ -1992,9 +2030,9 @@ class BodyGen {
             subtypes.push_back(ModuleTypeIndex{i});
           }
         }
-        return subtypes.empty()
-                   ? type  // no downcast possible
-                   : HeapType(subtypes[data->get<uint8_t>() % subtypes.size()]);
+        if (subtypes.empty()) return type;  // No downcast possible.
+        return HeapType::Index(subtypes[data->get<uint8_t>() % subtypes.size()],
+                               kNotShared, type.ref_type_kind());
     }
   }
 
@@ -2067,7 +2105,7 @@ class BodyGen {
     if (type.representation() != HeapType::kAny) {
       return false;
     }
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     builder_->EmitWithPrefix(kExprAnyConvertExtern);
     if (nullable == kNonNullable) {
       builder_->Emit(kExprRefAsNonNull);
@@ -2099,7 +2137,8 @@ class BodyGen {
     }
     int field_index =
         field_indices[data->get<uint8_t>() % field_indices.size()];
-    GenerateRef(HeapType(struct_index), data);
+    GenerateRef(HeapType::Index(struct_index, kNotShared, RefTypeKind::kStruct),
+                data);
     Generate(struct_type->field(field_index).Unpacked(), data);
     builder_->EmitWithPrefix(kExprStructSet);
     builder_->EmitU32V(struct_index);
@@ -2107,13 +2146,13 @@ class BodyGen {
   }
 
   void ref_is_null(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kAny), data);
+    GenerateRef(kWasmAnyRef, data);
     builder_->Emit(kExprRefIsNull);
   }
 
   template <WasmOpcode opcode>
   void ref_test(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kAny), data);
+    GenerateRef(kWasmAnyRef, data);
     constexpr int generic_types[] = {kAnyRefCode,    kEqRefCode, kArrayRefCode,
                                      kStructRefCode, kNoneCode,  kI31RefCode};
     size_t num_types = structs_.size() + arrays_.size();
@@ -2134,8 +2173,8 @@ class BodyGen {
   }
 
   void ref_eq(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kEq), data);
-    GenerateRef(HeapType(HeapType::kEq), data);
+    GenerateRef(kWasmEqRef, data);
+    GenerateRef(kWasmEqRef, data);
     builder_->Emit(kExprRefEq);
   }
 
@@ -2144,12 +2183,12 @@ class BodyGen {
   }
 
   void string_cast(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.cast);
   }
 
   void string_test(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.test);
   }
 
@@ -2164,80 +2203,88 @@ class BodyGen {
   }
 
   void string_charcodeat(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.charCodeAt);
   }
 
   void string_codepointat(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.codePointAt);
   }
 
   void string_length(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.length);
   }
 
   void string_concat(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.concat);
   }
 
   void string_substring(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     Generate(kWasmI32, data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.substring);
   }
 
   void string_equals(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.equals);
   }
 
   void string_compare(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.compare);
   }
 
   void string_fromcharcodearray(DataRange* data) {
-    GenerateRef(HeapType(string_imports_.array_i16), data);
+    GenerateRef(HeapType::Index(string_imports_.array_i16, kNotShared,
+                                RefTypeKind::kArray),
+                data);
     Generate(kWasmI32, data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.fromCharCodeArray);
   }
 
   void string_intocharcodearray(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
-    GenerateRef(HeapType(string_imports_.array_i16), data);
+    GenerateRef(kWasmExternRef, data);
+    GenerateRef(HeapType::Index(string_imports_.array_i16, kNotShared,
+                                RefTypeKind::kArray),
+                data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.intoCharCodeArray);
   }
 
   void string_measureutf8(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.measureStringAsUTF8);
   }
 
   void string_intoutf8array(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
-    GenerateRef(HeapType(string_imports_.array_i8), data);
+    GenerateRef(kWasmExternRef, data);
+    GenerateRef(HeapType::Index(string_imports_.array_i8, kNotShared,
+                                RefTypeKind::kArray),
+                data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.encodeStringIntoUTF8Array);
   }
 
   void string_toutf8array(DataRange* data) {
-    GenerateRef(HeapType(HeapType::kExtern), data);
+    GenerateRef(kWasmExternRef, data);
     call_string_import(string_imports_.encodeStringToUTF8Array);
   }
 
   void string_fromutf8array(DataRange* data) {
-    GenerateRef(HeapType(string_imports_.array_i8), data);
+    GenerateRef(HeapType::Index(string_imports_.array_i8, kNotShared,
+                                RefTypeKind::kArray),
+                data);
     Generate(kWasmI32, data);
     Generate(kWasmI32, data);
     call_string_import(string_imports_.decodeStringFromUTF8Array);
@@ -3282,11 +3329,11 @@ class BodyGen {
           random = data->get<uint8_t>() % (num_data_types + emit_i31ref);
         }
         if (random < structs_.size()) {
-          GenerateRef(HeapType(HeapType::kStruct), data, nullability);
+          GenerateRef(kWasmStructRef, data, nullability);
         } else if (random < num_data_types) {
-          GenerateRef(HeapType(HeapType::kArray), data, nullability);
+          GenerateRef(kWasmArrayRef, data, nullability);
         } else {
-          GenerateRef(HeapType(HeapType::kI31), data, nullability);
+          GenerateRef(kWasmI31Ref, data, nullability);
         }
         return;
       }
@@ -3303,7 +3350,8 @@ class BodyGen {
         }
         ModuleTypeIndex index = arrays_[random];
         DCHECK(builder_->builder()->IsArrayType(index));
-        GenerateRef(HeapType(index), data, nullability);
+        GenerateRef(HeapType::Index(index, kNotShared, RefTypeKind::kArray),
+                    data, nullability);
         return;
       }
       case HeapType::kStruct: {
@@ -3320,7 +3368,8 @@ class BodyGen {
         }
         ModuleTypeIndex index = structs_[random];
         DCHECK(builder_->builder()->IsStructType(index));
-        GenerateRef(HeapType(index), data, nullability);
+        GenerateRef(HeapType::Index(index, kNotShared, RefTypeKind::kStruct),
+                    data, nullability);
         return;
       }
       case HeapType::kEq: {
@@ -3340,11 +3389,19 @@ class BodyGen {
         if (random < num_types) {
           // Using `HeapType(random)` here relies on the assumption that struct
           // and array types come before signatures.
-          DCHECK(builder_->builder()->IsArrayType(random) ||
-                 builder_->builder()->IsStructType(random));
-          GenerateRef(HeapType(ModuleTypeIndex{random}), data, nullability);
+          RefTypeKind kind = RefTypeKind::kOther;
+          if (builder_->builder()->IsArrayType(random)) {
+            kind = RefTypeKind::kArray;
+          } else if (builder_->builder()->IsStructType(random)) {
+            kind = RefTypeKind::kStruct;
+          } else {
+            UNREACHABLE();
+          }
+          GenerateRef(
+              HeapType::Index(ModuleTypeIndex{random}, kNotShared, kind), data,
+              nullability);
         } else {
-          GenerateRef(HeapType(HeapType::kI31), data, nullability);
+          GenerateRef(kWasmI31Ref, data, nullability);
         }
         return;
       }
@@ -3360,7 +3417,9 @@ class BodyGen {
         }
         ModuleTypeIndex signature_index = functions_[random];
         DCHECK(builder_->builder()->IsSignature(signature_index));
-        GenerateRef(HeapType(signature_index), data, nullability);
+        GenerateRef(HeapType::Index(signature_index, kNotShared,
+                                    RefTypeKind::kFunction),
+                    data, nullability);
         return;
       }
       case HeapType::kI31: {
@@ -3386,7 +3445,7 @@ class BodyGen {
         uint8_t choice = data->get<uint8_t>();
         if (choice < 25) {
           // ~10% chance of extern.convert_any.
-          GenerateRef(HeapType(HeapType::kAny), data);
+          GenerateRef(kWasmAnyRef, data);
           builder_->EmitWithPrefix(kExprExternConvertAny);
           if (nullability == kNonNullable) {
             builder_->Emit(kExprRefAsNonNull);
@@ -3441,14 +3500,13 @@ class BodyGen {
   }
 
   void GenerateRef(DataRange* data) {
-    constexpr HeapType::Representation top_types[] = {
-        HeapType::kAny,
-        HeapType::kFunc,
-        HeapType::kExtern,
+    constexpr HeapType top_types[] = {
+        kWasmAnyRef,
+        kWasmFuncRef,
+        kWasmExternRef,
     };
-    HeapType::Representation type =
-        top_types[data->get<uint8_t>() % arraysize(top_types)];
-    GenerateRef(HeapType(type), data);
+    HeapType type = top_types[data->get<uint8_t>() % arraysize(top_types)];
+    GenerateRef(type, data);
   }
 
   std::vector<ValueType> GenerateTypes(DataRange* data) {
@@ -3491,6 +3549,11 @@ class BodyGen {
     DataRange first_range = data->split();
     Generate(lower_half, &first_range);
     Generate(upper_half, data);
+  }
+  void Generate(std::initializer_list<ValueTypeBase> types, DataRange* data) {
+    base::Vector<const ValueType> cast_types = base::VectorOf<const ValueType>(
+        static_cast<const ValueType*>(types.begin()), types.size());
+    return Generate(cast_types, data);
   }
 
   void Consume(ValueType type) {
@@ -3849,12 +3912,15 @@ class ModuleGen {
     StringImports strings;
     strings.array_i8 = kArrayI8;
     strings.array_i16 = kArrayI16;
-    static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
+    static constexpr ValueType kRefExtern = kWasmRefExtern;
     static constexpr ValueType kExternRef = kWasmExternRef;
     static constexpr ValueType kI32 = kWasmI32;
-    static constexpr ValueType kRefA8 = ValueType::Ref(kArrayI8);
-    static constexpr ValueType kRefNullA8 = ValueType::RefNull(kArrayI8);
-    static constexpr ValueType kRefNullA16 = ValueType::RefNull(kArrayI16);
+    static constexpr ValueType kRefA8 =
+        ValueType::Ref(kArrayI8, kNotShared, RefTypeKind::kArray);
+    static constexpr ValueType kRefNullA8 =
+        ValueType::RefNull(kArrayI8, kNotShared, RefTypeKind::kArray);
+    static constexpr ValueType kRefNullA16 =
+        ValueType::RefNull(kArrayI16, kNotShared, RefTypeKind::kArray);
 
     // Shorthands: "r" = nullable "externref",
     // "e" = non-nullable "ref extern".
@@ -4173,7 +4239,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
       }
       if (range.size() == 0 || recursion_depth >= kMaxRecursionDepth ||
           null_only || (range.get<uint8_t>() % 4 == 0)) {
-        return WasmInitExpr::RefNullConst(type.heap_type().representation());
+        return WasmInitExpr::RefNullConst(type.heap_type());
       }
       [[fallthrough]];
     }
@@ -4192,19 +4258,18 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           if (recursion_depth < kMaxRecursionDepth && range.size() > 0 &&
               range.get<uint8_t>() % 4 == 3) {
             return WasmInitExpr::AnyConvertExtern(
-                zone,
-                GenerateInitExpr(zone, range, builder,
-                                 ValueType::RefMaybeNull(HeapType::kExtern,
-                                                         type.nullability()),
-                                 structs, arrays, recursion_depth + 1));
+                zone, GenerateInitExpr(zone, range, builder,
+                                       ValueType::RefMaybeNull(
+                                           kWasmExternRef, type.nullability()),
+                                       structs, arrays, recursion_depth + 1));
           }
           [[fallthrough]];
         }
         case HeapType::kEq: {
           uint8_t choice = range.get<uint8_t>() % 3;
-          HeapType::Representation subtype = choice == 0   ? HeapType::kI31
-                                             : choice == 1 ? HeapType::kArray
-                                                           : HeapType::kStruct;
+          HeapType subtype = choice == 0   ? kWasmI31Ref
+                             : choice == 1 ? kWasmArrayRef
+                                           : kWasmStructRef;
 
           return GenerateInitExpr(
               zone, range, builder,
@@ -4221,7 +4286,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           return WasmInitExpr::ExternConvertAny(
               zone, GenerateInitExpr(zone, range, builder,
                                      ValueType::RefMaybeNull(
-                                         HeapType::kAny, type.nullability()),
+                                         kWasmAnyRef, type.nullability()),
                                      structs, arrays, recursion_depth + 1));
         case HeapType::kI31:
           return WasmInitExpr::RefI31(
@@ -4383,6 +4448,7 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
   // Generate function declarations before tables. This will be needed once we
   // have typed-function tables.
   std::vector<WasmFunctionBuilder*> functions;
+  functions.reserve(num_functions);
   for (uint8_t i = 0; i < num_functions; i++) {
     // If we are using wasm-gc, we cannot allow signature normalization
     // performed by adding a function by {FunctionSig}, because we emit
@@ -4531,6 +4597,7 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
   }
 
   std::vector<WasmFunctionBuilder*> functions;
+  functions.reserve(num_functions);
   for (uint8_t i = 0; i < num_functions; i++) {
     functions.push_back(builder.AddFunction(function_signatures[i]));
   }
@@ -4770,6 +4837,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   ModuleTypeIndex target_sig_index =
       builder.ForceAddSignature(target_sig, kIsFinal);
 
+  function_signatures.reserve(num_call_targets);
   for (int i = 0; i < num_call_targets; ++i) {
     // Simplification: All call targets of a call_ref / call_indirect have the
     // same signature.
@@ -4793,8 +4861,9 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
   }
 
   // Create signature for main function.
-  const FunctionSig* main_sig = CreateSignature(
-      builder.zone(), base::VectorOf({kWasmI32}), base::VectorOf({kWasmI32}));
+  const FunctionSig* main_sig =
+      CreateSignature(builder.zone(), base::VectorOf({ValueType{kWasmI32}}),
+                      base::VectorOf({ValueType{kWasmI32}}));
   function_signatures.push_back(builder.ForceAddSignature(main_sig, kIsFinal));
 
   DCHECK_EQ(function_signatures.back().index,

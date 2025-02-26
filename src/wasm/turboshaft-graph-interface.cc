@@ -1971,8 +1971,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
            type.is_reference_to(HeapType::kExternString) ||
            type.is_reference_to(HeapType::kExtern));
     if (type.is_reference_to(HeapType::kExtern)) {
-      type =
-          ValueType::RefMaybeNull(HeapType::kExternString, type.nullability());
+      type = ValueType::RefMaybeNull(kWasmRefExternString, type.nullability());
     }
     return __ AnnotateWasmType(value, type);
   }
@@ -2696,7 +2695,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             imm.table_imm.table->address_type, index.op);
 
         DCHECK(!shared_);
-        constexpr bool kNotShared = false;
         // Load the instance here even though it's only used below, in the hope
         // that load elimination can use it when fetching the target next.
         V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
@@ -2881,7 +2879,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
             imm.table_imm.table->address_type, index.op);
 
         DCHECK(!shared_);
-        constexpr bool kNotShared = false;
         // Load the instance here even though it's only used below, in the hope
         // that load elimination can use it when fetching the target next.
         V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
@@ -2993,7 +2990,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
       DCHECK(!shared_);
-      constexpr bool kNotShared = false;
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(kNotShared), FuncRefs,
           MemoryRepresentation::TaggedPointer());
@@ -3124,7 +3120,6 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     if (should_inline(decoder, feedback_slot_,
                       std::numeric_limits<int>::max())) {
       DCHECK(!shared_);
-      constexpr bool kNotShared = false;
       V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
           trusted_instance_data(kNotShared), FuncRefs,
           MemoryRepresentation::TaggedPointer());
@@ -4255,9 +4250,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                                     WasmTableObject::kEntriesOffset);
     OpIndex entry = __ LoadFixedArrayElement(entries, index_wordptr);
 
-    if (IsSubtypeOf(imm.table->type, kWasmFuncRef, decoder->module_) ||
-        IsSubtypeOf(imm.table->type, ValueType::RefNull(HeapType::kFuncShared),
-                    decoder->module_)) {
+    if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
       // If the entry has map type Tuple2, call WasmFunctionTableGet which will
       // initialize the function table entry.
       Label<Object> resolved(&asm_);
@@ -4295,9 +4288,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<WordPtr> index_wordptr =
         TableAddressToUintPtrOrOOBTrap(imm.table->address_type, index.op);
 
-    if (IsSubtypeOf(imm.table->type, kWasmFuncRef, decoder->module_) ||
-        IsSubtypeOf(imm.table->type, ValueType::RefNull(HeapType::kFuncShared),
-                    decoder->module_)) {
+    if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
       CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
           decoder, {__ IntPtrConstant(imm.index),
                     __ Word32Constant(extract_shared_data ? 1 : 0),
@@ -4709,8 +4700,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           __ WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1),
           1);
     }
-    result->op = __ AnnotateWasmType(__ BitcastWordPtrToSmi(result->op),
-                                     kWasmI31Ref.AsNonNull());
+    result->op =
+        __ AnnotateWasmType(__ BitcastWordPtrToSmi(result->op), kWasmRefI31);
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
@@ -4744,11 +4735,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
                const Value& object, Value* result, bool null_succeeds) {
-    bool shared = decoder->module_->type(ref_index).is_shared;
-    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
+    HeapType target = decoder->module_->heap_type(ref_index);
+    V<Map> rtt =
+        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
     compiler::WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+                         target, null_succeeds ? kNullable : kNonNullable)};
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
@@ -4768,8 +4760,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       Forward(decoder, object, result);
       return;
     }
-    bool shared = decoder->module_->type(ref_index).is_shared;
-    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
+    ValueType target = result->type;
+    DCHECK_EQ(target.ref_index(), ref_index);
+    V<Map> rtt =
+        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
     DCHECK_EQ(result->type.is_nullable(), null_succeeds);
     compiler::WasmTypeCheckConfig config{object.type, result->type};
     result->op = __ WasmTypeCast(object.op, rtt, config);
@@ -4792,14 +4786,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
+  // TODO(jkummerow): Pass {target} to the interface.
   void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
                 const Value& object, Value* value_on_branch, uint32_t br_depth,
                 bool null_succeeds) {
-    bool shared = decoder->module_->type(ref_index).is_shared;
-    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
-    compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    // Note: we cannot just take {ref_index} and {null_succeeds} from
+    // {value_on_branch->type} because of
+    // https://github.com/WebAssembly/gc/issues/516.
+    ValueType target =
+        ValueType::RefMaybeNull(decoder->module_->heap_type(ref_index),
+                                null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt =
+        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
+    compiler::WasmTypeCheckConfig config{object.type, target};
     return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
                         null_succeeds);
   }
@@ -4818,11 +4817,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
-    bool shared = decoder->module_->type(ref_index).is_shared;
-    V<Map> rtt = __ RttCanon(managed_object_maps(shared), ref_index);
-    compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    ValueType target =
+        ValueType::RefMaybeNull(decoder->module_->heap_type(ref_index),
+                                null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt =
+        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
+    compiler::WasmTypeCheckConfig config{object.type, target};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }
@@ -7280,7 +7280,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     ModuleTypeIndex sig_index = imm.sig_imm.index;
     bool needs_type_check =
         needs_type_or_null_check &&
-        !EquivalentTypes(table->type.AsNonNull(), ValueType::Ref(sig_index),
+        !EquivalentTypes(table->type.AsNonNull(),
+                         ValueType::Ref(imm.sig_imm.heap_type()),
                          decoder->module_, decoder->module_);
     bool needs_null_check =
         needs_type_or_null_check && table->type.is_nullable();

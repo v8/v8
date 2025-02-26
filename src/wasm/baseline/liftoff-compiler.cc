@@ -2767,7 +2767,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
     if (null_check_strategy_ == compiler::NullCheckStrategy::kExplicit ||
-        IsSubtypeOf(kWasmI31Ref.AsNonNull(), arg.type, decoder->module_) ||
+        IsSubtypeOf(kWasmRefI31, arg.type, decoder->module_) ||
         !arg.type.use_wasm_null()) {
       // Use an explicit null check if
       // (1) we cannot use trap handler or
@@ -4114,7 +4114,7 @@ class LiftoffCompiler {
         value.module = decoder->module_;
         value.index = index;
         if (exception_on_stack) {
-          value.type = ValueType::Ref(HeapType::kAny);
+          value.type = kWasmAnyRef.AsNonNull();
           exception_on_stack = false;
         } else if (index < static_cast<int>(__ num_locals())) {
           value.type = decoder->local_type(index);
@@ -7086,8 +7086,7 @@ class LiftoffCompiler {
     Register tmp1 = scratch_null;  // Done with null checks.
 
     // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
-    ValueType i31ref = ValueType::Ref(HeapType::kI31);
-    if (IsSubtypeOf(i31ref, obj_type, module)) {
+    if (IsSubtypeOf(kWasmRefI31, obj_type, module)) {
       __ emit_smi_check(obj_reg, no_match, LiftoffAssembler::kJumpOnSmi,
                         frozen);
     }
@@ -8617,7 +8616,7 @@ class LiftoffCompiler {
     }
 
     bool needs_type_check = !EquivalentTypes(
-        table->type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
+        table->type.AsNonNull(), ValueType::Ref(imm.sig_imm.heap_type()),
         decoder->module_, decoder->module_);
     bool needs_null_check = table->type.is_nullable();
 
@@ -9081,7 +9080,7 @@ class LiftoffCompiler {
   }
 
   void SetDefaultValue(LiftoffRegister reg, ValueType type) {
-    DCHECK(is_defaultable(type.kind()));
+    DCHECK(type.is_defaultable());
     switch (type.kind()) {
       case kI8:
       case kI16:

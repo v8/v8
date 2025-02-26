@@ -82,28 +82,33 @@ class WasmGCTester {
                            isolate_->factory()->undefined_value(), args);
   }
 
-  ModuleTypeIndex DefineStruct(std::initializer_list<F> fields,
-                               ModuleTypeIndex supertype = kNoSuperType,
-                               bool is_final = false) {
+  HeapType DefineStruct(std::initializer_list<F> fields,
+                        ModuleTypeIndex supertype = kNoSuperType,
+                        bool is_final = false) {
     StructType::Builder type_builder(&zone_,
                                      static_cast<uint32_t>(fields.size()));
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
-    return builder_.AddStructType(type_builder.Build(), is_final, supertype);
+    return HeapType::Index(
+        builder_.AddStructType(type_builder.Build(), is_final, supertype),
+        kNotShared, RefTypeKind::kStruct);
   }
 
-  ModuleTypeIndex DefineArray(ValueType element_type, bool mutability,
-                              ModuleTypeIndex supertype = kNoSuperType,
-                              bool is_final = false) {
-    return builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
-                                 is_final, supertype);
+  HeapType DefineArray(ValueType element_type, bool mutability,
+                       ModuleTypeIndex supertype = kNoSuperType,
+                       bool is_final = false) {
+    return HeapType::Index(
+        builder_.AddArrayType(zone_.New<ArrayType>(element_type, mutability),
+                              is_final, supertype),
+        kNotShared, RefTypeKind::kArray);
   }
 
-  ModuleTypeIndex DefineSignature(FunctionSig* sig,
-                                  ModuleTypeIndex supertype = kNoSuperType,
-                                  bool is_final = false) {
-    return builder_.ForceAddSignature(sig, is_final, supertype);
+  HeapType DefineSignature(FunctionSig* sig,
+                           ModuleTypeIndex supertype = kNoSuperType,
+                           bool is_final = false) {
+    return HeapType::Index(builder_.ForceAddSignature(sig, is_final, supertype),
+                           kNotShared, RefTypeKind::kFunction);
   }
 
   uint8_t DefineTable(ValueType type, uint32_t min_size, uint32_t max_size) {
@@ -280,20 +285,21 @@ class WasmGCTester {
   ErrorThrower thrower;
 };
 
-ValueType ref(ModuleTypeIndex type_index) { return ValueType::Ref(type_index); }
-ValueType refNull(ModuleTypeIndex type_index) {
+ValueType ref(HeapType type_index) { return ValueType::Ref(type_index); }
+ValueType refNull(HeapType type_index) {
   return ValueType::RefNull(type_index);
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  const ModuleTypeIndex empty_struct_index = tester.DefineStruct({});
-  ValueType kRefType = ref(type_index);
-  ValueType kEmptyStructType = ref(empty_struct_index);
-  ValueType kRefNullType = refNull(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  HeapType empty_struct = tester.DefineStruct({});
+  const ModuleTypeIndex empty_struct_index = empty_struct.ref_index();
+  ValueType kRefType = ref(type);
+  ValueType kEmptyStructType = ref(empty_struct);
+  ValueType kRefNullType = refNull(type);
   FunctionSig sig_q_v(1, 0, &kRefType);
   FunctionSig sig_qe_v(1, 0, &kEmptyStructType);
 
@@ -361,14 +367,14 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
 // Test struct.get, ref.as_non_null and ref-typed globals.
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefTypes[] = {ref(type_index)};
-  ValueType kRefNullType = refNull(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefTypes[] = {ref(type)};
+  ValueType kRefNullType = refNull(type);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
-  const uint8_t global_index = tester.AddGlobal(
-      kRefNullType, true, WasmInitExpr::RefNullConst(type_index));
+  const uint8_t global_index =
+      tester.AddGlobal(kRefNullType, true, WasmInitExpr::RefNullConst(type));
   const uint8_t field_index = 0;
   const uint8_t kNonNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
@@ -392,13 +398,13 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
   FlagScope<bool> no_check(&v8_flags.experimental_wasm_skip_null_checks, true);
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefType = ref(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefType = ref(type);
   FunctionSig sig_q_v(1, 0, &kRefType);
 
-  const uint8_t global_index = tester.AddGlobal(
-      refNull(type_index), true, WasmInitExpr::RefNullConst(type_index));
+  const uint8_t global_index =
+      tester.AddGlobal(refNull(type), true, WasmInitExpr::RefNullConst(type));
   const uint8_t kFunc = tester.DefineFunction(
       &sig_q_v, {},
       {WASM_GLOBAL_SET(global_index, WASM_REF_NULL(type_index)),
@@ -412,10 +418,10 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefTypes[] = {ref(type_index)};
-  ValueType kRefNullType = refNull(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefTypes[] = {ref(type)};
+  ValueType kRefNullType = refNull(type);
   FunctionSig sig_q_v(1, 0, kRefTypes);
   const uint8_t local_index = 0;
   const uint8_t kTaken = tester.DefineFunction(
@@ -448,10 +454,10 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefType = ref(type_index);
-  ValueType kRefNullType = refNull(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefType = ref(type);
+  ValueType kRefNullType = refNull(type);
   FunctionSig sig_q_v(1, 0, &kRefType);
   const uint8_t field_index = 0;
 
@@ -462,7 +468,7 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
        WASM_LOCAL_SET(
            1, WASM_STRUCT_NEW(type_index, WASM_I32V(11), WASM_I32V(22))),
        WASM_STRUCT_GET(type_index, field_index,
-                       WASM_BLOCK_R(ref(type_index),
+                       WASM_BLOCK_R(ref(type),
                                     // Branch will be taken, and the block will
                                     // return struct(52, 62).
                                     WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
@@ -475,7 +481,7 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
        WASM_LOCAL_SET(
            1, WASM_STRUCT_NEW(type_index, WASM_I32V(11), WASM_I32V(22))),
        WASM_STRUCT_GET(type_index, field_index,
-                       WASM_BLOCK_R(ref(type_index),
+                       WASM_BLOCK_R(ref(type),
                                     // Branch will not be taken, and the block
                                     // will return struct(11, 22).
                                     WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0)),
@@ -489,36 +495,40 @@ WASM_COMPILED_EXEC_TEST(WasmBrOnNonNull) {
 WASM_COMPILED_EXEC_TEST(RefCast) {
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex supertype_index =
-      tester.DefineStruct({F(kWasmI32, true)});
-  const ModuleTypeIndex subtype1_index = tester.DefineStruct(
+  HeapType supertype = tester.DefineStruct({F(kWasmI32, true)});
+  const ModuleTypeIndex supertype_index = supertype.ref_index();
+  HeapType subtype1 = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmF32, false)}, supertype_index);
-  const ModuleTypeIndex subtype2_index = tester.DefineStruct(
+  const ModuleTypeIndex subtype1_index = subtype1.ref_index();
+  HeapType subtype2 = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
+  const ModuleTypeIndex subtype2_index = subtype2.ref_index();
   auto super_sig =
-      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(subtype1_index))
-          .Returns(ValueType::RefNull(supertype_index));
+      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(subtype1))
+          .Returns(ValueType::RefNull(supertype));
   auto sub_sig1 =
-      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(supertype_index))
-          .Returns(ValueType::RefNull(subtype1_index));
+      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(supertype))
+          .Returns(ValueType::RefNull(subtype1));
   auto sub_sig2 =
-      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(supertype_index))
-          .Returns(ValueType::RefNull(subtype2_index));
-  const ModuleTypeIndex function_type_index =
-      tester.DefineSignature(&super_sig);
-  const ModuleTypeIndex function_subtype1_index =
+      FixedSizeSignature<ValueType>::Params(ValueType::RefNull(supertype))
+          .Returns(ValueType::RefNull(subtype2));
+  HeapType function_type = tester.DefineSignature(&super_sig);
+  const ModuleTypeIndex function_type_index = function_type.ref_index();
+  HeapType function_subtype1 =
       tester.DefineSignature(&sub_sig1, function_type_index);
-  const ModuleTypeIndex function_subtype2_index =
+  const ModuleTypeIndex function_subtype1_index = function_subtype1.ref_index();
+  HeapType function_subtype2 =
       tester.DefineSignature(&sub_sig2, function_type_index);
+  const ModuleTypeIndex function_subtype2_index = function_subtype2.ref_index();
   const uint8_t function_index = tester.DefineFunction(
       function_subtype1_index, {},
       {WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20)), WASM_END});
   // Just so this function counts as "declared".
-  tester.AddGlobal(ValueType::RefNull(function_type_index), false,
+  tester.AddGlobal(ValueType::RefNull(function_type), false,
                    WasmInitExpr::RefFuncConst(function_index));
 
   const uint8_t kTestSuccessful = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(supertype)},
       {WASM_LOCAL_SET(
            0, WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20))),
        WASM_STRUCT_GET(subtype1_index, 0,
@@ -526,7 +536,7 @@ WASM_COMPILED_EXEC_TEST(RefCast) {
        WASM_END});
 
   const uint8_t kTestFailed = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(supertype)},
       {WASM_LOCAL_SET(
            0, WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20))),
        WASM_STRUCT_GET(subtype2_index, 0,
@@ -534,19 +544,19 @@ WASM_COMPILED_EXEC_TEST(RefCast) {
        WASM_END});
 
   const uint8_t kFuncTestSuccessfulSuper = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(function_type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(function_type)},
       {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
        WASM_REF_CAST(WASM_LOCAL_GET(0), function_type_index), WASM_DROP,
        WASM_I32V(0), WASM_END});
 
   const uint8_t kFuncTestSuccessfulSub = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(function_type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(function_type)},
       {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
        WASM_REF_CAST(WASM_LOCAL_GET(0), function_subtype1_index), WASM_DROP,
        WASM_I32V(0), WASM_END});
 
   const uint8_t kFuncTestFailed = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(function_type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(function_type)},
       {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
        WASM_REF_CAST(WASM_LOCAL_GET(0), function_subtype2_index), WASM_DROP,
        WASM_I32V(1), WASM_END});
@@ -564,13 +574,14 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
                         true);
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex supertype_index =
-      tester.DefineStruct({F(kWasmI32, true)});
-  const ModuleTypeIndex subtype1_index = tester.DefineStruct(
+  HeapType supertype = tester.DefineStruct({F(kWasmI32, true)});
+  const ModuleTypeIndex supertype_index = supertype.ref_index();
+  HeapType subtype1 = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmF32, true)}, supertype_index);
+  const ModuleTypeIndex subtype1_index = subtype1.ref_index();
 
   const uint8_t kTestSuccessful = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(supertype)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
        WASM_STRUCT_GET(subtype1_index, 0,
                        WASM_REF_CAST(WASM_LOCAL_GET(0), subtype1_index)),
@@ -582,14 +593,15 @@ WASM_COMPILED_EXEC_TEST(RefCastNoChecks) {
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index = tester.DefineStruct({F(kWasmI32, true)});
-  const ModuleTypeIndex other_type_index =
-      tester.DefineStruct({F(kWasmF32, true)});
+  HeapType type = tester.DefineStruct({F(kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  HeapType other_type = tester.DefineStruct({F(kWasmF32, true)});
+  const ModuleTypeIndex other_type_index = other_type.ref_index();
 
   const uint8_t kTestStructStatic = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
       {WASM_BLOCK_R(
-           ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
+           ValueType::RefNull(type), WASM_LOCAL_SET(0, WASM_I32V(111)),
            // Pipe a struct through a local so it's statically typed
            // as structref.
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
@@ -612,7 +624,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   const uint8_t kTestStructStaticNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
       {WASM_BLOCK_R(
-           ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
+           ValueType::RefNull(type), WASM_LOCAL_SET(0, WASM_I32V(111)),
            // Pipe a struct through a local so it's statically typed as
            // structref.
            WASM_LOCAL_SET(1, WASM_STRUCT_NEW(other_type_index, WASM_F32(1.0))),
@@ -634,8 +646,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
   const uint8_t kTestNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
-      {WASM_BLOCK_R(ValueType::RefNull(type_index),
-                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+      {WASM_BLOCK_R(ValueType::RefNull(type), WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Not taken for nullref.
                     WASM_BR_ON_CAST(0, kStructRefCode, type_index),
@@ -646,8 +657,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   // "br_on_cast null" also branches on null, treating it as a successful cast.
   const uint8_t kTestNullNull = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kWasmStructRef},
-      {WASM_BLOCK_R(ValueType::RefNull(type_index),
-                    WASM_LOCAL_SET(0, WASM_I32V(111)),
+      {WASM_BLOCK_R(ValueType::RefNull(type), WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Taken for nullref with br_on_cast null.
                     WASM_BR_ON_CAST_NULL(0, kStructRefCode, type_index),
@@ -660,7 +670,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_BLOCK_I(
            // The inner block should take the early branch with a struct
            // on the stack.
-           WASM_BLOCK_R(ValueType::Ref(type_index), WASM_LOCAL_GET(1),
+           WASM_BLOCK_R(ValueType::Ref(type), WASM_LOCAL_GET(1),
                         WASM_BR_ON_CAST(0, kStructRefCode, type_index),
                         // Returning 123 is the unreachable failure case.
                         WASM_I32V(123), WASM_BR(1)),
@@ -679,9 +689,11 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
 WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type0 = tester.DefineStruct({F(kWasmI32, true)});
-  const ModuleTypeIndex type1 =
+  HeapType heaptype0 = tester.DefineStruct({F(kWasmI32, true)});
+  const ModuleTypeIndex type0 = heaptype0.ref_index();
+  HeapType heaptype1 =
       tester.DefineStruct({F(kWasmI64, true), F(kWasmI32, true)});
+  const ModuleTypeIndex type1 = heaptype1.ref_index();
 
   const int field0_value = 5;
   const int field1_value = 25;
@@ -719,7 +731,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
                             {FUNCTION_BODY(WASM_REF_NULL(type0))});
 
   const uint8_t kUnrelatedTypes = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(type1)},
+      tester.sigs.i_v(), {ValueType::RefNull(heaptype1)},
       {FUNCTION_BODY(
           WASM_STRUCT_NEW(type1, WASM_I64V(10), WASM_I32V(field1_value)))});
 #undef FUNCTION_BODY
@@ -746,10 +758,10 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
 
 WASM_COMPILED_EXEC_TEST(WasmRefEq) {
   WasmGCTester tester(execution_tier);
-  ModuleTypeIndex type_index =
-      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  ValueType kRefTypes[] = {ref(type_index)};
-  ValueType kRefNullType = refNull(type_index);
+  HeapType type = tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefTypes[] = {ref(type)};
+  ValueType kRefNullType = refNull(type);
   FunctionSig sig_q_v(1, 0, kRefTypes);
 
   uint8_t local_index = 0;
@@ -785,9 +797,10 @@ WASM_COMPILED_EXEC_TEST(WasmRefEq) {
 WASM_COMPILED_EXEC_TEST(WasmPackedStructU) {
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex type_index = tester.DefineStruct(
+  HeapType type = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
-  ValueType struct_type = refNull(type_index);
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType struct_type = refNull(type);
 
   const uint8_t local_index = 0;
 
@@ -820,9 +833,10 @@ WASM_COMPILED_EXEC_TEST(WasmPackedStructU) {
 WASM_COMPILED_EXEC_TEST(WasmPackedStructS) {
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex type_index = tester.DefineStruct(
+  HeapType type = tester.DefineStruct(
       {F(kWasmI8, true), F(kWasmI16, true), F(kWasmI32, true)});
-  ValueType struct_type = refNull(type_index);
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType struct_type = refNull(type);
 
   const uint8_t local_index = 0;
 
@@ -856,14 +870,15 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
   if (!tester.HasSimdSupport(execution_tier)) return;
 
-  const ModuleTypeIndex type_index = tester.DefineArray(wasm::kWasmI32, true);
-  const ModuleTypeIndex fp_type_index =
-      tester.DefineArray(wasm::kWasmF64, true);
-  const ModuleTypeIndex immut_type_index =
-      tester.DefineArray(wasm::kWasmI32, false);
-  ValueType kRefTypes[] = {ref(type_index)};
+  HeapType type = tester.DefineArray(wasm::kWasmI32, true);
+  const ModuleTypeIndex type_index = type.ref_index();
+  HeapType fp_type = tester.DefineArray(wasm::kWasmF64, true);
+  const ModuleTypeIndex fp_type_index = fp_type.ref_index();
+  HeapType immut_type = tester.DefineArray(wasm::kWasmI32, false);
+  const ModuleTypeIndex immut_type_index = immut_type.ref_index();
+  ValueType kRefTypes[] = {ref(type)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
-  ValueType kRefNullType = refNull(type_index);
+  ValueType kRefNullType = refNull(type);
 
   // f: a = [12, 12, 12]; a[1] = 42; return a[arg0]
   const uint8_t local_index = 1;
@@ -922,7 +937,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   // f: a = [10.0, 10.0, 10.0]; a[1] = 42.42; return static_cast<int64>(a[1]);
   double result_value = 42.42;
   const uint8_t kTestFpArray = tester.DefineFunction(
-      tester.sigs.i_v(), {refNull(fp_type_index)},
+      tester.sigs.i_v(), {refNull(fp_type)},
       {WASM_LOCAL_SET(
            0, WASM_ARRAY_NEW(fp_type_index, WASM_F64(10.0), WASM_I32V(3))),
        WASM_ARRAY_SET(fp_type_index, WASM_LOCAL_GET(0), WASM_I32V(1),
@@ -970,8 +985,9 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex array_index = tester.DefineArray(kWasmI8, true);
-  ValueType array_type = refNull(array_index);
+  HeapType array = tester.DefineArray(kWasmI8, true);
+  const ModuleTypeIndex array_index = array.ref_index();
+  ValueType array_type = refNull(array);
 
   const uint8_t param_index = 0;
   const uint8_t local_index = 1;
@@ -1004,8 +1020,9 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayU) {
 
 WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex array_index = tester.DefineArray(kWasmI16, true);
-  ValueType array_type = refNull(array_index);
+  HeapType array = tester.DefineArray(kWasmI16, true);
+  const ModuleTypeIndex array_index = array.ref_index();
+  ValueType array_type = refNull(array);
 
   int32_t array_elements[] = {0x12345678, 10, 0xFEDC, 0xFF1234};
 
@@ -1038,14 +1055,16 @@ WASM_COMPILED_EXEC_TEST(WasmPackedArrayS) {
 
 WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex array32_index = tester.DefineArray(kWasmI32, true);
-  const ModuleTypeIndex array16_index = tester.DefineArray(kWasmI16, true);
-  const ModuleTypeIndex arrayref_index =
-      tester.DefineArray(refNull(array32_index), true);
+  HeapType array32 = tester.DefineArray(kWasmI32, true);
+  const ModuleTypeIndex array32_index = array32.ref_index();
+  HeapType array16 = tester.DefineArray(kWasmI16, true);
+  const ModuleTypeIndex array16_index = array16.ref_index();
+  HeapType arrayref = tester.DefineArray(refNull(array32), true);
+  const ModuleTypeIndex arrayref_index = arrayref.ref_index();
 
   // Copies i32 ranges: local1[0..3] to local2[6..9].
   const uint8_t kCopyI32 = tester.DefineFunction(
-      tester.sigs.i_i(), {refNull(array32_index), refNull(array32_index)},
+      tester.sigs.i_i(), {refNull(array32), refNull(array32)},
       {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10))),
        WASM_ARRAY_SET(array32_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_I32V(0)),
@@ -1064,7 +1083,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   // Copies i16 ranges: local1[0..3] to local2[6..9].
   const uint8_t kCopyI16 = tester.DefineFunction(
-      tester.sigs.i_i(), {refNull(array16_index), refNull(array16_index)},
+      tester.sigs.i_i(), {refNull(array16), refNull(array16)},
       {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array16_index, WASM_I32V(10))),
        WASM_ARRAY_SET(array16_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_I32V(0)),
@@ -1083,8 +1102,8 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   // Copies reference ranges: local1[0..3] to local2[6..9].
   const uint8_t kCopyRef = tester.DefineFunction(
-      FunctionSig::Build(tester.zone(), {refNull(array32_index)}, {kWasmI32}),
-      {refNull(arrayref_index), refNull(arrayref_index)},
+      FunctionSig::Build(tester.zone(), {refNull(array32)}, {kWasmI32}),
+      {refNull(arrayref), refNull(arrayref)},
       {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10))),
        WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(6))),
@@ -1103,8 +1122,8 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   // Copies overlapping reference ranges: local1[0..3] to local1[2..5].
   const uint8_t kCopyRefOverlapping = tester.DefineFunction(
-      FunctionSig::Build(tester.zone(), {refNull(array32_index)}, {kWasmI32}),
-      {refNull(arrayref_index)},
+      FunctionSig::Build(tester.zone(), {refNull(array32)}, {kWasmI32}),
+      {refNull(arrayref)},
       {WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10))),
        WASM_ARRAY_SET(arrayref_index, WASM_LOCAL_GET(1), WASM_I32V(0),
                       WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(2))),
@@ -1121,7 +1140,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
        kExprEnd});
 
   const uint8_t kOobSource = tester.DefineFunction(
-      tester.sigs.v_v(), {refNull(array32_index), refNull(array32_index)},
+      tester.sigs.v_v(), {refNull(array32), refNull(array32)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10))),
        WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10))),
        WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
@@ -1130,7 +1149,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
        kExprEnd});
 
   const uint8_t kOobDestination = tester.DefineFunction(
-      tester.sigs.v_v(), {refNull(array32_index), refNull(array32_index)},
+      tester.sigs.v_v(), {refNull(array32), refNull(array32)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10))),
        WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(array32_index, WASM_I32V(10))),
        WASM_ARRAY_COPY(array32_index, array32_index, WASM_LOCAL_GET(1),
@@ -1139,7 +1158,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
        kExprEnd});
 
   const uint8_t kZeroLength = tester.DefineFunction(
-      tester.sigs.i_v(), {refNull(arrayref_index), refNull(arrayref_index)},
+      tester.sigs.i_v(), {refNull(arrayref), refNull(arrayref)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10))),
        WASM_LOCAL_SET(1, WASM_ARRAY_NEW_DEFAULT(arrayref_index, WASM_I32V(10))),
        WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
@@ -1195,15 +1214,19 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   if (!tester.HasSimdSupport(execution_tier)) return;
 
   tester.builder()->StartRecursiveTypeGroup();
-  const ModuleTypeIndex struct_type =
+  HeapType struct_heaptype =
       tester.DefineStruct({F(wasm::kWasmI32, true), F(wasm::kWasmF64, true),
-                           F(refNull(ModuleTypeIndex{0}), true)});
+                           F(ValueType::RefNull(ModuleTypeIndex{0}, kNotShared,
+                                                RefTypeKind::kStruct),
+                             true)});
   tester.builder()->EndRecursiveTypeGroup();
+  ModuleTypeIndex struct_type = struct_heaptype.ref_index();
 
-  const ModuleTypeIndex array_type = tester.DefineArray(wasm::kWasmI32, true);
+  HeapType array_heaptype = tester.DefineArray(wasm::kWasmI32, true);
+  ModuleTypeIndex array_type = array_heaptype.ref_index();
   // Returns: struct[0] + f64_to_i32(struct[1]) + (struct[2].is_null ^ 1) == 0.
   const uint8_t allocate_struct = tester.DefineFunction(
-      tester.sigs.i_v(), {refNull(struct_type)},
+      tester.sigs.i_v(), {refNull(struct_heaptype)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(struct_type)),
        WASM_I32_ADD(
            WASM_I32_ADD(WASM_STRUCT_GET(struct_type, 0, WASM_LOCAL_GET(0)),
@@ -1214,7 +1237,7 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
                         WASM_I32V(1))),
        kExprEnd});
   const uint8_t allocate_array = tester.DefineFunction(
-      tester.sigs.i_v(), {refNull(array_type)},
+      tester.sigs.i_v(), {refNull(array_heaptype)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(2))),
        WASM_I32_ADD(
            WASM_ARRAY_GET(array_type, WASM_LOCAL_GET(0), WASM_I32V(0)),
@@ -1229,11 +1252,14 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   WasmGCTester tester(execution_tier);
-  ModuleTypeIndex type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-  ModuleTypeIndex subtype_index = tester.DefineStruct(
+  HeapType type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ModuleTypeIndex type_index = type.ref_index();
+  HeapType subtype = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmS128, true)}, type_index);
-  ModuleTypeIndex subtype2_index = tester.DefineStruct(
+  ModuleTypeIndex subtype_index = subtype.ref_index();
+  HeapType subtype2 = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true)}, type_index);
+  ModuleTypeIndex subtype2_index = subtype2.ref_index();
 
   const uint8_t kRefTestNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
@@ -1247,7 +1273,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(WASM_REF_NULL(subtype_index), type_index), kExprEnd});
   const uint8_t kRefTestUnrelatedNullable = tester.DefineFunction(
-      tester.sigs.i_v(), {refNull(subtype_index)},
+      tester.sigs.i_v(), {refNull(subtype)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype_index)),
        WASM_REF_TEST(WASM_LOCAL_GET(0), subtype2_index), kExprEnd});
   const uint8_t kRefTestUnrelatedNull = tester.DefineFunction(
@@ -1276,7 +1302,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
 
   const uint8_t kBrOnCastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(subtype_index), WASM_REF_NULL(type_index),
+      {WASM_BLOCK_R(refNull(subtype), WASM_REF_NULL(type_index),
                     WASM_BR_ON_CAST(0, type_index, subtype_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
@@ -1285,21 +1311,21 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   // however similar to an upcast.
   const uint8_t kBrOnCastUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_STRUCT_NEW_DEFAULT(type_index),
+      {WASM_BLOCK_R(refNull(type), WASM_STRUCT_NEW_DEFAULT(type_index),
                     WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const uint8_t kBrOnCastUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(type_index),
+      {WASM_BLOCK_R(refNull(type), WASM_REF_NULL(type_index),
                     WASM_BR_ON_CAST(0, type_index, type_index), WASM_DROP,
                     WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const uint8_t kBrOnCastFailNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(type_index), WASM_REF_NULL(type_index),
+      {WASM_BLOCK_R(refNull(type), WASM_REF_NULL(type_index),
                     WASM_BR_ON_CAST_FAIL(0, type_index, subtype_index),
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
@@ -1308,15 +1334,14 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   // however similar to an upcast.
   const uint8_t kBrOnCastFailUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(subtype_index),
-                    WASM_STRUCT_NEW_DEFAULT(subtype_index),
+      {WASM_BLOCK_R(refNull(subtype), WASM_STRUCT_NEW_DEFAULT(subtype_index),
                     WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   const uint8_t kBrOnCastFailUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_BLOCK_R(refNull(subtype_index), WASM_REF_NULL(subtype_index),
+      {WASM_BLOCK_R(refNull(subtype), WASM_REF_NULL(subtype_index),
                     WASM_BR_ON_CAST_FAIL(0, subtype_index, subtype_index),
                     WASM_DROP, WASM_RETURN(WASM_I32V(0))),
        WASM_DROP, WASM_I32V(1), WASM_END});
@@ -1345,9 +1370,10 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
 
 WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
   WasmGCTester tester(execution_tier);
-  ModuleTypeIndex type_index = tester.DefineArray(wasm::kWasmI32, true);
-  ModuleTypeIndex struct_type_index =
-      tester.DefineStruct({F(wasm::kWasmI32, true)});
+  HeapType type = tester.DefineArray(wasm::kWasmI32, true);
+  ModuleTypeIndex type_index = type.ref_index();
+  HeapType struct_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ModuleTypeIndex struct_type_index = struct_type.ref_index();
   ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
   FunctionSig sig(1, 2, sig_types);
 
@@ -1360,14 +1386,14 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
                      kArrayRefCode),
        kExprEnd});
   const uint8_t kIsArrayUpcastNullable = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(type)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(10))),
        WASM_REF_TEST(WASM_LOCAL_GET(0), kArrayRefCode), kExprEnd});
   const uint8_t kIsArrayUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(WASM_REF_NULL(type_index), kArrayRefCode), kExprEnd});
   const uint8_t kIsArrayUnrelated = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(struct_type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(struct_type)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(struct_type_index)),
        WASM_REF_TEST(WASM_LOCAL_GET(0), kArrayRefCode), kExprEnd});
   const uint8_t kIsArrayUnrelatedNull = tester.DefineFunction(
@@ -1388,7 +1414,7 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
            WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(10)), kArrayRefCode)),
        kExprEnd});
   const uint8_t kAsArrayUpcastNullable = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(type)},
       {WASM_LOCAL_SET(0, WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(10))),
        WASM_REF_IS_NULL(WASM_REF_CAST(WASM_LOCAL_GET(0), kArrayRefCode)),
        kExprEnd});
@@ -1398,7 +1424,7 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
                                  WASM_REF_NULL(type_index), kArrayRefCode)),
                              kExprEnd});
   const uint8_t kAsArrayUnrelated = tester.DefineFunction(
-      tester.sigs.i_v(), {ValueType::RefNull(struct_type_index)},
+      tester.sigs.i_v(), {ValueType::RefNull(struct_type)},
       {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(struct_type_index)),
        WASM_REF_IS_NULL(WASM_REF_CAST(WASM_LOCAL_GET(0), kArrayRefCode)),
        kExprEnd});
@@ -1435,9 +1461,10 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
 WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   WasmGCTester tester(execution_tier);
 
-  const ModuleTypeIndex type_index = tester.DefineArray(kWasmI32, true);
+  HeapType type = tester.DefineArray(kWasmI32, true);
+  const ModuleTypeIndex type_index = type.ref_index();
 
-  ValueType array_type = ValueType::Ref(type_index);
+  ValueType array_type = ValueType::Ref(type);
   FunctionSig sig(1, 0, &array_type);
   const uint8_t array_new = tester.DefineFunction(
       &sig, {},
@@ -1457,15 +1484,16 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   const uint8_t func_index =
       tester.DefineFunction(tester.sigs.i_v(), {}, {WASM_I32V(42), kExprEnd});
   const ModuleTypeIndex sig_index{0};
+  HeapType sig = HeapType::Index(sig_index, kNotShared, RefTypeKind::kFunction);
 
-  const ModuleTypeIndex other_sig_index =
-      tester.DefineSignature(tester.sigs.d_d());
+  HeapType other_sig = tester.DefineSignature(tester.sigs.d_d());
+  const ModuleTypeIndex other_sig_index = other_sig.ref_index();
 
   // This is just so func_index counts as "declared".
-  tester.AddGlobal(ValueType::RefNull(sig_index), false,
+  tester.AddGlobal(ValueType::RefNull(sig), false,
                    WasmInitExpr::RefFuncConst(func_index));
 
-  ValueType func_type = ValueType::RefNull(sig_index);
+  ValueType func_type = ValueType::RefNull(sig);
   FunctionSig sig_func(1, 0, &func_type);
 
   const uint8_t cast = tester.DefineFunction(
@@ -1515,7 +1543,8 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
 WASM_COMPILED_EXEC_TEST(CallRef) {
   WasmGCTester tester(execution_tier);
-  ModuleTypeIndex sig_index = tester.DefineSignature(tester.sigs.i_ii());
+  HeapType sig = tester.DefineSignature(tester.sigs.i_ii());
+  ModuleTypeIndex sig_index = sig.ref_index();
   uint8_t callee = tester.DefineFunction(
       sig_index, {},
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprEnd});
@@ -1526,7 +1555,7 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
                              kExprEnd});
 
   // This is just so func_index counts as "declared".
-  tester.AddGlobal(ValueType::RefNull(sig_index), false,
+  tester.AddGlobal(ValueType::RefNull(sig), false,
                    WasmInitExpr::RefFuncConst(callee));
 
   tester.CompileModule();
@@ -1538,33 +1567,40 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
 // type argument (nullref, nullfuncref, nullexternref).
 WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
   FlagScope<bool> exnref(&v8_flags.experimental_wasm_exnref, true);
+  HeapType struct0 =
+      HeapType::Index(ModuleTypeIndex{0}, kNotShared, RefTypeKind::kStruct);
+  HeapType array1 =
+      HeapType::Index(ModuleTypeIndex{1}, kNotShared, RefTypeKind::kArray);
+  HeapType func2 =
+      HeapType::Index(ModuleTypeIndex{2}, kNotShared, RefTypeKind::kFunction);
   const struct {
     ValueType super_type;
     ValueTypeCode sub_type_code;
   } null_ref_types[] = {
-      {kWasmFuncRef, kNoFuncCode},
-      {kWasmEqRef, kNoneCode},
-      {kWasmI31Ref.AsNullable(), kNoneCode},
-      {kWasmStructRef.AsNullable(), kNoneCode},
-      {kWasmArrayRef.AsNullable(), kNoneCode},
-      {kWasmAnyRef, kNoneCode},
-      {kWasmExternRef, kNoExternCode},
-      {kWasmExnRef, kNoExnCode},
-      {refNull(ModuleTypeIndex{0}), kNoneCode},    // struct
-      {refNull(ModuleTypeIndex{1}), kNoneCode},    // array
-      {refNull(ModuleTypeIndex{2}), kNoFuncCode},  // signature
+      {kWasmFuncRef, kNoFuncCode},      // --
+      {kWasmEqRef, kNoneCode},          // --
+      {kWasmI31Ref, kNoneCode},         // --
+      {kWasmStructRef, kNoneCode},      // --
+      {kWasmArrayRef, kNoneCode},       // --
+      {kWasmAnyRef, kNoneCode},         // --
+      {kWasmExternRef, kNoExternCode},  // --
+      {kWasmExnRef, kNoExnCode},        // --
+      {refNull(struct0), kNoneCode},    // --
+      {refNull(array1), kNoneCode},     // --
+      {refNull(func2), kNoFuncCode},    // --
   };
 
   for (auto [super_type, sub_type_code] : null_ref_types) {
     CHECK(super_type.is_nullable());
     WasmGCTester tester(execution_tier);
-    ModuleTypeIndex struct_idx = tester.DefineStruct({F(wasm::kWasmI32, true)});
-    CHECK_EQ(struct_idx, ModuleTypeIndex{0});
-    ModuleTypeIndex array_idx = tester.DefineArray(kWasmI32, true);
-    CHECK_EQ(array_idx, ModuleTypeIndex{1});
-    FunctionSig dummySig(1, 0, &kWasmI32);
-    ModuleTypeIndex signature_idx = tester.DefineSignature(&dummySig);
-    CHECK_EQ(signature_idx, ModuleTypeIndex{2});
+    HeapType struct_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+    CHECK_EQ(struct_type, struct0);
+    HeapType array_type = tester.DefineArray(kWasmI32, true);
+    CHECK_EQ(array_type, array1);
+    ValueType i32 = kWasmI32;
+    FunctionSig dummySig(1, 0, &i32);
+    HeapType sig_type = tester.DefineSignature(&dummySig);
+    CHECK_EQ(sig_type, func2);
 
     ValueType ref_sig_types[] = {kWasmI32, super_type};
     FunctionSig sig_ref(1, 1, ref_sig_types);
@@ -1598,7 +1634,8 @@ WASM_COMPILED_EXEC_TEST(CastNullRef) {
       tester.sigs.i_v(), {},
       {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(kNoneCode), kI31RefCode)),
        kExprEnd});
-  ModuleTypeIndex struct_idx = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ModuleTypeIndex struct_idx =
+      tester.DefineStruct({F(wasm::kWasmI32, true)}).ref_index();
   uint8_t to_struct_idx = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_NULL(WASM_REF_CAST(WASM_REF_NULL(kNoneCode), struct_idx)),
@@ -1614,8 +1651,9 @@ WASM_COMPILED_EXEC_TEST(CastNullRef) {
 
 WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {
   WasmGCTester tester(execution_tier);
-  ModuleTypeIndex type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
-  ValueType kRefType{refNull(type_index)};
+  HeapType type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefType{refNull(type)};
   ValueType sig_types[] = {kWasmI32, kRefType, kRefType, kRefType, kRefType,
                            kWasmI32, kWasmI32, kWasmI32, kWasmI32};
   FunctionSig sig(1, 8, sig_types);
@@ -1652,14 +1690,17 @@ WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {
 WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   WasmGCTester tester(execution_tier);
 
-  ModuleTypeIndex array_index = tester.DefineArray(kWasmI32, true);
-  ModuleTypeIndex struct_index = tester.DefineStruct({F(kWasmI32, true)});
+  HeapType array = tester.DefineArray(kWasmI32, true);
+  ModuleTypeIndex array_index = array.ref_index();
+  HeapType struct_type = tester.DefineStruct({F(kWasmI32, true)});
+  ModuleTypeIndex struct_index = struct_type.ref_index();
   uint8_t function_index =
       tester.DefineFunction(tester.sigs.v_v(), {}, {kExprEnd});
   ModuleTypeIndex sig_index{2};
+  HeapType sig = HeapType::Index(sig_index, kNotShared, RefTypeKind::kFunction);
 
   // This is just so func_index counts as "declared".
-  tester.AddGlobal(ValueType::RefNull(sig_index), false,
+  tester.AddGlobal(ValueType::RefNull(sig), false,
                    WasmInitExpr::RefFuncConst(function_index));
 
   uint8_t kStructCheckNull = tester.DefineFunction(
@@ -1813,15 +1854,17 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 // be modified (made to run longer) to measure performance of casts.
 WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex SuperType =
-      tester.DefineStruct({F(wasm::kWasmI32, true)});
-  const ModuleTypeIndex SubType = tester.DefineStruct(
+  HeapType super_type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  const ModuleTypeIndex SuperType = super_type.ref_index();
+  HeapType sub_type = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)}, SuperType);
+  const ModuleTypeIndex SubType = sub_type.ref_index();
 
-  const ModuleTypeIndex ListType = tester.DefineArray(kWasmStructRef, true);
+  HeapType list_type = tester.DefineArray(kWasmStructRef, true);
+  const ModuleTypeIndex ListType = list_type.ref_index();
 
-  const uint8_t List = tester.AddGlobal(ValueType::RefNull(ListType), true,
-                                        WasmInitExpr::RefNullConst(ListType));
+  const uint8_t List = tester.AddGlobal(ValueType::RefNull(list_type), true,
+                                        WasmInitExpr::RefNullConst(list_type));
 
   const uint32_t kListLength = 1024;
   const uint32_t i = 0;
@@ -1859,7 +1902,7 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
       {
           wasm::kWasmI32,
           wasm::kWasmI32,
-          ValueType::RefNull(ListType),
+          ValueType::RefNull(list_type),
       },
       {WASM_LOCAL_SET(list, WASM_GLOBAL_GET(List)),
        // sum = 0;
@@ -1913,21 +1956,24 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
   WasmGCTester tester(execution_tier);
 
   tester.builder()->StartRecursiveTypeGroup();
-  ModuleTypeIndex super_struct = tester.DefineStruct({F(kWasmI32, false)});
-  ModuleTypeIndex sub_struct = tester.DefineStruct(
+  HeapType super_struct_type = tester.DefineStruct({F(kWasmI32, false)});
+  ModuleTypeIndex super_struct = super_struct_type.ref_index();
+  HeapType sub_struct_type = tester.DefineStruct(
       {F(kWasmI32, false), F(kWasmI32, true)}, super_struct);
+  ModuleTypeIndex sub_struct = sub_struct_type.ref_index();
   FunctionSig* super_sig =
-      FunctionSig::Build(tester.zone(), {kWasmI32}, {refNull(sub_struct)});
-  ModuleTypeIndex super_sig_index = tester.DefineSignature(super_sig);
-  FunctionSig* sub_sig =
-      FunctionSig::Build(tester.zone(), {kWasmI32}, {refNull(super_struct)});
-  ModuleTypeIndex sub_sig_index =
-      tester.DefineSignature(sub_sig, super_sig_index);
-  ModuleTypeIndex unrelated_sig_index =
-      tester.DefineSignature(sub_sig, super_sig_index);
+      FunctionSig::Build(tester.zone(), {kWasmI32}, {refNull(sub_struct_type)});
+  HeapType super_sig_type = tester.DefineSignature(super_sig);
+  ModuleTypeIndex super_sig_index = super_sig_type.ref_index();
+  FunctionSig* sub_sig = FunctionSig::Build(tester.zone(), {kWasmI32},
+                                            {refNull(super_struct_type)});
+  HeapType sub_sig_type = tester.DefineSignature(sub_sig, super_sig_index);
+  ModuleTypeIndex sub_sig_index = sub_sig_type.ref_index();
+  HeapType unrelated_sig = tester.DefineSignature(sub_sig, super_sig_index);
+  ModuleTypeIndex unrelated_sig_index = unrelated_sig.ref_index();
   tester.builder()->EndRecursiveTypeGroup();
 
-  tester.DefineTable(refNull(super_sig_index), 10, 10);
+  tester.DefineTable(refNull(super_sig_type), 10, 10);
 
   uint8_t super_func = tester.DefineFunction(
       super_sig_index, {},
@@ -1947,10 +1993,10 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
        WASM_I32V(0), WASM_END});
 
   uint8_t super_struct_producer = tester.DefineFunction(
-      FunctionSig::Build(tester.zone(), {ref(super_struct)}, {}), {},
+      FunctionSig::Build(tester.zone(), {ref(super_struct_type)}, {}), {},
       {WASM_STRUCT_NEW(super_struct, WASM_I32V(-5)), WASM_END});
   uint8_t sub_struct_producer = tester.DefineFunction(
-      FunctionSig::Build(tester.zone(), {ref(sub_struct)}, {}), {},
+      FunctionSig::Build(tester.zone(), {ref(sub_struct_type)}, {}), {},
       {WASM_STRUCT_NEW(sub_struct, WASM_I32V(7), WASM_I32V(11)), WASM_END});
 
   // Calling a null entry should trap.
@@ -2000,9 +2046,9 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
        WASM_END});
 
   // Only here so these functions count as "declared".
-  tester.AddGlobal(refNull(super_sig_index), false,
+  tester.AddGlobal(refNull(super_sig_type), false,
                    WasmInitExpr::RefFuncConst(super_func));
-  tester.AddGlobal(refNull(sub_sig_index), false,
+  tester.AddGlobal(refNull(sub_sig_type), false,
                    WasmInitExpr::RefFuncConst(sub_func));
 
   tester.CompileModule();
@@ -2018,12 +2064,13 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
 
 WASM_COMPILED_EXEC_TEST(JsAccess) {
   WasmGCTester tester(execution_tier);
-  const ModuleTypeIndex type_index =
-      tester.DefineStruct({F(wasm::kWasmI32, true)});
-  ValueType kRefType = ref(type_index);
+  HeapType type = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  const ModuleTypeIndex type_index = type.ref_index();
+  ValueType kRefType = ref(type);
   ValueType kSupertypeToI[] = {kWasmI32, kWasmStructRef};
+  ValueType structref = kWasmStructRef;
   FunctionSig sig_t_v(1, 0, &kRefType);
-  FunctionSig sig_super_v(1, 0, &kWasmStructRef);
+  FunctionSig sig_super_v(1, 0, &structref);
   FunctionSig sig_i_super(1, 1, kSupertypeToI);
 
   tester.DefineExportedFunction(

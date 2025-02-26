@@ -1748,7 +1748,7 @@ class MjsunitModuleDis {
         break;
       case ConstantExpression::Kind::kRefNull:
         out_ << "[kExprRefNull, ";
-        names()->PrintHeapType(out_, HeapType(init.repr()), kEmitWireBytes);
+        names()->PrintHeapType(out_, init.type(), kEmitWireBytes);
         out_ << "]";
         break;
       case ConstantExpression::Kind::kRefFunc:

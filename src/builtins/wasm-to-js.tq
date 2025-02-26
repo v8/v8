@@ -75,10 +75,10 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       %RawDownCast<RawPtr<intptr>>(
           data.sig + torque_internal::SizeOf<intptr>()));
   const valueTypesStorage = *torque_internal::unsafe::NewOffHeapReference(
-      %RawDownCast<RawPtr<RawPtr<int32>>>(
+      %RawDownCast<RawPtr<RawPtr<uint32>>>(
           data.sig + 2 * torque_internal::SizeOf<intptr>()));
   const signatureValueTypes =
-      torque_internal::unsafe::NewOffHeapConstSlice<int32>(
+      torque_internal::unsafe::NewOffHeapConstSlice<uint32>(
           valueTypesStorage, paramCount + returnCount);
   const returnTypes =
       Subslice(signatureValueTypes, 0, returnCount) otherwise unreachable;
@@ -154,8 +154,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       const val = *RefCast<float64>(slot);
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      check(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
+      check((paramType & kValueTypeIsRefBit) != 0);
       nextIndex++;
       hasTaggedParams = true;
     }
@@ -168,8 +167,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
     paramIt = paramTypes.Iterator();
     while (!paramIt.Empty()) {
       const paramType = paramIt.NextNotEmpty();
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      if (paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull) {
+      if ((paramType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
         const rawRef = *slot;
         const value = BitcastWordToTagged(rawRef);
@@ -259,8 +257,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
-      const retKind = retType & kValueTypeKindBitsMask;
-      check(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
+      check((retType & kValueTypeIsRefBit) != 0);
       const converted = JSToWasmObject(context, retType, retVal);
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the
@@ -286,8 +283,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
     nextIndex = 0;
     while (!returnIt.Empty()) {
       const retType = returnIt.NextNotEmpty();
-      const retKind = retType & kValueTypeKindBitsMask;
-      if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
+      if ((retType & kValueTypeIsRefBit) != 0) {
         let toRef = locationAllocator.GetGPSlot();
         const value = resultFixedArray.objects[nextIndex];
         *toRef = BitcastTaggedToWord(value);

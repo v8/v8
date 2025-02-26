@@ -80,7 +80,7 @@ namespace {
 template <typename T>
 bool ContainsSimd(const Signature<T>* sig) {
   for (auto type : sig->all()) {
-    if (type == T::Primitive(wasm::kS128)) return true;
+    if (type == wasm::kWasmS128) return true;
   }
   return false;
 }
@@ -630,7 +630,7 @@ Node* WasmGraphBuilder::SetType(Node* node, wasm::ValueType type) {
     // values that are officially externref-typed as being known to be strings.
 #if DEBUG
     static constexpr wasm::ValueType kRefExtern =
-        wasm::ValueType::Ref(wasm::HeapType::kExtern);
+        wasm::kWasmExternRef.AsNonNull();
     DCHECK((compiler::NodeProperties::GetType(node).AsWasm().type == type) ||
            (enabled_features_.has_imported_strings() &&
             compiler::NodeProperties::GetType(node).AsWasm().type ==

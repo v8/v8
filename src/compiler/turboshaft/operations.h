@@ -7091,6 +7091,8 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   CheckForNull null_check;
   const wasm::StructType* type;
+  // TODO(jkummerow): If we stored the ValueType here, that would save a few
+  // lookups later.
   wasm::ModuleTypeIndex type_index;
   int field_index;
 

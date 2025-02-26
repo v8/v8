@@ -72,7 +72,7 @@ table1.set(0, new WebAssembly.Function(
 let t0 = getPtr(table0);
 let t1 = getPtr(table1);
 let t0_type = getField(t0, kWasmTableObjectTypeOffset);
-let expected_old_type = %BuildRefTypeBitfield($sig1) << kSmiTagSize;
+let expected_old_type = %BuildRefTypeBitfield($sig1, instance0) << kSmiTagSize;
 assertEquals(expected_old_type, getField(t1, kWasmTableObjectTypeOffset));
 setField(t1, kWasmTableObjectTypeOffset, t0_type);
 

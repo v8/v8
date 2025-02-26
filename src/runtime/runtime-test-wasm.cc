@@ -1044,12 +1044,14 @@ RUNTIME_FUNCTION(Runtime_CheckIsOnCentralStack) {
 // raw bit field. Useful for sandbox tests.
 RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
   SealHandleScope scope(isolate);
-  if (args.length() != 1 || !IsSmi(args[0])) {
+  if (args.length() != 2 || !IsSmi(args[0]) || !IsWasmInstanceObject(args[1])) {
     return CrashUnlessFuzzing(isolate);
   }
   DisallowGarbageCollection no_gc;
   uint32_t type_index = Cast<Smi>(args[0]).value();
-  wasm::ValueType t = wasm::ValueType::Ref(wasm::ModuleTypeIndex{type_index});
+  const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
+  wasm::ValueType t = wasm::ValueType::Ref(
+      module->heap_type(wasm::ModuleTypeIndex{type_index}));
   return Smi::FromInt(t.raw_bit_field());
 }
 

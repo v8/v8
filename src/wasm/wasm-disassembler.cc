@@ -763,7 +763,9 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   if (has_super) {
     out_ << " (sub ";
     if (type.is_final) out_ << "final ";
-    names_->PrintHeapType(out_, HeapType(type.supertype));
+    names_->PrintHeapType(out_,
+                          HeapType::Index(type.supertype, type.is_shared,
+                                          static_cast<RefTypeKind>(type.kind)));
   }
   if (type.kind == TypeDefinition::kArray) {
     const ArrayType* atype = type.array_type;
@@ -1161,7 +1163,7 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
       break;
     case ConstantExpression::Kind::kRefNull:
       out_ << " (ref.null ";
-      names_->PrintHeapType(out_, HeapType(init.repr()));
+      names_->PrintHeapType(out_, init.type());
       out_ << ")";
       break;
     case ConstantExpression::Kind::kRefFunc:

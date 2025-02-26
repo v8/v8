@@ -58,7 +58,7 @@ class WasmInitExpr : public ZoneObject {
     double f64_const;
     std::array<uint8_t, kSimd128Size> s128_const;
     uint32_t index;
-    HeapType::Representation heap_type;
+    uint32_t heap_type_;  // Read with {heap_type()}.
   };
 
   explicit WasmInitExpr(int32_t v) : kind_(kI32Const), operands_(nullptr) {
@@ -76,6 +76,10 @@ class WasmInitExpr : public ZoneObject {
   explicit WasmInitExpr(uint8_t v[kSimd128Size])
       : kind_(kS128Const), operands_(nullptr) {
     memcpy(immediate_.s128_const.data(), v, kSimd128Size);
+  }
+
+  HeapType heap_type() const {
+    return HeapType::FromBits(immediate_.heap_type_);
   }
 
   static WasmInitExpr Binop(Zone* zone, Operator op, WasmInitExpr lhs,
@@ -97,15 +101,10 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr RefNullConst(HeapType::Representation heap_type) {
+  static WasmInitExpr RefNullConst(HeapType heap_type) {
     WasmInitExpr expr(kRefNullConst);
-    expr.immediate_.heap_type = heap_type;
+    expr.immediate_.heap_type_ = heap_type.raw_bit_field();
     return expr;
-  }
-
-  static WasmInitExpr RefNullConst(ModuleTypeIndex type_index) {
-    return RefNullConst(
-        static_cast<HeapType::Representation>(type_index.index));
   }
 
   static WasmInitExpr StructNew(ModuleTypeIndex index,
@@ -191,7 +190,7 @@ class WasmInitExpr : public ZoneObject {
       case kS128Const:
         return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
-        return immediate().heap_type == other.immediate().heap_type;
+        return heap_type() == other.heap_type();
       case kStructNew:
       case kStructNewDefault:
       case kArrayNew:
@@ -235,7 +234,7 @@ class WasmInitExpr : public ZoneObject {
       case kF64:
         return WasmInitExpr(0.0);
       case kRefNull:
-        return WasmInitExpr::RefNullConst(type.heap_representation());
+        return WasmInitExpr::RefNullConst(type.heap_type());
       case kS128: {
         uint8_t value[kSimd128Size] = {0};
         return WasmInitExpr(value);

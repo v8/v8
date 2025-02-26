@@ -300,7 +300,8 @@ void WasmGCTypeAnalyzer::ProcessGlobalGet(const GlobalGetOp& global_get) {
 void WasmGCTypeAnalyzer::ProcessRefFunc(const WasmRefFuncOp& ref_func) {
   wasm::ModuleTypeIndex sig_index =
       module_->functions[ref_func.function_index].sig_index;
-  RefineTypeKnowledge(graph_.Index(ref_func), wasm::ValueType::Ref(sig_index),
+  RefineTypeKnowledge(graph_.Index(ref_func),
+                      wasm::ValueType::Ref(module_->heap_type(sig_index)),
                       ref_func);
 }
 
@@ -309,7 +310,8 @@ void WasmGCTypeAnalyzer::ProcessAllocateArray(
   wasm::ModuleTypeIndex type_index =
       graph_.Get(allocate_array.rtt()).Cast<RttCanonOp>().type_index;
   RefineTypeKnowledge(graph_.Index(allocate_array),
-                      wasm::ValueType::Ref(type_index), allocate_array);
+                      wasm::ValueType::Ref(module_->heap_type(type_index)),
+                      allocate_array);
 }
 
 void WasmGCTypeAnalyzer::ProcessAllocateStruct(
@@ -317,7 +319,8 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
   wasm::ModuleTypeIndex type_index =
       graph_.Get(allocate_struct.rtt()).Cast<RttCanonOp>().type_index;
   RefineTypeKnowledge(graph_.Index(allocate_struct),
-                      wasm::ValueType::Ref(type_index), allocate_struct);
+                      wasm::ValueType::Ref(module_->heap_type(type_index)),
+                      allocate_struct);
 }
 
 wasm::ValueType WasmGCTypeAnalyzer::GetTypeForPhiInput(const PhiOp& phi,

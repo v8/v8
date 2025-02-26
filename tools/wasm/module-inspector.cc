@@ -255,6 +255,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
       auto [type, type_length] =
           value_type_reader::read_value_type<ValidationTag>(
               this, pc_ + count_length, WasmEnabledFeatures::All());
+      value_type_reader::Populate(&type, module_);
       PrintHexBytes(out, count_length + type_length, pc_, 4);
       out << " // " << count << (count != 1 ? " locals" : " local")
           << " of type ";
@@ -798,7 +799,7 @@ class FormatConverter {
     ModuleResult result =
         DecodeWasmModuleForDisassembler(raw_bytes(), offsets_provider_.get());
     if (result.failed()) {
-      WasmError error = result.error();
+      const WasmError& error = result.error();
       std::cerr << "Decoding error: " << error.message() << " at offset "
                 << error.offset() << "\n";
       return;

@@ -136,14 +136,14 @@ CanonicalTypeIndex TypeCanonicalizer::AddRecursiveGroup(
   for (ValueType type : sig->all()) DCHECK(!type.has_index());
 #endif
   const bool kFinal = true;
-  const bool kNotShared = false;
   // Because of the checks above, we can treat the type_def as canonical.
   // TODO(366180605): It would be nice to not have to rely on a cast here.
   // Is there a way to avoid it? In the meantime, these asserts provide at
   // least partial assurances that the cast is safe:
   static_assert(sizeof(CanonicalValueType) == sizeof(ValueType));
-  static_assert(CanonicalValueType::Primitive(kI32).raw_bit_field() ==
-                ValueType::Primitive(kI32).raw_bit_field());
+  static_assert(
+      CanonicalValueType::Primitive(NumericKind::kI32).raw_bit_field() ==
+      ValueType::Primitive(kI32).raw_bit_field());
   CanonicalType canonical{reinterpret_cast<const CanonicalSig*>(sig),
                           CanonicalTypeIndex{kNoSuperType}, kFinal, kNotShared};
   base::MutexGuard guard(&mutex_);
@@ -267,133 +267,11 @@ bool TypeCanonicalizer::IsCanonicalSubtype(ModuleTypeIndex sub_index,
   return IsCanonicalSubtype(canonical_sub, canonical_super);
 }
 
-bool TypeCanonicalizer::IsShared(CanonicalValueType type) const {
-  return HeapType(type.heap_representation()).is_abstract_shared() ||
-         (type.has_index() && canonical_types_[type]->is_shared);
-}
-
-bool TypeCanonicalizer::IsHeapSubtype(CanonicalValueType sub,
-                                      CanonicalValueType super) const {
-  DCHECK(sub.is_object_reference() && super.is_object_reference());
-
+bool TypeCanonicalizer::IsHeapSubtype(CanonicalTypeIndex sub,
+                                      CanonicalTypeIndex super) const {
+  DCHECK_NE(sub, super);
   base::MutexGuard mutex_guard(&mutex_);
-  if (IsShared(sub) != IsShared(super)) return false;
-
-  HeapType::Representation sub_repr_non_shared =
-      sub.heap_representation_non_shared();
-  HeapType::Representation super_repr_non_shared =
-      super.heap_representation_non_shared();
-  switch (sub_repr_non_shared) {
-    case HeapType::kFunc:
-    case HeapType::kCont:
-    case HeapType::kAny:
-    case HeapType::kExtern:
-    case HeapType::kExn:
-    case HeapType::kStringViewWtf8:
-    case HeapType::kStringViewWtf16:
-    case HeapType::kStringViewIter:
-      return sub_repr_non_shared == super_repr_non_shared;
-    case HeapType::kEq:
-    case HeapType::kString:
-      return sub_repr_non_shared == super_repr_non_shared ||
-             super_repr_non_shared == HeapType::kAny;
-    case HeapType::kExternString:
-      return super_repr_non_shared == sub_repr_non_shared ||
-             super_repr_non_shared == HeapType::kExtern;
-    case HeapType::kI31:
-    case HeapType::kStruct:
-    case HeapType::kArray:
-      return super_repr_non_shared == sub_repr_non_shared ||
-             super_repr_non_shared == HeapType::kEq ||
-             super_repr_non_shared == HeapType::kAny;
-    case HeapType::kBottom:
-    case HeapType::kTop:
-      UNREACHABLE();
-    case HeapType::kNone:
-      // none is a subtype of every non-func, non-cont, non-extern and non-exn
-      // reference type under wasm-gc.
-      if (super.has_index()) {
-        return canonical_types_[super]->kind != CanonicalType::kFunction &&
-               canonical_types_[super]->kind != CanonicalType::kCont;
-      }
-      return super_repr_non_shared == HeapType::kAny ||
-             super_repr_non_shared == HeapType::kEq ||
-             super_repr_non_shared == HeapType::kI31 ||
-             super_repr_non_shared == HeapType::kArray ||
-             super_repr_non_shared == HeapType::kStruct ||
-             super_repr_non_shared == HeapType::kString ||
-             super_repr_non_shared == HeapType::kStringViewWtf16 ||
-             super_repr_non_shared == HeapType::kStringViewWtf8 ||
-             super_repr_non_shared == HeapType::kStringViewIter ||
-             super_repr_non_shared == HeapType::kNone;
-    case HeapType::kNoExtern:
-      return super_repr_non_shared == HeapType::kNoExtern ||
-             super_repr_non_shared == HeapType::kExtern ||
-             super_repr_non_shared == HeapType::kExternString;
-    case HeapType::kNoExn:
-      return super_repr_non_shared == HeapType::kExn ||
-             super_repr_non_shared == HeapType::kNoExn;
-    case HeapType::kNoFunc:
-      // nofunc is a subtype of every funcref type under wasm-gc.
-      if (super.has_index()) {
-        return canonical_types_[super]->kind == CanonicalType::kFunction;
-      }
-      return super_repr_non_shared == HeapType::kNoFunc ||
-             super_repr_non_shared == HeapType::kFunc;
-    case HeapType::kNoCont:
-      // nocont is a subtype of every continuation type.
-      if (super.has_index()) {
-        return canonical_types_[super]->kind == CanonicalType::kCont;
-      }
-      return super_repr_non_shared == HeapType::kNoCont ||
-             super_repr_non_shared == HeapType::kCont;
-    default:
-      break;
-  }
-
-  DCHECK(sub.has_index());
-  CanonicalTypeIndex sub_index = sub.ref_index();
-
-  switch (super_repr_non_shared) {
-    case HeapType::kFunc:
-      return canonical_types_[sub_index]->kind == CanonicalType::kFunction;
-    case HeapType::kCont:
-      return canonical_types_[sub_index]->kind == CanonicalType::kCont;
-    case HeapType::kStruct:
-      return canonical_types_[sub_index]->kind == CanonicalType::kStruct;
-    case HeapType::kEq:
-    case HeapType::kAny:
-      return canonical_types_[sub_index]->kind != CanonicalType::kFunction &&
-             canonical_types_[sub_index]->kind != CanonicalType::kCont;
-    case HeapType::kArray:
-      return canonical_types_[sub_index]->kind == CanonicalType::kArray;
-    case HeapType::kI31:
-    case HeapType::kExtern:
-    case HeapType::kExternString:
-    case HeapType::kExn:
-    case HeapType::kString:
-    case HeapType::kStringViewWtf8:
-    case HeapType::kStringViewWtf16:
-    case HeapType::kStringViewIter:
-    case HeapType::kNone:
-    case HeapType::kNoExtern:
-    case HeapType::kNoFunc:
-    case HeapType::kNoExn:
-    case HeapType::kNoCont:
-      return false;
-    case HeapType::kBottom:
-    case HeapType::kTop:
-      UNREACHABLE();
-    default:
-      break;
-  }
-
-  DCHECK(super.has_index());
-  CanonicalTypeIndex super_index = super.ref_index();
-  // The {IsSubtypeOf} entry point already has a fast path checking full type
-  // equality; here we catch (ref $x) being a subtype of (ref null $x).
-  if (sub_index == super_index) return true;
-  return IsCanonicalSubtype_Locked(sub_index, super_index);
+  return IsCanonicalSubtype_Locked(sub, super);
 }
 
 void TypeCanonicalizer::EmptyStorageForTesting() {
@@ -430,9 +308,9 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 
   auto CanonicalizeValueType = [=](ValueType type) {
     if (!type.has_index()) return CanonicalValueType{type};
-    static_assert(kMaxCanonicalTypes <= (1u << ValueType::kHeapTypeBits));
-    return CanonicalValueType::FromIndex(
-        type.kind(), CanonicalizeTypeIndex(type.ref_index()));
+    static_assert(kMaxCanonicalTypes <=
+                  (1 << CanonicalValueType::kNumIndexBits));
+    return type.Canonicalize(CanonicalizeTypeIndex(type.ref_index()));
   };
 
   TypeDefinition type = module->type(module_type_idx);

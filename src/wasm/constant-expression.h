@@ -51,8 +51,8 @@ class ConstantExpression {
     return ConstantExpression(ValueField::encode(index) |
                               KindField::encode(Kind::kRefFunc));
   }
-  static constexpr ConstantExpression RefNull(HeapType::Representation repr) {
-    return ConstantExpression(ValueField::encode(repr) |
+  static constexpr ConstantExpression RefNull(HeapType type) {
+    return ConstantExpression(ValueField::encode(type.raw_bit_field()) |
                               KindField::encode(Kind::kRefNull));
   }
   static constexpr ConstantExpression WireBytes(uint32_t offset,
@@ -71,10 +71,9 @@ class ConstantExpression {
     return ValueField::decode(bit_field_);
   }
 
-  constexpr HeapType::Representation repr() const {
+  constexpr HeapType type() const {
     DCHECK_EQ(kind(), Kind::kRefNull);
-    return static_cast<HeapType::Representation>(
-        ValueField::decode(bit_field_));
+    return HeapType::FromBits(ValueField::decode(bit_field_));
   }
 
   constexpr int32_t i32_value() const {

@@ -20,6 +20,8 @@ namespace {
 using wasm::WasmOpcode;
 using wasm::WasmOpcodes;
 
+static constexpr bool kNotShared = false;
+
 class WasmIntoJSInlinerImpl : private wasm::Decoder {
   using ValidationTag = NoValidationTag;
 
@@ -186,20 +188,16 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   Value ParseAnyConvertExtern(Value input) {
     DCHECK(input.type.is_reference_to(wasm::HeapType::kExtern) ||
            input.type.is_reference_to(wasm::HeapType::kNoExtern));
-    wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-        wasm::HeapType::kAny, input.type.is_nullable()
-                                  ? wasm::Nullability::kNullable
-                                  : wasm::Nullability::kNonNullable);
+    wasm::ValueType result_type = wasm::ValueType::Generic(
+        wasm::GenericKind::kAny, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
     return TypeNode(internalized, result_type);
   }
 
   Value ParseExternConvertAny(Value input) {
     DCHECK(input.type.is_reference());
-    wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-        wasm::HeapType::kExtern, input.type.is_nullable()
-                                     ? wasm::Nullability::kNullable
-                                     : wasm::Nullability::kNonNullable);
+    wasm::ValueType result_type = wasm::ValueType::Generic(
+        wasm::GenericKind::kExtern, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmExternConvertAny(input.node);
     return TypeNode(internalized, result_type);
   }
@@ -260,9 +258,9 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       gasm_.Bind(&done);
       // Add TypeGuard for graph typing.
       TFGraph* graph = mcgraph_->graph();
-      wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-          wasm::HeapType::kArray,
-          null_succeeds ? wasm::kNullable : wasm::kNonNullable);
+      wasm::ValueType result_type = wasm::ValueType::Generic(
+          wasm::GenericKind::kArray,
+          null_succeeds ? wasm::kNullable : wasm::kNonNullable, kNotShared);
       Node* type_guard =
           graph->NewNode(mcgraph_->common()->TypeGuard(
                              Type::Wasm(result_type, module_, graph->zone())),
@@ -270,13 +268,13 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       gasm_.InitializeEffectControl(type_guard, gasm_.control());
       return TypeNode(type_guard, result_type);
     }
-    if (module_->has_signature(
-            wasm::ModuleTypeIndex{static_cast<uint32_t>(heap_index)})) {
+    wasm::ModuleTypeIndex target_type_index{static_cast<uint32_t>(heap_index)};
+    if (module_->has_signature(target_type_index)) {
       is_inlineable_ = false;
       return {};
     }
     wasm::ValueType target_type = wasm::ValueType::RefMaybeNull(
-        wasm::ModuleTypeIndex{static_cast<uint32_t>(heap_index)},
+        module_->heap_type(target_type_index),
         null_succeeds ? wasm::kNullable : wasm::kNonNullable);
     Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()),
@@ -285,7 +283,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     // to an object of type {target_type}, but to such an object's map. But
     // we only need this type annotation so {ReduceWasmTypeCast} can get to
     // the {ref_index}, we never need the type's {kind()}.
-    TypeNode(rtt, wasm::ValueType::Ref(target_type.ref_index()));
+    TypeNode(rtt, wasm::ValueType::Ref(target_type.heap_type()));
     Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
     SetSourcePosition(cast);
     return TypeNode(cast, target_type);
@@ -293,8 +291,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
 
   Value ParseArrayLen(Value input) {
     DCHECK(wasm::IsHeapSubtypeOf(input.type.heap_type(),
-                                 wasm::HeapType(wasm::HeapType::kArray),
-                                 module_));
+                                 wasm::kWasmArrayRef.heap_type(), module_));
     const CheckForNull null_check =
         input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* len = gasm_.ArrayLength(input.node, null_check);

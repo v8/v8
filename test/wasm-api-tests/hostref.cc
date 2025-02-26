@@ -35,7 +35,7 @@ TEST_F(WasmCapiTest, HostRef) {
   uint32_t func_index = builder()->AddImport(base::CStrVector("f"), &r_r_sig);
   const bool kMutable = true;
   uint32_t global_index = builder()->AddExportedGlobal(
-      kWasmExternRef, kMutable, WasmInitExpr::RefNullConst(HeapType::kExtern),
+      kWasmExternRef, kMutable, WasmInitExpr::RefNullConst(kWasmExternRef),
       base::CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmExternRef, 10);
   builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);

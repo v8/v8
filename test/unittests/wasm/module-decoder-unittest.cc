@@ -2050,7 +2050,8 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(Idx{0}), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::RefNull(Idx{0}, false, RefTypeKind::kFunction),
+            result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
@@ -2105,7 +2106,8 @@ TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::RefNull(Idx{0}), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::RefNull(Idx{0}, false, RefTypeKind::kFunction),
+            result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NonNullableTable) {
@@ -2122,7 +2124,8 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::Ref(Idx{0}), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::Ref(Idx{0}, false, RefTypeKind::kFunction),
+            result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
@@ -3404,21 +3407,20 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
 }
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
-  static const uint8_t data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(
-                  FIELD_COUNT(1),
-                  STRUCT_FIELD(WASM_REF_TYPE(ValueType::Ref(Idx{1})), true)))};
+  ValueType oob = ValueType::Ref(Idx{1}, false, RefTypeKind::kStruct);
+  static const uint8_t data[] = {SECTION(
+      Type, ENTRY_COUNT(1),
+      WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(WASM_REF_TYPE(oob), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, RecursiveTypeOutsideRecursiveGroup) {
-  static const uint8_t data[] = {SECTION(
-      Type, ENTRY_COUNT(1),
-      WASM_STRUCT_DEF(
-          FIELD_COUNT(1),
-          STRUCT_FIELD(WASM_REF_TYPE(ValueType::RefNull(Idx{0})), true)))};
+  ValueType struct0 = ValueType::Ref(Idx{0}, false, RefTypeKind::kStruct);
+  static const uint8_t data[] = {
+      SECTION(Type, ENTRY_COUNT(1),
+              WASM_STRUCT_DEF(FIELD_COUNT(1),
+                              STRUCT_FIELD(WASM_REF_TYPE(struct0), true)))};
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
 }

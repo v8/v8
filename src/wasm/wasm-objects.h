@@ -1344,6 +1344,7 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
 class WasmTypeInfo
     : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {
  public:
+  inline wasm::CanonicalValueType type() const;
   inline wasm::CanonicalTypeIndex type_index() const;
   inline wasm::CanonicalValueType element_type() const;  // Only for WasmArrays.
 

@@ -40,7 +40,7 @@ ValueOrError EvaluateConstantExpression(
       return WasmValue(expected.use_wasm_null()
                            ? Cast<Object>(isolate->factory()->wasm_null())
                            : Cast<Object>(isolate->factory()->null_value()),
-                       CanonicalValueType::RefNull(expr.repr()));
+                       module->canonical_type(ValueType::RefNull(expr.type())));
     case ConstantExpression::Kind::kRefFunc: {
       uint32_t index = expr.index();
       bool function_is_shared =

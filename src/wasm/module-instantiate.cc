@@ -64,10 +64,13 @@ DirectHandle<Map> CreateStructMap(Isolate* isolate,
   const InstanceType instance_type = WASM_STRUCT_TYPE;
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  const wasm::CanonicalValueType no_array_element =
-      wasm::CanonicalValueType::Primitive(wasm::kBottom);
+  const wasm::CanonicalValueType no_array_element = kWasmBottom;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
+  // If we had a CanonicalHeapType, we could use that here.
+  wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
+      struct_index, shared, wasm::RefTypeKind::kStruct);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      struct_index, no_array_element, opt_rtt_parent);
+      heaptype, no_array_element, opt_rtt_parent);
   DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, map_instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -90,8 +93,11 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   const int instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
+  wasm::CanonicalValueType heaptype =
+      wasm::CanonicalValueType::Ref(array_index, shared, RefTypeKind::kArray);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      array_index, element_type, opt_rtt_parent);
+      heaptype, element_type, opt_rtt_parent);
   DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -355,11 +361,11 @@ bool ResolveBoundJSFastApiFunction(const wasm::CanonicalSig* expected_sig,
 }
 
 bool IsStringRef(wasm::CanonicalValueType type) {
-  return type.is_reference_to(wasm::HeapType::kString);
+  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kString;
 }
 
 bool IsExternRef(wasm::CanonicalValueType type) {
-  return type.is_reference_to(wasm::HeapType::kExtern);
+  return type.is_abstract_ref() && type.generic_kind() == GenericKind::kExtern;
 }
 
 bool IsStringOrExternRef(wasm::CanonicalValueType type) {
@@ -2911,15 +2917,14 @@ ValueOrError ConsumeElementSegmentEntry(
       auto [heap_type, length] =
           value_type_reader::read_heap_type<Decoder::FullValidationTag>(
               &decoder, decoder.pc() + 1, WasmEnabledFeatures::All());
+      value_type_reader::Populate(&heap_type, module);
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);
         return function_mode == kStrictFunctionsAndNull
-                   ? EvaluateConstantExpression(zone,
-                                                ConstantExpression::RefNull(
-                                                    heap_type.representation()),
-                                                segment.type, module, isolate,
-                                                trusted_instance_data,
-                                                shared_trusted_instance_data)
+                   ? EvaluateConstantExpression(
+                         zone, ConstantExpression::RefNull(heap_type),
+                         segment.type, module, isolate, trusted_instance_data,
+                         shared_trusted_instance_data)
                    : WasmValue(int32_t{-1});
       }
       break;

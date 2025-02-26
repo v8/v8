@@ -3640,7 +3640,8 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 
 WASM_EXEC_TEST(IndirectNull) {
   WasmRunner<int32_t> r(execution_tier);
-  FunctionSig sig(1, 0, &kWasmI32);
+  ValueType kI32 = kWasmI32;
+  FunctionSig sig(1, 0, &kI32);
   ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
   r.builder().AddIndirectFunctionTable(nullptr, 1);
 
@@ -3651,10 +3652,11 @@ WASM_EXEC_TEST(IndirectNull) {
 
 WASM_EXEC_TEST(IndirectNullTyped) {
   WasmRunner<int32_t> r(execution_tier);
-  FunctionSig sig(1, 0, &kWasmI32);
+  ValueType kI32 = kWasmI32;
+  FunctionSig sig(1, 0, &kI32);
   ModuleTypeIndex sig_index = r.builder().AddSignature(&sig);
-  r.builder().AddIndirectFunctionTable(nullptr, 1,
-                                       ValueType::RefNull(sig_index));
+  r.builder().AddIndirectFunctionTable(
+      nullptr, 1, ValueType::RefNull(sig_index, false, RefTypeKind::kFunction));
 
   r.Build({WASM_CALL_INDIRECT(sig_index, WASM_I32V(0))});
 

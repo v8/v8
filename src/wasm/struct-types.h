@@ -289,6 +289,8 @@ class ArrayType : public ArrayTypeBase {
   }
 
   ValueType element_type() const { return rep_; }
+  // Only for the ModuleDecoder, to finish populating the type.
+  ValueType* element_type_writable_ptr() { return &rep_; }
 
  private:
   ValueType rep_;
@@ -326,6 +328,7 @@ class ContType : public ZoneObject {
   ModuleTypeIndex contfun_typeindex() const { return index_; }
 
  private:
+  // TODO(jkummerow): Consider storing a HeapType instead.
   ModuleTypeIndex index_;
 };
 

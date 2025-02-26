@@ -31,15 +31,15 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 bool IsJSCompatibleSignature(const CanonicalSig* sig) {
   for (auto type : sig->all()) {
     if (type == kCanonicalS128) return false;
-    if (type.is_object_reference()) {
-      switch (type.heap_representation_non_shared()) {
-        case HeapType::kStringViewWtf8:
-        case HeapType::kStringViewWtf16:
-        case HeapType::kStringViewIter:
-        case HeapType::kExn:
-        case HeapType::kNoExn:
-        case HeapType::kCont:
-        case HeapType::kNoCont:
+    if (type.is_ref() && !type.has_index()) {
+      switch (type.generic_kind()) {
+        case GenericKind::kStringViewWtf8:
+        case GenericKind::kStringViewWtf16:
+        case GenericKind::kStringViewIter:
+        case GenericKind::kExn:
+        case GenericKind::kNoExn:
+        case GenericKind::kCont:
+        case GenericKind::kNoCont:
           return false;
         default:
           break;

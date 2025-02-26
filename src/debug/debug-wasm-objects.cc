@@ -913,7 +913,7 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
 
   static uint32_t Count(Isolate* isolate, DirectHandle<WasmStruct> obj) {
     wasm::CanonicalTypeIndex type_index =
-        obj->map()->wasm_type_info()->type_index();
+        obj->map()->wasm_type_info()->type().ref_index();
     return wasm::GetTypeCanonicalizer()
         ->LookupStruct(type_index)
         ->field_count();
@@ -929,7 +929,7 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, WasmStruct> {
                                       DirectHandle<WasmStruct> obj,
                                       uint32_t index) {
     wasm::CanonicalTypeIndex struct_index =
-        obj->map()->wasm_type_info()->type_index();
+        obj->map()->wasm_type_info()->type().ref_index();
     StringBuilder sb;
     wasm::GetCanonicalTypeNamesProvider()->PrintFieldName(sb, struct_index,
                                                           index);
@@ -1036,16 +1036,12 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
       } else if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
-        wasm::CanonicalValueType type = wasm::CanonicalValueType::FromIndex(
-            wasm::kRef, type_info->type_index());
-        t = GetRefTypeName(isolate, type);
+        t = GetRefTypeName(isolate, type_info->type());
         v = StructProxy::Create(isolate, Cast<WasmStruct>(ref));
       } else if (IsWasmArray(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
-        wasm::CanonicalValueType type = wasm::CanonicalValueType::FromIndex(
-            wasm::kRef, type_info->type_index());
-        t = GetRefTypeName(isolate, type);
+        t = GetRefTypeName(isolate, type_info->type());
         v = ArrayProxy::Create(isolate, Cast<WasmArray>(ref));
       } else if (IsWasmFuncRef(*ref)) {
         DirectHandle<WasmInternalFunction> internal_fct{

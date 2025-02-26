@@ -448,7 +448,12 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
 constexpr ModuleTypeIndex kNoSuperType = ModuleTypeIndex::Invalid();
 
 struct TypeDefinition {
-  enum Kind : int8_t { kFunction, kStruct, kArray, kCont };
+  enum Kind : int8_t {
+    kFunction = static_cast<int8_t>(RefTypeKind::kFunction),
+    kStruct = static_cast<int8_t>(RefTypeKind::kStruct),
+    kArray = static_cast<int8_t>(RefTypeKind::kArray),
+    kCont = static_cast<int8_t>(RefTypeKind::kCont),
+  };
 
   constexpr TypeDefinition(const FunctionSig* sig, ModuleTypeIndex supertype,
                            bool is_final, bool is_shared)
@@ -826,10 +831,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return index.index < types.size();
   }
 
-  TypeDefinition type(ModuleTypeIndex index) const {
+  const TypeDefinition& type(ModuleTypeIndex index) const {
     size_t num_types = types.size();
     V8_ASSUME(index.index < num_types);
     return types[index.index];
+  }
+
+  HeapType heap_type(ModuleTypeIndex index) const {
+    const TypeDefinition& t = type(index);
+    return HeapType::Index(index, t.is_shared,
+                           static_cast<RefTypeKind>(t.kind));
   }
 
   CanonicalTypeIndex canonical_type_id(ModuleTypeIndex index) const {
@@ -843,8 +854,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
     if (!type.has_index()) {
       return CanonicalValueType{type};
     }
-    return CanonicalValueType::FromIndex(type.kind(),
-                                         canonical_type_id(type.ref_index()));
+    return type.Canonicalize(canonical_type_id(type.ref_index()));
   }
 
   bool has_signature(ModuleTypeIndex index) const {

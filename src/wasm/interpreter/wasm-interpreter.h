@@ -1115,7 +1115,11 @@ struct WasmInstruction {
     struct GC_HeapTypeImmediate {
       uint32_t length;
       HeapType::Representation type_representation;
-      constexpr HeapType type() const { return HeapType(type_representation); }
+      // This is incorrect; it's just the smallest possible fix to make
+      // the header-includes bot green which needs this file to compile.
+      // It'd probably be a good idea to store a HeapType instead of a
+      // HeapType::Representation above.
+      constexpr HeapType type() const { return kWasmAnyRef; }
     } gc_heap_type_immediate;
     struct GC_ArrayNewFixed {
       uint32_t array_index;

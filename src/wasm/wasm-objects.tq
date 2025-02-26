@@ -278,7 +278,7 @@ extern class AsmWasmData extends Struct {
 }
 
 extern class WasmTypeInfo extends HeapObject {
-  canonical_type_index: uint32;
+  canonical_type: uint32;
   canonical_element_type: uint32;  // Only for WasmArrays.
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;

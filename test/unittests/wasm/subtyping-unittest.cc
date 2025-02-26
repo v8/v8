@@ -13,10 +13,31 @@ namespace v8::internal::wasm::subtyping_unittest {
 class WasmSubtypingTest : public TestWithPlatform {};
 using FieldInit = std::pair<ValueType, bool>;
 using Idx = ModuleTypeIndex;
+constexpr bool kShared = true;
 
-constexpr ValueType ref(uint32_t index) { return ValueType::Ref(Idx{index}); }
-constexpr ValueType refNull(uint32_t index) {
-  return ValueType::RefNull(Idx{index});
+constexpr ValueType refS(uint32_t index, bool shared = kNotShared) {
+  return ValueType::Ref(Idx{index}, shared, RefTypeKind::kStruct);
+}
+constexpr ValueType refA(uint32_t index, bool shared = kNotShared) {
+  return ValueType::Ref(Idx{index}, shared, RefTypeKind::kArray);
+}
+constexpr ValueType refF(uint32_t index, bool shared = kNotShared) {
+  return ValueType::Ref(Idx{index}, shared, RefTypeKind::kFunction);
+}
+constexpr ValueType refC(uint32_t index, bool shared = kNotShared) {
+  return ValueType::Ref(Idx{index}, shared, RefTypeKind::kCont);
+}
+constexpr ValueType refNullS(uint32_t index, bool shared = kNotShared) {
+  return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kStruct);
+}
+constexpr ValueType refNullA(uint32_t index, bool shared = kNotShared) {
+  return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kArray);
+}
+constexpr ValueType refNullF(uint32_t index, bool shared = kNotShared) {
+  return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kFunction);
+}
+constexpr ValueType refNullC(uint32_t index, bool shared = kNotShared) {
+  return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kCont);
 }
 
 FieldInit mut(ValueType type) { return FieldInit(type, true); }
@@ -82,36 +103,36 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   // Set up two identical modules.
   for (WasmModule* module : {module1, module2}) {
     // Three mutually recursive types.
-    /*  0 */ DefineStruct(module, {mut(ref(2)), immut(refNull(2))},
+    /*  0 */ DefineStruct(module, {mut(refA(2)), immut(refNullA(2))},
                           kNoSuperType, false, false, false);
-    /*  1 */ DefineStruct(module, {mut(ref(2)), immut(ref(2))}, Idx{0}, false,
+    /*  1 */ DefineStruct(module, {mut(refA(2)), immut(refA(2))}, Idx{0}, false,
                           false, false);
-    /*  2 */ DefineArray(module, immut(ref(0)), kNoSuperType, false, false,
+    /*  2 */ DefineArray(module, immut(refS(0)), kNoSuperType, false, false,
                          false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 3);
 
-    /*  3 */ DefineArray(module, immut(ref(1)), Idx{2});
-    /*  4 */ DefineStruct(module, {mut(ref(2)), immut(ref(3)), immut(kWasmF64)},
-                          Idx{1});
-    /*  5 */ DefineStruct(module, {mut(refNull(2)), immut(ref(2))});
+    /*  3 */ DefineArray(module, immut(refS(1)), Idx{2});
+    /*  4 */ DefineStruct(
+        module, {mut(refA(2)), immut(refA(3)), immut(kWasmF64)}, Idx{1});
+    /*  5 */ DefineStruct(module, {mut(refNullA(2)), immut(refA(2))});
     /*  6 */ DefineArray(module, mut(kWasmI32));
     /*  7 */ DefineArray(module, immut(kWasmI32));
-    /*  8 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(8))});
-    /*  9 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(8))}, Idx{8});
+    /*  8 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(8))});
+    /*  9 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(8))}, Idx{8});
     /* 10 */ DefineSignature(module, {}, {});
     /* 11 */ DefineSignature(module, {kWasmI32}, {kWasmI32});
     /* 12 */ DefineSignature(module, {kWasmI32, kWasmI32}, {kWasmI32});
-    /* 13 */ DefineSignature(module, {ref(1)}, {kWasmI32});
-    /* 14 */ DefineSignature(module, {ref(0)}, {kWasmI32}, Idx{13});
-    /* 15 */ DefineSignature(module, {ref(0)}, {ref(0)});
-    /* 16 */ DefineSignature(module, {ref(0)}, {ref(4)}, Idx{15});
-    /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))});
+    /* 13 */ DefineSignature(module, {refS(1)}, {kWasmI32});
+    /* 14 */ DefineSignature(module, {refS(0)}, {kWasmI32}, Idx{13});
+    /* 15 */ DefineSignature(module, {refS(0)}, {refS(0)});
+    /* 16 */ DefineSignature(module, {refS(0)}, {refS(4)}, Idx{15});
+    /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))});
 
     // Rec. group.
-    /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, Idx{17},
+    /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
                           false, false, false);
-    /* 19 */ DefineArray(module, {mut(refNull(21))}, kNoSuperType, false, false,
-                         false);
+    /* 19 */ DefineArray(module, {mut(refNullF(21))}, kNoSuperType, false,
+                         false, false);
     /* 20 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false, false, false);
     /* 21 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{20}, false,
@@ -119,10 +140,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Identical rec. group.
-    /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, Idx{17},
+    /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
                           false, false, false);
-    /* 23 */ DefineArray(module, {mut(refNull(25))}, kNoSuperType, false, false,
-                         false);
+    /* 23 */ DefineArray(module, {mut(refNullF(25))}, kNoSuperType, false,
+                         false, false);
     /* 24 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false, false, false);
     /* 25 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{24}, false,
@@ -131,19 +152,20 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Nonidentical rec. group: the last function extends a type outside the
     // recursive group.
-    /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, Idx{17},
+    /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
                           false, false, false);
-    /* 27 */ DefineArray(module, {mut(refNull(29))}, kNoSuperType, false, false,
-                         false);
+    /* 27 */ DefineArray(module, {mut(refNullF(29))}, kNoSuperType, false,
+                         false, false);
     /* 28 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false, false, false);
     /* 29 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{20}, false,
                              false, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
-    /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(18))}, Idx{18});
+    /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(18))},
+                          Idx{18});
     /* 31 */ DefineStruct(
-        module, {mut(ref(2)), immut(refNull(2)), immut(kWasmS128)}, Idx{1});
+        module, {mut(refA(2)), immut(refNullA(2)), immut(kWasmS128)}, Idx{1});
 
     // Final types
     /* 32 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, true);
@@ -163,9 +185,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                              false, true, true);
 
     // Continuation types (switching group)
-    /* 42 */ DefineSignature(module, {kWasmI32}, {refNull(45)}, kNoSuperType,
+    /* 42 */ DefineSignature(module, {kWasmI32}, {refNullC(45)}, kNoSuperType,
                              false, false, false);
-    /* 43 */ DefineSignature(module, {refNull(44)}, {kWasmI32}, kNoSuperType,
+    /* 43 */ DefineSignature(module, {refNullC(44)}, {kWasmI32}, kNoSuperType,
                              false, false, false);
     /* 44 */ DefineCont(module, ModuleTypeIndex{42});
     /* 45 */ DefineCont(module, ModuleTypeIndex{43});
@@ -185,14 +207,14 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       kWasmNullFuncRef, kWasmStringRef,     kWasmStringViewIter,
       kWasmExnRef,      kWasmNullExnRef,    kWasmRefNullExternString,
       kWasmContRef,     kWasmNullContRef,
-      refNull(0),   // struct
-      ref(0),       // struct
-      refNull(2),   // array
-      ref(2),       // array
-      refNull(11),  // signature
-      ref(11),      // signature
-      refNull(44),  // continuation
-      ref(44)       // continuation
+      refNullS(0),   // struct
+      refS(0),       // struct
+      refNullA(2),   // array
+      refA(2),       // array
+      refNullF(11),  // function
+      refF(11),      // function
+      refNullC(44),  // continuation
+      refC(44)       // continuation
   };
 
 // Some macros to help managing types and modules.
@@ -210,12 +232,16 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 #define NOT_VALID_SUBTYPE(type1, type2)                                     \
   EXPECT_FALSE(ValidSubtypeDefinition(type1.ref_index(), type2.ref_index(), \
                                       module1, module));
-#define IDENTICAL(index1, index2) \
-  EXPECT_TRUE(                    \
-      EquivalentTypes(refNull(index1), refNull(index2), module1, module));
-#define DISTINCT(index1, index2) \
-  EXPECT_FALSE(                  \
-      EquivalentTypes(refNull(index1), refNull(index2), module1, module));
+#define IDENTICAL(kind, index1, index2)                                     \
+  EXPECT_TRUE(EquivalentTypes(refNull##kind(index1), refNull##kind(index2), \
+                              module1, module));
+#define DISTINCT(kind, index1, index2)                                       \
+  EXPECT_FALSE(EquivalentTypes(refNull##kind(index1), refNull##kind(index2), \
+                               module1, module));
+#define DISTINCT_SHARED(kind, index1, shared1, index2, shared2)         \
+  EXPECT_FALSE(EquivalentTypes(refNull##kind(index1, shared1),          \
+                               refNull##kind(index2, shared2), module1, \
+                               module));
 // For union and intersection, we have a version that also checks the module,
 // and one that does not.
 #define UNION(type1, type2, type_result) \
@@ -253,13 +279,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                              ref_type == kWasmRefNullExternString;
       const bool is_any_func = ref_type == kWasmFuncRef ||
                                ref_type == kWasmNullFuncRef ||
-                               ref_type == refNull(11) || ref_type == ref(11);
+                               ref_type == refNullF(11) || ref_type == refF(11);
       const bool is_string_view = ref_type == kWasmStringViewIter ||
                                   ref_type == kWasmStringViewWtf8 ||
                                   ref_type == kWasmStringViewWtf16;
       const bool is_any_cont = ref_type == kWasmContRef ||
                                ref_type == kWasmNullContRef ||
-                               ref_type == refNull(44) || ref_type == ref(44);
+                               ref_type == refNullC(44) || ref_type == refC(44);
       const bool is_exn =
           ref_type == kWasmExnRef || ref_type == kWasmNullExnRef;
       SCOPED_TRACE("ref_type: " + ref_type.name());
@@ -272,11 +298,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Struct types are subtypes of structref.
       SUBTYPE_IFF(ref_type, kWasmStructRef,
                   ref_type == kWasmStructRef || ref_type == kWasmNullRef ||
-                      ref_type == ref(0) || ref_type == refNull(0));
+                      ref_type == refS(0) || ref_type == refNullS(0));
       // Array types are subtypes of arrayref.
       SUBTYPE_IFF(ref_type, kWasmArrayRef,
-                  ref_type == kWasmArrayRef || ref_type == ref(2) ||
-                      ref_type == kWasmNullRef || ref_type == refNull(2));
+                  ref_type == kWasmArrayRef || ref_type == refA(2) ||
+                      ref_type == kWasmNullRef || ref_type == refNullA(2));
       // Functions are subtypes of funcref.
       SUBTYPE_IFF(ref_type, kWasmFuncRef, is_any_func);
       // Each reference type is a subtype of itself.
@@ -327,133 +353,149 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // Unrelated refs are unrelated.
-    NOT_VALID_SUBTYPE(ref(0), ref(2));
-    NOT_VALID_SUBTYPE(refNull(3), refNull(1));
+    NOT_VALID_SUBTYPE(refS(0), refA(2));
+    NOT_VALID_SUBTYPE(refNullA(3), refNullS(1));
     // ref is a subtype of ref null for the same struct/array.
-    VALID_SUBTYPE(ref(0), refNull(0));
-    VALID_SUBTYPE(ref(2), refNull(2));
+    VALID_SUBTYPE(refS(0), refNullS(0));
+    VALID_SUBTYPE(refA(2), refNullA(2));
     // ref null is not a subtype of ref for the same struct/array.
-    NOT_SUBTYPE(refNull(0), ref(0));
-    NOT_SUBTYPE(refNull(2), ref(2));
+    NOT_SUBTYPE(refNullS(0), refS(0));
+    NOT_SUBTYPE(refNullA(2), refA(2));
     // ref is a subtype of ref null if the same is true for the underlying
     // structs/arrays.
-    VALID_SUBTYPE(ref(3), refNull(2));
+    VALID_SUBTYPE(refA(3), refNullA(2));
     // Prefix subtyping for structs.
-    VALID_SUBTYPE(refNull(4), refNull(0));
+    VALID_SUBTYPE(refNullS(4), refNullS(0));
     // Mutable fields are invariant.
-    NOT_VALID_SUBTYPE(ref(0), ref(5));
+    NOT_VALID_SUBTYPE(refS(0), refS(5));
     // Immutable fields are covariant.
-    VALID_SUBTYPE(ref(1), ref(0));
+    VALID_SUBTYPE(refS(1), refS(0));
     // Prefix subtyping + immutable field covariance for structs.
-    VALID_SUBTYPE(refNull(4), refNull(1));
+    VALID_SUBTYPE(refNullS(4), refNullS(1));
     // No subtyping between mutable/immutable fields.
-    NOT_VALID_SUBTYPE(ref(7), ref(6));
-    NOT_VALID_SUBTYPE(ref(6), ref(7));
+    NOT_VALID_SUBTYPE(refA(7), refA(6));
+    NOT_VALID_SUBTYPE(refA(6), refA(7));
     // Recursive types.
-    VALID_SUBTYPE(ref(9), ref(8));
+    VALID_SUBTYPE(refS(9), refS(8));
 
     // Function subtyping;
     // Unrelated function types are unrelated.
-    NOT_VALID_SUBTYPE(ref(10), ref(11));
+    NOT_VALID_SUBTYPE(refF(10), refF(11));
     // Function type with different parameter counts are unrelated.
-    NOT_VALID_SUBTYPE(ref(12), ref(11));
+    NOT_VALID_SUBTYPE(refF(12), refF(11));
     // Parameter contravariance holds.
-    VALID_SUBTYPE(ref(14), ref(13));
+    VALID_SUBTYPE(refF(14), refF(13));
     // Return type covariance holds.
-    VALID_SUBTYPE(ref(16), ref(15));
+    VALID_SUBTYPE(refF(16), refF(15));
     // Identical types are subtype-related.
-    VALID_SUBTYPE(ref(10), ref(10));
-    VALID_SUBTYPE(ref(11), ref(11));
+    VALID_SUBTYPE(refF(10), refF(10));
+    VALID_SUBTYPE(refF(11), refF(11));
 
     // Continuation subtyping:
-    VALID_SUBTYPE(ref(44), ref(44));
-    NOT_VALID_SUBTYPE(ref(44), ref(45));
-    VALID_SUBTYPE(ref(45), ref(45));
-    NOT_VALID_SUBTYPE(ref(45), ref(44));
+    VALID_SUBTYPE(refC(44), refC(44));
+    NOT_VALID_SUBTYPE(refC(44), refC(45));
+    VALID_SUBTYPE(refC(45), refC(45));
+    NOT_VALID_SUBTYPE(refC(45), refC(44));
 
-    INTERSECTION(ref(11), ref(44), kWasmBottom);  // Just checking ...
+    INTERSECTION(refF(11), refC(44), kWasmBottom);  // Just checking ...
 
-    INTERSECTION(refNull(44), refNull(45), kWasmNullContRef);
-    INTERSECTION(refNull(44), kWasmContRef, refNull(44));
-    INTERSECTION(ref(44), kWasmContRef, ref(44));
-    INTERSECTION(ref(44), ref(45), kWasmBottom);
-    INTERSECTION(refNull(44), kWasmNullContRef, kWasmNullContRef);
+    INTERSECTION(refNullC(44), refNullC(45), kWasmNullContRef);
+    INTERSECTION(refNullC(44), kWasmContRef, refNullC(44));
+    INTERSECTION(refC(44), kWasmContRef, refC(44));
+    INTERSECTION(refC(44), refC(45), kWasmBottom);
+    INTERSECTION(refNullC(44), kWasmNullContRef, kWasmNullContRef);
     INTERSECTION(kWasmContRef, kWasmNullContRef, kWasmNullContRef);
 
-    constexpr ValueType kContRef = ValueType::Ref(HeapType::kCont);
-
     UNION(kWasmNullContRef, kWasmContRef, kWasmContRef);
-    UNION(refNull(44), kWasmContRef, kWasmContRef);
-    UNION(ref(44), kWasmContRef, kWasmContRef);
-    UNION(refNull(44), refNull(45), kWasmContRef);
-    UNION(ref(44), ref(45), kContRef);
-    UNION(refNull(44), kWasmNullContRef, refNull(44));
+    UNION(refNullC(44), kWasmContRef, kWasmContRef);
+    UNION(refC(44), kWasmContRef, kWasmContRef);
+    UNION(refNullC(44), refNullC(45), kWasmContRef);
+    UNION(refC(44), refC(45), kWasmContRef.AsNonNull());
+    UNION(refNullC(44), kWasmNullContRef, refNullC(44));
     UNION(kWasmContRef, kWasmNullContRef, kWasmContRef);
 
     // Canonicalization tests.
 
     // Groups should only be canonicalized to identical groups.
-    IDENTICAL(18, 22);
-    IDENTICAL(19, 23);
-    IDENTICAL(20, 24);
-    IDENTICAL(21, 25);
+    IDENTICAL(S, 18, 22);
+    IDENTICAL(A, 19, 23);
+    IDENTICAL(F, 20, 24);
+    IDENTICAL(F, 21, 25);
 
-    DISTINCT(18, 26);
-    DISTINCT(19, 27);
-    DISTINCT(20, 28);
-    DISTINCT(21, 29);
+    DISTINCT(S, 18, 26);
+    DISTINCT(A, 19, 27);
+    DISTINCT(F, 20, 28);
+    DISTINCT(F, 21, 29);
 
     // A type should not be canonicalized to an identical one with a different
     // group structure.
-    DISTINCT(18, 17);
+    DISTINCT(S, 18, 17);
 
     // A subtype should also be subtype of an equivalent type.
-    VALID_SUBTYPE(ref(30), ref(18));
-    VALID_SUBTYPE(ref(30), ref(22));
-    NOT_SUBTYPE(ref(30), ref(26));
+    VALID_SUBTYPE(refS(30), refS(18));
+    VALID_SUBTYPE(refS(30), refS(22));
+    NOT_SUBTYPE(refS(30), refS(26));
 
     // Final types
 
     // A type is not a valid subtype of a final type.
-    NOT_VALID_SUBTYPE(ref(33), ref(32));
-    IDENTICAL(32, 34);
+    NOT_VALID_SUBTYPE(refS(33), refS(32));
+    IDENTICAL(S, 32, 34);
     // A final and a non-final type are distinct.
-    DISTINCT(32, 35);
+    DISTINCT(S, 32, 35);
 
     /* Shared types */
     // A shared type can be a subtype of a shared type.
-    VALID_SUBTYPE(ref(39), ref(38));
+    VALID_SUBTYPE(refS(39, kShared), refS(38, kShared));
     // A shared type is not a valid subtype of a non-shared type and vice versa.
-    NOT_VALID_SUBTYPE(ref(39), ref(36));
-    NOT_VALID_SUBTYPE(ref(37), ref(38));
+    NOT_VALID_SUBTYPE(refS(39, kShared), refS(36));
+    NOT_VALID_SUBTYPE(refS(37), refS(38, kShared));
     // Two shared types are identical. A shared and non-shared type are
     // distinct.
-    IDENTICAL(38, 40);
-    DISTINCT(36, 38);
-    // Abstract types
-    SUBTYPE(ValueType::Ref(HeapType::kEqShared),
-            ValueType::Ref(HeapType::kAnyShared));
-    NOT_SUBTYPE(ValueType::Ref(HeapType::kEqShared),
-                ValueType::Ref(HeapType::kAny));
-    NOT_SUBTYPE(ValueType::Ref(HeapType::kEq),
-                ValueType::Ref(HeapType::kAnyShared));
-    NOT_SUBTYPE(ValueType::Ref(HeapType::kFuncShared),
-                ValueType::Ref(HeapType::kAnyShared));
-    SUBTYPE(ValueType::RefNull(HeapType::kNoneShared),
-            ValueType::RefNull(HeapType::kI31Shared));
-    SUBTYPE(ValueType::RefNull(HeapType::kNoFuncShared),
-            ValueType::RefNull(HeapType::kFuncShared));
-    SUBTYPE(ref(40), ValueType::RefNull(HeapType::kEqShared));
-    SUBTYPE(ValueType::RefNull(HeapType::kNoneShared), refNull(40));
-    NOT_SUBTYPE(ref(40), ValueType::RefNull(HeapType::kEq));
-    NOT_SUBTYPE(ref(40), ValueType::RefNull(HeapType::kExternShared));
-    SUBTYPE(ref(41), ValueType::RefNull(HeapType::kFuncShared));
-    SUBTYPE(ValueType::RefNull(HeapType::kNoFuncShared), refNull(41));
-    NOT_SUBTYPE(ref(41), ValueType::RefNull(HeapType::kAnyShared));
-    NOT_SUBTYPE(ref(41), ValueType::RefNull(HeapType::kFunc));
-    NOT_SUBTYPE(ref(0), ValueType::Ref(HeapType::kStructShared));
-    NOT_SUBTYPE(ref(2), ValueType::Ref(HeapType::kArrayShared));
-    NOT_SUBTYPE(ref(10), ValueType::Ref(HeapType::kFuncShared));
+    IDENTICAL(S, 38, 40);
+    DISTINCT_SHARED(S, 36, kNotShared, 38, kShared);
+
+    // Abstract types.
+    auto Gen = ValueType::Generic;
+    using G = GenericKind;
+    ValueType kRefAny = kWasmAnyRef.AsNonNull();
+    ValueType kRefAnyShared = Gen(G::kAny, kNonNullable, kShared);
+    ValueType kRefEq = kWasmEqRef.AsNonNull();
+    ValueType kRefEqShared = Gen(G::kEq, kNonNullable, kShared);
+    ValueType kRefI31Shared = Gen(G::kI31, kNonNullable, kShared);
+    ValueType kRefStructShared = Gen(G::kStruct, kNonNullable, kShared);
+    ValueType kRefArrayShared = Gen(G::kArray, kNonNullable, kShared);
+    ValueType kRefNoneShared = Gen(G::kNone, kNonNullable, kShared);
+    ValueType kRefFunc = kWasmFuncRef.AsNonNull();
+    ValueType kRefFuncShared = Gen(G::kFunc, kNonNullable, kShared);
+    ValueType kRefNoFuncShared = Gen(G::kNoFunc, kNonNullable, kShared);
+    ValueType kRefNoExternShared = Gen(G::kNoExtern, kNonNullable, kShared);
+    ValueType kRefNullAnyShared = Gen(G::kAny, kNullable, kShared);
+    ValueType kRefNullFuncShared = Gen(G::kFunc, kNullable, kShared);
+    ValueType kRefNullEqShared = Gen(G::kEq, kNullable, kShared);
+    ValueType kRefNullExternShared = Gen(G::kExtern, kNullable, kShared);
+    ValueType kRefNullNoneShared = Gen(G::kNone, kNullable, kShared);
+    ValueType kRefNullNoFuncShared = Gen(G::kNoFunc, kNullable, kShared);
+    ValueType kRefNullI31Shared = Gen(G::kI31, kNullable, kShared);
+
+    SUBTYPE(kRefEqShared, kRefAnyShared);
+    NOT_SUBTYPE(kRefEqShared, kRefAny);
+    NOT_SUBTYPE(kRefEq, kRefAnyShared);
+    NOT_SUBTYPE(kRefFuncShared, kRefAnyShared);
+    SUBTYPE(kRefNullNoneShared, kRefNullI31Shared);
+    SUBTYPE(kRefNullNoFuncShared, kRefNullFuncShared);
+    SUBTYPE(refS(40, kShared), kRefNullEqShared);
+    SUBTYPE(kRefNullNoneShared, refNullS(40, kShared));
+    NOT_SUBTYPE(refS(40, kShared), kWasmEqRef);
+    NOT_SUBTYPE(refS(40, kShared), kRefNullExternShared);
+    SUBTYPE(refF(41, kShared), kRefNullFuncShared);
+    SUBTYPE(kRefNullNoFuncShared, refNullF(41, kShared));
+    NOT_SUBTYPE(kRefNullNoFuncShared, refF(41, kShared));
+    NOT_SUBTYPE(refF(41, kShared), kRefNullAnyShared);
+    NOT_SUBTYPE(refF(41, kShared), kWasmFuncRef);
+    NOT_SUBTYPE(refS(0), kRefStructShared);
+    NOT_SUBTYPE(refA(2), kRefArrayShared);
+    NOT_SUBTYPE(refF(10), kRefFuncShared);
 
     // Unions and intersections.
 
@@ -480,12 +522,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
         // String views aren't subtypes of any nor supertypes of null.
         INTERSECTION(type, kWasmAnyRef, kWasmBottom);
         INTERSECTION(type, kWasmNullRef, kWasmBottom);
+
       } else if (type == kWasmFuncRef || type == kWasmNullFuncRef ||
-                 type == ref(11) || type == refNull(11) ||
+                 type == refF(11) || type == refNullF(11) ||
                  type == kWasmExternRef || type == kWasmNullExternRef ||
                  type == kWasmRefNullExternString || type == kWasmContRef ||
-                 type == kWasmNullContRef || type == refNull(44) ||
-                 type == ref(44)) {
+                 type == kWasmNullContRef || type == refNullC(44) ||
+                 type == refC(44)) {
         // func, cont and extern types don't share the same type hierarchy as
         // anyref.
         INTERSECTION(type, kWasmAnyRef, kWasmBottom);
@@ -511,11 +554,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION(kWasmEqRef, kWasmNullRef, kWasmEqRef);
     UNION(kWasmStructRef, kWasmI31Ref, kWasmEqRef);
     UNION(kWasmStructRef, kWasmArrayRef, kWasmEqRef);
-    UNION(kWasmStructRef, kWasmNullRef, kWasmStructRef.AsNullable());
+    UNION(kWasmStructRef, kWasmNullRef, kWasmStructRef);
     UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef.AsNonNull(),
           kWasmEqRef.AsNonNull());
-    UNION(kWasmI31Ref, kWasmNullRef, kWasmI31Ref.AsNullable());
-    UNION(kWasmArrayRef, kWasmNullRef, kWasmArrayRef.AsNullable());
+    UNION(kWasmI31Ref, kWasmNullRef, kWasmI31Ref);
+    UNION(kWasmArrayRef, kWasmNullRef, kWasmArrayRef);
     UNION(kWasmStructRef.AsNonNull(), kWasmI31Ref.AsNonNull(),
           kWasmEqRef.AsNonNull());
     UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef, kWasmEqRef);
@@ -607,9 +650,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     INTERSECTION(kWasmI31Ref.AsNonNull(), kWasmNullRef, kWasmBottom);
     INTERSECTION(kWasmArrayRef.AsNonNull(), kWasmNullRef, kWasmBottom);
 
-    ValueType struct_type = ref(0);
-    ValueType array_type = ref(2);
-    ValueType function_type = ref(11);
+    ValueType struct_type = refS(0);
+    ValueType array_type = refA(2);
+    ValueType function_type = refF(11);
 
     // Abstract vs indexed types.
     UNION(kWasmFuncRef, function_type, kWasmFuncRef);
@@ -682,7 +725,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION(function_type, kWasmRefNullExternString, kWasmTop);
 
     // Indexed types of different kinds.
-    UNION(struct_type, array_type, kWasmEqRef.AsNonNull());
+    UNION(struct_type, array_type, kRefEq);
     INTERSECTION(struct_type, array_type, kWasmBottom);
     INTERSECTION(struct_type, function_type, kWasmBottom);
     INTERSECTION(array_type, function_type, kWasmBottom);
@@ -690,68 +733,56 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Nullable vs. non-nullable.
     UNION(struct_type, struct_type.AsNullable(), struct_type.AsNullable());
     INTERSECTION(struct_type, struct_type.AsNullable(), struct_type);
-    UNION(kWasmStructRef, kWasmStructRef.AsNullable(),
-          kWasmStructRef.AsNullable());
-    INTERSECTION(kWasmStructRef, kWasmStructRef.AsNullable(), kWasmStructRef);
+    UNION(kWasmStructRef, kWasmStructRef, kWasmStructRef);
+    INTERSECTION(kWasmStructRef, kWasmStructRef, kWasmStructRef);
 
     // Concrete types of the same kind.
     // Subtyping relation.
-    UNION_M(refNull(4), ref(1), refNull(1), module1);
-    INTERSECTION_M(refNull(4), ref(1), ref(4), module1);
-    INTERSECTION_M(refNull(1), refNull(4), refNull(4), module);
+    UNION_M(refNullS(4), refS(1), refNullS(1), module1);
+    INTERSECTION_M(refNullS(4), refS(1), refS(4), module1);
+    INTERSECTION_M(refNullS(1), refNullS(4), refNullS(4), module);
     // Common ancestor.
-    UNION_M(ref(4), ref(31), ref(1), module1);
-    INTERSECTION(ref(4), ref(31), kWasmBottom);
+    UNION_M(refS(4), refS(31), refS(1), module1);
+    INTERSECTION(refS(4), refS(31), kWasmBottom);
     // No common ancestor.
-    UNION(ref(6), refNull(2), kWasmArrayRef.AsNullable());
-    INTERSECTION(ref(6), refNull(2), kWasmBottom);
-    UNION(ref(0), ref(17), kWasmStructRef.AsNonNull());
-    INTERSECTION(ref(0), ref(17), kWasmBottom);
-    UNION(ref(10), refNull(11), kWasmFuncRef);
-    INTERSECTION(ref(10), refNull(11), kWasmBottom);
+    UNION(refA(6), refNullA(2), kWasmArrayRef);
+    INTERSECTION(refA(6), refNullA(2), kWasmBottom);
+    UNION(refS(0), refS(17), kWasmStructRef.AsNonNull());
+    INTERSECTION(refS(0), refS(17), kWasmBottom);
+    UNION(refF(10), refNullF(11), kWasmFuncRef);
+    INTERSECTION(refF(10), refNullF(11), kWasmBottom);
 
     // Shared types
-    ValueType struct_shared = ref(40);
-    ValueType function_shared = ref(41);
+    ValueType struct_shared = refS(40, kShared);
+    ValueType function_shared = refF(41, kShared);
     UNION(struct_shared, struct_shared.AsNullable(),
           struct_shared.AsNullable());
     UNION(struct_shared, struct_type, kWasmTop);
     UNION(struct_shared, function_shared, kWasmTop);
-    UNION(struct_shared, ValueType::Ref(HeapType::kI31Shared),
-          ValueType::Ref(HeapType::kEqShared));
-    UNION(struct_shared, ValueType::Ref(HeapType::kAnyShared),
-          ValueType::Ref(HeapType::kAnyShared));
-    UNION(struct_shared, ValueType::Ref(HeapType::kNoneShared), struct_shared);
-    UNION(struct_shared, ValueType::Ref(HeapType::kAny), kWasmTop);
+    UNION(struct_shared, kRefI31Shared, kRefEqShared);
+    UNION(struct_shared, kRefAnyShared, kRefAnyShared);
+    UNION(struct_shared, kRefNoneShared, struct_shared);
+    UNION(struct_shared, kRefAny, kWasmTop);
     INTERSECTION(struct_shared, struct_shared.AsNullable(), struct_shared);
     INTERSECTION(struct_shared, struct_type, kWasmBottom);
     INTERSECTION(struct_shared, function_shared, kWasmBottom);
-    INTERSECTION(struct_shared.AsNullable(),
-                 ValueType::RefNull(HeapType::kI31Shared),
-                 ValueType::RefNull(HeapType::kNoneShared));
-    INTERSECTION(struct_shared, ValueType::Ref(HeapType::kAnyShared),
-                 struct_shared);
-    INTERSECTION(struct_shared.AsNullable(),
-                 ValueType::RefNull(HeapType::kNoneShared),
-                 ValueType::RefNull(HeapType::kNoneShared));
-    INTERSECTION(struct_shared, ValueType::Ref(HeapType::kAny), kWasmBottom);
-    UNION(function_shared, ValueType::Ref(HeapType::kFuncShared),
-          ValueType::Ref(HeapType::kFuncShared));
-    UNION(function_shared, ValueType::Ref(HeapType::kFunc), kWasmTop);
-    UNION(function_shared, ValueType::Ref(HeapType::kEqShared), kWasmTop);
-    UNION(function_shared, ValueType::Ref(HeapType::kNoFuncShared),
-          function_shared);
-    UNION(function_shared, ValueType::Ref(HeapType::kNoExternShared), kWasmTop);
-    INTERSECTION(function_shared, ValueType::Ref(HeapType::kFuncShared),
-                 function_shared);
-    INTERSECTION(function_shared, ValueType::Ref(HeapType::kFunc), kWasmBottom);
-    INTERSECTION(function_shared, ValueType::Ref(HeapType::kEqShared),
-                 kWasmBottom);
-    INTERSECTION(function_shared.AsNullable(),
-                 ValueType::RefNull(HeapType::kNoFuncShared),
-                 ValueType::RefNull(HeapType::kNoFuncShared));
-    INTERSECTION(function_shared, ValueType::Ref(HeapType::kNoExternShared),
-                 kWasmBottom);
+    INTERSECTION(struct_shared.AsNullable(), kRefNullI31Shared,
+                 kRefNullNoneShared);
+    INTERSECTION(struct_shared, kRefAnyShared, struct_shared);
+    INTERSECTION(struct_shared.AsNullable(), kRefNullNoneShared,
+                 kRefNullNoneShared);
+    INTERSECTION(struct_shared, kRefAny, kWasmBottom);
+    UNION(function_shared, kRefFuncShared, kRefFuncShared);
+    UNION(function_shared, kRefFunc, kWasmTop);
+    UNION(function_shared, kRefEqShared, kWasmTop);
+    UNION(function_shared, kRefNoFuncShared, function_shared);
+    UNION(function_shared, kRefNoExternShared, kWasmTop);
+    INTERSECTION(function_shared, kRefFuncShared, function_shared);
+    INTERSECTION(function_shared, kRefFunc, kWasmBottom);
+    INTERSECTION(function_shared, kRefEqShared, kWasmBottom);
+    INTERSECTION(function_shared.AsNullable(), kRefNullNoFuncShared,
+                 kRefNullNoFuncShared);
+    INTERSECTION(function_shared, kRefNoExternShared, kWasmBottom);
   }
 
   // Generic test covering all kinds of always applicable rules (like

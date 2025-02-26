@@ -1856,7 +1856,7 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   DCHECK_EQ(module->origin, kWasmOrigin);
   if (imports.empty()) return {};
 
-  static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
+  static constexpr ValueType kRefExtern = kWasmRefExtern;
   static constexpr ValueType kExternRef = kWasmExternRef;
   static constexpr ValueType kI32 = kWasmI32;
 
@@ -2508,7 +2508,7 @@ struct ValidateFunctionsStreamingJobData {
     base::Vector<const uint8_t> code;
 
     // Check whether the unit is valid.
-    operator bool() const {
+    operator bool() const {  // NOLINT(google-explicit-constructor)
       DCHECK_LE(-1, func_index);
       return func_index >= 0;
     }

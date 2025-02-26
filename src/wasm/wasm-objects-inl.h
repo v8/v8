@@ -120,7 +120,7 @@ wasm::ValueType WasmGlobalObject::type() const {
   // technically sandbox violations, we should still try to avoid them to keep
   // fuzzers happy. This SBXCHECK accomplishes that.
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type());
-  SBXCHECK(is_valid(type.kind()));
+  SBXCHECK(type.is_valid());
   return type;
 }
 void WasmGlobalObject::set_type(wasm::ValueType value) {
@@ -559,8 +559,12 @@ Tagged<WasmFuncRef> WasmExternalFunction::func_ref() const {
 }
 
 // WasmTypeInfo
+wasm::CanonicalValueType WasmTypeInfo::type() const {
+  return wasm::CanonicalValueType::FromRawBitField(canonical_type());
+}
+
 wasm::CanonicalTypeIndex WasmTypeInfo::type_index() const {
-  return wasm::CanonicalTypeIndex{canonical_type_index()};
+  return type().ref_index();
 }
 
 wasm::CanonicalValueType WasmTypeInfo::element_type() const {
@@ -602,7 +606,7 @@ wasm::ValueType WasmTableObject::unsafe_type() {
   // technically sandbox violations, we should still try to avoid them to keep
   // fuzzers happy. This SBXCHECK accomplishes that.
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type());
-  SBXCHECK(is_valid(type.kind()));
+  SBXCHECK(type.is_valid());
   return type;
 }
 
@@ -751,7 +755,7 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
 wasm::CanonicalTypeIndex WasmArray::type_index(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
   Tagged<WasmTypeInfo> type_info = map->wasm_type_info();
-  return type_info->type_index();
+  return type_info->type().ref_index();
 }
 
 const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {

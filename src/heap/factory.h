@@ -737,8 +737,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmDispatchTable> NewWasmDispatchTable(
       int length, wasm::CanonicalValueType table_type);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
-      wasm::CanonicalTypeIndex type_index,
-      wasm::CanonicalValueType element_type, DirectHandle<Map> opt_parent);
+      wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
+      DirectHandle<Map> opt_parent);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index);
   DirectHandle<WasmFuncRef> NewWasmFuncRef(

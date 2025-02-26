@@ -397,19 +397,12 @@ void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
 }
 
 void NamesProvider::PrintValueType(StringBuilder& out, ValueType type) {
-  switch (type.kind()) {
-    case kRef:
-    case kRefNull:
-      if (type.encoding_needs_heap_type()) {
-        out << (type.kind() == kRef ? "(ref " : "(ref null ");
-        PrintHeapType(out, type.heap_type());
-        out << ')';
-      } else {
-        out << type.heap_type().name() << "ref";
-      }
-      break;
-    default:
-      out << wasm::name(type.kind());
+  if (type.has_index()) {
+    out << (type.is_nullable() ? "(ref null " : "(ref ");
+    PrintTypeName(out, type.ref_index());
+    out << ')';
+  } else {
+    out << type.name();
   }
 }
 

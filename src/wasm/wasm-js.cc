@@ -2155,7 +2155,7 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
         const char* error_message;
         i::DirectHandle<i::Object> value_handle =
             Utils::OpenDirectHandle(*value);
-        i::wasm::CanonicalValueType canonical_type;
+        i::wasm::CanonicalValueType canonical_type = i::wasm::kWasmBottom;
         if (type.has_index()) {
           // Canonicalize the type using the tag's original module.
           // Indexed types are guaranteed to come from an instance.
@@ -2163,8 +2163,8 @@ V8_WARN_UNUSED_RESULT bool EncodeExceptionValues(
           i::Tagged<i::WasmTrustedInstanceData> wtid =
               tag_object->trusted_data(i_isolate);
           const i::wasm::WasmModule* module = wtid->module();
-          canonical_type = i::wasm::CanonicalValueType::FromIndex(
-              type.kind(), module->canonical_type_id(type.ref_index()));
+          canonical_type =
+              type.Canonicalize(module->canonical_type_id(type.ref_index()));
         } else {
           canonical_type = i::wasm::CanonicalValueType{type};
         }

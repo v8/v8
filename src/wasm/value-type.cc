@@ -11,9 +11,119 @@
 
 namespace v8::internal::wasm {
 
-bool CanonicalValueType::IsFunctionType_Slow() const {
-  DCHECK(has_index());
-  return wasm::GetTypeCanonicalizer()->IsFunctionSignature(ref_index());
+namespace value_type_impl {
+
+// Check that {kGenericKindMask} is defined appropriately.
+#define CHECK_MASK(kind, ...)                        \
+  static_assert(                                     \
+      static_cast<uint32_t>(GenericKind::k##kind) == \
+      (static_cast<uint32_t>(GenericKind::k##kind) & kGenericKindMask));
+FOREACH_GENERIC_TYPE(CHECK_MASK)
+#undef CHECK_MASK
+#define CHECK_MASK(kind, ...)                        \
+  static_assert(                                     \
+      static_cast<uint32_t>(NumericKind::k##kind) == \
+      (static_cast<uint32_t>(NumericKind::k##kind) & kNumericKindMask));
+FOREACH_NUMERIC_VALUE_TYPE(CHECK_MASK)
+#undef CHECK_MASK
+
+// Check correctness of enum conversions.
+static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
+
+}  // namespace value_type_impl
+
+static_assert(kWasmBottom.is_bottom());
+static_assert(kWasmTop.is_top());
+
+ValueTypeCode ValueTypeBase::value_type_code_numeric() const {
+  switch (numeric_kind()) {
+#define NUMERIC_CASE(kind, ...) \
+  case NumericKind::k##kind:    \
+    return k##kind##Code;
+    FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_CASE)
+#undef NUMERIC_CASE
+  }
+  UNREACHABLE();
+}
+
+ValueTypeCode ValueTypeBase::value_type_code_generic() const {
+  switch (generic_kind()) {
+#define ABSTRACT_TYPE_CASE(name, code, ...) \
+  case GenericKind::k##name:                \
+    return k##code##Code;
+    FOREACH_ABSTRACT_TYPE(ABSTRACT_TYPE_CASE)
+#undef ABSTRACT_TYPE_CASE
+    // Among "internal" types, only "void" has a wire bytes encoding.
+#define INTERNAL_TYPE_CASE(name, code, ...)                     \
+  case GenericKind::k##name:                                    \
+    if constexpr (GenericKind::k##name == GenericKind::kVoid) { \
+      return k##code##Code;                                     \
+    } else {                                                    \
+      UNREACHABLE();                                            \
+    }
+    FOREACH_INTERNAL_TYPE(INTERNAL_TYPE_CASE)
+#undef INTERNAL_TYPE_CASE
+  }
+  UNREACHABLE();
+}
+
+std::string ValueTypeBase::generic_heaptype_name() const {
+  DCHECK(is_generic());
+  std::ostringstream buf;
+  if (is_shared()) buf << "shared ";
+  switch (generic_kind()) {
+#define GENERIC_CASE(kind, code, typekind, name) \
+  case GenericKind::k##kind:                     \
+    buf << name;                                 \
+    return buf.str();
+    FOREACH_GENERIC_TYPE(GENERIC_CASE)
+#undef GENERIC_CASE
+  }
+  UNREACHABLE();
+}
+
+std::string ValueTypeBase::name() const {
+  if (is_numeric()) {
+    switch (numeric_kind()) {
+#define NUMERIC_CASE(kind, log2, code, mtype, shortName, name) \
+  case NumericKind::k##kind:                                   \
+    return name;
+      FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_CASE)
+#undef NUMERIC_CASE
+    }
+    UNREACHABLE();
+  }
+  std::ostringstream buf;
+  if (has_index()) {
+    buf << "(ref ";
+    if (is_nullable()) buf << "null ";
+    buf << raw_index().index << ")";
+  } else {
+    DCHECK(is_generic());
+    if (is_nullable()) {
+      GenericKind kind = generic_kind();
+      if (kind == GenericKind::kNone) {
+        // The code below would produce "noneref", and we need to keep it
+        // that way for "(ref none)", so we need this special case.
+        return "nullref";
+      } else if (kind == GenericKind::kNoExn) {
+        return "nullexnref";
+      } else if (kind == GenericKind::kNoExtern) {
+        return "nullexternref";
+      } else if (kind == GenericKind::kNoFunc) {
+        return "nullfuncref";
+      } else if (kind == GenericKind::kNoCont) {
+        return "nullcontref";
+      }
+    }
+    bool shorthand = is_nullable() || is_sentinel() || is_string_view();
+    bool append_ref = is_nullable() && !is_sentinel();
+    if (!shorthand) buf << "(ref ";
+    buf << generic_heaptype_name();
+    if (append_ref) buf << "ref";
+    if (!shorthand) buf << ")";
+  }
+  return buf.str();
 }
 
 std::optional<wasm::ValueKind> WasmReturnTypeFromSignature(

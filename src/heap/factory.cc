@@ -1689,7 +1689,7 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
 }
 
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
-    wasm::CanonicalTypeIndex type_index, wasm::CanonicalValueType element_type,
+    wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
     DirectHandle<Map> opt_parent) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
@@ -1727,7 +1727,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   for (size_t i = 0; i < supertypes.size(); i++) {
     result->set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
-  result->set_canonical_type_index(type_index.index);
+  result->set_canonical_type(type.raw_bit_field());
   result->set_canonical_element_type(element_type.raw_bit_field());
   return direct_handle(result, isolate());
 }

@@ -39,7 +39,7 @@ static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
 // We want the invalid index to fail any range checks.
 static_assert(kInvalidCanonicalIndex > kMaxCanonicalTypes);
 // Ensure that ValueType can hold all canonical type indexes.
-static_assert(kMaxCanonicalTypes <= (1 << ValueType::kHeapTypeBits));
+static_assert(kMaxCanonicalTypes <= (1 << CanonicalValueType::kNumIndexBits));
 
 // A singleton class, responsible for isorecursive canonicalization of wasm
 // types.
@@ -122,7 +122,7 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE bool IsStruct(CanonicalTypeIndex index) const;
   V8_EXPORT_PRIVATE bool IsArray(CanonicalTypeIndex index) const;
 
-  bool IsHeapSubtype(CanonicalValueType sub, CanonicalValueType super) const;
+  bool IsHeapSubtype(CanonicalTypeIndex sub, CanonicalTypeIndex super) const;
   bool IsCanonicalSubtype_Locked(CanonicalTypeIndex sub_index,
                                  CanonicalTypeIndex super_index) const;
 
@@ -341,17 +341,12 @@ class TypeCanonicalizer {
 
     bool EqualValueType(CanonicalValueType type1,
                         CanonicalValueType type2) const {
-      if (type1.kind() != type2.kind()) return false;
       const bool indexed = type1.has_index();
       if (indexed != type2.has_index()) return false;
-      if (indexed) return EqualTypeIndex(type1.ref_index(), type2.ref_index());
-      const bool is_ref = type1.is_object_reference();
-      DCHECK_EQ(is_ref, type2.is_object_reference());
-      if (is_ref &&
-          type1.heap_representation() != type2.heap_representation()) {
-        return false;
+      if (indexed) {
+        return EqualTypeIndex(type1.ref_index(), type2.ref_index());
       }
-      return true;
+      return type1 == type2;
     }
 
     bool EqualSig(const CanonicalSig& sig1, const CanonicalSig& sig2) const {
@@ -546,8 +541,6 @@ class TypeCanonicalizer {
       CanonicalTypeIndex canonical_recgroup_start);
 
   void CheckMaxCanonicalIndex() const;
-
-  bool IsShared(CanonicalValueType type) const;
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.
