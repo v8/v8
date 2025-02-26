@@ -139,7 +139,7 @@ def generate_compile_hints(script_name_to_start_positions):
     if start_positions != back:
       print('Decoding failed!')
       exit(1)
-    print(f"//# eagerCompilationData={magic_comment}\n")
+    print(f"//# functionsCalledOnLoad={magic_comment}\n")
 
 
 def process_v8_log(filename):

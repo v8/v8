@@ -534,7 +534,7 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentBasic) {
 
   // Run the top level code.
   const char* code =
-      "//# eagerCompilation=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f1() {}\n"
       "let f2 = function() { }";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
@@ -561,7 +561,7 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentDifferentFunctionTypes) {
 
   // Run the top level code.
   const char* code =
-      "//# eagerCompilation=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "f1 = () => {};\n"
       "class C { f2() { } set f3(x) { } }\n"
       "o = { get f4() { } };\n";
@@ -593,7 +593,7 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentBetweenFunctions) {
   // Run the top level code.
   const char* code =
       "function f1() {}\n"
-      "//# eagerCompilation=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f2() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
@@ -620,7 +620,9 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentInvalid) {
 
   // Run the top level code.
   const char* code =
-      "//# eagerCompilation=notAll\n"  // Not a valid compile hint.
+      "//# allFunctionsCalledOnLoadAndSomeStuffAfter\n"  // Not a valid compile
+                                                         // hint.
+      "//@ allFunctionsCalledOnLoad\n"  // Not a valid compile hint.
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
@@ -639,14 +641,16 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentInvalid) {
   EXPECT_FALSE(FunctionIsCompiled("f1"));
 }
 
-// Regression test for https://issues.chromium.org/issues/351876778 .
+// Regression test for https://issues.chromium.org/issues/351876778 , repurposed
+// for the per-function version, since the per-file version no longer has the
+// "value" field which could be two byte.
 TEST_F(ScriptTest, CompileHintsMagicCommentInvalid2) {
   const char* url = "http://www.foo.com/foo.js";
   v8::ScriptOrigin origin(NewString(url), 13, 0);
   v8::Local<v8::Context> context = v8::Context::New(isolate());
 
   const char* code =
-      "//# eagerCompilation=\xCF\x80\n"  // Two byte character
+      "//# functionsCalledOnLoad=\xCF\x80\n"  // Two byte character
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
 
@@ -670,7 +674,7 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentNotEnabledByCompileOptions) {
 
   // Run the top level code.
   const char* code =
-      "//# eagerCompilation=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
@@ -691,12 +695,9 @@ TEST_F(CompileHintsTest, StreamingCompileHintsMagic) {
   v8::ScriptOrigin origin(NewString(url), 13, 0);
 
   // Consume compile hints.
-  const char* chunks[] = {
-      "//# eagerCompilati"
-      "on=all\n"
-      "function func1() {} function fu"
-      "nc2() {}",
-      nullptr};
+  const char* chunks[] = {"//# allFunctionsCalled", "OnLoad\n",
+                          "function func1() {} function fu", "nc2() {}",
+                          nullptr};
 
   v8::ScriptCompiler::StreamedSource source(
       std::make_unique<i::TestSourceStream>(chunks),
@@ -739,7 +740,7 @@ TEST_F(CompileHintsTest, CompileHintsMagicCommentAfterComments) {
       "/* a multi-\n"
       "line comment */\n"
       "// another single-line comment\n"
-      "//# eagerCompilation=all\n"
+      "//# allFunctionsCalledOnLoad\n"
       "function f1() {}";
   v8::ScriptCompiler::Source script_source(NewString(code), origin);
   Local<Script> script =
@@ -766,7 +767,7 @@ TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicComment) {
   const char* code =
       "// a comment here tests that the positions are handled correctly as"
       "being relative to the compile hints comment end position\n"
-      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
       "function test_function_1(test_param1) {}\n"
       //                      ^ function position
       "let test_function_2 = (test_param2) => {}";
@@ -796,7 +797,7 @@ TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentSome) {
   const char* code =
       "// a comment here tests that the positions are handled correctly as"
       "being relative to the compile hints comment end position\n"
-      "//# eagerCompilationData=0GkF\n"
+      "//# functionsCalledOnLoad=0GkF\n"
       "function test_function_1(test_param1) {}\n"
       "function test_function_2(test_param1) {}\n"
       "function test_function_3(test_param1) {}\n"
@@ -835,12 +836,12 @@ TEST_F(CompileHintsTest, CompileHintsPerFunctionMagicCommentContinued) {
   const char* code =
       "// a comment here tests that the positions are handled correctly as"
       "being relative to the compile hints comment end position\n"
-      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
       "function test_function_1(test_param1) {}\n"
       //                      ^ function position
       "let test_function_2 = (test_param2) => {}"
       //                    ^ function position
-      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
       "function test_function_3(test_param3) {}\n"
       //                      ^ function position
       "let test_function_4 = (test_param4) => {}";
@@ -873,7 +874,7 @@ TEST_F(CompileHintsTest,
   const char* code =
       "// a comment here tests that the positions are handled correctly as"
       "being relative to the compile hints comment end position\n"
-      "//# eagerCompilationData=wBuC\n"  // Encodes positions 24 and 63
+      "//# functionsCalledOnLoad=wBuC\n"  // Encodes positions 24 and 63
       "function test_function_1(test_param1) {}\n"
       //                      ^ function position
       "let test_function_2 = (test_param2) => {}";

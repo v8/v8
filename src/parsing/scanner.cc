@@ -293,7 +293,6 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   if (!name.is_one_byte()) return;
   base::Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  LiteralBuffer compile_hints_value;
   LiteralBuffer per_function_compile_hints_value;
   if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value = &source_url_;
@@ -302,10 +301,13 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
     DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
     saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
   } else if (!saw_non_comment_ &&
-             name_literal == base::StaticOneByteVector("eagerCompilation")) {
-    value = &compile_hints_value;
+             name_literal ==
+                 base::StaticOneByteVector("allFunctionsCalledOnLoad") &&
+             hash_or_at_sign == '#' && c0_ != '=') {
+    saw_magic_comment_compile_hints_all_ = true;
   } else if (name_literal ==
-             base::StaticOneByteVector("eagerCompilationData")) {
+                 base::StaticOneByteVector("functionsCalledOnLoad") &&
+             hash_or_at_sign == '#') {
     value = &per_function_compile_hints_value;
   } else {
     return;
@@ -331,13 +333,6 @@ void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
       break;
     }
     Advance();
-  }
-  if (value == &compile_hints_value && compile_hints_value.is_one_byte()) {
-    base::Vector<const uint8_t> value_literal =
-        compile_hints_value.one_byte_literal();
-    if (value_literal == base::StaticOneByteVector("all")) {
-      saw_magic_comment_compile_hints_all_ = true;
-    }
   }
   if (value == &per_function_compile_hints_value &&
       per_function_compile_hints_value.is_one_byte()) {
