@@ -69,7 +69,7 @@ class SmallStringOptimizedAllocator final : public StringAllocator {
       : vector_(vector) {}
 
   char* allocate(unsigned bytes) override {
-    vector_->resize_no_init(bytes);
+    vector_->resize(bytes);
     return vector_->data();
   }
 
@@ -79,7 +79,7 @@ class SmallStringOptimizedAllocator final : public StringAllocator {
     if (new_bytes <= *bytes) {
       return vector_->data();
     }
-    vector_->resize_no_init(new_bytes);
+    vector_->resize(new_bytes);
     *bytes = new_bytes;
     return vector_->data();
   }

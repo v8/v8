@@ -686,15 +686,15 @@ class GraphBuildingNodeProcessor {
 
     // Collecting the Maglev predecessors.
     base::SmallVector<const maglev::BasicBlock*, 16> maglev_predecessors;
-    maglev_predecessors.resize_no_init(maglev_block->predecessor_count());
+    maglev_predecessors.resize(maglev_block->predecessor_count());
     for (int i = 0; i < maglev_block->predecessor_count() - skip_backedge;
          ++i) {
       maglev_predecessors[i] = maglev_block->predecessor_at(i);
     }
 
     predecessor_permutation_.clear();
-    predecessor_permutation_.resize_and_init(maglev_block->predecessor_count(),
-                                             Block::kInvalidPredecessorIndex);
+    predecessor_permutation_.resize(maglev_block->predecessor_count(),
+                                    Block::kInvalidPredecessorIndex);
     int index = turboshaft_block->PredecessorCount() - 1;
     // Iterating predecessors from the end (because it's simpler and more
     // efficient in Turboshaft).
@@ -1229,7 +1229,7 @@ class GraphBuildingNodeProcessor {
     // the size of {inputs}, because some Maglev predecessors could have been
     // dropped by Turboshaft during the translation (and thus, `input_count`
     // might be too much).
-    inputs.resize_and_init(__ current_block()->PredecessorCount());
+    inputs.resize(__ current_block()->PredecessorCount(), {});
     for (int i = 0; i < maglev_input_count; ++i) {
       if (predecessor_permutation_[i] != Block::kInvalidPredecessorIndex) {
         inputs[predecessor_permutation_[i]] =

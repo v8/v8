@@ -9223,7 +9223,7 @@ Op* CreateOperation(base::SmallVector<OperationStorageSlot, 32>& storage,
                     Args... args) {
   size_t input_count = (0 + ... + detail::input_count(args));
   size_t size = Operation::StorageSlotCount(Op::opcode, input_count);
-  storage.resize_no_init(size);
+  storage.resize(size);
   Op* op = new (storage.data()) Op(args...);
   // Checking that the {input_count} we computed is at least the actual
   // input_count of the operation. {input_count} could be greater in the case of

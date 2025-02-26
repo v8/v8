@@ -656,7 +656,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
     } else {
       V<FixedArray> fixed_array =
           BuildMultiReturnFixedArrayFromIterable(call, native_context);
-      wasm_values.resize_no_init(sig_->return_count());
+      wasm_values.resize(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(__ LoadFixedArrayElement(fixed_array, i),
                                 native_context, sig_->GetReturn(i));

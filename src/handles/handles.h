@@ -1107,9 +1107,9 @@ class DirectHandleSmallVector {
   }
 
   void erase(iterator erase_start) { backing_.erase(erase_start.base()); }
-  void resize_no_init(size_t new_size) { backing_.resize_no_init(new_size); }
-  void resize_and_init(size_t new_size, const_reference initial_value = {}) {
-    backing_.resize_and_init(new_size, initial_value);
+  void resize(size_t new_size) { backing_.resize(new_size); }
+  void resize(size_t new_size, const_reference initial_value) {
+    backing_.resize(new_size, initial_value);
   }
 
   void reserve(size_t n) { backing_.reserve(n); }
@@ -1146,14 +1146,6 @@ struct is_direct_handle<DirectHandle<T>> : public std::true_type {};
 namespace base {
 template <typename T>
 struct is_trivially_copyable<::v8::internal::DirectHandle<T>>
-    : public std::true_type {};
-
-// Similarly for trivially destructible. By forcing instances of
-// `v8::base::is_trivially_destructible` for DirectHandleUnchecked<T>, we allow
-// the construction of the v8::base::SmallVector backing store in
-// DirectHandleSmallVector.
-template <typename T>
-struct is_trivially_destructible<::v8::internal::DirectHandleUnchecked<T>>
     : public std::true_type {};
 }  // namespace base
 #endif

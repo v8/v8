@@ -95,7 +95,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   // based on the ValueRepresentation of its inputs.
   ValueRepresentationSet input_reprs;
   HoistTypeList hoist_untagging;
-  hoist_untagging.resize_and_init(node->input_count(), HoistType::kNone);
+  hoist_untagging.resize(node->input_count(), HoistType::kNone);
 
   bool has_tagged_phi_input = false;
   for (int i = 0; i < node->input_count(); i++) {

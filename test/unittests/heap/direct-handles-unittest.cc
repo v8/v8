@@ -25,7 +25,7 @@ TEST_F(DirectHandlesTest, CreateDirectHandleFromLocal) {
 
 TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
   HandleScope scope(isolate());
-  i::DirectHandle<i::String> handle =
+  i::IndirectHandle<i::String> handle =
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   i::DirectHandle<i::String> direct = handle;
 
@@ -42,19 +42,19 @@ TEST_F(DirectHandlesTest, CreateMaybeDirectHandle) {
   i::DirectHandle<i::String> direct = handle;
 
   i::MaybeDirectHandle<i::String> maybe_direct(direct);
-  i::MaybeDirectHandle<i::String> maybe_handle(handle);
+  i::MaybeIndirectHandle<i::String> maybe_handle(handle);
 
   EXPECT_EQ(*maybe_direct.ToHandleChecked(), *maybe_handle.ToHandleChecked());
 }
 
 TEST_F(DirectHandlesTest, CreateMaybeDirectObjectHandle) {
   HandleScope scope(isolate());
-  i::DirectHandle<i::String> handle =
+  i::IndirectHandle<i::String> handle =
       i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   i::DirectHandle<i::String> direct = handle;
 
   i::MaybeObjectDirectHandle maybe_direct(direct);
-  i::MaybeObjectDirectHandle maybe_handle(handle);
+  i::MaybeObjectIndirectHandle maybe_handle(handle);
 
   EXPECT_EQ(*maybe_direct, *maybe_handle);
 }
@@ -270,5 +270,66 @@ TEST_F(DirectHandlesSharedTest, DirectHandleInParkedClientBackgroundThread) {
 #endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
 #endif  // V8_ENABLE_DIRECT_HANDLE
 #endif  // ENABLE_SLOW_DCHECKS
+
+using DirectHandlesContainerTest = DirectHandlesTest;
+
+namespace {
+template <typename Container>
+void TestContainerOfDirectHandles(i::Isolate* isolate, Container& container,
+                                  int capacity) {
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  Local<Context> context = Context::New(v8_isolate);
+  Context::Scope scope(context);
+
+  for (int i = 0; i < capacity; ++i) {
+    char buffer[32];
+    sprintf(buffer, "%d", i);
+    container.push_back(isolate->factory()->NewStringFromAsciiChecked(buffer));
+  }
+
+  EXPECT_EQ(static_cast<size_t>(capacity), container.size());
+
+  for (i::DirectHandle<i::String> string : container) {
+    EXPECT_FALSE(string.is_null());
+  }
+  for (int i = 0; i < capacity; ++i) {
+    Local<String> string = Utils::ToLocal(container[i]);
+    EXPECT_EQ(i, string->ToNumber(context).ToLocalChecked()->Value());
+  }
+}
+
+void VerifyNoRemainingDirectHandles() {
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  DCHECK_EQ(0, i::DirectHandleBase::NumberOfHandles());
+#endif
+}
+}  // anonymous namespace
+
+TEST_F(DirectHandlesContainerTest, Vector) {
+  {
+    HandleScope scope(isolate());
+    i::DirectHandleVector<i::String> vec(i_isolate());
+    TestContainerOfDirectHandles(i_isolate(), vec, 42);
+  }
+  VerifyNoRemainingDirectHandles();
+}
+
+TEST_F(DirectHandlesContainerTest, SmallVectorSmall) {
+  {
+    HandleScope scope(isolate());
+    i::DirectHandleSmallVector<i::String, 10> vec(i_isolate());
+    TestContainerOfDirectHandles(i_isolate(), vec, 7);
+  }
+  VerifyNoRemainingDirectHandles();
+}
+
+TEST_F(DirectHandlesContainerTest, SmallVectorBig) {
+  {
+    HandleScope scope(isolate());
+    i::DirectHandleSmallVector<i::String, 10> vec(i_isolate());
+    TestContainerOfDirectHandles(i_isolate(), vec, 42);
+  }
+  VerifyNoRemainingDirectHandles();
+}
 
 }  // namespace v8

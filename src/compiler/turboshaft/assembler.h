@@ -3298,7 +3298,7 @@ class TurboshaftAssemblerOpInterface
     int cache_location = index - kMinParameterIndex;
     DCHECK_GE(cache_location, 0);
     if (static_cast<size_t>(cache_location) >= cached_parameters_.size()) {
-      cached_parameters_.resize_and_init(cache_location + 1);
+      cached_parameters_.resize(cache_location + 1, {});
     }
     OpIndex& cached_param = cached_parameters_[cache_location];
     if (!cached_param.valid()) {

@@ -563,7 +563,7 @@ DateBuffer FormatDate(const char* format, Args... args) {
   SmallStringOptimizedAllocator<DateBuffer::kInlineSize> allocator(&buffer);
   StringStream sstream(&allocator);
   sstream.Add(format, args...);
-  buffer.resize_no_init(sstream.length());
+  buffer.resize(sstream.length());
   return buffer;
 }
 
