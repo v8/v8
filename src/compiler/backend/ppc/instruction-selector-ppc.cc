@@ -41,9 +41,9 @@ class PPCOperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool CanBeImmediate(OpIndex node, ImmediateMode mode) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_compressed_heap_object()) {
+    const ConstantOp* constant = selector()->Get(node).TryCast<ConstantOp>();
+    if (!constant) return false;
+    if (constant->kind == ConstantOp::Kind::kCompressedHeapObject) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -51,7 +51,7 @@ class PPCOperandGeneratorT final : public OperandGeneratorT {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      Handle<HeapObject> value = constant.heap_object_value();
+      Handle<HeapObject> value = constant->handle();
       if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
@@ -61,8 +61,8 @@ class PPCOperandGeneratorT final : public OperandGeneratorT {
       return false;
     }
 
-    if (!selector()->is_integer_constant(node)) return false;
-    int64_t value = selector()->integer_constant(node);
+    int64_t value;
+    if (!selector()->MatchSignedIntegralConstant(node, &value)) return false;
     return CanBeImmediate(value, mode);
   }
 
@@ -639,8 +639,9 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
   const WordBinopOp& bitwise_and = Get(node).Cast<WordBinopOp>();
   int mb = 0;
   int me = 0;
-  if (is_integer_constant(bitwise_and.right()) &&
-      IsContiguousMask32(integer_constant(bitwise_and.right()), &mb, &me)) {
+  int64_t value;
+  if (MatchSignedIntegralConstant(bitwise_and.right(), &value) &&
+      IsContiguousMask32(value, &mb, &me)) {
     int sh = 0;
     OpIndex left = bitwise_and.left();
     const Operation& lhs = Get(left);
@@ -653,7 +654,7 @@ void InstructionSelectorT::VisitWord32And(OpIndex node) {
       if (MatchIntegralWord32Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 31)) {
         left = shift_op.left();
-        sh = integer_constant(shift_op.right());
+        sh = shift_by;
         if (lhs.Is<Opmask::kWord32ShiftRightLogical>()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 31 - sh) mb = 31 - sh;
@@ -681,8 +682,9 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
   const WordBinopOp& bitwise_and = Get(node).Cast<WordBinopOp>();
   int mb = 0;
   int me = 0;
-  if (is_integer_constant(bitwise_and.right()) &&
-      IsContiguousMask64(integer_constant(bitwise_and.right()), &mb, &me)) {
+  int64_t value;
+  if (MatchSignedIntegralConstant(bitwise_and.right(), &value) &&
+      IsContiguousMask64(value, &mb, &me)) {
     int sh = 0;
     OpIndex left = bitwise_and.left();
     const Operation& lhs = Get(left);
@@ -695,7 +697,7 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
       if (MatchIntegralWord64Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 63)) {
         left = shift_op.left();
-        sh = integer_constant(shift_op.right());
+        sh = shift_by;
         if (lhs.Is<Opmask::kWord64ShiftRightLogical>()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 63 - sh) mb = 63 - sh;
@@ -808,16 +810,17 @@ void InstructionSelectorT::VisitWord32Shl(OpIndex node) {
   PPCOperandGeneratorT g(this);
   const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shl.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord32BitwiseAnd>() &&
-      this->is_integer_constant(shl.right()) &&
-      base::IsInRange(this->integer_constant(shl.right()), 0, 31)) {
-    int sh = this->integer_constant(shl.right());
+      this->MatchSignedIntegralConstant(shl.right(), &value) &&
+      base::IsInRange(value, 0, 31)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask32(this->integer_constant(bitwise_and.right()) << sh,
-                           &mb, &me)) {
+    int64_t right_value;
+    if (MatchSignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask32(right_value << sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (me < sh) me = sh;
       if (mb >= me) {
@@ -835,16 +838,17 @@ void InstructionSelectorT::VisitWord64Shl(OpIndex node) {
   PPCOperandGeneratorT g(this);
   const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shl.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
-      this->is_integer_constant(shl.right()) &&
-      base::IsInRange(this->integer_constant(shl.right()), 0, 63)) {
-    int sh = this->integer_constant(shl.right());
+      this->MatchSignedIntegralConstant(shl.right(), &value) &&
+      base::IsInRange(value, 0, 63)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask64(this->integer_constant(bitwise_and.right()) << sh,
-                           &mb, &me)) {
+    int64_t right_value;
+    if (MatchSignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask64(right_value << sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (me < sh) me = sh;
       if (mb >= me) {
@@ -880,18 +884,18 @@ void InstructionSelectorT::VisitWord32Shr(OpIndex node) {
   PPCOperandGeneratorT g(this);
   const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shr.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord32BitwiseAnd>() &&
-      this->is_integer_constant(shr.right()) &&
-      base::IsInRange(this->integer_constant(shr.right()), 0, 31)) {
-    int sh = this->integer_constant(shr.right());
+      MatchSignedIntegralConstant(shr.right(), &value) &&
+      base::IsInRange(value, 0, 31)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask32(
-            static_cast<uint32_t>(this->integer_constant(bitwise_and.right()) >>
-                                  sh),
-            &mb, &me)) {
+    uint64_t right_value;
+    if (MatchUnsignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask32(static_cast<uint32_t>(right_value >> sh), &mb,
+                           &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 31 - sh) mb = 31 - sh;
       sh = (32 - sh) & 0x1F;
@@ -910,18 +914,18 @@ void InstructionSelectorT::VisitWord64Shr(OpIndex node) {
   PPCOperandGeneratorT g(this);
   const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shr.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
-      this->is_integer_constant(shr.right()) &&
-      base::IsInRange(this->integer_constant(shr.right()), 0, 63)) {
-    int sh = this->integer_constant(shr.right());
+      MatchSignedIntegralConstant(shr.right(), &value) &&
+      base::IsInRange(value, 0, 63)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask64(
-            static_cast<uint64_t>(this->integer_constant(bitwise_and.right()) >>
-                                  sh),
-            &mb, &me)) {
+    uint64_t right_value;
+    if (MatchUnsignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask64(static_cast<uint64_t>(right_value >> sh), &mb,
+                           &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 63 - sh) mb = 63 - sh;
       sh = (64 - sh) & 0x3F;
@@ -956,10 +960,12 @@ void InstructionSelectorT::VisitWord32Sar(OpIndex node) {
   const Operation& lhs = this->Get(sar.left());
   if (CanCover(node, sar.left()) && lhs.Is<Opmask::kWord32ShiftLeft>()) {
     const ShiftOp& shl = lhs.Cast<ShiftOp>();
-    if (this->is_integer_constant(sar.right()) &&
-        this->is_integer_constant(shl.right())) {
-      uint32_t sar_by = this->integer_constant(sar.right());
-      uint32_t shl_by = this->integer_constant(shl.right());
+    uint64_t sar_value;
+    uint64_t shl_value;
+    if (MatchUnsignedIntegralConstant(sar.right(), &sar_value) &&
+        MatchUnsignedIntegralConstant(shl.right(), &shl_value)) {
+      uint32_t sar_by = sar_value;
+      uint32_t shl_by = shl_value;
       if ((sar_by == shl_by) && (sar_by == 16)) {
         Emit(kPPC_ExtendSignWord16, g.DefineAsRegister(node),
              g.UseRegister(shl.left()));

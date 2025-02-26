@@ -169,7 +169,8 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
   }
 
   InstructionOperand UseAnyExceptImmediate(OpIndex node) {
-    if (this->is_integer_constant(node))
+    int64_t value;
+    if (MatchSignedIntegralConstant(node, &value))
       return UseRegister(node);
     else
       return this->Use(node);
@@ -189,8 +190,8 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool CanBeImmediate(OpIndex node, OperandModes mode) {
-    if (!selector()->is_integer_constant(node)) return false;
-    int64_t value = selector()->integer_constant(node);
+    int64_t value;
+    if (!selector()->MatchSignedIntegralConstant(node, &value)) return false;
     return CanBeImmediate(value, mode);
   }
 
@@ -1123,8 +1124,9 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
   const WordBinopOp& bitwise_and = Get(node).Cast<WordBinopOp>();
   int mb = 0;
   int me = 0;
-  if (is_integer_constant(bitwise_and.right()) &&
-      IsContiguousMask64(integer_constant(bitwise_and.right()), &mb, &me)) {
+  int64_t value;
+  if (MatchSignedIntegralConstant(bitwise_and.right(), &value) &&
+      IsContiguousMask64(value, &mb, &me)) {
     int sh = 0;
     OpIndex left = bitwise_and.left();
     const Operation& lhs = Get(left);
@@ -1137,7 +1139,7 @@ void InstructionSelectorT::VisitWord64And(OpIndex node) {
       if (MatchIntegralWord64Constant(shift_op.right(), &shift_by) &&
           base::IsInRange(shift_by, 0, 63)) {
         left = shift_op.left();
-        sh = integer_constant(shift_op.right());
+        sh = shift_by;
         if (lhs.Is<Opmask::kWord64ShiftRightLogical>()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 63 - sh) mb = 63 - sh;
@@ -1179,16 +1181,17 @@ void InstructionSelectorT::VisitWord64Shl(OpIndex node) {
   S390OperandGeneratorT g(this);
   const ShiftOp& shl = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shl.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
-      this->is_integer_constant(shl.right()) &&
-      base::IsInRange(this->integer_constant(shl.right()), 0, 63)) {
-    int sh = this->integer_constant(shl.right());
+      MatchSignedIntegralConstant(shl.right(), &value) &&
+      base::IsInRange(value, 0, 63)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask64(this->integer_constant(bitwise_and.right()) << sh,
-                           &mb, &me)) {
+    int64_t right_value;
+    if (MatchSignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask64(right_value << sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (me < sh) me = sh;
       if (mb >= me) {
@@ -1224,18 +1227,18 @@ void InstructionSelectorT::VisitWord64Shr(OpIndex node) {
   S390OperandGeneratorT g(this);
   const ShiftOp& shr = this->Get(node).template Cast<ShiftOp>();
   const Operation& lhs = this->Get(shr.left());
+  int64_t value;
   if (lhs.Is<Opmask::kWord64BitwiseAnd>() &&
-      this->is_integer_constant(shr.right()) &&
-      base::IsInRange(this->integer_constant(shr.right()), 0, 63)) {
-    int sh = this->integer_constant(shr.right());
+      MatchSignedIntegralConstant(shr.right(), &value) &&
+      base::IsInRange(value, 0, 63)) {
+    int sh = value;
     int mb;
     int me;
     const WordBinopOp& bitwise_and = lhs.Cast<WordBinopOp>();
-    if (this->is_integer_constant(bitwise_and.right()) &&
-        IsContiguousMask64(
-            static_cast<uint64_t>(this->integer_constant(bitwise_and.right()) >>
-                                  sh),
-            &mb, &me)) {
+    uint64_t right_value;
+    if (MatchUnsignedIntegralConstant(bitwise_and.right(), &right_value) &&
+        IsContiguousMask64(static_cast<uint64_t>(right_value >> sh), &mb,
+                           &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 63 - sh) mb = 63 - sh;
       sh = (64 - sh) & 0x3F;
@@ -1273,10 +1276,12 @@ static inline bool TryMatchSignExtInt16OrInt8FromWord32Sar(
   if (selector->CanCover(node, sar.left()) &&
       lhs.Is<Opmask::kWord32ShiftLeft>()) {
     const ShiftOp& shl = lhs.Cast<ShiftOp>();
-    if (selector->is_integer_constant(sar.right()) &&
-        selector->is_integer_constant(shl.right())) {
-      uint32_t sar_by = selector->integer_constant(sar.right());
-      uint32_t shl_by = selector->integer_constant(shl.right());
+    uint64_t sar_value;
+    uint64_t shl_value;
+    if (selector->MatchUnsignedIntegralConstant(sar.right(), &sar_value) &&
+        selector->MatchUnsignedIntegralConstant(shl.right(), &shl_value)) {
+      uint32_t sar_by = sar_value;
+      uint32_t shl_by = shl_value;
       if ((sar_by == shl_by) && (sar_by == 16)) {
         bool canEliminateZeroExt = ProduceWord32Result(selector, shl.left());
         selector->Emit(kS390_SignExtendWord16ToInt32,
