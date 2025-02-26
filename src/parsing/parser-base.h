@@ -1176,35 +1176,54 @@ class ParserBase {
              scope()->scope_type() != EVAL_SCOPE) ||
             scope()->scope_type() == REPL_MODE_SCOPE);
   }
-  bool IfNextUsingKeyword(Token::Value token_after_using) {
-    // If the token after `using` is `of` or `in`, `using` is an identifier
-    // and not a declaration token.
+  bool IsNextUsingKeyword(Token::Value token_after_using, bool is_await_using) {
+    // using and await using declarations in for-of statements must be followed
+    // by a non-pattern ForBinding. In the case of synchronous `using`, `of` is
+    // disallowed as well with a negative lookahead.
+    //
     // `of`: for ( [lookahead ≠ using of] ForDeclaration[?Yield, ?Await, +Using]
     //       of AssignmentExpression[+In, ?Yield, ?Await] )
-    // `in`: for ( ForDeclaration[?Yield, ?Await, ~Using] in
-    //       Expression[+In, ?Yield, ?Await] )
-    // If the token after `using` is `{` or `[`, it
-    // shows a pattern after `using` which is not applicable.
-    // `{` or `[`: using [no LineTerminator here] [lookahead ≠ await]
-    // ForBinding[?Yield, ?Await, ~Pattern]
-    return (v8_flags.js_explicit_resource_management &&
-            token_after_using != Token::kLeftBracket &&
-            token_after_using != Token::kLeftBrace &&
-            token_after_using != Token::kOf && token_after_using != Token::kIn);
+    //
+    // If `using` is not considered a keyword, it is parsed as an identifier.
+    if (v8_flags.js_explicit_resource_management) {
+      switch (token_after_using) {
+        case Token::kIdentifier:
+        case Token::kStatic:
+        case Token::kLet:
+        case Token::kYield:
+        case Token::kAwait:
+        case Token::kGet:
+        case Token::kSet:
+        case Token::kUsing:
+        case Token::kAccessor:
+        case Token::kAsync:
+          return true;
+        case Token::kOf:
+          return is_await_using;
+        case Token::kFutureStrictReservedWord:
+        case Token::kEscapedStrictReservedWord:
+          return is_sloppy(language_mode());
+        default:
+          return false;
+      }
+    } else {
+      return false;
+    }
   }
-  bool IfStartsWithUsingKeyword() {
+  bool IfStartsWithUsingOrAwaitUsingKeyword() {
     // ForDeclaration[Yield, Await, Using] : ...
     //    [+Using] using [no LineTerminator here] ForBinding[?Yield, ?Await,
     //    ~Pattern]
     //    [+Using, +Await] await [no LineTerminator here] using [no
     //    LineTerminator here] ForBinding[?Yield, +Await, ~Pattern]
-    return (
-        (peek() == Token::kUsing && !scanner()->HasLineTerminatorAfterNext() &&
-         IfNextUsingKeyword(PeekAhead())) ||
-        (peek() == Token::kAwait && !scanner()->HasLineTerminatorAfterNext() &&
-         PeekAhead() == Token::kUsing &&
-         !scanner()->HasLineTerminatorAfterNextNext() &&
-         IfNextUsingKeyword(PeekAheadAhead())));
+    return ((peek() == Token::kUsing &&
+             !scanner()->HasLineTerminatorAfterNext() &&
+             IsNextUsingKeyword(PeekAhead(), /* is_await_using */ false)) ||
+            (is_await_allowed() && peek() == Token::kAwait &&
+             !scanner()->HasLineTerminatorAfterNext() &&
+             PeekAhead() == Token::kUsing &&
+             !scanner()->HasLineTerminatorAfterNextNext() &&
+             IsNextUsingKeyword(PeekAheadAhead(), /* is_await_using */ true)));
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
@@ -6534,9 +6553,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   Expect(Token::kLeftParen);
 
   bool starts_with_let = peek() == Token::kLet;
-  bool starts_with_using_keyword = IfStartsWithUsingKeyword();
+  bool starts_with_using_or_await_using_keyword =
+      IfStartsWithUsingOrAwaitUsingKeyword();
   if (peek() == Token::kConst || (starts_with_let && IsNextLetKeyword()) ||
-      starts_with_using_keyword) {
+      starts_with_using_or_await_using_keyword) {
     // The initializer contains lexical declarations,
     // so create an in-between scope.
     BlockState for_state(zone(), &scope_);
@@ -6562,7 +6582,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
     if (CheckInOrOf(&for_info.mode)) {
       scope()->set_is_hidden();
-      if (starts_with_using_keyword &&
+      if (starts_with_using_or_await_using_keyword &&
           for_info.mode == ForEachStatement::ENUMERATE) {
         impl()->ReportMessageAt(scanner()->location(),
                                 MessageTemplate::kInvalidUsingInForInLoop);
@@ -6908,7 +6928,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
   bool starts_with_let = peek() == Token::kLet;
   if (peek() == Token::kVar || peek() == Token::kConst ||
-      (starts_with_let && IsNextLetKeyword()) || IfStartsWithUsingKeyword()) {
+      (starts_with_let && IsNextLetKeyword()) ||
+      IfStartsWithUsingOrAwaitUsingKeyword()) {
     // The initializer contains declarations
     // 'for' 'await' '(' ForDeclaration 'of' AssignmentExpression ')'
     //     Statement
