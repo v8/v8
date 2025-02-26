@@ -74,7 +74,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:ed1abc107815210dc66ec439542bee2f6cbabc00',
+  'gn_version': 'git_revision:f98b6d7275c2e823e0983fa7f874facfe6980778',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1cff0029dcc39c1d42762bcc989107d8b22db35c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fa2020dec0a274b4a77ec1abee968a345420aae8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1b5a0e6c5169ab6b007e4fd41f81909c23a50aba',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '648cc69690f7344e569d1b26f69c7f278e71051f',
   'buildtools/linux64': {
     'packages': [
       {
@@ -245,7 +245,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'feeac124f25235044d687bd84326a0e558951424',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'a60883e901e5bc78a3ebccdca7c01d00e2390536',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -299,7 +299,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'cdc82e180c610aaa7153301fea4d6b4005da9f22',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'be0bacb5427a393417db49182e2c18d58ee3c54e',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '94c5d7a8edc09f0680aee57548c0b5d400c2840d',
   'third_party/libunwind/src':
