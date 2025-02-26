@@ -2752,9 +2752,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     ValueNode* allocation =
         BuildInlinedAllocation(cons_string, allocation_type);
 
-    // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-    // next side effect clear it.
-    ClearCurrentAllocationBlock();
     return allocation;
   };
 
@@ -8123,7 +8120,6 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
           object = BuildInlinedAllocation(
               CreateJSConstructor(new_target_function->AsJSFunction()),
               AllocationType::kYoung);
-          ClearCurrentAllocationBlock();
         } else {
           object = BuildCallBuiltin<Builtin::kFastNewObject>(
               {GetConstant(current_function), GetTaggedValue(new_target)});
@@ -8499,6 +8495,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Resume execution using the final block of the inner builder.
   current_block_ = inner_graph_builder.current_block_;
 
+  ClearCurrentAllocationBlock();
   DCHECK(result.IsDoneWithValue());
   return result;
 }
@@ -8982,9 +8979,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
       map, subgraph.get(ret_value), subgraph.get(is_done));
   ValueNode* allocation =
       BuildInlinedAllocation(iter_result, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -9100,9 +9094,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
   ValueNode* allocation =
       BuildInlinedAllocation(string_iterator, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -11195,9 +11186,6 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
   VirtualObject* iter_result = CreateJSIteratorResult(map, value, done);
   ValueNode* allocation =
       BuildInlinedAllocation(iter_result, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   SetAccumulator(allocation);
   return ReduceResult::Done();
 }
@@ -11349,9 +11337,6 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateKeyValueArray(
       array, CreateJSArray(map, map.instance_size(), GetInt32Constant(2)));
   array->set(JSArray::kElementsOffset, elements);
   ValueNode* allocation = BuildInlinedAllocation(array, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -11370,9 +11355,6 @@ ReduceResult MaglevGraphBuilder::BuildAndAllocateJSArray(
                GetRootConstant(RootIndex::kUndefinedValue));
   }
   ValueNode* allocation = BuildInlinedAllocation(array, allocation_type);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -11383,9 +11365,6 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateJSArrayIterator(
   VirtualObject* iterator = CreateJSArrayIterator(map, array, iteration_kind);
   ValueNode* allocation =
       BuildInlinedAllocation(iterator, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -11430,9 +11409,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
 
   ValueNode* allocation =
       BuildInlinedAllocation(generator, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-  // next side effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -11567,9 +11543,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
         RETURN_IF_ABORT(BuildCheckValueByReference(target, builtin));
         ValueNode* result = BuildInlinedAllocation(CreateJSConstructor(builtin),
                                                    AllocationType::kYoung);
-        // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-        // next side effect clear it.
-        ClearCurrentAllocationBlock();
         return result;
       }
       break;
@@ -11626,9 +11599,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     if (map.GetConstructor(broker()).equals(function)) {
       implicit_receiver = BuildInlinedAllocation(CreateJSConstructor(function),
                                                  AllocationType::kYoung);
-      // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-      // next side effect clear it.
-      ClearCurrentAllocationBlock();
     }
   }
   if (implicit_receiver == nullptr) {
@@ -12354,9 +12324,6 @@ ReduceResult MaglevGraphBuilder::VisitCreateRegExpLiteral() {
         native_context.regexp_function(broker()).initial_map(broker());
     SetAccumulator(BuildInlinedAllocation(
         CreateRegExpLiteralObject(map, literal), AllocationType::kYoung));
-    // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-    // effect clear it.
-    ClearCurrentAllocationBlock();
     return ReduceResult::Done();
   }
   // Fallback.
@@ -12428,9 +12395,6 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   GET_VALUE_OR_ABORT(
       array, CreateJSArray(map, map.instance_size(), GetSmiConstant(0)));
   SetAccumulator(BuildInlinedAllocation(array, AllocationType::kYoung));
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return ReduceResult::Done();
 }
 
@@ -13036,13 +13000,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
                   CreateHeapNumber(node->Cast<Float64Constant>()->value()),
                   allocation_type);
             } else {
-              ValueNode* new_node = GetTaggedValue(node);
-              if (new_node != node && new_node->properties().can_allocate()) {
-                // TODO(olivf): Remove this and instead always clear when we
-                // emit an allocating instruction.
-                ClearCurrentAllocationBlock();
-              }
-              node = new_node;
+              node = GetTaggedValue(node);
             }
             values.push_back(node);
           });
@@ -13228,9 +13186,6 @@ ValueNode* MaglevGraphBuilder::BuildAndAllocateArgumentsObject() {
   auto arguments = BuildVirtualArgumentsObject<type>();
   ValueNode* allocation =
       BuildInlinedAllocation(arguments, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return allocation;
 }
 
@@ -13255,9 +13210,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastCreateObjectOrArrayLiteral(
   broker()->dependencies()->DependOnElementsKinds(site);
   MaybeReduceResult result =
       BuildInlinedAllocation(*maybe_value, allocation_type);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return result;
 }
 
@@ -13304,9 +13256,6 @@ ReduceResult MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   SetAccumulator(
       BuildInlinedAllocation(CreateJSObject(map), AllocationType::kYoung));
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return ReduceResult::Done();
 }
 
@@ -13369,9 +13318,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlinedAllocatedContext(
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
   auto context = CreateContext(map, context_length, scope, GetContext());
   ValueNode* result = BuildInlinedAllocation(context, AllocationType::kYoung);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return result;
 }
 
@@ -13404,9 +13350,6 @@ ReduceResult MaglevGraphBuilder::VisitCreateCatchContext() {
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), exception);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
   graph()->record_scope_info(GetAccumulator(), scope_info);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return ReduceResult::Done();
 }
 
@@ -13466,9 +13409,6 @@ ReduceResult MaglevGraphBuilder::VisitCreateWithContext() {
       Context::MIN_CONTEXT_EXTENDED_SLOTS, scope_info, GetContext(), object);
   SetAccumulator(BuildInlinedAllocation(context, AllocationType::kYoung));
   graph()->record_scope_info(GetAccumulator(), scope_info);
-  // TODO(leszeks): Don't eagerly clear the raw allocation, have the next side
-  // effect clear it.
-  ClearCurrentAllocationBlock();
   return ReduceResult::Done();
 }
 
