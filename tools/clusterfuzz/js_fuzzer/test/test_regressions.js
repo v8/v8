@@ -432,6 +432,18 @@ describe('Regression tests', () => {
     const mutated = mutator.mutateMultiple([source]).code;
     helpers.assertExpectedResult('regress/arguments/expected.js', mutated);
   });
+
+  it('does not try-catch wrap yield expressions', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    const source = helpers.loadTestData('regress/yield/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/yield/expected.js', mutated);
+  });
 });
 
 describe('DB tests', () => {

@@ -239,6 +239,15 @@ class ContextAnalyzer extends mutator.Mutator {
           assert(loopStack.pop() === LoopState.BLOCK);
         }
       },
+      // Mark nodes containing a yield expression up to the encolsing
+      // generator function declaration.
+      YieldExpression(path) {
+        for (let parent = path.parentPath;
+             parent && !parent.isFunctionDeclaration();
+             parent = parent.parentPath) {
+          common.setContainsYield(parent.node);
+        }
+      },
     };
   }
 }

@@ -376,6 +376,14 @@ function isLargeLoop(node) {
   return Boolean(node.__is_large_loop);
 }
 
+function setContainsYield(node) {
+  node.__contains_yield = true;
+}
+
+function containsYield(node) {
+  return Boolean(node.__contains_yield);
+}
+
 // Estimate the size of a node in raw source characters.
 function isLargeNode(node) {
   // Ignore array holes inserted by us (null) or previously cloned nodes
@@ -390,6 +398,7 @@ module.exports = {
   callRandomFunction: callRandomFunction,
   concatFlags: concatFlags,
   concatPrograms: concatPrograms,
+  containsYield: containsYield,
   availableVariables: availableVariables,
   availableFunctions: availableFunctions,
   availableFunctionNames: availableFunctionNames,
@@ -410,6 +419,7 @@ module.exports = {
   randomProperty: randomProperty,
   randomSeed: randomSeed,
   randomValue: randomValue,
+  setContainsYield: setContainsYield,
   setLargeLoop: setLargeLoop,
   getOriginalPath: getOriginalPath,
   setOriginalPath: setOriginalPath,

@@ -81,6 +81,9 @@ function skipReplaceVariableDeclarator(path) {
       !path.node.init ||
       // Simple initialization with a literal.
       babelTypes.isLiteral(path.node.init) ||
+      // Wrapping a yield expression with an arrow function is
+      // syntactically wrong.
+      common.containsYield(path.node) ||
       // Initialization with undefined.
       (babelTypes.isIdentifier(path.node.init) &&
        path.node.init.name == 'undefined') ||
