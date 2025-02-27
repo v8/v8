@@ -46,11 +46,16 @@ IncrementalMarkingSchedule::IncrementalMarkingSchedule(
 }
 
 void IncrementalMarkingSchedule::NotifyIncrementalMarkingStart() {
-  DCHECK(incremental_marking_start_time_.IsNull());
+  if (!incremental_marking_start_time_.IsNull()) {
+    return;
+  }
   incremental_marking_start_time_ = v8::base::TimeTicks::Now();
 }
 
 void IncrementalMarkingSchedule::NotifyConcurrentMarkingStart() {
+  if (!last_concurrently_marked_bytes_update_.IsNull()) {
+    return;
+  }
   last_concurrently_marked_bytes_update_ = v8::base::TimeTicks::Now();
 }
 

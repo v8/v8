@@ -15,7 +15,8 @@ constexpr size_t kZeroBytesStep = 0;
 
 // Minimum number of bytes that should be marked during an incremental
 // marking step.
-constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * 1024;
+constexpr size_t kMinimumMarkedBytesPerIncrementalStep =
+    IncrementalMarkingSchedule::kStepSizeWhenNotMakingProgress;
 
 class IncrementalMarkingScheduleTest : public ::testing::Test {
  public:

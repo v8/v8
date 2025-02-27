@@ -2091,6 +2091,9 @@ DEFINE_INT(incremental_marking_soft_trigger, 0,
 DEFINE_INT(incremental_marking_hard_trigger, 0,
            "threshold for starting incremental marking immediately in percent "
            "of available space: limit - size")
+DEFINE_BOOL(incremental_marking_unified_schedule, false,
+            "Use a single schedule for determining a marking schedule between "
+            "JS and C++ objects.")
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(minor_gc_task, true, "schedule minor GC tasks")

@@ -140,6 +140,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   uint64_t current_trace_id() const { return current_trace_id_.value(); }
 
+  std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule() {
+    return schedule_;
+  }
+
  private:
   class Observer final : public AllocationObserver {
    public:
@@ -177,8 +181,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
 
-  // Returns the actual used time.
-  v8::base::TimeDelta CppHeapStep(v8::base::TimeDelta expected_duration);
+  // Returns the actual used time and actually marked bytes.
+  std::pair<v8::base::TimeDelta, size_t> CppHeapStep(
+      v8::base::TimeDelta max_duration, size_t marked_bytes_limit);
+
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 
@@ -214,7 +220,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   std::unordered_map<MutablePageMetadata*, intptr_t,
                      base::hash<MutablePageMetadata*>>
       background_live_bytes_;
-  std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
+  std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
   std::optional<uint64_t> current_trace_id_;
 
   friend class IncrementalMarkingJob;
