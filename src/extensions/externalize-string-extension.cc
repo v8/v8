@@ -54,6 +54,7 @@ const char* ExternalizeStringExtension::BuildSource(char* buf, size_t size) {
   base::SNPrintF(base::VectorOf(buf, size),
                  "native function externalizeString();"
                  "native function createExternalizableString();"
+                 "native function createExternalizableTwoByteString();"
                  "native function isOneByteString();"
                  "let kExternalStringMinOneByteLength = %d;"
                  "let kExternalStringMinTwoByteLength = %d;"
@@ -73,6 +74,10 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
                     "createExternalizableString") == 0) {
     return v8::FunctionTemplate::New(
         isolate, ExternalizeStringExtension::CreateExternalizableString);
+  } else if (strcmp(*v8::String::Utf8Value(isolate, str),
+                    "createExternalizableTwoByteString") == 0) {
+    return v8::FunctionTemplate::New(
+        isolate, ExternalizeStringExtension::CreateExternalizableTwoByteString);
   } else {
     DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
               0);
@@ -151,6 +156,80 @@ MaybeDirectHandle<String> CopyConsStringToOld(Isolate* isolate,
                                            AllocationType::kOld);
 }
 
+MaybeDirectHandle<String> CreateExternalizableString(
+    v8::Isolate* isolate, DirectHandle<String> string,
+    v8::String::Encoding encoding) {
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  DCHECK_IMPLIES(encoding == v8::String::Encoding::ONE_BYTE_ENCODING,
+                 string->IsOneByteRepresentation());
+  if (string->SupportsExternalization(encoding)) {
+    return string;
+  }
+  // Return the string if it is already externalized.
+  if (StringShape(*string).IsExternal()) {
+    return string;
+  }
+
+  // Read-only strings are never externalizable. Don't try to copy them as
+  // some parts of the code might rely on some strings being in RO space (i.e.
+  // empty string).
+  if (HeapLayout::InReadOnlySpace(*string)) {
+    isolate->ThrowError("Read-only strings cannot be externalized.");
+    return kNullMaybeHandle;
+  }
+#ifdef V8_COMPRESS_POINTERS
+  // Small strings may not be in-place externalizable.
+  if (string->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
+    isolate->ThrowError("String is too short to be externalized.");
+    return kNullMaybeHandle;
+  }
+#endif
+
+  // Special handling for ConsStrings, as the ConsString -> ExternalString
+  // migration is special for GC (Tagged pointers to Untagged pointers).
+  // Skip if the ConsString is flat, as we won't be guaranteed a string in old
+  // space in that case. Note that this is also true for non-canonicalized
+  // ConsStrings that TurboFan might create (the first part is empty), so we
+  // explicitly check for that case as well.
+  if (IsConsString(*string, i_isolate) && !string->IsFlat() &&
+      Cast<ConsString>(string)->first()->length() != 0) {
+    DirectHandle<String> result;
+    if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string))
+            .ToHandle(&result)) {
+      DCHECK(result->SupportsExternalization(encoding));
+      return result;
+    }
+  }
+  // All other strings can be implicitly flattened.
+  if (encoding == v8::String::ONE_BYTE_ENCODING) {
+    MaybeDirectHandle<SeqOneByteString> maybe_result =
+        i_isolate->factory()->NewRawOneByteString(string->length(),
+                                                  AllocationType::kOld);
+    DirectHandle<SeqOneByteString> result;
+    if (maybe_result.ToHandle(&result)) {
+      DisallowGarbageCollection no_gc;
+      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
+                          string->length());
+      DCHECK(result->SupportsExternalization(encoding));
+      return result;
+    }
+  } else {
+    MaybeDirectHandle<SeqTwoByteString> maybe_result =
+        i_isolate->factory()->NewRawTwoByteString(string->length(),
+                                                  AllocationType::kOld);
+    DirectHandle<SeqTwoByteString> result;
+    if (maybe_result.ToHandle(&result)) {
+      DisallowGarbageCollection no_gc;
+      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
+                          string->length());
+      DCHECK(result->SupportsExternalization(encoding));
+      return result;
+    }
+  }
+  isolate->ThrowError("Unable to create string");
+  return kNullMaybeHandle;
+}
+
 }  // namespace
 
 void ExternalizeStringExtension::CreateExternalizableString(
@@ -161,82 +240,43 @@ void ExternalizeStringExtension::CreateExternalizableString(
         "First parameter to createExternalizableString() must be a string.");
     return;
   }
+  v8::Isolate* isolate = info.GetIsolate();
   DirectHandle<String> string =
       Utils::OpenDirectHandle(*info[0].As<v8::String>());
-  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   v8::String::Encoding encoding = string->IsOneByteRepresentation()
                                       ? v8::String::Encoding::ONE_BYTE_ENCODING
                                       : v8::String::Encoding::TWO_BYTE_ENCODING;
-  if (string->SupportsExternalization(encoding)) {
-    info.GetReturnValue().Set(Utils::ToLocal(string));
-    return;
-  }
-  // Return the string if it is already externalized.
-  if (StringShape(*string).IsExternal()) {
-    info.GetReturnValue().Set(Utils::ToLocal(string));
-    return;
-  }
-
-  // Read-only strings are never externalizable. Don't try to copy them as
-  // some parts of the code might rely on some strings being in RO space (i.e.
-  // empty string).
-  if (HeapLayout::InReadOnlySpace(*string)) {
-    info.GetIsolate()->ThrowError("Read-only strings cannot be externalized.");
-    return;
-  }
-#ifdef V8_COMPRESS_POINTERS
-  // Small strings may not be in-place externalizable.
-  if (string->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
-    info.GetIsolate()->ThrowError("String is too short to be externalized.");
-    return;
-  }
-#endif
-
-  // Special handling for ConsStrings, as the ConsString -> ExternalString
-  // migration is special for GC (Tagged pointers to Untagged pointers).
-  // Skip if the ConsString is flat, as we won't be guaranteed a string in old
-  // space in that case. Note that this is also true for non-canonicalized
-  // ConsStrings that TurboFan might create (the first part is empty), so we
-  // explicitly check for that case as well.
-  if (IsConsString(*string, isolate) && !string->IsFlat() &&
-      Cast<ConsString>(string)->first()->length() != 0) {
-    DirectHandle<String> result;
-    if (CopyConsStringToOld(isolate, Cast<ConsString>(string))
-            .ToHandle(&result)) {
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(result));
-      return;
-    }
-  }
-  // All other strings can be implicitly flattened.
-  if (encoding == v8::String::ONE_BYTE_ENCODING) {
-    MaybeDirectHandle<SeqOneByteString> maybe_result =
-        isolate->factory()->NewRawOneByteString(string->length(),
-                                                AllocationType::kOld);
-    DirectHandle<SeqOneByteString> result;
-    if (maybe_result.ToHandle(&result)) {
-      DisallowGarbageCollection no_gc;
-      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
-                          string->length());
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Cast<String>(result)));
-      return;
-    }
+  MaybeDirectHandle<String> maybe_result =
+      i::CreateExternalizableString(isolate, string, encoding);
+  DirectHandle<String> result;
+  if (maybe_result.ToHandle(&result)) {
+    DCHECK(!isolate->HasPendingException());
+    info.GetReturnValue().Set(Utils::ToLocal(result));
   } else {
-    MaybeDirectHandle<SeqTwoByteString> maybe_result =
-        isolate->factory()->NewRawTwoByteString(string->length(),
-                                                AllocationType::kOld);
-    DirectHandle<SeqTwoByteString> result;
-    if (maybe_result.ToHandle(&result)) {
-      DisallowGarbageCollection no_gc;
-      String::WriteToFlat(*string, result->GetChars(no_gc), 0,
-                          string->length());
-      DCHECK(result->SupportsExternalization(encoding));
-      info.GetReturnValue().Set(Utils::ToLocal(Cast<String>(result)));
-      return;
-    }
+    DCHECK(isolate->HasPendingException());
   }
-  info.GetIsolate()->ThrowError("Unable to create string");
+}
+
+void ExternalizeStringExtension::CreateExternalizableTwoByteString(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  if (info.Length() < 1 || !info[0]->IsString()) {
+    info.GetIsolate()->ThrowError(
+        "First parameter to createExternalizableString() must be a string.");
+    return;
+  }
+  v8::Isolate* isolate = info.GetIsolate();
+  DirectHandle<String> string =
+      Utils::OpenDirectHandle(*info[0].As<v8::String>());
+  MaybeDirectHandle<String> maybe_result = i::CreateExternalizableString(
+      isolate, string, v8::String::Encoding::TWO_BYTE_ENCODING);
+  DirectHandle<String> result;
+  if (maybe_result.ToHandle(&result)) {
+    DCHECK(!isolate->HasPendingException());
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  } else {
+    DCHECK(isolate->HasPendingException());
+  }
 }
 
 void ExternalizeStringExtension::IsOneByte(
