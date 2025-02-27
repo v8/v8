@@ -14,6 +14,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles-inl.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects.h"
@@ -412,8 +413,15 @@ class ParallelWeakHandlesProcessor {
         TracedNodeBlock* block = *it;
         DCHECK(block->InYoungList());
         if (delegate->IsJoiningThread()) {
+          TRACE_GC_WITH_FLOW(derived_.heap()->tracer(),
+                             Derived::kMainThreadScope, derived_.trace_id_,
+                             TRACE_EVENT_FLAG_FLOW_IN);
           derived_.template ProcessBlock</*IsMainThread=*/true>(block);
         } else {
+          TRACE_GC_EPOCH_WITH_FLOW(derived_.heap()->tracer(),
+                                   Derived::kBackgroundThreadScope,
+                                   ThreadKind::kBackground, derived_.trace_id_,
+                                   TRACE_EVENT_FLAG_FLOW_IN);
           derived_.template ProcessBlock</*IsMainThread=*/false>(block);
         }
         // TracedNodeBlock is the minimum granularity of processing.
@@ -445,9 +453,15 @@ class ParallelWeakHandlesProcessor {
     Derived& derived_;
   };
 
-  ParallelWeakHandlesProcessor(TracedNodeBlock::YoungList& young_blocks,
+  ParallelWeakHandlesProcessor(Heap* heap,
+                               TracedNodeBlock::YoungList& young_blocks,
                                size_t num_young_blocks)
-      : young_blocks_(young_blocks), num_young_blocks_(num_young_blocks) {}
+      : heap_(heap),
+        young_blocks_(young_blocks),
+        num_young_blocks_(num_young_blocks),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  heap_->tracer()->CurrentEpoch(
+                      GCTracer::Scope::SCAVENGER_SCAVENGE)) {}
 
   void Run() {
     V8::GetCurrentPlatform()
@@ -456,18 +470,28 @@ class ParallelWeakHandlesProcessor {
         ->Join();
   }
 
+  Heap* heap() const { return heap_; }
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
+  Heap* heap_;
   TracedNodeBlock::YoungList& young_blocks_;
   const size_t num_young_blocks_;
+  const uint64_t trace_id_;
   std::atomic<size_t> processed_young_blocks_{0};
 };
 
 class ComputeWeaknessProcessor final
     : public ParallelWeakHandlesProcessor<ComputeWeaknessProcessor> {
  public:
-  ComputeWeaknessProcessor(TracedNodeBlock::YoungList& young_blocks,
+  static constexpr auto kMainThreadScope =
+      GCTracer::Scope::SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL;
+  static constexpr auto kBackgroundThreadScope = GCTracer::Scope::
+      SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL;
+
+  ComputeWeaknessProcessor(Heap* heap, TracedNodeBlock::YoungList& young_blocks,
                            size_t num_young_blocks)
-      : ParallelWeakHandlesProcessor(young_blocks, num_young_blocks) {}
+      : ParallelWeakHandlesProcessor(heap, young_blocks, num_young_blocks) {}
 
   template <bool IsMainThread>
   void ProcessBlock(TracedNodeBlock* block) {
@@ -491,7 +515,11 @@ void TracedHandles::ComputeWeaknessForYoungObjects() {
   if (!SupportsClearingWeakNonLiveWrappers()) {
     return;
   }
-  ComputeWeaknessProcessor(young_blocks_, num_young_blocks_).Run();
+  ComputeWeaknessProcessor job(isolate_->heap(), young_blocks_,
+                               num_young_blocks_);
+  TRACE_GC_NOTE_WITH_FLOW("ComputeWeaknessProcessor start", job.trace_id(),
+                          TRACE_EVENT_FLAG_FLOW_OUT);
+  job.Run();
 }
 
 namespace {
@@ -499,12 +527,16 @@ namespace {
 class ClearWeaknessProcessor final
     : public ParallelWeakHandlesProcessor<ClearWeaknessProcessor> {
  public:
+  static constexpr auto kMainThreadScope =
+      GCTracer::Scope::SCAVENGER_TRACED_HANDLES_RESET_PARALLEL;
+  static constexpr auto kBackgroundThreadScope =
+      GCTracer::Scope::SCAVENGER_BACKGROUND_TRACED_HANDLES_RESET_PARALLEL;
+
   ClearWeaknessProcessor(TracedNodeBlock::YoungList& young_blocks,
                          size_t num_young_blocks, Heap* heap,
                          RootVisitor* visitor,
                          WeakSlotCallbackWithHeap should_reset_handle)
-      : ParallelWeakHandlesProcessor(young_blocks, num_young_blocks),
-        heap_(heap),
+      : ParallelWeakHandlesProcessor(heap, young_blocks, num_young_blocks),
         visitor_(visitor),
         handler_(heap->GetEmbedderRootsHandler()),
         should_reset_handle_(should_reset_handle) {}
@@ -519,7 +551,7 @@ class ClearWeaknessProcessor final
       DCHECK(node->is_in_use());
       DCHECK(node->is_in_young_list());
 
-      const bool should_reset = should_reset_handle_(heap_, node->location());
+      const bool should_reset = should_reset_handle_(heap(), node->location());
       if (should_reset) {
         FullObjectSlot slot = node->location();
         bool node_cleared = true;
@@ -551,7 +583,6 @@ class ClearWeaknessProcessor final
   }
 
  private:
-  Heap* heap_;
   RootVisitor* visitor_;
   EmbedderRootsHandler* handler_;
   WeakSlotCallbackWithHeap should_reset_handle_;
@@ -584,9 +615,11 @@ void TracedHandles::ProcessWeakYoungObjects(
 #endif
 
   disable_block_handling_on_free_ = true;
-  ClearWeaknessProcessor cwp(young_blocks_, num_young_blocks_, heap, visitor,
+  ClearWeaknessProcessor job(young_blocks_, num_young_blocks_, heap, visitor,
                              should_reset_handle);
-  cwp.Run();
+  TRACE_GC_NOTE_WITH_FLOW("ClearWeaknessProcessor start", job.trace_id(),
+                          TRACE_EVENT_FLAG_FLOW_OUT);
+  job.Run();
   disable_block_handling_on_free_ = false;
 
   // Post processing on block level.
@@ -634,7 +667,7 @@ void TracedHandles::ProcessWeakYoungObjects(
       continue;
     }
     block->SetReprocessing(false);
-    cwp.template ProcessBlock</*IsMainThread=*/true>(block);
+    job.template ProcessBlock</*IsMainThread=*/true>(block);
     DCHECK(!block->NeedsReprocessing());
     // The nodes are fully freed and accounted but still reported as locally
     // freed as we reuse the processor.

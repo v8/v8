@@ -1024,22 +1024,24 @@
   F(MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS)    \
   F(MINOR_MS_FINISH_ENSURE_CAPACITY)
 
-#define SCAVENGER_MAIN_THREAD_SCOPES(F)              \
-  F(SCAVENGER)                                       \
-  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
-  F(SCAVENGER_FREE_REMEMBERED_SET)                   \
-  F(SCAVENGER_SCAVENGE)                              \
-  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
-  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
-  F(SCAVENGER_SCAVENGE_PARALLEL)                     \
-  F(SCAVENGER_SCAVENGE_PARALLEL_PHASE)               \
-  F(SCAVENGER_SCAVENGE_PIN_OBJECTS)                  \
-  F(SCAVENGER_SCAVENGE_ROOTS)                        \
-  F(SCAVENGER_SCAVENGE_STACK_ROOTS)                  \
-  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
-  F(SCAVENGER_SCAVENGE_WEAK)                         \
-  F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
+#define SCAVENGER_MAIN_THREAD_SCOPES(F)                 \
+  F(SCAVENGER)                                          \
+  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)             \
+  F(SCAVENGER_FREE_REMEMBERED_SET)                      \
+  F(SCAVENGER_SCAVENGE)                                 \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY)    \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)     \
+  F(SCAVENGER_SCAVENGE_PARALLEL)                        \
+  F(SCAVENGER_SCAVENGE_PARALLEL_PHASE)                  \
+  F(SCAVENGER_SCAVENGE_PIN_OBJECTS)                     \
+  F(SCAVENGER_SCAVENGE_ROOTS)                           \
+  F(SCAVENGER_SCAVENGE_STACK_ROOTS)                     \
+  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                     \
+  F(SCAVENGER_SCAVENGE_WEAK)                            \
+  F(SCAVENGER_SCAVENGE_FINALIZE)                        \
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                      \
+  F(SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL) \
+  F(SCAVENGER_TRACED_HANDLES_RESET_PARALLEL)
 
 #define MC_MAIN_THREAD_SCOPES(F)                 \
   F(MARK_COMPACTOR)                              \
@@ -1134,22 +1136,24 @@
   F(FULL_ARRAY_BUFFER_SWEEP)             \
   F(CONSERVATIVE_STACK_SCANNING)
 
-#define TRACER_BACKGROUND_SCOPES(F)         \
-  /* FIRST_BACKGROUND_SCOPE = */            \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
-  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)     \
-  F(BACKGROUND_COLLECTION)                  \
-  F(BACKGROUND_UNPARK)                      \
-  F(BACKGROUND_SAFEPOINT)                   \
-  F(MC_BACKGROUND_EVACUATE_COPY)            \
-  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
-  F(MC_BACKGROUND_MARKING)                  \
-  F(MC_BACKGROUND_SWEEPING)                 \
-  F(MINOR_MS_BACKGROUND_MARKING)            \
-  F(MINOR_MS_BACKGROUND_SWEEPING)           \
-  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)    \
-  /* LAST_BACKGROUND_SCOPE = */             \
-  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+#define TRACER_BACKGROUND_SCOPES(F)                     \
+  /* FIRST_BACKGROUND_SCOPE = */                        \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)                \
+  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)                 \
+  F(BACKGROUND_COLLECTION)                              \
+  F(BACKGROUND_UNPARK)                                  \
+  F(BACKGROUND_SAFEPOINT)                               \
+  F(MC_BACKGROUND_EVACUATE_COPY)                        \
+  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)             \
+  F(MC_BACKGROUND_MARKING)                              \
+  F(MC_BACKGROUND_SWEEPING)                             \
+  F(MINOR_MS_BACKGROUND_MARKING)                        \
+  F(MINOR_MS_BACKGROUND_SWEEPING)                       \
+  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)                \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)             \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_RESET_PARALLEL) \
+  /* LAST_BACKGROUND_SCOPE = */                         \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL)
 
 #define TRACER_YOUNG_EPOCH_SCOPES(F)     \
   F(YOUNG_ARRAY_BUFFER_SWEEP)            \
