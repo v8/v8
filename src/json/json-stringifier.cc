@@ -515,6 +515,25 @@ constexpr bool DoNotEscape(uint16_t c) {
          (c >= 0x23 && c != 0x5C && (c < 0xD800 || c > 0xDFFF));
 }
 
+// Checks if characters need escaping in a packed input (4 bytes in uint32_t).
+constexpr bool NeedsEscape(uint32_t input) {
+  constexpr uint32_t mask_0x20 = 0x20202020u;
+  constexpr uint32_t mask_0x22 = 0x22222222u;
+  constexpr uint32_t mask_0x5c = 0x5C5C5C5Cu;
+  constexpr uint32_t mask_0x01 = 0x01010101u;
+  constexpr uint32_t mask_msb = 0x80808080u;
+  // Escape control characters (< 0x20).
+  const uint32_t has_lt_0x20 = input - mask_0x20;
+  // Escape double quotation mark (0x22).
+  const uint32_t has_0x22 = (input ^ mask_0x22) - mask_0x01;
+  // Escape backslash (0x5C).
+  const uint32_t has_0x5c = (input ^ mask_0x5c) - mask_0x01;
+  // Chars >= 0x7F don't need escaping.
+  const uint32_t result_mask = ~input & mask_msb;
+  const uint32_t result = ((has_lt_0x20 | has_0x22 | has_0x5c) & result_mask);
+  return result != 0;
+}
+
 bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   // If the no elements protector is intact, Array.prototype and
   // Object.prototype are guaranteed to not have elements in any native context.
@@ -2023,7 +2042,13 @@ class FastJsonStringifier {
 
   template <typename SrcChar>
     requires(sizeof(SrcChar) == sizeof(uint8_t))
-  V8_INLINE FastJsonStringifierResult AppendStringCheckedScalar(
+  FastJsonStringifierResult AppendStringCheckedScalar(
+      const SrcChar* chars, size_t length, size_t start,
+      size_t uncopied_src_index, const DisallowGarbageCollection& no_gc);
+
+  template <typename SrcChar>
+    requires(sizeof(SrcChar) == sizeof(uint8_t))
+  V8_INLINE FastJsonStringifierResult AppendStringCheckedSWAR(
       const SrcChar* chars, size_t length, size_t start,
       size_t uncopied_src_index, const DisallowGarbageCollection& no_gc);
 
@@ -2953,7 +2978,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringChecked(
   if (length >= kUseSimdLengthThreshold) {
     return AppendStringCheckedSIMD(chars, length, no_gc);
   }
-  return AppendStringCheckedScalar(chars, length, 0, 0, no_gc);
+  return AppendStringCheckedSWAR(chars, length, 0, 0, no_gc);
 }
 
 template <typename Char>
@@ -2969,10 +2994,27 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringCheckedScalar(
     AppendCString(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
     uncopied_src_index = i + 1;
   }
-  if (uncopied_src_index < length) {
+  if (V8_LIKELY(uncopied_src_index < length)) {
     buffer_.Append(chars + uncopied_src_index, length - uncopied_src_index);
   }
   return SUCCESS;
+}
+
+template <typename Char>
+template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(uint8_t))
+V8_CLANG_NO_SANITIZE("alignment")
+FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringCheckedSWAR(
+    const SrcChar* chars, size_t length, size_t start,
+    size_t uncopied_src_index, const DisallowGarbageCollection& no_gc) {
+  using PackedT = uint32_t;
+  static constexpr size_t stride = sizeof(PackedT);
+  size_t i = start;
+  for (; i + (stride - 1) < length; i += stride) {
+    PackedT packed = *reinterpret_cast<const PackedT*>(chars + i);
+    if (V8_UNLIKELY(NeedsEscape(packed))) break;
+  }
+  return AppendStringCheckedScalar(chars, length, i, uncopied_src_index, no_gc);
 }
 
 template <typename Char>
@@ -3018,8 +3060,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::AppendStringCheckedSIMD(
 
   // Handle remaining characters.
   const size_t start_index = block - chars;
-  return AppendStringCheckedScalar(chars, length, start_index,
-                                   uncopied_src_index, no_gc);
+  return AppendStringCheckedSWAR(chars, length, start_index, uncopied_src_index,
+                                 no_gc);
 }
 
 template <typename Char>
