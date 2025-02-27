@@ -311,7 +311,8 @@ TEST(SemiSpaceNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
@@ -343,7 +344,8 @@ TEST(PagedNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<PagedNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);

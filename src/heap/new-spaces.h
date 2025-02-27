@@ -48,14 +48,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace, size_t initial_capacity,
-            size_t maximum_capacity)
-      : Space(heap, NEW_SPACE, nullptr),
-        maximum_capacity_(RoundDown<PageMetadata::kPageSize>(maximum_capacity)),
-        minimum_capacity_(RoundDown<PageMetadata::kPageSize>(initial_capacity)),
-        target_capacity_(minimum_capacity_),
-        id_(semispace) {
-    DCHECK_GE(maximum_capacity, static_cast<size_t>(PageMetadata::kPageSize));
-  }
+            size_t minimum_capacity, size_t maximum_capacity);
   V8_EXPORT_PRIVATE ~SemiSpace();
 
   inline bool Contains(Tagged<HeapObject> o) const;
@@ -207,11 +200,11 @@ class SemiSpace final : public Space {
 
   bool EnsureCapacity(size_t capacity);
 
+  // The minimum capacity for the space. A space cannot shrink below this size.
+  const size_t minimum_capacity_ = 0;
   // The maximum capacity that can be used by this space. A space cannot grow
   // beyond that size.
   const size_t maximum_capacity_ = 0;
-  // The minimum capacity for the space. A space cannot shrink below this size.
-  const size_t minimum_capacity_ = 0;
   // The currently committed space capacity.
   size_t current_capacity_ = 0;
   // The targetted committed space capacity.
@@ -317,6 +310,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   }
 
   SemiSpaceNewSpace(Heap* heap, size_t initial_semispace_capacity,
+                    size_t min_semispace_capacity_,
                     size_t max_semispace_capacity);
 
   ~SemiSpaceNewSpace() final = default;
@@ -563,7 +557,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
   explicit PagedSpaceForNewSpace(Heap* heap, size_t initial_capacity,
-                                 size_t max_capacity);
+                                 size_t min_capacity, size_t max_capacity);
 
   void TearDown() { PagedSpaceBase::TearDown(); }
 
@@ -577,7 +571,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t AllocatedSinceLastGC() const;
 
   // Return the minimum capacity of the space.
-  size_t MinimumCapacity() const { return initial_capacity_; }
+  size_t MinimumCapacity() const { return min_capacity_; }
 
   // Return the maximum capacity of the space.
   size_t MaximumCapacity() const { return max_capacity_; }
@@ -638,7 +632,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
  private:
   bool AllocatePage();
 
-  const size_t initial_capacity_;
+  const size_t min_capacity_;
   const size_t max_capacity_;
   size_t target_capacity_ = 0;
   size_t current_capacity_ = 0;
@@ -658,7 +652,8 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return static_cast<PagedNewSpace*>(space);
   }
 
-  PagedNewSpace(Heap* heap, size_t initial_capacity, size_t max_capacity);
+  PagedNewSpace(Heap* heap, size_t initial_capacity, size_t min_capacity,
+                size_t max_capacity);
 
   ~PagedNewSpace() final;
 

@@ -2076,6 +2076,7 @@ class Heap final {
   // constraints and flags.
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 0;
+  size_t min_semi_space_size_ = 0;
   size_t initial_semispace_size_ = 0;
   // Full garbage collections can be skipped if the old generation size
   // is below this threshold.

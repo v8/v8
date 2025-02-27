@@ -5002,15 +5002,27 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       v8_flags.max_heap_size > 0,
       v8_flags.max_semi_space_size == 0 || v8_flags.max_old_space_size == 0);
 
-  // Initialize initial_semispace_size_.
+  // Initialize min_semispace_size_.
   {
-    initial_semispace_size_ = DefaultMinSemiSpaceSize();
+    min_semi_space_size_ = DefaultMinSemiSpaceSize();
     if (!v8_flags.optimize_for_size) {
       // Start with at least 1*MB semi-space on machines with a lot of memory.
-      initial_semispace_size_ =
-          std::max(initial_semispace_size_, static_cast<size_t>(1 * MB));
+      min_semi_space_size_ =
+          std::max(min_semi_space_size_, static_cast<size_t>(1 * MB));
     }
-    DCHECK_GE(initial_semispace_size_, DefaultMinSemiSpaceSize());
+    DCHECK_GE(min_semi_space_size_, DefaultMinSemiSpaceSize());
+    if (v8_flags.min_semi_space_size > 0) {
+      min_semi_space_size_ =
+          static_cast<size_t>(v8_flags.min_semi_space_size) * MB;
+    }
+    min_semi_space_size_ = std::min(min_semi_space_size_, max_semi_space_size_);
+    min_semi_space_size_ =
+        RoundDown<PageMetadata::kPageSize>(min_semi_space_size_);
+  }
+
+  // Initialize initial_semispace_size_.
+  {
+    initial_semispace_size_ = min_semi_space_size_;
     if (constraints.initial_young_generation_size_in_bytes() > 0) {
       initial_semispace_size_ = SemiSpaceSizeFromYoungGenerationSize(
           constraints.initial_young_generation_size_in_bytes());
@@ -5023,15 +5035,16 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       initial_semispace_size_ =
           SemiSpaceSizeFromYoungGenerationSize(young_generation);
     }
-    if (v8_flags.min_semi_space_size > 0) {
-      initial_semispace_size_ =
-          static_cast<size_t>(v8_flags.min_semi_space_size) * MB;
-    }
     initial_semispace_size_ =
         std::min(initial_semispace_size_, max_semi_space_size_);
     initial_semispace_size_ =
+        std::max(initial_semispace_size_, min_semi_space_size_);
+    initial_semispace_size_ =
         RoundDown<PageMetadata::kPageSize>(initial_semispace_size_);
   }
+
+  DCHECK_LE(min_semi_space_size_, initial_semispace_size_);
+  DCHECK_LE(initial_semispace_size_, max_semi_space_size_);
 
   if (v8_flags.lazy_new_space_shrinking) {
     initial_semispace_size_ = max_semi_space_size_;
@@ -5787,10 +5800,12 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     if (!v8_flags.sticky_mark_bits) {
       if (v8_flags.minor_ms) {
         space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
-            this, initial_semispace_size_, max_semi_space_size_);
+            this, initial_semispace_size_, min_semi_space_size_,
+            max_semi_space_size_);
       } else {
         space_[NEW_SPACE] = std::make_unique<SemiSpaceNewSpace>(
-            this, initial_semispace_size_, max_semi_space_size_);
+            this, initial_semispace_size_, min_semi_space_size_,
+            max_semi_space_size_);
       }
       new_space_ = static_cast<NewSpace*>(space_[NEW_SPACE].get());
     }
