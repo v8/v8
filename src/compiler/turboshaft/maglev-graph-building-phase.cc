@@ -580,6 +580,7 @@ class GraphBuildingNodeProcessor {
     return is_main_switch_block;
   }
 
+  void PostProcessBasicBlock(maglev::BasicBlock* maglev_block) {}
   maglev::BlockProcessResult PreProcessBasicBlock(
       maglev::BasicBlock* maglev_block) {
     // Note that it's important to call SetMaglevInputBlock before calling Bind,

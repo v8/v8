@@ -227,6 +227,8 @@ class Graph final : public ZoneObject {
     scope_infos_[context] = scope_info;
   }
 
+  Zone* zone() const { return blocks_.zone(); }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;

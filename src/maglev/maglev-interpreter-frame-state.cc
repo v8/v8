@@ -944,7 +944,7 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
     tagged = Node::New<Int32ToNumber>(builder->zone(), {value});
   }
 
-  predecessor->nodes().Add(tagged);
+  predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
   return tagged;
 }
@@ -963,7 +963,7 @@ ValueNode* FromUint32ToTagged(const MaglevGraphBuilder* builder,
     tagged = Node::New<Uint32ToNumber>(builder->zone(), {value});
   }
 
-  predecessor->nodes().Add(tagged);
+  predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
   return tagged;
 }
@@ -977,7 +977,7 @@ ValueNode* FromIntPtrToTagged(const MaglevGraphBuilder* builder,
 
   ValueNode* tagged = Node::New<IntPtrToNumber>(builder->zone(), {value});
 
-  predecessor->nodes().Add(tagged);
+  predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
   return tagged;
 }
@@ -994,7 +994,7 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
       builder->zone(), {value},
       Float64ToTagged::ConversionMode::kCanonicalizeSmi);
 
-  predecessor->nodes().Add(tagged);
+  predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
   return tagged;
 }
@@ -1011,7 +1011,7 @@ ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
       builder->zone(), {value},
       HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
 
-  predecessor->nodes().Add(tagged);
+  predecessor->nodes().push_back(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
   return tagged;
 }

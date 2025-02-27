@@ -30,6 +30,7 @@ class LoopOptimizationProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
@@ -173,6 +174,7 @@ constexpr bool CanBeStoreToNonEscapedObject() {
 class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -302,6 +304,7 @@ class DeadNodeSweepingProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }

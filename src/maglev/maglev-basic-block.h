@@ -19,8 +19,8 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-using NodeIterator = Node::List::Iterator;
-using NodeConstIterator = Node::List::Iterator;
+using NodeIterator = ZoneVector<Node*>::iterator;
+using NodeConstIterator = ZoneVector<Node*>::const_iterator;
 
 class BasicBlock {
  public:
@@ -30,36 +30,39 @@ class BasicBlock {
 
   explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
       : type_(state ? kMerge : kOther),
+        nodes_(zone),
         control_node_(nullptr),
         state_(state),
         reload_hints_(0, zone),
-        spill_hints_(0, zone) {}
+        spill_hints_(0, zone) {
+    nodes_.reserve(16);
+  }
 
   NodeIdT first_id() const {
     if (has_phi()) return phis()->first()->id();
-    if (nodes_.is_empty()) {
-      return control_node()->id();
-    }
-    auto node = nodes_.first();
-    while (node && node->Is<Identity>()) {
-      node = node->NextNode();
-    }
-    return node ? node->id() : control_node()->id();
+    return first_non_phi_id();
   }
 
-  NodeIdT FirstNonGapMoveId() const {
-    if (has_phi()) return phis()->first()->id();
-    if (!nodes_.is_empty()) {
-      for (const Node* node : nodes_) {
-        if (IsGapMoveNode(node->opcode())) continue;
-        if (node->Is<Identity>()) continue;
-        return node->id();
-      }
+  NodeIdT first_non_phi_id() const {
+    for (const Node* node : nodes_) {
+      if (node == nullptr) continue;
+      if (!node->Is<Identity>()) return node->id();
     }
     return control_node()->id();
   }
 
-  Node::List& nodes() { return nodes_; }
+  NodeIdT FirstNonGapMoveId() const {
+    if (has_phi()) return phis()->first()->id();
+    for (const Node* node : nodes_) {
+      if (node == nullptr) continue;
+      if (IsGapMoveNode(node->opcode())) continue;
+      if (node->Is<Identity>()) continue;
+      return node->id();
+    }
+    return control_node()->id();
+  }
+
+  ZoneVector<Node*>& nodes() { return nodes_; }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {
@@ -67,10 +70,19 @@ class BasicBlock {
     control_node_ = control_node;
   }
 
-  void TruncateAt(Node* node, Node::List* remaining_nodes) {
-    DCHECK(nodes_.Contains(node));
-    nodes_.TruncateAt(remaining_nodes, node);
-    control_node_ = nullptr;
+  // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
+  // nodes before |node| in the basic block. |node| itself is dropped.
+  ZoneVector<Node*> Split(Node* node, Zone* zone) {
+    size_t split = 0;
+    for (; split < nodes_.size(); split++) {
+      if (nodes_[split] == node) break;
+    }
+    CHECK_LT(split, nodes_.size());
+    size_t after_split = split + 1;
+    ZoneVector<Node*> result(nodes_.size() - after_split, zone);
+    result.insert(0, nodes_.begin() + after_split, nodes_.end());
+    nodes_.resize(split);
+    return result;
   }
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
@@ -98,7 +110,7 @@ class BasicBlock {
 
   void set_edge_split_block(BasicBlock* predecessor) {
     DCHECK_EQ(type_, kOther);
-    DCHECK(nodes_.is_empty());
+    DCHECK(nodes_.empty());
     DCHECK(control_node()->Is<Jump>());
     type_ = kEdgeSplit;
     predecessor_ = predecessor;
@@ -222,7 +234,7 @@ class BasicBlock {
 
     BasicBlock* current = this;
     while (true) {
-      if (!current->nodes_.is_empty() || current->is_loop() ||
+      if (!current->nodes_.empty() || current->is_loop() ||
           current->is_exception_handler_block() ||
           current->HasPhisOrRegisterMerges()) {
         break;
@@ -286,7 +298,7 @@ class BasicBlock {
     kOther
   } type_;
   bool is_start_block_of_switch_case_ = false;
-  Node::List nodes_;
+  ZoneVector<Node*> nodes_;
   ControlNode* control_node_;
   union {
     MergePointInterpreterFrameState* state_;

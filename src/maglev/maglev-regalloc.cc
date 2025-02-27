@@ -176,9 +176,34 @@ bool IsDeadNodeToSkip(Node* node) {
 
 }  // namespace
 
+void StraightForwardRegisterAllocator::ApplyPatches(BasicBlock* block) {
+  // TODO(verwaest): Perhaps don't actually merge these in but let the code
+  // generator pick up the gap moves from a separate list.
+  size_t diff = patches_.size();
+  if (diff == 0) return;
+  block->nodes().resize(block->nodes().size() + diff);
+  auto patches_it = patches_.end() - 1;
+  for (auto node_it = block->nodes().end() - 1 - diff;
+       node_it >= block->nodes().begin(); --node_it) {
+    *(node_it + diff) = *node_it;
+    for (; patches_it->diff == (node_it - block->nodes().begin());
+         --patches_it) {
+      --diff;
+      *(node_it + diff) = patches_it->new_node;
+      if (diff == 0) {
+        patches_.resize(0);
+        return;
+      }
+    }
+  }
+  UNREACHABLE();
+}
+
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     MaglevCompilationInfo* compilation_info, Graph* graph)
-    : compilation_info_(compilation_info), graph_(graph) {
+    : compilation_info_(compilation_info),
+      graph_(graph),
+      patches_(compilation_info_->zone()) {
   ComputePostDominatingHoles();
   AllocateRegisters();
   uint32_t tagged_stack_slots = tagged_.top;
@@ -559,8 +584,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     VerifyRegisterState();
 
     node_it_ = block->nodes().begin();
-    for (; node_it_ != block->nodes().end();) {
+    for (; node_it_ != block->nodes().end(); ++node_it_) {
       Node* node = *node_it_;
+      if (node == nullptr) continue;
 
       if (IsDeadNodeToSkip(node)) {
         // We remove unused pure nodes.
@@ -582,14 +608,14 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
               });
         }
 
-        node_it_ = block->nodes().RemoveAt(node_it_);
+        *node_it_ = nullptr;
         continue;
       }
 
       AllocateNode(node);
-      ++node_it_;
     }
     AllocateControlNode(block->control_node(), block);
+    ApplyPatches(block);
   }
 }
 
@@ -1186,16 +1212,15 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }
-  if (*node_it_ == nullptr) {
+  BasicBlock* block = *block_it_;
+  if (node_it_ == block->nodes().end()) {
     DCHECK(current_node_->Is<ControlNode>());
     // We're at the control node, so append instead.
-    (*block_it_)->nodes().Add(gap_move);
-    node_it_ = (*block_it_)->nodes().end();
+    block->nodes().push_back(gap_move);
+    node_it_ = block->nodes().end();
   } else {
-    DCHECK_NE(node_it_, (*block_it_)->nodes().end());
     // We should not add any gap move before a GetSecondReturnedValue.
-    DCHECK_NE(node_it_->opcode(), Opcode::kGetSecondReturnedValue);
-    node_it_.InsertBefore(gap_move);
+    patches_.emplace_back(node_it_ - block->nodes().begin(), gap_move);
   }
 }
 
@@ -1543,6 +1568,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
       }
     }
     for (Node* node : block->nodes()) {
+      if (node == nullptr) continue;
       if (ValueNode* value_node = node->TryCast<ValueNode>()) {
         if (node->Is<Identity>()) continue;
         ValidateValueNode(value_node);

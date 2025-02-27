@@ -911,7 +911,7 @@ class MaglevGraphBuilder {
   void AddInitializedNodeToGraph(Node* node) {
     // VirtualObjects should never be add to the Maglev graph.
     DCHECK(!node->Is<VirtualObject>());
-    current_block_->nodes().Add(node);
+    current_block_->nodes().push_back(node);
     node->set_owner(current_block_);
     if (has_graph_labeller())
       graph_labeller()->RegisterNode(node, compilation_unit_,
@@ -1644,8 +1644,7 @@ class MaglevGraphBuilder {
       DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
     }
     // {result} must be the last node in the current block.
-    DCHECK(current_block_->nodes().Contains(result));
-    DCHECK_EQ(result->NextNode(), nullptr);
+    DCHECK_EQ(current_block_->nodes().back(), result);
     return AddNewNode<GetSecondReturnedValue>({});
   }
 

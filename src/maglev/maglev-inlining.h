@@ -24,6 +24,7 @@ class UpdateInputsProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -118,11 +119,9 @@ class MaglevInliner {
     std::vector<BasicBlock*> saved_bb = TruncateGraphAt(call_block);
 
     // Truncate the basic block and remove the generic call node.
-    Node::List rem_nodes_in_call_block;
     ControlNode* control_node = call_block->control_node();
-    call_block->TruncateAt(generic_node, &rem_nodes_in_call_block);
-    DCHECK_EQ(*rem_nodes_in_call_block.begin(), generic_node);
-    rem_nodes_in_call_block.DropHead();
+    ZoneVector<Node*> rem_nodes_in_call_block =
+        call_block->Split(generic_node, details->callee->zone());
 
     // Set the inner graph builder to build in the truncated call block.
     inner_graph_builder.set_current_block(call_block);
@@ -154,7 +153,9 @@ class MaglevInliner {
     for (Node* n : rem_nodes_in_call_block) {
       n->set_owner(final_block);
     }
-    final_block->nodes().Append(std::move(rem_nodes_in_call_block));
+    final_block->nodes().insert(final_block->nodes().end(),
+                                rem_nodes_in_call_block.begin(),
+                                rem_nodes_in_call_block.end());
     CHECK_NULL(final_block->control_node());
     control_node->set_owner(final_block);
     final_block->set_control_node(control_node);
@@ -207,7 +208,7 @@ class MaglevInliner {
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
     DCHECK_NOT_NULL(builder.current_block());
-    builder.current_block()->nodes().Add(node);
+    builder.current_block()->nodes().push_back(node);
     RegisterNode(builder, node);
     return node;
   }

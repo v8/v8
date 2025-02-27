@@ -775,6 +775,7 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
@@ -1108,6 +1109,7 @@ class SafepointingNodeProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }

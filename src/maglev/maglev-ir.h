@@ -2316,8 +2316,6 @@ class Node : public NodeBase {
 
   inline ValueLocation& result();
 
-  Node* NextNode() const { return next_; }
-
   static constexpr bool participate_in_cse(Opcode op) {
     return StaticPropertiesForOpcode(op).can_participate_in_cse() &&
            !IsConstantNode(op) && !IsControlNode(op) && !IsZeroCostNode(op) &&
@@ -2332,13 +2330,6 @@ class Node : public NodeBase {
 
  protected:
   using NodeBase::NodeBase;
-
- private:
-  Node** next() { return &next_; }
-  Node* next_ = nullptr;
-
-  friend List;
-  friend base::ThreadedListTraits<Node>;
 };
 
 // All non-control nodes with a result.

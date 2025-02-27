@@ -29,7 +29,8 @@ class MaglevPhiRepresentationSelector {
   explicit MaglevPhiRepresentationSelector(MaglevGraphBuilder* builder)
       : builder_(builder),
         phi_taggings_(builder->zone()),
-        predecessors_(builder->zone()) {}
+        predecessors_(builder->zone()),
+        new_nodes_at_start_(builder->zone()) {}
 
   void PreProcessGraph(Graph* graph) {
     if (v8_flags.trace_maglev_phi_untagging) {
@@ -42,6 +43,7 @@ class MaglevPhiRepresentationSelector {
     }
   }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
+  void PostProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
 
   enum ProcessPhiResult { kNone, kRetryOnChange, kChanged };
@@ -227,6 +229,7 @@ class MaglevPhiRepresentationSelector {
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<Snapshot> predecessors_;
 
+  ZoneVector<Node*> new_nodes_at_start_;
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
 #endif

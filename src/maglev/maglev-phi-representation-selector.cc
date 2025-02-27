@@ -849,6 +849,17 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+void MaglevPhiRepresentationSelector::PostProcessBasicBlock(BasicBlock* block) {
+  size_t diff = new_nodes_at_start_.size();
+  if (diff == 0) return;
+  size_t old_size = block->nodes().size();
+  block->nodes().resize(old_size + new_nodes_at_start_.size());
+  auto begin = block->nodes().begin();
+  std::copy_backward(begin, begin + old_size, block->nodes().end());
+  std::copy(new_nodes_at_start_.begin(), new_nodes_at_start_.end(), begin);
+  new_nodes_at_start_.resize(0);
+}
+
 // If the input of a StoreTaggedFieldNoWriteBarrier was a Phi that got
 // untagged, then we need to retag it, and we might need to actually use a write
 // barrier.
@@ -1123,13 +1134,9 @@ ValueNode* MaglevPhiRepresentationSelector::AddNode(
     // If the node iterator is currently on the 1st node of the block, we need
     // to use `InsertBefore` to insert a new node. Otherwise, we can use
     // `AddFront`.
-    if (*state->node_it() == current_block_->nodes().begin()) {
-      state->node_it()->InsertBefore(node);
-    } else {
-      current_block_->nodes().AddFront(node);
-    }
+    new_nodes_at_start_.push_back(node);
   } else {
-    block->nodes().Add(node);
+    block->nodes().push_back(node);
   }
 
   RegisterNewNode(node);
