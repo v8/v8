@@ -7566,6 +7566,7 @@ TEST(Regress11181) {
 }
 
 TEST(LongTaskStatsFullAtomic) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(CcTest::isolate());
@@ -7585,6 +7586,7 @@ TEST(LongTaskStatsFullAtomic) {
 
 TEST(LongTaskStatsFullIncremental) {
   if (!v8_flags.incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(CcTest::isolate());
@@ -7605,6 +7607,7 @@ TEST(LongTaskStatsFullIncremental) {
 
 TEST(LongTaskStatsYoung) {
   if (v8_flags.single_generation) return;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(CcTest::isolate());
