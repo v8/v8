@@ -1075,6 +1075,10 @@ class MaglevGraphBuilder {
                       NodeT::kProperties.can_eager_deopt() +
                       NodeT::kProperties.can_lazy_deopt() <=
                   1);
+    if constexpr (NodeT::kProperties.can_eager_deopt() ||
+                  NodeT::kProperties.can_lazy_deopt()) {
+      ClearCurrentAllocationBlock();
+    }
     AttachDeoptCheckpoint(node);
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
@@ -1723,13 +1727,6 @@ class MaglevGraphBuilder {
       unobserved_context_slot_stores_.clear();
     }
 
-    if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&
-                  (NodeT::kProperties.can_eager_deopt() ||
-                   NodeT::kProperties.can_lazy_deopt() ||
-                   NodeT::kProperties.can_allocate())) {
-      ClearCurrentAllocationBlock();
-    }
-
     // Don't do anything for nodes without side effects.
     if constexpr (!NodeT::kProperties.can_write()) return;
 
@@ -1879,9 +1876,6 @@ class MaglevGraphBuilder {
     // stores within known_node_aspects. For this we could use a stack of
     // stores, which we push on split and pop on merge.
     unobserved_context_slot_stores_.clear();
-
-    // TODO(olivf): Support allocation folding across control flow.
-    ClearCurrentAllocationBlock();
 
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
