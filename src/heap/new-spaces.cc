@@ -86,9 +86,10 @@ bool SemiSpace::EnsureCapacity(size_t capacity) {
   DCHECK_IMPLIES(!IsCommitted(), CommittedMemory() == 0);
   const size_t quarantined_pages =
       id_ == kToSpace ? quarantined_pages_count_ : 0;
-  const int num_pages =
-      static_cast<int>((capacity / PageMetadata::kPageSize) -
-                       memory_chunk_list_.size() - quarantined_pages);
+  const int pages_available_for_allocation =
+      static_cast<int>(memory_chunk_list_.size() - quarantined_pages);
+  const int num_pages = static_cast<int>((capacity / PageMetadata::kPageSize)) -
+                        pages_available_for_allocation;
   if (num_pages >= 0) {
     for (int pages_added = 0; pages_added < num_pages; pages_added++) {
       if (!AllocateFreshPage()) {
