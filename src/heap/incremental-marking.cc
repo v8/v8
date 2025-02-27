@@ -203,18 +203,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
 
   if (is_major) {
     StartMarkingMajor();
-    heap_->allocator()->AddAllocationObserver(&old_generation_observer_,
-                                              &new_generation_observer_);
-    if (incremental_marking_job()) {
-      incremental_marking_job()->ScheduleTask();
-    }
-    DCHECK_NULL(schedule_);
-    schedule_ =
-        ::heap::base::IncrementalMarkingSchedule::Create(v8_flags.predictable);
-    schedule_->NotifyIncrementalMarkingStart();
   } else {
-    // Allocation observers are not currently used by MinorMS because we don't
-    // do incremental marking.
     StartMarkingMinor();
   }
 }
@@ -306,6 +295,16 @@ void IncrementalMarking::StartMarkingMajor() {
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();
+
+  heap_->allocator()->AddAllocationObserver(&old_generation_observer_,
+                                            &new_generation_observer_);
+  if (incremental_marking_job()) {
+    incremental_marking_job()->ScheduleTask();
+  }
+  DCHECK_NULL(schedule_);
+  schedule_ =
+      ::heap::base::IncrementalMarkingSchedule::Create(v8_flags.predictable);
+  schedule_->NotifyIncrementalMarkingStart();
 }
 
 void IncrementalMarking::StartMarkingMinor() {
@@ -347,6 +346,9 @@ void IncrementalMarking::StartMarkingMinor() {
   }
 
   DCHECK(!is_compacting_);
+
+  // Allocation observers are not currently used by MinorMS because we don't
+  // do incremental marking.
 }
 
 void IncrementalMarking::StartBlackAllocation() {
@@ -630,8 +632,7 @@ v8::base::TimeDelta IncrementalMarking::CppHeapStep(
     v8::base::TimeDelta expected_duration) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
-  DCHECK_NOT_NULL(cpp_heap);
-  if (!cpp_heap->incremental_marking_supported()) {
+  if (!cpp_heap || !cpp_heap->incremental_marking_supported()) {
     return {};
   }
 
@@ -805,7 +806,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
   FetchBytesMarkedConcurrently();
   // TODO(v8:14140): Consider the size including young generation here as well
   // as the full marker marks both the young and old generations.
-  const size_t max_bytes_to_process =
+  const size_t marked_bytes_limit =
       schedule_->GetNextIncrementalStepDuration(OldGenerationSizeOfObjects());
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const auto step_info = schedule_->GetCurrentStepInfo();
@@ -814,7 +815,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
         "%.1f, marked: %zuKB (mutator: %zuKB, concurrent %zuKB), expected "
         "marked: %zuKB, estimated live: %zuKB, schedule delta: %+" PRIi64
         "KB\n",
-        max_bytes_to_process / KB, ToString(step_origin),
+        marked_bytes_limit / KB, ToString(step_origin),
         step_info.elapsed_time.InMillisecondsF(), step_info.marked_bytes() / KB,
         step_info.mutator_marked_bytes / KB,
         step_info.concurrent_marked_bytes / KB,
@@ -822,7 +823,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
         step_info.estimated_live_bytes / KB,
         step_info.scheduled_delta_bytes() / KB);
   }
-  return max_bytes_to_process;
+  return marked_bytes_limit;
 }
 
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
@@ -897,7 +898,7 @@ void IncrementalMarking::FetchBytesMarkedConcurrently() {
 }
 
 void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
-                              size_t max_bytes_to_process,
+                              size_t marked_bytes_limit,
                               StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking());
@@ -930,11 +931,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   }
 #endif
 
-  size_t v8_bytes_processed = 0;
-  v8::base::TimeDelta embedder_duration;
-  v8::base::TimeDelta max_embedder_duration;
-
-  if (v8_flags.concurrent_marking) {
+  if (V8_LIKELY(v8_flags.concurrent_marking)) {
     // It is safe to merge back all objects that were on hold to the shared
     // work list at Step because we are at a safepoint where all objects
     // are properly initialized. The exception is the last allocated object
@@ -957,43 +954,45 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   // This ignores that case where the embedder finds new V8-side objects. The
   // assumption is that large graphs are well connected and can mostly be
   // processed on their own. For small graphs, helping is not necessary.
-  std::tie(v8_bytes_processed, std::ignore) =
-      major_collector_->ProcessMarkingWorklist(
-          max_duration, max_bytes_to_process,
-          MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
-  main_thread_marked_bytes_ += v8_bytes_processed;
-  schedule_->AddMutatorThreadMarkedBytes(v8_bytes_processed);
-  const auto v8_time = v8::base::TimeTicks::Now() - start;
-  if (heap_->cpp_heap() && (v8_time < max_duration)) {
-    // The CppHeap only gets the remaining slice and not the exact same time.
-    // This is fine because CppHeap will schedule its own incremental steps. We
-    // want to help out here to be able to fully finalize when all worklists
-    // have been drained.
-    max_embedder_duration = max_duration - v8_time;
-    embedder_duration = CppHeapStep(max_embedder_duration);
+
+  // Start with a CppHeap step as there's objects on CppHeap that must be marked
+  // on the main thread.
+  const v8::base::TimeDelta cpp_heap_duration = CppHeapStep(max_duration);
+
+  // Add an optional V8 step if we are not exceeding our limits.
+  size_t v8_marked_bytes = 0;
+  v8::base::TimeDelta v8_time;
+  if (cpp_heap_duration < max_duration) {
+    const auto v8_start = v8::base::TimeTicks::Now();
+    std::tie(v8_marked_bytes, std::ignore) =
+        major_collector_->ProcessMarkingWorklist(
+            max_duration - cpp_heap_duration, marked_bytes_limit,
+            MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
+    v8_time = v8::base::TimeTicks::Now() - v8_start;
+    heap_->tracer()->AddIncrementalMarkingStep(v8_time.InMillisecondsF(),
+                                               v8_marked_bytes);
   }
 
-  if (v8_flags.concurrent_marking) {
+  if (V8_LIKELY(v8_flags.concurrent_marking)) {
     local_marking_worklists()->ShareWork();
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
         GarbageCollector::MARK_COMPACTOR);
   }
 
-  heap_->tracer()->AddIncrementalMarkingStep(v8_time.InMillisecondsF(),
-                                             v8_bytes_processed);
-
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+    const auto v8_max_duration = max_duration - cpp_heap_duration;
+    const auto v8_marked_bytes_limit = marked_bytes_limit;
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step: origin: %s, V8: %zuKB (%zuKB) in %.1f, "
-        "embedder: %fms (%fms) in %.1f (%.1f), V8 marking speed: %.fMB/s\n",
-        ToString(step_origin), v8_bytes_processed / KB,
-        max_bytes_to_process / KB, v8_time.InMillisecondsF(),
-        embedder_duration.InMillisecondsF(),
-        max_embedder_duration.InMillisecondsF(),
-        (v8::base::TimeTicks::Now() - start).InMillisecondsF(),
-        max_duration.InMillisecondsF(),
+        "[IncrementalMaring] Step: origin: %s overall: %.1fms "
+        "V8: %zuKB (%zuKB), %.1fms (%.1fms), %.1fMB/s "
+        "CppHeap: %.1fms (%.1fms)\n",
+        ToString(step_origin),
+        (v8::base::TimeTicks::Now() - start).InMillisecondsF(), v8_marked_bytes,
+        v8_marked_bytes_limit, v8_time.InMillisecondsF(),
+        v8_max_duration.InMillisecondsF(),
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
-            1000 / MB);
+            1000 / MB,
+        cpp_heap_duration.InMillisecondsF(), max_duration.InMillisecondsF());
   }
 }
 
