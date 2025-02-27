@@ -345,16 +345,24 @@ bool OptimizingCompileDispatcher::TryQueueForOptimization(
 
 void OptimizingCompileDispatcher::Prioritize(
     Tagged<SharedFunctionInfo> function) {
-  input_queue().Prioritize(function);
+  input_queue().Prioritize(isolate_, function);
 }
 
 void OptimizingCompileInputQueue::Prioritize(
-    Tagged<SharedFunctionInfo> function) {
+    Isolate* isolate, Tagged<SharedFunctionInfo> function) {
+  // Ensure that we only run this method on the main thread. This makes sure
+  // that we never dereference handles during a safepoint.
+  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
   base::MutexGuard access(&mutex_);
-  auto it = std::find_if(
-      queue_.begin(), queue_.end(), [function](TurbofanCompilationJob* job) {
-        return *job->compilation_info()->shared_info() == function;
-      });
+  auto it =
+      std::find_if(queue_.begin(), queue_.end(),
+                   [isolate, function](TurbofanCompilationJob* job) {
+                     // Early bailout to avoid dereferencing handles from other
+                     // isolates. The other isolate could be in a safepoint/GC
+                     // and dereferencing the handle is therefore invalid.
+                     if (job->isolate() != isolate) return false;
+                     return *job->compilation_info()->shared_info() == function;
+                   });
 
   if (it != queue_.end()) {
     std::iter_swap(it, queue_.begin());

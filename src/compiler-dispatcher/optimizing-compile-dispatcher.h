@@ -53,7 +53,7 @@ class V8_EXPORT OptimizingCompileInputQueue {
   void FlushJobsForIsolate(Isolate* isolate);
   bool HasJobForIsolate(Isolate* isolate);
 
-  void Prioritize(Tagged<SharedFunctionInfo> function);
+  void Prioritize(Isolate* isolate, Tagged<SharedFunctionInfo> function);
 
  private:
   std::deque<TurbofanCompilationJob*> queue_;
