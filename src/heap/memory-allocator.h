@@ -237,6 +237,10 @@ class MemoryAllocator {
   // by this heap, otherwise a nullptr.
   V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
+  // This version can be used when all threads are either parked or in a
+  // safepoint. In that case we can skip taking a mutex.
+  V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddressInSafepoint(
+      Address addr) const;
 
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordMemoryChunkCreated(const MemoryChunk* chunk);

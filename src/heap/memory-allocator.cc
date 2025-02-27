@@ -581,6 +581,12 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
 
 const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     Address addr) const {
+  base::MutexGuard guard(&chunks_mutex_);
+  return LookupChunkContainingAddressInSafepoint(addr);
+}
+
+const MemoryChunk* MemoryAllocator::LookupChunkContainingAddressInSafepoint(
+    Address addr) const {
   // All threads should be either parked or in a safepoint whenever this method
   // is called, thus pages cannot be allocated or freed at the same time and a
   // mutex is not required here.
