@@ -419,6 +419,37 @@ class MaglevGraphBuilder {
 
   bool is_turbolev() const { return is_turbolev_; }
 
+  // Inlining configuration. For Maglev, we use the Maglev flags, and for
+  // Turbolev, we use the Turbofan flags.
+  int max_inlined_bytecode_size() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size;
+    } else {
+      return v8_flags.max_maglev_inlined_bytecode_size;
+    }
+  }
+  int max_inlined_bytecode_size_small() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_small;
+    } else {
+      return v8_flags.max_maglev_inlined_bytecode_size_small;
+    }
+  }
+  float min_inlining_frequency() {
+    if (is_turbolev()) {
+      return v8_flags.min_inlining_frequency;
+    } else {
+      return v8_flags.min_maglev_inlining_frequency;
+    }
+  }
+  int max_inlined_bytecode_size_cumulative() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_cumulative;
+    } else {
+      return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
+    }
+  }
+
  private:
   // Helper class for building a subgraph with its own control flow, that is not
   // attached to any bytecode.

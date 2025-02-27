@@ -8292,7 +8292,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(ValueNode* context,
 bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
                                        float call_frequency) {
   if (graph()->total_inlined_bytecode_size() >
-      v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
+      max_inlined_bytecode_size_cumulative()) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
     TRACE_CANNOT_INLINE("maximum inlined bytecode size");
     return false;
@@ -8328,16 +8328,16 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     TRACE_CANNOT_INLINE("non greedy inlining does not support catch blocks");
     return false;
   }
-  if (call_frequency < v8_flags.min_maglev_inlining_frequency) {
-    TRACE_CANNOT_INLINE("call frequency ("
-                        << call_frequency << ") < minimum threshold ("
-                        << v8_flags.min_maglev_inlining_frequency << ")");
+  if (call_frequency < min_inlining_frequency()) {
+    TRACE_CANNOT_INLINE("call frequency (" << call_frequency
+                                           << ") < minimum threshold ("
+                                           << min_inlining_frequency() << ")");
     return false;
   }
-  if (bytecode.length() > v8_flags.max_maglev_inlined_bytecode_size) {
+  if (bytecode.length() > max_inlined_bytecode_size()) {
     TRACE_CANNOT_INLINE("big function, size ("
                         << bytecode.length() << ") >= max-size ("
-                        << v8_flags.max_maglev_inlined_bytecode_size << ")");
+                        << max_inlined_bytecode_size() << ")");
     return false;
   }
   return true;
@@ -8353,7 +8353,7 @@ bool MaglevGraphBuilder::TopLevelFunctionPassMaglevPrintFilter() {
 bool MaglevGraphBuilder::ShouldEagerInlineCall(
     compiler::SharedFunctionInfoRef shared) {
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  if (bytecode.length() < v8_flags.max_maglev_inlined_bytecode_size_small) {
+  if (bytecode.length() < max_inlined_bytecode_size_small()) {
     TRACE_INLINING("  greedy inlining "
                    << shared << ": small function, skipping max-depth");
     return true;
