@@ -1926,6 +1926,20 @@ static void getDebugSymbols(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+class DeferredMakeWeakScope {
+ public:
+  explicit DeferredMakeWeakScope(V8DebuggerScript& script) : script_(script) {}
+
+  ~DeferredMakeWeakScope() { script_.MakeWeak(); }
+
+ private:
+  V8DebuggerScript& script_;
+};
+
+}  // namespace
+
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
@@ -1967,13 +1981,16 @@ void V8DebuggerAgentImpl::didParseSource(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   m_scripts[scriptId] = std::move(script);
-  // Release the strong reference to get notified when debugger is the only
-  // one that holds the script. Has to be done after script added to m_scripts.
-  m_scripts[scriptId]->MakeWeak();
 
   ScriptsMap::iterator scriptIterator = m_scripts.find(scriptId);
   DCHECK(scriptIterator != m_scripts.end());
   V8DebuggerScript* scriptRef = scriptIterator->second.get();
+
+  // Release the strong reference once we exit 'didParseSource', to get notified
+  // when debugger is the only one that holds the script. Has to be done after
+  // script was added to m_scripts.
+  DeferredMakeWeakScope weak_scope(*scriptRef);
+
   // V8 could create functions for parsed scripts before reporting and asks
   // inspector about blackboxed state, we should reset state each time when we
   // make any change that change isFunctionBlackboxed output - adding parsed
