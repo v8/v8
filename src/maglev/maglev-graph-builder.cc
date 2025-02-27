@@ -13550,6 +13550,32 @@ void MaglevGraphBuilder::PeelLoop() {
   allow_loop_peeling_ = true;
 }
 
+BasicBlock* MaglevGraphBuilder::FinishInlinedBlockForCaller(
+    ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block) {
+  BasicBlock* result = current_block_;
+  current_block_ = nullptr;
+  result->nodes().reserve(node_buffer().size() +
+                          rem_nodes_in_call_block.size());
+  FlushNodesToBlock();
+  for (Node* n : rem_nodes_in_call_block) {
+    n->set_owner(result);
+    result->nodes().push_back(n);
+  }
+  control_node->set_owner(result);
+  CHECK_NULL(result->control_node());
+  result->set_control_node(control_node);
+
+  // Add the final block to the graph.
+  graph_->Add(result);
+  if (has_graph_labeller()) {
+    // Only need to register the block, since the control node should already
+    // be registered.
+    graph_labeller()->RegisterBasicBlock(result);
+  }
+
+  return result;
+}
+
 void MaglevGraphBuilder::BuildLoopForPeeling() {
   int loop_header = iterator_.current_offset();
   DCHECK(loop_headers_to_peel_.Contains(loop_header));

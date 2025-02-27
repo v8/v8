@@ -34,9 +34,7 @@ class BasicBlock {
         control_node_(nullptr),
         state_(state),
         reload_hints_(0, zone),
-        spill_hints_(0, zone) {
-    nodes_.reserve(16);
-  }
+        spill_hints_(0, zone) {}
 
   NodeIdT first_id() const {
     if (has_phi()) return phis()->first()->id();

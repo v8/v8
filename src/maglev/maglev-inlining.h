@@ -145,28 +145,12 @@ class MaglevInliner {
         EnsureTagged(inner_graph_builder, result.value());
 
     // Resume execution using the final block of the inner builder.
-    BasicBlock* final_block = inner_graph_builder.current_block();
-    DCHECK_NOT_NULL(final_block);
 
     // Add remaining nodes to the final block and use the control flow of the
     // old call block.
-    for (Node* n : rem_nodes_in_call_block) {
-      n->set_owner(final_block);
-    }
-    final_block->nodes().insert(final_block->nodes().end(),
-                                rem_nodes_in_call_block.begin(),
-                                rem_nodes_in_call_block.end());
-    CHECK_NULL(final_block->control_node());
-    control_node->set_owner(final_block);
-    final_block->set_control_node(control_node);
-
-    // Add the final block to the graph.
-    graph_->Add(final_block);
-    if (details->callee->has_graph_labeller()) {
-      // Only need to register the block, since the control node should already
-      // be registered.
-      details->callee->graph_labeller()->RegisterBasicBlock(final_block);
-    }
+    BasicBlock* final_block = inner_graph_builder.FinishInlinedBlockForCaller(
+        control_node, rem_nodes_in_call_block);
+    DCHECK_NOT_NULL(final_block);
 
     // Update the predecessor of the successors of the {final_block}, that were
     // previously pointing to {call_block}.
@@ -207,8 +191,7 @@ class MaglevInliner {
                                           std::forward<Args>(args)...);
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
-    DCHECK_NOT_NULL(builder.current_block());
-    builder.current_block()->nodes().push_back(node);
+    builder.node_buffer().push_back(node);
     RegisterNode(builder, node);
     return node;
   }

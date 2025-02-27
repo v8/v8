@@ -409,8 +409,11 @@ class MaglevGraphBuilder {
     }
   }
 
-  BasicBlock* current_block() { return current_block_; }
   void set_current_block(BasicBlock* block) { current_block_ = block; }
+  BasicBlock* FinishInlinedBlockForCaller(
+      ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block);
+
+  ZoneVector<Node*>& node_buffer() { return graph_->node_buffer(); }
 
   uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
@@ -779,7 +782,7 @@ class MaglevGraphBuilder {
         DCHECK(!preserve_known_node_aspects);
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
-        // DCHECK(!current_block_->nodes().is_empty());
+        // DCHECK(!node_buffer().empty());
         BasicBlock* predecessor;
         if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
             need_checkpointed_loop_entry()) {
@@ -911,7 +914,7 @@ class MaglevGraphBuilder {
   void AddInitializedNodeToGraph(Node* node) {
     // VirtualObjects should never be add to the Maglev graph.
     DCHECK(!node->Is<VirtualObject>());
-    current_block_->nodes().push_back(node);
+    node_buffer().push_back(node);
     node->set_owner(current_block_);
     if (has_graph_labeller())
       graph_labeller()->RegisterNode(node, compilation_unit_,
@@ -1644,7 +1647,7 @@ class MaglevGraphBuilder {
       DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
     }
     // {result} must be the last node in the current block.
-    DCHECK_EQ(current_block_->nodes().back(), result);
+    DCHECK_EQ(node_buffer().back(), result);
     return AddNewNode<GetSecondReturnedValue>({});
   }
 
@@ -1857,6 +1860,15 @@ class MaglevGraphBuilder {
     }
   }
 
+  void FlushNodesToBlock() {
+    ZoneVector<Node*>& nodes = current_block_->nodes();
+    size_t old_size = nodes.size();
+    nodes.resize(old_size + node_buffer().size());
+    std::copy(node_buffer().begin(), node_buffer().end(),
+              nodes.begin() + old_size);
+    node_buffer().clear();
+  }
+
   template <typename ControlNodeT, typename... Args>
   BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
@@ -1877,6 +1889,7 @@ class MaglevGraphBuilder {
     unobserved_context_slot_stores_.clear();
 
     BasicBlock* block = current_block_;
+    FlushNodesToBlock();
     current_block_ = nullptr;
 
     graph()->Add(block);
@@ -3093,6 +3106,7 @@ class MaglevGraphBuilder {
   }
 
   int inlining_id_ = SourcePosition::kNotInlined;
+  int next_handler_table_index_ = 0;
 
   DeoptFrameScope* current_deopt_scope_ = nullptr;
 
@@ -3101,12 +3115,12 @@ class MaglevGraphBuilder {
     int handler;
   };
   ZoneStack<HandlerTableEntry> catch_block_stack_;
-  int next_handler_table_index_ = 0;
 
 #ifdef DEBUG
   bool IsNodeCreatedForThisBytecode(ValueNode* node) const {
     return new_nodes_.find(node) != new_nodes_.end();
   }
+
   std::unordered_set<Node*> new_nodes_;
 #endif
 
