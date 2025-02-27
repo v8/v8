@@ -273,7 +273,7 @@ enum class GenericKind : uint32_t {
 #define DEF_ENUM(kind, code, extra_bits, ...)                  \
   k##kind = value_type_impl::PayloadField::encode(             \
                 static_cast<uint8_t>(StandardType::k##kind)) + \
-            extra_bits,
+            (extra_bits),
   FOREACH_GENERIC_TYPE(DEF_ENUM)
 #undef DEF_ENUM
 };
