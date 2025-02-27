@@ -10531,6 +10531,9 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
 ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
     ValueNode* node, compiler::HeapObjectRef ref) {
   if (!IsConstantNode(node->opcode()) && ref.IsInternalizedString()) {
+    if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+    }
     AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
     SetKnownValue(node, ref, NodeType::kString);
     return ReduceResult::Done();
