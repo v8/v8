@@ -35,11 +35,13 @@ class Mips64OperandGeneratorT final : public OperandGeneratorT {
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
-    if (this->is_constant(node)) {
-      auto constant = selector()->constant_view(node);
-      if ((IsIntegerConstant(constant) &&
-           GetIntegerConstantValue(constant) == 0) ||
-          constant.is_float_zero()) {
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat32 &&
+           constant->float32().get_bits() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat64 &&
+           constant->float64().get_bits() == 0)) {
         return UseImmediate(node);
       }
     }
@@ -47,27 +49,24 @@ class Mips64OperandGeneratorT final : public OperandGeneratorT {
   }
 
   bool IsIntegerConstant(OpIndex node) {
-    return selector()->is_integer_constant(node);
-  }
-
-  int64_t GetIntegerConstantValue(TurboshaftAdapter::ConstantView constant) {
-    if (constant.is_int32()) {
-      return constant.int32_value();
-    }
-    DCHECK(constant.is_int64());
-    return constant.int64_value();
+    int64_t unused;
+    return selector()->MatchSignedIntegralConstant(node, &unused);
   }
 
   std::optional<int64_t> GetOptionalIntegerConstant(OpIndex operation) {
-    if (!this->IsIntegerConstant(operation)) return {};
-    return this->GetIntegerConstantValue(selector()->constant_view(operation));
+    if (int64_t constant; MatchSignedIntegralConstant(operation, &constant)) {
+      return constant;
+    }
+    return std::nullopt;
   }
 
   bool CanBeImmediate(OpIndex node, InstructionCode mode) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    return IsIntegerConstant(constant) &&
-           CanBeImmediate(GetIntegerConstantValue(constant), mode);
+    const ConstantOp* constant = selector()->Get(node).TryCast<ConstantOp>();
+    if (!constant) return false;
+
+    int64_t value;
+    return selector()->MatchSignedIntegralConstant(node, &value) &&
+           CanBeImmediate(value, mode);
   }
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode) {
@@ -352,13 +351,14 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   output_op = g.DefineAsRegister(output.valid() ? output : node);
 
   const Operation& base_op = selector->Get(base);
+  int64_t index_value;
   if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->is_integer_constant(index)) {
+      selector->MatchSignedIntegralConstant(index, &index_value)) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          selector->integer_constant(index) +
+          index_value +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -374,9 +374,10 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 
   if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(selector->is_integer_constant(index));
+    int64_t index_value;
+    CHECK(selector->MatchSignedIntegralConstant(index, &index_value));
     input_count = 1;
-    inputs[0] = g.UseImmediate64(selector->integer_constant(index));
+    inputs[0] = g.UseImmediate64(index_value);
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -1085,9 +1086,8 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
       if (CanCover(value, input_at(value, 0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
-      } else if (g.IsIntegerConstant(shift_value)) {
-        auto constant = g.GetIntegerConstantValue(constant_view(shift_value));
-
+      } else if (int64_t constant;
+                 MatchSignedIntegralConstant(shift_value, &constant)) {
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kMips64Dsar, g.DefineAsRegister(node),
