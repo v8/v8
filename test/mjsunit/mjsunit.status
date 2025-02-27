@@ -1373,6 +1373,8 @@
 
   # Suspect to stress other tests when run in background.
   'huge-typedarrays': [PASS, HEAVY, NO_VARIANTS],
+
+  'regress/wasm/regress-392928805': [SKIP]
 }],  # 'system == windows'
 
 ##############################################################################
