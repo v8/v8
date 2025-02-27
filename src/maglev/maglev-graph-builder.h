@@ -577,6 +577,8 @@ class MaglevGraphBuilder {
   }
 
   void ProcessMergePointAtExceptionHandlerStart(int offset) {
+    DCHECK_EQ(current_allocation_block_, nullptr);
+
     MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
     DCHECK_EQ(merge_state.predecessor_count(), 0);
 
@@ -619,6 +621,9 @@ class MaglevGraphBuilder {
   void ProcessMergePointPredecessors(
       MergePointInterpreterFrameState& merge_state,
       BasicBlockRef& jump_targets) {
+    // TODO(olivf): Support allocation folding across control flow.
+    DCHECK_EQ(current_allocation_block_, nullptr);
+
     // Merges aren't simple fallthroughs, so we should reset state which is
     // cached directly on the builder instead of on the merge states.
     ResetBuilderCachedState();
@@ -1109,10 +1114,6 @@ class MaglevGraphBuilder {
                       NodeT::kProperties.can_eager_deopt() +
                       NodeT::kProperties.can_lazy_deopt() <=
                   1);
-    if constexpr (NodeT::kProperties.can_eager_deopt() ||
-                  NodeT::kProperties.can_lazy_deopt()) {
-      ClearCurrentAllocationBlock();
-    }
     AttachDeoptCheckpoint(node);
     AttachEagerDeoptInfo(node);
     AttachLazyDeoptInfo(node);
@@ -1760,6 +1761,13 @@ class MaglevGraphBuilder {
       unobserved_context_slot_stores_.clear();
     }
 
+    if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&
+                  (NodeT::kProperties.can_eager_deopt() ||
+                   NodeT::kProperties.can_lazy_deopt() ||
+                   NodeT::kProperties.can_allocate())) {
+      ClearCurrentAllocationBlock();
+    }
+
     // Don't do anything for nodes without side effects.
     if constexpr (!NodeT::kProperties.can_write()) return;
 
@@ -1918,6 +1926,9 @@ class MaglevGraphBuilder {
     // stores within known_node_aspects. For this we could use a stack of
     // stores, which we push on split and pop on merge.
     unobserved_context_slot_stores_.clear();
+
+    // TODO(olivf): Support allocation folding across control flow.
+    ClearCurrentAllocationBlock();
 
     BasicBlock* block = current_block_;
     FlushNodesToBlock();

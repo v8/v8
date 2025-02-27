@@ -1072,6 +1072,8 @@ class OpProperties {
   constexpr bool can_throw() const {
     return kCanThrowBit::decode(bitfield_) && can_lazy_deopt();
   }
+  // TODO(olivf) We should negate all of these properties which would give them
+  // a less error-prone default state.
   constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
   constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
   constexpr bool can_allocate() const {
@@ -4842,7 +4844,8 @@ class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::EagerDeopt() |
-      OpProperties::Call() | OpProperties::NotIdempotent();
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5029,8 +5032,9 @@ class NumberToString : public FixedInputValueNodeT<1, NumberToString> {
  public:
   explicit NumberToString(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::LazyDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5288,8 +5292,9 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::CanThrow() |
-      OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanThrow() | OpProperties::LazyDeopt() |
+      OpProperties::NotIdempotent();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -5357,8 +5362,9 @@ class CreateObjectLiteral
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::CanThrow() |
-      OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanThrow() | OpProperties::LazyDeopt() |
+      OpProperties::NotIdempotent();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -6040,8 +6046,9 @@ class ArgumentsElements : public FixedInputValueNodeT<1, ArgumentsElements> {
         type_(type),
         formal_parameter_count_(formal_parameter_count) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::NotIdempotent();
 
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
@@ -6179,9 +6186,9 @@ class CreateRegExpLiteral
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call() |
-                                              OpProperties::NotIdempotent() |
-                                              OpProperties::CanThrow();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::NotIdempotent() | OpProperties::CanThrow();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -6216,8 +6223,9 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   Input& context() { return input(0); }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -8797,9 +8805,9 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
  public:
   explicit StringConcat(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Call() |
-                                              OpProperties::LazyDeopt() |
-                                              OpProperties::CanThrow();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::LazyDeopt() | OpProperties::CanThrow();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -10048,8 +10056,9 @@ class ConvertReceiver : public FixedInputValueNodeT<1, ConvertReceiver> {
   Input& receiver_input() { return input(0); }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
