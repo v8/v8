@@ -2338,7 +2338,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(__ Float64IsNaN(Map(node->target_input())), frame_state,
-                       DeoptimizeReason::kWrongValue,
+                       node->deoptimize_reason(),
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -2432,7 +2432,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(__ TaggedEqual(Map(node->target_input()),
                                       __ HeapConstant(node->value().object())),
-                       frame_state, DeoptimizeReason::kWrongValue,
+                       frame_state, node->deoptimize_reason(),
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -2440,7 +2440,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(__ Word32Equal(Map(node->target_input()), node->value()),
-                       frame_state, DeoptimizeReason::kWrongValue,
+                       frame_state, node->deoptimize_reason(),
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -2450,7 +2450,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(
         __ Float64Equal(Map(node->target_input()), node->value()), frame_state,
-        DeoptimizeReason::kWrongValue,
+        node->deoptimize_reason(),
         node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -2511,7 +2511,7 @@ class GraphBuildingNodeProcessor {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(
         __ TaggedEqual(Map(node->first_input()), Map(node->second_input())),
-        frame_state, DeoptimizeReason::kWrongValue,
+        frame_state, node->deoptimize_reason(),
         node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
@@ -2546,10 +2546,10 @@ class GraphBuildingNodeProcessor {
     V<Word32> cmp = ConvertInt32Compare(node->left_input(), node->right_input(),
                                         node->condition(), &negate_result);
     if (negate_result) {
-      __ DeoptimizeIf(cmp, frame_state, node->reason(),
+      __ DeoptimizeIf(cmp, frame_state, node->deoptimize_reason(),
                       node->eager_deopt_info()->feedback_to_update());
     } else {
-      __ DeoptimizeIfNot(cmp, frame_state, node->reason(),
+      __ DeoptimizeIfNot(cmp, frame_state, node->deoptimize_reason(),
                          node->eager_deopt_info()->feedback_to_update());
     }
     return maglev::ProcessResult::kContinue;
@@ -4508,7 +4508,7 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::Deopt* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ Deoptimize(frame_state, node->reason(),
+    __ Deoptimize(frame_state, node->deoptimize_reason(),
                   node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }

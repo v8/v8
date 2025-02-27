@@ -1813,6 +1813,18 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
 
 }  // namespace detail
 
+#define DEOPTIMIZE_REASON_FIELD                                             \
+ private:                                                                   \
+  using ReasonField =                                                       \
+      NextBitField<DeoptimizeReason, base::bits::WhichPowerOfTwo<size_t>(   \
+                                         base::bits::RoundUpToPowerOfTwo32( \
+                                             kDeoptimizeReasonCount))>;     \
+                                                                            \
+ public:                                                                    \
+  DeoptimizeReason deoptimize_reason() const {                              \
+    return ReasonField::decode(bitfield());                                 \
+  }
+
 struct KnownNodeAspects;
 class NodeBase : public ZoneObject {
  private:
@@ -6414,8 +6426,9 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   using Base = FixedInputNodeT<1, CheckValue>;
 
  public:
-  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef value)
-      : Base(bitfield), value_(value) {}
+  explicit CheckValue(uint64_t bitfield, const compiler::HeapObjectRef value,
+                      DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -6436,7 +6449,9 @@ class CheckValue : public FixedInputNodeT<1, CheckValue> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{value_}; }
+  auto options() const { return std::tuple{value_, deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 
  private:
   const compiler::HeapObjectRef value_;
@@ -6446,8 +6461,9 @@ class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
   using Base = FixedInputNodeT<1, CheckValueEqualsInt32>;
 
  public:
-  explicit CheckValueEqualsInt32(uint64_t bitfield, int32_t value)
-      : Base(bitfield), value_(value) {}
+  explicit CheckValueEqualsInt32(uint64_t bitfield, int32_t value,
+                                 DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -6462,7 +6478,9 @@ class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{value_}; }
+  auto options() const { return std::tuple{value_, deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 
  private:
   const int32_t value_;
@@ -6473,8 +6491,9 @@ class CheckValueEqualsFloat64
   using Base = FixedInputNodeT<1, CheckValueEqualsFloat64>;
 
  public:
-  explicit CheckValueEqualsFloat64(uint64_t bitfield, Float64 value)
-      : Base(bitfield), value_(value) {
+  explicit CheckValueEqualsFloat64(uint64_t bitfield, Float64 value,
+                                   DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)), value_(value) {
     DCHECK(!value.is_nan());
   }
 
@@ -6491,7 +6510,9 @@ class CheckValueEqualsFloat64
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{value_}; }
+  auto options() const { return std::tuple{value_, deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 
  private:
   const Float64 value_;
@@ -6501,7 +6522,8 @@ class CheckFloat64IsNan : public FixedInputNodeT<1, CheckFloat64IsNan> {
   using Base = FixedInputNodeT<1, CheckFloat64IsNan>;
 
  public:
-  explicit CheckFloat64IsNan(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckFloat64IsNan(uint64_t bitfield, DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -6512,7 +6534,11 @@ class CheckFloat64IsNan : public FixedInputNodeT<1, CheckFloat64IsNan> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 };
 
 class CheckValueEqualsString
@@ -6521,8 +6547,9 @@ class CheckValueEqualsString
 
  public:
   explicit CheckValueEqualsString(uint64_t bitfield,
-                                  compiler::InternalizedStringRef value)
-      : Base(bitfield), value_(value) {}
+                                  compiler::InternalizedStringRef value,
+                                  DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)), value_(value) {}
 
   // Can allocate if strings are flattened for comparison.
   static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
@@ -6541,7 +6568,9 @@ class CheckValueEqualsString
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{value_}; }
+  auto options() const { return std::tuple{value_, deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 
  private:
   const compiler::InternalizedStringRef value_;
@@ -6551,7 +6580,8 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
   using Base = FixedInputNodeT<2, CheckDynamicValue>;
 
  public:
-  explicit CheckDynamicValue(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckDynamicValue(uint64_t bitfield, DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
@@ -6570,7 +6600,11 @@ class CheckDynamicValue : public FixedInputNodeT<2, CheckDynamicValue> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  auto options() const { return std::tuple{deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 };
 
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
@@ -6989,24 +7023,20 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
   AssertCondition condition() const {
     return ConditionField::decode(bitfield());
   }
-  DeoptimizeReason reason() const { return ReasonField::decode(bitfield()); }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{condition(), reason()}; }
+  auto options() const { return std::tuple{condition(), deoptimize_reason()}; }
+
+  DEOPTIMIZE_REASON_FIELD
 
  private:
   using ConditionField =
-      NextBitField<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
-                                        base::bits::RoundUpToPowerOfTwo32(
-                                            kNumAssertConditions))>;
-  using ReasonField =
-      ConditionField::Next<DeoptimizeReason,
-                           base::bits::WhichPowerOfTwo<size_t>(
-                               base::bits::RoundUpToPowerOfTwo32(
-                                   kDeoptimizeReasonCount))>;
+      ReasonField::Next<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
+                                             base::bits::RoundUpToPowerOfTwo32(
+                                                 kNumAssertConditions))>;
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
@@ -10703,20 +10733,17 @@ class Deopt : public TerminalControlNodeT<0, Deopt> {
 
  public:
   explicit Deopt(uint64_t bitfield, DeoptimizeReason reason)
-      : Base(bitfield), reason_(reason) {
+      : Base(bitfield | ReasonField::encode(reason)) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Deopt>);
   }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
-  DeoptimizeReason reason() const { return reason_; }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
- private:
-  DeoptimizeReason reason_;
+  DEOPTIMIZE_REASON_FIELD
 };
 
 class Switch : public FixedInputNodeTMixin<1, ConditionalControlNode, Switch> {

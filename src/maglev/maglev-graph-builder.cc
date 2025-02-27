@@ -3519,7 +3519,8 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
     }
     broker()->dependencies()->DependOnScriptContextSlotProperty(
         context_ref, index, property, broker());
-    return BuildCheckNumericalValueOrByReference(value, *constant);
+    return BuildCheckNumericalValueOrByReference(
+        value, *constant, DeoptimizeReason::kStoreToConstant);
   }
 
   if (!v8_flags.script_context_mutable_heap_number) {
@@ -4037,7 +4038,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
       // value doesn't match the previous value stored inside the cell.
       broker()->dependencies()->DependOnGlobalProperty(property_cell);
       ValueNode* value = GetAccumulator();
-      return BuildCheckNumericalValueOrByReference(value, property_cell_value);
+      return BuildCheckNumericalValueOrByReference(
+          value, property_cell_value, DeoptimizeReason::kStoreToConstant);
     }
     case PropertyCellType::kConstantType: {
       // We rely on stability further below.
@@ -4278,7 +4280,8 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       if (!extension_ref->IsUndefined()) return false;
       ValueNode* extension = LoadAndCacheContextSlot(
           context, Context::EXTENSION_INDEX, kMutable, ContextKind::kDefault);
-      AddNewNode<CheckValue>({extension}, broker()->undefined_value());
+      AddNewNode<CheckValue>({extension}, broker()->undefined_value(),
+                             DeoptimizeReason::kUnexpectedContextExtension);
     }
     CHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
     if (scope_info.HasOuterScopeInfo()) {
@@ -5843,8 +5846,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
             TryFoldLoadConstantDoubleField(constant_value, access_info);
         if (constant.has_value()) {
           if (!constant->is_nan()) {
-            AddNewNode<CheckValueEqualsFloat64>({GetAccumulator()},
-                                                constant.value());
+            AddNewNode<CheckValueEqualsFloat64>(
+                {GetAccumulator()}, constant.value(),
+                DeoptimizeReason::kStoreToConstant);
             return ReduceResult::Done();
           }
         }
@@ -5852,8 +5856,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
         compiler::OptionalObjectRef constant =
             TryFoldLoadConstantDataField(constant_value, access_info);
         if (constant.has_value()) {
-          return BuildCheckNumericalValueOrByReference(GetAccumulator(),
-                                                       constant.value());
+          return BuildCheckNumericalValueOrByReference(
+              GetAccumulator(), constant.value(),
+              DeoptimizeReason::kStoreToConstant);
         }
       }
     }
@@ -7485,7 +7490,8 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
         speculating_receiver_map_matches) {
       auto* receiver_map = BuildLoadTaggedField(object, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>(
-          {receiver_map, current_for_in_state.cache_type});
+          {receiver_map, current_for_in_state.cache_type},
+          DeoptimizeReason::kWrongMapDynamic);
       if (current_for_in_state.receiver == object) {
         current_for_in_state.receiver_needs_map_check = false;
       }
@@ -7533,8 +7539,8 @@ ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
     case compiler::ProcessedFeedback::kNamedAccess: {
       ValueNode* key = GetAccumulator();
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
-      RETURN_IF_ABORT(
-          BuildCheckInternalizedStringValueOrByReference(key, name));
+      RETURN_IF_ABORT(BuildCheckInternalizedStringValueOrByReference(
+          key, name, DeoptimizeReason::kKeyedAccessChanged));
 
       MaybeReduceResult result = TryReuseKnownPropertyLoad(object, name);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
@@ -9831,7 +9837,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceObjectPrototypeHasOwnProperty(
       auto* receiver_map =
           BuildLoadTaggedField(receiver, HeapObject::kMapOffset);
       AddNewNode<CheckDynamicValue>(
-          {receiver_map, current_for_in_state.cache_type});
+          {receiver_map, current_for_in_state.cache_type},
+          DeoptimizeReason::kWrongMapDynamic);
       current_for_in_state.receiver_needs_map_check = false;
     }
     return GetRootConstant(RootIndex::kTrueValue);
@@ -10495,48 +10502,49 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValueByReference(
-    ValueNode* node, compiler::HeapObjectRef ref) {
+    ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason) {
   DCHECK(!ref.IsSmi());
   DCHECK(!ref.IsHeapNumber());
 
   if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+    return EmitUnconditionalDeopt(reason);
   }
   if (compiler::OptionalHeapObjectRef maybe_constant = TryGetConstant(node)) {
     if (maybe_constant.value().equals(ref)) {
       return ReduceResult::Done();
     }
-    return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+    return EmitUnconditionalDeopt(reason);
   }
-  AddNewNode<CheckValue>({node}, ref);
+  AddNewNode<CheckValue>({node}, ref, reason);
   SetKnownValue(node, ref, StaticTypeForConstant(broker(), ref));
 
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumericalValueOrByReference(
-    ValueNode* node, compiler::ObjectRef ref) {
+    ValueNode* node, compiler::ObjectRef ref, DeoptimizeReason reason) {
   if (ref.IsHeapObject() && !ref.IsHeapNumber()) {
-    return BuildCheckValueByReference(node, ref.AsHeapObject());
+    return BuildCheckValueByReference(node, ref.AsHeapObject(), reason);
   }
-  return BuildCheckNumericalValue(node, ref);
+  return BuildCheckNumericalValue(node, ref, reason);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckInternalizedStringValueOrByReference(
-    ValueNode* node, compiler::HeapObjectRef ref) {
+    ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason) {
   if (!IsConstantNode(node->opcode()) && ref.IsInternalizedString()) {
     if (!IsInstanceOfNodeType(ref.map(broker()), GetType(node), broker())) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+      return EmitUnconditionalDeopt(reason);
     }
-    AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString());
+    AddNewNode<CheckValueEqualsString>({node}, ref.AsInternalizedString(),
+                                       reason);
     SetKnownValue(node, ref, NodeType::kString);
     return ReduceResult::Done();
   }
-  return BuildCheckValueByReference(node, ref);
+  return BuildCheckValueByReference(node, ref, reason);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
-    ValueNode* node, compiler::ObjectRef ref) {
+    ValueNode* node, compiler::ObjectRef ref, DeoptimizeReason reason) {
   DCHECK(ref.IsSmi() || ref.IsHeapNumber());
   if (ref.IsSmi()) {
     int ref_value = ref.AsSmi();
@@ -10549,12 +10557,12 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
           node->Cast<Int32Constant>()->value() == ref_value) {
         return ReduceResult::Done();
       }
-      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return EmitUnconditionalDeopt(reason);
     }
     if (NodeTypeIs(GetType(node), NodeType::kAnyHeapObject)) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+      return EmitUnconditionalDeopt(reason);
     }
-    AddNewNode<CheckValueEqualsInt32>({node}, ref_value);
+    AddNewNode<CheckValueEqualsInt32>({node}, ref_value, reason);
   } else {
     DCHECK(ref.IsHeapNumber());
     Float64 ref_value = Float64::FromBits(ref.AsHeapNumber().value_as_bits());
@@ -10565,7 +10573,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
       if (f64 == ref_value) {
         return ReduceResult::Done();
       }
-      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return EmitUnconditionalDeopt(reason);
     } else if (compiler::OptionalHeapObjectRef constant =
                    TryGetConstant(node)) {
       if (constant.value().IsHeapNumber()) {
@@ -10576,15 +10584,15 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
           return ReduceResult::Done();
         }
       }
-      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
+      return EmitUnconditionalDeopt(reason);
     }
     if (!NodeTypeIs(NodeType::kNumber, GetType(node))) {
-      return EmitUnconditionalDeopt(DeoptimizeReason::kValueMismatch);
+      return EmitUnconditionalDeopt(reason);
     }
     if (ref_value.is_nan()) {
-      AddNewNode<CheckFloat64IsNan>({node});
+      AddNewNode<CheckFloat64IsNan>({node}, reason);
     } else {
-      AddNewNode<CheckValueEqualsFloat64>({node}, ref_value);
+      AddNewNode<CheckValueEqualsFloat64>({node}, ref_value, reason);
     }
   }
 
@@ -10704,7 +10712,8 @@ compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForTarget(
     ValueNode* target_node, compiler::JSFunctionRef target, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
-  RETURN_IF_ABORT(BuildCheckValueByReference(target_node, target));
+  RETURN_IF_ABORT(BuildCheckValueByReference(
+      target_node, target, DeoptimizeReason::kWrongCallTarget));
   return TryReduceCallForConstant(target, args, feedback_source);
 }
 
@@ -10747,8 +10756,8 @@ MaglevGraphBuilder::TryReduceFunctionPrototypeApplyCallWithReceiver(
 
   ValueNode* function = GetValueOrUndefined(args.receiver());
   if (maybe_receiver.has_value()) {
-    RETURN_IF_ABORT(
-        BuildCheckValueByReference(function, maybe_receiver.value()));
+    RETURN_IF_ABORT(BuildCheckValueByReference(
+        function, maybe_receiver.value(), DeoptimizeReason::kWrongCallTarget));
     function = GetConstant(maybe_receiver.value());
   }
 
@@ -10802,7 +10811,8 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
           broker()->target_native_context();
       compiler::JSFunctionRef apply_function =
           native_context.function_prototype_apply(broker());
-      RETURN_IF_ABORT(BuildCheckValueByReference(target_node, apply_function));
+      RETURN_IF_ABORT(BuildCheckValueByReference(
+          target_node, apply_function, DeoptimizeReason::kWrongCallTarget));
       PROCESS_AND_RETURN_IF_DONE(
           TryReduceFunctionPrototypeApplyCallWithReceiver(feedback_target, args,
                                                           feedback_source),
@@ -10811,7 +10821,8 @@ ReduceResult MaglevGraphBuilder::BuildCallWithFeedback(
     } else {
       DCHECK_EQ(CallFeedbackContent::kTarget, content);
     }
-    RETURN_IF_ABORT(BuildCheckValueByReference(target_node, feedback_target));
+    RETURN_IF_ABORT(BuildCheckValueByReference(
+        target_node, feedback_target, DeoptimizeReason::kWrongCallTarget));
   }
 
   PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source),
@@ -11543,7 +11554,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructBuiltin(
       // If no value is passed, we can immediately lower to a simple
       // constructor.
       if (args.count() == 0) {
-        RETURN_IF_ABORT(BuildCheckValueByReference(target, builtin));
+        RETURN_IF_ABORT(BuildCheckValueByReference(
+            target, builtin, DeoptimizeReason::kWrongConstructor));
         ValueNode* result = BuildInlinedAllocation(CreateJSConstructor(builtin),
                                                    AllocationType::kYoung);
         return result;
@@ -11561,7 +11573,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceConstructGeneric(
     compiler::SharedFunctionInfoRef shared_function_info, ValueNode* target,
     ValueNode* new_target, CallArguments& args,
     compiler::FeedbackSource& feedback_source) {
-  RETURN_IF_ABORT(BuildCheckValueByReference(target, function));
+  RETURN_IF_ABORT(BuildCheckValueByReference(
+      target, function, DeoptimizeReason::kWrongConstructor));
 
   int construct_arg_count = static_cast<int>(args.count());
   base::Vector<ValueNode*> construct_arguments_without_receiver =
@@ -11699,7 +11712,8 @@ ReduceResult MaglevGraphBuilder::BuildConstruct(
     // for the resulting arrays.
     compiler::JSFunctionRef array_function =
         broker()->target_native_context().array_function(broker());
-    RETURN_IF_ABORT(BuildCheckValueByReference(target, array_function));
+    RETURN_IF_ABORT(BuildCheckValueByReference(
+        target, array_function, DeoptimizeReason::kWrongConstructor));
     PROCESS_AND_RETURN_IF_DONE(
         TryReduceConstructArrayConstructor(array_function, args,
                                            feedback_target->AsAllocationSite()),
@@ -12026,7 +12040,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     if (callable_node_if_not_constant) {
       // Check that {callable_node_if_not_constant} is actually {callable}.
       RETURN_IF_ABORT(
-          BuildCheckValueByReference(callable_node_if_not_constant, callable));
+          BuildCheckValueByReference(callable_node_if_not_constant, callable,
+                                     DeoptimizeReason::kWrongValue));
       callable_node = callable_node_if_not_constant;
     } else {
       callable_node = GetConstant(callable);
@@ -14316,7 +14331,8 @@ ReduceResult MaglevGraphBuilder::VisitForInPrepare() {
       // the receiver's Map or a FixedArray).
       auto* receiver_map =
           BuildLoadTaggedField(receiver, HeapObject::kMapOffset);
-      AddNewNode<CheckDynamicValue>({receiver_map, enumerator});
+      AddNewNode<CheckDynamicValue>({receiver_map, enumerator},
+                                    DeoptimizeReason::kWrongMapDynamic);
 
       auto* descriptor_array =
           BuildLoadTaggedField(enumerator, Map::kInstanceDescriptorsOffset);
@@ -14388,7 +14404,8 @@ ReduceResult MaglevGraphBuilder::VisitForInNext() {
       // Ensure that the expected map still matches that of the {receiver}.
       auto* receiver_map =
           BuildLoadTaggedField(receiver, HeapObject::kMapOffset);
-      AddNewNode<CheckDynamicValue>({receiver_map, cache_type});
+      AddNewNode<CheckDynamicValue>({receiver_map, cache_type},
+                                    DeoptimizeReason::kWrongMapDynamic);
       auto* key = BuildLoadFixedArrayElement(cache_array, index);
       EnsureType(key, NodeType::kInternalizedString);
       SetAccumulator(key);

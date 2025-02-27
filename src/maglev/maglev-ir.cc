@@ -1247,7 +1247,7 @@ void GetSecondReturnedValue::GenerateCode(MaglevAssembler* masm,
 
 void Deopt::SetValueLocationConstraints() {}
 void Deopt::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  __ EmitEagerDeopt(this, reason());
+  __ EmitEagerDeopt(this, deoptimize_reason());
 }
 
 void Phi::SetValueLocationConstraints() {
@@ -3402,7 +3402,7 @@ void CheckValue::SetValueLocationConstraints() { UseRegister(target_input()); }
 void CheckValue::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register target = ToRegister(target_input());
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareTaggedAndJumpIf(target, value().object(), kNotEqual, fail);
 }
 
@@ -3412,7 +3412,7 @@ void CheckValueEqualsInt32::SetValueLocationConstraints() {
 void CheckValueEqualsInt32::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   Register target = ToRegister(target_input());
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareInt32AndJumpIf(target, value(), kNotEqual, fail);
 }
 
@@ -3422,7 +3422,7 @@ void CheckValueEqualsFloat64::SetValueLocationConstraints() {
 }
 void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   DoubleRegister scratch = temps.AcquireDouble();
   DoubleRegister target = ToDoubleRegister(target_input());
@@ -3435,7 +3435,7 @@ void CheckFloat64IsNan::SetValueLocationConstraints() {
 }
 void CheckFloat64IsNan::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   DoubleRegister target = ToDoubleRegister(target_input());
   __ JumpIfNotNan(target, fail);
 }
@@ -3456,16 +3456,16 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
   __ CompareTaggedAndJumpIf(target, value().object(), kEqual, *end,
                             Label::kNear);
 
-  __ EmitEagerDeoptIfSmi(this, target, DeoptimizeReason::kWrongValue);
+  __ EmitEagerDeoptIfSmi(this, target, deoptimize_reason());
   __ JumpIfString(
       target,
       __ MakeDeferredCode(
           [](MaglevAssembler* masm, CheckValueEqualsString* node,
-             ZoneLabelRef end) {
+             ZoneLabelRef end, DeoptimizeReason deoptimize_reason) {
             Register target = D::GetRegisterParameter(D::kLeft);
             Register string_length = D::GetRegisterParameter(D::kLength);
             __ StringLength(string_length, target);
-            Label* fail = __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue);
+            Label* fail = __ GetDeoptLabel(node, deoptimize_reason);
             __ CompareInt32AndJumpIf(string_length, node->value().length(),
                                      kNotEqual, fail);
             RegisterSnapshot snapshot = node->register_snapshot();
@@ -3481,12 +3481,12 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
               // the correct register set.
               __ CompareRoot(kReturnRegister0, RootIndex::kTrueValue);
             }
-            __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
+            __ EmitEagerDeoptIf(kNotEqual, deoptimize_reason, node);
             __ Jump(*end);
           },
-          this, end));
+          this, end, deoptimize_reason()));
 
-  __ EmitEagerDeopt(this, DeoptimizeReason::kWrongValue);
+  __ EmitEagerDeopt(this, deoptimize_reason());
 
   __ bind(*end);
 }
@@ -3499,7 +3499,7 @@ void CheckDynamicValue::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   Register first = ToRegister(first_input());
   Register second = ToRegister(second_input());
-  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongValue);
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareTaggedAndJumpIf(first, second, kNotEqual, fail);
 }
 
@@ -3605,7 +3605,7 @@ void CheckInt32Condition::SetValueLocationConstraints() {
 }
 void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  Label* fail = __ GetDeoptLabel(this, reason());
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
   __ CompareInt32AndJumpIf(ToRegister(left_input()), ToRegister(right_input()),
                            NegateCondition(ToCondition(condition())), fail);
 }
@@ -3660,7 +3660,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
             Label check_smi, check_mutable_int32, mutable_heap_number;
             __ CompareRootAndEmitEagerDeoptIf(
                 property, RootIndex::kUndefinedValue, kEqual,
-                DeoptimizeReason::kWrongValue, node);
+                DeoptimizeReason::kStoreToConstant, node);
             __ JumpIfSmi(property, &check_smi);
             __ AssertObjectType(property, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
                                 AbortReason::kUnexpectedInstanceType);
@@ -3672,7 +3672,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
             // Check for const case.
             __ CompareTaggedAndJumpIf(
                 property, ContextSidePropertyCell::Const(), kEqual,
-                __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue));
+                __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
 
             if (v8_flags.script_context_mutable_heap_number) {
               // Check for smi case
@@ -3680,7 +3680,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
                                         ContextSidePropertyCell::SmiMarker(),
                                         kNotEqual, &check_mutable_int32);
               __ EmitEagerDeoptIfNotSmi(node, new_value,
-                                        DeoptimizeReason::kWrongValue);
+                                        DeoptimizeReason::kStoreToConstant);
               __ Jump(*do_normal_store);
 
               MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -3703,13 +3703,14 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
                   __ bind(&new_value_is_not_smi);
                   __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
                                         property);
-                  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
-                                      node);
+                  __ EmitEagerDeoptIf(kNotEqual,
+                                      DeoptimizeReason::kStoreToConstant, node);
 
                   __ LoadHeapNumberValue(double_scratch, new_value);
                   __ TryTruncateDoubleToInt32(
                       new_value_int32, double_scratch,
-                      __ GetDeoptLabel(node, DeoptimizeReason::kWrongValue));
+                      __ GetDeoptLabel(node,
+                                       DeoptimizeReason::kStoreToConstant));
                   __ StoreHeapInt32Value(new_value_int32, old_value);
                   __ Jump(*done);
                 }
@@ -3729,8 +3730,8 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
                 __ bind(&new_value_is_not_smi);
                 __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
                                       property);
-                __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue,
-                                    node);
+                __ EmitEagerDeoptIf(kNotEqual,
+                                    DeoptimizeReason::kStoreToConstant, node);
                 __ LoadHeapNumberValue(double_scratch, new_value);
                 __ StoreHeapNumberValue(double_scratch, old_value);
                 __ Jump(*done);
@@ -7732,24 +7733,38 @@ void TransitionElementsKindOrCheckMap::PrintParams(
   os << "]-->" << *transition_target().object() << ")";
 }
 
+void CheckFloat64IsNan::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
+}
+
+void CheckDynamicValue::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
+}
+
 void CheckValue::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *value().object() << ")";
+  os << "(" << *value().object() << ", "
+     << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
 void CheckValueEqualsInt32::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
+  os << "(" << value() << ", " << DeoptimizeReasonToString(deoptimize_reason())
+     << ")";
 }
 
 void CheckValueEqualsFloat64::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ")";
+  os << "(" << value() << ", " << DeoptimizeReasonToString(deoptimize_reason())
+     << ")";
 }
 
 void CheckValueEqualsString::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << *value().object() << ")";
+  os << "(" << *value().object() << ", "
+     << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
 void CheckInstanceType::PrintParams(std::ostream& os,
@@ -7778,7 +7793,7 @@ void CheckMapsWithMigration::PrintParams(
 
 void CheckInt32Condition::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << condition() << ", " << reason() << ")";
+  os << "(" << condition() << ", " << deoptimize_reason() << ")";
 }
 
 void StoreScriptContextSlotWithWriteBarrier::PrintParams(
@@ -8100,7 +8115,7 @@ void ReduceInterruptBudgetForReturn::PrintParams(
 
 void Deopt::PrintParams(std::ostream& os,
                         MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << DeoptimizeReasonToString(reason()) << ")";
+  os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
 void BranchIfRootConstant::PrintParams(

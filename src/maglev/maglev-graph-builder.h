@@ -2252,13 +2252,16 @@ class MaglevGraphBuilder {
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
   ReduceResult BuildCheckInternalizedStringValueOrByReference(
-      ValueNode* node, compiler::HeapObjectRef ref);
+      ValueNode* node, compiler::HeapObjectRef ref, DeoptimizeReason reason);
   ReduceResult BuildCheckNumericalValueOrByReference(ValueNode* node,
-                                                     compiler::ObjectRef ref);
+                                                     compiler::ObjectRef ref,
+                                                     DeoptimizeReason reason);
   ReduceResult BuildCheckValueByReference(ValueNode* node,
-                                          compiler::HeapObjectRef ref);
+                                          compiler::HeapObjectRef ref,
+                                          DeoptimizeReason reason);
   ReduceResult BuildCheckNumericalValue(ValueNode* node,
-                                        compiler::ObjectRef ref);
+                                        compiler::ObjectRef ref,
+                                        DeoptimizeReason reason);
 
   ValueNode* BuildConvertHoleToUndefined(ValueNode* node);
   ReduceResult BuildCheckNotHole(ValueNode* node);
