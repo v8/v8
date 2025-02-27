@@ -20,6 +20,7 @@ namespace internal {
 BUILTIN(DisposableStackConstructor) {
   const char* const kMethodName = "DisposableStack";
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kExplicitResourceManagement);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (IsUndefined(*args.new_target(), isolate)) {

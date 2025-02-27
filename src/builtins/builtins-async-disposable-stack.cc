@@ -117,6 +117,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
 BUILTIN(AsyncDisposableStackConstructor) {
   const char kMethodName[] = "AsyncDisposableStack";
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kExplicitResourceManagement);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (!IsJSReceiver(*args.new_target(), isolate)) {

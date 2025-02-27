@@ -4472,6 +4472,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       DCHECK(is_using_allowed());
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());
       DCHECK(peek() != Token::kLeftBracket && peek() != Token::kLeftBrace);
+      impl()->CountUsage(v8::Isolate::kExplicitResourceManagement);
       parsing_result->descriptor.mode = VariableMode::kUsing;
       break;
     case Token::kAwait:
@@ -4485,6 +4486,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       Consume(Token::kUsing);
       DCHECK(!scanner()->HasLineTerminatorBeforeNext());
       DCHECK(peek() != Token::kLeftBracket && peek() != Token::kLeftBrace);
+      impl()->CountUsage(v8::Isolate::kExplicitResourceManagement);
       parsing_result->descriptor.mode = VariableMode::kAwaitUsing;
       if (!target_scope->has_await_using_declaration()) {
         function_state_->AddSuspend();
