@@ -126,23 +126,6 @@ class FunctionCallbackInfo {
   V8_INLINE Local<Value> operator[](int i) const;
   /** Returns the receiver. This corresponds to the "this" value. */
   V8_INLINE Local<Object> This() const;
-  /**
-   * If the callback was created without a Signature, this is the same
-   * value as This(). If there is a signature, and the signature didn't match
-   * This() but one of its hidden prototypes, this will be the respective
-   * hidden prototype.
-   *
-   * Note that this is not the prototype of This() on which the accessor
-   * referencing this callback was found (which in V8 internally is often
-   * referred to as holder [sic]).
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use This() instead. \n"
-      "DO NOT try to workaround this by accessing JSGlobalObject via "
-      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
-      "See http://crbug.com/333672197. ")
-  V8_INLINE Local<Object> Holder() const;
   /** For construct calls, this returns the "new.target" value. */
   V8_INLINE Local<Value> NewTarget() const;
   /** Indicates whether this is a regular call or a construct call. */
@@ -153,11 +136,6 @@ class FunctionCallbackInfo {
   V8_INLINE Isolate* GetIsolate() const;
   /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
-
-  // This is a temporary replacement for Holder() added just for the purpose
-  // of testing the deprecated Holder() machinery until it's removed for real.
-  // DO NOT use it.
-  V8_INLINE Local<Object> HolderSoonToBeDeprecated() const;
 
  private:
   friend class internal::FunctionCallbackArguments;
@@ -647,16 +625,6 @@ template <typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
   // values_ points to the first argument (not the receiver).
   return Local<Object>::FromSlot(values_ + kThisValuesIndex);
-}
-
-template <typename T>
-Local<Object> FunctionCallbackInfo<T>::HolderSoonToBeDeprecated() const {
-  return Local<Object>::FromSlot(&implicit_args_[kHolderIndex]);
-}
-
-template <typename T>
-Local<Object> FunctionCallbackInfo<T>::Holder() const {
-  return HolderSoonToBeDeprecated();
 }
 
 template <typename T>

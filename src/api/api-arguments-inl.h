@@ -42,10 +42,6 @@ inline Tagged<Object> PropertyCallbackArguments::receiver() const {
   return *slot_at(T::kThisIndex);
 }
 
-inline Tagged<JSReceiver> FunctionCallbackArguments::holder() const {
-  return Cast<JSReceiver>(*slot_at(T::kHolderIndex));
-}
-
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \
   DCHECK(interceptor->is_named());                \
   DCHECK(!name->IsPrivate());                     \

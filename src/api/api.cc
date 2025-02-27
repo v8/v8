@@ -12325,8 +12325,7 @@ bool ValidateFunctionCallbackInfo(const FunctionCallbackInfo<T>& info) {
   auto* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(i_isolate, Isolate::Current());
   CHECK(!i_isolate->GetIncumbentContext().is_null());
-  CHECK(info.This()->IsValue());
-  CHECK(info.HolderSoonToBeDeprecated()->IsObject());
+  CHECK(info.This()->IsObject());
   CHECK(!info.Data().IsEmpty());
   CHECK(info.GetReturnValue().Get()->IsValue());
   return true;

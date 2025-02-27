@@ -20,35 +20,34 @@ namespace internal {
 
 namespace {
 
-// Returns the holder JSObject if the function can legally be called with this
-// receiver.  Returns nullptr if the call is illegal.
-// TODO(dcarney): CallOptimization duplicates this logic, merge.
-Tagged<JSReceiver> GetCompatibleReceiver(Isolate* isolate,
-                                         Tagged<FunctionTemplateInfo> info,
-                                         Tagged<JSReceiver> receiver) {
+// Returns true if the function can legally be called with this receiver,
+// otherwise false.
+// TODO(ishell): CallOptimization duplicates this logic, merge.
+bool IsCompatibleReceiver(Isolate* isolate, Tagged<FunctionTemplateInfo> info,
+                          Tagged<JSReceiver> receiver) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kGetCompatibleReceiver);
   Tagged<Object> recv_type = info->signature();
-  // No signature, return holder.
-  if (!IsFunctionTemplateInfo(recv_type)) return receiver;
+  // No signature, so function can be called with any receiver.
+  if (!IsFunctionTemplateInfo(recv_type)) return true;
   // A Proxy cannot have been created from the signature template.
-  if (!IsJSObject(receiver)) return JSReceiver();
+  if (!IsJSObject(receiver)) return false;
 
   Tagged<JSObject> js_obj_receiver = Cast<JSObject>(receiver);
   Tagged<FunctionTemplateInfo> signature =
       Cast<FunctionTemplateInfo>(recv_type);
 
   // Check the receiver.
-  if (signature->IsTemplateFor(js_obj_receiver)) return receiver;
+  if (signature->IsTemplateFor(js_obj_receiver)) return true;
 
   // The JSGlobalProxy might have a hidden prototype.
   if (V8_UNLIKELY(IsJSGlobalProxy(js_obj_receiver))) {
     Tagged<HeapObject> prototype = js_obj_receiver->map()->prototype();
     if (!IsNull(prototype, isolate)) {
       Tagged<JSObject> js_obj_prototype = Cast<JSObject>(prototype);
-      if (signature->IsTemplateFor(js_obj_prototype)) return js_obj_prototype;
+      if (signature->IsTemplateFor(js_obj_prototype)) return true;
     }
   }
-  return JSReceiver();
+  return false;
 }
 
 // argv and argc are the same as those passed to FunctionCallbackInfo:
@@ -60,7 +59,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     DirectHandle<FunctionTemplateInfo> fun_data, DirectHandle<Object> receiver,
     Address* argv, int argc) {
   Handle<JSReceiver> js_receiver;
-  Tagged<JSReceiver> raw_holder;
   if (is_construct) {
     DCHECK(IsTheHole(*receiver, isolate));
     if (IsUndefined(fun_data->GetInstanceTemplate(), isolate)) {
@@ -77,7 +75,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ApiNatives::InstantiateObject(isolate, instance_template,
                                       Cast<JSReceiver>(new_target)));
     argv[BuiltinArguments::kReceiverArgsIndex] = js_receiver->ptr();
-    raw_holder = *js_receiver;
   } else {
     DCHECK(IsJSReceiver(*receiver));
     js_receiver = indirect_handle(Cast<JSReceiver>(receiver), isolate);
@@ -93,9 +90,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       }
     }
 
-    raw_holder = GetCompatibleReceiver(isolate, *fun_data, *js_receiver);
-
-    if (raw_holder.is_null()) {
+    if (!IsCompatibleReceiver(isolate, *fun_data, *js_receiver)) {
       // This function cannot be called with the given receiver.  Abort!
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kIllegalInvocation));
@@ -103,8 +98,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
   }
 
   if (fun_data->has_callback(isolate)) {
-    FunctionCallbackArguments custom(isolate, *fun_data, raw_holder,
-                                     *new_target, argv, argc);
+    FunctionCallbackArguments custom(isolate, *fun_data, *new_target, argv,
+                                     argc);
     DirectHandle<Object> result =
         custom.CallOrConstruct(*fun_data, is_construct);
 
@@ -241,7 +236,7 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   Tagged<Object> result;
   {
     HandleScope scope(isolate);
-    FunctionCallbackArguments custom(isolate, templ, obj, new_target,
+    FunctionCallbackArguments custom(isolate, templ, new_target,
                                      args.address_of_first_argument(),
                                      args.length() - 1);
     DirectHandle<Object> result_handle =

@@ -155,8 +155,7 @@ static void IncrementingSignatureCallback(
   v8::Local<Value> signature_expected_receiver =
       signature_expected_receiver_global.Get(isolate);
   CHECK(signature_expected_receiver
-            ->Equals(isolate->GetCurrentContext(),
-                     info.HolderSoonToBeDeprecated())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   CHECK(signature_expected_receiver
             ->Equals(isolate->GetCurrentContext(), info.This())
@@ -11969,8 +11968,7 @@ void FastApiCallback_TrivialSignature(
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK(info.This()
-            ->Equals(isolate->GetCurrentContext(),
-                     info.HolderSoonToBeDeprecated())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   CHECK(info.Data()
             ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
@@ -11992,15 +11990,14 @@ void FastApiCallback_SimpleSignature(
   CHECK_EQ(isolate, info.GetIsolate());
   CHECK(info.This()
             ->GetPrototype()
-            ->Equals(isolate->GetCurrentContext(),
-                     info.HolderSoonToBeDeprecated())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   CHECK(info.Data()
             ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
             .FromJust());
   // Note, we're using HasRealNamedProperty instead of Has to avoid
   // invoking the interceptor again.
-  CHECK(info.HolderSoonToBeDeprecated()
+  CHECK(info.This()
             ->HasRealNamedProperty(isolate->GetCurrentContext(), v8_str("foo"))
             .FromJust());
   info.GetReturnValue().Set(
@@ -22144,7 +22141,8 @@ class ApiCallOptimizationChecker {
                 ->Equals(info.GetIsolate()->GetCurrentContext(), info[0])
                 .FromJust());
     }
-    CHECK_EQ(holder, info.HolderSoonToBeDeprecated());
+    // TODO(ishell, https://crbug.com/333672197): cleanup this.
+    // CHECK_EQ(holder, info.Holder());
     count++;
     Local<Value> return_value = info.GetReturnValue().Get();
     CHECK(return_value->IsUndefined());
@@ -28333,7 +28331,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver = v8::Object::Cast(*info.HolderSoonToBeDeprecated());
+    v8::Object* receiver = *info.This();
     if (!IsValidUnwrapObject(receiver)) {
       info.GetIsolate()->ThrowException(v8_str("Called with a non-object."));
       return;
@@ -28374,10 +28372,8 @@ struct UnexpectedObjectChecker
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     UnexpectedObjectChecker* receiver_ptr =
-        GetInternalField<UnexpectedObjectChecker>(receiver_obj);
+        GetInternalField<UnexpectedObjectChecker>(*info.This());
     receiver_ptr->SetCallSlow();
     if (info[0]->IsObject()) {
       v8::Object* argument_obj = v8::Object::Cast(*info[0]);
@@ -28410,10 +28406,8 @@ struct ApiObjectChecker
   }
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     ApiObjectChecker* receiver_ptr =
-        GetInternalField<ApiObjectChecker>(receiver_obj);
+        GetInternalField<ApiObjectChecker>(*info.This());
     receiver_ptr->SetCallSlow();
 
     CHECK(info[0]->IsObject());
@@ -28745,10 +28739,8 @@ struct ReturnValueChecker : BasicApiChecker<T, ReturnValueChecker<T>, T> {
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     ReturnValueChecker<T>* receiver_ptr =
-        GetInternalField<ReturnValueChecker<T>>(receiver_obj);
+        GetInternalField<ReturnValueChecker<T>>(*info.This());
     receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
@@ -28791,10 +28783,8 @@ struct AllocationChecker : BasicApiChecker<int32_t, AllocationChecker, void> {
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     AllocationChecker* receiver_ptr =
-        GetInternalField<AllocationChecker>(receiver_obj);
+        GetInternalField<AllocationChecker>(*info.This());
     receiver_ptr->SetCallSlow();
     info.GetReturnValue().Set(info[0]);
   }
@@ -28825,10 +28815,8 @@ struct ThrowInReentrantJSChecker
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     ThrowInReentrantJSChecker* receiver_ptr =
-        GetInternalField<ThrowInReentrantJSChecker>(receiver_obj);
+        GetInternalField<ThrowInReentrantJSChecker>(*info.This());
     receiver_ptr->SetCallSlow();
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope handle_scope(isolate);
@@ -29083,10 +29071,8 @@ struct RecursiveReentrantJSChecker
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CHECK(i::ValidateCallbackInfo(info));
-    v8::Object* receiver_obj =
-        v8::Object::Cast(*info.HolderSoonToBeDeprecated());
     RecursiveReentrantJSChecker* receiver_ptr =
-        GetInternalField<RecursiveReentrantJSChecker>(receiver_obj);
+        GetInternalField<RecursiveReentrantJSChecker>(*info.This());
     receiver_ptr->SetCallSlow();
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope handle_scope(isolate);
@@ -29805,9 +29791,8 @@ struct SeqOneByteStringChecker {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Object* receiver_obj = v8::Object::Cast(*info.This());
     SeqOneByteStringChecker* receiver_ptr =
-        GetInternalField<SeqOneByteStringChecker>(receiver_obj);
+        GetInternalField<SeqOneByteStringChecker>(*info.This());
     receiver_ptr->result_ |= ApiCheckerResult::kSlowCalled;
 
     CHECK(info[0]->IsString());

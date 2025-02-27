@@ -280,7 +280,6 @@ class FunctionCallbackArguments
 
   FunctionCallbackArguments(Isolate* isolate,
                             Tagged<FunctionTemplateInfo> target,
-                            Tagged<Object> holder,
                             Tagged<HeapObject> new_target, Address* argv,
                             int argc);
 
@@ -303,8 +302,6 @@ class FunctionCallbackArguments
   }
 
  private:
-  inline Tagged<JSReceiver> holder() const;
-
   Address* argv_;
   int const argc_;
 };
