@@ -27527,6 +27527,16 @@ TEST(BigIntAPI) {
     CHECK_EQ(real_sign_bit, sign_bit);
     CHECK_EQ(word_count, 2);
   }
+
+  {
+    // Regression test for an off-by-one on 32-bit platforms, reported at
+    // https://groups.google.com/g/v8-dev/c/pjaovT8V4kY/m/kfdqgQshAQAJ
+    words1[0] = 0x0000'0001'0000'0000ULL;
+    v8::Local<v8::BigInt> bi =
+        v8::BigInt::NewFromWords(env.local(), 0, 1, words1).ToLocalChecked();
+    CHECK_EQ(bi->Uint64Value(&lossless), words1[0]);
+    CHECK(lossless);
+  }
 }
 
 TEST(GetJSEntryStubs) {

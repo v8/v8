@@ -1373,7 +1373,7 @@ MaybeDirectHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
   static_assert(kDigitBits == 64 || kDigitBits == 32);
   uint32_t length = (64 / kDigitBits) * words64_count;
   DCHECK_GT(length, 0);
-  if (kDigitBits == 32 && words[words64_count - 1] <= (1ULL << 32)) length--;
+  if (kDigitBits == 32 && words[words64_count - 1] < (1ULL << 32)) length--;
 
   Handle<MutableBigInt> result;
   if (!MutableBigInt::New(isolate, length).ToHandle(&result)) return {};
