@@ -1614,8 +1614,8 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
   if (!key_cache_.Contains(key)) {
     return false;
   }
-  uint32_t length = key->length();
-  uint32_t copy_length = length;
+  size_t length = key->length();
+  size_t copy_length = length;
   if constexpr (sizeof(DestChar) == 1) {
     // CopyChars has fast paths for small integer lengths, and is generally a
     // little faster if we round the length up to the nearest 4. This is still
@@ -1629,7 +1629,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
   // is needed. We might actually require a little less output space than this,
   // depending on how much rounding happened above, but it's more important to
   // compute the requirement quickly than to be precise.
-  uint32_t required_length = copy_length + 3;
+  size_t required_length = copy_length + 3;
   if (!CurrentPartCanFit(required_length)) {
     return false;
   }
@@ -1641,7 +1641,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
             key.address() + key->Size());
 #if DEBUG
-  for (uint32_t i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     DCHECK(DoNotEscape(chars[i]));
   }
 #endif  // DEBUG
