@@ -2231,7 +2231,9 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
 
   // Don't pre-commit the code cage on Windows since it uses memory and it's not
   // required for recommit.
-#if !defined(V8_OS_WIN)
+  // iOS cannot adjust page permissions for MAP_JIT'd pages, they are set as RWX
+  // at the start.
+#if !defined(V8_OS_WIN) && !defined(V8_OS_IOS)
   if (MemoryProtectionKeysEnabled()) {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
     if (ThreadIsolation::Enabled()) {
@@ -2250,7 +2252,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   }
   page_allocator->DiscardSystemPages(reinterpret_cast<void*>(mem.address()),
                                      mem.size());
-#endif  // !defined(V8_OS_WIN)
+#endif  // !defined(V8_OS_WIN) && !defined(V8_OS_IOS)
 
   ThreadIsolation::RegisterJitPage(mem.address(), mem.size());
 
