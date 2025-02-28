@@ -9,7 +9,6 @@
 
 #include <atomic>
 
-#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/internal/name-trait.h"
@@ -87,7 +86,7 @@ class HeapObjectHeader {
 
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsInConstruction() const;
-  inline void MarkAsFullyConstructed();
+  V8_EXPORT_PRIVATE void MarkAsFullyConstructed();
   // Use MarkObjectAsFullyConstructed() to mark an object as being constructed.
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -265,11 +264,6 @@ bool HeapObjectHeader::IsInConstruction() const {
   const uint16_t encoded =
       LoadEncoded<mode, EncodedHalf::kHigh, std::memory_order_acquire>();
   return !FullyConstructedField::decode(encoded);
-}
-
-void HeapObjectHeader::MarkAsFullyConstructed() {
-  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
-      ObjectStart());
 }
 
 template <AccessMode mode>

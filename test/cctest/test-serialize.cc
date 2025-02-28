@@ -30,6 +30,7 @@
 
 #include <vector>
 
+#include "include/cppgc/allocation.h"
 #include "include/v8-context.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-extension.h"

@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <vector>
 
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/pointer-policies.h"
 #include "src/base/logging.h"
