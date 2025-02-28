@@ -5263,9 +5263,9 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   CSA_DCHECK(this,
              IntPtrOrSmiGreaterThan(capacity, IntPtrOrSmiConstant<TIndex>(0)));
 
-  const intptr_t kMaxLength = IsDoubleElementsKind(kind)
-                                  ? FixedDoubleArray::kMaxLength
-                                  : FixedArray::kMaxLength;
+  static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
+  constexpr intptr_t kMaxLength = FixedArray::kMaxLength;
+
   intptr_t capacity_constant;
   if (ToParameterConstant(capacity, &capacity_constant)) {
     CHECK_LE(capacity_constant, kMaxLength);

@@ -12,6 +12,7 @@
 #include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-collection-iterator.h"
 #include "src/objects/objects-inl.h"
@@ -671,28 +672,6 @@ void SwissNameDictionary::SetHash(int32_t hash) {
 int SwissNameDictionary::Hash() { return ReadField<int32_t>(PrefixOffset()); }
 
 // static
-constexpr int SwissNameDictionary::MaxCapacity() {
-  int const_size =
-      DataTableStartOffset() + sizeof(ByteArray::Header) +
-      // Size for present and deleted element count at max capacity:
-      2 * sizeof(uint32_t);
-  int per_entry_size =
-      // size of data table entries:
-      kDataTableEntryCount * kTaggedSize +
-      // ctrl table entry size:
-      kOneByteSize +
-      // PropertyDetails table entry size:
-      kOneByteSize +
-      // Enumeration table entry size at maximum capacity:
-      sizeof(uint32_t);
-
-  int result = (FixedArrayBase::kMaxSize - const_size) / per_entry_size;
-  DCHECK_GE(Smi::kMaxValue, result);
-
-  return result;
-}
-
-// static
 constexpr int SwissNameDictionary::PrefixOffset() {
   return HeapObject::kHeaderSize;
 }
@@ -726,6 +705,29 @@ constexpr int SwissNameDictionary::CtrlTableStartOffset(int capacity) {
 constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
     int capacity) {
   return CtrlTableStartOffset(capacity) + CtrlTableSize(capacity);
+}
+
+// static
+constexpr int SwissNameDictionary::MaxCapacity() {
+  constexpr int kConstSize =
+      SwissNameDictionary::DataTableStartOffset() + sizeof(ByteArray::Header) +
+      // Size for present and deleted element count at max capacity:
+      2 * sizeof(uint32_t);
+  constexpr int kPerEntrySize =
+      // size of data table entries:
+      kDataTableEntryCount * kTaggedSize +
+      // ctrl table entry size:
+      kOneByteSize +
+      // PropertyDetails table entry size:
+      kOneByteSize +
+      // Enumeration table entry size at maximum capacity:
+      sizeof(uint32_t);
+
+  constexpr int result =
+      (kMaxFixedArrayCapacity * kTaggedSize - kConstSize) / kPerEntrySize;
+  static_assert(Smi::kMaxValue >= result);
+
+  return result;
 }
 
 // static

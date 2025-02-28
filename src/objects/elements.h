@@ -107,8 +107,8 @@ class ElementsAccessor {
       DirectHandle<JSObject> receiver, KeyAccumulator* accumulator,
       AddKeyConversion convert) = 0;
 
-  V8_WARN_UNUSED_RESULT virtual Maybe<bool> TransitionElementsKind(
-      DirectHandle<JSObject> object, DirectHandle<Map> map) = 0;
+  virtual void TransitionElementsKind(DirectHandle<JSObject> object,
+                                      DirectHandle<Map> map) = 0;
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> GrowCapacityAndConvert(
       DirectHandle<JSObject> object, uint32_t capacity) = 0;
   // Unlike GrowCapacityAndConvert do not attempt to convert the backing store

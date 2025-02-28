@@ -26,6 +26,11 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
+// Limit all fixed arrays to the same max capacity, so that non-resizing
+// transitions between different elements kinds (like Smi to Double) will not
+// error.
+static constexpr int kMaxFixedArrayCapacity = 128 * 1000 * 1000;
+
 namespace detail {
 template <class Super, bool kLengthEqualsCapacity>
 class ArrayHeaderBase;
@@ -172,13 +177,13 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
   inline SlotType RawFieldOfFirstElement() const;
   inline SlotType RawFieldOfElementAt(int index) const;
 
-  // Maximal allowed capacity, in number of elements. Chosen s.t. the size fits
-  // into a Smi which is necessary for being able to create a free space
+  // Maximal allowed capacity, in number of elements. Chosen s.t. the byte size
+  // fits into a Smi which is necessary for being able to create a free space
   // filler.
   // TODO(jgruber): The kMaxCapacity could be larger (`(Smi::kMaxValue -
   // Shape::kHeaderSize) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
-  static constexpr int kMaxCapacity = 128 * MB - sizeof(Header) / kElementSize;
+  static constexpr int kMaxCapacity = kMaxFixedArrayCapacity;
   static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
 
   // Maximally allowed length for regular (non large object space) object.
@@ -372,11 +377,6 @@ class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
 
   V8_EXPORT_PRIVATE bool IsCowArray() const;
 
-  // Maximal allowed size, in bytes, of a single FixedArrayBase. Prevents
-  // overflowing size computations, as well as extreme memory consumption.
-  static constexpr int kMaxSize = 128 * kTaggedSize * MB;
-  static_assert(Smi::IsValid(kMaxSize));
-
   DECL_VERIFIER(FixedArrayBase)
 } V8_OBJECT_END;
 
@@ -421,14 +421,13 @@ class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
 
   static inline Tagged<Derived> FromAddressOfFirstElement(Address address);
 
-  // Maximal allowed length, in number of elements. Chosen s.t. the size fits
-  // into a Smi which is necessary for being able to create a free space
+  // Maximal allowed length, in number of elements. Chosen s.t. the byte size
+  // fits into a Smi which is necessary for being able to create a free space
   // filler.
   // TODO(jgruber): The kMaxLength could be larger (`(Smi::kMaxValue -
   // sizeof(Header)) / kElementSize`), but our tests rely on a
   // smaller maximum to avoid timeouts.
-  static constexpr int kMaxLength =
-      (FixedArrayBase::kMaxSize - sizeof(Header)) / kElementSize;
+  static constexpr int kMaxLength = kMaxFixedArrayCapacity;
   static_assert(Smi::IsValid(SizeFor(kMaxLength)));
 
   // Maximally allowed length for regular (non large object space) object.
@@ -494,7 +493,7 @@ V8_OBJECT class FixedDoubleArray
   class BodyDescriptor;
 } V8_OBJECT_END;
 
-static_assert(FixedDoubleArray::kMaxLength <= FixedArray::kMaxLength);
+static_assert(FixedDoubleArray::kMaxLength == FixedArray::kMaxLength);
 
 class WeakFixedArrayShape final : public AllStatic {
  public:
@@ -645,8 +644,14 @@ class WeakArrayList
 
   class BodyDescriptor;
 
-  static const int kMaxCapacity =
-      (FixedArrayBase::kMaxSize - kHeaderSize) / kTaggedSize;
+  // Maximal allowed length, in number of elements. Chosen s.t. the byte size
+  // fits into a Smi which is necessary for being able to create a free space
+  // filler.
+  // TODO(jgruber): The kMaxLength could be larger (`(Smi::kMaxValue -
+  // sizeof(Header)) / kElementSize`), but our tests rely on a
+  // smaller maximum to avoid timeouts.
+  static constexpr int kMaxCapacity = kMaxFixedArrayCapacity;
+  static_assert(Smi::IsValid(SizeFor(kMaxCapacity)));
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, int length,

@@ -20,15 +20,7 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   DirectHandle<JSObject> object = args.at<JSObject>(0);
   DirectHandle<Map> to_map = args.at<Map>(1);
   ElementsKind to_kind = to_map->elements_kind();
-  if (ElementsAccessor::ForKind(to_kind)
-          ->TransitionElementsKind(object, to_map)
-          .IsNothing()) {
-    // TODO(victorgomes): EffectControlLinearizer::LowerTransitionElementsKind
-    // does not handle exceptions.
-    FATAL(
-        "Fatal JavaScript invalid size error when transitioning elements kind");
-    UNREACHABLE();
-  }
+  ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(object, to_map);
   return *object;
 }
 

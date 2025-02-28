@@ -889,7 +889,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
     case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
-      DCHECK_GE(static_cast<int32_t>(FixedArray::kMaxLength), 0);
+      static_assert(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
       Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
       for (int i = 0; i < fast_length; i++) {
@@ -901,7 +901,7 @@ uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
     case HOLEY_DOUBLE_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
-      DCHECK_GE(static_cast<int32_t>(FixedDoubleArray::kMaxLength), 0);
+      static_assert(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
       int fast_length = static_cast<int>(length);
       if (IsFixedArray(array->elements())) {
         DCHECK_EQ(Cast<FixedArray>(array->elements())->length(), 0);

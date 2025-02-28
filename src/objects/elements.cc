@@ -939,8 +939,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return MaybeDirectHandle<FixedArrayBase>(new_elements);
   }
 
-  static Maybe<bool> TransitionElementsKindImpl(DirectHandle<JSObject> object,
-                                                DirectHandle<Map> to_map) {
+  static void TransitionElementsKindImpl(DirectHandle<JSObject> object,
+                                         DirectHandle<Map> to_map) {
     Isolate* isolate = object->GetIsolate();
     DirectHandle<Map> from_map(object->map(), isolate);
     ElementsKind from_kind = from_map->elements_kind();
@@ -965,12 +965,15 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             (IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
             (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
         uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
-        DirectHandle<FixedArrayBase> elements;
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            object->GetIsolate(), elements,
+        // Since the max length of FixedArray and FixedDoubleArray is the same,
+        // we can safely assume that element conversion with the same capacity
+        // will succeed.
+        static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
+        DCHECK_LE(capacity, FixedArray::kMaxLength);
+        DirectHandle<FixedArrayBase> elements =
             ConvertElementsWithCapacity(object, from_elements, from_kind,
-                                        capacity),
-            Nothing<bool>());
+                                        capacity)
+                .ToHandleChecked();
         JSObject::SetMapAndElements(object, to_map, elements);
       }
       if (v8_flags.trace_elements_transitions) {
@@ -979,7 +982,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             direct_handle(object->elements(), isolate));
       }
     }
-    return Just(true);
   }
 
   static Maybe<bool> GrowCapacityAndConvertImpl(DirectHandle<JSObject> object,
@@ -1028,9 +1030,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Just(true);
   }
 
-  Maybe<bool> TransitionElementsKind(DirectHandle<JSObject> object,
-                                     DirectHandle<Map> map) final {
-    return Subclass::TransitionElementsKindImpl(object, map);
+  void TransitionElementsKind(DirectHandle<JSObject> object,
+                              DirectHandle<Map> map) final {
+    Subclass::TransitionElementsKindImpl(object, map);
   }
 
   Maybe<bool> GrowCapacityAndConvert(DirectHandle<JSObject> object,
@@ -1050,9 +1052,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                               object->GetIsolate());
     uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
     DCHECK(static_cast<uint32_t>(old_elements->length()) < new_capacity);
-    const uint32_t kMaxLength = IsDoubleElementsKind(kind())
-                                    ? FixedDoubleArray::kMaxLength
-                                    : FixedArray::kMaxLength;
+    static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
+    constexpr uint32_t kMaxLength = FixedArray::kMaxLength;
+
     if (new_capacity > kMaxLength) {
       return Just(false);
     }
@@ -4791,8 +4793,8 @@ class SloppyArgumentsElementsAccessor
     }
   }
 
-  static Maybe<bool> TransitionElementsKindImpl(DirectHandle<JSObject> object,
-                                                DirectHandle<Map> map) {
+  static void TransitionElementsKindImpl(DirectHandle<JSObject> object,
+                                         DirectHandle<Map> map) {
     UNREACHABLE();
   }
 
