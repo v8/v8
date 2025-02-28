@@ -690,6 +690,8 @@ class SlotCollectingVisitor final : public HeapVisitor<SlotCollectingVisitor> {
  public:
   explicit SlotCollectingVisitor(Isolate* isolate) : HeapVisitor(isolate) {}
 
+  static constexpr bool ShouldUseUncheckedCast() { return true; }
+
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
@@ -906,13 +908,9 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap,
   // Check that the set of slots before and after the transition match.
   SlotCollectingVisitor old_visitor(heap->isolate());
   old_visitor.Visit(object);
-  MapWord old_map_word = object->map_word(cage_base, kRelaxedLoad);
-  // Temporarily set the new map to iterate new slots.
-  object->set_map_word(new_map, kRelaxedStore);
+  // Collect slots in object for new map.
   SlotCollectingVisitor new_visitor(heap->isolate());
-  new_visitor.Visit(object);
-  // Restore the old map.
-  object->set_map_word(old_map_word.ToMap(), kRelaxedStore);
+  new_visitor.Visit(new_map, object);
   CHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
   for (int i = 0; i < new_visitor.number_of_slots(); i++) {
     CHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
