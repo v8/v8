@@ -267,15 +267,14 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
  public:
   V8_INLINE Local() = default;
 
+  /**
+   * Constructor for handling automatic up casting.
+   * Ex. Local<Object> can be passed when Local<Value> is expected but not
+   * the other way round.
+   */
   template <class S>
-  V8_INLINE Local(Local<S> that) : LocalBase<T>(that) {
-    /**
-     * This check fails when trying to convert between incompatible
-     * handles. For example, converting from a Local<String> to a
-     * Local<Number>.
-     */
-    static_assert(std::is_base_of<T, S>::value, "type check");
-  }
+    requires(std::is_base_of_v<T, S>)
+  V8_INLINE Local(Local<S> that) : LocalBase<T>(that) {}
 
   V8_INLINE T* operator->() const { return this->template value<T>(); }
 
