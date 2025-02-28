@@ -5136,41 +5136,30 @@ void Heap::ConfigureHeapDefault() {
   ConfigureHeap(constraints, nullptr);
 }
 
-void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
-  *stats->start_marker = HeapStats::kStartMarker;
-  *stats->end_marker = HeapStats::kEndMarker;
-  *stats->ro_space_size = read_only_space_->Size();
-  *stats->ro_space_capacity = read_only_space_->Capacity();
-  *stats->new_space_size = NewSpaceSize();
-  *stats->new_space_capacity = NewSpaceCapacity();
-  *stats->old_space_size = old_space_->SizeOfObjects();
-  *stats->old_space_capacity = old_space_->Capacity();
-  *stats->code_space_size = code_space_->SizeOfObjects();
-  *stats->code_space_capacity = code_space_->Capacity();
-  *stats->map_space_size = 0;
-  *stats->map_space_capacity = 0;
-  *stats->lo_space_size = lo_space_->Size();
-  *stats->code_lo_space_size = code_lo_space_->Size();
+void Heap::RecordStats(HeapStats* stats) {
+  stats->start_marker = HeapStats::kStartMarker;
+  stats->end_marker = HeapStats::kEndMarker;
+  stats->ro_space_size = read_only_space_->Size();
+  stats->ro_space_capacity = read_only_space_->Capacity();
+  stats->new_space_size = NewSpaceSize();
+  stats->new_space_capacity = NewSpaceCapacity();
+  stats->old_space_size = old_space_->SizeOfObjects();
+  stats->old_space_capacity = old_space_->Capacity();
+  stats->code_space_size = code_space_->SizeOfObjects();
+  stats->code_space_capacity = code_space_->Capacity();
+  stats->map_space_size = 0;
+  stats->map_space_capacity = 0;
+  stats->lo_space_size = lo_space_->Size();
+  stats->code_lo_space_size = code_lo_space_->Size();
   isolate_->global_handles()->RecordStats(stats);
-  *stats->memory_allocator_size = memory_allocator()->Size();
-  *stats->memory_allocator_capacity =
+  stats->memory_allocator_size = memory_allocator()->Size();
+  stats->memory_allocator_capacity =
       memory_allocator()->Size() + memory_allocator()->Available();
-  *stats->os_error = base::OS::GetLastError();
+  stats->os_error = base::OS::GetLastError();
   // TODO(leszeks): Include the string table in both current and peak usage.
-  *stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage();
-  *stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
-  if (take_snapshot) {
-    HeapObjectIterator iterator(this);
-    for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
-         obj = iterator.Next()) {
-      InstanceType type = obj->map()->instance_type();
-      DCHECK(0 <= type && type <= LAST_TYPE);
-      stats->objects_per_type[type]++;
-      stats->size_per_type[type] += obj->Size();
-    }
-  }
-  if (stats->last_few_messages != nullptr)
-    GetFromRingBuffer(stats->last_few_messages);
+  stats->malloced_memory = isolate_->allocator()->GetCurrentMemoryUsage();
+  stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
+  GetFromRingBuffer(stats->last_few_messages);
 }
 
 size_t Heap::OldGenerationSizeOfObjects() const {

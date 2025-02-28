@@ -955,19 +955,19 @@ void GlobalHandles::IterateAllRootsForTesting(
 }
 
 void GlobalHandles::RecordStats(HeapStats* stats) {
-  *stats->global_handle_count = 0;
-  *stats->weak_global_handle_count = 0;
-  *stats->pending_global_handle_count = 0;
-  *stats->near_death_global_handle_count = 0;
-  *stats->free_global_handle_count = 0;
+  stats->global_handle_count = 0;
+  stats->weak_global_handle_count = 0;
+  stats->pending_global_handle_count = 0;
+  stats->near_death_global_handle_count = 0;
+  stats->free_global_handle_count = 0;
   for (Node* node : *regular_nodes_) {
-    *stats->global_handle_count += 1;
+    stats->global_handle_count += 1;
     if (node->state() == Node::WEAK) {
-      *stats->weak_global_handle_count += 1;
+      stats->weak_global_handle_count += 1;
     } else if (node->state() == Node::NEAR_DEATH) {
-      *stats->near_death_global_handle_count += 1;
+      stats->near_death_global_handle_count += 1;
     } else if (node->state() == Node::FREE) {
-      *stats->free_global_handle_count += 1;
+      stats->free_global_handle_count += 1;
     }
   }
 }

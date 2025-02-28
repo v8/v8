@@ -583,7 +583,7 @@ class Heap final {
   void VerifyNewSpaceTop();
 #endif  // DEBUG
 
-  void RecordStats(HeapStats* stats, bool take_snapshot = false);
+  void RecordStats(HeapStats* stats);
 
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                      v8::MeasureMemoryExecution execution);
@@ -2487,34 +2487,33 @@ class HeapStats {
   static const int kStartMarker = 0xDECADE00;
   static const int kEndMarker = 0xDECADE01;
 
-  intptr_t* start_marker;                  //  0
-  size_t* ro_space_size;                   //  1
-  size_t* ro_space_capacity;               //  2
-  size_t* new_space_size;                  //  3
-  size_t* new_space_capacity;              //  4
-  size_t* old_space_size;                  //  5
-  size_t* old_space_capacity;              //  6
-  size_t* code_space_size;                 //  7
-  size_t* code_space_capacity;             //  8
-  size_t* map_space_size;                  //  9
-  size_t* map_space_capacity;              // 10
-  size_t* lo_space_size;                   // 11
-  size_t* code_lo_space_size;              // 12
-  size_t* global_handle_count;             // 13
-  size_t* weak_global_handle_count;        // 14
-  size_t* pending_global_handle_count;     // 15
-  size_t* near_death_global_handle_count;  // 16
-  size_t* free_global_handle_count;        // 17
-  size_t* memory_allocator_size;           // 18
-  size_t* memory_allocator_capacity;       // 19
-  size_t* malloced_memory;                 // 20
-  size_t* malloced_peak_memory;            // 21
-  size_t* objects_per_type;                // 22
-  size_t* size_per_type;                   // 23
-  int* os_error;                           // 24
-  char* last_few_messages;                 // 25
-  char* js_stacktrace;                     // 26
-  intptr_t* end_marker;                    // 27
+  intptr_t start_marker = 0;                                     //  0
+  size_t ro_space_size = 0;                                      //  1
+  size_t ro_space_capacity = 0;                                  //  2
+  size_t new_space_size = 0;                                     //  3
+  size_t new_space_capacity = 0;                                 //  4
+  size_t old_space_size = 0;                                     //  5
+  size_t old_space_capacity = 0;                                 //  6
+  size_t code_space_size = 0;                                    //  7
+  size_t code_space_capacity = 0;                                //  8
+  size_t map_space_size = 0;                                     //  9
+  size_t map_space_capacity = 0;                                 // 10
+  size_t lo_space_size = 0;                                      // 11
+  size_t code_lo_space_size = 0;                                 // 12
+  size_t global_handle_count = 0;                                // 13
+  size_t weak_global_handle_count = 0;                           // 14
+  size_t pending_global_handle_count = 0;                        // 15
+  size_t near_death_global_handle_count = 0;                     // 16
+  size_t free_global_handle_count = 0;                           // 17
+  size_t memory_allocator_size = 0;                              // 18
+  size_t memory_allocator_capacity = 0;                          // 19
+  size_t malloced_memory = 0;                                    // 20
+  size_t malloced_peak_memory = 0;                               // 21
+  size_t objects_per_type = 0;                                   // 22
+  size_t size_per_type = 0;                                      // 23
+  int os_error = 0;                                              // 24
+  char last_few_messages[Heap::kTraceRingBufferSize + 1] = {0};  // 25
+  intptr_t end_marker = 0;                                       // 27
 };
 
 // Disables GC for all allocations. It should not be used

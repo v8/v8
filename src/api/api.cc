@@ -211,8 +211,6 @@ static ScriptOrigin GetScriptOriginForScript(
 // OOM error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
                                     const OOMDetails& details) {
-  char last_few_messages[Heap::kTraceRingBufferSize + 1];
-  char js_stacktrace[Heap::kStacktraceBufferSize + 1];
   i::HeapStats heap_stats;
 
   if (i_isolate == nullptr) {
@@ -223,8 +221,6 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     // If the Isolate is not available for the current thread we cannot retrieve
     // memory information from the Isolate. Write easy-to-recognize values on
     // the stack.
-    memset(last_few_messages, 0x0BADC0DE, Heap::kTraceRingBufferSize + 1);
-    memset(js_stacktrace, 0x0BADC0DE, Heap::kStacktraceBufferSize + 1);
     memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
     // Give the embedder a chance to handle the condition. If it doesn't,
     // just crash.
@@ -233,73 +229,15 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     UNREACHABLE();
   }
 
-  memset(last_few_messages, 0, Heap::kTraceRingBufferSize + 1);
-  memset(js_stacktrace, 0, Heap::kStacktraceBufferSize + 1);
+  memset(heap_stats.last_few_messages, 0, Heap::kTraceRingBufferSize + 1);
 
-  intptr_t start_marker;
-  heap_stats.start_marker = &start_marker;
-  size_t ro_space_size;
-  heap_stats.ro_space_size = &ro_space_size;
-  size_t ro_space_capacity;
-  heap_stats.ro_space_capacity = &ro_space_capacity;
-  size_t new_space_size;
-  heap_stats.new_space_size = &new_space_size;
-  size_t new_space_capacity;
-  heap_stats.new_space_capacity = &new_space_capacity;
-  size_t old_space_size;
-  heap_stats.old_space_size = &old_space_size;
-  size_t old_space_capacity;
-  heap_stats.old_space_capacity = &old_space_capacity;
-  size_t code_space_size;
-  heap_stats.code_space_size = &code_space_size;
-  size_t code_space_capacity;
-  heap_stats.code_space_capacity = &code_space_capacity;
-  size_t map_space_size;
-  heap_stats.map_space_size = &map_space_size;
-  size_t map_space_capacity;
-  heap_stats.map_space_capacity = &map_space_capacity;
-  size_t lo_space_size;
-  heap_stats.lo_space_size = &lo_space_size;
-  size_t code_lo_space_size;
-  heap_stats.code_lo_space_size = &code_lo_space_size;
-  size_t global_handle_count;
-  heap_stats.global_handle_count = &global_handle_count;
-  size_t weak_global_handle_count;
-  heap_stats.weak_global_handle_count = &weak_global_handle_count;
-  size_t pending_global_handle_count;
-  heap_stats.pending_global_handle_count = &pending_global_handle_count;
-  size_t near_death_global_handle_count;
-  heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
-  size_t free_global_handle_count;
-  heap_stats.free_global_handle_count = &free_global_handle_count;
-  size_t memory_allocator_size;
-  heap_stats.memory_allocator_size = &memory_allocator_size;
-  size_t memory_allocator_capacity;
-  heap_stats.memory_allocator_capacity = &memory_allocator_capacity;
-  size_t malloced_memory;
-  heap_stats.malloced_memory = &malloced_memory;
-  size_t malloced_peak_memory;
-  heap_stats.malloced_peak_memory = &malloced_peak_memory;
-  size_t objects_per_type[LAST_TYPE + 1] = {0};
-  heap_stats.objects_per_type = objects_per_type;
-  size_t size_per_type[LAST_TYPE + 1] = {0};
-  heap_stats.size_per_type = size_per_type;
-  int os_error;
-  heap_stats.os_error = &os_error;
-  heap_stats.last_few_messages = last_few_messages;
-  heap_stats.js_stacktrace = js_stacktrace;
-  intptr_t end_marker;
-  heap_stats.end_marker = &end_marker;
   if (i_isolate->heap()->HasBeenSetUp()) {
-    // BUG(1718): Don't use the take_snapshot since we don't support
-    // HeapObjectIterator here without doing a special GC.
-    i_isolate->heap()->RecordStats(&heap_stats, false);
+    i_isolate->heap()->RecordStats(&heap_stats);
     if (!v8_flags.correctness_fuzzer_suppressions) {
-      char* first_newline = strchr(last_few_messages, '\n');
+      char* first_newline = strchr(heap_stats.last_few_messages, '\n');
       if (first_newline == nullptr || first_newline[1] == '\0')
-        first_newline = last_few_messages;
+        first_newline = heap_stats.last_few_messages;
       base::OS::PrintError("\n<--- Last few GCs --->\n%s\n", first_newline);
-      base::OS::PrintError("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
     }
   }
   Utils::ReportOOMFailure(i_isolate, location, details);
