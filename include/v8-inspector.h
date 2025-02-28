@@ -303,7 +303,9 @@ class V8_EXPORT V8InspectorClient {
                               v8::Local<v8::String> label) {}
   virtual void consoleTimeStamp(v8::Isolate* isolate,
                                 v8::Local<v8::String> label) {}
-
+  virtual void consoleTimeStampWithArgs(
+      v8::Isolate* isolate, v8::Local<v8::String> label,
+      const v8::LocalVector<v8::Value>& args) {}
   virtual void consoleClear(int contextGroupId) {}
   virtual double currentTimeMS() { return 0; }
   typedef void (*TimerCallback)(void*);
