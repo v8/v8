@@ -1005,7 +1005,8 @@ class MaglevGraphBuilder {
       }
       if constexpr (IsCommutativeNode(Node::opcode_of<NodeT>)) {
         static_assert(NodeT::kInputCount == 2);
-        if (inputs[0] > inputs[1]) {
+        if ((IsConstantNode(inputs[0]->opcode()) || inputs[0] > inputs[1]) &&
+            !IsConstantNode(inputs[1]->opcode())) {
           std::swap(inputs[0], inputs[1]);
         }
       }

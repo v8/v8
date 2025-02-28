@@ -8222,6 +8222,17 @@ template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
 template class CheckedNumberOrOddballToFloat64OrHoleyFloat64<
     CheckedNumberOrOddballToHoleyFloat64, ValueRepresentation::kHoleyFloat64>;
 
+std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
+  Node* node = input(index).node();
+  if (auto smi = node->TryCast<SmiConstant>()) {
+    return smi->value().value();
+  }
+  if (auto i32 = node->TryCast<Int32Constant>()) {
+    return i32->value();
+  }
+  return {};
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

@@ -1928,6 +1928,8 @@ class NodeBase : public ZoneObject {
     return *(input_base() - index);
   }
 
+  std::optional<int32_t> TryGetInt32ConstantInput(int index);
+
   // Input iterators, use like:
   //
   //  for (Input& input : *node) { ... }
