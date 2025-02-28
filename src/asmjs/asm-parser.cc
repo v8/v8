@@ -1491,10 +1491,11 @@ AsmType* AsmJsParser::MemberExpression() {
     inside_heap_assignment_ = true;
     return heap_access_type_->StoreType();
   } else {
-#define V(array_type, wasmload, wasmstore, type)                       \
-  if (heap_access_type_->IsA(AsmType::array_type())) {                 \
-    current_function_builder_->Emit(kExpr##type##AsmjsLoad##wasmload); \
-    return heap_access_type_->LoadType();                              \
+#define V(array_type, wasmload, wasmstore, type)       \
+  if (heap_access_type_->IsA(AsmType::array_type())) { \
+    current_function_builder_->EmitWithPrefix(         \
+        kExpr##type##AsmjsLoad##wasmload);             \
+    return heap_access_type_->LoadType();              \
   }
     STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -1534,10 +1535,11 @@ AsmType* AsmJsParser::AssignmentExpression() {
         current_function_builder_->Emit(kExprF64ConvertF32);
         ret = AsmType::DoubleQ();
       }
-#define V(array_type, wasmload, wasmstore, type)                         \
-  if (heap_type->IsA(AsmType::array_type())) {                           \
-    current_function_builder_->Emit(kExpr##type##AsmjsStore##wasmstore); \
-    return ret;                                                          \
+#define V(array_type, wasmload, wasmstore, type) \
+  if (heap_type->IsA(AsmType::array_type())) {   \
+    current_function_builder_->EmitWithPrefix(   \
+        kExpr##type##AsmjsStore##wasmstore);     \
+    return ret;                                  \
   }
       STDLIB_ARRAY_TYPE_LIST(V)
 #undef V
@@ -1648,9 +1650,9 @@ AsmType* AsmJsParser::UnaryExpression() {
     if (Check('~')) {
       RECURSEn(ret = UnaryExpression());
       if (ret->IsA(AsmType::Double())) {
-        current_function_builder_->Emit(kExprI32AsmjsSConvertF64);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsSConvertF64);
       } else if (ret->IsA(AsmType::FloatQ())) {
-        current_function_builder_->Emit(kExprI32AsmjsSConvertF32);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsSConvertF32);
       } else {
         FAILn("expected double or float?");
       }
@@ -1759,10 +1761,10 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
         current_function_builder_->Emit(kExprF32Div);
         a = AsmType::Floatish();
       } else if (a->IsA(AsmType::Signed()) && b->IsA(AsmType::Signed())) {
-        current_function_builder_->Emit(kExprI32AsmjsDivS);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsDivS);
         a = AsmType::Intish();
       } else if (a->IsA(AsmType::Unsigned()) && b->IsA(AsmType::Unsigned())) {
-        current_function_builder_->Emit(kExprI32AsmjsDivU);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsDivU);
         a = AsmType::Intish();
       } else {
         FAILn("expected doubles or floats");
@@ -1771,13 +1773,13 @@ AsmType* AsmJsParser::MultiplicativeExpression() {
       AsmType* b;
       RECURSEn(b = UnaryExpression());
       if (a->IsA(AsmType::DoubleQ()) && b->IsA(AsmType::DoubleQ())) {
-        current_function_builder_->Emit(kExprF64Mod);
+        current_function_builder_->EmitWithPrefix(kExprF64Mod);
         a = AsmType::Double();
       } else if (a->IsA(AsmType::Signed()) && b->IsA(AsmType::Signed())) {
-        current_function_builder_->Emit(kExprI32AsmjsRemS);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsRemS);
         a = AsmType::Intish();
       } else if (a->IsA(AsmType::Unsigned()) && b->IsA(AsmType::Unsigned())) {
-        current_function_builder_->Emit(kExprI32AsmjsRemU);
+        current_function_builder_->EmitWithPrefix(kExprI32AsmjsRemU);
         a = AsmType::Intish();
       } else {
         FAILn("expected doubles or floats");
@@ -2299,9 +2301,13 @@ AsmType* AsmJsParser::ValidateCall() {
       FAILn("Function use doesn't match definition");
     }
     switch (function_info->kind) {
-#define V(name, Name, op, sig)           \
-  case VarKind::kMath##Name:             \
-    current_function_builder_->Emit(op); \
+#define V(name, Name, op, sig)                       \
+  case VarKind::kMath##Name:                         \
+    if ((op) <= 0xff) {                               \
+      current_function_builder_->Emit(op);           \
+    } else {                                         \
+      current_function_builder_->EmitWithPrefix(op); \
+    }                                                \
     break;
       STDLIB_MATH_FUNCTION_MONOMORPHIC_LIST(V)
 #undef V

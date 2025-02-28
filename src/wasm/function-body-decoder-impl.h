@@ -2377,6 +2377,20 @@ class WasmDecoder : public Decoder {
             return length;
         }
       }
+      case kAsmJsPrefix: {
+        uint32_t length;
+        std::tie(opcode, length) =
+            decoder->read_prefixed_opcode<ValidationTag>(pc);
+        switch (opcode) {
+          FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
+          return length;
+          default:
+            // This path is only possible if we are validating.
+            V8_ASSUME(ValidationTag::validate);
+            decoder->DecodeError(pc, "invalid opcode");
+            return length;
+        }
+      }
       case kSimdPrefix: {
         uint32_t length;
         std::tie(opcode, length) =
@@ -2611,10 +2625,6 @@ class WasmDecoder : public Decoder {
       }
 
         // clang-format off
-      /********** Asmjs opcodes **********/
-      FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
-        return 1;
-
       // Prefixed opcodes (already handled, included here for completeness of
       // switch)
       FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
@@ -2622,8 +2632,9 @@ class WasmDecoder : public Decoder {
       FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_GC_OPCODE(DECLARE_OPCODE_CASE)
+      FOREACH_ASMJS_COMPAT_OPCODE(DECLARE_OPCODE_CASE)
         UNREACHABLE();
-        // clang-format on
+      // clang-format on
 #undef DECLARE_OPCODE_CASE
     }
     // Invalid modules will reach this point.
@@ -4113,6 +4124,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return DecodeNumericOpcode(full_opcode, opcode_length);
   }
 
+  DECODE(AsmJs) {
+    auto [full_opcode, opcode_length] =
+        this->template read_prefixed_opcode<ValidationTag>(this->pc_,
+                                                           "asmjs index");
+    trace_msg->AppendOpcode(full_opcode);
+    return DecodeAsmJsOpcode(full_opcode, opcode_length);
+  }
+
   DECODE(Simd) {
     this->detected_->add_simd();
     if (!CheckHardwareSupportsSimd()) {
@@ -4167,22 +4186,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
 #undef SIMPLE_PROTOTYPE_CASE
 
-  DECODE(UnknownOrAsmJs) {
-    // Deal with special asmjs opcodes.
-    if (!VALIDATE(is_asmjs_module(this->module_))) {
-      this->DecodeError("Invalid opcode 0x%x", opcode);
-      return 0;
-    }
-    const FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
-    DCHECK_NOT_NULL(sig);
-    return BuildSimpleOperator(opcode, sig);
-  }
-
 #undef DECODE
 
   static int NonConstError(WasmFullDecoder* decoder, WasmOpcode opcode) {
     decoder->DecodeError("opcode %s is not allowed in constant expressions",
                          WasmOpcodes::OpcodeName(opcode));
+    return 0;
+  }
+
+  static int UnknownOpcodeError(WasmFullDecoder* decoder, WasmOpcode opcode) {
+    decoder->DecodeError("Invalid opcode 0x%x", opcode);
     return 0;
   }
 
@@ -4270,13 +4283,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(CallRef);
     DECODE_IMPL(ReturnCallRef);
     DECODE_IMPL2(kNumericPrefix, Numeric);
+    DECODE_IMPL2(kAsmJsPrefix, AsmJs);
     DECODE_IMPL_CONST2(kSimdPrefix, Simd);
     DECODE_IMPL2(kAtomicPrefix, Atomic);
     DECODE_IMPL_CONST2(kGCPrefix, GC);
 #define SIMPLE_PROTOTYPE_CASE(name, ...) DECODE_IMPL(name);
     FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
 #undef SIMPLE_PROTOTYPE_CASE
-    return &WasmFullDecoder::DecodeUnknownOrAsmJs;
+    return &WasmFullDecoder::UnknownOpcodeError;
   }
 
 #undef DECODE_IMPL
@@ -6184,6 +6198,29 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->DecodeError("invalid numeric opcode: 0x%x", opcode);
         return 0;
     }
+  }
+
+  unsigned DecodeAsmJsOpcode(WasmOpcode opcode, uint32_t opcode_length) {
+    V8_ASSUME((opcode >> 8) == kAsmJsPrefix);
+
+    switch (opcode) {
+#define ASMJS_CASE(Op, ...) case kExpr##Op:
+      FOREACH_ASMJS_COMPAT_OPCODE(ASMJS_CASE)
+#undef ASMJS_CASE
+      {
+        // Deal with special asmjs opcodes.
+        if (!VALIDATE(is_asmjs_module(this->module_)))
+          break;
+        const FunctionSig* asmJsSig = WasmOpcodes::AsmjsSignature(opcode);
+        DCHECK_NOT_NULL(asmJsSig);
+        BuildSimpleOperator(opcode, asmJsSig);
+        return opcode_length;
+      }
+      default:
+        break;
+    }
+    this->DecodeError("Invalid opcode: 0x%x", opcode);
+    return 0;
   }
 
   V8_INLINE Value CreateValue(ValueType type) { return Value{this->pc_, type}; }

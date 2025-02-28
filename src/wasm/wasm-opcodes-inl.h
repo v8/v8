@@ -33,6 +33,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     case kSimdPrefix:
     case kAtomicPrefix:
     case kGCPrefix:
+    case kAsmJsPrefix:
       return "unknown";
   }
   // Even though the switch above handles all well-defined enum values,
@@ -194,7 +195,7 @@ constexpr WasmOpcodeSig GetShortOpcodeSigIndex(uint8_t opcode) {
 }
 
 constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(uint8_t opcode) {
-#define CASE(name, opc, sig, ...) opcode == opc ? kSigEnum_##sig:
+#define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
@@ -269,6 +270,8 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
     }
     case kNumericPrefix:
       return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xff]];
+    case kAsmJsPrefix:
+      return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode & 0xff]];
     default:
       UNREACHABLE();  // invalid prefix.
   }
@@ -284,8 +287,8 @@ constexpr const FunctionSig* WasmOpcodes::SignatureForAtomicOp(
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), opcode);
-  return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
+  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), (opcode & 0xff));
+  return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode & 0xff]];
 }
 
 constexpr MessageTemplate WasmOpcodes::TrapReasonToMessageId(
