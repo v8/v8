@@ -8,9 +8,18 @@
 #include <optional>
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
+#include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
+#include "src/compiler/machine-operator.h"
+#include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/representations.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -37,57 +46,40 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT {
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
   InstructionOperand UseRegisterOrImmediateZero(OpIndex node) {
-    if (this->is_constant(node)) {
-      auto constant = selector()->constant_view(node);
-      if ((IsIntegerConstant(constant) &&
-           GetIntegerConstantValue(constant) == 0) ||
-          constant.is_float_zero()) {
+    if (const ConstantOp* constant =
+            selector()->Get(node).TryCast<ConstantOp>()) {
+      if ((constant->IsIntegral() && constant->integral() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat32 &&
+           constant->float32().get_bits() == 0) ||
+          (constant->kind == ConstantOp::Kind::kFloat64 &&
+           constant->float64().get_bits() == 0))
         return UseImmediate(node);
-      }
     }
     return UseRegister(node);
   }
 
-  bool IsIntegerConstant(OpIndex node) const {
-    return selector()->is_integer_constant(node);
+  bool IsIntegerConstant(OpIndex node) {
+    int64_t unused;
+    return selector()->MatchSignedIntegralConstant(node, &unused);
   }
 
-  bool IsIntegerConstant(ConstantView constant) {
-    return constant.is_int32() || constant.is_int64();
+  bool IsIntegerConstant(OptionalOpIndex node) {
+    return node.has_value() && IsIntegerConstant(node.value());
   }
 
-  int64_t GetIntegerConstantValue(ConstantView constant) {
-    if (constant.is_int32()) {
-      return constant.int32_value();
+  std::optional<int64_t> GetOptionalIntegerConstant(OpIndex operation) {
+    if (int64_t constant; MatchSignedIntegralConstant(operation, &constant)) {
+      return constant;
     }
-    DCHECK(constant.is_int64());
-    return constant.int64_value();
+    return std::nullopt;
   }
 
-  std::optional<int64_t> GetOptionalIntegerConstant(
-      InstructionSelectorT* selector, OpIndex operation) {
-    if (!this->is_constant(operation)) return {};
-    auto constant = selector->constant_view(operation);
-    if (!this->IsIntegerConstant(constant)) return {};
-    return this->GetIntegerConstantValue(constant);
-  }
-
-  bool CanBeZero(OpIndex node) {
-    if (this->is_constant(node)) {
-      auto constant = selector()->constant_view(node);
-      if ((IsIntegerConstant(constant) &&
-           GetIntegerConstantValue(constant) == 0) ||
-          constant.is_float_zero()) {
-        return true;
-      }
-    }
-    return false;
-  }
+  bool CanBeZero(OpIndex node) { return MatchZero(node); }
 
   bool CanBeImmediate(OpIndex node, InstructionCode mode) {
-    if (!this->is_constant(node)) return false;
-    auto constant = this->constant_view(node);
-    if (constant.is_compressed_heap_object()) {
+    const ConstantOp* constant = selector()->Get(node).TryCast<ConstantOp>();
+    if (!constant) return false;
+    if (constant->kind == ConstantOp::Kind::kCompressedHeapObject) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -95,7 +87,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      Handle<HeapObject> value = constant.heap_object_value();
+      Handle<HeapObject> value = constant->handle();
       if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
@@ -105,8 +97,9 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT {
       return false;
     }
 
-    return IsIntegerConstant(constant) &&
-           CanBeImmediate(GetIntegerConstantValue(constant), mode);
+    int64_t value;
+    return selector()->MatchSignedIntegralConstant(node, &value) &&
+           CanBeImmediate(value, mode);
   }
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode);
@@ -143,7 +136,8 @@ static void VisitRRI(InstructionSelectorT* selector, ArchOpcode opcode,
 static void VisitSimdShift(InstructionSelectorT* selector, ArchOpcode opcode,
                            OpIndex node) {
   RiscvOperandGeneratorT g(selector);
-  if (g.IsIntegerConstant(selector->input_at(node, 1))) {
+  OpIndex rhs = selector->input_at(node, 1);
+  if (selector->Get(rhs).TryCast<ConstantOp>()) {
     selector->Emit(opcode, g.DefineAsRegister(node),
                    g.UseRegister(selector->input_at(node, 0)),
                    g.UseImmediate(selector->input_at(node, 1)));

@@ -159,15 +159,15 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   // If output is valid, use that as the output register. This is used when we
   // merge a conversion into the load.
   output_op = g.DefineAsRegister(output.valid() ? output : node);
-
+  int64_t index_value;
   const Operation& base_op = selector->Get(base);
   if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->is_integer_constant(index)) {
+      selector->MatchSignedIntegralConstant(index, &index_value)) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          selector->integer_constant(index) +
+          index_value +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -183,9 +183,10 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 
   if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(selector->is_integer_constant(index));
+    int64_t index_value;
+    selector->MatchSignedIntegralConstant(index, &index_value);
     input_count = 1;
-    inputs[0] = g.UseImmediate64(selector->integer_constant(index));
+    inputs[0] = g.UseImmediate64(index_value);
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -654,8 +655,11 @@ void InstructionSelectorT::VisitInt32Mul(OpIndex node) {
     if (left_op.Is<Opmask::kWord64ShiftRightLogical>() &&
         right_op.Is<Opmask::kWord64ShiftRightLogical>()) {
       RiscvOperandGeneratorT g(this);
-      if (this->integer_constant(this->input_at(left, 1)) == 32 &&
-          this->integer_constant(this->input_at(right, 1)) == 32) {
+      int64_t constant_left;
+      MatchSignedIntegralConstant(this->input_at(left, 1), &constant_left);
+      int64_t constant_right;
+      MatchSignedIntegralConstant(this->input_at(right, 1), &constant_right);
+      if (constant_right == 32 && constant_right == 32) {
         // Combine untagging shifts with Dmul high.
         Emit(kRiscvMulHigh64, g.DefineSameAsFirst(node),
              g.UseRegister(this->input_at(left, 0)),
@@ -1049,15 +1053,13 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
       if (CanCover(value, input_at(value, 0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
-      } else if (g.IsIntegerConstant(shift_value)) {
-        auto constant = constant_view(shift_value);
-        if (constant.is_int64()) {
-          if (constant.int64_value() <= 63 && constant.int64_value() >= 32) {
-            // After smi untagging no need for truncate. Combine sequence.
-            Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-                 g.UseRegister(input_at(value, 0)), g.UseImmediate(constant));
-            return;
-          }
+      } else if (int64_t constant;
+                 MatchSignedIntegralConstant(shift_value, &constant)) {
+        if (constant <= 63 && constant >= 32) {
+          // After smi untagging no need for truncate. Combine sequence.
+          Emit(kRiscvSar64, g.DefineSameAsFirst(node),
+               g.UseRegister(input_at(value, 0)), g.UseImmediate64(constant));
+          return;
         }
       }
     }

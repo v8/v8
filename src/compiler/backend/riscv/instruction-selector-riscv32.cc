@@ -72,13 +72,12 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   output_op = g.DefineAsRegister(output.valid() ? output : node);
 
   const Operation& base_op = selector->Get(base);
-  if (base_op.Is<Opmask::kExternalConstant>() && index.has_value() &&
-      selector->is_integer_constant(selector->value(index))) {
+  if (base_op.Is<Opmask::kExternalConstant>() && g.IsIntegerConstant(index)) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          selector->integer_constant(selector->value(index)) +
+          *g.GetOptionalIntegerConstant(index.value()) +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -94,26 +93,23 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   }
 
   if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(selector->is_integer_constant(selector->value(index)));
+    DCHECK(g.IsIntegerConstant(index));
     input_count = 1;
-    inputs[0] =
-        g.UseImmediate64(selector->integer_constant(selector->value(index)));
+    inputs[0] = g.UseImmediate64(*g.GetOptionalIntegerConstant(index.value()));
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
   }
 
-  if (index.has_value() && g.CanBeImmediate(selector->value(index), opcode)) {
+  if (load.index().has_value() && g.CanBeImmediate(index.value(), opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(output.valid() ? output : node),
-                   g.UseRegister(base),
-                   index.has_value() ? g.UseImmediate(selector->value(index))
-                                     : g.UseImmediate(0));
+                   g.UseRegister(base), g.UseImmediate(index.value()));
   } else {
     if (index.has_value()) {
       InstructionOperand addr_reg = g.TempRegister();
       selector->Emit(kRiscvAdd32 | AddressingModeField::encode(kMode_None),
-                     addr_reg, g.UseRegister(selector->value(index)),
+                     addr_reg, g.UseRegister(index.value()),
                      g.UseRegister(base));
       // Emit desired load opcode, using temp addr_reg.
       selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
@@ -1286,7 +1282,7 @@ static void VisitWord32PairShift(InstructionSelectorT* selector,
   RiscvOperandGeneratorT g(selector);
   InstructionOperand shift_operand;
   OpIndex shift_by = selector->input_at(node, 2);
-  if (selector->is_integer_constant(shift_by)) {
+  if (g.IsIntegerConstant(shift_by)) {
     shift_operand = g.UseImmediate(shift_by);
   } else {
     shift_operand = g.UseUniqueRegister(shift_by);
