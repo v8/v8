@@ -489,9 +489,10 @@ declare_args() {
   # closely mimic in-browser behavior.
   #
   # Currently used in d8.
-  v8_enable_partition_alloc = !build_with_v8_embedder &&
-                              !(defined(build_with_node) && build_with_node) &&
-                              (current_cpu != "ppc64" && current_cpu != "s390x")
+  v8_enable_partition_alloc =
+      !build_with_v8_embedder &&
+      !(defined(build_with_node) && build_with_node) &&
+      (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x")
 }
 
 # Derived defaults.
