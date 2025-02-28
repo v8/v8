@@ -1719,16 +1719,16 @@ class ModuleDecoderImpl : public Decoder {
           uint32_t br_dir = inner.consume_u8("branch direction");
           TRACE("DecodeBranchHints[%d][%d] module+%d\n", func_idx, br_off,
                 static_cast<int>(inner.pc() - inner.start()));
-          WasmBranchHint hint;
+          BranchHint hint;
           switch (br_dir) {
             case 0:
-              hint = WasmBranchHint::kUnlikely;
+              hint = BranchHint::kFalse;
               break;
             case 1:
-              hint = WasmBranchHint::kLikely;
+              hint = BranchHint::kTrue;
               break;
             default:
-              hint = WasmBranchHint::kNoHint;
+              hint = BranchHint::kNone;
               inner.errorf(inner.pc(), "Invalid branch hint %#x", br_dir);
               break;
           }

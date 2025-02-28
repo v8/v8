@@ -2195,10 +2195,109 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
   EXPECT_OK(result);
 
   EXPECT_EQ(2u, result.value()->branch_hints.size());
-  EXPECT_EQ(WasmBranchHint::kLikely,
-            result.value()->branch_hints[0].GetHintFor(3));
-  EXPECT_EQ(WasmBranchHint::kUnlikely,
-            result.value()->branch_hints[1].GetHintFor(5));
+  EXPECT_EQ(BranchHint::kTrue, result.value()->branch_hints[0].GetHintFor(3));
+  EXPECT_EQ(BranchHint::kFalse, result.value()->branch_hints[1].GetHintFor(5));
+}
+
+TEST_F(WasmModuleVerifyTest, BranchHintingBad) {
+  WASM_FEATURE_SCOPE(branch_hinting);
+  {
+    // Section is present but has no entries.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(0)),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0u, result.value()->branch_hints.size());
+  }
+  {
+    // There's an entry for function 0, but no branch entries in it.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(1), 0 /* func index */,
+                             ENTRY_COUNT(0)),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(1u, result.value()->branch_hints.size());
+    EXPECT_EQ(0u, result.value()->branch_hints[0].NumHintsForTesting());
+  }
+  {
+    // An entry for a bogus branch offset is fine.
+    // An entry for a nonexistent function is fine.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(2),  // --
+                             0 /* func index */, ENTRY_COUNT(1), 42, 1, 1,
+                             47 /* OOB func index */, ENTRY_COUNT(1), 5, 1, 0),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(2u, result.value()->branch_hints.size());
+    EXPECT_EQ(BranchHint::kTrue,
+              result.value()->branch_hints[0].GetHintFor(42));
+    EXPECT_EQ(BranchHint::kFalse,
+              result.value()->branch_hints[47].GetHintFor(5));
+  }
+  {
+    // Invalid branch entry size.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(1), 0 /* func index */, ENTRY_COUNT(1),
+                             1, 2, 1, 1),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0u, result.value()->branch_hints.size());
+  }
+  {
+    // Invalid branch entry value.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(1), 0 /* func index */, ENTRY_COUNT(1),
+                             1, 1, 2),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0u, result.value()->branch_hints.size());
+  }
+  {
+    // Function entries in the wrong order.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 1 /* func index */, ENTRY_COUNT(0),
+                             0 /* func index */, ENTRY_COUNT(0)),
+        SECTION(Code, ENTRY_COUNT(2), ADD_COUNT(0, WASM_END),
+                ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0u, result.value()->branch_hints.size());
+  }
+  {
+    // Branch entries in the wrong order.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, ENTRY_COUNT(2),
+                             2 /*offset*/, 1 /*reserved*/, 1 /*likely*/,
+                             1 /*offset*/, 1 /*reserved*/, 0 /*unlikely*/),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0U, result.value()->branch_hints.size());
+  }
+  {
+    // Repeated/conflicting branch entry.
+    static const uint8_t data[] = {
+        TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(1, 0),
+        SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, ENTRY_COUNT(2),
+                             1 /*offset*/, 1 /*reserved*/, 1 /*likely*/,
+                             1 /*offset*/, 1 /*reserved*/, 0 /*unlikely*/),
+        SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(0U, result.value()->branch_hints.size());
+  }
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

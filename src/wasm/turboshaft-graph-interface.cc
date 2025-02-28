@@ -120,6 +120,27 @@ bool ReverseBytesSupported(size_t size_in_bytes) {
   }
 }
 
+enum class BranchHintingMode {
+  kNone,
+  kModuleProvided,
+  kStress,
+};
+
+class BranchHintingStresser {
+ public:
+  BranchHint GetNextHint() {
+    // To strike a balance between randomness and simplicity, we simply
+    // iterate over the bits of the random seed.
+    int bit = v8_flags.random_seed & (1 << cursor_);
+    static_assert(sizeof(v8_flags.random_seed) * kBitsPerByte == 32);
+    cursor_ = (cursor_ + 1) & 31;
+    return bit == 0 ? BranchHint::kFalse : BranchHint::kTrue;
+  }
+
+ private:
+  int cursor_{0};
+};
+
 }  // namespace
 
 // TODO(14108): Annotate runtime functions as not having side effects
@@ -535,8 +556,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
 
     auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
-    if (branch_hints_it != decoder->module_->branch_hints.end()) {
+    if (v8_flags.stress_branch_hinting) {
+      // Stress mode takes precedence over a branch hints section.
+      branch_hinting_mode_ = BranchHintingMode::kStress;
+    } else if (branch_hints_it != decoder->module_->branch_hints.end()) {
       branch_hints_ = &branch_hints_it->second;
+      branch_hinting_mode_ = BranchHintingMode::kModuleProvided;
+    } else {
+      branch_hinting_mode_ = BranchHintingMode::kNone;
     }
   }
 
@@ -8354,17 +8381,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   BranchHint GetBranchHint(FullDecoder* decoder) {
-    WasmBranchHint hint =
-        branch_hints_ ? branch_hints_->GetHintFor(decoder->pc_relative_offset())
-                      : WasmBranchHint::kNoHint;
-    switch (hint) {
-      case WasmBranchHint::kNoHint:
-        return BranchHint::kNone;
-      case WasmBranchHint::kUnlikely:
-        return BranchHint::kFalse;
-      case WasmBranchHint::kLikely:
-        return BranchHint::kTrue;
+    // Minimize overhead when branch hints aren't being used.
+    if (branch_hinting_mode_ == BranchHintingMode::kNone) {
+      return BranchHint::kNone;
     }
+    if (branch_hinting_mode_ == BranchHintingMode::kModuleProvided) {
+      return branch_hints_->GetHintFor(decoder->pc_relative_offset());
+    }
+    if (branch_hinting_mode_ == BranchHintingMode::kStress) {
+      return branch_hinting_stresser_.GetNextHint();
+    }
+    UNREACHABLE();
   }
 
  private:
@@ -8489,7 +8516,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   int func_index_;
   bool shared_;
   const WireBytesStorage* wire_bytes_;
+  BranchHintingMode branch_hinting_mode_;
   const BranchHintMap* branch_hints_ = nullptr;
+  BranchHintingStresser branch_hinting_stresser_;
   InliningTree* inlining_decisions_ = nullptr;
   int feedback_slot_ = -1;
   // Inlining budget in case of --no-liftoff.
