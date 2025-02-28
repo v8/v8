@@ -1285,7 +1285,9 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForCall(
   // isn't. We may need to store the relevant overwritten register in
   // LazyDeoptFrameScope.
   DCHECK(
-      interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()));
+      interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()) ||
+      interpreter::Bytecodes::ClobbersAccumulator(
+          iterator_.current_bytecode()));
 
   DeoptFrame* deopt_frame = zone()->New<DeoptFrame>(
       GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
