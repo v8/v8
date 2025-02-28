@@ -482,9 +482,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       OpIndex op;
       if (!type.is_defaultable()) {
         DCHECK(type.is_reference());
-        // TODO(jkummerow): Consider using "the hole" instead, to make any
-        // illegal uses more obvious.
-        op = __ Null(type.AsNullable());
+        op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);
       }
