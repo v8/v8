@@ -217,6 +217,41 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
   return *receiver;
 }
 
+// Get a map which replaces the elements kind of an array. Unlike
+// `JSObject::GetElementsTransitionMap`, this is allowed to go backwards in the
+// ElementsKinds manifold, and may return a map which doesn't match the current
+// elements array. The caller must handle the elements array, potentially
+// reallocating if the FixedArray type doesn't match, and fill a valid value.
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map> GetReplacedElementsKindsMap(
+    Isolate* isolate, DirectHandle<JSArray> array, ElementsKind origin_kind,
+    ElementsKind target_kind) {
+  Tagged<Map> map = array->map();
+
+  // Fast check for JSArrays without properties.
+  {
+    DisallowGarbageCollection no_gc;
+    Tagged<Context> native_context = map->map()->native_context();
+    if (native_context->GetInitialJSArrayMap(origin_kind) == map) {
+      Tagged<Object> maybe_target_map =
+          native_context->get(Context::ArrayMapIndex(target_kind));
+      if (Tagged<Map> target_map; TryCast<Map>(maybe_target_map, &target_map)) {
+        map->NotifyLeafMapLayoutChange(isolate);
+        return direct_handle(target_map, isolate);
+      }
+    }
+  }
+
+  // Ideally here we would reconfigure the map to an earlier ElementsKind with:
+  // ```
+  // MapUpdater{isolate, direct_handle(map, isolate)}
+  //     .ReconfigureElementsKind(target_kind);
+  // ```
+  // However, this currently treats this as an invalid ElementsKind transition,
+  // and normalizes the map.
+  // TODO(leszeks): Handle this case.
+  return {};
+}
+
 V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
     Isolate* isolate, BuiltinArguments* args, DirectHandle<JSReceiver> receiver,
     DirectHandle<Object> value, double start_index, double end_index) {
@@ -232,15 +267,36 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
 
   // Need to ensure that the fill value can be contained in the array.
   ElementsKind origin_kind = array->GetElementsKind();
+  ElementsKind target_kind = Object::OptimalElementsKind(*value, isolate);
 
-  // We do not need to transition for PACKED/HOLEY_ELEMENTS.
-  if (!IsObjectElementsKind(origin_kind)) {
-    ElementsKind target_kind = Object::OptimalElementsKind(*value, isolate);
+  if (target_kind != origin_kind) {
+    // Use a short-lived HandleScope to avoid creating several copies of the
+    // elements handle which would cause issues when left-trimming later-on.
+    HandleScope scope(isolate);
 
-    if (target_kind != origin_kind) {
-      // Use a short-lived HandleScope to avoid creating several copies of the
-      // elements handle which would cause issues when left-trimming later-on.
-      HandleScope scope(isolate);
+    bool is_replacing_all_elements =
+        (start_index == 0 && end_index >= Object::NumberValue(array->length()));
+    bool did_transition_map = false;
+    if (is_replacing_all_elements) {
+      // For the case where we are replacing all elements, we can migrate the
+      // map backwards in the elements kind chain and ignore the current
+      // contents of the elements array.
+      DirectHandle<Map> new_map;
+
+      if (GetReplacedElementsKindsMap(isolate, array, origin_kind, target_kind)
+              .ToHandle(&new_map)) {
+        DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
+        if (IsDoubleElementsKind(origin_kind) !=
+            IsDoubleElementsKind(target_kind)) {
+          // Clear the elements if doubleness doesn't match -- they'll get
+          // reallocated in accessor->Fill.
+          elements = isolate->factory()->empty_fixed_array();
+        }
+        JSObject::SetMapAndElements(array, new_map, elements);
+      }
+    }
+
+    if (!did_transition_map) {
       target_kind = GetMoreGeneralElementsKind(origin_kind, target_kind);
       JSObject::TransitionElementsKind(array, target_kind);
     }
