@@ -1048,10 +1048,15 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
     return CrashUnlessFuzzing(isolate);
   }
   DisallowGarbageCollection no_gc;
-  uint32_t type_index = Cast<Smi>(args[0]).value();
+  wasm::ModuleTypeIndex type_index{
+      static_cast<uint32_t>(Cast<Smi>(args[0]).value())};
   const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
-  wasm::ValueType t = wasm::ValueType::Ref(
-      module->heap_type(wasm::ModuleTypeIndex{type_index}));
+  // If we get an invalid type index, make up the additional data; the result
+  // may still be useful for fuzzers for causing interesting confusion.
+  wasm::ValueType t =
+      module->has_type(type_index)
+          ? wasm::ValueType::Ref(module->heap_type(type_index))
+          : wasm::ValueType::Ref(type_index, false, wasm::RefTypeKind::kStruct);
   return Smi::FromInt(t.raw_bit_field());
 }
 
