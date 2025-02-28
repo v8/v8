@@ -283,7 +283,7 @@ deps = {
   'third_party/highway/src':
     Var('chromium_url') + '/external/github.com/google/highway.git' + '@' + '00fe003dac355b979f36157f9407c7c46448958e',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'bbccc2f6efc1b825de5f2c903c48be685cd0cf22',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd30b7b0bb3829f2e220df403ed461a1ede78b774',
   'third_party/instrumented_libs': {
     'url': Var('chromium_url') + '/chromium/third_party/instrumented_libraries.git' + '@' + '3cc43119a29158bcde39d288a8def4b8ec49baf8',
     'condition': 'checkout_instrumented_libraries',
