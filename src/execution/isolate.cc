@@ -3878,6 +3878,7 @@ void Isolate::RetireWasmStack(Tagged<WasmContinuationObject> continuation) {
   }
 #if V8_ENABLE_SANDBOX
   continuation->set_stack(this, kNullAddress);
+  continuation->set_jmpbuf(this, kNullAddress);
 #endif
   stack_pool().Add(std::move(stack_ptr));
 }
