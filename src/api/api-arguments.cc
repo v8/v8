@@ -45,7 +45,7 @@ FunctionCallbackArguments::FunctionCallbackArguments(
     Tagged<HeapObject> new_target, Address* argv, int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kTargetIndex).store(target);
-  slot_at(T::kHolderIndex).store(ReadOnlyRoots(isolate).undefined_value());
+  slot_at(T::kUnusedIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kNewTargetIndex).store(new_target);
   slot_at(T::kIsolateIndex)
       .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));

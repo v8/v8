@@ -56,7 +56,6 @@ class LoadHandler final : public DataHandler {
     kAccessorFromPrototype,
     kNativeDataProperty,
     kApiGetter,
-    kApiGetterHolderIsPrototype,
     kInterceptor,
     kSlow,
     kProxy,
@@ -179,8 +178,7 @@ class LoadHandler final : public DataHandler {
                                                    int descriptor);
 
   // Creates a Smi-handler for calling a native getter on a fast object.
-  static inline Handle<Smi> LoadApiGetter(Isolate* isolate,
-                                          bool holder_is_receiver);
+  static inline Handle<Smi> LoadApiGetter(Isolate* isolate);
 
   // Creates a Smi-handler for loading a Module export.
   // |index| is the index to the "value" slot in the Module's "exports"
@@ -253,7 +251,6 @@ class StoreHandler final : public DataHandler {
     kNativeDataProperty,
     kSharedStructField,
     kApiSetter,
-    kApiSetterHolderIsPrototype,
     kGlobalProxy,
     kNormal,
     kInterceptor,
@@ -324,8 +321,7 @@ class StoreHandler final : public DataHandler {
   static inline DirectHandle<Smi> StoreAccessorFromPrototype(Isolate* isolate);
 
   // Creates a Smi-handler for calling a native setter on a fast object.
-  static inline DirectHandle<Smi> StoreApiSetter(Isolate* isolate,
-                                                 bool holder_is_receiver);
+  static inline DirectHandle<Smi> StoreApiSetter(Isolate* isolate);
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, DirectHandle<Map> receiver_map,

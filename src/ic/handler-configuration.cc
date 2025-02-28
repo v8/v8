@@ -423,9 +423,6 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
     case LoadHandler::Kind::kApiGetter:
       os << "kApiGetter";
       break;
-    case LoadHandler::Kind::kApiGetterHolderIsPrototype:
-      os << "kApiGetterHolderIsPrototype";
-      break;
     case LoadHandler::Kind::kInterceptor:
       os << "kInterceptor";
       break;
@@ -478,9 +475,6 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
       break;
     case StoreHandler::Kind::kApiSetter:
       os << "kApiSetter";
-      break;
-    case StoreHandler::Kind::kApiSetterHolderIsPrototype:
-      os << "kApiSetterHolderIsPrototype";
       break;
     case StoreHandler::Kind::kGlobalProxy:
       os << "kGlobalProxy";

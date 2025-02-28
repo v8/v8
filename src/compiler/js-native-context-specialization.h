@@ -183,8 +183,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 Node** control,
                                 ZoneVector<Node*>* if_exceptions,
                                 PropertyAccessInfo const& access_info);
-  Node* InlineApiCall(Node* receiver, Node* api_holder, Node* frame_state,
-                      Node* value, Node** effect, Node** control,
+  Node* InlineApiCall(Node* receiver, Node* frame_state, Node* value,
+                      Node** effect, Node** control,
                       FunctionTemplateInfoRef function_template_info,
                       const FeedbackSource& feedback);
 

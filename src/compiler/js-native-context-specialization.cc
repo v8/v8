@@ -1479,9 +1479,8 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
     return Replace(value);
   }
 
-  value = InlineApiCall(lookup_start_object, lookup_start_object, frame_state,
-                        nullptr /*value*/, &effect, &control,
-                        function_template_info, source);
+  value = InlineApiCall(lookup_start_object, frame_state, nullptr /*value*/,
+                        &effect, &control, function_template_info, source);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -2872,13 +2871,8 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
     if (receiver != lookup_start_object) {
       return nullptr;
     }
-    Node* api_holder = access_info.api_holder().has_value()
-                           ? jsgraph()->ConstantNoHole(
-                                 access_info.api_holder().value(), broker())
-                           : receiver;
-    value = InlineApiCall(receiver, api_holder, frame_state, nullptr, effect,
-                          control, constant.AsFunctionTemplateInfo(),
-                          FeedbackSource());
+    value = InlineApiCall(receiver, frame_state, nullptr, effect, control,
+                          constant.AsFunctionTemplateInfo(), FeedbackSource());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -2908,11 +2902,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
         target, receiver, value, feedback, context, frame_state, *effect,
         *control);
   } else {
-    Node* api_holder = access_info.api_holder().has_value()
-                           ? jsgraph()->ConstantNoHole(
-                                 access_info.api_holder().value(), broker())
-                           : receiver;
-    InlineApiCall(receiver, api_holder, frame_state, value, effect, control,
+    InlineApiCall(receiver, frame_state, value, effect, control,
                   constant.AsFunctionTemplateInfo(), FeedbackSource());
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -2928,8 +2918,8 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 
 namespace {
 CallDescriptor* PushRegularApiCallInputs(
-    JSGraph* jsgraph, JSHeapBroker* broker, Node* receiver, Node* api_holder,
-    Node* frame_state, Node* value, Node** effect, Node** control,
+    JSGraph* jsgraph, JSHeapBroker* broker, Node* receiver, Node* frame_state,
+    Node* value, Node** effect, Node** control,
     FunctionTemplateInfoRef function_template_info, Node** inputs,
     int& cursor) {
   // Only setters have a value.
@@ -2961,7 +2951,6 @@ CallDescriptor* PushRegularApiCallInputs(
   inputs[cursor++] = function_reference;
   inputs[cursor++] = jsgraph->ConstantNoHole(argc);
   inputs[cursor++] = func_templ;
-  inputs[cursor++] = api_holder;
   inputs[cursor++] = receiver;
   if (value) {
     inputs[cursor++] = value;
@@ -2982,9 +2971,8 @@ CallDescriptor* PushRegularApiCallInputs(
 }  // namespace
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* api_holder, Node* frame_state, Node* value,
-    Node** effect, Node** control,
-    FunctionTemplateInfoRef function_template_info,
+    Node* receiver, Node* frame_state, Node* value, Node** effect,
+    Node** control, FunctionTemplateInfoRef function_template_info,
     const FeedbackSource& feedback) {
   compiler::OptionalObjectRef maybe_callback_data =
       function_template_info.callback_data(broker());
@@ -3017,8 +3005,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
         jsgraph()->ConstantNoHole(maybe_callback_data.value(), broker());
 
     auto call_descriptor = PushRegularApiCallInputs(
-        jsgraph(), broker(), receiver, api_holder, frame_state, value, effect,
-        control, function_template_info, inputs, cursor);
+        jsgraph(), broker(), receiver, frame_state, value, effect, control,
+        function_template_info, inputs, cursor);
 
     // The input_count is constant, but getters have less parameters than
     // setters.
@@ -3032,8 +3020,8 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* inputs[11];
   int cursor = 0;
   CallDescriptor* call_descriptor = PushRegularApiCallInputs(
-      jsgraph(), broker(), receiver, api_holder, frame_state, value, effect,
-      control, function_template_info, inputs, cursor);
+      jsgraph(), broker(), receiver, frame_state, value, effect, control,
+      function_template_info, inputs, cursor);
 
   return *effect = *control =
              graph()->NewNode(common()->Call(call_descriptor), cursor, inputs);

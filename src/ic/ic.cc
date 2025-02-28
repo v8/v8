@@ -979,8 +979,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             return MaybeObjectHandle(LoadHandler::LoadSlow(isolate()));
           }
 
-          smi_handler = LoadHandler::LoadApiGetter(
-              isolate(), holder_lookup == CallOptimization::kHolderIsReceiver);
+          smi_handler = LoadHandler::LoadApiGetter(isolate());
 
           DirectHandle<NativeContext> accessor_context =
               GetAccessorContext(call_optimization, holder->map(), isolate());
@@ -2116,9 +2115,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                   isolate(), lookup_start_object_map(), &holder_lookup);
           if (call_optimization.IsCompatibleReceiverMap(api_holder, holder,
                                                         holder_lookup)) {
-            DirectHandle<Smi> smi_handler = StoreHandler::StoreApiSetter(
-                isolate(),
-                holder_lookup == CallOptimization::kHolderIsReceiver);
+            DirectHandle<Smi> smi_handler =
+                StoreHandler::StoreApiSetter(isolate());
 
             DirectHandle<NativeContext> accessor_context =
                 GetAccessorContext(call_optimization, holder->map(), isolate());

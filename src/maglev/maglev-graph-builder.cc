@@ -5673,8 +5673,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
     compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined, {receiver});
 
-    return TryReduceCallForApiFunction(templ, {}, access_info.api_holder(),
-                                       args);
+    return TryReduceCallForApiFunction(templ, {}, args);
   }
 }
 
@@ -5692,8 +5691,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
     compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
-    RETURN_IF_ABORT(
-        TryReduceCallForApiFunction(templ, {}, access_info.api_holder(), args));
+    RETURN_IF_ABORT(TryReduceCallForApiFunction(templ, {}, args));
   }
   // Ignore the return value of the setter call.
   return ReduceResult::Done();
@@ -10291,8 +10289,7 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
     compiler::FunctionTemplateInfoRef api_callback,
-    compiler::OptionalSharedFunctionInfoRef maybe_shared,
-    compiler::OptionalJSObjectRef api_holder, CallArguments& args) {
+    compiler::OptionalSharedFunctionInfoRef maybe_shared, CallArguments& args) {
   if (args.mode() != CallArguments::kDefault) {
     // TODO(victorgomes): Maybe inline the spread stub? Or call known function
     // directly if arguments list is an array.
@@ -10330,7 +10327,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      mode, api_callback, api_holder, GetTaggedValue(GetContext()),
+      mode, api_callback, GetTaggedValue(GetContext()),
       GetTaggedValue(receiver));
 }
 
@@ -10377,8 +10374,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
   switch (api_holder.lookup) {
     case CallOptimization::kHolderIsReceiver:
     case CallOptimization::kHolderFound:
-      return TryReduceCallForApiFunction(function_template_info, shared,
-                                         api_holder.holder, args);
+      return TryReduceCallForApiFunction(function_template_info, shared, args);
 
     case CallOptimization::kHolderNotFound:
       break;

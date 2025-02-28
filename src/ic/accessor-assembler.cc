@@ -425,25 +425,11 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_DCHECK(this, IsWeakOrCleared(maybe_context));
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
-
-  TVARIABLE(HeapObject, api_holder, CAST(p->lookup_start_object()));
-  Label load(this);
-  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &load);
-
-  CSA_DCHECK(this,
-             Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)));
-
-  api_holder = LoadMapPrototype(LoadMap(CAST(p->lookup_start_object())));
-  Goto(&load);
-
-  BIND(&load);
-  {
-    TNode<Int32T> argc = Int32Constant(0);
-    TNode<Context> caller_context = p->context();
-    exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
-                                   argc, caller_context, function_template_info,
-                                   api_holder.value(), p->receiver()));
-  }
+  TNode<Int32T> argc = Int32Constant(0);
+  TNode<Context> caller_context = p->context();
+  exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
+                                 argc, caller_context, function_template_info,
+                                 p->receiver()));
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
@@ -804,9 +790,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &api_getter);
 
-  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
-         &api_getter);
-
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kGlobal)), &global);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kSlow)), &slow);
@@ -1042,9 +1025,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
          &return_true);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &return_true);
-
-  GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
-         &return_true);
 
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kSlow)), &slow);
 
@@ -2024,9 +2004,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &if_api_setter);
 
-    GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetterHolderIsPrototype)),
-           &if_api_setter);
-
     CSA_DCHECK(this, Word32Equal(handler_kind, STORE_KIND(kProxy)));
     HandleStoreToProxy(p, CAST(holder), miss, support_elements);
 
@@ -2089,24 +2066,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           IsCleared(maybe_context), [=, this] { return SmiConstant(0); },
           [=, this] { return GetHeapObjectAssumeWeak(maybe_context); });
 
-      TVARIABLE(Object, api_holder, p->receiver());
-      Label store(this);
-      GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &store);
-
-      CSA_DCHECK(this, Word32Equal(handler_kind,
-                                   STORE_KIND(kApiSetterHolderIsPrototype)));
-
-      api_holder = LoadMapPrototype(LoadMap(CAST(p->receiver())));
-      Goto(&store);
-
-      BIND(&store);
-      {
-        TNode<Int32T> argc = Int32Constant(1);
-        TNode<Context> caller_context = p->context();
-        Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
-                           caller_context, function_template_info,
-                           api_holder.value(), p->receiver(), p->value()));
-      }
+      TNode<Int32T> argc = Int32Constant(1);
+      TNode<Context> caller_context = p->context();
+      Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
+                         caller_context, function_template_info, p->receiver(),
+                         p->value()));
     }
 
     BIND(&if_store_global_proxy);

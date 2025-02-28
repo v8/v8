@@ -705,14 +705,14 @@ constexpr auto DefineKeyedOwnWithVectorDescriptor::registers() {
 constexpr auto CallApiCallbackOptimizedDescriptor::registers() {
   return RegisterArray(ApiFunctionAddressRegister(),
                        ActualArgumentsCountRegister(),
-                       FunctionTemplateInfoRegister(), HolderRegister());
+                       FunctionTemplateInfoRegister());
 }
 
 // static
 constexpr auto CallApiCallbackGenericDescriptor::registers() {
   return RegisterArray(ActualArgumentsCountRegister(),
                        TopmostScriptHavingContextRegister(),
-                       FunctionTemplateInfoRegister(), HolderRegister());
+                       FunctionTemplateInfoRegister());
 }
 
 // static

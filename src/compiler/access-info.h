@@ -142,12 +142,6 @@ class PropertyAccessInfo final {
     // Find a more suitable place for it.
     return holder_;
   }
-  // For accessor properties when the callback is an API function with a
-  // signature, this is the value that will be passed to the callback as
-  // FunctionCallbackInfo::Holder().
-  // Don't mix it up with holder in a "object where the property was found"
-  // sense.
-  OptionalJSObjectRef api_holder() const { return api_holder_; }
   OptionalMapRef transition_map() const {
     DCHECK(!HasDictionaryHolder());
     return transition_map_;

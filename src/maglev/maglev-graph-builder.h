@@ -2147,7 +2147,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryReduceCallForApiFunction(
       compiler::FunctionTemplateInfoRef api_callback,
       compiler::OptionalSharedFunctionInfoRef maybe_shared,
-      compiler::OptionalJSObjectRef api_holder, CallArguments& args);
+      CallArguments& args);
   MaybeReduceResult TryReduceFunctionPrototypeApplyCallWithReceiver(
       compiler::OptionalHeapObjectRef maybe_receiver, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);

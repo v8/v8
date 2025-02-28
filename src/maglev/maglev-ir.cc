@@ -6222,13 +6222,7 @@ int CallKnownApiFunction::MaxCallStackArgs() const {
 }
 
 void CallKnownApiFunction::SetValueLocationConstraints() {
-  if (api_holder_.has_value()) {
-    UseAny(receiver());
-  } else {
-    // This is an "Api holder is receiver" case, ask register allocator to put
-    // receiver value into the right register.
-    UseFixed(receiver(), CallApiCallbackOptimizedDescriptor::HolderRegister());
-  }
+  UseAny(receiver());
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
@@ -6255,7 +6249,6 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
       kAllocatableGeneralRegisters -
       RegList{
           kContextRegister,
-          CallApiCallbackOptimizedDescriptor::HolderRegister(),
           CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
           CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
@@ -6266,15 +6259,6 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
     return;
   }
 
-  if (api_holder_.has_value()) {
-    __ Move(CallApiCallbackOptimizedDescriptor::HolderRegister(),
-            api_holder_.value().object());
-  } else {
-    // This is an "Api holder is receiver" case, register allocator was asked
-    // to put receiver value into the right register.
-    DCHECK_EQ(CallApiCallbackOptimizedDescriptor::HolderRegister(),
-              ToRegister(receiver()));
-  }
   __ Move(CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
           num_args());  // not including receiver
 
@@ -6317,12 +6301,12 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   static_assert(FCA::kReturnValueIndex == 3);
   static_assert(FCA::kContextIndex == 2);
   static_assert(FCA::kIsolateIndex == 1);
-  static_assert(FCA::kHolderIndex == 0);
+  static_assert(FCA::kUnusedIndex == 0);
 
   // Set up FunctionCallbackInfo's implicit_args on the stack as follows:
   //
   // Target state:
-  //   sp[0 * kSystemPointerSize]: kHolder   <= implicit_args_
+  //   sp[0 * kSystemPointerSize]: kUnused  <= FCA::implicit_args_
   //   sp[1 * kSystemPointerSize]: kIsolate
   //   sp[2 * kSystemPointerSize]: kContext
   //   sp[3 * kSystemPointerSize]: undefined (kReturnValue)
@@ -6339,15 +6323,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   // kNewTarget, kTarget, kReturnValue, kContext
   __ Push(scratch, i::Cast<HeapObject>(function_template_info_.object()),
           scratch, kContextRegister);
-  __ Move(scratch, ER::isolate_address());
-  // kIsolate, kHolder
-  if (api_holder_.has_value()) {
-    __ Push(scratch, api_holder_.value().object());
-  } else {
-    // This is an "Api holder is receiver" case, register allocator was asked
-    // to put receiver value into the right register.
-    __ Push(scratch, receiver());
-  }
+  __ Move(scratch2, ER::isolate_address());
+  // kIsolate, kUnused
+  __ Push(scratch2, scratch);
 
   Register api_function_address =
       CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
@@ -8068,13 +8046,7 @@ void CallKnownApiFunction::PrintParams(
     case kGeneric:
       break;
   }
-  os << function_template_info_.object() << ", ";
-  if (api_holder_.has_value()) {
-    os << api_holder_.value().object();
-  } else {
-    os << "Api holder is receiver";
-  }
-  os << ")";
+  os << function_template_info_.object() << ")";
 }
 
 void CallBuiltin::PrintParams(std::ostream& os,

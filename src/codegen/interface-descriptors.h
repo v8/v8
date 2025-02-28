@@ -2118,19 +2118,17 @@ class CallApiCallbackOptimizedDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_VARARGS(kApiFunctionAddress, kActualArgumentsCount,
-                            kFunctionTemplateInfo, kHolder)
+                            kFunctionTemplateInfo)
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
   DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kApiFunctionAddress
                          MachineType::Int32(),      // kActualArgumentsCount
-                         MachineType::AnyTagged(),  // kFunctionTemplateInfo
-                         MachineType::AnyTagged())  // kHolder
+                         MachineType::AnyTagged())  // kFunctionTemplateInfo
   DECLARE_DESCRIPTOR(CallApiCallbackOptimizedDescriptor)
 
   static constexpr inline Register ApiFunctionAddressRegister();
   static constexpr inline Register ActualArgumentsCountRegister();
   static constexpr inline Register FunctionTemplateInfoRegister();
-  static constexpr inline Register HolderRegister();
 
   static constexpr inline auto registers();
 };
@@ -2140,20 +2138,18 @@ class CallApiCallbackGenericDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kTopmostScriptHavingContext,
-                            kFunctionTemplateInfo, kHolder)
+                            kFunctionTemplateInfo)
   //                           receiver is implicit stack argument 1
   //                           argv are implicit stack arguments [2, 2 + kArgc[
   DEFINE_PARAMETER_TYPES(
       MachineType::Int32(),      // kActualArgumentsCount
       MachineType::AnyTagged(),  // kTopmostScriptHavingContext
-      MachineType::AnyTagged(),  // kFunctionTemplateInfo
-      MachineType::AnyTagged())  // kHolder
+      MachineType::AnyTagged())  // kFunctionTemplateInfo
   DECLARE_DESCRIPTOR(CallApiCallbackGenericDescriptor)
 
   static constexpr inline Register ActualArgumentsCountRegister();
   static constexpr inline Register TopmostScriptHavingContextRegister();
   static constexpr inline Register FunctionTemplateInfoRegister();
-  static constexpr inline Register HolderRegister();
 
   static constexpr inline auto registers();
 };

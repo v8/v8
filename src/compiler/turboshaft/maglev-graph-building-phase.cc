@@ -1387,13 +1387,6 @@ class GraphBuildingNodeProcessor {
       UNIMPLEMENTED();
     }
 
-    OpIndex api_holder;
-    if (node->api_holder().has_value()) {
-      api_holder = __ HeapConstant(node->api_holder().value().object());
-    } else {
-      api_holder = Map(node->receiver());
-    }
-
     V<Object> target =
         __ HeapConstant(node->function_template_info().AsHeapObject().object());
 
@@ -1405,7 +1398,6 @@ class GraphBuildingNodeProcessor {
     arguments.push_back(__ ExternalConstant(function_ref));
     arguments.push_back(__ Word32Constant(node->num_args()));
     arguments.push_back(target);
-    arguments.push_back(api_holder);
     arguments.push_back(Map(node->receiver()));
     for (maglev::Input arg : node->args()) {
       arguments.push_back(Map(arg));

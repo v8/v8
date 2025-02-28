@@ -85,7 +85,6 @@ void PrintFunctionCallbackInfo(Address* implicit_args, Address* js_args,
      << "\n - return_value: " << AS_OBJ(implicit_args[FCA::kReturnValueIndex])
      << "\n - target: " << AS_OBJ(implicit_args[FCA::kTargetIndex])
      << "\n - new_target: " << AS_OBJ(implicit_args[FCA::kNewTargetIndex])
-     << "\n - holder: " << AS_OBJ(implicit_args[FCA::kHolderIndex])
 
      << "\n - argc: " << length  //
      << "\n - receiver: " << AS_OBJ(js_args[0]);

@@ -86,11 +86,8 @@ Handle<Smi> LoadHandler::LoadNativeDataProperty(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate,
-                                       bool holder_is_receiver) {
-  int config =
-      KindBits::encode(holder_is_receiver ? Kind::kApiGetter
-                                          : Kind::kApiGetterHolderIsPrototype);
+Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate) {
+  int config = KindBits::encode(Kind::kApiGetter);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -267,11 +264,8 @@ DirectHandle<Smi> StoreHandler::StoreAccessorFromPrototype(Isolate* isolate) {
   return direct_handle(Smi::FromInt(config), isolate);
 }
 
-DirectHandle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
-                                               bool holder_is_receiver) {
-  int config =
-      KindBits::encode(holder_is_receiver ? Kind::kApiSetter
-                                          : Kind::kApiSetterHolderIsPrototype);
+DirectHandle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate) {
+  int config = KindBits::encode(Kind::kApiSetter);
   return direct_handle(Smi::FromInt(config), isolate);
 }
 

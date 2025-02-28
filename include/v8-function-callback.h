@@ -143,7 +143,10 @@ class FunctionCallbackInfo {
   friend class debug::ConsoleCallArguments;
   friend void internal::PrintFunctionCallbackInfo(void*);
 
-  static constexpr int kHolderIndex = 0;
+  // TODO(ishell, http://crbug.com/326505377): in case of non-constructor
+  // call, don't pass kNewTarget and kUnused. Add IsConstructCall flag to
+  // kIsolate field.
+  static constexpr int kUnusedIndex = 0;
   static constexpr int kIsolateIndex = 1;
   static constexpr int kContextIndex = 2;
   static constexpr int kReturnValueIndex = 3;

@@ -755,6 +755,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
           function_template_info, FunctionTemplateInfo::kSignatureOffset);
       CSA_DCHECK(this, Word32BinaryNot(IsUndefined(signature)));
+      // TODO(ishell, http://crbug.com/326505377): rename to
+      // CheckCompatibleReceiverOrThrow().
       holder = GetCompatibleReceiver(receiver, signature, context);
       break;
     }
@@ -793,8 +795,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     case CallFunctionTemplateMode::kGeneric:
       TailCallBuiltin(Builtin::kCallApiCallbackGeneric, context,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      topmost_script_having_context, function_template_info,
-                      holder);
+                      topmost_script_having_context, function_template_info);
       break;
 
     case CallFunctionTemplateMode::kCheckAccess:
@@ -805,7 +806,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       TailCallBuiltin(Builtin::kCallApiCallbackOptimized, context,
                       callback_address,
                       TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-                      function_template_info, holder);
+                      function_template_info);
       break;
     }
   }
