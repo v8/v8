@@ -1455,6 +1455,7 @@ enum class GarbageCollectionReason : int {
   kFinalizeConcurrentMinorMS = 26,
   kCppHeapAllocationFailure = 27,
   kFrozen = 28,
+  kIdleContextDisposal = 29,
 
   NUM_REASONS,
 };
@@ -1523,6 +1524,8 @@ constexpr const char* ToString(GarbageCollectionReason reason) {
       return "CppHeap allocation failure";
     case GarbageCollectionReason::kFrozen:
       return "frozen";
+    case GarbageCollectionReason::kIdleContextDisposal:
+      return "idle context disposal";
     case GarbageCollectionReason::NUM_REASONS:
       UNREACHABLE();
   }

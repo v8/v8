@@ -1846,7 +1846,8 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
                            : ", not starting young gen GC");
     }
     if (run_young_gen_gc) {
-      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+      heap->CollectGarbage(NEW_SPACE,
+                           GarbageCollectionReason::kIdleContextDisposal);
     }
   }
 
