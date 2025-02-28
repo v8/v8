@@ -2267,7 +2267,7 @@ DEFINE_VALUE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge, 99)
 DEFINE_BOOL(
     reclaim_unmodified_wrappers, true,
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
-DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, false,
+DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
 
 // These flags will be removed after experiments. Do not rely on them.
