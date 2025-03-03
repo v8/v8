@@ -188,8 +188,7 @@ class BasicBlock {
   }
 
   template <typename Func>
-  void ForEachSuccessor(Func&& functor) const {
-    ControlNode* control = control_node();
+  static void ForEachSuccessorFollowing(ControlNode* control, Func&& functor) {
     if (auto unconditional_control =
             control->TryCast<UnconditionalControlNode>()) {
       functor(unconditional_control->target());
@@ -204,6 +203,12 @@ class BasicBlock {
         functor(switch_node->fallthrough());
       }
     }
+  }
+
+  template <typename Func>
+  void ForEachSuccessor(Func&& functor) const {
+    ControlNode* control = control_node();
+    ForEachSuccessorFollowing(control, functor);
   }
 
   Label* label() {

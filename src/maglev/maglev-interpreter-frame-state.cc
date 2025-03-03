@@ -1406,6 +1406,34 @@ bool MergePointInterpreterFrameState::IsUnreachableByForwardEdge() const {
   }
 }
 
+void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
+  // Only call this function if we have already process all merge points.
+  DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+  DCHECK_GT(predecessor_count_, 0);
+  // Shift predecessors_ by 1.
+  for (uint32_t i = predecessor_id; i < predecessor_count_ - 1; i++) {
+    predecessors_[i] = predecessors_[i + 1];
+    // Update cache in unconditional control node.
+    ControlNode* control = predecessors_[i]->control_node();
+    if (auto unconditional_control =
+            control->TryCast<UnconditionalControlNode>()) {
+      DCHECK_EQ(unconditional_control->predecessor_id(), i + 1);
+      unconditional_control->set_predecessor_id(i);
+    }
+  }
+  // Remove Phi input of index predecessor_id.
+  for (Phi* phi : *phis()) {
+    DCHECK_EQ(phi->input_count(), predecessor_count_);
+    // Shift phi inputs by 1.
+    for (int i = predecessor_id; i < phi->input_count() - 1; i++) {
+      phi->change_input(i, phi->input(i + 1).node());
+    }
+    phi->reduce_input_count(1);
+  }
+  predecessor_count_--;
+  predecessors_so_far_--;
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

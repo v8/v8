@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/local-isolate.h"
+#include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-deopt-frame-visitor.h"
@@ -132,11 +133,14 @@ class MaglevInliner {
 
     if (result.IsDoneWithAbort()) {
       // Restore the rest of the graph.
-      // TODO(victorgomes): Some of these basic blocks might be unreachable now.
-      // Remove them in a different pass.
       for (auto bb : saved_bb) {
         graph_->Add(bb);
       }
+      RemovePredecessorFollowing(control_node, call_block);
+      // TODO(victorgomes): We probably don't need to iterate all the graph to
+      // remove unreachable blocks, but only the successors of control_node in
+      // saved_bbs.
+      RemoveUnreachableBlocks(inner_graph_builder.zone());
       return nullptr;
     }
 
@@ -236,6 +240,75 @@ class MaglevInliner {
         break;
       }
     }
+  }
+
+  void RemovePredecessorFollowing(ControlNode* control,
+                                  BasicBlock* call_block) {
+    BasicBlock::ForEachSuccessorFollowing(control, [&](BasicBlock* succ) {
+      if (!succ->has_state()) return;
+      if (succ->is_loop() && succ->backedge_predecessor() == call_block) {
+        succ->state()->TurnLoopIntoRegularBlock();
+        return;
+      }
+      for (int i = succ->predecessor_count() - 1; i >= 0; i--) {
+        if (succ->predecessor_at(i) == call_block) {
+          succ->state()->RemovePredecessorAt(i);
+        }
+      }
+    });
+  }
+
+  void RemoveUnreachableBlocks(Zone* zone) {
+    absl::flat_hash_set<BasicBlock*> reachable_blocks;
+    absl::flat_hash_set<BasicBlock*> loop_headers_unreachable_by_backegde;
+    std::vector<BasicBlock*> worklist;
+
+    DCHECK(!graph_->blocks().empty());
+    BasicBlock* initial_bb = graph_->blocks().front();
+    worklist.push_back(initial_bb);
+    reachable_blocks.insert(initial_bb);
+    DCHECK(!initial_bb->is_loop());
+
+    while (!worklist.empty()) {
+      BasicBlock* current = worklist.back();
+      worklist.pop_back();
+      if (current->is_loop()) {
+        loop_headers_unreachable_by_backegde.insert(current);
+      }
+      current->ForEachSuccessor([&](BasicBlock* succ) {
+        reachable_blocks.insert(succ);
+        if (loop_headers_unreachable_by_backegde.count(succ) > 0) {
+          // This must be the loop back edge.
+          DCHECK(succ->is_loop());
+          DCHECK_EQ(succ->backedge_predecessor(), current);
+          loop_headers_unreachable_by_backegde.erase(succ);
+        } else {
+          worklist.push_back(succ);
+        }
+      });
+    }
+
+    for (BasicBlock* bb : loop_headers_unreachable_by_backegde) {
+      DCHECK(bb->has_state());
+      bb->state()->TurnLoopIntoRegularBlock();
+    }
+
+    ZoneVector<BasicBlock*> new_blocks(zone);
+    for (BasicBlock* bb : graph_->blocks()) {
+      if (reachable_blocks.count(bb) > 0) {
+        new_blocks.push_back(bb);
+        // Remove unreachable predecessors.
+        // If block doesn't have a merge state, it has only one predecessor, so
+        // it must be a reachable one.
+        if (!bb->has_state()) continue;
+        for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
+          if (reachable_blocks.count(bb->predecessor_at(i)) == 0) {
+            bb->state()->RemovePredecessorAt(i);
+          }
+        }
+      }
+    }
+    graph_->set_blocks(new_blocks);
   }
 };
 
