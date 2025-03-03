@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'efb3303345a5501074564393470197a904b4afb7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e965c4ffb4edcc47a07dd270aec7a170580a5e2c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b248db940ef3dd7e5f4694ebf4d8a3f67aa0086d',
   'buildtools/linux64': {
@@ -245,7 +245,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '50eedb1b5a74772dd77f9fe6b1cd82e3c4c1d9a7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '85ec2718b5a29990c7eb67778348c9f76a00f392',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -471,7 +471,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0d24eec790c68d3a8bb63adfe0aba5059d9999f7',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '81f26b6c8adb0f60d0ec76064497768a8021b49f',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'cd23b39adb8c3c2c1a320af29387d101ec48cfe4',
   'third_party/re2/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '788cb3c270e8700b425c7bdca1f9ce6b0c1400a9',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ab2d3eca76026ac7b13ba8913597218457d7e800',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '786a0cdb0297257d279bd8717d1561a93b17a6ab',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
