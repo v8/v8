@@ -68,10 +68,13 @@ class UpdateInputsProcessor {
 
 class MaglevInliner {
  public:
-  MaglevInliner(LocalIsolate* local_isolate, Graph* graph)
-      : local_isolate_(local_isolate), graph_(graph) {}
+  MaglevInliner(LocalIsolate* local_isolate,
+                MaglevCompilationInfo* compilation_info, Graph* graph)
+      : local_isolate_(local_isolate),
+        compilation_info_(compilation_info),
+        graph_(graph) {}
 
-  void Run() {
+  void Run(bool is_tracing_maglev_graphs_enabled) {
     // TODO(victorgomes): Add some heuristics to choose which function to
     // inline.
     while (!graph_->inlineable_calls().empty()) {
@@ -95,17 +98,39 @@ class MaglevInliner {
             details->generic_call_node, result);
         substitute_use.ProcessGraph(graph_);
       }
+      // If --trace-maglev-inlining-verbose, we print the graph after each
+      // inlining step/call.
+      if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
+          v8_flags.trace_maglev_inlining_verbose) {
+        std::cout << "\nAfter inlining "
+                  << details->callee->shared_function_info() << std::endl;
+        PrintGraph(std::cout, compilation_info_, graph_);
+      }
+    }
+    // Otherwise we print just once at the end.
+    if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
+        !v8_flags.trace_maglev_inlining_verbose) {
+      std::cout << "\nAfter inlining" << std::endl;
+      PrintGraph(std::cout, compilation_info_, graph_);
     }
   }
 
  private:
   LocalIsolate* local_isolate_;
+  MaglevCompilationInfo* compilation_info_;
   Graph* graph_;
 
+  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
+  Zone* zone() const { return compilation_info_->zone(); }
+
   ValueNode* BuildInlineFunction(MaglevCallerDetails* details) {
-    compiler::JSHeapBroker* broker = details->callee->broker();
+    if (v8_flags.trace_maglev_inlining) {
+      std::cout << "  non-eager inlining "
+                << details->callee->shared_function_info() << std::endl;
+    }
+
     compiler::BytecodeArrayRef bytecode =
-        details->callee->shared_function_info().GetBytecodeArray(broker);
+        details->callee->shared_function_info().GetBytecodeArray(broker());
     graph_->add_inlined_bytecode_size(bytecode.length());
 
     // Create a new graph builder for the inlined function.
@@ -122,7 +147,7 @@ class MaglevInliner {
     // Truncate the basic block and remove the generic call node.
     ControlNode* control_node = call_block->reset_control_node();
     ZoneVector<Node*> rem_nodes_in_call_block =
-        call_block->Split(generic_node, details->callee->zone());
+        call_block->Split(generic_node, zone());
 
     // Set the inner graph builder to build in the truncated call block.
     inner_graph_builder.set_current_block(call_block);
@@ -140,7 +165,7 @@ class MaglevInliner {
       // TODO(victorgomes): We probably don't need to iterate all the graph to
       // remove unreachable blocks, but only the successors of control_node in
       // saved_bbs.
-      RemoveUnreachableBlocks(inner_graph_builder.zone());
+      RemoveUnreachableBlocks();
       return nullptr;
     }
 
@@ -191,8 +216,8 @@ class MaglevInliner {
   ValueNode* AddNodeAtBlockEnd(MaglevGraphBuilder& builder,
                                std::initializer_list<ValueNode*> inputs,
                                Args&&... args) {
-    ValueNode* node = NodeBase::New<Node>(builder.zone(), inputs,
-                                          std::forward<Args>(args)...);
+    ValueNode* node =
+        NodeBase::New<Node>(zone(), inputs, std::forward<Args>(args)...);
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
     builder.node_buffer().push_back(node);
@@ -258,7 +283,7 @@ class MaglevInliner {
     });
   }
 
-  void RemoveUnreachableBlocks(Zone* zone) {
+  void RemoveUnreachableBlocks() {
     absl::flat_hash_set<BasicBlock*> reachable_blocks;
     absl::flat_hash_set<BasicBlock*> loop_headers_unreachable_by_backegde;
     std::vector<BasicBlock*> worklist;
@@ -293,7 +318,7 @@ class MaglevInliner {
       bb->state()->TurnLoopIntoRegularBlock();
     }
 
-    ZoneVector<BasicBlock*> new_blocks(zone);
+    ZoneVector<BasicBlock*> new_blocks(zone());
     for (BasicBlock* bb : graph_->blocks()) {
       if (reachable_blocks.count(bb) > 0) {
         new_blocks.push_back(bb);

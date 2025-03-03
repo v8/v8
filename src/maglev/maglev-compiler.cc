@@ -124,13 +124,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Inlining");
 
-      MaglevInliner inliner(local_isolate, graph);
-      inliner.Run();
-
-      if (is_tracing_enabled && v8_flags.print_maglev_graphs) {
-        std::cout << "\nAfter inlining" << std::endl;
-        PrintGraph(std::cout, compilation_info, graph);
-      }
+      MaglevInliner inliner(local_isolate, compilation_info, graph);
+      inliner.Run(is_tracing_enabled);
     }
 
 #ifdef DEBUG
