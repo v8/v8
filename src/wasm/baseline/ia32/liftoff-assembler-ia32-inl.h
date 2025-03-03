@@ -213,6 +213,9 @@ class CacheStatePreservingTempRegisters {
 };
 
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
+constexpr DoubleRegister kScratchDoubleReg2 = xmm0;
+static_assert(!kLiftoffAssemblerFpCacheRegs.has(kScratchDoubleReg));
+static_assert(!kLiftoffAssemblerFpCacheRegs.has(kScratchDoubleReg2));
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
 
@@ -2399,18 +2402,22 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       __ cvttsd2si(dst, src);
       __ Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
-      __ Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
+      // Use converted_back as a scratch register (we can use it as it is an
+      // "output" register of this function.
+      __ Cvttsd2ui(dst, src, converted_back);
       __ Cvtui2sd(converted_back, dst,
-                  __ GetUnusedRegister(kGpReg, pinned).gp());
+                  CacheStatePreservingTempRegisters(assm, pinned).Acquire());
     }
   } else {                                  // f32
     if (std::is_signed<dst_type>::value) {  // f32 -> i32
       __ cvttss2si(dst, src);
       __ Cvtsi2ss(converted_back, dst);
     } else {  // f32 -> u32
-      __ Cvttss2ui(dst, src, liftoff::kScratchDoubleReg);
+      // Use converted_back as a scratch register (we can use it as it is an
+      // "output" register of this function.
+      __ Cvttss2ui(dst, src, converted_back);
       __ Cvtui2ss(converted_back, dst,
-                  __ GetUnusedRegister(kGpReg, pinned).gp());
+                  CacheStatePreservingTempRegisters(assm, pinned).Acquire());
     }
   }
 }
@@ -2425,10 +2432,10 @@ inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   CpuFeatureScope feature(assm, SSE4_1);
 
   LiftoffRegList pinned{src, dst};
-  DoubleRegister rounded =
-      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
-  DoubleRegister converted_back =
-      pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
+  // Note: This relies on ConvertFloatToIntAndBack not reusing these scratch
+  // registers!
+  DoubleRegister rounded = kScratchDoubleReg;
+  DoubleRegister converted_back = kScratchDoubleReg2;
 
   if (std::is_same<double, src_type>::value) {  // f64
     __ roundsd(rounded, src, kRoundToZero);

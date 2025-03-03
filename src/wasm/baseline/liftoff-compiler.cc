@@ -2088,11 +2088,13 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == dst_rc
                               ? __ GetUnusedRegister(dst_rc, {src}, {})
                               : __ GetUnusedRegister(dst_rc, {});
-    Label* trap =
+    bool emitted = __ emit_type_conversion(
+        opcode, dst, src,
         can_trap ? AddOutOfLineTrap(decoder,
                                     Builtin::kThrowWasmTrapFloatUnrepresentable)
-                 : nullptr;
-    if (!__ emit_type_conversion(opcode, dst, src, trap)) {
+                       .label()
+                 : nullptr);
+    if (!emitted) {
       DCHECK_NOT_NULL(fallback_fn);
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
@@ -2102,9 +2104,10 @@ class LiftoffCompiler {
         LiftoffRegister dst_regs[] = {ret_reg, dst};
         GenerateCCallWithStackBuffer(dst_regs, kI32, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
-        // It's okay that this is short-lived: we're trapping anyway.
-        FREEZE_STATE(trapping);
-        __ emit_cond_jump(kEqual, trap, kI32, ret_reg.gp(), no_reg, trapping);
+        OolTrapLabel trap = AddOutOfLineTrap(
+            decoder, Builtin::kThrowWasmTrapFloatUnrepresentable);
+        __ emit_cond_jump(kEqual, trap.label(), kI32, ret_reg.gp(), no_reg,
+                          trap.frozen());
       } else {
         GenerateCCallWithStackBuffer(&dst, kVoid, dst_kind,
                                      {VarState{src_kind, src, 0}}, ext_ref);
@@ -2609,10 +2612,11 @@ class LiftoffCompiler {
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrapDeprecated(decoder, Builtin::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivUnrepresentable);
+          AddOutOfLineTrapDeprecated(decoder,
+                                     Builtin::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           __ emit_i32_divs(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero,
@@ -2622,34 +2626,35 @@ class LiftoffCompiler {
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero);
+          Label* div_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapDivByZero);
           __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
         });
       case kExprI32RemS:
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero);
+          Label* rem_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapRemByZero);
           __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
       case kExprI32RemU:
         return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero);
+          Label* rem_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapRemByZero);
           __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
       case kExprI64DivS:
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero);
+          AddOutOfLineTrapDeprecated(decoder, Builtin::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
           // the first one, thus get both pointers afterwards.
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivUnrepresentable);
+          AddOutOfLineTrapDeprecated(decoder,
+                                     Builtin::kThrowWasmTrapDivUnrepresentable);
           Label* div_by_zero = out_of_line_code_.end()[-2].label.get();
           Label* div_unrepresentable = out_of_line_code_.end()[-1].label.get();
           if (!__ emit_i64_divs(dst, lhs, rhs, div_by_zero,
@@ -2663,8 +2668,8 @@ class LiftoffCompiler {
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* div_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapDivByZero);
+          Label* div_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapDivByZero);
           if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_div();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
@@ -2674,8 +2679,8 @@ class LiftoffCompiler {
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero);
+          Label* rem_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_rems(dst, lhs, rhs, rem_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_int64_mod();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
@@ -2685,8 +2690,8 @@ class LiftoffCompiler {
         return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
                                                      LiftoffRegister lhs,
                                                      LiftoffRegister rhs) {
-          Label* rem_by_zero =
-              AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapRemByZero);
+          Label* rem_by_zero = AddOutOfLineTrapDeprecated(
+              decoder, Builtin::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
             ExternalReference ext_ref = ExternalReference::wasm_uint64_mod();
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
@@ -3126,9 +3131,9 @@ class LiftoffCompiler {
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    Label* trap_label =
+    OolTrapLabel trap =
         AddOutOfLineTrap(decoder, GetBuiltinForTrapReason(reason));
-    __ emit_jump(trap_label);
+    __ emit_jump(trap.label());
     __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
@@ -3136,14 +3141,13 @@ class LiftoffCompiler {
                                Value* result, Condition cond) {
     LiftoffRegList pinned;
     LiftoffRegister obj = pinned.set(__ PopToRegister(pinned));
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValueForCompare(null.gp(), pinned, arg.type);
     {
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(cond, trap_label, kRefNull, obj.gp(), null.gp(),
-                        trapping);
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
+      __ emit_cond_jump(cond, trap.label(), kRefNull, obj.gp(), null.gp(),
+                        trap.frozen());
     }
     __ PushRegister(kRefNull, obj);
   }
@@ -3357,8 +3361,27 @@ class LiftoffCompiler {
     return spilled;
   }
 
-  Label* AddOutOfLineTrap(FullDecoder* decoder, Builtin builtin) {
-    DCHECK(v8_flags.wasm_bounds_checks);
+  // TODO(mliedtke): Replace all occurrences with the new mechanism!
+  Label* AddOutOfLineTrapDeprecated(FullDecoder* decoder, Builtin builtin) {
+    return AddOutOfLineTrap(decoder, builtin).label();
+  }
+
+  class OolTrapLabel {
+   public:
+    OolTrapLabel(LiftoffAssembler& assembler, Label* label)
+        : label_(label), freeze_(assembler) {}
+
+    Label* label() const { return label_; }
+    const FreezeCacheState& frozen() const { return freeze_; }
+
+   private:
+    Label* label_;
+    FreezeCacheState freeze_;
+  };
+
+  OolTrapLabel AddOutOfLineTrap(FullDecoder* decoder, Builtin builtin) {
+    DCHECK_IMPLIES(builtin == Builtin::kThrowWasmTrapMemOutOfBounds,
+                   v8_flags.wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
     // Execution does not return after a trap. Therefore we don't have to define
     // a safepoint for traps that would preserve references on the stack.
@@ -3375,7 +3398,7 @@ class LiftoffCompiler {
         V8_UNLIKELY(for_debugging_) ? GetSpilledRegistersForInspection()
                                     : nullptr,
         safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
-    return out_of_line_code_.back().label.get();
+    return OolTrapLabel(asm_, out_of_line_code_.back().label.get());
   }
 
   enum ForceCheck : bool { kDoForceCheck = true, kDontForceCheck = false };
@@ -3430,14 +3453,14 @@ class LiftoffCompiler {
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
       if (memory->is_memory64()) {
         FREEZE_STATE(trapping);
-        Label* trap_label =
+        OolTrapLabel trap =
             AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
         SCOPED_CODE_COMMENT("bounds check memory");
         // Bounds check `index` against `max_mem_size - end_offset`, such that
         // at runtime `index + end_offset` will be < `max_mem_size`, where the
         // trap handler can handle out-of-bound accesses.
         __ set_trap_on_oob_mem64(index_ptrsize, kMaxMemory64Size - end_offset,
-                                 trap_label);
+                                 trap.label());
       }
 #else
       CHECK(!memory->is_memory64());
@@ -3461,11 +3484,10 @@ class LiftoffCompiler {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
       DCHECK_GE(kMaxUInt32, memory->max_memory_size);
-      FREEZE_STATE(out_of_line_trap);
-      Label* trap_label =
+      OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
-      __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
-                        out_of_line_trap);
+      __ emit_cond_jump(kNotZero, trap.label(), kI32, index.high_gp(), no_reg,
+                        trap.frozen());
     }
 
     // Note that allocating the registers here before creating the trap label is
@@ -3489,8 +3511,7 @@ class LiftoffCompiler {
     }
 
     // {for_debugging_} needs spill slots in out of line code.
-    FREEZE_STATE(trapping);
-    Label* trap_label =
+    OolTrapLabel trap =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
@@ -3499,8 +3520,8 @@ class LiftoffCompiler {
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
     if (end_offset > memory->min_memory_size) {
-      __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kIntPtrKind,
-                        end_offset_reg.gp(), mem_size.gp(), trapping);
+      __ emit_cond_jump(kUnsignedGreaterThanEqual, trap.label(), kIntPtrKind,
+                        end_offset_reg.gp(), mem_size.gp(), trap.frozen());
     }
 
     // Just reuse the end_offset register for computing the effective size
@@ -3509,8 +3530,8 @@ class LiftoffCompiler {
     __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size.gp(),
                         end_offset_reg.gp());
 
-    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kIntPtrKind,
-                      index_ptrsize, effective_size_reg.gp(), trapping);
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap.label(), kIntPtrKind,
+                      index_ptrsize, effective_size_reg.gp(), trap.frozen());
     return index_ptrsize;
   }
 
@@ -3521,11 +3542,10 @@ class LiftoffCompiler {
     // For access_size 1 there is no minimum alignment.
     if (access_size == 1) return;
     SCOPED_CODE_COMMENT("alignment check");
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess);
     Register address = __ GetUnusedRegister(kGpReg, pinned).gp();
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapUnalignedAccess);
 
-    FREEZE_STATE(trapping);
     const uint32_t align_mask = access_size - 1;
     if ((offset & align_mask) == 0) {
       // If {offset} is aligned, we can produce faster code.
@@ -3535,12 +3555,14 @@ class LiftoffCompiler {
       // {emit_cond_jump} to use the "test" instruction without the "and" here.
       // Then we can also avoid using the temp register here.
       __ emit_i32_andi(address, index, align_mask);
-      __ emit_cond_jump(kNotEqual, trap_label, kI32, address, no_reg, trapping);
+      __ emit_cond_jump(kNotEqual, trap.label(), kI32, address, no_reg,
+                        trap.frozen());
     } else {
       // For alignment checks we only look at the lower 32-bits in {offset}.
       __ emit_i32_addi(address, index, static_cast<uint32_t>(offset));
       __ emit_i32_andi(address, address, align_mask);
-      __ emit_cond_jump(kNotEqual, trap_label, kI32, address, no_reg, trapping);
+      __ emit_cond_jump(kNotEqual, trap.label(), kI32, address, no_reg,
+                        trap.frozen());
     }
   }
 
@@ -6155,10 +6177,10 @@ class LiftoffCompiler {
     }
     if (high_word == no_reg) return;
 
-    Label* trap_label =
+    OolTrapLabel trap =
         AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapTableOutOfBounds);
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kNotZero, trap_label, kI32, high_word, no_reg, trapping);
+    __ emit_cond_jump(kNotZero, trap.label(), kI32, high_word, no_reg,
+                      trap.frozen());
     // Clearing `high_word` is safe because this never aliases with another
     // in-use register, see `PopIndexToVarState()`.
     pinned->clear(high_word);
@@ -6266,13 +6288,12 @@ class LiftoffCompiler {
 
     // TODO(crbug.com/41480344): The stack state in the OOL code should reflect
     // the state before popping any values (for a better debugging experience).
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
     if (mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
-                        no_reg, trapping);
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+      __ emit_cond_jump(kNotZero, trap.label(), kI32, mem_offsets_high_word,
+                        no_reg, trap.frozen());
       pinned.clear(mem_offsets_high_word);
     }
 
@@ -6285,8 +6306,10 @@ class LiftoffCompiler {
                        {kI32, static_cast<int32_t>(imm.data_segment.index), 0},
                        size},
                       ExternalReference::wasm_memory_init());
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+    __ emit_cond_jump(kEqual, trap.label(), kI32, result.gp(), no_reg,
+                      trap.frozen());
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
@@ -6336,14 +6359,13 @@ class LiftoffCompiler {
 
     // TODO(crbug.com/41480344): The stack state in the OOL code should reflect
     // the state before popping any values (for a better debugging experience).
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
     DCHECK_IMPLIES(Is64(), mem_offsets_high_word == no_reg);
     if (!Is64() && mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
-                        no_reg, trapping);
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+      __ emit_cond_jump(kNotZero, trap.label(), kI32, mem_offsets_high_word,
+                        no_reg, trap.frozen());
     }
 
     LiftoffRegister result =
@@ -6355,8 +6377,10 @@ class LiftoffCompiler {
                        src,
                        size},
                       ExternalReference::wasm_memory_copy());
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+    __ emit_cond_jump(kEqual, trap.label(), kI32, result.gp(), no_reg,
+                      trap.frozen());
   }
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -6380,13 +6404,12 @@ class LiftoffCompiler {
 
     // TODO(crbug.com/41480344): The stack state in the OOL code should reflect
     // the state before popping any values (for a better debugging experience).
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
     if (mem_offsets_high_word != no_reg) {
       // If any high word has bits set, jump to the OOB trap.
-      FREEZE_STATE(trapping);
-      __ emit_cond_jump(kNotZero, trap_label, kI32, mem_offsets_high_word,
-                        no_reg, trapping);
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+      __ emit_cond_jump(kNotZero, trap.label(), kI32, mem_offsets_high_word,
+                        no_reg, trap.frozen());
     }
 
     LiftoffRegister result =
@@ -6397,8 +6420,10 @@ class LiftoffCompiler {
                        value,
                        size},
                       ExternalReference::wasm_memory_fill());
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapMemOutOfBounds);
+    __ emit_cond_jump(kEqual, trap.label(), kI32, result.gp(), no_reg,
+                      trap.frozen());
   }
 
   void LoadSmi(LiftoffRegister reg, int value) {
@@ -6696,11 +6721,11 @@ class LiftoffCompiler {
     {
       LiftoffRegister length =
           __ LoadToRegister(__ cache_state()->stack_state.end()[-1], {});
-      Label* trap_label =
+      OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayTooLarge);
-      FREEZE_STATE(trapping);
-      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
-                             WasmArray::MaxLength(imm.array_type), trapping);
+      __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap.label(), length.gp(),
+                             WasmArray::MaxLength(imm.array_type),
+                             trap.frozen());
     }
     ValueType elem_type = imm.array_type->element_type();
     ValueKind elem_kind = elem_type.kind();
@@ -6765,8 +6790,6 @@ class LiftoffCompiler {
       }
 
       // Bounds checks.
-      Label* trap_label =
-          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
       LiftoffRegister array_length =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       bool implicit_null_check =
@@ -6781,12 +6804,14 @@ class LiftoffCompiler {
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       DCHECK(index_plus_length != array_length);
       __ emit_i32_add(index_plus_length.gp(), length.gp(), index.gp());
-      FREEZE_STATE(frozen);
-      __ emit_cond_jump(kUnsignedGreaterThan, trap_label, kI32,
-                        index_plus_length.gp(), array_length.gp(), frozen);
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
+      __ emit_cond_jump(kUnsignedGreaterThan, trap.label(), kI32,
+                        index_plus_length.gp(), array_length.gp(),
+                        trap.frozen());
       // Guard against overflow.
-      __ emit_cond_jump(kUnsignedGreaterThan, trap_label, kI32, index.gp(),
-                        index_plus_length.gp(), frozen);
+      __ emit_cond_jump(kUnsignedGreaterThan, trap.label(), kI32, index.gp(),
+                        index_plus_length.gp(), trap.frozen());
     }
 
     LiftoffRegList pinned;
@@ -7177,18 +7202,19 @@ class LiftoffCompiler {
                        Value* result_val, bool null_succeeds) {
     switch (type.representation()) {
       case HeapType::kEq:
-        return AbstractTypeCheck<&LiftoffCompiler::EqCheck>(obj, null_succeeds);
+        return AbstractTypeCheck<&LiftoffCompiler::EqCheck>(decoder, obj,
+                                                            null_succeeds);
       case HeapType::kI31:
-        return AbstractTypeCheck<&LiftoffCompiler::I31Check>(obj,
+        return AbstractTypeCheck<&LiftoffCompiler::I31Check>(decoder, obj,
                                                              null_succeeds);
       case HeapType::kStruct:
-        return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(obj,
+        return AbstractTypeCheck<&LiftoffCompiler::StructCheck>(decoder, obj,
                                                                 null_succeeds);
       case HeapType::kArray:
-        return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(obj,
+        return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(decoder, obj,
                                                                null_succeeds);
       case HeapType::kString:
-        return AbstractTypeCheck<&LiftoffCompiler::StringCheck>(obj,
+        return AbstractTypeCheck<&LiftoffCompiler::StringCheck>(decoder, obj,
                                                                 null_succeeds);
       case HeapType::kNone:
       case HeapType::kNoExtern:
@@ -7208,8 +7234,6 @@ class LiftoffCompiler {
                const Value& obj, Value* result, bool null_succeeds) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
 
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
     LiftoffRegList pinned;
     LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
@@ -7221,11 +7245,12 @@ class LiftoffCompiler {
     }
 
     {
-      FREEZE_STATE(frozen);
       NullSucceeds on_null = null_succeeds ? kNullSucceeds : kNullFails;
+      OolTrapLabel trap =
+          AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   ref_index, scratch_null, scratch2, trap_label, on_null,
-                   frozen);
+                   ref_index, scratch_null, scratch2, trap.label(), on_null,
+                   trap.frozen());
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -7397,12 +7422,20 @@ class LiftoffCompiler {
     ValueType obj_type;
     Register tmp = no_reg;
     Label* no_match;
+    Builtin no_match_trap;
+    std::optional<OolTrapLabel> trap;
     bool null_succeeds;
 
-    TypeCheck(ValueType obj_type, Label* no_match, bool null_succeeds)
+    TypeCheck(ValueType obj_type, Label* no_match, bool null_succeeds,
+              Builtin no_match_trap = Builtin::kNoBuiltinId)
         : obj_type(obj_type),
           no_match(no_match),
-          null_succeeds(null_succeeds) {}
+          no_match_trap(no_match_trap),
+          null_succeeds(null_succeeds) {
+      // Either a non-trapping no_match label needs to be provided or a builtin
+      // to trap with in case the type check fails.
+      DCHECK_NE(no_match == nullptr, no_match_trap == Builtin::kNoBuiltinId);
+    }
 
     Register null_reg() { return tmp; }       // After {Initialize}.
     Register instance_type() { return tmp; }  // After {LoadInstanceType}.
@@ -7410,7 +7443,8 @@ class LiftoffCompiler {
 
   enum PopOrPeek { kPop, kPeek };
 
-  void Initialize(TypeCheck& check, PopOrPeek pop_or_peek, ValueType type) {
+  void Initialize(TypeCheck& check, FullDecoder* decoder, PopOrPeek pop_or_peek,
+                  ValueType type) {
     LiftoffRegList pinned;
     if (pop_or_peek == kPop) {
       check.obj_reg = pinned.set(__ PopToRegister(pinned)).gp();
@@ -7420,6 +7454,10 @@ class LiftoffCompiler {
     check.tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (check.obj_type.is_nullable()) {
       LoadNullValue(check.null_reg(), type);
+    }
+    if (check.no_match == nullptr) {
+      check.trap.emplace(AddOutOfLineTrap(decoder, check.no_match_trap));
+      check.no_match = check.trap->label();
     }
   }
   void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
@@ -7483,10 +7521,11 @@ class LiftoffCompiler {
                                                 const FreezeCacheState& frozen);
 
   template <TypeChecker type_checker>
-  void AbstractTypeCheck(const Value& object, bool null_succeeds) {
+  void AbstractTypeCheck(FullDecoder* decoder, const Value& object,
+                         bool null_succeeds) {
     Label match, no_match, done;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPop, object.type);
+    Initialize(check, decoder, kPop, object.type);
     LiftoffRegister result(check.tmp);
     {
       FREEZE_STATE(frozen);
@@ -7514,10 +7553,9 @@ class LiftoffCompiler {
   void AbstractTypeCast(const Value& object, FullDecoder* decoder,
                         bool null_succeeds) {
     Label match;
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
-    TypeCheck check(object.type, trap_label, null_succeeds);
-    Initialize(check, kPeek, object.type);
+    TypeCheck check(object.type, nullptr, null_succeeds,
+                    Builtin::kThrowWasmTrapIllegalCast);
+    Initialize(check, decoder, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -7538,7 +7576,7 @@ class LiftoffCompiler {
 
     Label no_match, match;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPeek, object.type);
+    Initialize(check, decoder, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -7563,7 +7601,7 @@ class LiftoffCompiler {
 
     Label no_match, end;
     TypeCheck check(object.type, &no_match, null_succeeds);
-    Initialize(check, kPeek, object.type);
+    Initialize(check, decoder, kPeek, object.type);
     FREEZE_STATE(frozen);
 
     if (null_succeeds && check.obj_type.is_nullable()) {
@@ -8529,13 +8567,12 @@ class LiftoffCompiler {
           !table->has_maximum_size ||
           table->maximum_size != table->initial_size;
 
-      Label* out_of_bounds_label =
+      ScopedTempRegister table_size{temps, kGpReg};
+      OolTrapLabel out_of_bounds =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapTableOutOfBounds);
 
-      ScopedTempRegister table_size{temps, kGpReg};
-      FREEZE_STATE(trapping);
       if (statically_oob) {
-        __ emit_jump(out_of_bounds_label);
+        __ emit_jump(out_of_bounds.label());
         // This case is unlikely to happen in production. Thus we just continue
         // generating code afterwards, to make sure that the stack is in a
         // consistent state for following instructions.
@@ -8545,9 +8582,9 @@ class LiftoffCompiler {
                 LoadType::kI32Load);
 
         if (is_static_index) {
-          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, out_of_bounds_label,
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, out_of_bounds.label(),
                                  table_size.gp_reg(), index_slot.i32_const(),
-                                 trapping);
+                                 out_of_bounds.frozen());
         } else {
           ValueKind comparison_type = kI32;
           if (Is64() && table->is_table64()) {
@@ -8555,9 +8592,9 @@ class LiftoffCompiler {
             __ emit_u32_to_uintptr(table_size.gp_reg(), table_size.gp_reg());
             comparison_type = kIntPtrKind;
           }
-          __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds_label,
+          __ emit_cond_jump(kUnsignedLessThanEqual, out_of_bounds.label(),
                             comparison_type, table_size.gp_reg(), index_reg,
-                            trapping);
+                            out_of_bounds.frozen());
         }
       } else {
         DCHECK_EQ(max_table_size, table->initial_size);
@@ -8570,11 +8607,12 @@ class LiftoffCompiler {
           // the MSB is known to be 0 (asserted by the static_assert below).
           static_assert(kV8MaxWasmTableSize <= kMaxInt);
           __ emit_ptrsize_cond_jumpi(kUnsignedGreaterThanEqual,
-                                     out_of_bounds_label, index_reg,
-                                     max_table_size, trapping);
+                                     out_of_bounds.label(), index_reg,
+                                     max_table_size, out_of_bounds.frozen());
         } else {
-          __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
-                                 index_reg, max_table_size, trapping);
+          __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual,
+                                 out_of_bounds.label(), index_reg,
+                                 max_table_size, out_of_bounds.frozen());
         }
       }
     }
@@ -8638,24 +8676,23 @@ class LiftoffCompiler {
       // isolates / processes) the canonical signature ID is a static integer.
       CanonicalTypeIndex canonical_sig_id =
           decoder->module_->canonical_sig_id(imm.sig_imm.index);
-      Label* sig_mismatch_label =
+      OolTrapLabel sig_mismatch =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapFuncSigMismatch);
       __ DropValues(1);
 
       if (!needs_type_check) {
         DCHECK(needs_null_check);
         // Only check for -1 (nulled table entry).
-        FREEZE_STATE(frozen);
-        __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id.gp_reg(),
-                               -1, frozen);
+        __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
+                               real_sig_id.gp_reg(), -1, sig_mismatch.frozen());
       } else if (!decoder->module_->type(imm.sig_imm.index).is_final) {
         Label success_label;
-        FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id.gp_reg(),
-                               canonical_sig_id.index, frozen);
+                               canonical_sig_id.index, sig_mismatch.frozen());
         if (needs_null_check) {
-          __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label,
-                                 real_sig_id.gp_reg(), -1, frozen);
+          __ emit_i32_cond_jumpi(kEqual, sig_mismatch.label(),
+                                 real_sig_id.gp_reg(), -1,
+                                 sig_mismatch.frozen());
         }
         ScopedTempRegister real_rtt{temps, kGpReg};
         __ LoadFullPointer(
@@ -8691,8 +8728,9 @@ class LiftoffCompiler {
           int offset =
               ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
           __ LoadSmiAsInt32(list_length.reg(), type_info.gp_reg(), offset);
-          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, sig_mismatch_label,
-                                 list_length.gp_reg(), rtt_depth, frozen);
+          __ emit_i32_cond_jumpi(kUnsignedLessThanEqual, sig_mismatch.label(),
+                                 list_length.gp_reg(), rtt_depth,
+                                 sig_mismatch.frozen());
         }
         // Step 3: load the candidate list slot, and compare it.
         ScopedTempRegister maybe_match{std::move(type_info)};
@@ -8710,15 +8748,15 @@ class LiftoffCompiler {
             formal_rtt.gp_reg(), formal_rtt.gp_reg(), no_reg,
             wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                 imm.sig_imm.index.index));
-        __ emit_cond_jump(kNotEqual, sig_mismatch_label, kRef,
-                          formal_rtt.gp_reg(), maybe_match.gp_reg(), frozen);
+        __ emit_cond_jump(kNotEqual, sig_mismatch.label(), kRef,
+                          formal_rtt.gp_reg(), maybe_match.gp_reg(),
+                          sig_mismatch.frozen());
 
         __ bind(&success_label);
       } else {
-        FREEZE_STATE(trapping);
-        __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch_label,
+        __ emit_i32_cond_jumpi(kNotEqual, sig_mismatch.label(),
                                real_sig_id.gp_reg(), canonical_sig_id.index,
-                               trapping);
+                               sig_mismatch.frozen());
       }
     } else {
       __ DropValues(1);
@@ -8999,21 +9037,18 @@ class LiftoffCompiler {
     if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable()) {
       return;
     }
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValueForCompare(null.gp(), pinned, type);
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kEqual, trap_label, kRefNull, object, null.gp(),
-                      trapping);
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapNullDereference);
+    __ emit_cond_jump(kEqual, trap.label(), kRefNull, object, null.gp(),
+                      trap.frozen());
   }
 
   void BoundsCheckArray(FullDecoder* decoder, bool implicit_null_check,
                         LiftoffRegister array, LiftoffRegister index,
                         LiftoffRegList pinned) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
@@ -9023,9 +9058,10 @@ class LiftoffCompiler {
     if (implicit_null_check) {
       RegisterProtectedInstruction(decoder, protected_instruction_pc);
     }
-    FREEZE_STATE(trapping);
-    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kI32, index.gp(),
-                      length.gp(), trapping);
+    OolTrapLabel trap =
+        AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapArrayOutOfBounds);
+    __ emit_cond_jump(kUnsignedGreaterThanEqual, trap.label(), kI32, index.gp(),
+                      length.gp(), trap.frozen());
   }
 
   int StructFieldOffset(const StructType* struct_type, int field_index) {
