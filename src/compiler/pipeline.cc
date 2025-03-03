@@ -111,6 +111,7 @@
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/turboshaft/int64-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-dead-code-elimination-phase.h"
+#include "src/compiler/turboshaft/wasm-debug-memory-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-gc-optimize-phase.h"
 #include "src/compiler/turboshaft/wasm-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
@@ -1859,6 +1860,13 @@ CompilationJob::Status WasmTurboshaftWrapperCompilationJob::ExecuteJobImpl(
   if (v8_flags.wasm_opt) {
     turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
   }
+#if DEBUG
+  if (!v8_flags.wasm_opt) {
+    // We still need to lower allocation operations even with optimizations
+    // being turned off.
+    turboshaft_pipeline.Run<turboshaft::WasmDebugMemoryLoweringPhase>();
+  }
+#endif
 
   if (!Is64()) {
     turboshaft_pipeline.Run<turboshaft::Int64LoweringPhase>();
@@ -2712,6 +2720,13 @@ Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
     if (v8_flags.wasm_opt) {
       turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
     }
+#if DEBUG
+    if (!v8_flags.wasm_opt) {
+      // We still need to lower allocation operations even with optimizations
+      // being turned off.
+      turboshaft_pipeline.Run<turboshaft::WasmDebugMemoryLoweringPhase>();
+    }
+#endif
 
     if (!Is64()) {
       turboshaft_pipeline.Run<turboshaft::Int64LoweringPhase>();
@@ -2935,6 +2950,13 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   if (v8_flags.wasm_opt || is_asm_js) {
     turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
   }
+#if DEBUG
+  if (!v8_flags.wasm_opt) {
+    // We still need to lower allocation operations even with optimizations
+    // being turned off.
+    turboshaft_pipeline.Run<turboshaft::WasmDebugMemoryLoweringPhase>();
+  }
+#endif
 
   if (mcgraph->machine()->Is32()) {
     turboshaft_pipeline.Run<turboshaft::Int64LoweringPhase>();

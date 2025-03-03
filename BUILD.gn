@@ -4343,6 +4343,7 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/turboshaft/int64-lowering-phase.h",
       "src/compiler/turboshaft/int64-lowering-reducer.h",
       "src/compiler/turboshaft/wasm-assembler-helpers.h",
+      "src/compiler/turboshaft/wasm-debug-memory-lowering-phase.h",
       "src/compiler/turboshaft/wasm-gc-optimize-phase.h",
       "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.h",
       "src/compiler/turboshaft/wasm-in-js-inlining-phase.h",
@@ -5135,6 +5136,7 @@ if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
     "src/compiler/turboshaft/int64-lowering-phase.cc",
+    "src/compiler/turboshaft/wasm-debug-memory-lowering-phase.cc",
     "src/compiler/turboshaft/wasm-gc-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc",
     "src/compiler/turboshaft/wasm-in-js-inlining-phase.cc",
