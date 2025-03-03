@@ -296,14 +296,20 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 
   auto CanonicalizeTypeIndex = [=](ModuleTypeIndex type_index) {
     DCHECK(type_index.valid());
-    return type_index < recgroup_start
-               // This references a type from an earlier recgroup; use the
-               // already-canonicalized type index.
-               ? module->canonical_type_id(type_index)
-               // For types within the same recgroup, generate indexes assuming
-               // that this is a new canonical recgroup.
-               : CanonicalTypeIndex{canonical_recgroup_start.index +
-                                    (type_index.index - recgroup_start.index)};
+    if (type_index < recgroup_start) {
+      // This references a type from an earlier recgroup; use the
+      // already-canonicalized type index.
+      return module->canonical_type_id(type_index);
+    }
+    // For types within the same recgroup, generate indexes assuming that this
+    // is a new canonical recgroup. To prevent truncation in the
+    // CanonicalValueType's bit field, we must check the range here.
+    uint32_t new_index = canonical_recgroup_start.index +
+                         (type_index.index - recgroup_start.index);
+    if (V8_UNLIKELY(new_index >= kMaxCanonicalTypes)) {
+      V8::FatalProcessOutOfMemory(nullptr, "too many canonicalized types");
+    }
+    return CanonicalTypeIndex{new_index};
   };
 
   auto CanonicalizeValueType = [=](ValueType type) {
