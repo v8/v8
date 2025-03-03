@@ -294,6 +294,16 @@ class MaglevInliner {
     reachable_blocks.insert(initial_bb);
     DCHECK(!initial_bb->is_loop());
 
+    // Add all exception handler blocks to the worklist.
+    // TODO(victorgomes): A catch block could still be unreachable, if no
+    // bbs in its try-block are unreachables, or its nodes cannot throw.
+    for (BasicBlock* bb : graph_->blocks()) {
+      if (bb->is_exception_handler_block()) {
+        worklist.push_back(bb);
+        reachable_blocks.insert(bb);
+      }
+    }
+
     while (!worklist.empty()) {
       BasicBlock* current = worklist.back();
       worklist.pop_back();
