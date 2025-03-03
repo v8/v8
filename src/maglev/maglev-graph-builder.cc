@@ -13513,10 +13513,10 @@ void MaglevGraphBuilder::PeelLoop() {
 BasicBlock* MaglevGraphBuilder::FinishInlinedBlockForCaller(
     ControlNode* control_node, ZoneVector<Node*> rem_nodes_in_call_block) {
   BasicBlock* result = current_block_;
-  current_block_ = nullptr;
   result->nodes().reserve(node_buffer().size() +
                           rem_nodes_in_call_block.size());
   FlushNodesToBlock();
+  current_block_ = nullptr;
   for (Node* n : rem_nodes_in_call_block) {
     n->set_owner(result);
     result->nodes().push_back(n);

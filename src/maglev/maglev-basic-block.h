@@ -68,6 +68,13 @@ class BasicBlock {
     control_node_ = control_node;
   }
 
+  ControlNode* reset_control_node() {
+    DCHECK_NOT_NULL(control_node_);
+    ControlNode* control = control_node_;
+    control_node_ = nullptr;
+    return control;
+  }
+
   // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
   // nodes before |node| in the basic block. |node| itself is dropped.
   ZoneVector<Node*> Split(Node* node, Zone* zone) {
@@ -78,7 +85,9 @@ class BasicBlock {
     CHECK_LT(split, nodes_.size());
     size_t after_split = split + 1;
     ZoneVector<Node*> result(nodes_.size() - after_split, zone);
-    result.insert(0, nodes_.begin() + after_split, nodes_.end());
+    for (size_t i = 0; i < result.size(); i++) {
+      result[i] = nodes_[i + after_split];
+    }
     nodes_.resize(split);
     return result;
   }

@@ -119,7 +119,7 @@ class MaglevInliner {
     std::vector<BasicBlock*> saved_bb = TruncateGraphAt(call_block);
 
     // Truncate the basic block and remove the generic call node.
-    ControlNode* control_node = call_block->control_node();
+    ControlNode* control_node = call_block->reset_control_node();
     ZoneVector<Node*> rem_nodes_in_call_block =
         call_block->Split(generic_node, details->callee->zone());
 
