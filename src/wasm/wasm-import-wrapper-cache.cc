@@ -189,6 +189,7 @@ WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
 }
 
 void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
+  base::MutexGuard lock(&mutex_);
   for (const auto& entry : codes_) {
     entry.second->LogCode(isolate, "", -1);  // No source URL, no ScriptId.
   }
