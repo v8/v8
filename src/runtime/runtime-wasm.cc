@@ -1398,7 +1398,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       }                                                                        \
       return ReadOnlyRoots(isolate).exception();                               \
     }                                                                          \
-    DCHECK(!isolate->has_exception());                                         \
+    DCHECK(!isolate->has_exception() ||                                        \
+           IsTerminationException(isolate->exception()));                      \
     return *result;                                                            \
   } while (false)
 
