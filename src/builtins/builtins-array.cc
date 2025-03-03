@@ -15,6 +15,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/elements-inl.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -252,18 +253,44 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map> GetReplacedElementsKindsMap(
   return {};
 }
 
-V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
+V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
     Isolate* isolate, BuiltinArguments* args, DirectHandle<JSReceiver> receiver,
     DirectHandle<Object> value, double start_index, double end_index) {
   // If indices are too large, use generic path since they are stored as
   // properties, not in the element backing store.
-  if (end_index > kMaxUInt32) return Just(false);
-  if (!IsJSObject(*receiver)) return Just(false);
+  if (end_index > kMaxUInt32) return false;
+  if (!IsJSObject(*receiver)) return false;
 
   DirectHandle<JSArray> array;
   if (!IsJSArrayWithAddableFastElements(isolate, receiver, &array)) {
-    return Just(false);
+    return false;
   }
+
+  DCHECK_LE(start_index, kMaxUInt32);
+  DCHECK_LE(end_index, kMaxUInt32);
+  DCHECK_LT(start_index, end_index);
+
+  uint32_t start, end;
+  CHECK(DoubleToUint32IfEqualToSelf(start_index, &start));
+  CHECK(DoubleToUint32IfEqualToSelf(end_index, &end));
+
+  // The end index is truncated to the array length in the argument resolution
+  // part of Array.p.fill, so it shouldn't be larger than the length, which
+  // means it should be within the FixedArray max length since we know the array
+  // has fast elements and that both FixedArray and FixedDoubleArray have the
+  // same max length.
+  //
+  // Note that it _can_ be larger than the _current_ array length, because
+  // of side-effects in Array.p.fill argument resolution (`ToInteger` on `start`
+  // and `end`). However, this property still holds because it would have been
+  // compared against the array length _before_ any side effects happened (see:
+  // https://tc39.es/ecma262/#sec-array.prototype.fill). If the array has fast
+  // elements now, that means it must have had fast elements then, so we're ok.
+  //
+  // TODO(leszeks): If we introduce a backwards transition from dictionary
+  // elements to fast elements, this check will have to become a bailout.
+  static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
+  CHECK_LE(end, FixedArray::kMaxLength);
 
   // Need to ensure that the fill value can be contained in the array.
   ElementsKind origin_kind = array->GetElementsKind();
@@ -275,7 +302,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
     HandleScope scope(isolate);
 
     bool is_replacing_all_elements =
-        (start_index == 0 && end_index >= Object::NumberValue(array->length()));
+        (start == 0 && end == Object::NumberValue(array->length()));
     bool did_transition_map = false;
     if (is_replacing_all_elements) {
       // For the case where we are replacing all elements, we can migrate the
@@ -288,11 +315,20 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
         DirectHandle<FixedArrayBase> elements(array->elements(), isolate);
         if (IsDoubleElementsKind(origin_kind) !=
             IsDoubleElementsKind(target_kind)) {
-          // Clear the elements if doubleness doesn't match -- they'll get
-          // reallocated in accessor->Fill.
-          elements = isolate->factory()->empty_fixed_array();
+          // Reallocate the elements if doubleness doesn't match.
+          if (IsDoubleElementsKind(target_kind)) {
+            elements = isolate->factory()->NewFixedDoubleArray(end);
+          } else {
+            elements = isolate->factory()->NewFixedArrayWithZeroes(end);
+          }
         }
         JSObject::SetMapAndElements(array, new_map, elements);
+        if (IsMoreGeneralElementsKindTransition(origin_kind, target_kind)) {
+          // Transition through the allocation site as well if present, but
+          // only if this is a forward transition.
+          JSObject::UpdateAllocationSite(array, target_kind);
+        }
+        did_transition_map = true;
       }
     }
 
@@ -302,16 +338,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
     }
   }
 
-  DCHECK_LE(start_index, kMaxUInt32);
-  DCHECK_LE(end_index, kMaxUInt32);
-
-  uint32_t start, end;
-  CHECK(DoubleToUint32IfEqualToSelf(start_index, &start));
-  CHECK(DoubleToUint32IfEqualToSelf(end_index, &end));
-
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  RETURN_ON_EXCEPTION_VALUE(isolate, accessor->Fill(array, value, start, end),
-                            Nothing<bool>());
+  accessor->Fill(array, value, start, end).Check();
 
   // It's possible the JSArray's 'length' property was assigned to after the
   // length was loaded due to user code during argument coercion of the start
@@ -325,7 +353,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
     CHECK(accessor->SetLength(array, end).FromJust());
   }
 
-  return Just(true);
+  return true;
 }
 }  // namespace
 
@@ -370,12 +398,10 @@ BUILTIN(ArrayPrototypeFill) {
 
   DirectHandle<Object> value = args.atOrUndefined(isolate, 1);
 
-  bool success;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, success,
-      TryFastArrayFill(isolate, &args, receiver, value, start_index,
-                       end_index));
-  if (success) return *receiver;
+  if (TryFastArrayFill(isolate, &args, receiver, value, start_index,
+                       end_index)) {
+    return *receiver;
+  }
   return GenericArrayFill(isolate, receiver, value, start_index, end_index);
 }
 
