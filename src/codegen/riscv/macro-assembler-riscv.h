@@ -366,7 +366,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
-
+#ifdef V8_TARGET_ARCH_RISCV32
+  // Enforce platform specific stack alignment.
+  void EnforceStackAlignment();
+#endif
   void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,

@@ -5434,6 +5434,17 @@ void MacroAssembler::Swap(Register reg1, Register reg2, Register scratch) {
   }
 }
 
+#ifdef V8_TARGET_ARCH_RISCV32
+// Enforce alignment of sp.
+void MacroAssembler::EnforceStackAlignment() {
+  int frame_alignment = ActivationFrameAlignment();
+  DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+
+  uint64_t frame_alignment_mask = ~(static_cast<uint64_t>(frame_alignment) - 1);
+  And(sp, sp, Operand(frame_alignment_mask));
+}
+#endif
+
 void MacroAssembler::Call(Label* target) { BranchAndLink(target); }
 
 void MacroAssembler::LoadAddress(Register dst, Label* target,
@@ -6352,12 +6363,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference::Create(f));
-#if V8_TARGET_ARCH_RISCV64
   bool switch_to_central = options().is_wasm;
   CallBuiltin(Builtins::RuntimeCEntry(f->result_size, switch_to_central));
-#else
-  CallBuiltin(Builtins::RuntimeCEntry(1));
-#endif
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
