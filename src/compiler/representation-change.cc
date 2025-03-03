@@ -1014,11 +1014,11 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (output_type.Is(Type::NumberOrOddballOrHole())) {
-        op = simplified()->TruncateTaggedToWord32();
-      } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
+      } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
+        op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
             CheckTaggedInputMode::kNumber, use_info.feedback());
