@@ -812,8 +812,10 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
   // TODO(v8:14140): Consider the size including young generation here as well
   // as the full marker marks both the young and old generations.
   size_t estimated_live_bytes = OldGenerationSizeOfObjects();
-  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
-    estimated_live_bytes += cpp_heap->used_size();
+  if (v8_flags.incremental_marking_unified_schedule) {
+    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      estimated_live_bytes += cpp_heap->used_size();
+    }
   }
   const size_t marked_bytes_limit =
       schedule_->GetNextIncrementalStepDuration(estimated_live_bytes);
@@ -984,7 +986,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   size_t v8_marked_bytes = 0;
   v8::base::TimeDelta v8_time;
   if (cpp_heap_duration < max_duration &&
-      cpp_heap_marked_bytes < marked_bytes_limit) {
+      (!v8_flags.incremental_marking_unified_schedule ||
+       (cpp_heap_marked_bytes < marked_bytes_limit))) {
     const auto v8_start = v8::base::TimeTicks::Now();
     std::tie(v8_marked_bytes, std::ignore) =
         major_collector_->ProcessMarkingWorklist(
