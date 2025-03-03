@@ -684,7 +684,11 @@ class ValueTypeBase {
             value_type_impl::IsExactField::encode(exact) |
             value_type_impl::IsSharedField::encode(shared) |
             value_type_impl::RefTypeKindField::encode(ref_type_kind) |
-            value_type_impl::PayloadField::encode(index.index)) {}
+            value_type_impl::PayloadField::encode(index.index)) {
+    // We shouldn't need this, but experience has shown that having an extra
+    // "safety net" here is valuable every now and then.
+    CHECK(value_type_impl::PayloadField::is_valid(index.index));
+  }
 
   constexpr TypeIndex raw_index() const {
     DCHECK(has_index());

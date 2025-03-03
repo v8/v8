@@ -22,17 +22,9 @@ class CanonicalTypeNamesProvider;
 
 // We use ValueType instances constructed from canonical type indices, so we
 // can't let them get bigger than what we have storage space for.
-// TODO(jkummerow): Raise this limit. Possible options:
-// - increase the size of ValueType::HeapTypeField, using currently-unused bits.
-// - change the encoding of ValueType: one bit says whether it's a ref type,
-//   the other bits then encode the index or the kind of non-ref type.
-// - refactor the TypeCanonicalizer's internals to no longer use ValueTypes
-//   and related infrastructure, and use a wider encoding of canonicalized
-//   type indices only here.
-// - wait for 32-bit platforms to no longer be relevant, and increase the
-//   size of ValueType to 64 bits.
-// None of this seems urgent, as we have no evidence of the current limit
-// being an actual limitation in practice.
+// We could raise this limit using unused bits in the ValueType, but that
+// doesn't seem urgent, as we have no evidence of the current limit being
+// an actual limitation in practice.
 static constexpr size_t kMaxCanonicalTypes = kV8MaxWasmTypes;
 // We don't want any valid modules to fail canonicalization.
 static_assert(kMaxCanonicalTypes >= kV8MaxWasmTypes);
