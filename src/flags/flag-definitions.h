@@ -2101,7 +2101,7 @@ DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(minor_gc_task, true, "schedule minor GC tasks")
 DEFINE_UINT(minor_gc_task_trigger, 80,
             "minor GC task trigger in percent of the current heap limit")
-DEFINE_BOOL(minor_gc_task_with_lower_priority, false,
+DEFINE_BOOL(minor_gc_task_with_lower_priority, true,
             "schedules the minor GC task with kUserVisible priority.")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_EXPERIMENTAL_FEATURE(
