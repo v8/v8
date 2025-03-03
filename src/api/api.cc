@@ -2694,9 +2694,8 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
 }
 
 uint32_t ScriptCompiler::CachedDataVersionTag() {
-  return static_cast<uint32_t>(base::hash_combine(
-      internal::Version::Hash(), internal::FlagList::Hash(),
-      static_cast<uint32_t>(internal::CpuFeatures::SupportedFeatures())));
+  return static_cast<uint32_t>(base::hash_combine(internal::Version::Hash(),
+                                                  internal::FlagList::Hash()));
 }
 
 ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
