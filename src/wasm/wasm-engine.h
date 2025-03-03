@@ -372,10 +372,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Add potentially dead code. The occurrence in the set of potentially dead
   // code counts as a reference, and is decremented on the next GC.
-  // Returns {true} if the code was added to the set of potentially dead code,
-  // {false} if an entry already exists. The ref count is *unchanged* in any
-  // case.
-  V8_WARN_UNUSED_RESULT bool AddPotentiallyDeadCode(WasmCode*);
+  void AddPotentiallyDeadCode(WasmCode*);
 
   // Free dead code.
   using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;

@@ -273,7 +273,26 @@ class V8_EXPORT_PRIVATE WasmCode final {
     int old_count = ref_count_.load(std::memory_order_acquire);
     while (true) {
       DCHECK_LE(1, old_count);
-      if (V8_UNLIKELY(old_count == 1)) return DecRefOnPotentiallyDeadCode();
+      if (V8_UNLIKELY(old_count == 1)) {
+        if (is_dying()) {
+          // The code was already on the path to deletion, only temporary
+          // C++ references to it are left. Decrement the refcount, and
+          // return true if it drops to zero.
+          return DecRefOnDeadCode();
+        }
+        // Otherwise, the code enters the path to destruction now.
+        mark_as_dying();
+        old_count = ref_count_.load(std::memory_order_acquire);
+        if (V8_LIKELY(old_count == 1)) {
+          // No other thread got in the way. Commit to the decision.
+          DecRefOnPotentiallyDeadCode();
+          return false;
+        }
+        // Another thread managed to increment the refcount again, just
+        // before we set the "dying" bit. So undo that, and resume the
+        // loop to evaluate again what needs to be done.
+        undo_mark_as_dying();
+      }
       if (ref_count_.compare_exchange_weak(old_count, old_count - 1,
                                            std::memory_order_acq_rel)) {
         return false;
@@ -321,8 +340,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return ForDebuggingField::decode(flags_);
   }
 
-  bool is_dying() const { return dying_; }
-  void mark_as_dying() { dying_ = true; }
+  bool is_dying() const { return dying_.load(std::memory_order_acquire); }
 
   // Returns {true} for Liftoff code that sets up a feedback vector slot in its
   // stack frame.
@@ -405,9 +423,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // trap_handler_index.
   void RegisterTrapHandlerData();
 
-  // Slow path for {DecRef}: The code becomes potentially dead.
-  // Returns whether this code becomes dead and needs to be freed.
-  V8_NOINLINE bool DecRefOnPotentiallyDeadCode();
+  // Slow path for {DecRef}: The code becomes potentially dead. Schedule it
+  // for consideration in the next Code GC cycle.
+  V8_NOINLINE void DecRefOnPotentiallyDeadCode();
+
+  void mark_as_dying() { dying_.store(true, std::memory_order_release); }
+  // This is rarely necessary to mitigate a race condition. See the comment
+  // at its (only) call site.
+  void undo_mark_as_dying() { dying_.store(false, std::memory_order_release); }
 
   NativeModule* const native_module_ = nullptr;
   uint8_t* const instructions_;

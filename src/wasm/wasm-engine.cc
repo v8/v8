@@ -1824,13 +1824,12 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   ReportLiveCodeForGC(isolate, live_wasm_code);
 }
 
-bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
+void WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   base::MutexGuard guard(&mutex_);
-  if (code->is_dying()) return false;
+  DCHECK(code->is_dying());  // Caller just marked it as such.
   auto added = potentially_dead_code_.insert(code);
   DCHECK(added.second);
   USE(added);
-  code->mark_as_dying();
   new_potentially_dead_code_size_ += code->instructions().size();
   if (v8_flags.wasm_code_gc) {
     // Trigger a GC if 64kB plus 10% of committed code are potentially dead.
@@ -1858,7 +1857,6 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
       }
     }
   }
-  return true;
 }
 
 void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code,

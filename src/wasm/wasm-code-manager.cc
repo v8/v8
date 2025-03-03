@@ -558,20 +558,8 @@ WasmCode::~WasmCode() {
   }
 }
 
-V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
-  if (GetWasmEngine()->AddPotentiallyDeadCode(this)) {
-    // The code just became potentially dead. The ref count we wanted to
-    // decrement is now transferred to the set of potentially dead code, and
-    // will be decremented when the next GC is run.
-    return false;
-  }
-  // If we reach here, the code was already potentially dead. Decrement the ref
-  // count, and return true if it drops to zero.
-  // This can happen when there were temporary C++ references (e.g. while
-  // walking a stack) to code objects that are otherwise dead, and this
-  // temporary reference is now the last reference.
-
-  return DecRefOnDeadCode();
+void WasmCode::DecRefOnPotentiallyDeadCode() {
+  GetWasmEngine()->AddPotentiallyDeadCode(this);
 }
 
 // static
