@@ -10,6 +10,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
+#include "src/objects/fixed-array.h"
 // TODO(jkummerow): Consider forward-declaring instead.
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
@@ -642,9 +643,19 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static const uint32_t kMinAddedElementsCapacity = 16;
 
   // Computes the new capacity when expanding the elements of a JSObject.
-  static uint32_t NewElementsCapacity(uint32_t old_capacity) {
+  static constexpr uint32_t NewElementsCapacity(uint32_t old_capacity) {
     // (old_capacity + 50%) + kMinAddedElementsCapacity
-    return old_capacity + (old_capacity >> 1) + kMinAddedElementsCapacity;
+    uint32_t new_capacity =
+        old_capacity + (old_capacity >> 1) + kMinAddedElementsCapacity;
+
+    // If we go past kMaxFixedArrayCapacity, but kMaxFixedArrayCapacity is still
+    // more than the old_capacity plus the minimum growth amount, limit the
+    // capacity to kMinAddedElementsCapacity.
+    if (new_capacity > kMaxFixedArrayCapacity &&
+        old_capacity + kMinAddedElementsCapacity <= kMaxFixedArrayCapacity) {
+      return kMaxFixedArrayCapacity;
+    }
+    return new_capacity;
   }
 
   // These methods do not perform access checks!

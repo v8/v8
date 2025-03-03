@@ -828,7 +828,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       }
     }
 
-    // Check whether the backing store should be shrunk.
+    // Check whether the backing store should be shrunk or grown.
     uint32_t capacity = backing_store->length();
     old_length = std::min(old_length, capacity);
     if (length == 0) {
@@ -858,9 +858,15 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         Cast<BackingStore>(*backing_store)->FillWithHoles(length, old_length);
       }
     } else {
-      // Check whether the backing store should be expanded.
-      capacity = std::max(length, JSObject::NewElementsCapacity(capacity));
-      MAYBE_RETURN(Subclass::GrowCapacityAndConvertImpl(array, capacity),
+      // Grow the array to the new length. Note that this code will allow create
+      // backing stores that consist almost entirely of holes, for which
+      // `JSObject::ShouldConvertToSlowElements` would return "true". This is
+      // intentional, for the pattern where a user will pre-size an array to
+      // then write elements into it by index. A resizing operation like
+      // Array.p.push might trigger a transition to dictionary elements.
+      // Similarly, since we expect the array to be precisely presized, this
+      // doesn't introduce any slack to the length.
+      MAYBE_RETURN(Subclass::GrowCapacityAndConvertImpl(array, length),
                    Nothing<bool>());
     }
 

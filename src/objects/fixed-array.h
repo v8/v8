@@ -29,7 +29,7 @@ namespace v8::internal {
 // Limit all fixed arrays to the same max capacity, so that non-resizing
 // transitions between different elements kinds (like Smi to Double) will not
 // error.
-static constexpr int kMaxFixedArrayCapacity = 128 * 1000 * 1000;
+static constexpr int kMaxFixedArrayCapacity = 64 * 1024 * 1024;
 
 namespace detail {
 template <class Super, bool kLengthEqualsCapacity>
