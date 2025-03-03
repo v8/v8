@@ -1048,8 +1048,11 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
     return CrashUnlessFuzzing(isolate);
   }
   DisallowGarbageCollection no_gc;
+  // Allow fuzzers to generate invalid types, but avoid running into the
+  // DCHECK in base::BitField::encode().
+  static constexpr uint32_t kMask = (1u << wasm::ValueType::kNumIndexBits) - 1;
   wasm::ModuleTypeIndex type_index{
-      static_cast<uint32_t>(Cast<Smi>(args[0]).value())};
+      static_cast<uint32_t>(Cast<Smi>(args[0]).value()) & kMask};
   const wasm::WasmModule* module = Cast<WasmInstanceObject>(args[1])->module();
   // If we get an invalid type index, make up the additional data; the result
   // may still be useful for fuzzers for causing interesting confusion.

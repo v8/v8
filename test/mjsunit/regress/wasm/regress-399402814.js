@@ -10,3 +10,5 @@ let instance = new WebAssembly.Instance(module, {});
 
 // We don't care what this returns as long as it doesn't crash.
 %BuildRefTypeBitfield(123, instance);
+// Issue 399769594 pointed out that we need even more robustness:
+%BuildRefTypeBitfield(-1, instance);
