@@ -3259,14 +3259,12 @@ template <typename CvtFunc>
 void MacroAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
                                                  Register result,
                                                  CvtFunc fcvt_generator) {
-  // Save csr_fflags to scratch & clear exception flags
   if (result.is_valid()) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
 
     int exception_flags = kInvalidOperation;
-    csrrci(scratch, csr_fflags, exception_flags);
+    // clear invalid operation accrued flags, don't preserve old fflags
+    csrrci(zero_reg, csr_fflags, exception_flags);
 
     // actual conversion instruction
     fcvt_generator(this, rd, fs);
@@ -3276,9 +3274,6 @@ void MacroAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
     frflags(result);
     andi(result, result, exception_flags);
     seqz(result, result);  // result <-- 1 (normal), result <-- 0 (abnormal)
-
-    // restore csr_fflags
-    csrw(csr_fflags, scratch);
   } else {
     // actual conversion instruction
     fcvt_generator(this, rd, fs);
@@ -3311,10 +3306,34 @@ void MacroAssembler::Trunc_uw_d(Register rd, FPURegister fs, Register result) {
 }
 
 void MacroAssembler::Trunc_w_d(Register rd, FPURegister fs, Register result) {
+#if V8_TARGET_ARCH_RISCV64  // For RV64 we can go faster csr-less approach
+  if (result.is_valid()) {
+    Label bad, done;
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    // actual conversion instruction
+    fcvt_l_d(rd, fs, RTZ);
+    li(scratch, kMinInt);
+    blt(rd, scratch, &bad);
+    Sub32(scratch, scratch, 1);  // converts kMinInt into kMaxInt
+    bgt(rd, scratch, &bad);
+    li(result, 1);
+    j(&done);
+    bind(&bad);
+    // scratch still holds proper max/min value
+    mv(rd, scratch);
+    li(result, 0);
+    // set result to 1 if normal, otherwise set result to 0 for abnormal
+    bind(&done);
+  } else {
+    fcvt_w_d(rd, fs, RTZ);
+  }
+#else
   RoundFloatingPointToInteger(
       rd, fs, result, [](MacroAssembler* masm, Register dst, FPURegister src) {
         masm->fcvt_w_d(dst, src, RTZ);
       });
+#endif
 }
 
 void MacroAssembler::Trunc_uw_s(Register rd, FPURegister fs, Register result) {
