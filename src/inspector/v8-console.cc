@@ -458,38 +458,19 @@ void V8Console::TimeEnd(const v8::debug::ConsoleCallArguments& info,
 
 void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
                           const v8::debug::ConsoleContext& consoleContext) {
-#ifdef V8_USE_PERFETTO
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::TimeStamp",
-              "data", ([&](perfetto::TracedValue context) {
-                auto dict = std::move(context).WriteDictionary();
-                uint64_t trace_id = v8::tracing::TraceId();
-                v8::CpuProfiler::CpuProfiler::CollectSample(
-                    m_inspector->isolate(), trace_id);
-                dict.Add("sampleTraceId", trace_id);
-                static const char* kNames[] = {"name",  "start",      "end",
-                                               "track", "trackGroup", "color"};
-                for (int i = 0; i < info.Length() &&
-                                i < static_cast<int>(std::size(kNames));
-                     ++i) {
-                  auto name = kNames[i];
-                  auto value = info[i];
-                  if (value->IsNumber()) {
-                    dict.Add(perfetto::StaticString(name),
-                             value.As<v8::Number>()->Value());
-                  } else if (value->IsString()) {
-                    dict.Add(perfetto::StaticString(name),
-                             toProtocolString(m_inspector->isolate(),
-                                              value.As<v8::String>())
-                                 .utf8());
-                  } else {
-                    dict.Add(perfetto::StaticString(name), "");
-                  }
-                }
-              }));
-#endif  // V8_USE_PERFETTO
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+               "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
-  m_inspector->client()->consoleTimeStamp(m_inspector->isolate(), label);
+
+  v8::Isolate* isolate = m_inspector->isolate();
+  v8::LocalVector<v8::Value> args(isolate);
+  args.reserve(info.Length());
+  for (int i = 0; i < info.Length(); i++) {
+    args.push_back(info[i]);
+  }
+
+  m_inspector->client()->consoleTimeStampWithArgs(isolate, label, args);
 }
 
 void V8Console::memoryGetterCallback(
