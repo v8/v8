@@ -41,6 +41,9 @@ class BasicBlock {
     return first_non_phi_id();
   }
 
+  // For GDB: Print any basic block with `print bb->Print()`.
+  void Print() const;
+
   NodeIdT first_non_phi_id() const {
     for (const Node* node : nodes_) {
       if (node == nullptr) continue;

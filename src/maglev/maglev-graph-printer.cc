@@ -1056,6 +1056,31 @@ void PrintNodeLabel::Print(std::ostream& os) const {
   graph_labeller_->PrintNodeLabel(os, node_);
 }
 
+// For GDB: Print any basic block with `print bb->Print()`.
+void BasicBlock::Print() const {
+  std::cout << "Block";
+  if (is_loop()) {
+    if (state()->is_loop_with_peeled_iteration()) {
+      std::cout << " (peeled loop)";
+    } else if (has_state() && state()->is_resumable_loop()) {
+      std::cout << " (resumable loop)";
+    } else {
+      std::cout << " (loop header)";
+    }
+  } else if (is_exception_handler_block()) {
+    std::cout << " (exception handler)";
+  }
+  std::cout << "\n";
+  for (auto node : nodes_) {
+    node->Print();
+  }
+  if (control_node_) {
+    control_node_->Print();
+  } else {
+    std::cout << " (missing control node)\n";
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
