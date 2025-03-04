@@ -124,7 +124,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Inlining");
 
-      MaglevInliner inliner(local_isolate, compilation_info, graph);
+      MaglevInliner inliner(compilation_info, graph);
       inliner.Run(is_tracing_enabled);
     }
 

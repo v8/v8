@@ -68,11 +68,8 @@ class UpdateInputsProcessor {
 
 class MaglevInliner {
  public:
-  MaglevInliner(LocalIsolate* local_isolate,
-                MaglevCompilationInfo* compilation_info, Graph* graph)
-      : local_isolate_(local_isolate),
-        compilation_info_(compilation_info),
-        graph_(graph) {}
+  MaglevInliner(MaglevCompilationInfo* compilation_info, Graph* graph)
+      : compilation_info_(compilation_info), graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
     // TODO(victorgomes): Add some heuristics to choose which function to
@@ -116,7 +113,6 @@ class MaglevInliner {
   }
 
  private:
-  LocalIsolate* local_isolate_;
   MaglevCompilationInfo* compilation_info_;
   Graph* graph_;
 
@@ -134,7 +130,8 @@ class MaglevInliner {
     graph_->add_inlined_bytecode_size(bytecode.length());
 
     // Create a new graph builder for the inlined function.
-    MaglevGraphBuilder inner_graph_builder(local_isolate_, details->callee,
+    LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
+    MaglevGraphBuilder inner_graph_builder(local_isolate, details->callee,
                                            graph_, details);
 
     CallKnownJSFunction* generic_node = details->generic_call_node;

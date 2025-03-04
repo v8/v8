@@ -47,6 +47,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph-verifier.h"
+#include "src/maglev/maglev-inlining.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
@@ -6041,6 +6042,12 @@ void RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevCompilationInfo* compilation_info,
                             maglev::MaglevGraphBuilder& maglev_graph_builder,
                             maglev::Graph* maglev_graph) {
+  // Non-eager inlining.
+  if (v8_flags.maglev_non_eager_inlining) {
+    maglev::MaglevInliner inliner(compilation_info, maglev_graph);
+    inliner.Run(data->info()->trace_turbo_graph());
+  }
+
   // Phi untagging.
   {
     maglev::GraphProcessor<maglev::MaglevPhiRepresentationSelector> processor(
@@ -6102,9 +6109,7 @@ std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
     PrintBytecode(*data, compilation_info.get());
   }
 
-  LocalIsolate* local_isolate = broker->local_isolate()
-                                    ? broker->local_isolate()
-                                    : broker->isolate()->AsLocalIsolate();
+  LocalIsolate* local_isolate = broker->local_isolate_or_isolate();
   maglev::Graph* maglev_graph =
       maglev::Graph::New(temp_zone, data->info()->is_osr());
 
