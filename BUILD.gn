@@ -16,6 +16,10 @@ import("//third_party/icu/config.gni")
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
+}
+
 # Specifies if the target build is a simulator build. Comparing target cpu
 # with v8 target cpu to not affect simulator builds for making cross-compile
 # snapshots.
@@ -4865,7 +4869,10 @@ v8_header_set("v8_internal_headers") {
   }
 
   frameworks = []
-  if (is_ios) {
+
+  # BrowserEngineKit only exists on iOS itself, not on tvOS and other
+  # iOS-derived platforms, so we need to check `target_platform` here.
+  if (is_ios && target_platform == "iphoneos") {
     frameworks += [ "BrowserEngineKit.framework" ]
   }
 
