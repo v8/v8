@@ -311,13 +311,18 @@ class MaglevInliner {
         loop_headers_unreachable_by_backegde.insert(current);
       }
       current->ForEachSuccessor([&](BasicBlock* succ) {
-        reachable_blocks.insert(succ);
-        if (loop_headers_unreachable_by_backegde.count(succ) > 0) {
-          // This must be the loop back edge.
-          DCHECK(succ->is_loop());
-          DCHECK_EQ(succ->backedge_predecessor(), current);
-          loop_headers_unreachable_by_backegde.erase(succ);
+        if (reachable_blocks.contains(succ)) {
+          // We have already added this block to the worklist, check only if
+          // that's a reachable loop header.
+          if (succ->is_loop()) {
+            // This must be the loop back edge.
+            DCHECK(succ->is_loop());
+            DCHECK_EQ(succ->backedge_predecessor(), current);
+            DCHECK(loop_headers_unreachable_by_backegde.contains(succ));
+            loop_headers_unreachable_by_backegde.erase(succ);
+          }
         } else {
+          reachable_blocks.insert(succ);
           worklist.push_back(succ);
         }
       });
@@ -330,14 +335,14 @@ class MaglevInliner {
 
     ZoneVector<BasicBlock*> new_blocks(zone());
     for (BasicBlock* bb : graph_->blocks()) {
-      if (reachable_blocks.count(bb) > 0) {
+      if (reachable_blocks.contains(bb)) {
         new_blocks.push_back(bb);
         // Remove unreachable predecessors.
         // If block doesn't have a merge state, it has only one predecessor, so
         // it must be a reachable one.
         if (!bb->has_state()) continue;
         for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-          if (reachable_blocks.count(bb->predecessor_at(i)) == 0) {
+          if (!reachable_blocks.contains(bb->predecessor_at(i))) {
             bb->state()->RemovePredecessorAt(i);
           }
         }
