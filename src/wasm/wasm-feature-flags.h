@@ -45,11 +45,6 @@
     false)                                                                     \
   V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
-  /* Branch Hinting proposal. */                                               \
-  /* https://github.com/WebAssembly/branch-hinting */                          \
-  /* V8 side owner: jkummerow */                                               \
-  V(branch_hinting, "branch hinting", false)                                   \
-                                                                               \
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
@@ -93,6 +88,12 @@
   /* V8 side owner: ahaas */                                                   \
   /* Staged in v7.8. */                                                        \
   V(type_reflection, "wasm type reflection in JS", false)                      \
+                                                                               \
+  /* Branch Hinting proposal. */                                               \
+  /* https://github.com/WebAssembly/branch-hinting */                          \
+  /* V8 side owner: jkummerow */                                               \
+  /* Staged in v13.6. */                                                       \
+  V(branch_hinting, "branch hinting", false)                                   \
                                                                                \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \

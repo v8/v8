@@ -1758,6 +1758,7 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::exnref, Feature::kWasmExnRef},
       {WasmDetectedFeature::typed_funcref, Feature::kWasmTypedFuncRef},
       {WasmDetectedFeature::jspi, Feature::kWasmJavaScriptPromiseIntegration},
+      {WasmDetectedFeature::branch_hinting, Feature::kWasmBranchHinting},
   };
 
   // Check that every staging or shipping feature has a use counter as that is

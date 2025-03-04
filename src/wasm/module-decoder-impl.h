@@ -1682,6 +1682,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeBranchHintsSection() {
     TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
+    detected_features_->add_branch_hinting();
     if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
       set_seen_unordered_section(kBranchHintsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
