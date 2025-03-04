@@ -1548,46 +1548,6 @@ void RejectPromiseIfExecutionIsNotTerminating(Isolate* isolate,
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
   }
 }
-
-Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
-                                      v8::Local<v8::Promise::Resolver> resolver,
-                                      Local<Promise> result_promise,
-                                      Local<Value> namespace_or_source) {
-  Local<Array> module_resolution_data = v8::Array::New(isolate);
-  if (module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate))
-          .IsNothing()) {
-    return Nothing<bool>();
-  }
-  if (module_resolution_data
-          ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
-          .IsNothing()) {
-    return Nothing<bool>();
-  }
-  if (module_resolution_data
-          ->Set(realm, ModuleResolutionDataIndex::kNamespaceOrSource,
-                namespace_or_source)
-          .IsNothing()) {
-    return Nothing<bool>();
-  }
-  Local<Function> callback_success;
-  if (!Function::New(realm, Shell::ModuleResolutionSuccessCallback,
-                     module_resolution_data)
-           .ToLocal(&callback_success)) {
-    return Nothing<bool>();
-  }
-
-  Local<Function> callback_failure;
-  if (!Function::New(realm, Shell::ModuleResolutionFailureCallback,
-                     module_resolution_data)
-           .ToLocal(&callback_failure)) {
-    return Nothing<bool>();
-  }
-  if (result_promise->Then(realm, callback_success, callback_failure)
-          .IsEmpty()) {
-    return Nothing<bool>();
-  }
-  return Just(true);
-}
 }  // namespace
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
@@ -1727,15 +1687,25 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   Context::Scope context_scope(realm);
 
-  // Chaining the promise generally does not throw, but execution may be
-  // terminating (e.g. when within a worker being terminated). Check the return
-  // value to display a helpful message.
-  if (ChainDynamicImportPromise(isolate, realm, resolver, result_promise,
-                                namespace_or_source)
-          .IsNothing()) {
-    RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
-                                             try_catch);
-  }
+  Local<Array> module_resolution_data = v8::Array::New(isolate);
+  module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate)).ToChecked();
+  module_resolution_data
+      ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
+      .ToChecked();
+  module_resolution_data
+      ->Set(realm, ModuleResolutionDataIndex::kNamespaceOrSource,
+            namespace_or_source)
+      .ToChecked();
+  Local<Function> callback_success;
+  CHECK(Function::New(realm, ModuleResolutionSuccessCallback,
+                      module_resolution_data)
+            .ToLocal(&callback_success));
+  Local<Function> callback_failure;
+  CHECK(Function::New(realm, ModuleResolutionFailureCallback,
+                      module_resolution_data)
+            .ToLocal(&callback_failure));
+  result_promise->Then(realm, callback_success, callback_failure)
+      .ToLocalChecked();
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
