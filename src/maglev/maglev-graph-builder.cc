@@ -8411,17 +8411,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   }
 
   TRACE_INLINING("  considering " << shared << " for inlining");
-  auto generic_call =
-      BuildCallKnownJSFunction(context, function, new_target,
+  auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
+  auto generic_call = BuildCallKnownJSFunction(context, function, new_target,
 #ifdef V8_ENABLE_LEAPTIERING
-                               dispatch_handle,
+                                               dispatch_handle,
 #endif
-                               shared, feedback_cell, args, feedback_source);
+                                               shared, arguments);
 
   // Create a new compilation unit.
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
       zone(), compilation_unit_, shared, feedback_cell);
-  auto arguments = GetArgumentsAsArrayOfValueNodes(shared, args);
   // TODO(victorgomes): We could delay creating the compilation unit for every
   // candidate, if we InlinedArgumentsDeoptFrame didn't need to point to the
   // compilation unit.
@@ -10478,6 +10477,33 @@ CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
 #endif
       shared, GetTaggedValue(function), GetTaggedValue(context),
       GetTaggedValue(receiver), GetTaggedValue(new_target));
+}
+
+CallKnownJSFunction* MaglevGraphBuilder::BuildCallKnownJSFunction(
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
+    compiler::SharedFunctionInfoRef shared,
+    base::Vector<ValueNode*> arguments) {
+  DCHECK_GT(arguments.size(), 0);
+  constexpr int kSkipReceiver = 1;
+  int argcount_without_receiver =
+      static_cast<int>(arguments.size()) - kSkipReceiver;
+  size_t input_count =
+      argcount_without_receiver + CallKnownJSFunction::kFixedInputCount;
+  return AddNewNode<CallKnownJSFunction>(
+      input_count,
+      [&](CallKnownJSFunction* call) {
+        for (int i = 0; i < argcount_without_receiver; i++) {
+          call->set_arg(i, GetTaggedValue(arguments[i + kSkipReceiver]));
+        }
+      },
+#ifdef V8_ENABLE_LEAPTIERING
+      dispatch_handle,
+#endif
+      shared, GetTaggedValue(function), GetTaggedValue(context),
+      GetTaggedValue(arguments[0]), GetTaggedValue(new_target));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
