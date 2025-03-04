@@ -128,8 +128,32 @@ class SingleCorpusRunner extends Runner {
   }
 }
 
+/**
+ * Runner that enumerates random cases from the Fuzzilli corpus without
+ * repeats and without cases from the crashes directory.
+ */
+class RandomFuzzilliNoCrashCorpusRunner extends Runner {
+  constructor(inputDir, engine, numFiles) {
+    super();
+    this.corpus = corpus.create(inputDir, 'fuzzilli_no_crash');
+    this.numFiles = numFiles;
+  }
+
+  *inputGen() {
+    // The 'permittedFiles' are already shuffled. Just using the first x
+    // files is random enough.
+    for (const relPath of this.corpus.permittedFiles.slice(0, this.numFiles)) {
+      const source = this.corpus.loadTestcase(relPath, false, 'sloppy');
+      if (source) {
+        yield [source];
+      }
+    }
+  }
+}
+
 module.exports = {
   RandomCorpusRunner: RandomCorpusRunner,
   RandomCorpusRunnerWithFuzzilli: RandomCorpusRunnerWithFuzzilli,
+  RandomFuzzilliNoCrashCorpusRunner: RandomFuzzilliNoCrashCorpusRunner,
   SingleCorpusRunner: SingleCorpusRunner,
 };

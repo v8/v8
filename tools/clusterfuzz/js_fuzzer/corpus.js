@@ -58,7 +58,8 @@ class Corpus extends sourceHelpers.BaseCorpus {
     const directory = path.join(inputDir, corpusName);
     for (const absPath of walkDirectory(directory, isPermittedJSFile)) {
       const relPath = path.relative(this.inputDir, absPath);
-      if (exceptions.isTestSkippedRel(relPath)) {
+      if (exceptions.isTestSkippedRel(relPath) ||
+          this.isTestSkippedInCorpus(relPath)) {
         this.skippedFiles.push(relPath);
       } else if (exceptions.isTestSoftSkippedAbs(absPath) ||
           exceptions.isTestSoftSkippedRel(relPath)) {
@@ -69,6 +70,13 @@ class Corpus extends sourceHelpers.BaseCorpus {
     }
     random.shuffle(this.softSkippedFiles);
     random.shuffle(this.permittedFiles);
+  }
+
+  /**
+   * Enable subclasses to decide on more skipped files.
+   */
+  isTestSkippedInCorpus(relPath) {
+    return false;
   }
 
   // Relative paths of all files in corpus.
@@ -146,7 +154,7 @@ class Corpus extends sourceHelpers.BaseCorpus {
 
 class FuzzilliCorpus extends Corpus {
   constructor(inputDir, corpusName, extraStrict=false) {
-    super(inputDir, corpusName, extraStrict);
+    super(inputDir, 'fuzzilli', extraStrict);
     this.flagMap = new Map();
   }
 
@@ -179,6 +187,18 @@ class FuzzilliCorpus extends Corpus {
   }
 }
 
+// As above, but skipping files from the crashes directories.
+class FuzzilliNoCrashCorpus extends FuzzilliCorpus {
+  isTestSkippedInCorpus(relPath) {
+    const pathComponents = relPath.split(path.sep);
+    if (pathComponents.length < 3) {
+      return false;
+    }
+    assert(pathComponents[0] == 'fuzzilli');
+    return pathComponents[2] == 'crashes';
+  }
+}
+
 class V8Corpus extends Corpus {
   loadFlags(relPath, data) {
     const result = [];
@@ -203,12 +223,13 @@ class V8Corpus extends Corpus {
 
 const CORPUS_CLASSES = {
   'fuzzilli': FuzzilliCorpus,
+  'fuzzilli_no_crash': FuzzilliNoCrashCorpus,
   'v8': V8Corpus,
 };
 
-function create(inputDir, corpusName, extraStrict=false) {
+function create(inputDir, corpusName, ...args) {
   const cls = CORPUS_CLASSES[corpusName] || Corpus;
-  return new cls(inputDir, corpusName, extraStrict);
+  return new cls(inputDir, corpusName, ...args);
 }
 
 module.exports = {

@@ -87,4 +87,19 @@ describe('Load tests', () => {
          "fuzzilli/fuzzdir-1/corpus/program_1.js"],
         inputs[1][1].map((x) => x.relPath));
   });
+
+  it('does not pick crashes with fuzzilli runner', () => {
+    sandbox.stub(Math, 'random').callsFake(() => 0.2);
+    const archivePath = path.join(helpers.BASE_DIR, 'input_archive');
+
+    // Try to get 2 test cases, but there's only 1 viable in the test data.
+    const testRunner = new runner.RandomFuzzilliNoCrashCorpusRunner(
+        archivePath, 'v8', 2);
+    var inputs = Array.from(testRunner.enumerateInputs());
+
+    assert.equal(1, inputs.length);
+    assert.deepEqual(
+        ["fuzzilli/fuzzdir-1/corpus/program_1.js"],
+        inputs[0][1].map((x) => x.relPath));
+  });
 });

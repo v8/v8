@@ -9,6 +9,7 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
 const program = require('commander');
 const sinon = require('sinon');
 
@@ -20,7 +21,7 @@ const runner = require('../runner.js');
 
 const { DifferentialFuzzMutator, DifferentialFuzzSuppressions } = require(
     '../mutators/differential_fuzz_mutator.js');
-const { DifferentialScriptMutator } = require(
+const { DifferentialScriptMutator, FuzzilliDifferentialScriptMutator } = require(
     '../differential_script_mutator.js');
 
 const sandbox = sinon.createSandbox();
@@ -206,5 +207,50 @@ describe('Differential fuzzing', () => {
 
     assert.deepEqual(
         runner.RandomCorpusRunnerWithFuzzilli, mutator.runnerClass);
+  });
+});
+
+// As above, but we don't zero the settings as we use zero settings in
+// production here.
+describe('Differential fuzzing with fuzzilli', () => {
+  beforeEach(() => {
+    // Fake fuzzer being called with --input_dir flag.
+    this.oldInputDir = program.input_dir;
+    program.input_dir = path.join(
+        helpers.BASE_DIR, 'differential_fuzz_fuzzilli');
+
+    helpers.deterministicRandom(sandbox);
+  });
+
+  afterEach(() => {
+    sandbox.restore();
+    program.input_dir = this.oldInputDir;
+  });
+
+  it('runs end to end', () => {
+    const env = {
+      APP_DIR: 'test_data/differential_fuzz',
+      GENERATE: process.env.GENERATE,
+    };
+    sandbox.stub(process, 'env').value(env);
+
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    const mutator = new FuzzilliDifferentialScriptMutator(
+        scriptMutator.defaultSettings(), helpers.DB_DIR);
+
+    // Configure 3 output tests and V8 engine.
+    const testRunner = new mutator.runnerClass(
+        program.input_dir, 'v8', 3);
+    for (const [i, inputs] of testRunner.enumerateInputs()) {
+      const mutated = mutator.mutateMultiple(inputs);
+      helpers.assertExpectedResult(
+          `differential_fuzz_fuzzilli/expected_code_${i}.js`, mutated.code);
+      helpers.assertExpectedResult(
+          `differential_fuzz_fuzzilli/expected_flags_${i}.js`,
+          JSON.stringify(mutated.flags, null, 2));
+    }
   });
 });

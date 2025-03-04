@@ -173,6 +173,44 @@ class DifferentialScriptMutator extends ScriptMutator {
   }
 }
 
+/**
+ * Script mutator that only outputs single Fuzzilli cases without random
+ * mutations and without try-catch. I.e. mostly a pass-through of Fuzzilli
+ * cases for differential fuzzing, but with random fuzz experiments and flags.
+ */
+class FuzzilliDifferentialScriptMutator extends DifferentialScriptMutator {
+  constructor(settings, db_path) {
+    super(settings, db_path);
+
+    // Slightly higher probabilities for extra printing and exception
+    // tracking, since we don't do any other mutations.
+    this.settings.DIFF_FUZZ_EXTRA_PRINT = 0.2;
+    this.settings.DIFF_FUZZ_TRACK_CAUGHT = 0.6;
+  }
+
+  get runnerClass() {
+    return runner.RandomFuzzilliNoCrashCorpusRunner;
+  }
+
+  // Pure pass-through behavior without mutations.
+  mutate() {}
+
+  // We don't require any test-suite dependencies like mjsunit, nor their
+  // stubs and replacements. We also don't need the standard fuzz library
+  // that's used by mutators that don't run here. We add extra printing
+  // for differential fuzzing and a stub for the absence of mjsunit for
+  // differential fuzzing.
+  resolveDependencies(inputs) {
+    const dependencies = this.resolveInputDependencies(inputs);
+    dependencies.push(
+        sourceHelpers.loadResource('differential_fuzz_mjsunit.js'));
+    dependencies.push(
+        sourceHelpers.loadResource('differential_fuzz_library.js'));
+    return dependencies;
+  }
+}
+
 module.exports = {
   DifferentialScriptMutator: DifferentialScriptMutator,
+  FuzzilliDifferentialScriptMutator: FuzzilliDifferentialScriptMutator,
 };

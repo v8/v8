@@ -25,6 +25,7 @@ const sourceHelpers = require('./source_helpers.js');
 const SCRIPT_MUTATORS = {
   default: scriptMutator.ScriptMutator,
   foozzie: differentialScriptMutator.DifferentialScriptMutator,
+  foozzie_fuzzilli: differentialScriptMutator.FuzzilliDifferentialScriptMutator,
 };
 
 function collect(value, total) {
