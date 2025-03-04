@@ -662,66 +662,53 @@ class ModuleDecoderImpl : public Decoder {
     TypeCanonicalizer* type_canon = GetTypeCanonicalizer();
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
 
-    // First pass: perform the actual decoding of the wire bytes.
     for (uint32_t i = 0; ok() && i < types_count; ++i) {
       TRACE("DecodeType[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
       uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
       size_t initial_size = module_->types.size();
+      uint32_t group_size = 1;
       if (kind == kWasmRecursiveTypeGroupCode) {
         module_->is_wasm_gc = true;
         uint32_t rec_group_offset = pc_offset();
         consume_bytes(1, "rec. group definition", tracer_);
         if (tracer_) tracer_->NextLine();
-        uint32_t group_size =
-            consume_count("recursive group size", kV8MaxWasmTypes);
+        group_size = consume_count("recursive group size", kV8MaxWasmTypes);
         if (tracer_) tracer_->RecGroupOffset(rec_group_offset, group_size);
-        if (initial_size + group_size > kV8MaxWasmTypes) {
-          errorf(pc(), "Type definition count exceeds maximum %zu",
-                 kV8MaxWasmTypes);
-          return;
-        }
-        // We need to resize types before decoding the type definitions in this
-        // group, so that the correct type size is visible to type definitions.
-        module_->types.resize(initial_size + group_size);
-        module_->isorecursive_canonical_type_ids.resize(initial_size +
-                                                        group_size);
-        for (uint32_t j = 0; j < group_size; j++) {
-          if (tracer_) tracer_->TypeOffset(pc_offset());
-          TypeDefinition type = consume_subtype_definition(initial_size + j);
-          module_->types[initial_size + j] = type;
-        }
-        if (failed()) return;
-
-        type_canon->AddRecursiveGroup(module_.get(), group_size);
-        if (tracer_) {
-          tracer_->Description("end of rec. group");
-          tracer_->NextLine();
-        }
-      } else {
+      }
+      if (initial_size + group_size > kV8MaxWasmTypes) {
+        errorf(pc(), "Type definition count exceeds maximum %zu",
+               kV8MaxWasmTypes);
+        return;
+      }
+      // We need to resize types before decoding the type definitions in this
+      // group, so that the correct type size is visible to type definitions.
+      module_->types.resize(initial_size + group_size);
+      module_->isorecursive_canonical_type_ids.resize(initial_size +
+                                                      group_size);
+      for (uint32_t j = 0; j < group_size; j++) {
         if (tracer_) tracer_->TypeOffset(pc_offset());
-        if (initial_size + 1 > kV8MaxWasmTypes) {
-          errorf(pc(), "Type definition count exceeds maximum %zu",
-                 kV8MaxWasmTypes);
-          return;
-        }
-        // Similarly to above, we need to resize types for a group of size 1.
-        module_->types.resize(initial_size + 1);
-        module_->isorecursive_canonical_type_ids.resize(initial_size + 1);
-        TypeDefinition type = consume_subtype_definition(initial_size);
-        if (ok()) {
-          module_->types[initial_size] = type;
-          type_canon->AddRecursiveSingletonGroup(module_.get());
-        }
+        TypeDefinition type = consume_subtype_definition(initial_size + j);
+        if (failed()) return;
+        module_->types[initial_size + j] = type;
+      }
+      FinalizeRecgroup(group_size, type_canon);
+      if (kind == kWasmRecursiveTypeGroupCode && tracer_) {
+        tracer_->Description("end of rec. group");
+        tracer_->NextLine();
       }
     }
+  }
 
-    // Second pass: now that we know the entire type section, check its
-    // validity and initialize additional data:
+  void FinalizeRecgroup(uint32_t group_size, TypeCanonicalizer* type_canon) {
+    // Now that we have decoded the entire recgroup, check its validity,
+    // initialize additional data, and canonicalize it:
     // - check supertype validity
     // - propagate subtyping depths
     // - validate is_shared bits and set up RefTypeKind fields
-    const WasmModule* module = module_.get();
-    for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
+    WasmModule* module = module_.get();
+    uint32_t end_index = static_cast<uint32_t>(module->types.size());
+    uint32_t start_index = end_index - group_size;
+    for (uint32_t i = start_index; ok() && i < end_index; ++i) {
       TypeDefinition& type_def = module_->types[i];
       bool is_shared = type_def.is_shared;
       switch (type_def.kind) {
@@ -739,14 +726,13 @@ class ModuleDecoderImpl : public Decoder {
               const char* param_or_return =
                   j < retcount ? "return" : "parameter";
               uint32_t index = j < retcount ? j : j - retcount;
-              // TODO(42204563): {pc_} isn't very accurate, it's pointing at
-              // the end of the type section. If we care, we'll have to
-              // store each type's offset temporarily.
+              // {pc_} isn't very accurate, it's pointing at the end of the
+              // recgroup. So to ease debugging, we print the type's index.
               errorf(pc_,
-                     "Shared signature types must have shared %s types, "
-                     "actual type %s for %s %d",
-                     param_or_return, type.name().c_str(), param_or_return,
-                     index);
+                     "Type %u: shared signature must have shared %s types, "
+                     "actual type for %s %d is %s",
+                     i, param_or_return, param_or_return, index,
+                     type.name().c_str());
               return;
             }
           }
@@ -761,9 +747,9 @@ class ModuleDecoderImpl : public Decoder {
             ValueType type = storage[j];
             if (is_shared && !type.is_shared()) {
               errorf(pc_,
-                     "Shared struct type must have shared field types, actual "
-                     "type %s for field %d",
-                     type.name().c_str(), j);
+                     "Type %u: shared struct must have shared field types, "
+                     "actual type for field %d is %s",
+                     i, j, type.name().c_str());
               return;
             }
           }
@@ -777,9 +763,9 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = type_def.array_type->element_type();
           if (is_shared && !type.is_shared()) {
             errorf(pc_,
-                   "Shared array type must have shared element type, actual "
-                   "type %s",
-                   type.name().c_str());
+                   "Type %u: shared array must have shared element type, "
+                   "actual element type is %s",
+                   i, type.name().c_str());
             return;
           }
           break;
@@ -790,16 +776,16 @@ class ModuleDecoderImpl : public Decoder {
           const TypeDefinition contfun_type =
               module_->types[contfun_typeid.index];
           if (contfun_type.kind != TypeDefinition::kFunction) {
-            errorf(
-                pc_,
-                "cont type must refer to a signature index, actual type is %s",
-                module_->heap_type(contfun_typeid).name().c_str());
+            errorf(pc_,
+                   "Type %u: cont type must refer to a signature index, "
+                   "actual type is %s",
+                   i, module_->heap_type(contfun_typeid).name().c_str());
             return;
           }
           if (is_shared && !contfun_type.is_shared) {
             errorf(pc_,
-                   "Shared cont type must refer to a shared signature, actual "
-                   "type is %s",
+                   "Type %u: shared cont type must refer to a shared signature,"
+                   " actual type is %s",
                    module_->heap_type(contfun_typeid).name().c_str());
             return;
           }
@@ -829,6 +815,7 @@ class ModuleDecoderImpl : public Decoder {
         return;
       }
     }
+    type_canon->AddRecursiveGroup(module, group_size);
   }
 
   void DecodeImportSection() {

@@ -41,7 +41,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   builder.addArray(kWasmFuncRef, false, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared array type must have shared element type, actual type funcref/);
+    /Type 0: shared array must have shared element type, actual element type is funcref/);
 })();
 
 (function TestSharedStructWithUnsharedField() {
@@ -50,21 +50,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     [makeField(kWasmI32, false), makeField(kWasmFuncRef, false)],
     kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared struct type must have shared field types, actual type funcref for field 1/);
+    /Type 0: shared struct must have shared field types, actual type for field 1 is funcref/);
 })();
 
 (function TestSharedSignatureWithUnsharedParameter() {
   const builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmFuncRef], []);
+  let sig = makeSig([kWasmFuncRef], [kWasmI32]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared signature types must have shared parameter types, actual type funcref for parameter 0/);
+    /Type 0: shared signature must have shared parameter types, actual type for parameter 0 is funcref/);
 })();
 
 (function TestSharedSignatureWithUnsharedReturn() {
   const builder = new WasmModuleBuilder();
-  let sig = makeSig([], [kWasmFuncRef]);
+  let sig = makeSig([kWasmI32], [kWasmFuncRef]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared signature types must have shared return types, actual type funcref for return 0/);
+    /Type 0: shared signature must have shared return types, actual type for return 0 is funcref/);
 })();
