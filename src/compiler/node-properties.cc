@@ -458,6 +458,9 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
               ElementsTransitionWithMultipleSourcesOf(effect->op()).target()};
           return result;
         }
+        // `receiver` and `object` might alias, so
+        // TransitionElementsKindOrCheckMaps might change receiver's map.
+        result = kUnreliableMaps;
         break;
       }
       case IrOpcode::kJSCreate: {
