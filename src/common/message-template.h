@@ -506,6 +506,8 @@ namespace internal {
     "Invalid left-hand side expression in postfix operation")                  \
   T(InvalidLhsInPrefixOp,                                                      \
     "Invalid left-hand side expression in prefix operation")                   \
+  T(InvalidHexString,                                                          \
+    "Input string must contain hex characters in even length")                 \
   T(InvalidModuleExportName,                                                   \
     "Invalid module export name: contains unpaired surrogate")                 \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \

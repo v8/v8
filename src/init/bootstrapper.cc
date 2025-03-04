@@ -6023,6 +6023,8 @@ void Genesis::InitializeGlobal_js_base_64() {
                          .ToHandleChecked());
   SimpleInstallFunction(isolate(), uint8_array_function, "fromBase64",
                         Builtin::kUint8ArrayFromBase64, 1, kDontAdapt);
+  SimpleInstallFunction(isolate(), uint8_array_function, "fromHex",
+                        Builtin::kUint8ArrayFromHex, 1, kDontAdapt);
 
   DirectHandle<JSObject> uint8_array_prototype(
       Cast<JSObject>(

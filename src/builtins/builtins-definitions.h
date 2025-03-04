@@ -1107,6 +1107,8 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
   /* proposal-arraybuffer-base64 #sec-uint8array.frombase64 */                 \
   CPP(Uint8ArrayFromBase64, kDontAdaptArgumentsSentinel)                       \
+  /* proposal-arraybuffer-base64 #sec-uint8array.fromhex */                    \
+  CPP(Uint8ArrayFromHex, kDontAdaptArgumentsSentinel)                          \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
   CPP(Uint8ArrayPrototypeToBase64, kDontAdaptArgumentsSentinel)                \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tohex */            \
