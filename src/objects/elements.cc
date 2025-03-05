@@ -858,15 +858,26 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         Cast<BackingStore>(*backing_store)->FillWithHoles(length, old_length);
       }
     } else {
-      // Grow the array to the new length. Note that this code will allow create
-      // backing stores that consist almost entirely of holes, for which
+      // Calculate a new capacity for the array.
+      uint32_t new_capacity;
+      if (capacity == 0) {
+        // If the existing capacity is zero, assume we are setting the length to
+        // presize to the exact size we want.
+        new_capacity = length;
+      } else {
+        // Otherwise, assume we want exponential growing semantics, and grow as
+        // if we were pushing. We might not grow enough for the length, so take
+        // the max of hte two values.
+        new_capacity = std::max(length, JSArray::NewElementsCapacity(capacity));
+      }
+      // Grow the array to the new capacity. Note that this code will allow
+      // create backing stores that consist almost entirely of holes, for which
       // `JSObject::ShouldConvertToSlowElements` would return "true". This is
-      // intentional, for the pattern where a user will pre-size an array to
-      // then write elements into it by index. A resizing operation like
-      // Array.p.push might trigger a transition to dictionary elements.
-      // Similarly, since we expect the array to be precisely presized, this
-      // doesn't introduce any slack to the length.
-      MAYBE_RETURN(Subclass::GrowCapacityAndConvertImpl(array, length),
+      // intentional, because we are assuming the user is setting a length to
+      // pre-size an array to then write to it within bounds. A subsequent
+      // resizing operation, like Array.p.push, might still trigger a transition
+      // to dictionary elements because of sparseness.
+      MAYBE_RETURN(Subclass::GrowCapacityAndConvertImpl(array, new_capacity),
                    Nothing<bool>());
     }
 
