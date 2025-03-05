@@ -986,6 +986,11 @@ RUNTIME_FUNCTION(Runtime_FlushLiftoffCode) {
   return Smi::FromInt(static_cast<int>(code_size + metadata_size));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTriggerCodeGC) {
+  wasm::GetWasmEngine()->TriggerCodeGCForTesting();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_EstimateCurrentMemoryConsumption) {
   size_t result = wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption();
   return Smi::FromInt(static_cast<int>(result));

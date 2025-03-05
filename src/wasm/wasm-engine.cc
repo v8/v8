@@ -1838,25 +1838,42 @@ void WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
             ? 0
             : 64 * KB + GetWasmCodeManager()->committed_code_space() / 10;
     if (new_potentially_dead_code_size_ > dead_code_limit) {
-      bool inc_gc_count =
-          num_code_gcs_triggered_ < std::numeric_limits<int8_t>::max();
-      if (current_gc_info_ == nullptr) {
-        if (inc_gc_count) ++num_code_gcs_triggered_;
-        TRACE_CODE_GC(
-            "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
-            new_potentially_dead_code_size_, dead_code_limit);
-        TriggerGC(num_code_gcs_triggered_);
-      } else if (current_gc_info_->next_gc_sequence_index == 0) {
-        if (inc_gc_count) ++num_code_gcs_triggered_;
-        TRACE_CODE_GC(
-            "Scheduling another GC after the current one (potentially dead: "
-            "%zu bytes; limit: %zu bytes).\n",
-            new_potentially_dead_code_size_, dead_code_limit);
-        current_gc_info_->next_gc_sequence_index = num_code_gcs_triggered_;
-        DCHECK_NE(0, current_gc_info_->next_gc_sequence_index);
-      }
+      TriggerCodeGC_Locked(dead_code_limit);
     }
   }
+}
+
+void WasmEngine::TriggerCodeGC_Locked(size_t dead_code_limit) {
+  bool inc_gc_count =
+      num_code_gcs_triggered_ < std::numeric_limits<int8_t>::max();
+  if (current_gc_info_ == nullptr) {
+    if (inc_gc_count) ++num_code_gcs_triggered_;
+    TRACE_CODE_GC(
+        "Triggering GC (potentially dead: %zu bytes; limit: %zu bytes).\n",
+        new_potentially_dead_code_size_, dead_code_limit);
+    TriggerGC(num_code_gcs_triggered_);
+  } else if (current_gc_info_->next_gc_sequence_index == 0) {
+    if (inc_gc_count) ++num_code_gcs_triggered_;
+    TRACE_CODE_GC(
+        "Scheduling another GC after the current one (potentially dead: "
+        "%zu bytes; limit: %zu bytes).\n",
+        new_potentially_dead_code_size_, dead_code_limit);
+    current_gc_info_->next_gc_sequence_index = num_code_gcs_triggered_;
+    DCHECK_NE(0, current_gc_info_->next_gc_sequence_index);
+  }
+}
+
+void WasmEngine::TriggerCodeGCForTesting() {
+  if (!v8_flags.wasm_code_gc) return;
+  base::MutexGuard guard(&mutex_);
+  TRACE_CODE_GC("Wasm Code GC explicitly requested for testing:\n");
+  if (new_potentially_dead_code_size_ == 0) {
+    DCHECK(potentially_dead_code_.empty());
+    // Let's not waste a GC sequence index when there is no code to free.
+    TRACE_CODE_GC("But there is nothing to do.\n");
+    return;
+  }
+  TriggerCodeGC_Locked(0);
 }
 
 void WasmEngine::FreeDeadCode(const DeadCodeMap& dead_code,

@@ -374,6 +374,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // code counts as a reference, and is decremented on the next GC.
   void AddPotentiallyDeadCode(WasmCode*);
 
+  // Allow tests to trigger a GC independently of adding potentially dead code.
+  void TriggerCodeGCForTesting();
+
   // Free dead code.
   using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
   void FreeDeadCode(const DeadCodeMap&, std::vector<WasmCode*>&);
@@ -448,6 +451,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
+  void TriggerCodeGC_Locked(size_t dead_code_limit);
   void TriggerGC(int8_t gc_sequence_index);
 
   // Remove an isolate from the outstanding isolates of the current GC. Returns
