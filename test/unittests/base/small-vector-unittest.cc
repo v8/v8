@@ -15,13 +15,10 @@ namespace v8::base {
 
 namespace {
 template <size_t n, int start, int... I>
-constexpr std::initializer_list<int> make_int_list_impl(
+std::initializer_list<int> make_int_list_impl(
     std::integer_sequence<int, I...> s) {
-  constexpr auto lambda = [] {
-    static constexpr std::initializer_list<int> result{(start + I)...};
-    return std::integral_constant<const std::initializer_list<int>*, &result>{};
-  };
-  return *decltype(lambda())::value;
+  static std::initializer_list<int> result{(start + I)...};
+  return result;
 }
 
 template <size_t n, int start = 0>
