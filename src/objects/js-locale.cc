@@ -755,10 +755,6 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
-  // Let md be the minimal days required in the first week of a month or year,
-  // for calendar purposes, in the locale.
-  int32_t md = calendar->getMinimalDaysInFirstWeek();
-
   // Perform ! CreateDataPropertyOrThrow(info, "firstDay", fd).
   CHECK(JSReceiver::CreateDataProperty(
             isolate, info, factory->firstDay_string(),
@@ -768,12 +764,6 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
   // Perform ! CreateDataPropertyOrThrow(info, "weekend", we).
   CHECK(JSReceiver::CreateDataProperty(isolate, info, factory->weekend_string(),
                                        we, Just(kDontThrow))
-            .FromJust());
-
-  // Perform ! CreateDataPropertyOrThrow(info, "minimalDays", md).
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, info, factory->minimalDays_string(),
-            factory->NewNumberFromInt(md), Just(kDontThrow))
             .FromJust());
 
   // Return info.
