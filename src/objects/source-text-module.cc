@@ -377,7 +377,6 @@ bool SourceTextModule::PrepareInstantiate(
       }
       case ModuleImportPhase::kSource: {
         DCHECK(v8_flags.js_source_phase_imports);
-#if V8_ENABLE_WEBASSEMBLY
         v8::Local<v8::Object> api_requested_module_source;
         if (!source_callback(context, v8::Utils::ToLocal(specifier),
                              v8::Utils::FixedArrayToLocal(import_attributes),
@@ -387,13 +386,8 @@ bool SourceTextModule::PrepareInstantiate(
         }
         DirectHandle<JSReceiver> requested_module_source =
             Utils::OpenDirectHandle(*api_requested_module_source);
-        CHECK(IsWasmModuleObject(*requested_module_source));
         requested_modules->set(i, *requested_module_source);
         break;
-#else
-        // Only WebAssembly modules can be requested in the source phase.
-        UNREACHABLE();
-#endif
       }
       default:
         UNREACHABLE();
