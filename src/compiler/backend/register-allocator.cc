@@ -1512,8 +1512,14 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
       DCHECK(data()->config()->IsAllocatableDoubleCode(
           operand->fixed_register_index()));
     } else if (rep == MachineRepresentation::kSimd128) {
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+      DCHECK(IsSpecialSimd128Code(operand->fixed_register_index()) ||
+             data()->config()->IsAllocatableSimd128Code(
+                 operand->fixed_register_index()));
+#else  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
       DCHECK(data()->config()->IsAllocatableSimd128Code(
           operand->fixed_register_index()));
+#endif
     } else {
       UNREACHABLE();
     }
