@@ -1689,34 +1689,30 @@ static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
 
 void InstructionSelectorT::VisitWord32And(OpIndex node) {
   X64OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  if (auto c = GetWord32Constant(this, binop.right())) {
-    if (*c == 0xFF) {
-      if (this->is_load(binop.left())) {
-        LoadRepresentation load_rep =
-            this->load_view(binop.left()).loaded_rep();
-        if (load_rep.representation() == MachineRepresentation::kWord8 &&
-            load_rep.IsUnsigned()) {
-          EmitIdentity(node);
-          return;
-        }
+  V<Word32> left;
+  if (MatchWordBinop<Word32>(node, &left, 0xFF)) {
+    if (this->is_load(left)) {
+      LoadRepresentation load_rep = this->load_view(left).loaded_rep();
+      if (load_rep.representation() == MachineRepresentation::kWord8 &&
+          load_rep.IsUnsigned()) {
+        EmitIdentity(node);
+        return;
       }
-      Emit(kX64Movzxbl, g.DefineAsRegister(node), g.Use(binop.left()));
-      return;
-    } else if (*c == 0xFFFF) {
-      if (this->is_load(binop.left())) {
-        LoadRepresentation load_rep =
-            this->load_view(binop.left()).loaded_rep();
-        if ((load_rep.representation() == MachineRepresentation::kWord16 ||
-             load_rep.representation() == MachineRepresentation::kWord8) &&
-            load_rep.IsUnsigned()) {
-          EmitIdentity(node);
-          return;
-        }
-      }
-      Emit(kX64Movzxwl, g.DefineAsRegister(node), g.Use(binop.left()));
-      return;
     }
+    Emit(kX64Movzxbl, g.DefineAsRegister(node), g.Use(left));
+    return;
+  } else if (MatchWordBinop<Word32>(node, &left, 0xFFFF)) {
+    if (this->is_load(left)) {
+      LoadRepresentation load_rep = this->load_view(left).loaded_rep();
+      if ((load_rep.representation() == MachineRepresentation::kWord16 ||
+           load_rep.representation() == MachineRepresentation::kWord8) &&
+          load_rep.IsUnsigned()) {
+        EmitIdentity(node);
+        return;
+      }
+    }
+    Emit(kX64Movzxwl, g.DefineAsRegister(node), g.Use(left));
+    return;
   }
   VisitBinop(this, node, kX64And32);
 }
@@ -2194,9 +2190,7 @@ void InstructionSelectorT::VisitInt64AddWithOverflow(OpIndex node) {
 
 void InstructionSelectorT::VisitInt32Sub(OpIndex node) {
   X64OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  auto left = binop.left();
-  auto right = binop.right();
+  auto [left, right] = Inputs<WordBinopOp>(node);
   if (g.CanBeImmediate(right)) {
     int32_t imm = g.GetImmediateIntegerValue(right);
     if (imm == 0) {
@@ -2264,9 +2258,7 @@ namespace {
 
 void VisitMul(InstructionSelectorT* selector, OpIndex node, ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  auto binop = selector->word_binop_view(node);
-  auto left = binop.left();
-  auto right = binop.right();
+  auto [left, right] = selector->Inputs<WordBinopOp>(node);
   if (g.CanBeImmediate(right)) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
                    g.UseImmediate(right));
@@ -2282,9 +2274,7 @@ void VisitMul(InstructionSelectorT* selector, OpIndex node, ArchOpcode opcode) {
 void VisitMulHigh(InstructionSelectorT* selector, OpIndex node,
                   ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  auto binop = selector->word_binop_view(node);
-  auto left = binop.left();
-  auto right = binop.right();
+  auto [left, right] = selector->Inputs<WordBinopOp>(node);
   if (selector->IsLive(left) && !selector->IsLive(right)) {
     std::swap(left, right);
   }
@@ -2297,20 +2287,18 @@ void VisitMulHigh(InstructionSelectorT* selector, OpIndex node,
 
 void VisitDiv(InstructionSelectorT* selector, OpIndex node, ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  auto binop = selector->word_binop_view(node);
+  auto [left, right] = selector->Inputs<WordBinopOp>(node);
   InstructionOperand temps[] = {g.TempRegister(rdx)};
-  selector->Emit(opcode, g.DefineAsFixed(node, rax),
-                 g.UseFixed(binop.left(), rax),
-                 g.UseUniqueRegister(binop.right()), arraysize(temps), temps);
+  selector->Emit(opcode, g.DefineAsFixed(node, rax), g.UseFixed(left, rax),
+                 g.UseUniqueRegister(right), arraysize(temps), temps);
 }
 
 void VisitMod(InstructionSelectorT* selector, OpIndex node, ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  auto binop = selector->word_binop_view(node);
+  auto [left, right] = selector->Inputs<WordBinopOp>(node);
   InstructionOperand temps[] = {g.TempRegister(rax)};
-  selector->Emit(opcode, g.DefineAsFixed(node, rdx),
-                 g.UseFixed(binop.left(), rax),
-                 g.UseUniqueRegister(binop.right()), arraysize(temps), temps);
+  selector->Emit(opcode, g.DefineAsFixed(node, rdx), g.UseFixed(left, rax),
+                 g.UseUniqueRegister(right), arraysize(temps), temps);
 }
 
 }  // namespace

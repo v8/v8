@@ -80,55 +80,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const turboshaft::TailCallOp* tail_call_op_;
   };
 
-  class BranchView {
-   public:
-    explicit BranchView(turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      op_ = &graph->Get(node_).Cast<turboshaft::BranchOp>();
-    }
-
-    turboshaft::OpIndex condition() const { return op_->condition(); }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::BranchOp* op_;
-  };
-
-  class WordBinopView {
-   public:
-    explicit WordBinopView(turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      op_ = &graph->Get(node_).Cast<turboshaft::WordBinopOp>();
-      left_ = op_->left();
-      right_ = op_->right();
-      can_put_constant_right_ =
-          op_->IsCommutative(op_->kind) &&
-          graph->Get(left_).Is<turboshaft::ConstantOp>() &&
-          !graph->Get(right_).Is<turboshaft::ConstantOp>();
-    }
-
-    void EnsureConstantIsRightIfCommutative() {
-      if (can_put_constant_right_) {
-        std::swap(left_, right_);
-        can_put_constant_right_ = false;
-      }
-    }
-
-    turboshaft::OpIndex left() const { return left_; }
-    turboshaft::OpIndex right() const { return right_; }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::WordBinopOp* op_;
-    turboshaft::OpIndex left_;
-    turboshaft::OpIndex right_;
-    bool can_put_constant_right_;
-  };
-
   class LoadView {
    public:
     LoadView(turboshaft::Graph* graph, turboshaft::OpIndex node) : node_(node) {
@@ -472,12 +423,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   CallView call_view(turboshaft::OpIndex node) {
     return CallView{graph_, node};
-  }
-  BranchView branch_view(turboshaft::OpIndex node) {
-    return BranchView(graph_, node);
-  }
-  WordBinopView word_binop_view(turboshaft::OpIndex node) {
-    return WordBinopView(graph_, node);
   }
   LoadView load_view(turboshaft::OpIndex node) {
     DCHECK(is_load(node));

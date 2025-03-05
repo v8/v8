@@ -1686,9 +1686,7 @@ void InstructionSelectorT::VisitInt32Add(OpIndex node) {
 
 void InstructionSelectorT::VisitInt32Sub(OpIndex node) {
   IA32OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  auto left = binop.left();
-  auto right = binop.right();
+  auto [left, right] = Inputs<WordBinopOp>(node);
   if (this->MatchIntegralZero(left)) {
     Emit(kIA32Neg, g.DefineSameAsFirst(node), g.Use(right));
   } else {

@@ -2328,12 +2328,12 @@ void InstructionSelectorT::VisitReturn(OpIndex node) {
 
 void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
                                        Block* fbranch) {
-  auto branch = this->branch_view(branch_node);
+  const BranchOp& branch = Cast<BranchOp>(branch_node);
   TryPrepareScheduleFirstProjection(branch.condition());
 
   FlagsContinuation cont =
       FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch);
-  VisitWordCompareZero(branch, branch.condition(), &cont);
+  VisitWordCompareZero(branch_node, branch.condition(), &cont);
 }
 
 // When a DeoptimizeIf/DeoptimizeUnless/Branch depends on a BinopOverflow, the

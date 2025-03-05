@@ -126,7 +126,7 @@ bool StaticCanonicalForLoopMatcher::MatchWordBinop(
     OpIndex idx, V<Word>* left, V<Word>* right, BinOp* binop_op,
     WordRepresentation* binop_rep) const {
   WordBinopOp::Kind kind;
-  if (matcher_.MatchWordBinop(idx, left, right, &kind, binop_rep) &&
+  if (matcher_.MatchWordBinop<Word>(idx, left, right, &kind, binop_rep) &&
       BinopKindIsSupported(kind)) {
     *binop_op = BinopFromWordBinopKind(kind);
     return true;

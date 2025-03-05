@@ -16,8 +16,86 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+class OperationMatcher;
+
+namespace detail {
+template <typename T, bool HasConstexpr>
+struct IndexMatch {
+  struct Wildcard {};
+  using constexpr_type = typename v_traits<T>::constexpr_type;
+
+  IndexMatch() : v_(Wildcard{}) {}
+  IndexMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
+  IndexMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
+  IndexMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
+  IndexMatch(constexpr_type constant)        // NOLINT(runtime/explicit)
+      : v_(constant) {}
+
+  inline bool matches(OpIndex matched, const OperationMatcher* matcher);
+
+  std::variant<Wildcard, OpIndex, OpIndex*, constexpr_type> v_;
+};
+
+template <typename T>
+struct IndexMatch<T, false> {
+  struct Wildcard {};
+
+  IndexMatch() : v_(Wildcard{}) {}
+  IndexMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
+  IndexMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
+  IndexMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
+
+  inline bool matches(OpIndex matched, const OperationMatcher* matcher) {
+    switch (v_.index()) {
+      case 0:
+        return true;
+      case 1:
+        return std::get<1>(v_) == matched;
+      case 2:
+        *std::get<2>(v_) = matched;
+        return true;
+    }
+    // unreachable
+    return false;
+  }
+
+  std::variant<Wildcard, OpIndex, OpIndex*> v_;
+};
+
+template <typename T>
+struct ValueMatch {
+  struct Wildcard {};
+
+  ValueMatch() : v_(Wildcard{}) {}
+  ValueMatch(const T& value) : v_(value) {}  // NOLINT(runtime/explicit)
+  ValueMatch(T* value) : v_(value) {}        // NOLINT(runtime/explicit)
+
+  std::variant<Wildcard, T, T*> v_;
+
+  bool matches(const T& matched) {
+    switch (v_.index()) {
+      case 0:
+        return true;
+      case 1:
+        return std::get<1>(v_) == matched;
+      case 2:
+        *std::get<2>(v_) = matched;
+        return true;
+    }
+    // unreachable
+    return false;
+  }
+};
+
+}  // namespace detail
+
 class OperationMatcher {
  public:
+  template <typename T>
+  using IMatch = detail::IndexMatch<T, const_or_v_exists_v<T>>;
+  template <typename T>
+  using VMatch = detail::ValueMatch<T>;
+
   explicit OperationMatcher(const Graph& graph) : graph_(graph) {}
 
   template <class Op>
@@ -285,65 +363,47 @@ class OperationMatcher {
     return true;
   }
 
-  template <class T>
+  template <typename T>
     requires(IsWord<T>())
-  bool MatchWordBinop(V<Any> matched, V<T>* left, V<T>* right,
-                      WordBinopOp::Kind* kind, WordRepresentation* rep) const {
+  bool MatchWordBinop(V<Any> matched, IMatch<T> left, IMatch<T> right,
+                      VMatch<WordBinopOp::Kind> kind = {},
+                      VMatch<WordRepresentation> rep = {}) const {
     const WordBinopOp* op = TryCast<WordBinopOp>(matched);
     if (!op) return false;
-    *kind = op->kind;
-    *left = op->left<T>();
-    *right = op->right<T>();
-    if (rep) *rep = op->rep;
-    return true;
-  }
-
-  template <class T>
-    requires(IsWord<T>())
-  bool MatchWordBinop(V<Any> matched, V<T>* left, V<T>* right,
-                      WordBinopOp::Kind kind, WordRepresentation rep) const {
-    const WordBinopOp* op = TryCast<WordBinopOp>(matched);
-    if (!op || kind != op->kind) {
-      return false;
-    }
-    if (!(rep == op->rep ||
-          (WordBinopOp::AllowsWord64ToWord32Truncation(kind) &&
-           rep == WordRepresentation::Word32() &&
-           op->rep == WordRepresentation::Word64()))) {
-      return false;
-    }
-    *left = op->left<T>();
-    *right = op->right<T>();
-    return true;
+    return left.matches(op->left(), this) && right.matches(op->right(), this) &&
+           kind.matches(op->kind) && rep.matches(op->rep);
   }
 
   template <class T>
     requires(IsWord<T>())
   bool MatchWordAdd(V<Any> matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
-    return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kAdd, rep);
+    return MatchWordBinop<T>(matched, left, right, WordBinopOp::Kind::kAdd,
+                             rep);
   }
 
   template <class T>
     requires(IsWord<T>())
   bool MatchWordSub(V<Any> matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
-    return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kSub, rep);
+    return MatchWordBinop<T>(matched, left, right, WordBinopOp::Kind::kSub,
+                             rep);
   }
 
   template <class T>
     requires(IsWord<T>())
   bool MatchWordMul(V<Any> matched, V<T>* left, V<T>* right,
                     WordRepresentation rep) const {
-    return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kMul, rep);
+    return MatchWordBinop<T>(matched, left, right, WordBinopOp::Kind::kMul,
+                             rep);
   }
 
   template <class T>
     requires(IsWord<T>())
   bool MatchBitwiseAnd(V<Any> matched, V<T>* left, V<T>* right,
                        WordRepresentation rep) const {
-    return MatchWordBinop(matched, left, right, WordBinopOp::Kind::kBitwiseAnd,
-                          rep);
+    return MatchWordBinop<T>(matched, left, right,
+                             WordBinopOp::Kind::kBitwiseAnd, rep);
   }
 
   template <class T>
@@ -528,6 +588,31 @@ class OperationMatcher {
  private:
   const Graph& graph_;
 };
+
+template <typename T, bool HasConstexpr>
+bool detail::IndexMatch<T, HasConstexpr>::matches(
+    OpIndex matched, const OperationMatcher* matcher) {
+  switch (v_.index()) {
+    case 0:
+      return true;
+    case 1:
+      return std::get<1>(v_) == matched;
+    case 2:
+      *std::get<2>(v_) = matched;
+      return true;
+    case 3: {
+      const ConstantOp* c = matcher->template TryCast<ConstantOp>(matched);
+      if (!c) return false;
+      if (c->rep != v_traits<T>::rep) return false;
+      // TODO: Need to fix this for handles and such...
+      return c->storage.integral ==
+             (ConstantOp::Storage{static_cast<uint64_t>(std::get<3>(v_))}
+                  .integral);
+    }
+  }
+  // unreachable
+  return false;
+}
 
 }  // namespace v8::internal::compiler::turboshaft
 

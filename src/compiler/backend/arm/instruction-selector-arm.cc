@@ -1628,11 +1628,10 @@ void InstructionSelectorT::VisitInt32Mul(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitUint32MulHigh(OpIndex node) {
-  auto binop = this->word_binop_view(node);
+  auto [left, right] = Inputs<WordBinopOp>(node);
   ArmOperandGeneratorT g(this);
   InstructionOperand outputs[] = {g.TempRegister(), g.DefineAsRegister(node)};
-  InstructionOperand inputs[] = {g.UseRegister(binop.left()),
-                                 g.UseRegister(binop.right())};
+  InstructionOperand inputs[] = {g.UseRegister(left), g.UseRegister(right)};
   Emit(kArmUmull, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
