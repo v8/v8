@@ -221,9 +221,6 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<MaybeObject> object,
   }
 }
 
-MaybeObjectDirectHandle::MaybeObjectDirectHandle(DirectHandle<Object> object)
-    : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
-
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<Object> object,
                                                  Isolate* isolate)
     : reference_type_(HeapObjectReferenceType::STRONG),
@@ -249,17 +246,8 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(
     Isolate* isolate)
     : reference_type_(reference_type), handle_(object, isolate) {}
 
-MaybeObjectDirectHandle::MaybeObjectDirectHandle(
-    DirectHandle<Object> object, HeapObjectReferenceType reference_type)
-    : reference_type_(reference_type), handle_(object) {}
-
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObjectHandle object)
     : reference_type_(object.reference_type_), handle_(object.handle_) {}
-
-MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(
-    DirectHandle<Object> object) {
-  return MaybeObjectDirectHandle(object, HeapObjectReferenceType::WEAK);
-}
 
 MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(Tagged<Object> object,
                                                       Isolate* isolate) {
@@ -301,10 +289,6 @@ Tagged<MaybeObject> MaybeObjectDirectHandle::operator->() const {
   } else {
     return *handle_.ToHandleChecked();
   }
-}
-
-DirectHandle<Object> MaybeObjectDirectHandle::object() const {
-  return handle_.ToHandleChecked();
 }
 
 template <typename T>

@@ -339,7 +339,7 @@ class JsonParser final {
 
   template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
-                                   Handle<Map> feedback);
+                                   DirectHandle<Map> feedback);
   Handle<Object> BuildJsonArray(size_t start);
 
   static const int kMaxContextCharacters = 10;

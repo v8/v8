@@ -3587,7 +3587,7 @@ bool TryFastAddDataProperty(Isolate* isolate, DirectHandle<JSObject> object,
   if (map.is_null()) return false;
   DCHECK(!map->is_dictionary_map());
 
-  Handle<Map> new_map(map, isolate);
+  DirectHandle<Map> new_map(map, isolate);
   if (map->is_deprecated()) {
     new_map = Map::Update(isolate, new_map);
     if (new_map->is_dictionary_map()) return false;
@@ -4492,7 +4492,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // to sealed, frozen elements kind.
   DirectHandle<NumberDictionary> new_element_dictionary;
 
-  Handle<Map> old_map(object->map(), isolate);
+  DirectHandle<Map> old_map(object->map(), isolate);
   old_map = Map::Update(isolate, old_map);
   DirectHandle<Map> transition_map;
   MaybeDirectHandle<Map> maybe_transition_map =

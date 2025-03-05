@@ -82,9 +82,102 @@ enum class FeedbackSlotKind : uint8_t {
 static constexpr int kFeedbackSlotKindCount =
     static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
-using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
-using MapsAndHandlers =
-    base::SmallVector<MapAndHandler, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
+using MapAndHandler = std::pair<DirectHandle<Map>, MaybeObjectDirectHandle>;
+
+class MapsAndHandlers {
+ public:
+  explicit MapsAndHandlers(Isolate* isolate)
+      : maps_(isolate), handlers_(isolate) {}
+
+  bool empty() const { return maps_.empty(); }
+  size_t size() const { return maps_.size(); }
+  void reserve(size_t capacity) {
+    maps_.reserve(capacity);
+    handlers_.reserve(capacity);
+  }
+
+  MapAndHandler operator[](size_t i) const {
+    DCHECK_LT(i, size());
+    MaybeObjectDirectHandle handler;
+    switch (handlers_reference_types_[i]) {
+      case HeapObjectReferenceType::STRONG:
+        handler = MaybeObjectDirectHandle(handlers_[i]);
+        break;
+      case HeapObjectReferenceType::WEAK:
+        handler = MaybeObjectDirectHandle::Weak(handlers_[i]);
+        break;
+    }
+    return MapAndHandler(maps_[i], handler);
+  }
+
+  void set_map(size_t i, DirectHandle<Map> map) {
+    DCHECK_LT(i, size());
+    maps_[i] = map;
+  }
+
+  void set_handler(size_t i, MaybeObjectDirectHandle handler) {
+    DCHECK_LT(i, size());
+    handlers_[i] =
+        handler.is_null() ? DirectHandle<Object>() : handler.object();
+    handlers_reference_types_[i] = handler.reference_type();
+  }
+
+  class Iterator final
+      : public base::iterator<std::input_iterator_tag, MapAndHandler> {
+   public:
+    constexpr Iterator() = default;
+
+    constexpr bool operator==(const Iterator& other) {
+      return index_ == other.index_;
+    }
+    constexpr bool operator!=(const Iterator& other) {
+      return index_ != other.index_;
+    }
+
+    constexpr Iterator& operator++() {
+      ++index_;
+      return *this;
+    }
+
+    constexpr Iterator operator++(int) {
+      Iterator temp = *this;
+      ++*this;
+      return temp;
+    }
+
+    value_type operator*() const {
+      DCHECK_NOT_NULL(container_);
+      return (*container_)[index_];
+    }
+
+   private:
+    friend class MapsAndHandlers;
+
+    constexpr Iterator(const MapsAndHandlers* container, size_t i)
+        : container_(container), index_(i) {}
+
+    const MapsAndHandlers* container_ = nullptr;
+    size_t index_ = 0;
+  };
+
+  void emplace_back(DirectHandle<Map> map, MaybeObjectDirectHandle handler) {
+    maps_.push_back(map);
+    handlers_.push_back(handler.is_null() ? DirectHandle<Object>()
+                                          : handler.object());
+    handlers_reference_types_.push_back(handler.reference_type());
+  }
+
+  Iterator begin() const { return Iterator(this, 0); }
+  Iterator end() const { return Iterator(this, size()); }
+
+  base::Vector<DirectHandle<Map>> maps() { return base::VectorOf(maps_); }
+
+ private:
+  DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT> maps_;
+  DirectHandleSmallVector<Object, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT> handlers_;
+  base::SmallVector<HeapObjectReferenceType, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>
+      handlers_reference_types_;
+};
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
@@ -1035,7 +1128,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   void AdvancePolymorphic();
   enum State { kMonomorphic, kPolymorphic, kOther };
 
-  Handle<WeakFixedArray> polymorphic_feedback_;
+  DirectHandle<WeakFixedArray> polymorphic_feedback_;
   Tagged<Map> map_;
   Tagged<MaybeObject> handler_;
   bool done_;

@@ -514,7 +514,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*map));
 
   InternalIndex first(0);
-  Handle<Map> new_map =
+  DirectHandle<Map> new_map =
       ReconfigureProperty(isolate, map, first, PropertyKind::kData, NONE,
                           Representation::None(), none_type);
   // |map| did not change except marked unstable.
@@ -684,8 +684,8 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   DirectHandle<Map> detach_point_map;
   for (int i = 0; i < kPropCount; i++) {
     if (i == property_index) {
@@ -986,8 +986,8 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kPropCount; i++) {
     if (i == kAccessorProp) {
       map = expectations.AddAccessorConstant(map, NONE, pair);
@@ -1001,14 +1001,14 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   CHECK(expectations.Check(*map));
 
   // Create new maps by generalizing representation of propX field.
-  Handle<Map> maps[kPropCount];
+  std::array<DirectHandle<Map>, kPropCount> maps;
   for (int i = 0; i < kPropCount; i++) {
     if (i == kAccessorProp) {
       // Skip accessor property reconfiguration.
       maps[i] = maps[i - 1];
       continue;
     }
-    Handle<Map> new_map =
+    DirectHandle<Map> new_map =
         ReconfigureProperty(isolate, map, InternalIndex(i), PropertyKind::kData,
                             NONE, Representation::Double(), any_type);
     maps[i] = new_map;
@@ -1062,8 +1062,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kPropCount; i++) {
     map = expectations.AddDataField(map, NONE, from.constness,
                                     from.representation, from.type);
@@ -1845,13 +1845,13 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
 
-  Handle<Map> updated_map = Map::Update(isolate, map);
+  DirectHandle<Map> updated_map = Map::Update(isolate, map);
   CHECK_EQ(*new_map, *updated_map);
 
   // Ensure Map::FindElementsKindTransitionedMap() is able to find the
   // transitioned map.
   {
-    Handle<Map> map_list[1]{updated_map};
+    DirectHandle<Map> map_list[1]{updated_map};
     Tagged<Map> transitioned_map = map2->FindElementsKindTransitionedMap(
         isolate, map_list, ConcurrencyMode::kSynchronous);
     CHECK_EQ(*updated_map, transitioned_map);
@@ -2060,8 +2060,8 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kPropCount; i++) {
     map = expectations.AddDataField(map, NONE, PropertyConstness::kMutable,
                                     Representation::Smi(), any_type);
@@ -2197,13 +2197,13 @@ static void TestGeneralizeFieldWithSpecialTransition(
   CHECK(!code_field_const->marked_for_deoptimization());
 
   // Create new maps by generalizing representation of propX field.
-  Handle<Map> updated_maps[kPropCount];
+  DirectHandle<Map> updated_maps[kPropCount];
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> new_map_a = map_a;
-    Handle<Map> new_map_b = map_b;
-    Handle<Map> map_to_change =
+    DirectHandle<Map> new_map_a = map_a;
+    DirectHandle<Map> new_map_b = map_b;
+    DirectHandle<Map> map_to_change =
         direction == UpdateDirectionCheck::kFwd ? map_a : map_b;
-    Handle<Map> changed_map = ReconfigureProperty(
+    DirectHandle<Map> changed_map = ReconfigureProperty(
         isolate, map_to_change, InternalIndex(i), PropertyKind::kData, NONE,
         to.representation, to.type);
     updated_maps[i] = changed_map;
@@ -2289,7 +2289,8 @@ static void TestGeneralizeFieldWithSpecialTransition(
                           expected_alert == kFieldOwnerDependency);
 
   DirectHandle<Map> active_map = updated_maps[kPropCount - 1];
-  Handle<Map> old_map = direction == UpdateDirectionCheck::kFwd ? map_a : map_b;
+  DirectHandle<Map> old_map =
+      direction == UpdateDirectionCheck::kFwd ? map_a : map_b;
   CHECK(!active_map->is_deprecated());
   // Update all deprecated maps and check that they are now the same.
   DirectHandle<Map> updated_map = Map::Update(isolate, old_map);
@@ -2642,8 +2643,8 @@ static void TestGeneralizeFieldWithSpecialTransitionLegacy(
   Expectations expectations(isolate);
 
   // Create a map, add required properties to it and initialize expectations.
-  Handle<Map> initial_map = Map::Create(isolate, 0);
-  Handle<Map> map = initial_map;
+  DirectHandle<Map> initial_map = Map::Create(isolate, 0);
+  DirectHandle<Map> map = initial_map;
   for (int i = 0; i < kPropCount; i++) {
     map = expectations.AddDataField(map, NONE, from.constness,
                                     from.representation, from.type);
@@ -2673,9 +2674,9 @@ static void TestGeneralizeFieldWithSpecialTransitionLegacy(
   CHECK(expectations2.Check(*map2));
 
   // Create new maps by generalizing representation of propX field.
-  Handle<Map> maps[kPropCount];
+  std::array<DirectHandle<Map>, kPropCount> maps;
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> new_map =
+    DirectHandle<Map> new_map =
         ReconfigureProperty(isolate, map, InternalIndex(i), PropertyKind::kData,
                             NONE, to.representation, to.type);
     maps[i] = new_map;

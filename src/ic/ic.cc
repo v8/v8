@@ -183,6 +183,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
     : isolate_(isolate),
       vector_set_(false),
       kind_(kind),
+      target_maps_(isolate),
       target_maps_set_(false),
       slow_stub_reason_(nullptr),
       nexus_(isolate, vector, slot) {
@@ -362,11 +363,11 @@ void IC::ConfigureVectorState(DirectHandle<Name> name, DirectHandle<Map> map,
 void IC::ConfigureVectorState(DirectHandle<Name> name, MapHandlesSpan maps,
                               MaybeObjectHandles* handlers) {
   DCHECK(!IsGlobalIC());
-  MapsAndHandlers maps_and_handlers;
+  MapsAndHandlers maps_and_handlers(isolate());
   maps_and_handlers.reserve(maps.size());
   DCHECK_EQ(maps.size(), handlers->size());
   for (size_t i = 0; i < maps.size(); i++) {
-    maps_and_handlers.push_back(MapAndHandler(maps[i], handlers->at(i)));
+    maps_and_handlers.emplace_back(maps[i], handlers->at(i));
   }
   ConfigureVectorState(name, maps_and_handlers);
 }
@@ -534,14 +535,12 @@ bool AddOneReceiverMapIfMissing(MapsAndHandlers* receiver_maps_and_handlers,
                                 Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
   if (new_receiver_map->is_deprecated()) return false;
-  for (MapAndHandler map_and_handler : *receiver_maps_and_handlers) {
-    DirectHandle<Map> map = map_and_handler.first;
+  for (DirectHandle<Map> map : receiver_maps_and_handlers->maps()) {
     if (!map.is_null() && map.is_identical_to(new_receiver_map)) {
       return false;
     }
   }
-  receiver_maps_and_handlers->push_back(
-      MapAndHandler(new_receiver_map, MaybeObjectHandle()));
+  receiver_maps_and_handlers->emplace_back(new_receiver_map, {});
   return true;
 }
 
@@ -618,14 +617,14 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
 }
 
 bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
-                             const MaybeObjectHandle& handler) {
+                             const MaybeObjectDirectHandle& handler) {
   DCHECK(IsHandler(*handler));
   if (is_keyed() && state() != RECOMPUTE_HANDLER) {
     if (nexus()->GetName() != *name) return false;
   }
-  Handle<Map> map = lookup_start_object_map();
+  DirectHandle<Map> map = lookup_start_object_map();
 
-  MapsAndHandlers maps_and_handlers;
+  MapsAndHandlers maps_and_handlers(isolate());
   maps_and_handlers.reserve(v8_flags.max_valid_polymorphic_map_count);
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
@@ -635,11 +634,10 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
     int i = 0;
     for (FeedbackIterator it(nexus()); !it.done(); it.Advance()) {
       if (it.handler().IsCleared()) continue;
-      MaybeObjectHandle existing_handler = handle(it.handler(), isolate());
-      Handle<Map> existing_map = handle(it.map(), isolate());
+      MaybeObjectDirectHandle existing_handler(it.handler(), isolate());
+      DirectHandle<Map> existing_map(it.map(), isolate());
 
-      maps_and_handlers.push_back(
-          MapAndHandler(existing_map, existing_handler));
+      maps_and_handlers.emplace_back(existing_map, existing_handler);
 
       if (existing_map->is_deprecated()) {
         // Filter out deprecated maps to ensure their instances get migrated.
@@ -689,13 +687,13 @@ bool IC::UpdatePolymorphicIC(DirectHandle<Name> name,
   } else {
     if (is_keyed() && nexus()->GetName() != *name) return false;
     if (handler_to_overwrite >= 0) {
-      maps_and_handlers[handler_to_overwrite].second = handler;
+      maps_and_handlers.set_handler(handler_to_overwrite, handler);
       if (!map.is_identical_to(
-              maps_and_handlers.at(handler_to_overwrite).first)) {
-        maps_and_handlers[handler_to_overwrite].first = map;
+              maps_and_handlers.maps()[handler_to_overwrite])) {
+        maps_and_handlers.set_map(handler_to_overwrite, map);
       }
     } else {
-      maps_and_handlers.push_back(MapAndHandler(map, handler));
+      maps_and_handlers.emplace_back(map, handler);
     }
 
     ConfigureVectorState(name, maps_and_handlers);
@@ -711,10 +709,10 @@ void IC::UpdateMonomorphicIC(const MaybeObjectDirectHandle& handler,
 }
 
 void IC::CopyICToMegamorphicCache(DirectHandle<Name> name) {
-  MapsAndHandlers maps_and_handlers;
+  MapsAndHandlers maps_and_handlers(isolate());
   nexus()->ExtractMapsAndHandlers(&maps_and_handlers);
-  for (const MapAndHandler& map_and_handler : maps_and_handlers) {
-    UpdateMegamorphicCache(map_and_handler.first, name, map_and_handler.second);
+  for (auto [map, handler] : maps_and_handlers) {
+    UpdateMegamorphicCache(map, name, handler);
   }
 }
 
@@ -728,7 +726,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
       source_map->elements_kind(), target_elements_kind);
   Tagged<Map> transitioned_map;
   if (more_general_transition) {
-    Handle<Map> single_map[1] = {handle(target_map, isolate_)};
+    DirectHandle<Map> single_map[1] = {direct_handle(target_map, isolate_)};
     transitioned_map = source_map->FindElementsKindTransitionedMap(
         isolate(), single_map, ConcurrencyMode::kSynchronous);
   }
@@ -1167,7 +1165,7 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
-  MapHandles target_receiver_maps;
+  MapHandles target_receiver_maps(isolate());
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.empty()) {
@@ -2246,7 +2244,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
-  MapsAndHandlers target_maps_and_handlers;
+  MapsAndHandlers target_maps_and_handlers(isolate());
   nexus()->ExtractMapsAndHandlers(
       &target_maps_and_handlers,
       [this](Handle<Map> map) { return Map::TryUpdate(isolate(), map); });
@@ -2262,8 +2260,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     return ConfigureVectorState(DirectHandle<Name>(), monomorphic_map, handler);
   }
 
-  for (const MapAndHandler& map_and_handler : target_maps_and_handlers) {
-    DirectHandle<Map> map = map_and_handler.first;
+  for (DirectHandle<Map> map : target_maps_and_handlers.maps()) {
     if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason("JSPrimitiveWrapper");
@@ -2276,7 +2273,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // Handle those here if the receiver map hasn't changed or it has transitioned
   // to a more general kind.
   KeyedAccessStoreMode old_store_mode = GetKeyedAccessStoreMode();
-  Handle<Map> previous_receiver_map = target_maps_and_handlers.at(0).first;
+  DirectHandle<Map> previous_receiver_map = target_maps_and_handlers.maps()[0];
   if (state() == MONOMORPHIC) {
     DirectHandle<Map> transitioned_receiver_map = new_receiver_map;
     if (IsTransitionOfMonomorphicTarget(*previous_receiver_map,
@@ -2351,8 +2348,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // length. Otherwise, use the megamorphic stub.
   if (!StoreModeIsInBounds(store_mode)) {
     size_t external_arrays = 0;
-    for (MapAndHandler map_and_handler : target_maps_and_handlers) {
-      DirectHandle<Map> map = map_and_handler.first;
+    for (DirectHandle<Map> map : target_maps_and_handlers.maps()) {
       if (IsJSArrayMap(*map) && JSArray::MayHaveReadOnlyLength(*map)) {
         set_slow_stub_reason(
             "unsupported combination of arrays (potentially read-only length)");
@@ -2378,9 +2374,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
         StoreElementHandler(receiver_map, store_mode);
     ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   } else if (target_maps_and_handlers.size() == 1) {
-    ConfigureVectorState(DirectHandle<Name>(),
-                         target_maps_and_handlers[0].first,
-                         target_maps_and_handlers[0].second);
+    auto [map, handler] = target_maps_and_handlers[0];
+    ConfigureVectorState(DirectHandle<Name>(), map, handler);
   } else {
     ConfigureVectorState(DirectHandle<Name>(), target_maps_and_handlers);
   }
@@ -2465,18 +2460,15 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
     MapsAndHandlers* receiver_maps_and_handlers,
     KeyedAccessStoreMode store_mode) {
-  std::vector<Handle<Map>> receiver_maps;
+  DirectHandleVector<Map> receiver_maps(isolate());
   receiver_maps.reserve(receiver_maps_and_handlers->size());
-  for (auto& [map, handler] : *receiver_maps_and_handlers) {
+  for (DirectHandle<Map> map : receiver_maps_and_handlers->maps()) {
     receiver_maps.push_back(map);
-    USE(handler);
   }
   for (size_t i = 0; i < receiver_maps_and_handlers->size(); i++) {
-    Handle<Map> receiver_map = receiver_maps_and_handlers->at(i).first;
+    auto [receiver_map, old_handler] = (*receiver_maps_and_handlers)[i];
     DCHECK(!receiver_map->is_deprecated());
-    MaybeObjectDirectHandle old_handler =
-        receiver_maps_and_handlers->at(i).second;
-    Handle<Object> handler;
+    DirectHandle<Object> handler;
     DirectHandle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
@@ -2526,8 +2518,9 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       }
     }
     DCHECK(!handler.is_null());
-    receiver_maps_and_handlers->at(i) =
-        MapAndHandler(receiver_map, MaybeObjectHandle(handler));
+    receiver_maps_and_handlers->set_map(i, receiver_map);
+    receiver_maps_and_handlers->set_handler(i,
+                                            MaybeObjectDirectHandle(handler));
   }
 }
 

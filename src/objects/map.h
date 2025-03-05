@@ -144,8 +144,8 @@ enum class ObjectFields {
 };
 
 using MapHandles =
-    base::SmallVector<Handle<Map>, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
-using MapHandlesSpan = v8::MemorySpan<Handle<Map>>;
+    DirectHandleSmallVector<Map, DEFAULT_MAX_POLYMORPHIC_MAP_COUNT>;
+using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 
 #include "torque-generated/src/objects/map-tq.inc"
 
@@ -568,9 +568,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, InstanceType instance_type,
       Representation* representation, DirectHandle<FieldType>* field_type);
 
-  V8_EXPORT_PRIVATE static Handle<Map> PrepareForDataProperty(
-      Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
-      PropertyConstness constness, DirectHandle<Object> value);
+  V8_EXPORT_PRIVATE static DirectHandle<Map> PrepareForDataProperty(
+      Isolate* isolate, DirectHandle<Map> old_map,
+      InternalIndex descriptor_number, PropertyConstness constness,
+      DirectHandle<Object> value);
 
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(
       Isolate* isolate, DirectHandle<Map> map, ElementsKind new_elements_kind,
@@ -752,10 +753,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while
   // gathering type feedback. Use TryUpdate in those cases instead.
-  template <template <typename> typename HandleType>
-    requires(std::is_convertible_v<HandleType<Map>, DirectHandle<Map>>)
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) static HandleType<Map> Update(
-      Isolate* isolate, HandleType<Map> map);
+  V8_EXPORT_PRIVATE static DirectHandle<Map> Update(Isolate* isolate,
+                                                    DirectHandle<Map> map);
 
   static inline Handle<Map> CopyInitialMap(Isolate* isolate,
                                            DirectHandle<Map> map);

@@ -474,7 +474,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
 
   TryRunJS("f({ blarg: 3, torino: 10, foo: 2 })");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
-  MapHandles maps;
+  MapHandles maps(isolate);
   nexus.ExtractMaps(&maps);
   CHECK_EQ(4, maps.size());
 
@@ -561,7 +561,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   TryRunJS("f(o)");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
-  MapHandles maps;
+  MapHandles maps(isolate);
   nexus.ExtractMaps(&maps);
   CHECK_EQ(2, maps.size());
 
@@ -583,7 +583,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   // The degree of polymorphism doesn't change.
   TryRunJS("f(100)");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
-  MapHandles maps2;
+  MapHandles maps2(isolate);
   nexus.ExtractMaps(&maps2);
   CHECK_EQ(2, maps2.size());
 }

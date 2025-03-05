@@ -836,23 +836,16 @@ Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
 }
 
 // static
-template <template <typename> typename HandleType>
-  requires(std::is_convertible_v<HandleType<Map>, DirectHandle<Map>>)
-HandleType<Map> Map::Update(Isolate* isolate, HandleType<Map> map) {
+DirectHandle<Map> Map::Update(Isolate* isolate, DirectHandle<Map> map) {
   if (!map->is_deprecated()) return map;
   if (v8_flags.fast_map_update) {
     Tagged<Map> target_map = SearchMigrationTarget(isolate, *map);
     if (!target_map.is_null()) {
-      return HandleType<Map>(target_map, isolate);
+      return DirectHandle<Map>(target_map, isolate);
     }
   }
   return MapUpdater{isolate, map}.Update();
 }
-
-template V8_EXPORT_PRIVATE DirectHandle<Map> Map::Update(Isolate* isolate,
-                                                         DirectHandle<Map> map);
-template V8_EXPORT_PRIVATE IndirectHandle<Map> Map::Update(
-    Isolate* isolate, IndirectHandle<Map> map);
 
 void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
                                 int slack) {
@@ -1954,10 +1947,11 @@ bool CanHoldValue(Tagged<DescriptorArray> descriptors, InternalIndex descriptor,
   UNREACHABLE();
 }
 
-Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
-                                     InternalIndex descriptor,
-                                     PropertyConstness constness,
-                                     DirectHandle<Object> value) {
+DirectHandle<Map> UpdateDescriptorForValue(Isolate* isolate,
+                                           DirectHandle<Map> map,
+                                           InternalIndex descriptor,
+                                           PropertyConstness constness,
+                                           DirectHandle<Object> value) {
   if (CanHoldValue(map->instance_descriptors(isolate), descriptor, constness,
                    *value)) {
     return map;
@@ -1978,10 +1972,11 @@ Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
 }  // namespace
 
 // static
-Handle<Map> Map::PrepareForDataProperty(Isolate* isolate, Handle<Map> map,
-                                        InternalIndex descriptor,
-                                        PropertyConstness constness,
-                                        DirectHandle<Object> value) {
+DirectHandle<Map> Map::PrepareForDataProperty(Isolate* isolate,
+                                              DirectHandle<Map> map,
+                                              InternalIndex descriptor,
+                                              PropertyConstness constness,
+                                              DirectHandle<Object> value) {
   // The map should already be fully updated before storing the property.
   DCHECK(!map->is_deprecated());
   // Dictionaries can store any property value.

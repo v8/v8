@@ -130,6 +130,8 @@ class MaybeObjectHandle {
   inline bool is_identical_to(const MaybeObjectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
 
+  HeapObjectReferenceType reference_type() const { return reference_type_; }
+
  private:
   inline MaybeObjectHandle(Tagged<Object> object,
                            HeapObjectReferenceType reference_type,
@@ -316,28 +318,36 @@ class MaybeObjectDirectHandle {
                                  LocalHeap* local_heap);
   inline MaybeObjectDirectHandle(Tagged<Object> object, LocalHeap* local_heap);
   inline MaybeObjectDirectHandle(Tagged<Smi> object, LocalHeap* local_heap);
-  inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object);
+  inline explicit MaybeObjectDirectHandle(DirectHandle<Object> object)
+      : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
 
   inline MaybeObjectDirectHandle(MaybeObjectHandle obj);
 
   static inline MaybeObjectDirectHandle Weak(Tagged<Object> object,
                                              Isolate* isolate);
-  static inline MaybeObjectDirectHandle Weak(DirectHandle<Object> object);
+  static inline MaybeObjectDirectHandle Weak(DirectHandle<Object> object) {
+    return MaybeObjectDirectHandle(object, HeapObjectReferenceType::WEAK);
+  }
 
   inline Tagged<MaybeObject> operator*() const;
   inline Tagged<MaybeObject> operator->() const;
-  inline DirectHandle<Object> object() const;
+  inline DirectHandle<Object> object() const {
+    return handle_.ToHandleChecked();
+  }
 
   inline bool is_identical_to(const MaybeObjectDirectHandle& other) const;
   inline bool is_identical_to(const MaybeObjectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
+
+  HeapObjectReferenceType reference_type() const { return reference_type_; }
 
  private:
   inline MaybeObjectDirectHandle(Tagged<Object> object,
                                  HeapObjectReferenceType reference_type,
                                  Isolate* isolate);
   inline MaybeObjectDirectHandle(DirectHandle<Object> object,
-                                 HeapObjectReferenceType reference_type);
+                                 HeapObjectReferenceType reference_type)
+      : reference_type_(reference_type), handle_(object) {}
 
   HeapObjectReferenceType reference_type_;
   MaybeDirectHandle<Object> handle_;

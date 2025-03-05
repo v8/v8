@@ -1135,9 +1135,8 @@ void FeedbackNexus::ConfigurePolymorphic(
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
   for (int current = 0; current < receiver_count; ++current) {
-    DirectHandle<Map> map = maps_and_handlers[current].first;
+    auto [map, handler] = maps_and_handlers[current];
     array->set(current * 2, MakeWeak(*map));
-    MaybeObjectDirectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
     array->set(current * 2 + 1, *handler);
   }
@@ -1190,7 +1189,7 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,
       if (map_handler && !(map_handler(map).ToHandle(&map))) {
         continue;
       }
-      maps_and_handlers->push_back(MapAndHandler(map, handler));
+      maps_and_handlers->emplace_back(map, handler);
       found++;
     }
   }
@@ -1234,12 +1233,12 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
   }
-  MapsAndHandlers maps_and_handlers;
+  MapsAndHandlers maps_and_handlers(isolate_);
   ExtractMapsAndHandlers(&maps_and_handlers);
   KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
-  for (MapAndHandler map_and_handler : maps_and_handlers) {
+  for (auto [_, handler] : maps_and_handlers) {
     mode = GeneralizeKeyedAccessLoadMode(
-        mode, LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second));
+        mode, LoadHandler::GetKeyedAccessLoadMode(*handler));
   }
   return mode;
 }
@@ -1302,10 +1301,9 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
 
-  MapsAndHandlers maps_and_handlers;
+  MapsAndHandlers maps_and_handlers(isolate_);
   ExtractMapsAndHandlers(&maps_and_handlers);
-  for (const MapAndHandler& map_and_handler : maps_and_handlers) {
-    const MaybeObjectHandle maybe_code_handler = map_and_handler.second;
+  for (auto [_, maybe_code_handler] : maps_and_handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
     Builtin builtin_handler = Builtin::kNoBuiltinId;
     if (IsStoreHandler(*maybe_code_handler.object())) {

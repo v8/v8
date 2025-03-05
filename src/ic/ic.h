@@ -107,7 +107,7 @@ class IC {
   bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                        DirectHandle<Name> name);
   bool UpdatePolymorphicIC(DirectHandle<Name> name,
-                           const MaybeObjectHandle& handler);
+                           const MaybeObjectDirectHandle& handler);
   void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                               const MaybeObjectDirectHandle& handler);
 
@@ -143,7 +143,7 @@ class IC {
 
   void TargetMaps(MapHandles* list) {
     FindTargetMaps();
-    for (Handle<Map> map : target_maps_) {
+    for (DirectHandle<Map> map : target_maps_) {
       list->push_back(map);
     }
   }

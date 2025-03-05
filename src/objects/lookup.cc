@@ -462,7 +462,7 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
   auto holder_obj = Cast<JSObject>(holder);
   Handle<Map> old_map(holder->map(isolate_), isolate_);
 
-  Handle<Map> new_map = Map::Update(isolate_, old_map);
+  DirectHandle<Map> new_map = Map::Update(isolate_, old_map);
   if (!new_map->is_dictionary_map()) {  // fast -> fast
     new_map = Map::PrepareForDataProperty(
         isolate(), new_map, descriptor_number(), new_constness, value);
@@ -533,7 +533,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
     DirectHandle<Map> old_map(holder_obj->map(isolate_), isolate_);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
-    Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
+    DirectHandle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
         isolate_, old_map, descriptor_number(), i::PropertyKind::kData,
         attributes, PropertyConstness::kMutable);
     if (!new_map->is_dictionary_map()) {

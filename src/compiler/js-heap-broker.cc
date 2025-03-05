@@ -861,7 +861,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   DCHECK(!maps.empty());
 
   // Collect possible transition targets.
-  MapHandles possible_transition_targets;
+  MapHandles possible_transition_targets(isolate());
   possible_transition_targets.reserve(maps.size());
   for (MapRef& map : maps) {
     if (map.CanInlineElementAccess() &&
