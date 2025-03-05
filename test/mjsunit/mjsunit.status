@@ -2305,7 +2305,7 @@
 }], # conservative_stack_scanning
 
 ##############################################################################
-['arch == mips64', {
+['arch == mips64el', {
   # Stack switching is not supported on all platforms.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-conditional': [SKIP],
@@ -2323,8 +2323,9 @@
   'regress/wasm/regress-361123483': [SKIP],
   'regress/wasm/regress-361717714': [SKIP],
   'regress/wasm/regress-365376497': [SKIP],
-  'regress/wasm/regress-381917890': [SKIP]
-}],  # (arch == mips64)
+  'regress/wasm/regress-381917890': [SKIP],
+  'regress/wasm/regress-392928805': [SKIP]
+}],  # (arch == mips64el)
 
 ##############################################################################
 ['arch != arm64 and arch != x64 and arch != arm and arch != ia32 and arch != loong64 and arch != riscv64 and arch != ppc64', {
