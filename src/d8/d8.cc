@@ -6425,6 +6425,8 @@ int Shell::Main(int argc, char* argv[]) {
 #if defined(V8_ENABLE_PARTITION_ALLOC)
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   allocator_shim::ConfigurePartitionsForTesting();
+  allocator_shim::internal::PartitionAllocMalloc::Allocator()
+      ->EnableThreadCacheIfSupported();
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #endif
   v8::base::EnsureConsoleOutput();
