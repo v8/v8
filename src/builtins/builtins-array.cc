@@ -200,19 +200,20 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
     Isolate* isolate, DirectHandle<JSReceiver> receiver,
     DirectHandle<Object> value, double start, double end) {
   // 7. Repeat, while k < final.
-  while (start < end) {
+  FOR_WITH_HANDLE_SCOPE(isolate, double, k = start, k, k < end, k++, {
     // a. Let Pk be ! ToString(k).
-    DirectHandle<String> index = isolate->factory()->NumberToString(
-        isolate->factory()->NewNumber(start));
+    PropertyKey key(isolate, k);
 
     // b. Perform ? Set(O, Pk, value, true).
-    RETURN_FAILURE_ON_EXCEPTION(isolate, Object::SetPropertyOrElement(
-                                             isolate, receiver, index, value,
-                                             Just(ShouldThrow::kThrowOnError)));
+    LookupIterator it(isolate, receiver, key);
+    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+        isolate,
+        Object::SetProperty(&it, value, StoreOrigin::kMaybeKeyed,
+                            Just(ShouldThrow::kThrowOnError)),
+        ReadOnlyRoots(isolate).exception());
 
     // c. Increase k by 1.
-    ++start;
-  }
+  });
 
   // 8. Return O.
   return *receiver;
