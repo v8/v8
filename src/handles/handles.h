@@ -96,10 +96,13 @@ class HandleBase {
 #ifdef V8_ENABLE_DIRECT_HANDLE
   friend class DirectHandleBase;
 
-  static Address* indirect_handle(Address object);
-  static Address* indirect_handle(Address object, Isolate* isolate);
-  static Address* indirect_handle(Address object, LocalIsolate* isolate);
-  static Address* indirect_handle(Address object, LocalHeap* local_heap);
+  V8_EXPORT_PRIVATE static Address* indirect_handle(Address object);
+  V8_EXPORT_PRIVATE static Address* indirect_handle(Address object,
+                                                    Isolate* isolate);
+  V8_EXPORT_PRIVATE static Address* indirect_handle(Address object,
+                                                    LocalIsolate* isolate);
+  V8_EXPORT_PRIVATE static Address* indirect_handle(Address object,
+                                                    LocalHeap* local_heap);
 
   template <typename T>
   friend IndirectHandle<T> indirect_handle(DirectHandle<T> handle);

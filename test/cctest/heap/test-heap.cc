@@ -5380,7 +5380,7 @@ TEST(Regress3877) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   CompileRun("function cls() { this.x = 10; }");
-  DirectHandle<WeakFixedArray> weak_prototype_holder =
+  IndirectHandle<WeakFixedArray> weak_prototype_holder =
       factory->NewWeakFixedArray(1);
   {
     HandleScope inner_scope(isolate);
@@ -5403,6 +5403,7 @@ TEST(Regress3877) {
   CompileRun("var b = {}; b.__proto__ = a.x");
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
+
   for (int i = 0; i < 4; i++) {
     // We need to invoke GC without stack, otherwise some objects may not be
     // reclaimed because of conservative stack scanning.

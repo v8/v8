@@ -302,7 +302,7 @@ void TestContainerOfDirectHandles(i::Isolate* isolate, Container& container,
 }
 
 void VerifyNoRemainingDirectHandles() {
-#ifdef V8_ENABLE_DIRECT_HANDLE
+#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(ENABLE_SLOW_DCHECKS)
   DCHECK_EQ(0, i::DirectHandleBase::NumberOfHandles());
 #endif
 }

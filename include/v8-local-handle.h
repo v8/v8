@@ -179,6 +179,7 @@ class LocalBase : public api_internal::DirectHandleBase {
   }
 
   V8_INLINE static LocalBase<T> FromSlot(internal::Address* slot) {
+    if (slot == nullptr) return LocalBase<T>();
     return LocalBase<T>(*slot);
   }
 
