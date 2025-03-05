@@ -158,7 +158,8 @@ declare_args() {
   cppgc_enable_pointer_compression = false
 
   # Enable support for larger cages, up to 16GB.
-  cppgc_enable_larger_cage = true
+  # iOS cannot mmap above 8GB, so use the smaller cage.
+  cppgc_enable_larger_cage = !is_ios
 
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
