@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope-inl.h"
@@ -282,9 +284,10 @@ void TestContainerOfDirectHandles(i::Isolate* isolate, Container& container,
   Context::Scope scope(context);
 
   for (int i = 0; i < capacity; ++i) {
-    char buffer[32];
-    sprintf(buffer, "%d", i);
-    container.push_back(isolate->factory()->NewStringFromAsciiChecked(buffer));
+    std::ostringstream os;
+    os << i;
+    container.push_back(
+        isolate->factory()->NewStringFromAsciiChecked(os.str().c_str()));
   }
 
   EXPECT_EQ(static_cast<size_t>(capacity), container.size());
