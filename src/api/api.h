@@ -152,7 +152,7 @@ class RegisteredExtension {
   V(PrimitiveArrayToLocal)
 
 #define OPEN_HANDLE_LIST(V)                                    \
-  V(Template, TemplateInfo)                                    \
+  V(Template, TemplateInfoWithProperties)                      \
   V(FunctionTemplate, FunctionTemplateInfo)                    \
   V(ObjectTemplate, ObjectTemplateInfo)                        \
   V(DictionaryTemplate, DictionaryTemplateInfo)                \

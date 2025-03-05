@@ -240,8 +240,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
   MaybeDirectHandle<Map> maybe_cached_map;
   if (V8_LIKELY(can_use_map_cache)) {
     maybe_cached_map = TemplateInfo::ProbeInstantiationsCache<Map>(
-        isolate, context, self->serial_number(),
-        TemplateInfo::CachingMode::kUnlimited);
+        isolate, context, self, TemplateInfo::CachingMode::kUnlimited);
   }
   DirectHandle<Map> cached_map;
   if (V8_LIKELY(can_use_map_cache && maybe_cached_map.ToHandle(&cached_map))) {

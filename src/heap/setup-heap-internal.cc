@@ -1382,7 +1382,8 @@ void Heap::CreateInitialMutableObjects() {
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_last_debugging_id(Smi::FromInt(DebugInfo::kNoDebuggingId));
   set_last_stack_trace_id(Smi::zero());
-  set_next_template_serial_number(Smi::zero());
+  set_next_template_serial_number(
+      Smi::FromInt(TemplateInfo::kUninitializedSerialNumber));
 
   // Allocate the empty script.
   DirectHandle<Script> script = factory->NewScript(factory->empty_string());

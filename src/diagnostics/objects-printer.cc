@@ -1192,7 +1192,8 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   TorqueGeneratedFunctionTemplateInfo<
-      FunctionTemplateInfo, TemplateInfo>::FunctionTemplateInfoPrint(os);
+      FunctionTemplateInfo,
+      TemplateInfoWithProperties>::FunctionTemplateInfoPrint(os);
 
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
@@ -1206,7 +1207,9 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
     os << "\n - maybe_redirected_callback: " << kUnavailableString;
   }
 
+  os << " - serial_number: " << serial_number();
   os << "\n --- flags: ";
+  if (is_cacheable()) os << "\n - is_cacheable";
   if (is_object_template_call_handler()) {
     os << "\n - is_object_template_call_handler";
   }

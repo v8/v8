@@ -4608,12 +4608,18 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
 }
 
 namespace {
-inline void InitializeTemplate(Tagged<TemplateInfo> that, ReadOnlyRoots roots,
-                               bool do_not_cache) {
+inline void InitializeTemplate(Tagged<TemplateInfo> that, bool is_cacheable) {
+  that->set_template_info_flags(0);
+  that->set_serial_number(TemplateInfo::kUninitializedSerialNumber);
+  that->set_is_cacheable(is_cacheable);
+}
+
+inline void InitializeTemplateWithProperties(
+    Tagged<TemplateInfoWithProperties> that, ReadOnlyRoots roots,
+    bool is_cacheable) {
+  InitializeTemplate(that, is_cacheable);
+
   that->set_number_of_properties(0);
-  int serial_number =
-      do_not_cache ? TemplateInfo::kDoNotCache : TemplateInfo::kUncached;
-  that->set_serial_number(serial_number);
   that->set_property_list(roots.undefined_value(), SKIP_WRITE_BARRIER);
   that->set_property_accessors(roots.undefined_value(), SKIP_WRITE_BARRIER);
 }
@@ -4632,7 +4638,7 @@ DirectHandle<FunctionTemplateInfo> Factory::NewFunctionTemplateInfo(
     DisallowGarbageCollection no_gc;
     Tagged<FunctionTemplateInfo> raw = *obj;
     ReadOnlyRoots roots(isolate());
-    InitializeTemplate(raw, roots, do_not_cache);
+    InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     raw->set_class_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_interface_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
     raw->set_signature(roots.undefined_value(), SKIP_WRITE_BARRIER);
@@ -4668,7 +4674,7 @@ DirectHandle<ObjectTemplateInfo> Factory::NewObjectTemplateInfo(
     DisallowGarbageCollection no_gc;
     Tagged<ObjectTemplateInfo> raw = *obj;
     ReadOnlyRoots roots(isolate());
-    InitializeTemplate(raw, roots, do_not_cache);
+    InitializeTemplateWithProperties(raw, roots, !do_not_cache);
     if (constructor.is_null()) {
       raw->set_constructor(roots.undefined_value(), SKIP_WRITE_BARRIER);
     } else {
@@ -4685,8 +4691,8 @@ DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   DirectHandle<Map> map = dictionary_template_info_map();
   Tagged<DictionaryTemplateInfo> obj = Cast<DictionaryTemplateInfo>(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
+  InitializeTemplate(obj, true);
   obj->set_property_names(*property_names);
-  obj->set_serial_number(TemplateInfo::kUncached);
   return direct_handle(obj, isolate());
 }
 

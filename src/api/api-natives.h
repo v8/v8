@@ -50,25 +50,27 @@ class ApiNatives {
       DirectHandle<FunctionTemplateInfo> obj, DirectHandle<Object> prototype,
       InstanceType type, MaybeDirectHandle<Name> name = {});
 
-  static void AddDataProperty(Isolate* isolate, DirectHandle<TemplateInfo> info,
+  static void AddDataProperty(Isolate* isolate,
+                              DirectHandle<TemplateInfoWithProperties> info,
                               DirectHandle<Name> name,
                               DirectHandle<Object> value,
                               PropertyAttributes attributes);
 
-  static void AddDataProperty(Isolate* isolate, DirectHandle<TemplateInfo> info,
+  static void AddDataProperty(Isolate* isolate,
+                              DirectHandle<TemplateInfoWithProperties> info,
                               DirectHandle<Name> name, v8::Intrinsic intrinsic,
                               PropertyAttributes attributes);
 
   static void AddAccessorProperty(Isolate* isolate,
-                                  DirectHandle<TemplateInfo> info,
+                                  DirectHandle<TemplateInfoWithProperties> info,
                                   DirectHandle<Name> name,
                                   DirectHandle<FunctionTemplateInfo> getter,
                                   DirectHandle<FunctionTemplateInfo> setter,
                                   PropertyAttributes attributes);
 
-  static void AddNativeDataProperty(Isolate* isolate,
-                                    DirectHandle<TemplateInfo> info,
-                                    DirectHandle<AccessorInfo> property);
+  static void AddNativeDataProperty(
+      Isolate* isolate, DirectHandle<TemplateInfoWithProperties> info,
+      DirectHandle<AccessorInfo> property);
 };
 
 }  // namespace internal

@@ -967,7 +967,7 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   // ObjectTemplate as a property value then we can not cache the receiver
   // template.
   if (i::IsObjectTemplateInfo(*value_obj)) {
-    templ->set_serial_number(i::TemplateInfo::kDoNotCache);
+    templ->set_is_cacheable(false);
   }
 
   i::ApiNatives::AddDataProperty(i_isolate, templ,

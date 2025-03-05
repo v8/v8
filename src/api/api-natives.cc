@@ -73,10 +73,10 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
     Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Name> name,
     DirectHandle<Object> getter, DirectHandle<Object> setter,
     PropertyAttributes attributes) {
-  DCHECK(!IsFunctionTemplateInfo(*getter) ||
-         Cast<FunctionTemplateInfo>(*getter)->should_cache());
-  DCHECK(!IsFunctionTemplateInfo(*setter) ||
-         Cast<FunctionTemplateInfo>(*setter)->should_cache());
+  DCHECK_IMPLIES(IsFunctionTemplateInfo(*getter),
+                 Cast<FunctionTemplateInfo>(*getter)->is_cacheable());
+  DCHECK_IMPLIES(IsFunctionTemplateInfo(*setter),
+                 Cast<FunctionTemplateInfo>(*setter)->is_cacheable());
   if (IsFunctionTemplateInfo(*getter) &&
       Cast<FunctionTemplateInfo>(*getter)->BreakAtEntry(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -290,7 +290,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         bool is_prototype) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateObject);
   DirectHandle<JSFunction> constructor;
-  bool should_cache = info->should_cache();
+  bool should_cache = info->is_cacheable();
   if (!new_target.is_null()) {
     if (IsSimpleInstantiation(isolate, *info, *new_target)) {
       constructor = Cast<JSFunction>(new_target);
@@ -301,9 +301,9 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   }
   // Fast path.
   Handle<JSObject> result;
-  if (should_cache && info->is_cached()) {
+  if (should_cache) {
     if (TemplateInfo::ProbeInstantiationsCache<JSObject>(
-            isolate, isolate->native_context(), info->serial_number(),
+            isolate, isolate->native_context(), info,
             TemplateInfo::CachingMode::kLimited)
             .ToHandle(&result)) {
       return isolate->factory()->CopyJSObject(result);
@@ -351,7 +351,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
     // Don't cache prototypes.
     if (should_cache) {
-      TemplateInfo::CacheTemplateInstantiation<JSObject, ObjectTemplateInfo>(
+      TemplateInfo::CacheTemplateInstantiation(
           isolate, isolate->native_context(), info,
           TemplateInfo::CachingMode::kLimited, result);
       result = isolate->factory()->CopyJSObject(result);
@@ -383,25 +383,25 @@ MaybeDirectHandle<Object> GetInstancePrototype(
 
 MaybeHandle<JSFunction> InstantiateFunction(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
-    DirectHandle<FunctionTemplateInfo> data,
+    DirectHandle<FunctionTemplateInfo> info,
     MaybeDirectHandle<Name> maybe_name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInstantiateFunction);
-  bool should_cache = data->should_cache();
-  if (should_cache && data->is_cached()) {
+  bool should_cache = info->is_cacheable();
+  if (should_cache) {
     Handle<JSObject> result;
     if (TemplateInfo::ProbeInstantiationsCache<JSObject>(
-            isolate, native_context, data->serial_number(),
+            isolate, native_context, info,
             TemplateInfo::CachingMode::kUnlimited)
             .ToHandle(&result)) {
       return Cast<JSFunction>(result);
     }
   }
   DirectHandle<Object> prototype;
-  if (!data->remove_prototype()) {
-    DirectHandle<Object> prototype_templ(data->GetPrototypeTemplate(), isolate);
+  if (!info->remove_prototype()) {
+    DirectHandle<Object> prototype_templ(info->GetPrototypeTemplate(), isolate);
     if (IsUndefined(*prototype_templ, isolate)) {
       DirectHandle<Object> protoype_provider_templ(
-          data->GetPrototypeProviderTemplate(), isolate);
+          info->GetPrototypeProviderTemplate(), isolate);
       if (IsUndefined(*protoype_provider_templ, isolate)) {
         prototype = isolate->factory()->NewJSObject(
             direct_handle(native_context->object_function(), isolate));
@@ -416,7 +416,7 @@ MaybeHandle<JSFunction> InstantiateFunction(
           InstantiateObject(isolate, Cast<ObjectTemplateInfo>(prototype_templ),
                             DirectHandle<JSReceiver>(), true));
     }
-    DirectHandle<Object> parent(data->GetParentTemplate(), isolate);
+    DirectHandle<Object> parent(info->GetParentTemplate(), isolate);
     if (!IsUndefined(*parent, isolate)) {
       DirectHandle<Object> parent_prototype;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
@@ -428,39 +428,39 @@ MaybeHandle<JSFunction> InstantiateFunction(
     }
   }
   InstanceType function_type = JS_SPECIAL_API_OBJECT_TYPE;
-  if (!data->needs_access_check() &&
-      IsUndefined(data->GetNamedPropertyHandler(), isolate) &&
-      IsUndefined(data->GetIndexedPropertyHandler(), isolate)) {
+  if (!info->needs_access_check() &&
+      IsUndefined(info->GetNamedPropertyHandler(), isolate) &&
+      IsUndefined(info->GetIndexedPropertyHandler(), isolate)) {
     function_type = v8_flags.experimental_embedder_instance_types
-                        ? data->GetInstanceType()
+                        ? info->GetInstanceType()
                         : JS_API_OBJECT_TYPE;
     DCHECK(InstanceTypeChecker::IsJSApiObject(function_type));
   }
 
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
-      isolate, native_context, data, prototype, function_type, maybe_name);
+      isolate, native_context, info, prototype, function_type, maybe_name);
   if (should_cache) {
     // Cache the function.
-    TemplateInfo::CacheTemplateInstantiation<JSObject, FunctionTemplateInfo>(
-        isolate, native_context, data, TemplateInfo::CachingMode::kUnlimited,
+    TemplateInfo::CacheTemplateInstantiation(
+        isolate, native_context, info, TemplateInfo::CachingMode::kUnlimited,
         function);
   }
   MaybeDirectHandle<JSObject> result =
-      ConfigureInstance(isolate, function, data);
+      ConfigureInstance(isolate, function, info);
   if (result.is_null()) {
     // Uncache on error.
-    TemplateInfo::UncacheTemplateInstantiation<FunctionTemplateInfo>(
-        isolate, native_context, data, TemplateInfo::CachingMode::kUnlimited);
+    TemplateInfo::UncacheTemplateInstantiation(
+        isolate, native_context, info, TemplateInfo::CachingMode::kUnlimited);
     return {};
   }
-  data->set_published(true);
+  info->set_published(true);
   return function;
 }
 
 void AddPropertyToPropertyList(Isolate* isolate,
-                               DirectHandle<TemplateInfo> templ,
+                               DirectHandle<TemplateInfoWithProperties> info,
                                base::Vector<DirectHandle<Object>> data) {
-  Tagged<Object> maybe_list = templ->property_list();
+  Tagged<Object> maybe_list = info->property_list();
   DirectHandle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
     list = ArrayList::New(isolate, static_cast<int>(data.size()),
@@ -468,13 +468,13 @@ void AddPropertyToPropertyList(Isolate* isolate,
   } else {
     list = direct_handle(Cast<ArrayList>(maybe_list), isolate);
   }
-  templ->set_number_of_properties(templ->number_of_properties() + 1);
+  info->set_number_of_properties(info->number_of_properties() + 1);
   for (DirectHandle<Object> value : data) {
     if (value.is_null())
       value = Cast<Object>(isolate->factory()->undefined_value());
     list = ArrayList::Add(isolate, list, value);
   }
-  templ->set_property_list(*list);
+  info->set_property_list(*list);
 }
 
 }  // namespace
@@ -541,7 +541,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 }
 
 void ApiNatives::AddDataProperty(Isolate* isolate,
-                                 DirectHandle<TemplateInfo> info,
+                                 DirectHandle<TemplateInfoWithProperties> info,
                                  DirectHandle<Name> name,
                                  DirectHandle<Object> value,
                                  PropertyAttributes attributes) {
@@ -553,7 +553,7 @@ void ApiNatives::AddDataProperty(Isolate* isolate,
 }
 
 void ApiNatives::AddDataProperty(Isolate* isolate,
-                                 DirectHandle<TemplateInfo> info,
+                                 DirectHandle<TemplateInfoWithProperties> info,
                                  DirectHandle<Name> name,
                                  v8::Intrinsic intrinsic,
                                  PropertyAttributes attributes) {
@@ -566,12 +566,10 @@ void ApiNatives::AddDataProperty(Isolate* isolate,
   AddPropertyToPropertyList(isolate, info, base::VectorOf(data));
 }
 
-void ApiNatives::AddAccessorProperty(Isolate* isolate,
-                                     DirectHandle<TemplateInfo> info,
-                                     DirectHandle<Name> name,
-                                     DirectHandle<FunctionTemplateInfo> getter,
-                                     DirectHandle<FunctionTemplateInfo> setter,
-                                     PropertyAttributes attributes) {
+void ApiNatives::AddAccessorProperty(
+    Isolate* isolate, DirectHandle<TemplateInfoWithProperties> info,
+    DirectHandle<Name> name, DirectHandle<FunctionTemplateInfo> getter,
+    DirectHandle<FunctionTemplateInfo> setter, PropertyAttributes attributes) {
   if (!getter.is_null()) getter->set_published(true);
   if (!setter.is_null()) setter->set_published(true);
   PropertyDetails details(PropertyKind::kAccessor, attributes,
@@ -581,9 +579,9 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
   AddPropertyToPropertyList(isolate, info, base::VectorOf(data));
 }
 
-void ApiNatives::AddNativeDataProperty(Isolate* isolate,
-                                       DirectHandle<TemplateInfo> info,
-                                       DirectHandle<AccessorInfo> property) {
+void ApiNatives::AddNativeDataProperty(
+    Isolate* isolate, DirectHandle<TemplateInfoWithProperties> info,
+    DirectHandle<AccessorInfo> property) {
   Tagged<Object> maybe_list = info->property_accessors();
   DirectHandle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {

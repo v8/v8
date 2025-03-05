@@ -21901,13 +21901,16 @@ THREADED_TEST(FunctionNew) {
   CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
   Local<Value> result = CompileRun("func();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result).FromJust());
-  // Serial number should be invalid => should not be cached.
-  auto serial_number = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*func))
-                           ->shared()
-                           ->api_func_data()
-                           ->serial_number();
-  CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
-
+  {
+    // The template is not cacheable and there was no need to assign a serial
+    // number yet.
+    auto info = i::Cast<i::JSFunction>(v8::Utils::OpenHandle(*func))
+                    ->shared()
+                    ->api_func_data();
+    CHECK(!info->is_cacheable());
+    CHECK_EQ(info->serial_number(),
+             i::TemplateInfo::kUninitializedSerialNumber);
+  }
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env_global.Reset(isolate, data2);

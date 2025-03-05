@@ -252,6 +252,7 @@ namespace internal {
   V(Symbol)                                     \
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
+  V(TemplateInfoWithProperties)                 \
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \

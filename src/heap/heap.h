@@ -598,7 +598,7 @@ class Heap final {
   int NextScriptId();
   int NextDebuggingId();
   int NextStackTraceId();
-  inline int GetNextTemplateSerialNumber();
+  inline uint32_t GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(Tagged<HeapObject> objects);
   void SetSerializedGlobalProxySizes(Tagged<FixedArray> sizes);
