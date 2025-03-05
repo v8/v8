@@ -193,6 +193,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual void AdvanceMarkingOnAllocationImpl();
 
   void HandleNotFullyConstructedObjects();
+  void MarkStrongCrossThreadRoots();
 
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();

@@ -2556,6 +2556,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     // multiple threads when processing weak maps and embedder heaps.
     CHECK(heap_->concurrent_marking()->IsStopped());
     if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+      // Lock the process-global mutex here and mark cross-thread roots again.
+      // This is done as late as possible to keep locking durations short.
       cpp_heap->EnterProcessGlobalAtomicPause();
     }
     MarkTransitiveClosure();

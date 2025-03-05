@@ -270,6 +270,9 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
   {
     // VisitLocalRoots() also resets the LABs.
     VisitLocalRoots(config_.stack_state);
+    // Early marking of strong cross-thread roots before parallel marking. Helps
+    // avoiding long single-threaded marking phases.
+    MarkStrongCrossThreadRoots();
     HandleNotFullyConstructedObjects();
   }
   if (old_marking_type ==
@@ -529,6 +532,13 @@ void MarkerBase::VisitCrossThreadRoots() {
   RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
   heap().GetStrongCrossThreadPersistentRegion().Iterate(root_marking_visitor);
   visited_cross_thread_persistents_in_atomic_pause_ = true;
+}
+
+void MarkerBase::MarkStrongCrossThreadRoots() {
+  ProcessGlobalLock::Lock<ProcessGlobalLock::Reason::kForGC>();
+  RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
+  heap().GetStrongCrossThreadPersistentRegion().Iterate(root_marking_visitor);
+  ProcessGlobalLock::Unlock<ProcessGlobalLock::Reason::kForGC>();
 }
 
 void MarkerBase::ScheduleIncrementalMarkingTask() {
