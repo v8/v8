@@ -3344,42 +3344,24 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
   LoadJumpBuffer(masm, target_jmpbuf, false, expected_state);
 }
 
-// Updates the stack limit to match the new active stack.
-// Pass the {finished_continuation} argument to indicate that the stack that we
-// are switching from has returned, and in this case return its memory to the
-// stack pool.
-void SwitchStacks(MacroAssembler* masm, Register finished_continuation,
-                  const Register& keep1, const Register& keep2 = no_reg,
-                  const Register& keep3 = no_reg) {
+// Updates the stack limit and central stack info, and validates the switch.
+void SwitchStacks(MacroAssembler* masm, Register old_continuation,
+                  bool return_switch,
+                  const std::initializer_list<Register> keep) {
   using ER = ExternalReference;
-  __ Push(keep1);
-  if (keep2 != no_reg) {
-    __ Push(keep2);
+  for (auto reg : keep) {
+    __ Push(reg);
   }
-  if (keep3 != no_reg) {
-    __ Push(keep3);
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PrepareCallCFunction(2, eax);
+  __ Move(Operand(esp, 0 * kSystemPointerSize),
+          Immediate(ER::isolate_address(masm->isolate())));
+  __ mov(Operand(esp, 1 * kSystemPointerSize), old_continuation);
+  __ CallCFunction(
+      return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
+  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
+    __ Pop(*it);
   }
-  if (finished_continuation != no_reg) {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(2, eax);
-    __ Move(Operand(esp, 0 * kSystemPointerSize),
-            Immediate(ER::isolate_address(masm->isolate())));
-    __ mov(Operand(esp, 1 * kSystemPointerSize), finished_continuation);
-    __ CallCFunction(ER::wasm_return_switch(), 2);
-  } else {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(1, eax);
-    __ Move(Operand(esp, 0 * kSystemPointerSize),
-            Immediate(ER::isolate_address()));
-    __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
-  }
-  if (keep3 != no_reg) {
-    __ Pop(keep3);
-  }
-  if (keep2 != no_reg) {
-    __ Pop(keep2);
-  }
-  __ Pop(keep1);
 }
 
 void ReloadParentContinuation(MacroAssembler* masm, Register promise,
@@ -3411,8 +3393,9 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
 
   __ Pop(promise);
   // Switch stack!
+  SwitchStacks(masm, active_continuation, true,
+               {promise, return_value, context, jmpbuf});
   LoadJumpBuffer(masm, jmpbuf, false, wasm::JumpBuffer::Inactive);
-  SwitchStacks(masm, active_continuation, promise, return_value, context);
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
@@ -3477,7 +3460,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wrapper_buffer,
       parent_continuation,
       FieldOperand(parent_continuation, WasmContinuationObject::kParentOffset));
   SaveState(masm, parent_continuation, scratch, scratch2, suspend);
-  SwitchStacks(masm, no_reg, wrapper_buffer);
+  SwitchStacks(masm, parent_continuation, false, {wrapper_buffer});
   parent_continuation = no_reg;
   Register target_continuation = scratch;
   __ LoadRoot(target_continuation, RootIndex::kActiveContinuation);
@@ -3901,12 +3884,12 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Save current state in active jump buffer.
   // -------------------------------------------
   Label resume;
-  Register continuation = ecx;
+  Register continuation = edx;
   __ LoadRoot(continuation, RootIndex::kActiveContinuation);
   Register jmpbuf = edi;
   __ Move(jmpbuf,
           FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset));
-  FillJumpBuffer(masm, jmpbuf, edx, &resume);
+  FillJumpBuffer(masm, jmpbuf, ecx, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
   __ Move(FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
@@ -3945,7 +3928,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, no_reg, caller, suspender);
+  SwitchStacks(masm, continuation, false, {caller, suspender});
   jmpbuf = caller;
   __ Move(jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset));
   caller = no_reg;
@@ -4048,14 +4031,15 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ mov(
       FieldOperand(target_continuation, WasmContinuationObject::kParentOffset),
       active_continuation);
+  __ push(active_continuation);
   __ RecordWriteField(
       target_continuation, WasmContinuationObject::kParentOffset,
       active_continuation, slot_address, SaveFPRegsMode::kIgnore);
-  active_continuation = no_reg;
+  Register old_continuation = active_continuation;
+  __ pop(old_continuation);
   __ mov(masm->RootAsOperand(RootIndex::kActiveContinuation),
          target_continuation);
-
-  SwitchStacks(masm, no_reg, target_continuation);
+  SwitchStacks(masm, old_continuation, false, {target_continuation});
 
   // -------------------------------------------
   // Load state from target jmpbuf (longjmp).

@@ -983,19 +983,19 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void sync_stack_limit(Isolate* isolate) {
+void switch_stacks(Isolate* isolate, Address old_continuation) {
   DisallowGarbageCollection no_gc;
-
-  isolate->SyncStackLimit();
+  isolate->SwitchStacks(
+      Cast<WasmContinuationObject>(Tagged<Object>{old_continuation}));
 }
 
-void return_switch(Isolate* isolate, Address raw_continuation) {
+void return_switch(Isolate* isolate, Address raw_old_continuation) {
   DisallowGarbageCollection no_gc;
 
-  Tagged<WasmContinuationObject> continuation =
-      Cast<WasmContinuationObject>(Tagged<Object>{raw_continuation});
-  isolate->RetireWasmStack(continuation);
-  isolate->SyncStackLimit();
+  Tagged<WasmContinuationObject> old_continuation =
+      Cast<WasmContinuationObject>(Tagged<Object>{raw_old_continuation});
+  isolate->SwitchStacks(old_continuation);
+  isolate->RetireWasmStack(old_continuation);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {

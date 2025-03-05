@@ -2328,7 +2328,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // start and the inactive stacks.
   void UpdateCentralStackInfo();
 
-  void SyncStackLimit();
+  // Post processes a stack switch after having already updated the active
+  // continuation root. Sets the new stack limit, updates the central stack info
+  // and checks the validity of the switch.
+  void SwitchStacks(Tagged<WasmContinuationObject> old_continuation);
 
   // Retires the stack owned by {continuation}, to be called when returning or
   // throwing from this continuation.

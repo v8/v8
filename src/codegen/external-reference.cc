@@ -602,7 +602,7 @@ FUNCTION_REFERENCE(ensure_valid_return_address,
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-FUNCTION_REFERENCE(wasm_sync_stack_limit, wasm::sync_stack_limit)
+FUNCTION_REFERENCE(wasm_switch_stacks, wasm::switch_stacks)
 FUNCTION_REFERENCE(wasm_return_switch, wasm::return_switch)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)

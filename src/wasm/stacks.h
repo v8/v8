@@ -44,6 +44,11 @@ struct JumpBuffer {
     Retired     // A finished stack. The jump buffer is invalid in that state.
   };
   StackState state;
+#if V8_ENABLE_SANDBOX
+  // Store a pointer to the parent jump buffer here, so that we can validate
+  // that it matches the continuation's parent when we return/suspend.
+  JumpBuffer* caller;
+#endif
 };
 
 constexpr int kJmpBufSpOffset = offsetof(JumpBuffer, sp);
@@ -51,6 +56,9 @@ constexpr int kJmpBufFpOffset = offsetof(JumpBuffer, fp);
 constexpr int kJmpBufPcOffset = offsetof(JumpBuffer, pc);
 constexpr int kJmpBufStackLimitOffset = offsetof(JumpBuffer, stack_limit);
 constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
+#if V8_ENABLE_SANDBOX
+constexpr int kJmpBufCaller = offsetof(JumpBuffer, caller);
+#endif
 
 class StackMemory {
  public:
