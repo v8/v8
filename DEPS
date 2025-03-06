@@ -74,7 +74,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:dae6a4496ecbe141b76c67ce5f1996711a3f87cd',
+  'gn_version': 'git_revision:7a8aa3a08a13521336853a28c46537ec04338a2d',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'baf3dcd4667d8d4b427b48e37ad58628e9c50abf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'cc443ca3e8758b1001847fadd31ab88d155af579',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '135baa82105d87576f14ecbcb0b9cd0875de85fe',
   'buildtools/linux64': {
@@ -471,7 +471,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'aa4d8267bafad6782a1f2c8d979104f2aaa622a0',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '80fcc325d49145af8b5960a2ac4f1fba8a41f87c',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'cd23b39adb8c3c2c1a320af29387d101ec48cfe4',
   'third_party/re2/src':
@@ -493,7 +493,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '788cb3c270e8700b425c7bdca1f9ce6b0c1400a9',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6b8dd30537f5bc82a9f8c01ad687598c10f7c692',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0ea80f8705f4eb3ebbcee0a6bc9ffd28e0c1ec85',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
