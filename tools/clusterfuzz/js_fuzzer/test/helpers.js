@@ -19,8 +19,9 @@ const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
 
 const TEST_CORPUS = new sourceHelpers.BaseCorpus(BASE_DIR);
-const FUZZILLI_TEST_CORPUS = corpus.create(BASE_DIR, 'fuzzilli');
 const V8_TEST_CORPUS = corpus.create(BASE_DIR, 'v8');
+const FUZZILLI_TEST_CORPUS = corpus.create(
+    BASE_DIR, 'fuzzilli', false, V8_TEST_CORPUS);
 
 const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
@@ -88,6 +89,7 @@ function assertExpectedResult(expectedPath, result) {
 module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
+  FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
   TEST_CORPUS: TEST_CORPUS,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,

@@ -154,9 +154,9 @@ describe('Fuzzilli corpus', () => {
   });
 
   it('loads sources with all flags', () => {
-    const fuzzilli = corpus.create(helpers.BASE_DIR, 'fuzzilli');
     const source = sourceHelpers.loadSource(
-        fuzzilli, 'fuzzilli/fuzzdir-1/corpus/program_1.js');
+        helpers.FUZZILLI_TEST_CORPUS,
+        'fuzzilli/fuzzdir-1/corpus/program_1.js');
     const expectedFlags = [
       '--expose-gc',
       '--fuzzing',

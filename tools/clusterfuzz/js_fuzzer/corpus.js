@@ -177,12 +177,13 @@ class Corpus extends sourceHelpers.BaseCorpus {
 }
 
 class FuzzilliCorpus extends Corpus {
-  constructor(inputDir, corpusName, extraStrict=false) {
-    const start = Date.now();
+  constructor(inputDir, corpusName, extraStrict=false, v8Corpus=undefined) {
     super(inputDir, 'fuzzilli', extraStrict);
-    const duration = Date.now() - start;
-    console.log(`Loading fuzzilli took ${duration} ms.`);
     this.flagMap = new Map();
+
+    // We require a V8 corpus side-by-side to cross-load resources.
+    this.v8Corpus = v8Corpus;
+    assert(this.v8Corpus);
   }
 
   get diffFuzzLabel() {
@@ -212,6 +213,18 @@ class FuzzilliCorpus extends Corpus {
     }
     return flags;
   }
+
+  // Fuzzilli is able to load resources relative to the V8 corpus, which is
+  // expected to be side-by-side.
+  loadDependency(relPath) {
+    const pathComponents = relPath.split(path.sep);
+    assert(pathComponents.length > 1);
+    if (pathComponents[0] != 'fuzzilli') {
+      assert(pathComponents[0] == 'v8');
+      return this.v8Corpus.loadDependency(relPath);
+    }
+    return super.loadDependency(relPath);
+  }
 }
 
 // As above, but skipping files from the crashes directories.
@@ -237,10 +250,7 @@ class FuzzilliWasmCorpus extends FuzzilliCorpus {
 
 class V8Corpus extends Corpus {
   constructor(inputDir, corpusName, extraStrict=false) {
-    const start = Date.now();
     super(inputDir, 'v8', extraStrict);
-    const duration = Date.now() - start;
-    console.log(`Loading V8 took ${duration} ms.`);
   }
 
   loadFlags(relPath, data) {
