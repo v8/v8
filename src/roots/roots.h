@@ -731,6 +731,7 @@ class ReadOnlyRoots {
   V8_INLINE void VerifyNameForProtectorsPages() const;
 #ifdef DEBUG
   void VerifyNameForProtectors();
+  void VerifyTypes();
 #endif
 
   V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
@@ -754,13 +755,6 @@ class ReadOnlyRoots {
  private:
   V8_INLINE Address first_name_for_protector() const;
   V8_INLINE Address last_name_for_protector() const;
-#ifdef DEBUG
-#define ROOT_TYPE_CHECK(Type, name, CamelName) \
-  V8_EXPORT_PRIVATE bool CheckType_##name() const;
-
-  READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
-#undef ROOT_TYPE_CHECK
-#endif
 
   V8_INLINE explicit ReadOnlyRoots(Address* ro_roots)
       : read_only_roots_(ro_roots) {}

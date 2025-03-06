@@ -169,6 +169,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   ReadOnlyRoots roots(isolate());
   roots.VerifyNameForProtectorsPages();
 #ifdef DEBUG
+  roots.VerifyTypes();
   roots.VerifyNameForProtectors();
 #endif
 

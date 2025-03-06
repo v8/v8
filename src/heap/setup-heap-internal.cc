@@ -209,6 +209,7 @@ bool Heap::CreateReadOnlyHeapObjects() {
        pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
     DCHECK(roots.is_initialized(pos));
   }
+  roots.VerifyTypes();
 #endif
   return true;
 }

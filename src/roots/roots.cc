@@ -77,9 +77,9 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
   }
 }
 
+namespace {
 #define ROOT_TYPE_CHECK(Type, name, CamelName)                                \
-  bool ReadOnlyRoots::CheckType_##name() const {                              \
-    Tagged<Type> value = unchecked_##name();                                  \
+  bool CheckType_##name(Tagged<Type> value) {                                 \
     /* For the oddball subtypes, the "IsFoo" checks only check for address in \
      * the RORoots, which is trivially true here. So, do a slow check of the  \
      * oddball kind instead. Do the casts via Tagged<Object> to satisfy cast  \
@@ -100,6 +100,16 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
 
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
 #undef ROOT_TYPE_CHECK
+}  // namespace
+
+void ReadOnlyRoots::VerifyTypes() {
+  DisallowGarbageCollection no_gc;
+#define ROOT_TYPE_CHECK(Type, name, CamelName) CHECK(CheckType_##name(name()));
+
+  READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
+#undef ROOT_TYPE_CHECK
+}
+
 #endif
 
 void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
