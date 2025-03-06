@@ -1368,7 +1368,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       isolate->roots_table().slot(RootIndex::kActiveSuspender);
   suspender->set_parent(
       Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
-  suspender->set_state(WasmSuspenderObject::kActive);
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
 

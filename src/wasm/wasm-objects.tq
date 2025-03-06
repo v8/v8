@@ -177,7 +177,6 @@ extern class WasmSuspenderObject extends HeapObject {
   promise: JSPromise;
   resume: JSObject|Undefined;
   reject: JSObject|Undefined;
-  state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 
 extern class WasmExceptionTag extends Struct {

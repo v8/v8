@@ -3555,29 +3555,9 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
                             Register tmp2) {
   Register suspender = tmp1;
   __ LoadRoot(suspender, RootIndex::kActiveSuspender);
-  __ StoreTaggedSignedField(
-      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-      Smi::FromInt(WasmSuspenderObject::kInactive));
   __ LoadTaggedField(
       suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
   __ CompareRoot(suspender, RootIndex::kUndefinedValue);
-  Label undefined;
-  __ j(equal, &undefined, Label::kNear);
-#ifdef DEBUG
-  // Check that the parent suspender is active.
-  Label parent_inactive;
-  Register state = tmp2;
-  __ LoadTaggedSignedField(
-      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kActive));
-  __ j(equal, &parent_inactive, Label::kNear);
-  __ Trap();
-  __ bind(&parent_inactive);
-#endif
-  __ StoreTaggedSignedField(
-      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-      Smi::FromInt(WasmSuspenderObject::kActive));
-  __ bind(&undefined);
   __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
 }
 
@@ -3999,9 +3979,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   FillJumpBuffer(masm, jmpbuf, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
-  __ StoreTaggedSignedField(
-      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-      Smi::FromInt(WasmSuspenderObject::kSuspended));
   jmpbuf = no_reg;
   // live: [rax, rbx, rcx]
 
@@ -4094,24 +4071,14 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadTaggedField(
       resume_data,
       FieldOperand(sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset));
-
   // The write barrier uses a fixed register for the host object (rdi). The next
   // barrier is on the suspender, so load it in rdi directly.
   Register suspender = rdi;
   __ LoadTaggedField(
       suspender, FieldOperand(resume_data, WasmResumeData::kSuspenderOffset));
-  // Check the suspender state.
-  Label suspender_is_suspended;
-  Register state = rdx;
-  __ LoadTaggedSignedField(
-      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kSuspended));
-  __ j(equal, &suspender_is_suspended);
-  __ Trap();  // TODO(thibaudm): Throw a wasm trap.
   closure = no_reg;
   sfi = no_reg;
 
-  __ bind(&suspender_is_suspended);
   // -------------------------------------------
   // Save current state.
   // -------------------------------------------
@@ -4141,9 +4108,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       active_suspender);
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, slot_address, SaveFPRegsMode::kIgnore);
-  __ StoreTaggedSignedField(
-      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-      Smi::FromInt(WasmSuspenderObject::kActive));
   __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
 
   Register target_continuation = suspender;

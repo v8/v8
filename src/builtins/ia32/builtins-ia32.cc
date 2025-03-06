@@ -3419,26 +3419,9 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
                             Register tmp2) {
   Register suspender = tmp1;
   __ LoadRoot(suspender, RootIndex::kActiveSuspender);
-  __ mov(FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-         Immediate(Smi::FromInt(WasmSuspenderObject::kInactive)));
   __ Move(suspender,
           FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
   __ CompareRoot(suspender, RootIndex::kUndefinedValue);
-  Label undefined;
-  __ j(equal, &undefined, Label::kNear);
-#ifdef DEBUG
-  // Check that the parent suspender is active.
-  Label parent_inactive;
-  Register state = tmp2;
-  __ Move(state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kActive));
-  __ j(equal, &parent_inactive, Label::kNear);
-  __ Trap();
-  __ bind(&parent_inactive);
-#endif
-  __ Move(FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-          Immediate(Smi::FromInt(WasmSuspenderObject::kActive)));
-  __ bind(&undefined);
   __ mov(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
 }
 
@@ -3892,8 +3875,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   FillJumpBuffer(masm, jmpbuf, ecx, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
-  __ Move(FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-          Immediate(Smi::FromInt(WasmSuspenderObject::kSuspended)));
   jmpbuf = no_reg;
 
   Register suspender_continuation = edi;
@@ -3976,17 +3957,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Register suspender = edi;
   __ Move(suspender,
           FieldOperand(function_data, WasmResumeData::kSuspenderOffset));
-  // Check the suspender state.
-  Label suspender_is_suspended;
-  Register state = edx;
-  __ Move(state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kSuspended));
-  __ j(equal, &suspender_is_suspended);
-  __ Trap();
   closure = no_reg;
   sfi = no_reg;
 
-  __ bind(&suspender_is_suspended);
   // -------------------------------------------
   // Save current state.
   // -------------------------------------------
@@ -4016,8 +3989,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
          active_suspender);
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, slot_address, SaveFPRegsMode::kIgnore);
-  __ Move(FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-          Immediate(Smi::FromInt(WasmSuspenderObject::kActive)));
   __ mov(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
 
   active_suspender = no_reg;

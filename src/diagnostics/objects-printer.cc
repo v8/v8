@@ -2758,7 +2758,6 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   os << "\n - promise: " << promise();
   os << "\n - resume: " << resume();
   os << "\n - reject: " << reject();
-  os << "\n - state: " << state();
   os << "\n";
 }
 
