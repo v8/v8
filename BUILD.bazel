@@ -601,6 +601,7 @@ v8_config(
 filegroup(
     name = "public_header_files",
     srcs = glob(["include/**/*.h"]),
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
