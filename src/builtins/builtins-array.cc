@@ -275,23 +275,19 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
   CHECK(DoubleToUint32IfEqualToSelf(start_index, &start));
   CHECK(DoubleToUint32IfEqualToSelf(end_index, &end));
 
-  // The end index is truncated to the array length in the argument resolution
-  // part of Array.p.fill, so it shouldn't be larger than the length, which
-  // means it should be within the FixedArray max length since we know the array
-  // has fast elements and that both FixedArray and FixedDoubleArray have the
-  // same max length.
+  // The end index should be truncated to the array length in the argument
+  // resolution part of Array.p.fill, which means it should be within the
+  // FixedArray max length since we know the array has fast elements (and that
+  // both FixedArray and FixedDoubleArray have the same max length).
   //
-  // Note that it _can_ be larger than the _current_ array length, because
+  // However, it _can_ be larger than the _current_ array length, because
   // of side-effects in Array.p.fill argument resolution (`ToInteger` on `start`
-  // and `end`). However, this property still holds because it would have been
-  // compared against the array length _before_ any side effects happened (see:
-  // https://tc39.es/ecma262/#sec-array.prototype.fill). If the array has fast
-  // elements now, that means it must have had fast elements then, so we're ok.
-  //
-  // TODO(leszeks): If we introduce a backwards transition from dictionary
-  // elements to fast elements, this check will have to become a bailout.
+  // and `end`, see: https://tc39.es/ecma262/#sec-array.prototype.fill). In
+  // particular, those could have transitioned a dictionary-elements array back
+  // to fast elements, by adding enough data element properties to make it dense
+  // (an easy way to do this is another call to Array.p.fill).
   static_assert(FixedArray::kMaxLength == FixedDoubleArray::kMaxLength);
-  CHECK_LE(end, FixedArray::kMaxLength);
+  if (end > FixedArray::kMaxLength) return false;
 
   // Need to ensure that the fill value can be contained in the array.
   ElementsKind origin_kind = array->GetElementsKind();
