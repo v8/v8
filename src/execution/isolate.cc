@@ -5636,13 +5636,17 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // Ensure that ExternalCodeCompressionScheme is applicable to all objects
     // stored in the code cage.
     using ComprScheme = ExternalCodeCompressionScheme;
-    Address base = code_cage->base();
-    Address last = base + code_cage->size() - 1;
+    Address base = code_cage->base() + kHeapObjectTag;
+    Address last = base + code_cage->size() - kTaggedSize;
+    Address upper_bound = base + kPtrComprCageReservationSize - kTaggedSize;
     PtrComprCageBase code_cage_base{code_cage_base_};
     CHECK_EQ(base, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressObject(base)));
+                       code_cage_base, ComprScheme::CompressAny(base)));
     CHECK_EQ(last, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressObject(last)));
+                       code_cage_base, ComprScheme::CompressAny(last)));
+    CHECK_EQ(upper_bound,
+             ComprScheme::DecompressTagged(
+                 code_cage_base, ComprScheme::CompressAny(upper_bound)));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
