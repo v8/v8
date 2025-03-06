@@ -142,25 +142,39 @@ bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
 }
 
 bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
-  MutexGuard guard(&mutex_);
-
+  // Careful: we are not locked here, do not touch BoundedPageAllocator
+  // metadata.
+  bool success;
   Address address = reinterpret_cast<Address>(raw_address);
-  CHECK_EQ(size, region_allocator_.FreeRegion(address));
+
+  // The operations below can be expensive, don't hold the lock while they
+  // happen. There is still potentially contention in the kernel, but at least
+  // we don't need to hold the V8-side lock.
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);
     // When we are required to return zero-initialized pages, we decommit the
     // pages here, which will cause any wired pages to be removed by the OS.
-    return page_allocator_->DecommitPages(raw_address, size);
+    success = page_allocator_->DecommitPages(raw_address, size);
+  } else {
+    switch (page_freeing_mode_) {
+      case PageFreeingMode::kMakeInaccessible:
+        DCHECK_EQ(page_initialization_mode_,
+                  PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+        success = page_allocator_->SetPermissions(raw_address, size,
+                                                  PageAllocator::kNoAccess);
+        break;
+
+      case PageFreeingMode::kDiscard:
+        success = page_allocator_->DiscardSystemPages(raw_address, size);
+        break;
+    }
   }
-  if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
-    DCHECK_EQ(page_initialization_mode_,
-              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
-    return page_allocator_->SetPermissions(raw_address, size,
-                                           PageAllocator::kNoAccess);
-  }
-  CHECK_EQ(page_freeing_mode_, PageFreeingMode::kDiscard);
-  return page_allocator_->DiscardSystemPages(raw_address, size);
+
+  MutexGuard guard(&mutex_);
+  CHECK_EQ(size, region_allocator_.FreeRegion(address));
+
+  return success;
 }
 
 bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
