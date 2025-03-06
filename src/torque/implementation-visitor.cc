@@ -4783,7 +4783,15 @@ void CppClassGenerator::EmitStoreFieldStatement(
           break;
       }
     }
-    const std::string value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
+    std::string value_to_write;
+    if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+            field_type, TypeOracle::GetSmiTaggedGeneric())) {
+      DCHECK(is_smi);
+      stream << "  // " << type_wrapped_in_smi.value()->ToString() << "\n";
+      value_to_write = "Smi::From31BitPattern(value)";
+    } else {
+      value_to_write = is_smi ? "Smi::FromInt(value)" : "value";
+    }
 
     if (!is_smi) {
       // Don't DCHECK types if the roots aren't initialized, so that we don't
