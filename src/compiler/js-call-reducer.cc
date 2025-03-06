@@ -3797,11 +3797,11 @@ bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
 
   for (auto type : wasm_signature->all()) {
 #if defined(V8_TARGET_ARCH_32_BIT)
-    if (type == wasm::kCanonicalI64) return false;
+    if (type == wasm::kWasmI64) return false;
 #endif
-    if (type != wasm::kCanonicalI32 && type != wasm::kCanonicalI64 &&
-        type != wasm::kCanonicalF32 && type != wasm::kCanonicalF64 &&
-        type != wasm::kCanonicalExternRef) {
+    if (type != wasm::kWasmI32 && type != wasm::kWasmI64 &&
+        type != wasm::kWasmF32 && type != wasm::kWasmF64 &&
+        type != wasm::kWasmExternRef) {
       return false;
     }
   }

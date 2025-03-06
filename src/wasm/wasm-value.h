@@ -28,18 +28,18 @@ struct WasmModule;
 // - wasm type
 // - c type
 #define FOREACH_PRIMITIVE_WASMVAL_TYPE(V) \
-  V(i8, kCanonicalI8, int8_t)             \
-  V(i16, kCanonicalI16, int16_t)          \
-  V(i32, kCanonicalI32, int32_t)          \
-  V(u32, kCanonicalI32, uint32_t)         \
-  V(i64, kCanonicalI64, int64_t)          \
-  V(u64, kCanonicalI64, uint64_t)         \
-  V(f16, kCanonicalF16, uint16_t)         \
-  V(f32, kCanonicalF32, float)            \
-  V(f32_boxed, kCanonicalF32, Float32)    \
-  V(f64, kCanonicalF64, double)           \
-  V(f64_boxed, kCanonicalF64, Float64)    \
-  V(s128, kCanonicalS128, Simd128)
+  V(i8, kWasmI8, int8_t)                  \
+  V(i16, kWasmI16, int16_t)               \
+  V(i32, kWasmI32, int32_t)               \
+  V(u32, kWasmI32, uint32_t)              \
+  V(i64, kWasmI64, int64_t)               \
+  V(u64, kWasmI64, uint64_t)              \
+  V(f16, kWasmF16, uint16_t)              \
+  V(f32, kWasmF32, float)                 \
+  V(f32_boxed, kWasmF32, Float32)         \
+  V(f64, kWasmF64, double)                \
+  V(f64_boxed, kWasmF64, Float64)         \
+  V(s128, kWasmS128, Simd128)
 
 ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 
@@ -111,11 +111,11 @@ class WasmValue {
   // Otherwise, return this object.
   WasmValue Packed(ValueType packed_type) const {
     if (packed_type == kWasmI8) {
-      DCHECK_EQ(type_, kCanonicalI32);
+      DCHECK_EQ(type_, kWasmI32);
       return WasmValue(static_cast<int8_t>(to_i32()));
     }
     if (packed_type == kWasmI16) {
-      DCHECK_EQ(type_, kCanonicalI32);
+      DCHECK_EQ(type_, kWasmI32);
       return WasmValue(static_cast<int16_t>(to_i32()));
     }
     return *this;

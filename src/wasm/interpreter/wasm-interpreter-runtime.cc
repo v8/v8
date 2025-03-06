@@ -165,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
           wasm_args[i] = wasm::WasmValue(
               ref,
-              anyref ? wasm::kCanonicalAnyRef
+              anyref ? wasm::kWasmAnyRef
                      : wasm::CanonicalValueType::Ref(wasm::HeapType::kString));
           arg_buf_ptr += kSystemPointerSize;
           break;
@@ -1141,7 +1141,7 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
               function_result_[index] = WasmValue(
                   ref, sig->GetReturn(index).kind() == kRef
                            ? CanonicalValueType::Ref(HeapType::kString)
-                           : kCanonicalAnyRef);
+                           : kWasmAnyRef);
               dst += sizeof(WasmRef) / kSlotSize;
               break;
             }

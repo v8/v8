@@ -158,7 +158,7 @@ class WasmGCTester {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
     DCHECK_EQ(sig->return_count(), 1);
-    DCHECK(sig->parameters()[0] == kCanonicalI32);
+    DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CallFunctionImpl(function_index, sig, &packer);
@@ -178,7 +178,7 @@ class WasmGCTester {
                       const char* expected = "") {
     const CanonicalSig* sig = LookupCanonicalSigFor(function_index);
     DCHECK_EQ(sig->parameter_count(), 1);
-    DCHECK(sig->parameters()[0] == kCanonicalI32);
+    DCHECK(sig->parameters()[0] == kWasmI32);
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig));
     packer.Push(arg);
     CheckHasThrownImpl(function_index, sig, &packer, expected);

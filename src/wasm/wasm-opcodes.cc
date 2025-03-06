@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 
 bool IsJSCompatibleSignature(const CanonicalSig* sig) {
   for (auto type : sig->all()) {
-    if (type == kCanonicalS128) return false;
+    if (type == kWasmS128) return false;
     if (type.is_ref() && !type.has_index()) {
       switch (type.generic_kind()) {
         case GenericKind::kStringViewWtf8:

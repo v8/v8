@@ -87,7 +87,7 @@ bool ContainsSimd(const Signature<T>* sig) {
 
 bool ContainsInt64(const wasm::CanonicalSig* sig) {
   for (auto type : sig->all()) {
-    if (type == wasm::kCanonicalI64) return true;
+    if (type == wasm::kWasmI64) return true;
   }
   return false;
 }

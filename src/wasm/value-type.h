@@ -1234,19 +1234,6 @@ constexpr IndependentHeapType kWasmNullFuncRef{GenericKind::kNoFunc};
 constexpr IndependentHeapType kWasmContRef{GenericKind::kCont};
 constexpr IndependentHeapType kWasmNullContRef{GenericKind::kNoCont};
 
-// Deprecated aliases, usages should be replaced.
-constexpr IndependentValueType kCanonicalI8 = kWasmI8;
-constexpr IndependentValueType kCanonicalI16 = kWasmI16;
-constexpr IndependentValueType kCanonicalI32 = kWasmI32;
-constexpr IndependentValueType kCanonicalI64 = kWasmI64;
-constexpr IndependentValueType kCanonicalF16 = kWasmF16;
-constexpr IndependentValueType kCanonicalF32 = kWasmF32;
-constexpr IndependentValueType kCanonicalF64 = kWasmF64;
-constexpr IndependentValueType kCanonicalS128 = kWasmS128;
-constexpr IndependentHeapType kCanonicalExternRef = kWasmExternRef;
-constexpr IndependentHeapType kCanonicalAnyRef = kWasmAnyRef;
-constexpr IndependentHeapType kCanonicalFuncRef = kWasmFuncRef;
-
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \
   V(kI64, int64_t)                  \

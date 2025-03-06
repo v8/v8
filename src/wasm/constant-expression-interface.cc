@@ -40,7 +40,7 @@ void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
                                             const Simd128Immediate& imm,
                                             Value* result) {
   if (!generate_value()) return;
-  result->runtime_value = WasmValue(imm.value, kCanonicalS128);
+  result->runtime_value = WasmValue(imm.value, kWasmS128);
 }
 
 void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
@@ -58,7 +58,7 @@ void ConstantExpressionInterface::UnOp(FullDecoder* decoder, WasmOpcode opcode,
       const char* error_message = nullptr;
       result->runtime_value =
           WasmValue(JSToWasmObject(isolate_, input.runtime_value.to_ref(),
-                                   kCanonicalAnyRef, &error_message)
+                                   kWasmAnyRef, &error_message)
                         .ToHandleChecked(),
                     CanonicalValueType::RefMaybeNull(kWasmAnyRef,
                                                      input.type.nullability()));

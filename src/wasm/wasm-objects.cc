@@ -1544,7 +1544,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   int num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTable> dispatch_table_for_imports =
       isolate->factory()->NewWasmDispatchTable(num_imported_functions,
-                                               wasm::kCanonicalFuncRef);
+                                               wasm::kWasmFuncRef);
   DirectHandle<FixedArray> well_known_imports =
       isolate->factory()->NewFixedArray(num_imported_functions);
 
@@ -1581,7 +1581,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
   DirectHandle<WasmDispatchTable> empty_dispatch_table =
-      isolate->factory()->NewWasmDispatchTable(0, wasm::kCanonicalFuncRef);
+      isolate->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef);
   DirectHandle<ProtectedFixedArray> empty_protected_fixed_array =
       isolate->factory()->empty_protected_fixed_array();
 

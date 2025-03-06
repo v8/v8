@@ -2127,12 +2127,12 @@ WASM_EXPORT auto Table::make(Store* store_abs, const TableType* type,
   switch (type->element()->kind()) {
     case ValKind::FUNCREF:
       i_type = i::wasm::kWasmFuncRef;
-      canonical_type = i::wasm::kCanonicalFuncRef;
+      canonical_type = i::wasm::kWasmFuncRef;
       break;
     case ValKind::EXTERNREF:
       // See Engine::make().
       i_type = i::wasm::kWasmExternRef;
-      canonical_type = i::wasm::kCanonicalExternRef;
+      canonical_type = i::wasm::kWasmExternRef;
       break;
     default:
       UNREACHABLE();
