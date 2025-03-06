@@ -234,6 +234,7 @@ void MarkerBase::StartMarking() {
       mutator_marking_state_.Publish();
       concurrent_marker().Start();
     }
+    MarkStrongCrossThreadRoots();
     heap().stats_collector()->RegisterObserver(
         &incremental_marking_allocation_observer_);
   }
