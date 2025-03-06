@@ -916,6 +916,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return V<None>::Invalid();
   }
 
+  OpIndex AssembleOutputGraphParameter(const ParameterOp& param) {
+    // Calling the AssemblerOpInterface rather than the first Reduce method
+    // in order to make use of the Parameter cache.
+    return Asm().Parameter(param.parameter_index, param.rep, param.debug_name);
+  }
+
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     DCHECK(old_index.valid());
     DCHECK(Asm().input_graph().BelongsToThisGraph(old_index));
