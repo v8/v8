@@ -365,7 +365,12 @@ void OptimizingCompileInputQueue::Prioritize(
                    });
 
   if (it != queue_.end()) {
-    std::iter_swap(it, queue_.begin());
+    auto first_for_isolate = std::find_if(
+        queue_.begin(), queue_.end(), [isolate](TurbofanCompilationJob* job) {
+          return job->isolate() == isolate;
+        });
+    DCHECK_NE(first_for_isolate, queue_.end());
+    std::iter_swap(it, first_for_isolate);
   }
 }
 
