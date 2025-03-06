@@ -1940,26 +1940,36 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
   while (true) {
     DirectHandle<JSAny> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, RegExpUtils::RegExpExec(isolate, recv, string,
-                                                 factory->undefined_value()));
+    {
+      HandleScope inner_scope(isolate);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, result,
+          RegExpUtils::RegExpExec(isolate, recv, string,
+                                  factory->undefined_value()));
+      result = inner_scope.CloseAndEscape(result);
+    }
 
     if (IsNull(*result, isolate)) break;
 
     results.emplace_back(result);
     if (!global) break;
 
-    DirectHandle<Object> match_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
-                                       Object::GetElement(isolate, result, 0));
+    {
+      HandleScope inner_scope(isolate);
 
-    DirectHandle<String> match;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match,
-                                       Object::ToString(isolate, match_obj));
+      DirectHandle<Object> match_obj;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, match_obj, Object::GetElement(isolate, result, 0));
 
-    if (match->length() == 0) {
-      RETURN_FAILURE_ON_EXCEPTION(isolate, RegExpUtils::SetAdvancedStringIndex(
-                                               isolate, recv, string, unicode));
+      DirectHandle<String> match;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match,
+                                         Object::ToString(isolate, match_obj));
+
+      if (match->length() == 0) {
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate, RegExpUtils::SetAdvancedStringIndex(isolate, recv, string,
+                                                         unicode));
+      }
     }
   }
 
