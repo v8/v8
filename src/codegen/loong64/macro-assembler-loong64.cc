@@ -4898,15 +4898,8 @@ void MacroAssembler::CallJSFunction(Register function_object,
   SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
            Operand(argument_count));
   Call(code);
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  Call(code);
 #else
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
   CallCodeObject(code, kJSEntrypointTag);
@@ -4937,25 +4930,14 @@ void MacroAssembler::CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
-  Register code = kJavaScriptCallCodeStartRegister;
+  CHECK(!V8_ENABLE_SANDBOX_BOOL);
 #ifdef V8_ENABLE_LEAPTIERING
-  Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
-  Register scratch = s1;
-  Ld_w(dispatch_handle,
-       FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
-  LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
-  Jump(code);
-#elif V8_ENABLE_SANDBOX
-  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
-  // from the code pointer table instead of going through the Code object. In
-  // this way, we avoid one memory load on this code path.
-  LoadCodeEntrypointViaCodePointer(
-      code, FieldMemOperand(function_object, JSFunction::kCodeOffset),
-      kJSEntrypointTag);
-  DCHECK_EQ(jump_mode, JumpMode::kJump);
-  Jump(code);
+  // This implementation is not currently used because callers usually need
+  // to load both entry point and parameter count and then do something with
+  // the latter before the actual call.
+  UNREACHABLE();
 #else
+  Register code = kJavaScriptCallCodeStartRegister;
   LoadTaggedField(code,
                   FieldMemOperand(function_object, JSFunction::kCodeOffset));
   JumpCodeObject(code, kJSEntrypointTag, jump_mode);
