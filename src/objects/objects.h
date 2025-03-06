@@ -363,6 +363,11 @@ class Object : public AllStatic {
                        DirectHandle<Name> name, DirectHandle<Object> value,
                        Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
                        StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
+  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<Object>
+  SetPropertyOrElement(Isolate* isolate, DirectHandle<JSAny> object,
+                       PropertyKey key, DirectHandle<Object> value,
+                       Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
+                       StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, DirectHandle<Object> value, StoreOrigin store_origin,
@@ -395,9 +400,8 @@ class Object : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name);
-  V8_WARN_UNUSED_RESULT static inline MaybeDirectHandle<Object>
-  GetPropertyOrElement(DirectHandle<JSAny> receiver, DirectHandle<Name> name,
-                       DirectHandle<JSReceiver> holder);
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
+      Isolate* isolate, DirectHandle<JSAny> object, PropertyKey key);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name);
 

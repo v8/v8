@@ -955,7 +955,19 @@ MaybeDirectHandle<NativeContext> JSReceiver::GetCreationContext(
 Maybe<bool> JSReceiver::HasProperty(Isolate* isolate,
                                     DirectHandle<JSReceiver> object,
                                     DirectHandle<Name> name) {
-  PropertyKey key(isolate, name);
+  return HasPropertyOrElement(isolate, object, PropertyKey(isolate, name));
+}
+
+Maybe<bool> JSReceiver::HasElement(Isolate* isolate,
+                                   DirectHandle<JSReceiver> object,
+                                   uint32_t index) {
+  LookupIterator it(isolate, object, index, object);
+  return HasProperty(&it);
+}
+
+Maybe<bool> JSReceiver::HasPropertyOrElement(Isolate* isolate,
+                                             DirectHandle<JSReceiver> object,
+                                             PropertyKey key) {
   LookupIterator it(isolate, object, key, object);
   return HasProperty(&it);
 }
@@ -994,13 +1006,6 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index) {
   LookupIterator it(isolate, object, index, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
-}
-
-Maybe<bool> JSReceiver::HasElement(Isolate* isolate,
-                                   DirectHandle<JSReceiver> object,
-                                   uint32_t index) {
-  LookupIterator it(isolate, object, index, object);
-  return HasProperty(&it);
 }
 
 Maybe<PropertyAttributes> JSReceiver::GetElementAttributes(

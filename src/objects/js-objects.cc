@@ -1011,7 +1011,14 @@ Maybe<bool> JSReceiver::DeletePropertyOrElement(Isolate* isolate,
                                                 DirectHandle<JSReceiver> object,
                                                 DirectHandle<Name> name,
                                                 LanguageMode language_mode) {
-  PropertyKey key(isolate, name);
+  return DeletePropertyOrElement(isolate, object, PropertyKey(isolate, name),
+                                 language_mode);
+}
+
+Maybe<bool> JSReceiver::DeletePropertyOrElement(Isolate* isolate,
+                                                DirectHandle<JSReceiver> object,
+                                                PropertyKey key,
+                                                LanguageMode language_mode) {
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }

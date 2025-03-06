@@ -427,6 +427,15 @@ class WaiterQueueNode;
     }                                                         \
   } while (false)
 
+#define MAYBE_RETURN_FAILURE_ON_EXCEPTION(isolate, call) \
+  do {                                                   \
+    Isolate* __isolate__ = (isolate);                    \
+    if ((call).IsNothing()) {                            \
+      DCHECK((__isolate__)->has_exception());            \
+      return ReadOnlyRoots(__isolate__).exception();     \
+    }                                                    \
+  } while (false)
+
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                    \
     if (!(call).To(&dst)) {                                               \

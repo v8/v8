@@ -205,11 +205,11 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
     PropertyKey key(isolate, k);
 
     // b. Perform ? Set(O, Pk, value, true).
-    LookupIterator it(isolate, receiver, key);
-    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+    RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        Object::SetProperty(&it, value, StoreOrigin::kMaybeKeyed,
-                            Just(ShouldThrow::kThrowOnError)),
+        Object::SetPropertyOrElement(isolate, receiver, key, value,
+                                     Just(ShouldThrow::kThrowOnError),
+                                     StoreOrigin::kMaybeKeyed),
         ReadOnlyRoots(isolate).exception());
 
     // c. Increase k by 1.
@@ -539,7 +539,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
   DirectHandle<Object> new_length = isolate->factory()->NewNumber(length - 1);
 
   // b. Let index be ! ToString(newLen).
-  DirectHandle<String> index = isolate->factory()->NumberToString(new_length);
+  PropertyKey index(isolate, new_length);
 
   // c. Let element be ? Get(O, index).
   DirectHandle<Object> element;
@@ -631,23 +631,19 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
                                      Object::GetElement(isolate, receiver, 0));
 
   // 5. Let k be 1.
-  double k = 1;
-
   // 6. Repeat, while k < len.
-  while (k < length) {
+  FOR_WITH_HANDLE_SCOPE(isolate, double, k = 1, k, k < length, k++, {
     // a. Let from be ! ToString(k).
-    DirectHandle<String> from =
-        isolate->factory()->NumberToString(isolate->factory()->NewNumber(k));
+    PropertyKey from(isolate, k);
 
     // b. Let to be ! ToString(k-1).
-    DirectHandle<String> to = isolate->factory()->NumberToString(
-        isolate->factory()->NewNumber(k - 1));
+    PropertyKey to(isolate, k - 1);
 
     // c. Let fromPresent be ? HasProperty(O, from).
     bool from_present;
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, from_present,
-        JSReceiver::HasProperty(isolate, receiver, from));
+        JSReceiver::HasPropertyOrElement(isolate, receiver, from));
 
     // d. If fromPresent is true, then.
     if (from_present) {
@@ -658,10 +654,10 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
           Object::GetPropertyOrElement(isolate, receiver, from));
 
       // ii. Perform ? Set(O, to, fromVal, true).
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate,
-          Object::SetPropertyOrElement(isolate, receiver, to, from_val,
-                                       Just(ShouldThrow::kThrowOnError)));
+      RETURN_FAILURE_ON_EXCEPTION(isolate, Object::SetPropertyOrElement(
+                                               isolate, receiver, to, from_val,
+                                               Just(ShouldThrow::kThrowOnError),
+                                               StoreOrigin::kMaybeKeyed));
     } else {  // e. Else fromPresent is false,
       // i. Perform ? DeletePropertyOrThrow(O, to).
       MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(isolate, receiver, to,
@@ -670,14 +666,12 @@ V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
     }
 
     // f. Increase k by 1.
-    ++k;
-  }
+  });
 
   // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len-1)).
-  DirectHandle<String> new_length = isolate->factory()->NumberToString(
-      isolate->factory()->NewNumber(length - 1));
+  PropertyKey new_length_key(isolate, length - 1);
   MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(
-                   isolate, receiver, new_length, LanguageMode::kStrict),
+                   isolate, receiver, new_length_key, LanguageMode::kStrict),
                ReadOnlyRoots(isolate).exception());
 
   // 8. Perform ? Set(O, "length", len-1, true).
