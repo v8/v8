@@ -6201,7 +6201,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   unsigned DecodeAsmJsOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    V8_ASSUME((opcode >> 8) == kAsmJsPrefix);
+    if ((opcode >> 8) != kAsmJsPrefix) {
+      this->DecodeError("Invalid opcode: 0x%x", opcode);
+      return 0;
+    }
 
     switch (opcode) {
 #define ASMJS_CASE(Op, ...) case kExpr##Op:
