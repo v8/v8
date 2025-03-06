@@ -642,6 +642,13 @@ trybot_pair(
 )
 
 trybot_pair(
+    name = "v8_win64_cet_shadow_stack_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+trybot_pair(
     name = "v8_win64_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},

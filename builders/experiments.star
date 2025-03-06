@@ -72,6 +72,13 @@ in_category(
         parent_builder = "V8 Linux64 - sticky mark bits - debug builder",
         notify_owners = ["bikineev@chromium.org", "omerkatz@chromium.org"],
     ),
+    experiment_builder_pair(
+        name = "V8 Win64 - CET shadow stack",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+        use_remoteexec = RECLIENT.DEFAULT,
+        notify_owners = ["choongwoo.han@microsoft.com"],
+    ),
 )
 
 in_category(
