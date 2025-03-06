@@ -88,6 +88,7 @@
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN - builder': 'release_x64_asan_no_lsan',
+      'V8 Win64 - CET shadow stack - builder': 'release_x64_cet_shadow_stack',
       'V8 Win64 - builder': 'release_x64_minimal_symbols',
       'V8 Win64 - builder (reclient)': 'release_x64_minimal_symbols_reclient',
       'V8 Win64 - builder (reclient compare)': 'release_x64_minimal_symbols_reclient',
@@ -331,6 +332,7 @@
       'v8_win_compile_dbg': 'debug_x86_trybot',
       'v8_win_compile_rel': 'release_x86_trybot',
       'v8_win64_asan_compile_rel': 'release_x64_asan_no_lsan',
+      'v8_win64_cet_shadow_stack_compile_rel': 'release_x64_cet_shadow_stack',
       'v8_win64_compile_dbg': 'debug_x64_minimal_symbols',
       'v8_win64_drumbrake_compile_dbg': 'debug_x64_drumbrake',
       'v8_win64_compile_rel': 'release_x64_trybot',
@@ -600,6 +602,8 @@
     'release_x64_asan_symbolized_verify_heap_turboshaft_csa': [
       'release_bot', 'x64', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap', 'v8_enable_turboshaft_csa'],
+    'release_x64_cet_shadow_stack': [
+      'release_bot', 'x64', 'cet_shadow_stack'],
     'release_x64_cfi': [
       'release_bot', 'x64', 'cfi'],
     'release_x64_cfi_clusterfuzz_turboshaft_csa': [
@@ -822,6 +826,10 @@
 
     'builtins_optimization': {
       'gn_args': 'v8_enable_builtins_optimization=true',
+    },
+
+    'cet_shadow_stack': {
+      'gn_args': 'v8_enable_cet_shadow_stack=true',
     },
 
     'cfi': {
