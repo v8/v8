@@ -1090,11 +1090,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
   }
 
-  // Dynamically allocates a buffer of size `size` in C++.
+  // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.
   TNode<RawPtrT> AllocateBuffer(TNode<IntPtrT> size);
-
-  // Deallocates dynamically allocated memory in C++.
-  void DeallocateBuffer(TNode<RawPtrT> buffer);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
