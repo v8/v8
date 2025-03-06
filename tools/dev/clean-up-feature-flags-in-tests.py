@@ -17,8 +17,8 @@ TEST_SUITES = [
     'mjsunit', 'debugger', 'inspector', 'message', 'js-perf-test', 'webkit'
 ]
 TEST_EXTENSIONS = ('.js', '.mjs')
-HAS_FLAGS_RE = re.compile("//\s*Flags:.*\n")
-EXTRACT_FLAGS_RE = re.compile("//\s*Flags:\s+((--[A-z0-9-_=]+\s*)+).*")
+HAS_FLAGS_RE = re.compile("//\\s*Flags:.*\n")
+EXTRACT_FLAGS_RE = re.compile("//\\s*Flags:\\s+((--[A-z0-9-_=]+\\s*)+).*")
 FEATURE_FLAG_PREFIXES = {
     'js': ('--js-', '--js_'),
     'harmony': ('--harmony-', '--harmony_'),
