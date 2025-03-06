@@ -989,10 +989,13 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
       (!v8_flags.incremental_marking_unified_schedule ||
        (cpp_heap_marked_bytes < marked_bytes_limit))) {
     const auto v8_start = v8::base::TimeTicks::Now();
+    const size_t v8_marked_bytes_limit =
+        v8_flags.incremental_marking_unified_schedule
+            ? marked_bytes_limit - cpp_heap_marked_bytes
+            : marked_bytes_limit;
     std::tie(v8_marked_bytes, std::ignore) =
         major_collector_->ProcessMarkingWorklist(
-            max_duration - cpp_heap_duration,
-            marked_bytes_limit - cpp_heap_marked_bytes,
+            max_duration - cpp_heap_duration, v8_marked_bytes_limit,
             MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
     v8_time = v8::base::TimeTicks::Now() - v8_start;
     heap_->tracer()->AddIncrementalMarkingStep(v8_time.InMillisecondsF(),
