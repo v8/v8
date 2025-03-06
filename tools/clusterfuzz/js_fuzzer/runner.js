@@ -15,6 +15,7 @@ const random = require('./random.js');
 
 // Maximum number of test inputs to use for one fuzz test.
 const MAX_TEST_INPUTS_PER_TEST = 10;
+const MAX_WASM_TEST_INPUTS_PER_TEST = 5;
 
 /**
  * Returns an array of maxium `count` parsed input sources, randomly
@@ -112,6 +113,37 @@ class RandomCorpusRunnerWithFuzzilli extends RandomCorpusRunner {
 }
 
 /**
+ * Runner that randomly selects Wasm cases from V8 and Fuzzilli.
+ */
+class RandomWasmCorpusRunner extends Runner {
+  constructor(inputDir, engine, numFiles,
+              maxTestInputs=MAX_WASM_TEST_INPUTS_PER_TEST) {
+    super();
+    this.numFiles = numFiles;
+    this.maxTestInputs = maxTestInputs;
+
+    // Bias a bit towards the V8 corpus.
+    const fuzzilliCorpus = corpus.create(inputDir, 'fuzzilli_wasm');
+    const v8Corpus = corpus.create(inputDir, 'v8_wasm');
+    this.corpora = [v8Corpus, v8Corpus, fuzzilliCorpus];
+  }
+
+  *inputGen() {
+    for (let i = 0; i < this.numFiles; i++) {
+      const count = random.randInt(1, this.maxTestInputs);
+      const inputs = [];
+      for (let j= 0; j < count; j++) {
+        inputs.push(...random.single(this.corpora).getRandomTestcases(1));
+      }
+
+      if (inputs.length > 0) {
+        yield inputs;
+      }
+    }
+  }
+}
+
+/**
  * Runner that enumerates all tests from a particular corpus.
  */
 class SingleCorpusRunner extends Runner {
@@ -155,5 +187,6 @@ module.exports = {
   RandomCorpusRunner: RandomCorpusRunner,
   RandomCorpusRunnerWithFuzzilli: RandomCorpusRunnerWithFuzzilli,
   RandomFuzzilliNoCrashCorpusRunner: RandomFuzzilliNoCrashCorpusRunner,
+  RandomWasmCorpusRunner: RandomWasmCorpusRunner,
   SingleCorpusRunner: SingleCorpusRunner,
 };

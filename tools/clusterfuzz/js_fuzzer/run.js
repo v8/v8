@@ -26,6 +26,7 @@ const SCRIPT_MUTATORS = {
   default: scriptMutator.ScriptMutator,
   foozzie: differentialScriptMutator.DifferentialScriptMutator,
   foozzie_fuzzilli: differentialScriptMutator.FuzzilliDifferentialScriptMutator,
+  wasm: scriptMutator.WasmScriptMutator,
 };
 
 function collect(value, total) {

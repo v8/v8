@@ -323,8 +323,35 @@ class ScriptMutator {
   }
 }
 
+/**
+ * Script mutator that only generates files depending on the
+ * wasm-module-builder with appropriate mutations.
+ */
+class WasmScriptMutator extends ScriptMutator {
+  constructor(settings, db_path) {
+    super(settings, db_path);
+
+    // Decrease cross-over and object mutations. Cross-over rarely
+    // works well with Wasm. Object mutations might easily invalidate the
+    // Wasm modules.
+    this.settings.MUTATE_CROSSOVER_INSERT = 0.01;
+    this.settings.MUTATE_OBJECTS = 0.05;
+
+    // Increase number, variable and function-call mutations, which often
+    // leave the underlying wasm-module-builder structures intact.
+    this.settings.MUTATE_NUMBERS = 0.1;
+    this.settings.MUTATE_VARIABLES = 0.1;
+    this.settings.MUTATE_FUNCTION_CALLS = 0.15;
+  }
+
+  get runnerClass() {
+    return runner.RandomWasmCorpusRunner;
+  }
+}
+
 module.exports = {
   analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
   ScriptMutator: ScriptMutator,
+  WasmScriptMutator: WasmScriptMutator,
 };

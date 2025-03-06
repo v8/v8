@@ -23,7 +23,7 @@ describe('Load tests', () => {
   });
 
   it('from test archive', () => {
-    sandbox.stub(Math, 'random').callsFake(() => 0.5);
+    helpers.deterministicRandom(sandbox);
     const archivePath = path.join(helpers.BASE_DIR, 'input_archive');
 
     // Create 2 test cases with a maximum of 2 inputs per test.
@@ -35,10 +35,11 @@ describe('Load tests', () => {
     assert.deepEqual([0, 1], inputs.map((x) => x[0]));
 
     assert.deepEqual(
-        ["v8/test/mjsunit/v8_test.js", "v8/test/mjsunit/v8_test.js"],
+        ["v8/test/mjsunit/wasm/regress-123.js",
+         "v8/test/mjsunit/wasm/regress-456.js"],
         inputs[0][1].map((x) => x.relPath));
     assert.deepEqual(
-        ["spidermonkey/spidermonkey_test.js", "v8/test/mjsunit/v8_test.js"],
+        ["v8/test/mjsunit/v8_test.js", "chakra/chakra_test2.js"],
         inputs[1][1].map((x) => x.relPath));
   });
 
@@ -80,7 +81,7 @@ describe('Load tests', () => {
 
     assert.deepEqual(
         ["fuzzilli/fuzzdir-1/corpus/program_1.js",
-         "fuzzilli/fuzzdir-2/crashes/program_2.js"],
+         "fuzzilli/fuzzdir-2/crashes/program_3.js"],
         inputs[0][1].map((x) => x.relPath));
     assert.deepEqual(
         ["fuzzilli/fuzzdir-2/crashes/program_2.js",
@@ -101,5 +102,35 @@ describe('Load tests', () => {
     assert.deepEqual(
         ["fuzzilli/fuzzdir-1/corpus/program_1.js"],
         inputs[0][1].map((x) => x.relPath));
+  });
+
+  it('only picks Wasm cases', () => {
+    helpers.deterministicRandom(sandbox);
+    const archivePath = path.join(helpers.BASE_DIR, 'input_archive');
+
+    // Create 4 test cases with a maximum of 2 inputs per test.
+    const testRunner = new runner.RandomWasmCorpusRunner(
+        archivePath, 'v8', 4, 2);
+    var inputs = Array.from(testRunner.enumerateInputs());
+
+    // Check the enumeration counter separately.
+    assert.equal(4, inputs.length);
+    assert.deepEqual([0, 1, 2, 3], inputs.map((x) => x[0]));
+
+    assert.deepEqual(
+        ["v8/test/mjsunit/wasm/regress-123.js",
+         "fuzzilli/fuzzdir-2/crashes/program_3.js"],
+        inputs[0][1].map((x) => x.relPath));
+    assert.deepEqual(
+        ["v8/test/mjsunit/wasm/regress-456.js",
+         "fuzzilli/fuzzdir-2/crashes/program_3.js"],
+        inputs[1][1].map((x) => x.relPath));
+    assert.deepEqual(
+        ["fuzzilli/fuzzdir-2/crashes/program_3.js"],
+        inputs[2][1].map((x) => x.relPath));
+    assert.deepEqual(
+        ["fuzzilli/fuzzdir-2/crashes/program_3.js",
+         "v8/test/mjsunit/wasm/regress-456.js"],
+        inputs[3][1].map((x) => x.relPath));
   });
 });
