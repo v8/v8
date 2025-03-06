@@ -192,6 +192,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef COND_TYPED_ARGS
 #undef COND_ARGS
 
+  void BranchRange(Label* L, Condition cond, Register value, Register scratch,
+                   unsigned lower_limit, unsigned higher_limit,
+                   Label::Distance distance = Label::kFar);
   void AllocateStackSpace(Register bytes) { SubWord(sp, sp, bytes); }
 
   void AllocateStackSpace(int bytes) {
@@ -706,6 +709,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // not have all zeros or all ones in the top 32 bits, enabled via
   // --debug-code.
   void AssertSignExtended(Register int32_register) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertRange(Condition cond, AbortReason reason, Register value,
+                   Register scratch, unsigned lower_limit,
+                   unsigned higher_limit) NOOP_UNLESS_DEBUG_CODE;
 
   int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 
@@ -1270,6 +1277,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Branch(dest, lt, a, Operand(b));
   }
 
+  void JumpIfUnsignedLessThan(Register x, int32_t y, Label* dest) {
+    AssertZeroExtended(x);
+    Branch(dest, ult, x, Operand(y));
+  }
+
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfNotMarking(Label* not_marking,
+                        Label::Distance condition_met_distance = Label::kFar);
+
   // Push a standard frame, consisting of ra, fp, context and JS function.
   void PushStandardFrame(Register function_reg);
 
@@ -1333,10 +1350,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand,
                         Trapper&& trapper = [](int){});
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src);
+  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+                              Trapper&& trapper = [](int){});
 
   void DecompressTaggedSigned(const Register& destination,
-                              const MemOperand& field_operand);
+                              const MemOperand& field_operand,
+                              Trapper&& trapper = [](int){});
   void DecompressTagged(const Register& destination,
                         const MemOperand& field_operand,
                         Trapper&& trapper = [](int){});
@@ -1354,9 +1373,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // point into the sandbox.
   void DecodeSandboxedPointer(Register value);
   void LoadSandboxedPointerField(Register destination,
-                                 const MemOperand& field_operand);
+                                 const MemOperand& field_operand,
+                                 Trapper&& trapper = [](int){});
   void StoreSandboxedPointerField(Register value,
-                                  const MemOperand& dst_field_operand);
+                                  const MemOperand& dst_field_operand,
+                                  Trapper&& trapper = [](int){});
 
   // Loads an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
@@ -1394,8 +1415,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodePointerTableBase(Register destination);
 #endif
 
-  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
-  void AtomicDecompressTagged(Register dst, const MemOperand& src);
+  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src,
+                                    Trapper&& trapper = [](int){});
+  void AtomicDecompressTagged(Register dst, const MemOperand& src,
+                              Trapper&& trapper = [](int){});
 
   void CmpTagged(const Register& rd, const Register& rs1, const Register& rs2) {
     if (COMPRESS_POINTERS_BOOL) {
@@ -1432,10 +1455,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Sw(value, dst_field_operand, std::forward<Trapper>(trapper));
   }
 
-  void AtomicStoreTaggedField(Register src, const MemOperand& dst) {
+  void AtomicStoreTaggedField(
+      Register src, const MemOperand& dst, Trapper&& trapper = [](int) {}) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     AddWord(scratch, dst.rm(), dst.offset());
+    trapper(pc_offset());
     amoswap_w(true, true, zero_reg, src, scratch);
   }
 #endif
@@ -1536,6 +1561,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                        unsigned higher_limit, Label* on_in_range);
   void JumpIfObjectType(Label* target, Condition cc, Register object,
                         InstanceType instance_type, Register scratch = no_reg);
+
   // Fast check if the object is a js receiver type. Assumes only primitive
   // objects or js receivers are passed.
   void JumpIfJSAnyIsNotPrimitive(
@@ -1559,6 +1585,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RecordWriteField(
       Register object, int offset, Register value, RAStatus ra_status,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For a given |object| notify the garbage collector that the slot |address|
@@ -1567,6 +1594,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void RecordWrite(
       Register object, Operand offset, Register value, RAStatus ra_status,
       SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      ReadOnlyCheck ro_check = ReadOnlyCheck::kInline,
       SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // void Pref(int32_t hint, const MemOperand& rs);
@@ -1612,7 +1640,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // -------------------------------------------------------------------------
   // JavaScript invokes.
-
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(
       Register fun, Register new_target,
@@ -1655,6 +1682,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register actual_parameter_count, InvokeType type);
 #endif
 
+  // On function call, call into the debugger if necessary.
+  void CheckDebugHook(Register fun, Register new_target,
+                      Register expected_parameter_count,
+                      Register actual_parameter_count);
   // ---- InstructionStream generation helpers ----
 
   // ---------------------------------------------------------------------------

@@ -176,7 +176,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
                         FieldMemOperand(closure, JSFunction::kCodeOffset));
   RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
                    kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
-                   SlotDescriptor::ForCodePointerSlot());
+                   ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
@@ -339,11 +339,23 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, RAStatus ra_status,
                                       SaveFPRegsMode save_fp,
-                                      SmiCheck smi_check, SlotDescriptor slot) {
+                                      SmiCheck smi_check,
+                                      ReadOnlyCheck ro_check,
+                                      SlotDescriptor slot) {
   DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis.
+  // catch stores of smisand read-only objects, as well as stores into the
+  // young generation.
   Label done;
+
+  // #if V8_STATIC_ROOTS_BOOL
+  //   if (ro_check == ReadOnlyCheck::kInline) {
+  //     // Quick check for Read-only and small Smi values.
+  //     static_assert(StaticReadOnlyRoot::kLastAllocatedRoot <
+  //     kRegularPageSize); JumpIfUnsignedLessThan(value, kRegularPageSize,
+  //     &done);
+  //   }
+  // #endif  // V8_STATIC_ROOTS_BOOL
 
   // Skip the barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
@@ -367,7 +379,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, Operand(offset - kHeapObjectTag), value, ra_status,
-              save_fp, SmiCheck::kOmit, slot);
+              save_fp, SmiCheck::kOmit, ReadOnlyCheck::kOmit, slot);
 
   bind(&done);
 }
@@ -681,7 +693,7 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, RAStatus ra_status,
                                  SaveFPRegsMode fp_mode, SmiCheck smi_check,
-                                 SlotDescriptor slot) {
+                                 ReadOnlyCheck ro_check, SlotDescriptor slot) {
   DCHECK(!AreAliased(object, value));
 
   if (v8_flags.slow_debug_code) {
@@ -709,16 +721,23 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   }
 
   // First, check if a write barrier is even needed. The tests below
-  // catch stores of smis and stores into the young generation.
+  // catch stores of smisand read-only objects, as well as stores into the
+  // young generation.
   Label done;
+  // #if V8_STATIC_ROOTS_BOOL
+  //   if (ro_check == ReadOnlyCheck::kInline) {
+  //     // Quick check for Read-only and small Smi values.
+  //     static_assert(StaticReadOnlyRoot::kLastAllocatedRoot <
+  //     kRegularPageSize); JumpIfUnsignedLessThan(value, kRegularPageSize,
+  //     &done);
+  //   }
+  // #endif  // V8_STATIC_ROOTS_BOOL
 
   if (smi_check == SmiCheck::kInline) {
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
 
-  {
-    UseScratchRegisterScope temps(this);
     CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
@@ -728,7 +747,6 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                   eq,  // In RISC-V, it uses cc for a comparison with 0, so if
                        // no bits are set, and cc is eq, it will branch to done
                   &done);
-  }
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
@@ -767,11 +785,12 @@ void MacroAssembler::DecodeSandboxedPointer(Register value) {
 #endif
 }
 
-void MacroAssembler::LoadSandboxedPointerField(
-    Register destination, const MemOperand& field_operand) {
+void MacroAssembler::LoadSandboxedPointerField(Register destination,
+                                               const MemOperand& field_operand,
+                                               Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
-  LoadWord(destination, field_operand);
+  LoadWord(destination, field_operand, std::forward<Trapper>(trapper));
   DecodeSandboxedPointer(destination);
 #else
   UNREACHABLE();
@@ -779,14 +798,14 @@ void MacroAssembler::LoadSandboxedPointerField(
 }
 
 void MacroAssembler::StoreSandboxedPointerField(
-    Register value, const MemOperand& dst_field_operand) {
+    Register value, const MemOperand& dst_field_operand, Trapper&& trapper) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   SubWord(scratch, value, kPtrComprCageBaseRegister);
   slli(scratch, scratch, kSandboxedPointerShift);
-  StoreWord(scratch, dst_field_operand);
+  StoreWord(scratch, dst_field_operand, std::forward<Trapper>(trapper));
 #else
   UNREACHABLE();
 #endif
@@ -5119,6 +5138,24 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
   }
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking,
+                                   Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadWord(scratch,
+           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Branch(is_marking, ne, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfNotMarking(Label* not_marking,
+                                      Label::Distance condition_met_distance) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadWord(scratch,
+           MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  Branch(not_marking, eq, scratch, Operand(zero_reg));
+}
+
 // The calculated offset is either:
 // * the 'target' input unmodified if this is a Wasm call, or
 // * the offset of the target from the current PC, in instructions, for any
@@ -6094,16 +6131,19 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
     VU.set(kScratchReg, E8, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
+    trapper(pc_offset());
     Sb(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else if (sz == 16) {
     VU.set(kScratchReg, E16, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
+    trapper(pc_offset());
     Sh(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else if (sz == 32) {
     VU.set(kScratchReg, E32, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
     vmv_xs(kScratchReg, kSimd128ScratchReg);
+    trapper(pc_offset());
     Sw(kScratchReg, dst, std::forward<Trapper>(trapper));
   } else {
     DCHECK_EQ(sz, 64);
@@ -6111,9 +6151,11 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
 #if V8_TARGET_ARCH_RISCV64
     vmv_xs(kScratchReg, kSimd128ScratchReg);
+    trapper(pc_offset());
     StoreWord(kScratchReg, dst, std::forward<Trapper>(trapper));
 #elif V8_TARGET_ARCH_RISCV32
     vfmv_fs(kScratchDoubleReg, kSimd128ScratchReg);
+    trapper(pc_offset());
     StoreDouble(kScratchDoubleReg, dst, std::forward<Trapper>(trapper));
 #endif
   }
@@ -6484,6 +6526,17 @@ void MacroAssembler::AssertSignExtended(Register int32_register) {
   Assert(Condition::ge, AbortReason::k32BitValueInRegisterIsNotSignExtended,
          int32_register, Operand(kMinInt));
 }
+
+void MacroAssembler::AssertRange(Condition cond, AbortReason reason,
+                                 Register value, Register scratch,
+                                 unsigned lower_limit, unsigned higher_limit) {
+  if (!v8_flags.debug_code) return;
+  Label ok;
+  BranchRange(&ok, cond, value, scratch, lower_limit, higher_limit);
+  Abort(reason);
+  bind(&ok);
+}
+
 #endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::Check(Condition cc, AbortReason reason, Register rs,
@@ -7400,7 +7453,6 @@ void MacroAssembler::BailoutIfDeoptimized() {
         scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
     Lw(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   }
-
 #ifdef V8_ENABLE_LEAPTIERING
   if (v8_flags.debug_code) {
     Label not_deoptimized;
@@ -7482,12 +7534,9 @@ void MacroAssembler::CallJSFunction(Register function_object,
      FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
-  Label match;
-  Branch(&match, le, parameter_count, Operand(argument_count));
-  // If the parameter count doesn't match, we force a safe crash by setting the
-  // code entrypoint to zero, causing a nullptr dereference during the call.
-  mv(code, zero_reg);
-  bind(&match);
+  // Force a safe crash if the parameter count doesn't match.
+  SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
+           Operand(argument_count));
   Call(code);
 #elif V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
@@ -7569,7 +7618,6 @@ void MacroAssembler::JumpJSFunction(Register function_object,
 void MacroAssembler::ResolveWasmCodePointer(Register target,
                                             uint64_t signature_hash) {
   ASM_CODE_COMMENT(this);
-  static_assert(!V8_ENABLE_SANDBOX_BOOL);
   ExternalReference global_jump_table =
       ExternalReference::wasm_code_pointer_table();
   UseScratchRegisterScope temps(this);
@@ -7578,21 +7626,18 @@ void MacroAssembler::ResolveWasmCodePointer(Register target,
 
 #ifdef V8_ENABLE_SANDBOX
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == 16);
-  Alsl_d(target, target, scratch, 4);
+  CalcScaledAddress(target, scratch, target, 4);
   LoadWord(
       scratch,
       MemOperand(target, wasm::WasmCodePointerTable::kOffsetOfSignatureHash));
-  bool has_second_tmp = temps.hasAvailable();
-  Register signature_hash_register = has_second_tmp ? temps.Acquire() : target;
-  if (!has_second_tmp) {
-    Push(signature_hash_register);
-  }
-  li(signature_hash_register, Operand(signature_hash));
+  // bool has_second_tmp = temps.CanAcquire();
+  // Register signature_hash_register = has_second_tmp ? temps.Acquire() :
+  // target; if (!has_second_tmp) {
+  //   Push(signature_hash_register);
+  // }
+  // li(signature_hash_register, Operand(signature_hash));
   SbxCheck(Condition::kEqual, AbortReason::kWasmSignatureMismatch, scratch,
-           Operand(signature_hash_register));
-  if (!has_second_tmp) {
-    Pop(signature_hash_register);
-  }
+           Operand(signature_hash));
 #else
   static_assert(sizeof(wasm::WasmCodePointerTableEntry) == kSystemPointerSize);
   CalcScaledAddress(target, scratch, target, kSystemPointerSizeLog2);
@@ -7735,6 +7780,7 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
 void MacroAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand,
                                       Trapper&& trapper) {
+  trapper(pc_offset());
   if (COMPRESS_POINTERS_BOOL) {
     Sw(value, dst_field_operand, std::forward<Trapper>(trapper));
   } else {
@@ -7742,11 +7788,12 @@ void MacroAssembler::StoreTaggedField(const Register& value,
   }
 }
 
-void MacroAssembler::AtomicStoreTaggedField(Register src,
-                                            const MemOperand& dst) {
+void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                                            Trapper&& trapper) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   AddWord(scratch, dst.rm(), dst.offset());
+  trapper(pc_offset());
   if (COMPRESS_POINTERS_BOOL) {
     amoswap_w(true, true, zero_reg, src, scratch);
   } else {
@@ -7755,9 +7802,10 @@ void MacroAssembler::AtomicStoreTaggedField(Register src,
 }
 
 void MacroAssembler::DecompressTaggedSigned(const Register& destination,
-                                            const MemOperand& field_operand) {
+                                            const MemOperand& field_operand,
+                                            Trapper&& trapper) {
   ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
+  Lwu(destination, field_operand, std::forward<Trapper>(trapper));
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     AddWord(destination, destination,
@@ -7803,9 +7851,10 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
-                                                  const MemOperand& src) {
+                                                  const MemOperand& src,
+                                                  Trapper&& trapper) {
   ASM_CODE_COMMENT(this);
-  Lwu(dst, src);
+  Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();
   if (v8_flags.slow_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
@@ -7814,10 +7863,10 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   }
 }
 
-void MacroAssembler::AtomicDecompressTagged(Register dst,
-                                            const MemOperand& src) {
+void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
+                                            Trapper&& trapper) {
   ASM_CODE_COMMENT(this);
-  Lwu(dst, src);
+  Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();
   AddWord(dst, kPtrComprCageBaseRegister, dst);
 }
@@ -8022,6 +8071,20 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Branch(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::BranchRange(Label* L, Condition cond, Register value,
+                                 Register scratch, unsigned lower_limit,
+                                 unsigned higher_limit,
+                                 Label::Distance distance) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
+  if (lower_limit != 0) {
+    SubWord(scratch, value, Operand(lower_limit));
+    Branch(L, cond, scratch, Operand(higher_limit - lower_limit), distance);
+  } else {
+    Branch(L, cond, scratch, Operand(higher_limit - lower_limit), distance);
+  }
 }
 
 #undef __

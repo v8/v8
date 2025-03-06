@@ -704,6 +704,14 @@ inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
   }
 }
 
+#ifdef V8_ENABLE_SANDBOX
+inline void MaglevAssembler::StoreTrustedPointerFieldNoWriteBarrier(
+    Register object, int offset, Register value) {
+  MacroAssembler::StoreTrustedPointerField(value,
+                                           FieldMemOperand(object, offset));
+}
+#endif  // V8_ENABLE_SANDBOX
+
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   MaglevAssembler::TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
@@ -814,6 +822,9 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
+  li(dst, Operand(i));
+}
+inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
   li(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
@@ -1159,10 +1170,10 @@ inline void MaglevAssembler::JumpIfObjectInRange(Register heap_object,
   DCHECK_LE(lower_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   DCHECK_LE(higher_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   AssertNotSmi(heap_object);
-  CompareRange(heap_object, scratch, lower_limit, higher_limit);
-  JumpIf(kUnsignedLessThanEqual, target, distance);
+  Register scratch = temps.AcquireScratch();
+  BranchRange(target, kUnsignedLessThanEqual, heap_object, scratch, lower_limit,
+              higher_limit, distance);
 }
 
 inline void MaglevAssembler::JumpIfObjectNotInRange(Register heap_object,
@@ -1174,10 +1185,10 @@ inline void MaglevAssembler::JumpIfObjectNotInRange(Register heap_object,
   DCHECK_LE(lower_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   DCHECK_LE(higher_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   AssertNotSmi(heap_object);
-  CompareRange(heap_object, scratch, lower_limit, higher_limit);
-  JumpIf(kUnsignedGreaterThan, target, distance);
+  Register scratch = temps.AcquireScratch();
+  BranchRange(target, kUnsignedGreaterThan, heap_object, scratch, lower_limit,
+              higher_limit, distance);
 }
 
 inline void MaglevAssembler::AssertObjectInRange(Register heap_object,
@@ -1188,10 +1199,10 @@ inline void MaglevAssembler::AssertObjectInRange(Register heap_object,
   DCHECK_LE(lower_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   DCHECK_LE(higher_limit, StaticReadOnlyRoot::kLastAllocatedRoot);
   TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
   AssertNotSmi(heap_object);
-  CompareRange(heap_object, scratch, lower_limit, higher_limit);
-  Assert(kUnsignedLessThanEqual, reason);
+  Register scratch = temps.AcquireScratch();
+  AssertRange(kUnsignedLessThanEqual, reason, heap_object, scratch, lower_limit,
+              higher_limit);
 }
 #endif
 

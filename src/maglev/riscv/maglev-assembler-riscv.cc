@@ -267,6 +267,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
+  ZeroExtendWord(char_code, char_code);
   AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
@@ -318,17 +319,21 @@ void MaglevAssembler::IsObjectType(Register object, Register scratch1,
                                    Register scratch2, InstanceType type) {
   ASM_CODE_COMMENT(this);
   constexpr Register flags = MaglevAssembler::GetFlagsRegister();
-#if V8_STATIC_ROOTS_BOOL
-  if (InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
-    LoadCompressedMap(scratch1, object);
-    CompareInstanceTypeWithUniqueCompressedMap(
-        scratch1, scratch1 != scratch2 ? scratch2 : Register::no_reg(), type);
-    return;
-  }
-#endif  // V8_STATIC_ROOTS_BOOL
   Label ConditionMet, Done;
-  CompareObjectTypeAndJump(object, scratch1, scratch2, type, Condition::kEqual,
-                           &ConditionMet, Label::kNear);
+  if (V8_STATIC_ROOTS_BOOL &&
+      InstanceTypeChecker::UniqueMapOfInstanceType(type)) {
+    LoadCompressedMap(scratch1, object);
+    std::optional<RootIndex> expected =
+        InstanceTypeChecker::UniqueMapOfInstanceType(type);
+    Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+    li(scratch2, expected_ptr);
+    Sll32(scratch2, scratch2, Operand(0));
+    MacroAssembler::Branch(&ConditionMet, Condition::kEqual, scratch1,
+                           Operand(scratch2), Label::kNear);
+  } else {
+    CompareObjectTypeAndJump(object, scratch1, scratch2, type,
+                             Condition::kEqual, &ConditionMet, Label::kNear);
+  }
   Li(flags, 1);  // Condition is not met by default and
                  // flags is set after a scratch is used,
                  // so no harm if they are aliased.

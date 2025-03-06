@@ -448,6 +448,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Resume (Ignition/TurboFan) generator object.
   {
+    // TODO(40931165): use parameter count from JSDispatchTable and validate
+    // that it matches the number of values in the JSGeneratorObject.
     __ LoadTaggedField(
         a0, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
     __ Lhu(a0, FieldMemOperand(
@@ -976,25 +978,6 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 }  // namespace
 
 // static
-void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
-  // We're here because we got deopted during BaselineOutOfLinePrologue's stack
-  // check. Undo all its frame creation and call into the interpreter instead.
-
-  // Drop bytecode offset (was the feedback vector but got replaced during
-  // deopt) and bytecode array.
-  __ AddWord(sp, sp, Operand(3 * kSystemPointerSize));
-
-  // Context, closure, argc.
-  __ Pop(kContextRegister, kJavaScriptCallTargetRegister,
-         kJavaScriptCallArgCountRegister);
-
-  // Drop frame pointer
-  __ LeaveFrame(StackFrame::BASELINE);
-
-  // Enter the interpreter.
-  __ TailCallBuiltin(Builtin::kInterpreterEntryTrampoline);
-}
-
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   ASM_CODE_COMMENT(masm);
   UseScratchRegisterScope temps(masm);
@@ -1023,7 +1006,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register flags = temps.Acquire();
   __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-#endif
+#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1045,10 +1028,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   {
     ASM_CODE_COMMENT_STRING(masm, "Frame Setup");
-    // Normally the first thing we'd do here is Push(lr, fp), but we already
+    // Normally the first thing we'd do here is Push(ra, fp), but we already
     // entered the frame in BaselineCompiler::Prologue, as we had to use the
-    // value lr before the call to this BaselineOutOfLinePrologue builtin.
-
+    // value ra before the call to this BaselineOutOfLinePrologue builtin.
     Register callee_context = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kCalleeContext);
     Register callee_js_function = descriptor.GetRegisterParameter(
@@ -1096,7 +1078,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
-  // Do "fast" return to the caller pc in lr.
+  // Do "fast" return to the caller pc in ra.
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
@@ -1109,7 +1091,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
     __ Trap();
   }
-#endif
+#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {
@@ -1117,13 +1099,41 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
     __ Push(kJavaScriptCallNewTargetRegister);
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
+    // No need to SmiTag as dispatch handles always look like Smis.
+    static_assert(kJSDispatchHandleShift > 0);
+    __ Push(kJavaScriptCallDispatchHandleRegister);
+#endif
     __ SmiTag(frame_size);
     __ Push(frame_size);
     __ CallRuntime(Runtime::kStackGuardWithGap);
+#if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
+    __ Pop(kJavaScriptCallDispatchHandleRegister);
+#endif
     __ Pop(kJavaScriptCallNewTargetRegister);
   }
   __ Ret();
   temps.Exclude({kScratchReg, kScratchReg2, s1});
+}
+
+// static
+void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
+  // We're here because we got deopted during BaselineOutOfLinePrologue's stack
+  // check. Undo all its frame creation and call into the interpreter instead.
+
+  // Drop bytecode offset (was the feedback vector but got replaced during
+  // deopt) and bytecode array.
+  __ AddWord(sp, sp, Operand(3 * kSystemPointerSize));
+
+  // Context, closure, argc.
+  __ Pop(kContextRegister, kJavaScriptCallTargetRegister,
+         kJavaScriptCallArgCountRegister);
+
+  // Drop frame pointer
+  __ LeaveFrame(StackFrame::BASELINE);
+
+  // Enter the interpreter.
+  __ TailCallBuiltin(Builtin::kInterpreterEntryTrampoline);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1134,6 +1144,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 //   o a0 : actual argument count
 //   o a1: the JS function object being called.
 //   o a3: the incoming new target or generator object
+//   o a4: the dispatch handle through which we were called
 //   o cp: our context
 //   o fp: the caller's frame pointer
 //   o sp: stack pointer
@@ -1146,7 +1157,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Register closure = a1;
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
-  Register sfi = a4;
+  Register sfi = a5;
   __ LoadTaggedField(
       sfi, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   ResetSharedFunctionInfoAge(masm, sfi);
@@ -1158,17 +1169,34 @@ void Builtins::Generate_InterpreterEntryTrampoline(
       masm, sfi, kInterpreterBytecodeArrayRegister, kScratchReg, &is_baseline,
       &compile_lazy);
 
+#ifdef V8_ENABLE_SANDBOX
+  // Validate the parameter count. This protects against an attacker swapping
+  // the bytecode (or the dispatch handle) such that the parameter count of the
+  // dispatch entry doesn't match the one of the BytecodeArray.
+  // TODO(saelo): instead of this validation step, it would probably be nicer
+  // if we could store the BytecodeArray directly in the dispatch entry and
+  // load it from there. Then we can easily guarantee that the parameter count
+  // of the entry matches the parameter count of the bytecode.
+  static_assert(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+  Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;  // a4
+  __ LoadParameterCountFromJSDispatchTable(a2, dispatch_handle, a6);
+  __ Lh(a6, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                            BytecodeArray::kParameterSizeOffset));
+  __ SbxCheck(eq, AbortReason::kJSSignatureMismatch, a2, Operand(a6));
+#endif  // V8_ENABLE_SANDBOX
+
   Label push_stack_frame;
   Register feedback_vector = a2;
-  __ LoadFeedbackVector(feedback_vector, closure, a4, &push_stack_frame);
+  __ LoadFeedbackVector(feedback_vector, closure, a6, &push_stack_frame);
 
 #ifndef V8_JITLESS
 #ifndef V8_ENABLE_LEAPTIERING
   // If feedback vector is valid, check for optimized code and update invocation
   // count.
+
   // Check the tiering state.
   Label flags_need_processing;
-  Register flags = a4;
+  Register flags = a6;
   __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
       &flags_need_processing);
@@ -1176,10 +1204,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, a4);
 
   // Increment invocation count for the function.
-  __ Lw(a4, FieldMemOperand(feedback_vector,
+  __ Lw(a6, FieldMemOperand(feedback_vector,
                             FeedbackVector::kInvocationCountOffset));
-  __ Add32(a4, a4, Operand(1));
-  __ Sw(a4, FieldMemOperand(feedback_vector,
+  __ Add32(a6, a6, Operand(1));
+  __ Sw(a6, FieldMemOperand(feedback_vector,
                             FeedbackVector::kInvocationCountOffset));
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -1202,18 +1230,18 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Push bytecode array, Smi tagged bytecode array offset, and the feedback
   // vector.
-  __ SmiTag(a4, kInterpreterBytecodeOffsetRegister);
-  __ Push(kInterpreterBytecodeArrayRegister, a4, feedback_vector);
+  __ SmiTag(a6, kInterpreterBytecodeOffsetRegister);
+  __ Push(kInterpreterBytecodeArrayRegister, a6, feedback_vector);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
   {
     // Load frame size (word) from the BytecodeArray object.
-    __ Lw(a4, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+    __ Lw(a6, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                               BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
-    __ SubWord(a5, sp, Operand(a4));
+    __ SubWord(a5, sp, Operand(a6));
     __ LoadStackLimit(a2, StackLimitKind::kRealStackLimit);
     __ Branch(&stack_overflow, Uless, a5, Operand(a2));
 
@@ -1227,8 +1255,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ push(kInterpreterAccumulatorRegister);
     // Continue loop if not done.
     __ bind(&loop_check);
-    __ SubWord(a4, a4, Operand(kSystemPointerSize));
-    __ Branch(&loop_header, ge, a4, Operand(zero_reg));
+    __ SubWord(a6, a6, Operand(kSystemPointerSize));
+    __ Branch(&loop_header, ge, a6, Operand(zero_reg));
   }
 
   // If the bytecode array has a valid incoming new target or generator object
@@ -1295,7 +1323,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Lbu(a1, MemOperand(a1));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
                                 kInterpreterBytecodeOffsetRegister, a1, a2, a3,
-                                a4, &do_return);
+                                a5, &do_return);
   __ Branch(&do_dispatch);
 
   __ bind(&do_return);
@@ -1333,7 +1361,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #ifndef V8_ENABLE_LEAPTIERING
   __ bind(&flags_need_processing);
   __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-#endif  //! V8_ENABLE_LEAPTIERING
+#endif  // !V8_ENABLE_LEAPTIERING
   __ bind(&is_baseline);
   {
 #ifndef V8_ENABLE_LEAPTIERING
@@ -1366,9 +1394,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
     __ ReplaceClosureCodeWithOptimizedCode(a2, closure);
     __ JumpCodeObject(a2, kJSEntrypointTag);
+
     __ bind(&install_baseline_code);
 #endif  // !V8_ENABLE_LEAPTIERING
-
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 #endif  // !V8_JITLESS
@@ -2645,7 +2673,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- a2 : the shared function info.
   //  -- cp : the function context.
   // -----------------------------------
-
 #if defined(V8_ENABLE_LEAPTIERING) && defined(V8_TARGET_ARCH_RISCV64)
   __ InvokeFunctionCode(a1, no_reg, a0, InvokeType::kJump);
 #else
