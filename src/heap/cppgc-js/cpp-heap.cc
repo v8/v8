@@ -599,8 +599,10 @@ class MoveListenerImpl final : public HeapProfilerNativeMoveListener,
 }  // namespace
 
 void CppHeap::AttachIsolate(Isolate* isolate) {
+#if DEBUG
   // Since a new isolate is attached, we are also allowed to detach it again.
   is_detached_ = false;
+#endif  // DEBUG
   CHECK(!in_detached_testing_mode_);
   CHECK_NULL(isolate_);
   isolate_ = isolate;
@@ -633,15 +635,13 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
 }
 
 void CppHeap::StartDetachingIsolate() {
+#if DEBUG
   DCHECK(!is_detached_);
   is_detached_ = true;
+#endif  // DEBUG
   // TODO(chromium:1056170): Investigate whether this can be enforced with a
   // CHECK across all relevant embedders and setups.
   if (!isolate_) return;
-
-  // Store the last thread that owned the isolate, as it is the thread CppHeap
-  // should also get terminated with.
-  heap_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
   // Finish any ongoing garbage collection.
   if (isolate_->heap()->incremental_marking()->IsMarking()) {
@@ -669,6 +669,9 @@ void CppHeap::DetachIsolate() {
     detached_override_stack_state_ = heap_->overridden_stack_state();
     override_stack_state_scope_.reset();
   }
+  // Store the last thread that owned the isolate, as it is the thread CppHeap
+  // should also get terminated with.
+  heap_thread_id_ = v8::base::OS::GetCurrentThreadId();
   isolate_ = nullptr;
   heap_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
@@ -1368,8 +1371,7 @@ bool CppHeap::IsGCForbidden() const {
 }
 
 bool CppHeap::CurrentThreadIsHeapThread() const {
-  if (!is_detached_ && isolate_ &&
-      V8_UNLIKELY(isolate_->was_locker_ever_used())) {
+  if (isolate_ && V8_UNLIKELY(isolate_->was_locker_ever_used())) {
     // If v8::Locker has been used, we only check if the isolate is now locked
     // by the current thread.
     return isolate_->thread_manager()->IsLockedByCurrentThread();

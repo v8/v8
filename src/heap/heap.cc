@@ -6045,8 +6045,11 @@ EmbedderRootsHandler* Heap::GetEmbedderRootsHandler() const {
 }
 
 void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
-  // Only a single CppHeap can be attached at a time.
-  CHECK(!owning_cpp_heap_);
+  // The API function should be a noop in case a CppHeap was passed on Isolate
+  // creation.
+  if (owning_cpp_heap_) {
+    return;
+  }
 
   CHECK_IMPLIES(incremental_marking(), !incremental_marking()->IsMarking());
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
