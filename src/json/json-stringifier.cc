@@ -155,25 +155,29 @@ class JsonStringifier {
                           const DisallowGarbageCollection& no_gc) {
     DCHECK_EQ(length, string->length());
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
-           (string->IsFlat() && string->IsOneByteRepresentation()));
+           (string->IsFlat() &&
+            String::IsOneByteRepresentationUnderneath(string)));
     DCHECK(CurrentPartCanFit(length + 1));
-    String::FlatContent flat = string->GetFlatContent(no_gc);
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      if (flat.IsOneByte()) {
-        CopyChars<uint8_t, uint8_t>(one_byte_ptr_ + current_index_,
-                                    flat.ToOneByteVector().begin(), length);
+      if (String::IsOneByteRepresentationUnderneath(string)) {
+        CopyChars<uint8_t, uint8_t>(
+            one_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), length);
       } else {
         ChangeEncoding();
-        CopyChars<uint16_t, uint16_t>(two_byte_ptr_ + current_index_,
-                                      flat.ToUC16Vector().begin(), length);
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), length);
       }
     } else {
-      if (flat.IsOneByte()) {
-        CopyChars<uint8_t, uint16_t>(two_byte_ptr_ + current_index_,
-                                     flat.ToOneByteVector().begin(), length);
+      if (String::IsOneByteRepresentationUnderneath(string)) {
+        CopyChars<uint8_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), length);
       } else {
-        CopyChars<uint16_t, uint16_t>(two_byte_ptr_ + current_index_,
-                                      flat.ToUC16Vector().begin(), length);
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), length);
       }
     }
     current_index_ += length;
@@ -186,7 +190,8 @@ class JsonStringifier {
       Tagged<String> string = *string_handle;
       const bool representation_ok =
           encoding_ == String::TWO_BYTE_ENCODING ||
-          (string->IsFlat() && string->IsOneByteRepresentation());
+          (string->IsFlat() &&
+           String::IsOneByteRepresentationUnderneath(string));
       if (representation_ok) {
         size_t length = string->length();
         while (!CurrentPartCanFit(length + 1)) {
@@ -1528,7 +1533,8 @@ bool JsonStringifier::SerializeString_(Tagged<String> string,
         vector, &no_extend);
   } else {
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
-           (string->IsFlat() && string->IsOneByteRepresentation()));
+           (string->IsFlat() &&
+            String::IsOneByteRepresentationUnderneath(string)));
     int prev_escaped_offset = -1;
     for (int i = 0; i < vector.length(); i++) {
       SrcChar c = vector.at(i);
@@ -1689,14 +1695,14 @@ bool JsonStringifier::SerializeString(Handle<String> object) {
   DisallowGarbageCollection no_gc;
   auto string = *object;
   if (encoding_ == String::ONE_BYTE_ENCODING) {
-    if (string->IsOneByteRepresentation()) {
+    if (String::IsOneByteRepresentationUnderneath(string)) {
       return SerializeString_<uint8_t, uint8_t, raw_json>(string, no_gc);
     } else {
       ChangeEncoding();
     }
   }
   DCHECK_EQ(encoding_, String::TWO_BYTE_ENCODING);
-  if (string->IsOneByteRepresentation()) {
+  if (String::IsOneByteRepresentationUnderneath(string)) {
     return SerializeString_<uint8_t, base::uc16, raw_json>(string, no_gc);
   } else {
     return SerializeString_<base::uc16, base::uc16, raw_json>(string, no_gc);

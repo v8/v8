@@ -315,7 +315,7 @@ MaybeDirectHandle<String> IncrementalStringBuilder::Finish() {
 bool IncrementalStringBuilder::CanAppendByCopy(DirectHandle<String> string) {
   const bool representation_ok =
       encoding_ == String::TWO_BYTE_ENCODING ||
-      (string->IsFlat() && string->IsOneByteRepresentation());
+      (string->IsFlat() && String::IsOneByteRepresentationUnderneath(*string));
 
   return representation_ok && CurrentPartCanFit(string->length());
 }

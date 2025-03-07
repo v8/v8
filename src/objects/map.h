@@ -1109,9 +1109,6 @@ inline bool IsPrimitiveMap(Tagged<Map> map);
 inline bool IsSpecialReceiverMap(Tagged<Map> map);
 inline bool IsCustomElementsReceiverMap(Tagged<Map> map);
 
-// Define the instance type accessors in the `.h` instead of `-inl.h` to avoid
-// a circular dependency with the instance-type-inl.h header.
-
 InstanceType Map::instance_type() const {
   // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
   // non-atomic when TSAN sees the map's store synchronization.

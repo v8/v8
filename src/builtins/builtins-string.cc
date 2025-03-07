@@ -345,7 +345,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  if (s->IsOneByteRepresentation()) {
+  if (String::IsOneByteRepresentationUnderneath(*s)) {
     // Same length as input.
     DirectHandle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
