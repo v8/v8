@@ -3143,43 +3143,28 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
   LoadJumpBuffer(masm, target_jmpbuf, false, tmp, expected_state);
 }
 
-// Updates the stack limit to match the new active stack.
-// Pass the {finished_continuation} argument to indicate that the stack that we
-// are switching from has returned, and in this case return its memory to the
-// stack pool.
-void SwitchStacks(MacroAssembler* masm, Register finished_continuation,
-                  const Register& keep1, const Register& keep2 = no_reg,
-                  const Register& keep3 = no_reg) {
+// Updates the stack limit and central stack info, and validates the switch.
+void SwitchStacks(MacroAssembler* masm, Register old_continuation,
+                  bool return_switch,
+                  const std::initializer_list<Register> keep) {
   using ER = ExternalReference;
 
-  __ Push(keep1);
-  if (keep2 != no_reg) {
-    __ Push(keep2);
-  }
-  if (keep3 != no_reg) {
-    __ Push(keep3);
+  for (auto reg : keep) {
+    __ Push(reg);
   }
 
-  if (finished_continuation != no_reg) {
+  {
     __ PrepareCallCFunction(2, a0);
     FrameScope scope(masm, StackFrame::MANUAL);
     __ li(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
-    __ mov(kCArgRegs[1], finished_continuation);
-    __ CallCFunction(ER::wasm_return_switch(), 2);
-  } else {
-    __ PrepareCallCFunction(1, a0);
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ li(kCArgRegs[0], ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
+    __ mov(kCArgRegs[1], old_continuation);
+    __ CallCFunction(
+        return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
   }
 
-  if (keep3 != no_reg) {
-    __ Pop(keep3);
+  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
+    __ Pop(*it);
   }
-  if (keep2 != no_reg) {
-    __ Pop(keep2);
-  }
-  __ Pop(keep1);
 }
 
 void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
@@ -3219,38 +3204,18 @@ void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
       kWasmContinuationJmpbufTag);
 
   // Switch stack!
+  SwitchStacks(masm, active_continuation, true,
+               {return_reg, return_value, context, jmpbuf});
   LoadJumpBuffer(masm, jmpbuf, false, tmp3, wasm::JumpBuffer::Inactive);
-
-  SwitchStacks(masm, active_continuation, return_reg, return_value, context);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
                             Register tmp2) {
   Register suspender = tmp1;
   __ LoadRoot(suspender, RootIndex::kActiveSuspender);
-  MemOperand state_loc =
-      FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset);
-  __ li(tmp2, Operand(Smi::FromInt(WasmSuspenderObject::kInactive)));
-  __ StoreTaggedField(tmp2, state_loc);
   __ LoadTaggedField(
       suspender,
       FieldMemOperand(suspender, WasmSuspenderObject::kParentOffset));
-
-  Label undefined;
-  __ JumpIfRoot(suspender, RootIndex::kUndefinedValue, &undefined);
-
-  if (v8_flags.debug_code) {
-    // Check that the parent suspender is active.
-    Label parent_inactive;
-    Register state = tmp2;
-    __ SmiUntag(state, state_loc);
-    __ JumpIfEqual(state, WasmSuspenderObject::kActive, &parent_inactive);
-    __ Trap();
-    __ bind(&parent_inactive);
-  }
-  __ li(tmp2, Operand(Smi::FromInt(WasmSuspenderObject::kActive)));
-  __ StoreTaggedField(tmp2, state_loc);
-  __ bind(&undefined);
   int32_t active_suspender_offset =
       MacroAssembler::RootRegisterOffsetForRootIndex(
           RootIndex::kActiveSuspender);
@@ -3495,9 +3460,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   FillJumpBuffer(masm, jmpbuf, &resume, scratch);
   SwitchStackState(masm, jmpbuf, scratch, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
-  __ li(scratch, Operand(Smi::FromInt(WasmSuspenderObject::kSuspended)));
-  __ StoreTaggedField(
-      scratch, FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
   regs.ResetExcept(suspender, continuation);
 
   DEFINE_REG(suspender_continuation);
@@ -3516,7 +3478,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
     __ Trap();
     __ bind(&ok);
   }
-  FREE_REG(continuation);
   // -------------------------------------------
   // Update roots.
   // -------------------------------------------
@@ -3535,12 +3496,13 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       MacroAssembler::RootRegisterOffsetForRootIndex(
           RootIndex::kActiveSuspender);
   __ St_d(parent, MemOperand(kRootRegister, active_suspender_offset));
-  regs.ResetExcept(suspender, caller);
+  regs.ResetExcept(suspender, caller, continuation);
 
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SwitchStacks(masm, no_reg, caller, suspender);
+  SwitchStacks(masm, continuation, false, {caller, suspender});
+  FREE_REG(continuation);
   ASSIGN_REG(jmpbuf);
   __ LoadExternalPointerField(
       jmpbuf, FieldMemOperand(caller, WasmContinuationObject::kJmpbufOffset),
@@ -3598,18 +3560,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadTaggedField(
       suspender,
       FieldMemOperand(resume_data, WasmResumeData::kSuspenderOffset));
-  // Check the suspender state.
-  Label suspender_is_suspended;
-  DEFINE_REG(state);
-  __ SmiUntag(state,
-              FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ JumpIfEqual(state, WasmSuspenderObject::kSuspended,
-                 &suspender_is_suspended);
-  __ Trap();
-
   regs.ResetExcept(suspender);
 
-  __ bind(&suspender_is_suspended);
   // -------------------------------------------
   // Save current state.
   // -------------------------------------------
@@ -3639,9 +3591,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
                       active_suspender, kRAHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
-  __ li(scratch, Operand(Smi::FromInt(WasmSuspenderObject::kActive)));
-  __ StoreTaggedField(
-      scratch, FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
   int32_t active_suspender_offset =
       MacroAssembler::RootRegisterOffsetForRootIndex(
           RootIndex::kActiveSuspender);
@@ -3661,17 +3610,18 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ StoreTaggedField(active_continuation,
                       FieldMemOperand(target_continuation,
                                       WasmContinuationObject::kParentOffset));
+  DEFINE_REG(old_continuation);
+  __ Move(old_continuation, active_continuation);
   __ RecordWriteField(
       target_continuation, WasmContinuationObject::kParentOffset,
       active_continuation, kRAHasBeenSaved, SaveFPRegsMode::kIgnore);
-  FREE_REG(active_continuation);
   int32_t active_continuation_offset =
       MacroAssembler::RootRegisterOffsetForRootIndex(
           RootIndex::kActiveContinuation);
   __ St_d(target_continuation,
           MemOperand(kRootRegister, active_continuation_offset));
 
-  SwitchStacks(masm, no_reg, target_continuation);
+  SwitchStacks(masm, old_continuation, false, {target_continuation});
 
   regs.ResetExcept(target_continuation);
 
@@ -3744,7 +3694,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
 
   SaveState(masm, parent_continuation, scratch, suspend);
 
-  SwitchStacks(masm, no_reg, wasm_instance, wrapper_buffer);
+  SwitchStacks(masm, parent_continuation, false,
+               {wasm_instance, wrapper_buffer});
 
   FREE_REG(parent_continuation);
   // Save the old stack's fp in t0, and use it to access the parameters in
