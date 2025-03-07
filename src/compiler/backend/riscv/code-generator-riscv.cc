@@ -1346,27 +1346,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvClz64:
       __ Clz64(i.OutputRegister(), i.InputOrZeroRegister(0));
       break;
-    case kRiscvCtz64: {
-      Register src = i.InputRegister(0);
-      Register dst = i.OutputRegister();
-      __ Ctz64(dst, src);
-    } break;
-    case kRiscvPopcnt64: {
-      Register src = i.InputRegister(0);
-      Register dst = i.OutputRegister();
-      __ Popcnt64(dst, src, kScratchReg);
-    } break;
 #endif
-    case kRiscvCtz32: {
-      Register src = i.InputRegister(0);
-      Register dst = i.OutputRegister();
-      __ Ctz32(dst, src);
-    } break;
-    case kRiscvPopcnt32: {
-      Register src = i.InputRegister(0);
-      Register dst = i.OutputRegister();
-      __ Popcnt32(dst, src, kScratchReg);
-    } break;
     case kRiscvShl32:
       if (instr->InputAt(1)->IsRegister()) {
         __ Sll32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));

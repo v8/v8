@@ -392,9 +392,15 @@ void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
   UNREACHABLE();
 }
 
+void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
+  RiscvOperandGeneratorT g(this);
+  Emit(kRiscvCtz, g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)));
+}
+
 void InstructionSelectorT::VisitWord32Popcnt(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvPopcnt32, g.DefineAsRegister(node),
+  Emit(kRiscvCpop, g.DefineAsRegister(node),
        g.UseRegister(this->input_at(node, 0)));
 }
 
@@ -1530,15 +1536,17 @@ void InstructionSelectorT::VisitF64x2Max(OpIndex node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
-  return flags | MachineOperatorBuilder::kWord32Ctz |
-         MachineOperatorBuilder::kWord32Ctz |
-         MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe |
-         MachineOperatorBuilder::kFloat32RoundDown |
-         MachineOperatorBuilder::kFloat32RoundUp |
-         MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat32RoundTiesEven;
+  flags |= MachineOperatorBuilder::kInt32DivIsSafe |
+           MachineOperatorBuilder::kUint32DivIsSafe |
+           MachineOperatorBuilder::kFloat32RoundDown |
+           MachineOperatorBuilder::kFloat32RoundUp |
+           MachineOperatorBuilder::kFloat32RoundTruncate |
+           MachineOperatorBuilder::kFloat32RoundTiesEven;
+  if (CpuFeatures::IsSupported(ZBB)) {
+    flags |= MachineOperatorBuilder::kWord32Ctz |
+             MachineOperatorBuilder::kWord32Popcnt;
+  }
+  return flags;
 }
 
 #undef TRACE

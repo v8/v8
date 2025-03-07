@@ -61,8 +61,6 @@ namespace compiler {
   V(RiscvZeroExtendWord)                             \
   V(RiscvSignExtendWord)                             \
   V(RiscvClz64)                                      \
-  V(RiscvCtz64)                                      \
-  V(RiscvPopcnt64)                                   \
   V(RiscvShl64)                                      \
   V(RiscvShr64)                                      \
   V(RiscvSar64)                                      \
@@ -167,8 +165,6 @@ namespace compiler {
   V(RiscvShl32)                           \
   V(RiscvShr32)                           \
   V(RiscvSar32)                           \
-  V(RiscvCtz32)                           \
-  V(RiscvPopcnt32)                        \
   V(RiscvRor32)                           \
   V(RiscvMov)                             \
   V(RiscvTst32)                           \

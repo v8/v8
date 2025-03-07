@@ -604,21 +604,27 @@ void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
   UNREACHABLE();
 }
 
+void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
+  RiscvOperandGeneratorT g(this);
+  Emit(kRiscvCtzw, g.DefineAsRegister(node),
+       g.UseRegister(this->input_at(node, 0)));
+}
+
 void InstructionSelectorT::VisitWord64Ctz(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvCtz64, g.DefineAsRegister(node),
+  Emit(kRiscvCtz, g.DefineAsRegister(node),
        g.UseRegister(this->input_at(node, 0)));
 }
 
 void InstructionSelectorT::VisitWord32Popcnt(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvPopcnt32, g.DefineAsRegister(node),
+  Emit(kRiscvCpopw, g.DefineAsRegister(node),
        g.UseRegister(this->input_at(node, 0)));
 }
 
 void InstructionSelectorT::VisitWord64Popcnt(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  Emit(kRiscvPopcnt64, g.DefineAsRegister(node),
+  Emit(kRiscvCpop, g.DefineAsRegister(node),
        g.UseRegister(this->input_at(node, 0)));
 }
 
@@ -2287,21 +2293,24 @@ void InstructionSelectorT::VisitF64x2Max(OpIndex node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
-  return flags | MachineOperatorBuilder::kWord32Ctz |
-         MachineOperatorBuilder::kWord64Ctz |
-         MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kWord64Popcnt |
-         MachineOperatorBuilder::kWord32ShiftIsSafe |
-         MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe |
-         MachineOperatorBuilder::kFloat64RoundDown |
-         MachineOperatorBuilder::kFloat32RoundDown |
-         MachineOperatorBuilder::kFloat64RoundUp |
-         MachineOperatorBuilder::kFloat32RoundUp |
-         MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTiesEven |
-         MachineOperatorBuilder::kFloat32RoundTiesEven;
+  flags |= MachineOperatorBuilder::kWord32ShiftIsSafe |
+           MachineOperatorBuilder::kInt32DivIsSafe |
+           MachineOperatorBuilder::kUint32DivIsSafe |
+           MachineOperatorBuilder::kFloat64RoundDown |
+           MachineOperatorBuilder::kFloat32RoundDown |
+           MachineOperatorBuilder::kFloat64RoundUp |
+           MachineOperatorBuilder::kFloat32RoundUp |
+           MachineOperatorBuilder::kFloat64RoundTruncate |
+           MachineOperatorBuilder::kFloat32RoundTruncate |
+           MachineOperatorBuilder::kFloat64RoundTiesEven |
+           MachineOperatorBuilder::kFloat32RoundTiesEven;
+  if (CpuFeatures::IsSupported(ZBB)) {
+    flags |= MachineOperatorBuilder::kWord32Ctz |
+             MachineOperatorBuilder::kWord64Ctz |
+             MachineOperatorBuilder::kWord32Popcnt |
+             MachineOperatorBuilder::kWord64Popcnt;
+  }
+  return flags;
 }
 
 }  // namespace compiler

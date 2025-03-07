@@ -1686,12 +1686,6 @@ void InstructionSelectorT::VisitWord32Clz(OpIndex node) {
   VisitRR(this, kRiscvClz32, node);
 }
 
-void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
-  RiscvOperandGeneratorT g(this);
-  Emit(kRiscvCtz32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
-}
-
 #define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                \
                                                                              \
   void InstructionSelectorT::Visit##OPCODE1##ExtMulLow##OPCODE2##S(          \

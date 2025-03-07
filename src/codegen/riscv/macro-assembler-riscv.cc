@@ -4231,6 +4231,7 @@ void MacroAssembler::Clz64(Register rd, Register xx) {
   }
 }
 #endif
+
 void MacroAssembler::Ctz32(Register rd, Register rs) {
   if (CpuFeatures::IsSupported(ZBB)) {
 #if V8_TARGET_ARCH_RISCV64
@@ -4241,7 +4242,6 @@ void MacroAssembler::Ctz32(Register rd, Register rs) {
   } else {
     // Convert trailing zeroes to trailing ones, and bits to their left
     // to zeroes.
-
     BlockTrampolinePoolScope block_trampoline_pool(this);
     {
       UseScratchRegisterScope temps(this);
@@ -4319,7 +4319,6 @@ void MacroAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
     // uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
     // uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
     // uint32_t value = 0x01010101;  // (T)~(T)0/255
-
     uint32_t shift = 24;
     UseScratchRegisterScope temps(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -4347,7 +4346,6 @@ void MacroAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
     Srl32(rd, rd, shift);
   }
 }
-
 #if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
   if (CpuFeatures::IsSupported(ZBB)) {
@@ -4389,6 +4387,7 @@ void MacroAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
   }
 }
 #endif
+
 void MacroAssembler::TryInlineTruncateDoubleToI(Register result,
                                                 DoubleRegister double_input,
                                                 Label* done) {
