@@ -341,7 +341,7 @@ declare_args() {
   v8_enable_sandbox = ""
 
   # Enable leaptiering
-  v8_enable_leaptiering = v8_current_cpu != "mips64el"
+  v8_enable_leaptiering = true
 
   # Enable the memory corruption API. Useful for testing the sandbox.
   # The memory corruption API is only exposed to JavaScript if sandbox testing

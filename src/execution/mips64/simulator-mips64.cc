@@ -35,6 +35,11 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // Util functions.
 inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
 
+// TODO(mips): Currently defaults to true, indicating that MIPS supports
+// unaligned access by default. This can be changed based on the actual
+// environment or platform configuration.
+bool isMipsSupportUnalignedAccess = true;
+
 uint32_t get_fcsr_condition_bit(uint32_t cc) {
   if (cc == 0) {
     return 23;
@@ -1860,7 +1865,8 @@ int32_t Simulator::ReadW(int64_t addr, Instruction* instr, TraceType t) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr), t);
@@ -1952,7 +1958,8 @@ int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     TraceMemRd(addr, *ptr);
