@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '46d880ff62f340854a5a70142b0abf604c7af221',
+  'partition_alloc_version': 'd3191727ef81ba9daefb0bd3b90d9e4043a4bfa1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd888fb97bdea1c4b9a01db87a32c09f4b0ff0563',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a7c013a581a78b0b93a3846373af88751fdc2b50',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '135baa82105d87576f14ecbcb0b9cd0875de85fe',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'af094954a75c642c60a83eccdbfd1c0c94d88b0b',
   'buildtools/linux64': {
     'packages': [
       {
@@ -245,7 +245,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bb2a896987ea82a77b21d4585fd407643c7c688f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f40ddcd8d51626fb7be3ab3c418b3f3be801623f',
   'third_party/fp16/src':
     Var('chromium_url') + '/external/github.com/Maratyszcza/FP16.git' + '@' + '0a92994d729ff76a58f692d3028ca1b64b145d91',
   'third_party/fast_float/src':
@@ -497,7 +497,7 @@ deps = {
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'b0604d7ea23399001c8f4dbc19bd28a0b2316d3c',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '8c8fca086a5a38486928005c894812dc006fd529',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
