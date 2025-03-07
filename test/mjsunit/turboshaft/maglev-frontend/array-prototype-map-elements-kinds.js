@@ -26,6 +26,48 @@ function wrapInObject(x) {
 }
 %PrepareFunctionForOptimization(wrapInObject);
 
+function unwrapObject(x) {
+  return x.a;
+}
+%PrepareFunctionForOptimization(unwrapObject);
+
+let ix = 0;
+function transitionFromSmiToDouble(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return 1.1;
+}
+%PrepareFunctionForOptimization(transitionFromSmiToDouble);
+
+function transitionFromSmiToObject(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return {a: 1};
+}
+%PrepareFunctionForOptimization(transitionFromSmiToObject);
+
+function transitionFromDoubleToObject(x) {
+  if (ix++ == 0) {
+    return 1.1;
+  }
+  return {a: 1};
+}
+%PrepareFunctionForOptimization(transitionFromDoubleToObject);
+
+function transitionFromObjectToDouble(x) {
+  if (ix++ == 0) {
+    return {a: 1};
+  }
+  return 1.1;
+}
+%PrepareFunctionForOptimization(transitionFromObjectToDouble);
+
+function resetTransitionFunctions() {
+  ix = 0;
+}
+
 (function testPackedSmiElements() {
   function foo(a) {
     return a.map(plusOne);
@@ -287,6 +329,214 @@ function wrapInObject(x) {
   assertTrue(HasHoleyObjectElements(result));
 
   %OptimizeFunctionOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testFromObjectToPackedSmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [{a: 1}, {a: 2}, {a: 3}];
+  const array2 = [{a: 1}, {a: 2}, {a: 3}];
+  const result = foo(array);
+  assertTrue(HasPackedSmiElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedSmiElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testFromObjectToHoleySmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [{a: 1}, {a: 2}, , {a: 3}];
+  const array2 = [{a: 1}, {a: 2}, , {a: 3}];
+  const result = foo(array);
+  assertTrue(HasHoleySmiElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleySmiElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromPackedSmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedDoubleElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedDoubleElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromHoleySmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyDoubleElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyDoubleElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromPackedSmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedObjectElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromHoleySmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromPackedSmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+
+  assertTrue(HasPackedObjectElements(result2));
+
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromHoleySmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromPackedSmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+
+  assertTrue(HasPackedObjectElements(result2));
+
+  assertOptimized(foo);
+})();
+
+(function testTransitionFromHoleySmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeFunctionOnNextCall(foo);
+  resetTransitionFunctions();
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));

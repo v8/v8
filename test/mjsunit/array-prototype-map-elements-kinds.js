@@ -22,6 +22,43 @@ function wrapInObject(x) {
   return {a: x};
 }
 
+function unwrapObject(x) {
+  return x.a;
+}
+
+let ix = 0;
+function transitionFromSmiToDouble(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return 1.1;
+}
+
+function transitionFromSmiToObject(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return {a: 1};
+}
+
+function transitionFromDoubleToObject(x) {
+  if (ix++ == 0) {
+    return 1.1;
+  }
+  return {a: 1};
+}
+
+function transitionFromObjectToDouble(x) {
+  if (ix++ == 0) {
+    return {a: 1};
+  }
+  return 1.1;
+}
+
+function resetTransitionFunctions() {
+  ix = 0;
+}
+
 (function testPackedSmiElements() {
   function foo(a) {
     return a.map(plusOne);
@@ -175,6 +212,122 @@ function wrapInObject(x) {
   }
   assertTrue(%HasDictionaryElements(array));
 
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+})();
+
+(function testFromObjectToPackedSmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+
+  const array = [{a: 1}, {a: 2}, {a: 3}];
+  const result = foo(array);
+  assertTrue(HasPackedSmiElements(result));
+})();
+
+(function testFromObjectToHoleySmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+
+  const array = [{a: 1}, {a: 2}, , {a: 3}];
+  const result = foo(array);
+  assertTrue(HasHoleySmiElements(result));
+})();
+
+(function testTransitionFromPackedSmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+
+  const array = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedDoubleElements(result));
+})();
+
+(function testTransitionFromHoleySmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+
+  const array = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyDoubleElements(result));
+})();
+
+(function testTransitionFromPackedSmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+
+  const array = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+})();
+
+(function testTransitionFromHoleySmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+
+  const array = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+})();
+
+(function testTransitionFromPackedSmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+
+  const array = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+})();
+
+(function testTransitionFromHoleySmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+
+  const array = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+})();
+
+(function testTransitionFromPackedSmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+
+  const array = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+})();
+
+(function testTransitionFromHoleySmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+
+  const array = [0, 0, , 0];
   const result = foo(array);
   assertTrue(HasHoleyObjectElements(result));
 })();

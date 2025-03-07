@@ -26,6 +26,48 @@ function wrapInObject(x) {
 }
 %PrepareFunctionForOptimization(wrapInObject);
 
+function unwrapObject(x) {
+  return x.a;
+}
+%PrepareFunctionForOptimization(unwrapObject);
+
+let ix = 0;
+function transitionFromSmiToDouble(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return 1.1;
+}
+%PrepareFunctionForOptimization(transitionFromSmiToDouble);
+
+function transitionFromSmiToObject(x) {
+  if (ix++ == 0) {
+    return 0;
+  }
+  return {a: 1};
+}
+%PrepareFunctionForOptimization(transitionFromSmiToObject);
+
+function transitionFromDoubleToObject(x) {
+  if (ix++ == 0) {
+    return 1.1;
+  }
+  return {a: 1};
+}
+%PrepareFunctionForOptimization(transitionFromDoubleToObject);
+
+function transitionFromObjectToDouble(x) {
+  if (ix++ == 0) {
+    return {a: 1};
+  }
+  return 1.1;
+}
+%PrepareFunctionForOptimization(transitionFromObjectToDouble);
+
+function resetTransitionFunctions() {
+  ix = 0;
+}
+
 (function testPackedSmiElements() {
   function foo(a) {
     return a.map(plusOne);
@@ -287,6 +329,210 @@ function wrapInObject(x) {
   assertTrue(HasHoleyObjectElements(result));
 
   %OptimizeMaglevOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testFromObjectToPackedSmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [{a: 1}, {a: 2}, {a: 3}];
+  const array2 = [{a: 1}, {a: 2}, {a: 3}];
+  const result = foo(array);
+  assertTrue(HasPackedSmiElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedSmiElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testFromObjectToHoleySmi() {
+  function foo(a) {
+    return a.map(unwrapObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [{a: 1}, {a: 2}, , {a: 3}];
+  const array2 = [{a: 1}, {a: 2}, , {a: 3}];
+  const result = foo(array);
+  assertTrue(HasHoleySmiElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleySmiElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromPackedSmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedDoubleElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedDoubleElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromHoleySmiToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyDoubleElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyDoubleElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromPackedSmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromHoleySmiToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromSmiToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromPackedSmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromHoleySmiToDoubleToObjectWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromDoubleToObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromPackedSmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, 0];
+  const array2 = [0, 0, 0];
+  const result = foo(array);
+  assertTrue(HasPackedObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
+
+  const result2 = foo(array2);
+  assertTrue(HasPackedObjectElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testTransitionFromHoleySmiToObjectToDoubleWhileMapping() {
+  resetTransitionFunctions();
+
+  function foo(a) {
+    return a.map(transitionFromObjectToDouble);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [0, 0, , 0];
+  const array2 = [0, 0, , 0];
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+  resetTransitionFunctions();
 
   const result2 = foo(array2);
   assertTrue(HasHoleyObjectElements(result2));
