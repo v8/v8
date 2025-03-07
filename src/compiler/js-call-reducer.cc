@@ -1350,9 +1350,11 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
         SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
     Node* fallback_builtin = node_ptr()->InputAt(0);
 
-    TNode<Object> res = AddNode<Object>(graph()->NewNode(
-        op, fallback_builtin, receiver, index, n.feedback_vector(),
-        ContextInput(), n.frame_state(), effect(), control()));
+    TNode<Object> res = MayThrow(_ {
+      return AddNode<Object>(graph()->NewNode(
+          op, fallback_builtin, receiver, index, n.feedback_vector(),
+          ContextInput(), n.frame_state(), effect(), control()));
+    });
     Goto(&out, res);
   } else {
     Goto(&out, UndefinedConstant());
