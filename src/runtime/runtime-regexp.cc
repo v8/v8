@@ -2013,7 +2013,8 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
     // Do not reserve capacity since captures_length is user-controlled.
     DirectHandleSmallVector<Object, kStaticVectorSlots> captures(isolate);
 
-    for (uint32_t n = 0; n < captures_length; n++) {
+    captures.emplace_back(match);
+    for (uint32_t n = 1; n < captures_length; n++) {
       DirectHandle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, n));
@@ -2034,8 +2035,10 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
 
     DirectHandle<String> replacement;
     if (functional_replace) {
-      const uint32_t argc =
-          GetArgcForReplaceCallable(captures_length, has_named_captures);
+      // The first argument is always match string itself. So min argc value
+      // should be 1.
+      const uint32_t argc = GetArgcForReplaceCallable(
+          static_cast<uint32_t>(captures.size()), has_named_captures);
       if (argc == static_cast<uint32_t>(-1)) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate, NewRangeError(MessageTemplate::kTooManyArguments));
@@ -2044,7 +2047,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       DirectHandleVector<Object> call_args(isolate, argc);
 
       int cursor = 0;
-      for (uint32_t j = 0; j < captures_length; j++) {
+      for (uint32_t j = 0; j < captures.size(); j++) {
         call_args[cursor++] = captures[j];
       }
 
