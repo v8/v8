@@ -872,24 +872,25 @@ void InstructionSelectorT::VisitInt64Mul(OpIndex node) {
 void InstructionSelectorT::VisitInt32Div(OpIndex node) {
   Loong64OperandGeneratorT g(this);
 
-  auto binop = this->word_binop_view(node);
-  Emit(kLoong64Div_w, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
-       g.UseRegister(binop.right()));
+  auto [left, right] = Inputs<WordBinopOp>(node);
+  Emit(kLoong64Div_w, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
 }
 
 void InstructionSelectorT::VisitUint32Div(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  Emit(kLoong64Div_wu, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
-       g.UseRegister(binop.right()));
+
+  auto [left, right] = Inputs<WordBinopOp>(node);
+  Emit(kLoong64Div_wu, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
 }
 
 void InstructionSelectorT::VisitInt32Mod(OpIndex node) {
   Loong64OperandGeneratorT g(this);
 
-  auto binop = this->word_binop_view(node);
-  Emit(kLoong64Mod_w, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
-       g.UseRegister(binop.right()));
+  auto [left, right] = Inputs<WordBinopOp>(node);
+  Emit(kLoong64Mod_w, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
 }
 
 void InstructionSelectorT::VisitUint32Mod(OpIndex node) {
@@ -898,16 +899,18 @@ void InstructionSelectorT::VisitUint32Mod(OpIndex node) {
 
 void InstructionSelectorT::VisitInt64Div(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  Emit(kLoong64Div_d, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
-       g.UseRegister(binop.right()));
+
+  auto [left, right] = Inputs<WordBinopOp>(node);
+  Emit(kLoong64Div_d, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
 }
 
 void InstructionSelectorT::VisitUint64Div(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  auto binop = this->word_binop_view(node);
-  Emit(kLoong64Div_du, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
-       g.UseRegister(binop.right()));
+
+  auto [left, right] = Inputs<WordBinopOp>(node);
+  Emit(kLoong64Div_du, g.DefineSameAsFirst(node), g.UseRegister(left),
+       g.UseRegister(right));
 }
 
 void InstructionSelectorT::VisitInt64Mod(OpIndex node) {
