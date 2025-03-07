@@ -449,7 +449,7 @@ class YoungGenerationConservativeStackVisitor
 
   static bool FilterLargeObject(Tagged<HeapObject> object, MapWord map_word) {
     DCHECK_EQ(map_word, object->map_word(kRelaxedLoad));
-    return HeapLayout::IsSelfForwarded(object, map_word);
+    return !HeapLayout::IsSelfForwarded(object, map_word);
   }
 
   static bool FilterNormalObject(Tagged<HeapObject> object, MapWord map_word,
