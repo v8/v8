@@ -1542,14 +1542,14 @@ RUNTIME_FUNCTION(Runtime_GetPrivateMember) {
   DCHECK_EQ(args.length(), 2);
   DirectHandle<Object> receiver = args.at<Object>(0);
   Handle<String> desc = args.at<String>(1);
-  if (IsNullOrUndefined(*receiver, isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess,
-                              desc, receiver));
+  if (IsJSReceiver(*receiver)) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
+        Runtime::GetPrivateMember(isolate, Cast<JSReceiver>(receiver), desc));
   }
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Runtime::GetPrivateMember(isolate, Cast<JSReceiver>(receiver), desc));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess, desc,
+                            receiver));
 }
 
 RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
@@ -1559,15 +1559,15 @@ RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
   DCHECK_EQ(args.length(), 3);
   DirectHandle<Object> receiver = args.at<Object>(0);
   Handle<String> desc = args.at<String>(1);
-  if (IsNullOrUndefined(*receiver, isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess,
-                              desc, receiver));
+  if (IsJSReceiver(*receiver)) {
+    DirectHandle<Object> value = args.at<Object>(2);
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Runtime::SetPrivateMember(isolate, Cast<JSReceiver>(receiver),
+                                           desc, value));
   }
-  DirectHandle<Object> value = args.at<Object>(2);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Runtime::SetPrivateMember(isolate, Cast<JSReceiver>(receiver),
-                                         desc, value));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonObjectPrivateNameAccess, desc,
+                            receiver));
 }
 
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
