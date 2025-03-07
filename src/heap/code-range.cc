@@ -112,15 +112,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   }
 
   const size_t kPageSize = MutablePageMetadata::kPageSize;
-  CHECK(IsAligned(kPageSize, page_allocator->AllocatePageSize()));
-
-  // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
-  // not cross the 4Gb boundary and thus the default compression scheme of
-  // truncating the InstructionStream pointers to 32-bits still works. It's
-  // achieved by specifying base_alignment parameter.
-  const size_t base_alignment = V8_EXTERNAL_CODE_SPACE_BOOL
-                                    ? base::bits::RoundUpToPowerOfTwo(requested)
-                                    : kPageSize;
 
   DCHECK_IMPLIES(kPlatformRequiresCodeRange,
                  requested <= kMaximalCodeRangeSize);
@@ -128,6 +119,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   VirtualMemoryCage::ReservationParams params;
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
+  params.base_alignment =
+      VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.page_size = kPageSize;
   if (v8_flags.jitless) {
     params.permissions = PageAllocator::Permission::kNoAccess;
@@ -158,10 +151,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                                 v8_flags.better_code_range_allocation;
 
   if (kShouldTryHarder) {
-    // Relax alignment requirement while trying to allocate code range inside
-    // preferred region.
-    params.base_alignment = kPageSize;
-
     // TODO(v8:11880): consider using base::OS::GetFirstFreeMemoryRangeWithin()
     // to avoid attempts that's going to fail anyway.
 
@@ -195,12 +184,9 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     }
   }
   if (!IsReserved()) {
-    // TODO(v8:11880): Use base_alignment here once ChromeOS issue is fixed.
     Address the_hint = GetCodeRangeAddressHint()->GetAddressHint(
         requested, allocate_page_size);
-    the_hint = RoundDown(the_hint, base_alignment);
     // Last resort, use whatever region we get.
-    params.base_alignment = base_alignment;
     params.requested_start_hint = the_hint;
     if (!VirtualMemoryCage::InitReservation(params)) {
       params.requested_start_hint = kNullAddress;
@@ -330,15 +316,6 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
 
   region_start = std::max(region_start, four_gb_cage_start);
   region_end = std::min(region_end, four_gb_cage_end);
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // If ExternalCodeCompressionScheme ever changes then the requirements might
-  // need to be updated.
-  static_assert(k4GB <= kPtrComprCageReservationSize);
-  DCHECK_EQ(four_gb_cage_start,
-            ExternalCodeCompressionScheme::PrepareCageBaseAddress(
-                embedded_blob_code_start));
-#endif  // V8_EXTERNAL_CODE_SPACE
 
   return base::AddressRegion(region_start, region_end - region_start);
 #else
