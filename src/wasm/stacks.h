@@ -76,8 +76,21 @@ class StackMemory {
            kJSLimitOffsetKB * KB;
   }
   Address base() const {
-    return active_segment_ ? active_segment_->base()
-                           : reinterpret_cast<Address>(limit_ + size_);
+    Address memory_limit = active_segment_
+                               ? active_segment_->base()
+                               : reinterpret_cast<Address>(limit_ + size_);
+#ifdef V8_USE_SIMULATOR
+    // To perform runtime calls with different signatures, some simulators
+    // prepare a fixed number of arguments which is an upper bound of the actual
+    // parameter count. The extra stack slots contain arbitrary data and are
+    // never used, but with stack-switching this can happen close to the stack
+    // start, so we need to reserve a safety gap to ensure that the addresses
+    // are at least mapped to prevent a crash.
+    constexpr int kStackBaseSafetyOffset = 20 * kSystemPointerSize;
+#else
+    constexpr int kStackBaseSafetyOffset = 0;
+#endif
+    return memory_limit - kStackBaseSafetyOffset;
   }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
