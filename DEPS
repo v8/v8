@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'aa596665040d6bcd99f4d39593c1604c447be11a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dabc575458d09068ed1977d5361cd0ba887980bb',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '50e9c3d18e43dee92cd466e7d12325c71d73441d',
   'buildtools/linux64': {
@@ -305,7 +305,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '62e217a12ee1133833d9890b2f7adde900e4efbd',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '10f35ee751e173ed3bd0e974659fedc3cd7a8935',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '2c7a258470d472ba2e761f9d6a931ca0f7b5c0ab',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
