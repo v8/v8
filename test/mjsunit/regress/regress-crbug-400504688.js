@@ -11,7 +11,7 @@ arr = [];
 
 // Transition the array to dictionary mode, with length longer than
 // the FixedArray max length.
-arr.length = d8.constants.maxFixedArrayCapacity + 1;
+arr.length = 64*1024*1024+1;
 assertTrue(%HasDictionaryElements(arr));
 
 assertThrows(()=> {
