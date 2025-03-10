@@ -67,9 +67,6 @@ class TransitionArray;
   F(Ephemeron, current_ephemerons, CurrentEphemerons)                         \
   /* Stores ephemerons to visit in the next fixpoint iteration. */            \
   F(Ephemeron, next_ephemerons, NextEphemerons)                               \
-  /* When draining the marking worklist new discovered ephemerons are pushed  \
-      into this worklist. */                                                  \
-  F(Ephemeron, discovered_ephemerons, DiscoveredEphemerons)                   \
   /* TODO(marja): For old space, we only need the slot, not the host object.  \
      Optimize this by adding a different storage for old space. */            \
   F(HeapObjectAndSlot, weak_references_trivial, WeakReferencesTrivial)        \

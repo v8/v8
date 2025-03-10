@@ -464,15 +464,6 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       }
     }
 
-    if (done) {
-      Ephemeron ephemeron;
-      while (local_weak_objects.discovered_ephemerons_local.Pop(&ephemeron)) {
-        if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-          another_ephemeron_iteration = true;
-        }
-      }
-    }
-
     local_marking_worklists.Publish();
     local_weak_objects.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
@@ -633,8 +624,7 @@ size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
     marking_items += worklist.worklist->Size();
   }
   const size_t work = std::max<size_t>(
-      {marking_items, weak_objects_->discovered_ephemerons.Size(),
-       weak_objects_->current_ephemerons.Size()});
+      {marking_items, weak_objects_->current_ephemerons.Size()});
   size_t jobs = worker_count + work;
   jobs = std::min<size_t>(task_state_.size() - 1, jobs);
   if (heap_->ShouldOptimizeForBattery()) {
@@ -745,8 +735,7 @@ bool ConcurrentMarking::IsWorkLeft() const {
   DCHECK(garbage_collector_.has_value());
   if (garbage_collector_ == GarbageCollector::MARK_COMPACTOR) {
     return !marking_worklists_->shared()->IsEmpty() ||
-           !weak_objects_->current_ephemerons.IsEmpty() ||
-           !weak_objects_->discovered_ephemerons.IsEmpty();
+           !weak_objects_->current_ephemerons.IsEmpty();
   }
   DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
   return !marking_worklists_->shared()->IsEmpty() ||

@@ -74,6 +74,15 @@ class MarkCompactCollector final {
     kAtomicGC,
   };
 
+  enum class EphemeronResult {
+    // Both key and value are still unmarked.
+    kUnresolved,
+    // Value got marked because key was already marked.
+    kMarkedValue,
+    // Value is already marked or always live in this GC.
+    kResolved,
+  };
+
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
@@ -81,7 +90,8 @@ class MarkCompactCollector final {
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
-      MarkingWorklistProcessingMode mode);
+      MarkingWorklistProcessingMode mode =
+          MarkingWorklistProcessingMode::kDefault);
 
   void TearDown();
 
@@ -250,7 +260,12 @@ class MarkCompactCollector final {
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor, Isolate* isolate);
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
-  // Returns true if value was actually marked.
+  EphemeronResult ApplyEphemeronSemantics(Tagged<HeapObject> key,
+                                          Tagged<HeapObject> value);
+
+  // Wrapper around `ApplyEphemeronSemantics`. Pushes unresolved ephemerons
+  // into next_ephemerons. Returns true if the ephemeron value was warked by
+  // this method.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value);
 
   // Marks the transitive closure by draining the marking worklist iteratively,

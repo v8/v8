@@ -906,7 +906,6 @@ void MarkCompactCollector::Finish() {
   native_context_stats_.Clear();
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
   local_weak_objects_->next_ephemerons_local.Publish();
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
@@ -2053,12 +2052,12 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   bool another_ephemeron_iteration_main_thread;
 
   do {
-    PerformWrapperTracing();
-
     if (iterations >= max_iterations) {
       // Give up fixpoint iteration and switch to linear algorithm.
       return false;
     }
+
+    PerformWrapperTracing();
 
     // Move ephemerons from next_ephemerons into current_ephemerons to
     // drain them in this iteration.
@@ -2076,7 +2075,7 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
     // Can only check for local emptiness here as parallel marking tasks may
     // still be running. The caller performs the CHECKs for global emptiness.
     CHECK(local_weak_objects()->current_ephemerons_local.IsLocalEmpty());
-    CHECK(local_weak_objects()->discovered_ephemerons_local.IsLocalEmpty());
+    CHECK(local_weak_objects()->next_ephemerons_local.IsLocalEmpty());
 
     ++iterations;
   } while (another_ephemeron_iteration_main_thread ||
@@ -2100,25 +2099,15 @@ bool MarkCompactCollector::ProcessEphemerons() {
   }
 
   // Drain marking worklist and push discovered ephemerons into
-  // discovered_ephemerons.
+  // next_ephemerons.
   size_t objects_processed;
   std::tie(std::ignore, objects_processed) =
-      ProcessMarkingWorklist(v8::base::TimeDelta::Max(), SIZE_MAX,
-                             MarkingWorklistProcessingMode::kDefault);
+      ProcessMarkingWorklist(v8::base::TimeDelta::Max(), SIZE_MAX);
 
   // As soon as a single object was processed and potentially marked another
   // object we need another iteration. Otherwise we might miss to apply
   // ephemeron semantics on it.
   if (objects_processed > 0) another_ephemeron_iteration = true;
-
-  // Drain discovered_ephemerons (filled in the drain MarkingWorklist-phase
-  // before) and push ephemerons where key and value are still unreachable into
-  // next_ephemerons.
-  while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
-    if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-      another_ephemeron_iteration = true;
-    }
-  }
 
   // Flush local ephemerons for main task to global pool.
   local_weak_objects()->ephemeron_hash_tables_local.Publish();
@@ -2141,12 +2130,9 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 
   DCHECK(
       local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-  weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
-  while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
-    ProcessEphemeron(ephemeron.key, ephemeron.value);
-
-    if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-            heap_, non_atomic_marking_state_, ephemeron.value)) {
+  while (local_weak_objects()->next_ephemerons_local.Pop(&ephemeron)) {
+    if (ApplyEphemeronSemantics(ephemeron.key, ephemeron.value) ==
+        EphemeronResult::kUnresolved) {
       key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
     }
   }
@@ -2170,30 +2156,29 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
           MarkingWorklistProcessingMode::kTrackNewlyDiscoveredObjects);
     }
 
-    while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
-      ProcessEphemeron(ephemeron.key, ephemeron.value);
-
-      if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
-              heap_, non_atomic_marking_state_, ephemeron.value)) {
+    while (local_weak_objects()->next_ephemerons_local.Pop(&ephemeron)) {
+      if (ApplyEphemeronSemantics(ephemeron.key, ephemeron.value) ==
+          EphemeronResult::kUnresolved) {
         key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
       }
     }
 
+    DCHECK(local_weak_objects()->next_ephemerons_local.IsLocalAndGlobalEmpty());
+
     if (ephemeron_marking_.newly_discovered_overflowed) {
       // If newly_discovered was overflowed just visit all ephemerons in
-      // next_ephemerons.
-      local_weak_objects()->next_ephemerons_local.Publish();
-      weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
-        if (MarkingHelper::IsMarkedOrAlwaysLive(
-                heap_, non_atomic_marking_state_, ephemeron.key)) {
-          if (MarkingHelper::ShouldMarkObject(heap_, ephemeron.value)) {
-            MarkingHelper::TryMarkAndPush(
-                heap_, local_marking_worklists_.get(),
-                non_atomic_marking_state_,
-                MarkingHelper::WorklistTarget::kRegular, ephemeron.value);
-          }
+      // key_to_values.
+      for (auto it = key_to_values.begin(); it != key_to_values.end();) {
+        Tagged<HeapObject> key = it->first;
+        Tagged<HeapObject> value = it->second;
+
+        if (ApplyEphemeronSemantics(key, value) ==
+            EphemeronResult::kUnresolved) {
+          ++it;
+        } else {
+          it = key_to_values.erase(it);
         }
-      });
+      }
 
     } else {
       // This is the good case: newly_discovered stores all discovered
@@ -2201,13 +2186,14 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
       // objects alive due to ephemeron semantics.
       for (Tagged<HeapObject> object : ephemeron_marking_.newly_discovered) {
         auto range = key_to_values.equal_range(object);
-        for (auto it = range.first; it != range.second; ++it) {
+        for (auto it = range.first; it != range.second;) {
           Tagged<HeapObject> value = it->second;
           const auto target_worklist =
               MarkingHelper::ShouldMarkObject(heap_, value);
           if (target_worklist) {
             MarkObject(object, value, target_worklist.value());
           }
+          it = key_to_values.erase(it);
         }
       }
     }
@@ -2219,8 +2205,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
     work_to_do =
         !local_marking_worklists_->IsEmpty() ||
         !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get());
-    CHECK(local_weak_objects()
-              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
+    CHECK(local_weak_objects()->next_ephemerons_local.IsLocalAndGlobalEmpty());
   }
 
   ResetNewlyDiscovered();
@@ -2229,7 +2214,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
   CHECK(local_marking_worklists_->IsEmpty());
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
+  CHECK(weak_objects_.next_ephemerons.IsEmpty());
 
   // Flush local ephemerons for main task to global pool.
   local_weak_objects()->ephemeron_hash_tables_local.Publish();
@@ -2252,7 +2237,7 @@ constexpr size_t kDeadlineCheckInterval = 128u;
 
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
-    MarkingWorklistProcessingMode mode) {
+    MarkCompactCollector::MarkingWorklistProcessingMode mode) {
   Tagged<HeapObject> object;
   size_t bytes_processed = 0;
   size_t objects_processed = 0;
@@ -2314,6 +2299,19 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
 
 bool MarkCompactCollector::ProcessEphemeron(Tagged<HeapObject> key,
                                             Tagged<HeapObject> value) {
+  EphemeronResult result = ApplyEphemeronSemantics(key, value);
+
+  if (result == EphemeronResult::kUnresolved) {
+    local_weak_objects()->next_ephemerons_local.Push(Ephemeron{key, value});
+    return true;
+  }
+
+  return result == EphemeronResult::kMarkedValue;
+}
+
+MarkCompactCollector::EphemeronResult
+MarkCompactCollector::ApplyEphemeronSemantics(Tagged<HeapObject> key,
+                                              Tagged<HeapObject> value) {
   // Objects in the shared heap are prohibited from being used as keys in
   // WeakMaps and WeakSets and therefore cannot be ephemeron keys, because that
   // would enable thread local -> shared heap edges.
@@ -2324,18 +2322,26 @@ bool MarkCompactCollector::ProcessEphemeron(Tagged<HeapObject> key,
   // ShouldMarkObject call catches those cases.
   const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
   if (!target_worklist) {
-    return false;
+    // The value doesn't need to be marked in this GC, so no need to track
+    // ephemeron further.
+    return EphemeronResult::kResolved;
   }
+
   if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_, key)) {
     if (MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
                                       marking_state_, target_worklist.value(),
                                       value)) {
-      return true;
+      return EphemeronResult::kMarkedValue;
+    } else {
+      return EphemeronResult::kResolved;
     }
-  } else if (marking_state_->IsUnmarked(value)) {
-    local_weak_objects()->next_ephemerons_local.Push(Ephemeron{key, value});
+  } else {
+    if (marking_state_->IsMarked(value)) {
+      return EphemeronResult::kResolved;
+    } else {
+      return EphemeronResult::kUnresolved;
+    }
   }
-  return false;
 }
 
 void MarkCompactCollector::VerifyEphemeronMarking() {
@@ -2564,8 +2570,6 @@ void MarkCompactCollector::MarkLiveObjects() {
     CHECK(local_marking_worklists_->IsEmpty());
     CHECK(
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    CHECK(local_weak_objects()
-              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
     CHECK(IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get()));
     VerifyEphemeronMarking();
   }

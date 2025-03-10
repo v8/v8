@@ -96,12 +96,6 @@ void WeakObjects::UpdateNextEphemerons(
   next_ephemerons.Update(EphemeronUpdater);
 }
 
-// static
-void WeakObjects::UpdateDiscoveredEphemerons(
-    WeakObjectWorklist<Ephemeron>& discovered_ephemerons) {
-  discovered_ephemerons.Update(EphemeronUpdater);
-}
-
 namespace {
 template <typename TSlot>
 void UpdateWeakReferencesHelper(
