@@ -2853,14 +2853,38 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
   return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
 
-void Isolate::PrintCurrentStackTrace(std::ostream& out) {
+void Isolate::PrintCurrentStackTrace(
+    std::ostream& out,
+    PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
   DirectHandle<FixedArray> frames = CaptureSimpleStackTrace(
       this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {
     DirectHandle<CallSiteInfo> frame(Cast<CallSiteInfo>(frames->get(i)), this);
-    SerializeCallSiteInfo(this, frame, &builder);
+
+    if (should_include_frame_callback) {
+      Tagged<Object> raw_script_name = frame->GetScriptNameOrSourceURL();
+      v8::Local<v8::String> script_name_local;
+      v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(this);
+
+      if (IsString(raw_script_name)) {
+        DirectHandle<String> script_name =
+            Handle<String>(Cast<String>(raw_script_name), this);
+        script_name_local = v8::Utils::ToLocal(script_name);
+      } else {
+        script_name_local = v8::String::Empty(v8_isolate);
+      }
+
+      if (should_include_frame_callback(v8_isolate, script_name_local)) {
+        SerializeCallSiteInfo(this, frame, &builder);
+      } else {
+        builder.AppendString("<redacted>");
+      }
+    } else {
+      SerializeCallSiteInfo(this, frame, &builder);
+    }
+
     if (i != frames->length() - 1) builder.AppendCharacter('\n');
   }
 

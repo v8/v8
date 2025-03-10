@@ -973,7 +973,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
 
   enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
-  void PrintCurrentStackTrace(std::ostream& out);
+  void PrintCurrentStackTrace(std::ostream& out,
+                              PrintCurrentStackTraceFilterCallback
+                                  should_include_frame_callback = nullptr);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
   void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);

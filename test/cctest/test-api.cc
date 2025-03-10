@@ -5195,11 +5195,36 @@ THREADED_TEST(CurrentStackTraceHasUniqueIDs) {
   CHECK_NE(id1->Value(), id2->Value());
 }
 
-void GetCurrentStackTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
+// Callback that filters frames
+bool IsScriptFrameAllowed(v8::Isolate* isolate,
+                          v8::Local<v8::String> script_name) {
+  CHECK(!script_name.IsEmpty());
+
+  v8::String::Utf8Value script_name_value(isolate, script_name);
+  return script_name_value.length() == 0 ||
+         strstr(*script_name_value, "extension.js") == nullptr;
+}
+
+void GetCurrentStackTraceImpl(const v8::FunctionCallbackInfo<v8::Value>& args,
+                              bool filter_extension_scripts) {
   std::stringstream ss;
-  v8::Message::PrintCurrentStackTrace(args.GetIsolate(), ss);
+  if (filter_extension_scripts) {
+    v8::Message::PrintCurrentStackTrace(args.GetIsolate(), ss,
+                                        &IsScriptFrameAllowed);
+  } else {
+    v8::Message::PrintCurrentStackTrace(args.GetIsolate(), ss);
+  }
   std::string str = ss.str();
   args.GetReturnValue().Set(v8_str(str.c_str()));
+}
+
+void GetCurrentStackTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  GetCurrentStackTraceImpl(args, false);
+}
+
+void GetCurrentFilteredStackTrace(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  GetCurrentStackTraceImpl(args, true);
 }
 
 THREADED_TEST(MessagePrintCurrentStackTrace) {
@@ -5237,6 +5262,63 @@ THREADED_TEST(MessagePrintCurrentStackTrace) {
       "b (test:5:10)\n"
       "a (test:8:10)\n"
       "test:10:1");
+  CHECK_EQ(stack_trace_string, expected);
+}
+
+THREADED_TEST(MessagePrintCurrentStackTraceWithFiltering) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "GetCurrentFilteredStackTrace",
+             v8::FunctionTemplate::New(isolate, GetCurrentFilteredStackTrace));
+  LocalContext context(nullptr, templ);
+
+  // Set up test with multiple frames including extension frames
+  CompileRunWithOrigin(
+      R"(
+      function normalFunction() {
+        return GetCurrentFilteredStackTrace();
+      }
+      function outerFunction() {
+        return normalFunction();
+      }
+      )",
+      "normal.js");
+
+  // Compile the extension function with extension.js origin
+  // The last expression (simulatedExtensionFunction) becomes the return value
+  Local<Value> extension_function = CompileRunWithOrigin(
+      R"(
+      function simulatedExtensionFunction() {
+        return outerFunction();
+      }
+      simulatedExtensionFunction;)",
+      "extension.js");
+
+  // Set the extension function as a global property
+  context->Global()
+      ->Set(context.local(), v8_str("extensionFunction"), extension_function)
+      .FromJust();
+
+  Local<Value> stack_trace = CompileRunWithOrigin(
+      R"(
+      function testFilteredStackTrace() {
+        return extensionFunction();
+      }
+      testFilteredStackTrace();)",
+      "normal.js");
+
+  CHECK(stack_trace->IsString());
+  v8::String::Utf8Value stack_trace_value(isolate,
+                                          stack_trace.As<v8::String>());
+  std::string stack_trace_string(*stack_trace_value);
+  std::string expected(
+      "normalFunction (normal.js:3:16)\n"
+      "outerFunction (normal.js:6:16)\n"
+      "<redacted>\n"
+      "testFilteredStackTrace (normal.js:3:16)\n"
+      "normal.js:5:7");
+
   CHECK_EQ(stack_trace_string, expected);
 }
 

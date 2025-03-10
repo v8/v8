@@ -3061,10 +3061,12 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
   RETURN_ESCAPED(Utils::ToLocal(self->GetSourceLine()));
 }
 
-void Message::PrintCurrentStackTrace(Isolate* v8_isolate, std::ostream& out) {
+void Message::PrintCurrentStackTrace(
+    Isolate* v8_isolate, std::ostream& out,
+    PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->PrintCurrentStackTrace(out);
+  i_isolate->PrintCurrentStackTrace(out, should_include_frame_callback);
 }
 
 // --- S t a c k T r a c e ---
