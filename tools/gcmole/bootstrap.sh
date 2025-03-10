@@ -128,7 +128,7 @@ echo '#########################################################################'
 echo 'Congratulations you compiled clang and libgcmole.so'
 echo
 echo '# You can now run gcmole:'
-echo 'tools/gcmole/gcmole.py \'
+echo 'tools/gcmole/gcmole.py full \'
 echo '   --clang-bin-dir="tools/gcmole/bootstrap/build/bin" \'
 echo '   --clang-plugins-dir="tools/gcmole" \'
 echo '   --v8-target-cpu=$CPU'

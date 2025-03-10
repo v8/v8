@@ -299,6 +299,12 @@ static void LoadGCCauses() {
   if (gc_causes_loaded) return;
   std::ifstream fin("gccauses");
   std::string mangled, function;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gccauses" << std::endl;
+    std::abort();
+  }
+
   while (!fin.eof()) {
     std::getline(fin, mangled, ',');
     std::getline(fin, function);
@@ -328,6 +334,11 @@ static void LoadGCSuspects() {
   std::ifstream fin("gcsuspects");
   std::string mangled, function;
 
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gcsuspects" << std::endl;
+    std::abort();
+  }
+
   while (!fin.eof()) {
     std::getline(fin, mangled, ',');
     gc_suspects.insert(mangled);
@@ -344,6 +355,11 @@ static void LoadSuspectsAllowList() {
   // TODO(cbruni): clean up once fully migrated
   std::ifstream fin("tools/gcmole/suspects.allowlist");
   std::string s;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open suspects.allowlist" << std::endl;
+    std::abort();
+  }
 
   while (fin >> s) suspects_allowlist.insert(s);
 
