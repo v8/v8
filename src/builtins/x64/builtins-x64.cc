@@ -3459,8 +3459,9 @@ void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
   Register jmpbuf = tmp;
   __ LoadExternalPointerField(
       jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, kScratchRegister);
+      FieldOperand(active_continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, kScratchRegister);
+  __ leaq(jmpbuf, Operand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   FillJumpBuffer(masm, jmpbuf, suspend);
 }
 
@@ -3469,8 +3470,10 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
   Register target_jmpbuf = target_continuation;
   __ LoadExternalPointerField(
       target_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, kScratchRegister);
+      FieldOperand(target_continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, kScratchRegister);
+  __ leaq(target_jmpbuf,
+          Operand(target_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
@@ -3510,8 +3513,9 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   Register jmpbuf = kScratchRegister;
   __ LoadExternalPointerField(
       jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, tmp2);
+      FieldOperand(active_continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, tmp2);
+  __ leaq(jmpbuf, Operand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Retired);
 
@@ -3524,8 +3528,9 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
   jmpbuf = parent;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(parent, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, kScratchRegister);
+      jmpbuf, FieldOperand(parent, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, kScratchRegister);
+  __ leaq(jmpbuf, Operand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
 
   // Switch stack!
   SwitchStacks(masm, active_continuation, true,
@@ -3974,8 +3979,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadRoot(continuation, RootIndex::kActiveContinuation);
   Register jmpbuf = rdx;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, r8);
+      jmpbuf, FieldOperand(continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, r8);
+  __ leaq(jmpbuf, Operand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   FillJumpBuffer(masm, jmpbuf, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
@@ -4022,8 +4028,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   continuation = no_reg;
   jmpbuf = caller;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, r8);
+      jmpbuf, FieldOperand(caller, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, r8);
+  __ leaq(jmpbuf, Operand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   caller = no_reg;
   __ LoadTaggedField(
       kReturnRegister0,
@@ -4088,8 +4095,10 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Register current_jmpbuf = rax;
   __ LoadExternalPointerField(
       current_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, rdx);
+      FieldOperand(active_continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, rdx);
+  __ leaq(current_jmpbuf,
+          Operand(current_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   FillJumpBuffer(masm, current_jmpbuf, &suspend);
   SwitchStackState(masm, current_jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Inactive);
@@ -4135,8 +4144,10 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Register target_jmpbuf = rdi;
   __ LoadExternalPointerField(
       target_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset),
-      kWasmContinuationJmpbufTag, rax);
+      FieldOperand(target_continuation, WasmContinuationObject::kStackOffset),
+      kWasmStackMemoryTag, rax);
+  __ leaq(target_jmpbuf,
+          Operand(target_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   // Move resolved value to return register.
   __ movq(kReturnRegister0, Operand(rbp, 3 * kSystemPointerSize));
   __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),

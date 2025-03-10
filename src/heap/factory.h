@@ -795,7 +795,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
       DirectHandle<Map> map, wasm::CanonicalValueType element_type);
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
-      Address jmpbuf, wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
+      wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(

@@ -3328,7 +3328,8 @@ void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
   DCHECK(!AreAliased(active_continuation, tmp));
   Register jmpbuf = tmp;
   __ mov(jmpbuf, FieldOperand(active_continuation,
-                              WasmContinuationObject::kJmpbufOffset));
+                              WasmContinuationObject::kStackOffset));
+  __ lea(jmpbuf, MemOperand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   FillJumpBuffer(masm, jmpbuf, tmp2, suspend);
 }
 
@@ -3336,7 +3337,9 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
                           wasm::JumpBuffer::StackState expected_state) {
   Register target_jmpbuf = target_continuation;
   __ mov(target_jmpbuf, FieldOperand(target_continuation,
-                                     WasmContinuationObject::kJmpbufOffset));
+                                     WasmContinuationObject::kStackOffset));
+  __ lea(target_jmpbuf,
+         MemOperand(target_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   MemOperand GCScanSlotPlace =
       MemOperand(ebp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, Immediate(0));
@@ -3378,7 +3381,8 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   // this stack for the last time. Mark the stack as retired.
   Register jmpbuf = promise;
   __ mov(jmpbuf, FieldOperand(active_continuation,
-                              WasmContinuationObject::kJmpbufOffset));
+                              WasmContinuationObject::kStackOffset));
+  __ lea(jmpbuf, MemOperand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Retired);
 
@@ -3389,7 +3393,8 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
   // Update active continuation root.
   __ mov(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
   jmpbuf = parent;
-  __ mov(jmpbuf, FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
+  __ mov(jmpbuf, FieldOperand(parent, WasmContinuationObject::kStackOffset));
+  __ lea(jmpbuf, MemOperand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
 
   __ Pop(promise);
   // Switch stack!
@@ -3871,7 +3876,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadRoot(continuation, RootIndex::kActiveContinuation);
   Register jmpbuf = edi;
   __ Move(jmpbuf,
-          FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset));
+          FieldOperand(continuation, WasmContinuationObject::kStackOffset));
+  __ lea(jmpbuf, MemOperand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   FillJumpBuffer(masm, jmpbuf, ecx, &resume);
   SwitchStackState(masm, jmpbuf, wasm::JumpBuffer::Active,
                    wasm::JumpBuffer::Suspended);
@@ -3911,7 +3917,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   SwitchStacks(masm, continuation, false, {caller, suspender});
   jmpbuf = caller;
-  __ Move(jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset));
+  __ Move(jmpbuf, FieldOperand(caller, WasmContinuationObject::kStackOffset));
+  __ lea(jmpbuf, MemOperand(jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   caller = no_reg;
   __ Move(kReturnRegister0,
           FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
@@ -3969,7 +3976,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
   Register current_jmpbuf = eax;
   __ Move(current_jmpbuf, FieldOperand(active_continuation,
-                                       WasmContinuationObject::kJmpbufOffset));
+                                       WasmContinuationObject::kStackOffset));
+  __ lea(current_jmpbuf,
+         MemOperand(current_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   active_continuation = no_reg;  // We reload this later.
   FillJumpBuffer(masm, current_jmpbuf, edx, &suspend);
   SwitchStackState(masm, current_jmpbuf, wasm::JumpBuffer::Active,
@@ -4017,7 +4026,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   Register target_jmpbuf = edi;
   __ Move(target_jmpbuf, FieldOperand(target_continuation,
-                                      WasmContinuationObject::kJmpbufOffset));
+                                      WasmContinuationObject::kStackOffset));
+  __ lea(target_jmpbuf,
+         MemOperand(target_jmpbuf, wasm::StackMemory::jmpbuf_offset()));
   // Move resolved value to return register.
   __ mov(kReturnRegister0, Operand(ebp, 3 * kSystemPointerSize));
   __ Move(MemOperand(ebp, StackSwitchFrameConstants::kGCScanSlotCountOffset),

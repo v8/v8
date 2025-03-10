@@ -577,7 +577,6 @@ enum ExternalPointerTag : uint16_t {
   kWasmInternalFunctionCallTargetTag,
   kWasmTypeInfoNativeTypeTag,
   kWasmExportedFunctionDataSignatureTag,
-  kWasmContinuationJmpbufTag,
   kWasmStackMemoryTag,
   kWasmIndirectFunctionTargetTag,
 

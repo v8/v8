@@ -186,6 +186,9 @@ class StackMemory {
     return OFFSET_OF(StackMemory, stack_switch_info_) +
            OFFSET_OF(StackMemory::StackSwitchInfo, target_sp);
   }
+  constexpr static uint32_t jmpbuf_offset() {
+    return OFFSET_OF(StackMemory, jmpbuf_);
+  }
 
  private:
   // This constructor allocates a new stack segment.

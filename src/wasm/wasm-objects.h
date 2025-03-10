@@ -1477,15 +1477,13 @@ class WasmContinuationObject
       wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
       AllocationType allocation_type = AllocationType::kYoung);
 
-  DECL_EXTERNAL_POINTER_ACCESSORS(jmpbuf, Address)
   DECL_EXTERNAL_POINTER_ACCESSORS(stack, Address)
 
   DECL_PRINTER(WasmContinuationObject)
 
   using BodyDescriptor = StackedBodyDescriptor<
       FixedBodyDescriptorFor<WasmContinuationObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>,
-      WithExternalPointer<kJmpbufOffset, kWasmContinuationJmpbufTag>>;
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)

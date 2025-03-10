@@ -2611,10 +2611,9 @@ DirectHandle<WasmContinuationObject> WasmContinuationObject::New(
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->fp = kNullAddress;
   stack->jmpbuf()->state = state;
-  wasm::JumpBuffer* jmpbuf = stack->jmpbuf();
   DirectHandle<WasmContinuationObject> result =
-      isolate->factory()->NewWasmContinuationObject(
-          reinterpret_cast<Address>(jmpbuf), stack, parent, allocation_type);
+      isolate->factory()->NewWasmContinuationObject(stack, parent,
+                                                    allocation_type);
   return result;
 }
 

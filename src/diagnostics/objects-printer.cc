@@ -2746,7 +2746,6 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
 void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmContinuationObject");
   os << "\n - parent: " << parent();
-  os << "\n - jmpbuf: " << jmpbuf();
   os << "\n - stack: " << stack();
   os << "\n";
 }
