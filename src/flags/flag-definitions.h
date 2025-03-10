@@ -1790,6 +1790,18 @@ DEFINE_IMPLICATION(experimental_wasm_growable_stacks, experimental_wasm_jspi)
 DEFINE_IMPLICATION(experimental_wasm_imported_strings_utf8,
                    experimental_wasm_imported_strings)
 
+// Unsafe additions to the GC proposal for performance experiments.
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_wasm_assume_ref_cast_succeeds,
+    "assume ref.cast always succeeds and skip the related type check (unsafe)")
+DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_ref_cast_nop,
+                            "enable unsafe ref.cast_nop instruction")
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_wasm_skip_null_checks,
+    "skip null checks for call.ref and array and struct operations (unsafe)")
+DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
+                            "skip array bounds checks (unsafe)")
+
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \

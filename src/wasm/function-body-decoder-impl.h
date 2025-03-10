@@ -5412,7 +5412,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefCastNop: {
         NON_CONST_ONLY
         // Temporary non-standard instruction, for performance experiments.
-        if (!VALIDATE(this->enabled_.has_ref_cast_nop())) {
+        if (!VALIDATE(v8_flags.experimental_wasm_ref_cast_nop)) {
           this->DecodeError(
               "Invalid opcode 0xfb4c (enable with "
               "--experimental-wasm-ref-cast-nop)");

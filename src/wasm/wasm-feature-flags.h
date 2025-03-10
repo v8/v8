@@ -33,18 +33,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Non-specified, V8-only experimental additions to the GC proposal */       \
-  /* V8 side owner: jkummerow */                                               \
-  V(assume_ref_cast_succeeds,                                                  \
-    "assume ref.cast always succeeds and skip the related type check "         \
-    "(unsafe)",                                                                \
-    false)                                                                     \
-  V(ref_cast_nop, "enable unsafe ref.cast_nop instruction", false)             \
-  V(skip_null_checks,                                                          \
-    "skip null checks for call.ref and array and struct operations (unsafe)",  \
-    false)                                                                     \
-  V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
-                                                                               \
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
