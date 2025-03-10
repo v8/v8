@@ -4418,8 +4418,7 @@ void Script::TraceScriptRundown() {
   auto value = v8::tracing::TracedValue::Create();
   value->SetInteger("scriptId", this->id());
   value->SetInteger("executionContextId", contextId);
-  value->SetString("isolate",
-                   std::to_string(reinterpret_cast<size_t>(isolate)));
+  value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
   value->SetBoolean("isModule", this->origin_options().IsModule());
   value->SetBoolean("hasSourceUrl", this->HasSourceURLComment());
   if (this->HasValidSource()) {
@@ -4446,12 +4445,11 @@ void Script::TraceScriptRundownSources() {
   if (!IsString(this->source())) return;
   Tagged<String> source = Cast<String>(this->source());
   auto script_id = this->id();
-  auto isolate_string = std::to_string(reinterpret_cast<size_t>(isolate));
   int32_t source_length = source->length();
   const int32_t kSplitMaxLength = 1000000;
   if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
-    value->SetString("isolate", isolate_string);
+    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetString("sourceText", source->ToCString().get());
@@ -4467,7 +4465,8 @@ void Script::TraceScriptRundownSources() {
       auto split_trace_value = v8::tracing::TracedValue::Create();
       split_trace_value->SetInteger("splitIndex", i);
       split_trace_value->SetInteger("splitCount", split_count);
-      split_trace_value->SetString("isolate", isolate_string);
+      split_trace_value->SetUnsignedInteger("isolate",
+                                            isolate->debug()->IsolateId());
       split_trace_value->SetInteger("scriptId", script_id);
       split_trace_value->SetString(
           "sourceText", std::string(source_ptr.get() + begin, end - begin));

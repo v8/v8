@@ -364,6 +364,7 @@ class V8_EXPORT V8Inspector {
   virtual void resetContextGroup(int contextGroupId) = 0;
   virtual v8::MaybeLocal<v8::Context> contextById(int contextId) = 0;
   virtual V8DebuggerId uniqueDebuggerId(int contextId) = 0;
+  virtual uint64_t isolateId() = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;

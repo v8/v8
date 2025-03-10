@@ -697,6 +697,9 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
 
+uint64_t GetIsolateId(v8::Isolate* isolate);
+void SetIsolateId(v8::Isolate* isolate, uint64_t id);
+
 }  // namespace debug
 }  // namespace v8
 

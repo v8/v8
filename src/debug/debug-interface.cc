@@ -1433,6 +1433,16 @@ void NotifyDebuggerPausedEventSent(v8::Isolate* v8_isolate) {
   isolate->debug()->NotifyDebuggerPausedEventSent();
 }
 
+uint64_t GetIsolateId(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  return isolate->debug()->IsolateId();
+}
+
+void SetIsolateId(v8::Isolate* v8_isolate, uint64_t id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->debug()->SetIsolateId(id);
+}
+
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =

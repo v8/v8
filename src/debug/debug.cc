@@ -178,7 +178,8 @@ Debug::Debug(Isolate* isolate)
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
       debug_infos_(isolate),
-      isolate_(isolate) {
+      isolate_(isolate),
+      isolate_id_(0) {
   ThreadInit();
 }
 

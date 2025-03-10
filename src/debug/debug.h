@@ -505,6 +505,9 @@ class V8_EXPORT_PRIVATE Debug {
   void SetMutedWasmLocation(DirectHandle<Script> script, int position);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  uint64_t IsolateId() const { return isolate_id_; }
+  void SetIsolateId(uint64_t id) { isolate_id_ = id; }
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -716,6 +719,11 @@ class V8_EXPORT_PRIVATE Debug {
       ignore_side_effects_for_function_template_info_;
 
   Isolate* isolate_;
+
+  // The isolate id is set by the inspector via an embedder provided RNG
+  // (if provided) but stored in debug instance so we can access it internally
+  // in V8.
+  uint64_t isolate_id_;
 
   friend class Isolate;
   friend class DebugScope;
