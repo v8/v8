@@ -150,10 +150,19 @@ void ExternalizeStringExtension::Externalize(
 namespace {
 
 MaybeDirectHandle<String> CopyConsStringToOld(Isolate* isolate,
-                                              DirectHandle<ConsString> string) {
-  return isolate->factory()->NewConsString(handle(string->first(), isolate),
-                                           handle(string->second(), isolate),
-                                           AllocationType::kOld);
+                                              DirectHandle<ConsString> string,
+                                              v8::String::Encoding encoding) {
+  DirectHandle<String> first = handle(string->first(), isolate);
+  DirectHandle<String> second = handle(string->second(), isolate);
+  if (encoding == v8::String::Encoding::TWO_BYTE_ENCODING &&
+      first->IsOneByteRepresentation() && second->IsOneByteRepresentation()) {
+    isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
+        "Cannot create externalizable two-byte string from one-byte "
+        "ConsString. Create at least one part of the ConsString with "
+        "createExternalizableTwoByteString()"));
+    return kNullMaybeHandle;
+  }
+  return isolate->factory()->NewConsString(first, second, AllocationType::kOld);
 }
 
 MaybeDirectHandle<String> CreateExternalizableString(
@@ -194,10 +203,12 @@ MaybeDirectHandle<String> CreateExternalizableString(
   if (IsConsString(*string, i_isolate) && !string->IsFlat() &&
       Cast<ConsString>(string)->first()->length() != 0) {
     DirectHandle<String> result;
-    if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string))
+    if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string), encoding)
             .ToHandle(&result)) {
       DCHECK(result->SupportsExternalization(encoding));
       return result;
+    } else {
+      return kNullMaybeHandle;
     }
   }
   // All other strings can be implicitly flattened.
