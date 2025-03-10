@@ -111,39 +111,11 @@ class SmiCompressionScheme : public AllStatic {
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 // Compression scheme used for fields containing InstructionStream objects
-// (namely for the Code::code field).
-// Unlike the V8HeapCompressionScheme this one allows the cage to cross 4GB
-// boundary at a price of making decompression slightly more complex.
-// The former outweighs the latter because it gives us more flexibility in
-// allocating the code range closer to .text section in the process address
-// space. At the same time decompression of the external code field happens
-// relatively rarely during GC.
-// The base can be any value such that [base, base + 4GB) contains the whole
-// code range.
-//
-// This scheme works as follows:
-//    --|----------{---------|------}--------------|--
-//     4GB         |        4GB     |             4GB
-//                 +-- code range --+
-//                 |
-//             cage base
-//
-// * Cage base value is OS page aligned for simplicity (although it's not
-//   strictly necessary).
-// * Code range size is smaller than or equal to 4GB.
-// * Compression is just a truncation to 32-bits value.
-// * Decompression of a pointer:
-//   - if "compressed" cage base is <= than compressed value then one just
-//     needs to OR the upper 32-bits of the case base to get the decompressed
-//     value.
-//   - if compressed value is smaller than "compressed" cage base then ORing
-//     the upper 32-bits of the cage base is not enough because the resulting
-//     value will be off by 4GB, which has to be added to the result.
-//   - note that decompression doesn't modify the lower 32-bits of the value.
-// * Decompression of Smi values is made a no-op for simplicity given that
-//   on the hot paths of decompressing the Code pointers it's already known
-//   that the value is not a Smi.
-//
+// (namely for the Code::code field). Same as
+// V8HeapCompressionScheme but with a different base value.
+// TODO(ishell): consider also using V8HeapCompressionSchemeImpl here unless
+// this becomes a different compression scheme that allows crossing the 4GB
+// boundary.
 class ExternalCodeCompressionScheme {
  public:
   V8_INLINE static Address PrepareCageBaseAddress(Address on_heap_addr);
