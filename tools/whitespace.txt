@@ -18,6 +18,27 @@ Today's answer to life the universe and everything is 6728!!
 Off-course, this is wrong ...
 ..
 
+# LINT.IfChange(Foo)
+Some
+lines
+of
+code
+# LINT.ThenChange(//DEPS)
+
+# LINT.IfChange(Bar)
+Some
+lines
+of
+code
+# LINT.ThenChange(/test/mjsunit/mjsunit.js)
+
+# LINT.IfChange
+Some
+lines
+of
+code
+# LINT.ThenChange(bazel/.gitignore)
+
 Test b/319667336
 Test git watcher
 Artifact change for b/333913216+1
