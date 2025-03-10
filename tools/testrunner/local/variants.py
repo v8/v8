@@ -146,6 +146,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--track-field-types",
         "--stress-concurrent-inlining",
         "--script-context-mutable-heap-number",
+        "--experimental-wasm-shared",
     ],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [

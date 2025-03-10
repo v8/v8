@@ -683,8 +683,6 @@ class ModuleDecoderImpl : public Decoder {
       // We need to resize types before decoding the type definitions in this
       // group, so that the correct type size is visible to type definitions.
       module_->types.resize(initial_size + group_size);
-      module_->isorecursive_canonical_type_ids.resize(initial_size +
-                                                      group_size);
       for (uint32_t j = 0; j < group_size; j++) {
         if (tracer_) tracer_->TypeOffset(pc_offset());
         TypeDefinition type = consume_subtype_definition(initial_size + j);
@@ -792,6 +790,11 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
       }
+    }
+    module->isorecursive_canonical_type_ids.resize(end_index);
+    type_canon->AddRecursiveGroup(module, group_size);
+    for (uint32_t i = start_index; ok() && i < end_index; ++i) {
+      TypeDefinition& type_def = module_->types[i];
       ModuleTypeIndex explicit_super = type_def.supertype;
       if (!explicit_super.valid()) continue;  // No supertype.
       DCHECK_LT(explicit_super.index, i);  // Checked during decoding.
@@ -815,7 +818,6 @@ class ModuleDecoderImpl : public Decoder {
         return;
       }
     }
-    type_canon->AddRecursiveGroup(module, group_size);
   }
 
   void DecodeImportSection() {
