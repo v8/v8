@@ -26,6 +26,10 @@
 #include "src/utils/allocation.h"
 #include "src/utils/boxed-float.h"
 
+namespace heap::base {
+class StackVisitor;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -237,9 +241,13 @@ class Simulator : public SimulatorBase {
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
 
+  uintptr_t StackBase() const;
+
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   // Executes ARM instructions until the PC reaches end_sim_pc.
   void Execute();

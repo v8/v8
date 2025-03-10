@@ -20,6 +20,8 @@ class StackVisitor {
   virtual void VisitPointer(const void* address) = 0;
 };
 
+using StackVisitorCallback = void (*)(StackVisitor*);
+
 // Abstraction over the stack. Supports handling of:
 // - native stack;
 // - ASAN/MSAN;
@@ -110,6 +112,10 @@ class V8_EXPORT_PRIVATE Stack final {
   // This method is only safe to use in a safepoint, as it does not take the
   // mutex for background_stacks_.
   bool HasBackgroundStacks() const { return !background_stacks_.empty(); }
+
+  void SetScanSimulatorCallback(StackVisitorCallback callback) {
+    scan_simulator_callback_ = callback;
+  }
 
   // Stack segments that may contain pointers and should be scanned.
   struct Segment {
@@ -207,6 +213,8 @@ class V8_EXPORT_PRIVATE Stack final {
 
   mutable v8::base::Mutex lock_;
   std::map<ThreadId, Segment> background_stacks_;
+
+  StackVisitorCallback scan_simulator_callback_ = nullptr;
 };
 
 }  // namespace heap::base

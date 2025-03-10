@@ -607,6 +607,8 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   CHECK_NULL(isolate_);
   isolate_ = isolate;
   heap_ = isolate->heap();
+  stack_->SetScanSimulatorCallback(
+      Isolate::IterateRegistersAndStackOfSimulator);
   static_cast<CppgcPlatformAdapter*>(platform())
       ->SetIsolate(reinterpret_cast<v8::Isolate*>(isolate_));
   if (auto* heap_profiler = heap()->heap_profiler()) {

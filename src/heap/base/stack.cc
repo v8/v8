@@ -8,8 +8,8 @@
 
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
-#include "src/heap/base/memory-tagging.h"
 #include "src/base/sanitizer/tsan.h"
+#include "src/heap/base/memory-tagging.h"
 
 namespace heap::base {
 
@@ -165,6 +165,9 @@ void Stack::IteratePointersUntilMarker(StackVisitor* visitor) const {
   SuspendTagCheckingScope s;
   IteratePointersInStack(visitor, current_segment_);
   IteratePointersInUnsafeStackIfNecessary(visitor, current_segment_);
+  if (scan_simulator_callback_) {
+    scan_simulator_callback_(visitor);
+  }
 }
 
 void Stack::IterateBackgroundStacks(StackVisitor* visitor) const {

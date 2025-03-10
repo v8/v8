@@ -22,6 +22,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/combined-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -321,6 +322,12 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + kAdditionalStackMargin;
 }
 
+uintptr_t Simulator::StackBase() const {
+  uintptr_t result = stack_ + AllocatedStackSize() - kStackProtectionSize;
+  // The stack base is 16-byte aligned.
+  return result & ~0xFULL;
+}
+
 void Simulator::SetStackLimit(uintptr_t limit) {
   stack_limit_ = static_cast<uintptr_t>(limit - kAdditionalStackMargin);
 }
@@ -332,6 +339,24 @@ base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   return base::VectorOf(
       reinterpret_cast<uint8_t*>(stack_ + kStackProtectionSize),
       UsableStackSize());
+}
+
+// We touch the stack, which may or may not have been initialized properly. Msan
+// reports here are not interesting.
+DISABLE_MSAN void Simulator::IterateRegistersAndStack(
+    ::heap::base::StackVisitor* visitor) {
+  for (int i = 0; i < kNumberOfRegisters; ++i) {
+    visitor->VisitPointer(reinterpret_cast<const void*>(xreg(i)));
+  }
+  for (const void* const* current =
+           reinterpret_cast<const void* const*>(get_sp());
+       current < reinterpret_cast<const void* const*>(StackBase()); ++current) {
+    const void* address = *current;
+    if (address == nullptr) {
+      continue;
+    }
+    visitor->VisitPointer(address);
+  }
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
@@ -376,9 +401,7 @@ void Simulator::Init(FILE* stream) {
 
   stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]());
   stack_limit_ = stack_ + kStackProtectionSize;
-  uintptr_t tos = stack_ + stack_size - kStackProtectionSize;
-  // The stack pointer must be 16-byte aligned.
-  set_sp(tos & ~0xFULL);
+  set_sp(StackBase());
 
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);

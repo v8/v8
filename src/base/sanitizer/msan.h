@@ -22,6 +22,8 @@
 #define MSAN_MEMORY_IS_INITIALIZED(start, size) \
   __msan_unpoison(reinterpret_cast<const void*>(start), (size))
 
+#define DISABLE_MSAN __attribute__((no_sanitize("memory")))
+
 #else  // !V8_USE_MEMORY_SANITIZER
 
 #define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)              \
@@ -34,6 +36,8 @@
 
 #define MSAN_MEMORY_IS_INITIALIZED(start, size) \
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)
+
+#define DISABLE_MSAN
 
 #endif  // V8_USE_MEMORY_SANITIZER
 

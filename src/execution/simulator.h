@@ -34,6 +34,10 @@
 #error Unsupported target architecture.
 #endif
 
+namespace heap::base {
+class StackVisitor;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -57,6 +61,13 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->GetCentralStackView();
   }
 #endif
+
+  // Iterates the simulator registers and stack for conservative stack scanning.
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {
+    DCHECK_NOT_NULL(isolate);
+    Simulator::current(isolate)->IterateRegistersAndStack(visitor);
+  }
 
   // When running on the simulator, we should leave the C stack limits alone
   // when switching stacks for Wasm.
@@ -102,6 +113,9 @@ class SimulatorStack : public v8::internal::AllStatic {
     return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
   }
 #endif
+
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {}
 
   // When running on real hardware, we should also switch the C stack limit
   // when switching stacks for Wasm.

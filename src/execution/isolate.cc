@@ -3805,6 +3805,14 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   destructor->next_ = nullptr;
 }
 
+// static
+void Isolate::IterateRegistersAndStackOfSimulator(
+    ::heap::base::StackVisitor* visitor) {
+  Isolate* isolate = Isolate::TryGetCurrent();
+  if (!isolate) return;
+  SimulatorStack::IterateRegistersAndStack(isolate, visitor);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 bool Isolate::IsOnCentralStack(Address addr) {
   auto stack = SimulatorStack::GetCentralStackView(this);

@@ -761,10 +761,13 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  uintptr_t StackBase() const;
   void SetStackLimit(uintptr_t limit);
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   V8_EXPORT_PRIVATE void ResetState();
 

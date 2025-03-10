@@ -96,6 +96,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
     Isolate::SetCurrent(heap_->isolate());
     LocalHeap::SetCurrent(this);
   }
+  stack_.SetScanSimulatorCallback(Isolate::IterateRegistersAndStackOfSimulator);
 }
 
 LocalHeap::~LocalHeap() {

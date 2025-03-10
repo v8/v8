@@ -2433,6 +2433,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
+  static void IterateRegistersAndStackOfSimulator(
+      ::heap::base::StackVisitor* visitor);
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
