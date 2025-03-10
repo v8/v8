@@ -3500,7 +3500,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> context = lazy_context();
     TNode<Context> script_context = LoadScriptContext(context, context_index);
-    TNode<Object> result = LoadContextElement(script_context, slot_index);
+    TNode<Object> result = LoadScriptContextElement(script_context, slot_index);
     exit_point->Return(result);
   }
 }
