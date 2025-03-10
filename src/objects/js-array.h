@@ -133,8 +133,10 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static_assert(kMaxArrayIndex == kMaxUInt32 - 1);
 
   // This constant is somewhat arbitrary. Any large enough value would work.
-  static constexpr uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  static constexpr uint32_t kMaxFastArrayLength =
+      V8_LOWER_LIMITS_MODE_BOOL ? (8 * 1024 * 1024) : (32 * 1024 * 1024);
   static_assert(kMaxFastArrayLength <= kMaxArrayLength);
+  static_assert(kMaxFastArrayLength <= kMaxFixedArrayCapacity);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;

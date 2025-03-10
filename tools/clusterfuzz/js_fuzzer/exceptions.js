@@ -48,6 +48,9 @@ const SKIPPED_FILES = [
     // Contains an expected SyntaxError. From:
     // spidermonkey/non262/Unicode/regress-352044-02-n.js
     'regress-352044-02-n.js',
+
+    // Very slow pattern that just makes fuzz tests time out.
+    'regress-crbug-400504688.js',
 ];
 
 const SKIPPED_DIRECTORIES = [

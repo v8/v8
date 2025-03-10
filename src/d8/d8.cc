@@ -61,6 +61,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/log-file.h"
+#include "src/objects/js-array.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -4140,6 +4141,22 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "triggerSample",
         FunctionTemplate::New(isolate, ProfilerTriggerSample));
     d8_template->Set(isolate, "profiler", profiler_template);
+  }
+  {
+    Local<ObjectTemplate> constants_template = ObjectTemplate::New(isolate);
+    if (!i::v8_flags.correctness_fuzzer_suppressions) {
+      // Don't expose these constants in differential-fuzzing builds as they
+      // differ with lower-limits mode.
+      constants_template->Set(
+          String::NewFromUtf8Literal(isolate, "maxFixedArrayCapacity",
+                                     NewStringType::kInternalized),
+          Number::New(isolate, i::kMaxFixedArrayCapacity));
+      constants_template->Set(
+          String::NewFromUtf8Literal(isolate, "maxFastArrayLength",
+                                     NewStringType::kInternalized),
+          Number::New(isolate, i::JSArray::kMaxFastArrayLength));
+    }
+    d8_template->Set(isolate, "constants", constants_template);
   }
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   d8_template->Set(
