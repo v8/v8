@@ -10,6 +10,7 @@
 
 #include "include/v8-array-buffer.h"
 #include "include/v8-internal.h"
+#include "src/base/bit-field.h"
 #include "src/handles/handles.h"
 #include "src/sandbox/sandbox.h"
 
@@ -93,10 +94,11 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   }
   size_t max_byte_length() const { return max_byte_length_; }
   size_t byte_capacity() const { return byte_capacity_; }
-  bool is_shared() const { return is_shared_; }
-  bool is_resizable_by_js() const { return is_resizable_by_js_; }
-  bool is_wasm_memory() const { return is_wasm_memory_; }
-  bool has_guard_regions() const { return has_guard_regions_; }
+  bool is_shared() const { return has_flag(kIsShared); }
+  bool is_resizable_by_js() const { return has_flag(kIsResizableByJs); }
+  bool is_wasm_memory() const { return has_flag(kIsWasmMemory); }
+  bool is_wasm_memory64() const { return has_flag(kIsWasmMemory64); }
+  bool has_guard_regions() const { return has_flag(kHasGuardRegions); }
 
   bool IsEmpty() const {
     DCHECK_GE(byte_capacity_, byte_length_);
@@ -142,7 +144,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Returns the size of the external memory owned by this backing store.
   // It is used for triggering GCs based on the external memory pressure.
   size_t PerIsolateAccountingLength() {
-    if (is_shared_) {
+    if (has_flag(kIsShared)) {
       // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
       // with accounting for per-isolate external memory. In particular, sharing
       // the same array buffer or memory multiple times, which happens in stress
@@ -150,7 +152,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
       // accounting?
       return 0;
     }
-    if (empty_deleter_) {
+    if (has_flag(kEmptyDeleter)) {
       // The backing store has an empty deleter. Even if the backing store is
       // freed after GC, it would not free the memory block.
       return 0;
@@ -162,6 +164,18 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
  private:
   friend class GlobalBackingStoreRegistry;
+
+  enum Flag {
+    kIsShared,
+    kIsResizableByJs,
+    kIsWasmMemory,
+    kIsWasmMemory64,
+    kHoldsSharedPtrToAllocater,
+    kHasGuardRegions,
+    kGloballyRegistered,
+    kCustomDeleter,
+    kEmptyDeleter
+  };
 
   BackingStore(PageAllocator* page_allocator, void* buffer_start,
                size_t byte_length, size_t max_byte_length, size_t byte_capacity,
@@ -175,6 +189,32 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Accessors for type-specific data.
   v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
   SharedWasmMemoryData* get_shared_wasm_memory_data() const;
+
+  bool has_flag(Flag flag) const {
+    return flags_.load(std::memory_order_relaxed).contains(flag);
+  }
+  void set_flag(Flag flag) {
+    base::EnumSet<Flag, uint16_t> old_flags =
+        flags_.load(std::memory_order_relaxed);
+    while (!flags_.compare_exchange_weak(old_flags, old_flags | flag,
+                                         std::memory_order_relaxed)) {
+      // Retry with updated `old_flags`.
+    }
+  }
+  void clear_flag(Flag flag) {
+    base::EnumSet<Flag, uint16_t> old_flags =
+        flags_.load(std::memory_order_relaxed);
+    while (!flags_.compare_exchange_weak(old_flags, old_flags - flag,
+                                         std::memory_order_relaxed)) {
+      // Retry with updated `old_flags`.
+    }
+  }
+
+  bool holds_shared_ptr_to_allocator() const {
+    return has_flag(kHoldsSharedPtrToAllocater);
+  }
+  bool custom_deleter() const { return has_flag(kCustomDeleter); }
+  bool globally_registered() const { return has_flag(kGloballyRegistered); }
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_;
@@ -216,16 +256,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     } deleter;
   } type_specific_data_;
 
-  const bool is_shared_ : 1;
-  // Backing stores for (Resizable|GrowableShared)ArrayBuffer
-  const bool is_resizable_by_js_ : 1;
-  const bool is_wasm_memory_ : 1;
-  const bool is_wasm_memory64_ : 1;
-  bool holds_shared_ptr_to_allocator_ : 1;
-  const bool has_guard_regions_ : 1;
-  bool globally_registered_ : 1;
-  const bool custom_deleter_ : 1;
-  const bool empty_deleter_ : 1;
+  std::atomic<base::EnumSet<Flag, uint16_t>> flags_;
 };
 
 // A global, per-process mapping from buffer addresses to backing stores
