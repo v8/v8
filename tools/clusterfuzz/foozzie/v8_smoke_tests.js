@@ -44,5 +44,12 @@ print("Sensitive runtime functions are neutered");
   print(fun(foo));
 })();
 
+print("Same constants across builds");
+(function () {
+  for (let [k, v] of Object.entries(this.d8.constants)) {
+    print(`${k}:${v}`)
+  }
+})();
+
 // Don't change this line, it's used to separate smoketest output.
 print("___foozzie___smoke_test_end___");
