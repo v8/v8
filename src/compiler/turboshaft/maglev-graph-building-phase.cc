@@ -5096,7 +5096,7 @@ class GraphBuildingNodeProcessor {
         builder.AddDematerializedObject(dup_id.id, field_count);
         builder.AddInput(MachineType::AnyTagged(),
                          __ HeapConstantNoHole(vobj->map().object()));
-        vobj->ForEachDeoptInput([&](maglev::ValueNode* value_node) {
+        vobj->ForEachInput([&](maglev::ValueNode* value_node) {
           AddVirtualObjectNestedValue(builder, virtual_objects, value_node);
         });
         break;

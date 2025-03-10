@@ -33,6 +33,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/deoptimization-data.h"
@@ -1574,7 +1575,8 @@ class MaglevFrameTranslationBuilder {
         GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
-      input_location += object->InputLocationSizeNeeded(virtual_objects);
+      object->ForEachNestedRuntimeInput(virtual_objects,
+                                        [&](ValueNode*) { input_location++; });
       return;
     }
     switch (object->type()) {
@@ -1592,7 +1594,7 @@ class MaglevFrameTranslationBuilder {
         DCHECK(object->has_static_map());
         translation_array_builder_->StoreLiteral(
             GetDeoptLiteral(*object->map().object()));
-        object->ForEachDeoptInput([&](ValueNode* node) {
+        object->ForEachInput([&](ValueNode* node) {
           BuildNestedValue(node, input_location, virtual_objects);
         });
     }
@@ -1601,29 +1603,16 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
                                   const VirtualObject::List& virtual_objects) {
-    DCHECK(!value->Is<Identity>());
+    if (value->Is<Identity>()) {
+      value = value->input(0).node();
+    }
     DCHECK(!value->Is<VirtualObject>());
-    size_t input_locations_to_advance = 1;
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-      if (vobject) {
-        if (alloc->HasBeenElided()) {
-          input_location++;
-          BuildVirtualObject(vobject, input_location, virtual_objects);
-          return;
-        }
-        input_locations_to_advance +=
-            vobject->InputLocationSizeNeeded(virtual_objects);
-      } else {
-        // If the allocation isn't in the virtual object list, it's the
-        // return value from an (non-eager) inlined call. The value is escaping,
-        // as we don't have enough information for object materialization during
-        // deoptimization.
-        // TODO(victorgomes): Support eliding VOs returned by a non-eager
-        // inlined call.
-        DCHECK(v8_flags.maglev_non_eager_inlining);
-        DCHECK(alloc->HasEscaped());
-        DCHECK(alloc->is_returned_value_from_inline_call());
+      if (vobject && alloc->HasBeenElided()) {
+        DCHECK(alloc->HasBeenAnalysed());
+        BuildVirtualObject(vobject, input_location, virtual_objects);
+        return;
       }
     }
     if (input_location->operand().IsConstant()) {
@@ -1639,7 +1628,7 @@ class MaglevFrameTranslationBuilder {
         BuildDeoptStoreStackSlot(operand, repr);
       }
     }
-    input_location += input_locations_to_advance;
+    input_location++;
   }
 
   void BuildDeoptFrameValues(

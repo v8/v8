@@ -1410,8 +1410,6 @@ class DeoptFrame {
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
   inline bool IsJsFrame() const;
 
-  size_t GetInputLocationsArraySize() const;
-
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
@@ -1605,8 +1603,7 @@ inline bool DeoptFrame::IsJsFrame() const {
 class DeoptInfo {
  protected:
   DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-            compiler::FeedbackSource feedback_to_update,
-            size_t input_locations_size);
+            compiler::FeedbackSource feedback_to_update);
 
  public:
   DeoptFrame& top_frame() { return top_frame_; }
@@ -1615,7 +1612,13 @@ class DeoptInfo {
     return feedback_to_update_;
   }
 
-  InputLocation* input_locations() const { return input_locations_; }
+  bool has_input_locations() const { return input_locations_ != nullptr; }
+  InputLocation* input_locations() const {
+    DCHECK_NOT_NULL(input_locations_);
+    return input_locations_;
+  }
+  void InitializeInputLocations(Zone* zone, size_t count);
+
   Label* deopt_entry_label() { return &deopt_entry_label_; }
 
   int translation_index() const { return translation_index_; }
@@ -1628,9 +1631,9 @@ class DeoptInfo {
  private:
   DeoptFrame top_frame_;
   const compiler::FeedbackSource feedback_to_update_;
-  InputLocation* const input_locations_;
+  InputLocation* input_locations_ = nullptr;
 #ifdef DEBUG
-  size_t input_location_count_;
+  size_t input_location_count_ = 0;
 #endif  // DEBUG
   Label deopt_entry_label_;
   int translation_index_ = -1;
@@ -1646,11 +1649,15 @@ class EagerDeoptInfo : public DeoptInfo {
  public:
   EagerDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                  compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update,
-                  top_frame.GetInputLocationsArraySize()) {}
+      : DeoptInfo(zone, top_frame, feedback_to_update) {}
 
   DeoptimizeReason reason() const { return reason_; }
   void set_reason(DeoptimizeReason reason) { reason_ = reason; }
+
+  template <typename Function>
+  void ForEachInput(Function&& f);
+  template <typename Function>
+  void ForEachInput(Function&& f) const;
 
  private:
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
@@ -1661,8 +1668,7 @@ class LazyDeoptInfo : public DeoptInfo {
   LazyDeoptInfo(Zone* zone, const DeoptFrame top_frame,
                 interpreter::Register result_location, int result_size,
                 compiler::FeedbackSource feedback_to_update)
-      : DeoptInfo(zone, top_frame, feedback_to_update,
-                  top_frame.GetInputLocationsArraySize()),
+      : DeoptInfo(zone, top_frame, feedback_to_update),
         result_location_(result_location),
         bitfield_(
             DeoptingCallReturnPcField::encode(kUninitializedCallReturnPc) |
@@ -1709,6 +1715,11 @@ class LazyDeoptInfo : public DeoptInfo {
   static bool InReturnValues(interpreter::Register reg,
                              interpreter::Register result_location,
                              int result_size);
+
+  template <typename Function>
+  void ForEachInput(Function&& f);
+  template <typename Function>
+  void ForEachInput(Function&& f) const;
 
  private:
 #ifdef DEBUG
@@ -2421,8 +2432,6 @@ class ValueNode : public Node {
   void DoLoadToRegister(MaglevAssembler*, Register);
   void DoLoadToRegister(MaglevAssembler*, DoubleRegister);
   DirectHandle<Object> Reify(LocalIsolate* isolate) const;
-
-  size_t GetInputLocationsArraySize() const;
 
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
@@ -5514,8 +5523,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  size_t InputLocationSizeNeeded(VirtualObject::List) const;
-
   constexpr bool has_static_map() const {
     switch (type_) {
       case kDefault:
@@ -5630,16 +5637,16 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   void Snapshot() { snapshotted_ = true; }
 
   template <typename Function>
-  inline void ForEachDeoptInputLocation(Function&& callback) {
+  inline void ForEachInput(Function&& callback) {
     switch (type_) {
       case kDefault:
         for (uint32_t i = 0; i < slot_count(); i++) {
-          callback(get_by_index(i), slots_.data[i]);
+          callback(slots_.data[i]);
         }
         break;
       case kConsString:
         for (ValueNode*& val : cons_string_.data) {
-          callback(static_cast<ValueNode*>(val), val);
+          callback(val);
         }
         break;
       case kHeapNumber:
@@ -5650,7 +5657,7 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   }
 
   template <typename Function>
-  inline void ForEachDeoptInput(Function&& callback) const {
+  inline void ForEachInput(Function&& callback) const {
     switch (type_) {
       case kDefault:
         for (uint32_t i = 0; i < slot_count(); i++) {
@@ -5668,6 +5675,15 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
         break;
     }
   }
+
+  // A runtime input is an input to the virtual object that has runtime
+  // footprint, aka, a location.
+  template <typename Function>
+  inline void ForEachNestedRuntimeInput(VirtualObject::List virtual_objects,
+                                        Function&& f);
+  template <typename Function>
+  inline void ForEachNestedRuntimeInput(VirtualObject::List virtual_objects,
+                                        Function&& f) const;
 
   template <typename Function>
   inline std::optional<VirtualObject*> Merge(const VirtualObject* other,
@@ -5982,6 +5998,84 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
   friend List;
   friend base::ThreadedListTraits<InlinedAllocation>;
 };
+
+template <typename Function>
+inline void VirtualObject::ForEachNestedRuntimeInput(
+    VirtualObject::List virtual_objects, Function&& f) {
+  ForEachInput([&](ValueNode*& value) {
+    if (value->Is<Identity>()) {
+      value = value->input(0).node();
+    }
+    if (IsConstantNode(value->opcode())) {
+      // No location assigned to constants.
+      return;
+    }
+    // Special nodes.
+    switch (value->opcode()) {
+      case Opcode::kArgumentsElements:
+      case Opcode::kArgumentsLength:
+      case Opcode::kRestLength:
+        // No location assigned to these opcodes.
+        break;
+      case Opcode::kVirtualObject:
+        UNREACHABLE();
+      case Opcode::kInlinedAllocation: {
+        InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+        VirtualObject* inner_vobject = virtual_objects.FindAllocatedWith(alloc);
+        CHECK_NOT_NULL(inner_vobject);
+        // Check if it has escaped.
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f);
+        } else {
+          f(value);
+        }
+        break;
+      }
+      default:
+        f(value);
+        break;
+    }
+  });
+}
+
+template <typename Function>
+inline void VirtualObject::ForEachNestedRuntimeInput(
+    VirtualObject::List virtual_objects, Function&& f) const {
+  ForEachInput([&](ValueNode* value) {
+    if (value->Is<Identity>()) {
+      value = value->input(0).node();
+    }
+    if (IsConstantNode(value->opcode())) {
+      // No location assigned to constants.
+      return;
+    }
+    // Special nodes.
+    switch (value->opcode()) {
+      case Opcode::kArgumentsElements:
+      case Opcode::kArgumentsLength:
+      case Opcode::kRestLength:
+        // No location assigned to these opcodes.
+        break;
+      case Opcode::kVirtualObject:
+        UNREACHABLE();
+      case Opcode::kInlinedAllocation: {
+        InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+        VirtualObject* inner_vobject = virtual_objects.FindAllocatedWith(alloc);
+        CHECK_NOT_NULL(inner_vobject);
+        // Check if it has escaped.
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f);
+        } else {
+          f(value);
+        }
+        break;
+      }
+      default:
+        f(value);
+        break;
+    }
+  });
+}
 
 class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   using Base = FixedInputValueNodeT<0, AllocationBlock>;

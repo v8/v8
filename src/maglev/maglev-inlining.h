@@ -40,23 +40,20 @@ class UpdateInputsProcessor {
       }
     }
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      detail::DeepForEachInputForEager<detail::DeoptFrameVisitMode::kOther>(
-          node->eager_deopt_info(),
-          [&](ValueNode*& node, InputLocation* input) {
-            if (node == from_) {
-              node = to_;
-              to_->add_use();
-            }
-          });
+      node->eager_deopt_info()->ForEachInput([&](ValueNode*& node) {
+        if (node == from_) {
+          node = to_;
+          to_->add_use();
+        }
+      });
     }
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      detail::DeepForEachInputForLazy<detail::DeoptFrameVisitMode::kOther>(
-          node->lazy_deopt_info(), [&](ValueNode*& node, InputLocation* input) {
-            if (node == from_) {
-              node = to_;
-              to_->add_use();
-            }
-          });
+      node->lazy_deopt_info()->ForEachInput([&](ValueNode*& node) {
+        if (node == from_) {
+          node = to_;
+          to_->add_use();
+        }
+      });
     }
     return ProcessResult::kContinue;
   }

@@ -1182,6 +1182,15 @@ void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
   virtual_objects_ = state.frame_state().virtual_objects();
 }
 
+inline const VirtualObject::List& GetVirtualObjects(
+    const DeoptFrame& deopt_frame) {
+  if (deopt_frame.type() == DeoptFrame::FrameType::kInterpretedFrame) {
+    return deopt_frame.as_interpreted().frame_state()->virtual_objects();
+  }
+  DCHECK_NOT_NULL(deopt_frame.parent());
+  return GetVirtualObjects(*deopt_frame.parent());
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

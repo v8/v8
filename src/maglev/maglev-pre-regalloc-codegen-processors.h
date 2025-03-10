@@ -343,23 +343,21 @@ class LiveRangeAndNextUseProcessor {
     }
   }
 
-  void MarkCheckpointNodes(NodeBase* node, EagerDeoptInfo* deopt_info,
+  template <typename DeoptInfoT>
+  void MarkCheckpointNodes(NodeBase* node, DeoptInfoT* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
-    detail::DeepForEachInputRemovingIdentities(
-        deopt_info, [&](ValueNode* node, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
-  }
-  void MarkCheckpointNodes(NodeBase* node, LazyDeoptInfo* deopt_info,
-                           LoopUsedNodes* loop_used_nodes,
-                           const ProcessingState& state) {
-    int use_id = node->id();
-    detail::DeepForEachInputRemovingIdentities(
-        deopt_info, [&](ValueNode* node, InputLocation* input) {
-          MarkUse(node, use_id, input, loop_used_nodes);
-        });
+    if (!deopt_info->has_input_locations()) {
+      size_t count = 0;
+      deopt_info->ForEachInput([&](ValueNode*) { count++; });
+      deopt_info->InitializeInputLocations(compilation_info_->zone(), count);
+    }
+    InputLocation* input = deopt_info->input_locations();
+    deopt_info->ForEachInput([&](ValueNode* node) {
+      MarkUse(node, use_id, input, loop_used_nodes);
+      input++;
+    });
   }
 
   MaglevCompilationInfo* compilation_info_;

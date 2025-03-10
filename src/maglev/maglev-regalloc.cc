@@ -669,29 +669,31 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
 void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     const EagerDeoptInfo& deopt_info) {
-  detail::DeepForEachInput(
-      &deopt_info, [&](ValueNode* node, InputLocation* input) {
-        DCHECK(!node->Is<Identity>());
-        // We might have dropped this node without spilling it. Spill it now.
-        if (!node->has_register() && !node->is_loadable()) {
-          Spill(node);
-        }
-        input->InjectLocation(node->allocation());
-        UpdateUse(node, input);
-      });
+  InputLocation* input = deopt_info.input_locations();
+  deopt_info.ForEachInput([&](ValueNode* node) {
+    DCHECK(!node->Is<Identity>());
+    // We might have dropped this node without spilling it. Spill it now.
+    if (!node->has_register() && !node->is_loadable()) {
+      Spill(node);
+    }
+    input->InjectLocation(node->allocation());
+    UpdateUse(node, input);
+    input++;
+  });
 }
 
 void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     const LazyDeoptInfo& deopt_info) {
-  detail::DeepForEachInput(&deopt_info,
-                           [&](ValueNode* node, InputLocation* input) {
-                             DCHECK(!node->Is<Identity>());
-                             // Lazy deopts always need spilling, and should
-                             // always be loaded from their loadable slot.
-                             Spill(node);
-                             input->InjectLocation(node->loadable_slot());
-                             UpdateUse(node, input);
-                           });
+  InputLocation* input = deopt_info.input_locations();
+  deopt_info.ForEachInput([&](ValueNode* node) {
+    DCHECK(!node->Is<Identity>());
+    // Lazy deopts always need spilling, and should
+    // always be loaded from their loadable slot.
+    Spill(node);
+    input->InjectLocation(node->loadable_slot());
+    UpdateUse(node, input);
+    input++;
+  });
 }
 
 #ifdef DEBUG
@@ -1632,19 +1634,21 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
     // runtime call might not include the inputs into the eager deopt. Here, we
     // make sure that all the eager deopt registers are included in the
     // snapshot.
-    detail::DeepForEachInput(
-        node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
-          if (!input->IsAnyRegister()) return;
-          if (input->IsDoubleRegister()) {
-            snapshot.live_double_registers.set(input->AssignedDoubleRegister());
-          } else {
-            snapshot.live_registers.set(input->AssignedGeneralRegister());
-            if (node->is_tagged()) {
-              snapshot.live_tagged_registers.set(
-                  input->AssignedGeneralRegister());
-            }
+    InputLocation* input = node->eager_deopt_info()->input_locations();
+    node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
+      if (input->IsAnyRegister()) {
+        if (input->IsDoubleRegister()) {
+          snapshot.live_double_registers.set(input->AssignedDoubleRegister());
+        } else {
+          snapshot.live_registers.set(input->AssignedGeneralRegister());
+          if (node->is_tagged()) {
+            snapshot.live_tagged_registers.set(
+                input->AssignedGeneralRegister());
           }
-        });
+        }
+      }
+      input++;
+    });
   }
   node->set_register_snapshot(snapshot);
 }

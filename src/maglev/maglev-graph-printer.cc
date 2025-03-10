@@ -405,15 +405,18 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
 
 namespace {
 
-void PrintInputLocation(std::ostream& os, ValueNode* node,
-                        const compiler::InstructionOperand& location) {
+void PrintInputLocationAndAdvance(std::ostream& os, ValueNode* node,
+                                  InputLocation*& input_location) {
   if (InlinedAllocation* allocation = node->TryCast<InlinedAllocation>()) {
     if (allocation->HasBeenAnalysed() && allocation->HasBeenElided()) {
       os << "(elided)";
       return;
     }
   }
-  os << location;
+  if (input_location) {
+    os << input_location->operand();
+    input_location++;
+  }
 }
 
 void PrintSingleDeoptFrame(
@@ -435,9 +438,8 @@ void PrintSingleDeoptFrame(
       os << "<closure>:"
          << PrintNodeLabel(graph_labeller, frame.as_interpreted().closure())
          << ":";
-      PrintInputLocation(os, frame.as_interpreted().closure(),
-                         current_input_location->operand());
-      current_input_location++;
+      PrintInputLocationAndAdvance(os, frame.as_interpreted().closure(),
+                                   current_input_location);
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
           [&](ValueNode* node, interpreter::Register reg) {
@@ -447,8 +449,7 @@ void PrintSingleDeoptFrame(
               os << "<result>";
             } else {
               os << PrintNodeLabel(graph_labeller, node) << ":";
-              PrintInputLocation(os, node, current_input_location->operand());
-              current_input_location++;
+              PrintInputLocationAndAdvance(os, node, current_input_location);
             }
           });
       os << "}";
@@ -461,15 +462,13 @@ void PrintSingleDeoptFrame(
       os << "<this>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().receiver())
          << ":";
-      PrintInputLocation(os, frame.as_construct_stub().receiver(),
-                         current_input_location->operand());
-      current_input_location++;
+      PrintInputLocationAndAdvance(os, frame.as_construct_stub().receiver(),
+                                   current_input_location);
       os << ", <context>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().context())
          << ":";
-      PrintInputLocation(os, frame.as_construct_stub().context(),
-                         current_input_location->operand());
-      current_input_location++;
+      PrintInputLocationAndAdvance(os, frame.as_construct_stub().context(),
+                                   current_input_location);
       os << "}";
       break;
     }
@@ -480,16 +479,14 @@ void PrintSingleDeoptFrame(
       auto arguments = frame.as_inlined_arguments().arguments();
       DCHECK_GT(arguments.size(), 0);
       os << "<this>:" << PrintNodeLabel(graph_labeller, arguments[0]) << ":";
-      PrintInputLocation(os, arguments[0], current_input_location->operand());
-      current_input_location++;
+      PrintInputLocationAndAdvance(os, arguments[0], current_input_location);
       if (arguments.size() > 1) {
         os << ", ";
       }
       for (size_t i = 1; i < arguments.size(); i++) {
         os << "a" << (i - 1) << ":"
            << PrintNodeLabel(graph_labeller, arguments[i]) << ":";
-        PrintInputLocation(os, arguments[i], current_input_location->operand());
-        current_input_location++;
+        PrintInputLocationAndAdvance(os, arguments[i], current_input_location);
         os << ", ";
       }
       os << "}";
@@ -503,18 +500,17 @@ void PrintSingleDeoptFrame(
       for (ValueNode* node : frame.as_builtin_continuation().parameters()) {
         os << "a" << arg_index << ":" << PrintNodeLabel(graph_labeller, node)
            << ":";
-        PrintInputLocation(os, node, current_input_location->operand());
+        PrintInputLocationAndAdvance(os, node, current_input_location);
         arg_index++;
-        current_input_location++;
         os << ", ";
       }
       os << "<context>:"
          << PrintNodeLabel(graph_labeller,
                            frame.as_builtin_continuation().context())
          << ":";
-      PrintInputLocation(os, frame.as_builtin_continuation().context(),
-                         current_input_location->operand());
-      current_input_location++;
+      PrintInputLocationAndAdvance(os,
+                                   frame.as_builtin_continuation().context(),
+                                   current_input_location);
       os << "}";
       break;
     }
@@ -544,8 +540,11 @@ void PrintDeoptInfoInputLocation(std::ostream& os,
   if (!v8_flags.print_maglev_deopt_verbose) return;
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
-  os << "  input locations: " << deopt_info->input_locations() << " ("
-     << deopt_info->input_location_count() << " slots)\n";
+  if (deopt_info->has_input_locations()) {
+    os << "  input locations: " << deopt_info->input_locations() << " ("
+       << deopt_info->input_location_count() << " slots)";
+  }
+  os << "\n";
 #endif  // DEBUG
 }
 
@@ -576,7 +575,10 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                      NodeBase* node, MaglevGraphLabeller* graph_labeller,
                      int max_node_id) {
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
-  InputLocation* current_input_location = deopt_info->input_locations();
+  InputLocation* current_input_location = nullptr;
+  if (deopt_info->has_input_locations()) {
+    current_input_location = deopt_info->input_locations();
+  }
   PrintDeoptInfoInputLocation(os, targets, deopt_info, graph_labeller,
                               max_node_id);
   RecursivePrintEagerDeopt(os, targets, deopt_info->top_frame(), graph_labeller,
@@ -614,7 +616,10 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
                     NodeT* node, MaglevGraphLabeller* graph_labeller,
                     int max_node_id) {
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
-  InputLocation* current_input_location = deopt_info->input_locations();
+  InputLocation* current_input_location = nullptr;
+  if (deopt_info->has_input_locations()) {
+    current_input_location = deopt_info->input_locations();
+  }
 
   PrintDeoptInfoInputLocation(os, targets, deopt_info, graph_labeller,
                               max_node_id);

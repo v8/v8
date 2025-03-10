@@ -113,17 +113,6 @@ class MaglevPhiRepresentationSelector {
       result = UpdateNonUntaggingNodeInputs(n, state);
     }
 
-    // It's important to check the properties of {node} rather than the static
-    // properties of `NodeT`, because `UpdateUntaggingOfPhi` could have changed
-    // the opcode of {node}, potentially converting a deopting node into a
-    // non-deopting one.
-    if (node->properties().can_eager_deopt()) {
-      BypassIdentities(node->eager_deopt_info());
-    }
-    if (node->properties().can_lazy_deopt()) {
-      BypassIdentities(node->lazy_deopt_info());
-    }
-
     return result;
   }
 
@@ -206,10 +195,6 @@ class MaglevPhiRepresentationSelector {
   // Additionally, if {block} contains untagged loop phis whose backedges have
   // been updated to Identity, FixLoopPhisBackedge unwraps those Identity.
   void FixLoopPhisBackedge(BasicBlock* block);
-
-  // Replaces Identity nodes by their inputs in {deopt_info}
-  template <typename DeoptInfoT>
-  void BypassIdentities(DeoptInfoT* deopt_info);
 
   void PreparePhiTaggings(BasicBlock* old_block, const BasicBlock* new_block);
 

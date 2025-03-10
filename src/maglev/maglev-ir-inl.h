@@ -14,25 +14,17 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-inline const VirtualObject::List& GetVirtualObjects(
-    const DeoptFrame& deopt_frame) {
-  if (deopt_frame.type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    return deopt_frame.as_interpreted().frame_state()->virtual_objects();
-  }
-  DCHECK_NOT_NULL(deopt_frame.parent());
-  return GetVirtualObjects(*deopt_frame.parent());
-}
-
 #ifdef DEBUG
 inline RegList GetGeneralRegistersUsedAsInputs(
     const EagerDeoptInfo* deopt_info) {
   RegList regs;
-  detail::DeepForEachInput(deopt_info,
-                           [&regs](ValueNode* value, InputLocation* input) {
-                             if (input->IsGeneralRegister()) {
-                               regs.set(input->AssignedGeneralRegister());
-                             }
-                           });
+  InputLocation* input = deopt_info->input_locations();
+  deopt_info->ForEachInput([&regs, &input](ValueNode* value) {
+    if (input->IsGeneralRegister()) {
+      regs.set(input->AssignedGeneralRegister());
+    }
+    input++;
+  });
   return regs;
 }
 #endif  // DEBUG

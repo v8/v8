@@ -325,62 +325,7 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 }
 #endif
 
-size_t GetInputLocationSizeForValueNode(VirtualObject::List virtual_objects,
-                                        ValueNode* value) {
-  // We allocate the space needed for the Virtual Object plus one location
-  // used if the allocation escapes.
-  DCHECK(!value->Is<VirtualObject>());
-  if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
-    VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-    CHECK_NOT_NULL(vobject);
-    return vobject->InputLocationSizeNeeded(virtual_objects) + 1;
-  }
-  return 1;
-}
-
-size_t GetInputLocationSizeForArray(VirtualObject::List virtual_objects,
-                                    base::Vector<ValueNode*> array) {
-  size_t size = 0;
-  for (ValueNode* value : array) {
-    size += GetInputLocationSizeForValueNode(virtual_objects, value);
-  }
-  return size;
-}
-
-size_t GetInputLocationSizeForCompactFrame(
-    const MaglevCompilationUnit& unit, VirtualObject::List virtual_objects,
-    const CompactInterpreterFrameState* frame) {
-  size_t size = 0;
-  frame->ForEachValue(unit, [&](ValueNode* value, interpreter::Register) {
-    if (value != nullptr) {
-      size += GetInputLocationSizeForValueNode(virtual_objects, value);
-    }
-  });
-  return size;
-}
-
-size_t GetInputLocationSizeForVirtualObjectSlot(
-    VirtualObject::List virtual_objects, ValueNode* node) {
-  if (IsConstantNode(node->opcode()) ||
-      node->opcode() == Opcode::kArgumentsElements ||
-      node->opcode() == Opcode::kArgumentsLength ||
-      node->opcode() == Opcode::kRestLength) {
-    return 0;
-  }
-  return GetInputLocationSizeForValueNode(virtual_objects, node);
-}
-
 }  // namespace
-
-size_t VirtualObject::InputLocationSizeNeeded(
-    VirtualObject::List virtual_objects) const {
-  size_t size = 0;
-  ForEachDeoptInput([&](ValueNode* value_node) {
-    size +=
-        GetInputLocationSizeForVirtualObjectSlot(virtual_objects, value_node);
-  });
-  return size;
-}
 
 void VirtualObject::List::Print(std::ostream& os, const char* prefix,
                                 MaglevGraphLabeller* labeller) const {
@@ -393,43 +338,16 @@ void VirtualObject::List::Print(std::ostream& os, const char* prefix,
   os << std::endl;
 }
 
-size_t DeoptFrame::GetInputLocationsArraySize() const {
-  size_t size = 0;
-  const DeoptFrame* frame = this;
-  VirtualObject::List virtual_objects = GetVirtualObjects(*frame);
-  do {
-    switch (frame->type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        size += GetInputLocationSizeForValueNode(
-                    virtual_objects, frame->as_interpreted().closure()) +
-                GetInputLocationSizeForCompactFrame(
-                    frame->as_interpreted().unit(), virtual_objects,
-                    frame->as_interpreted().frame_state());
-        break;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-        size += GetInputLocationSizeForValueNode(
-                    virtual_objects, frame->as_inlined_arguments().closure()) +
-                GetInputLocationSizeForArray(
-                    virtual_objects, frame->as_inlined_arguments().arguments());
-        break;
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        size += GetInputLocationSizeForValueNode(
-                    virtual_objects, frame->as_construct_stub().receiver()) +
-                GetInputLocationSizeForValueNode(
-                    virtual_objects, frame->as_construct_stub().context());
-        break;
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        size +=
-            GetInputLocationSizeForArray(
-                virtual_objects,
-                frame->as_builtin_continuation().parameters()) +
-            GetInputLocationSizeForValueNode(
-                virtual_objects, frame->as_builtin_continuation().context());
-        break;
-    }
-    frame = frame->parent();
-  } while (frame != nullptr);
-  return size;
+void DeoptInfo::InitializeInputLocations(Zone* zone, size_t count) {
+  DCHECK_NULL(input_locations_);
+  input_locations_ = zone->AllocateArray<InputLocation>(count);
+  // Initialise locations so that they correctly don't have a next use id.
+  for (size_t i = 0; i < count; ++i) {
+    new (&input_locations_[i]) InputLocation();
+  }
+#ifdef DEBUG
+  input_location_count_ = count;
+#endif  // DEBUG
 }
 
 bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
@@ -464,20 +382,8 @@ void Input::clear() {
 }
 
 DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
-                     compiler::FeedbackSource feedback_to_update,
-                     size_t input_locations_size)
-    : top_frame_(top_frame),
-      feedback_to_update_(feedback_to_update),
-      input_locations_(
-          zone->AllocateArray<InputLocation>(input_locations_size)) {
-  // Initialise InputLocations so that they correctly don't have a next use id.
-  for (size_t i = 0; i < input_locations_size; ++i) {
-    new (&input_locations_[i]) InputLocation();
-  }
-#ifdef DEBUG
-  input_location_count_ = input_locations_size;
-#endif  // DEBUG
-}
+                     compiler::FeedbackSource feedback_to_update)
+    : top_frame_(top_frame), feedback_to_update_(feedback_to_update) {}
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
   if (top_frame().type() == DeoptFrame::FrameType::kConstructInvokeStubFrame) {
@@ -915,7 +821,7 @@ void AllocationBlock::Pretenure() {
   if (allocation_type_ == AllocationType::kOld) return;
   allocation_type_ = AllocationType::kOld;
   for (auto alloc : allocation_list_) {
-    alloc->object()->ForEachDeoptInput([&](ValueNode* value) {
+    alloc->object()->ForEachInput([&](ValueNode* value) {
       if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
         next_alloc->allocation_block()->Pretenure();
       } else if (auto phi = value->TryCast<Phi>()) {
