@@ -60,6 +60,7 @@ class ClassNameAsHeapObjectNameScope;
 
 namespace heap::base {
 class Stack;
+class StackVisitor;
 }  // namespace heap::base
 
 namespace v8 {
@@ -999,7 +1000,10 @@ class Heap final {
   void IterateStackRoots(RootVisitor* v);
 
   void IterateConservativeStackRoots(
-      RootVisitor* v,
+      RootVisitor* root_visitor,
+      IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
+  void IterateConservativeStackRoots(
+      ::heap::base::StackVisitor* stack_visitor,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
 
   // ===========================================================================

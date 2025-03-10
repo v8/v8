@@ -19,6 +19,7 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -80,6 +81,9 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
   }
 
   void Run() override {
+    // VerifyRoots will visit also visit the conservative stack and consider
+    // objects reachable from it, including old objects. This is fine since this
+    // verifier will only check that young objects are marked.
     VerifyRoots();
     if (v8_flags.sticky_mark_bits) {
       VerifyMarking(heap_->sticky_space());
@@ -665,10 +669,40 @@ void MinorMarkSweepCollector::MarkRoots(
   }
 }
 
+namespace {
+class MinorMSConservativeStackVisitor
+    : public ConservativeStackVisitorBase<MinorMSConservativeStackVisitor> {
+ public:
+  MinorMSConservativeStackVisitor(
+      Isolate* isolate, YoungGenerationRootMarkingVisitor& root_visitor)
+      : ConservativeStackVisitorBase(isolate, &root_visitor) {}
+
+ private:
+  static constexpr bool kOnlyVisitMainV8Cage [[maybe_unused]] = true;
+
+  static bool FilterPage(const MemoryChunk* chunk) {
+    return v8_flags.sticky_mark_bits
+               ? !chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD)
+               : chunk->IsToPage();
+  }
+  static bool FilterLargeObject(Tagged<HeapObject>, MapWord) { return true; }
+  static bool FilterNormalObject(Tagged<HeapObject>, MapWord, MarkingBitmap*) {
+    return true;
+  }
+  static void HandleObjectFound(Tagged<HeapObject>, size_t, MarkingBitmap*) {}
+
+  friend class ConservativeStackVisitorBase<MinorMSConservativeStackVisitor>;
+};
+}  // namespace
+
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
     YoungGenerationRootMarkingVisitor& root_visitor) {
+  if (!heap_->IsGCWithStack()) return;
   TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
-  heap_->IterateConservativeStackRoots(&root_visitor,
+
+  MinorMSConservativeStackVisitor stack_visitor(heap_->isolate(), root_visitor);
+
+  heap_->IterateConservativeStackRoots(&stack_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 }
 

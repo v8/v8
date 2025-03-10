@@ -4857,7 +4857,7 @@ void Heap::IterateBuiltins(RootVisitor* v) {
 
 void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
-void Heap::IterateConservativeStackRoots(RootVisitor* v,
+void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   if (!IsGCWithStack()) return;
@@ -4867,11 +4867,20 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
                               ? isolate()->shared_space_isolate()
                               : isolate();
 
-  ConservativeStackVisitor stack_visitor(main_isolate, v);
+  ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
+  IterateConservativeStackRoots(&stack_visitor, roots_mode);
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+}
+
+void Heap::IterateConservativeStackRoots(
+    ::heap::base::StackVisitor* stack_visitor, IterateRootsMode roots_mode) {
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  DCHECK(IsGCWithStack());
+
   if (IsGCWithMainThreadStack()) {
-    stack().IteratePointersUntilMarker(&stack_visitor);
+    stack().IteratePointersUntilMarker(stack_visitor);
   }
-  stack().IterateBackgroundStacks(&stack_visitor);
+  stack().IterateBackgroundStacks(stack_visitor);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
