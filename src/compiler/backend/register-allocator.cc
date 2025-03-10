@@ -1483,7 +1483,8 @@ ConstraintBuilder::ConstraintBuilder(RegisterAllocationData* data)
     : data_(data) {}
 
 InstructionOperand* ConstraintBuilder::AllocateFixed(
-    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input) {
+    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input,
+    bool is_output) {
   TRACE("Allocating fixed reg for op %d\n", operand->virtual_register());
   DCHECK(operand->HasFixedPolicy());
   InstructionOperand allocated;
@@ -1497,8 +1498,9 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
                                  operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
     DCHECK(!IsFloatingPoint(rep));
-    DCHECK(data()->config()->IsAllocatableGeneralCode(
-        operand->fixed_register_index()));
+    DCHECK_IMPLIES(is_input || is_output,
+                   data()->config()->IsAllocatableGeneralCode(
+                       operand->fixed_register_index()));
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
   } else if (operand->HasFixedFPRegisterPolicy()) {
@@ -1506,20 +1508,17 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
     DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, virtual_register);
     if (rep == MachineRepresentation::kFloat16 ||
         rep == MachineRepresentation::kFloat32) {
-      DCHECK(data()->config()->IsAllocatableFloatCode(
-          operand->fixed_register_index()));
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableFloatCode(
+                         operand->fixed_register_index()));
     } else if (rep == MachineRepresentation::kFloat64) {
-      DCHECK(data()->config()->IsAllocatableDoubleCode(
-          operand->fixed_register_index()));
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableDoubleCode(
+                         operand->fixed_register_index()));
     } else if (rep == MachineRepresentation::kSimd128) {
-#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
-      DCHECK(IsSpecialSimd128Code(operand->fixed_register_index()) ||
-             data()->config()->IsAllocatableSimd128Code(
-                 operand->fixed_register_index()));
-#else  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
-      DCHECK(data()->config()->IsAllocatableSimd128Code(
-          operand->fixed_register_index()));
-#endif
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableSimd128Code(
+                         operand->fixed_register_index()));
     } else {
       UNREACHABLE();
     }
@@ -1573,7 +1572,7 @@ void ConstraintBuilder::MeetRegisterConstraintsForLastInstructionInBlock(
     TopLevelLiveRange* range = data()->GetLiveRangeFor(output_vreg);
     bool assigned = false;
     if (output->HasFixedPolicy()) {
-      AllocateFixed(output, -1, false, false);
+      AllocateFixed(output, -1, false, false, true);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
         DCHECK(LocationOperand::cast(output)->index() <
@@ -1612,7 +1611,8 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
   // Handle fixed temporaries.
   for (size_t i = 0; i < first->TempCount(); i++) {
     UnallocatedOperand* temp = UnallocatedOperand::cast(first->TempAt(i));
-    if (temp->HasFixedPolicy()) AllocateFixed(temp, instr_index, false, false);
+    if (temp->HasFixedPolicy())
+      AllocateFixed(temp, instr_index, false, false, false);
   }
   // Handle constant/fixed output operands.
   for (size_t i = 0; i < first->OutputCount(); i++) {
@@ -1638,7 +1638,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
         data()->preassigned_slot_ranges().push_back(
             std::make_pair(range, first_output->GetSecondaryStorage()));
       }
-      AllocateFixed(first_output, instr_index, is_tagged, false);
+      AllocateFixed(first_output, instr_index, is_tagged, false, true);
 
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
@@ -1711,7 +1711,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
       UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
                                     input_vreg);
       bool is_tagged = code()->IsReference(input_vreg);
-      AllocateFixed(cur_input, instr_index, is_tagged, true);
+      AllocateFixed(cur_input, instr_index, is_tagged, true, false);
       data()->AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
     }
   }
