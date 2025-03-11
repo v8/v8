@@ -24,6 +24,10 @@
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
 
+namespace heap::base {
+class StackVisitor;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -164,9 +168,13 @@ class Simulator : public SimulatorBase {
   // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
 
+  uintptr_t StackBase() const;
+
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   // Executes S390 instructions until the PC reaches end_sim_pc.
   void Execute();
