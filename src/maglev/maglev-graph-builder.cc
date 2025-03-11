@@ -5232,7 +5232,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   // No need for a write barrier if both object and value are part of the same
   // folded young allocation.
   AllocationBlock* allocation = GetAllocation(object);
-  if (allocation != nullptr &&
+  if (allocation != nullptr && current_allocation_block_ == allocation &&
       allocation->allocation_type() == AllocationType::kYoung &&
       allocation == GetAllocation(value)) {
     return true;
