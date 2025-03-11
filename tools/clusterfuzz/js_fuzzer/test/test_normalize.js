@@ -39,4 +39,26 @@ describe('Normalize', () => {
     helpers.assertExpectedResult(
         'simple_test_expected.js', normalized);
   });
+
+  it('test already normalized variables', () => {
+    const source = helpers.loadTestData('normalize_fuzz_test.js');
+
+    const mutator = new normalizer.IdentifierNormalizer();
+    mutator.mutate(source);
+
+    const normalized = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'normalize_fuzz_test_expected.js', normalized);
+  });
+
+  it('test already normalized functions', () => {
+    const source = helpers.loadTestData('normalize_fuzz_test_functions.js');
+
+    const mutator = new normalizer.IdentifierNormalizer();
+    mutator.mutate(source);
+
+    const normalized = sourceHelpers.generateCode(source);
+    helpers.assertExpectedResult(
+        'normalize_fuzz_test_functions_expected.js', normalized);
+  });
 });

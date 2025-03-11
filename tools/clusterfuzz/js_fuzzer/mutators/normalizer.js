@@ -52,14 +52,17 @@ class IdentifierNormalizer extends mutator.Mutator {
 
           renamed.add(binding.identifier);
 
+          // Prefix with __JSF in the first pass to avoid collisions with
+          // leftover identifier names from old fuzzer output. A collision with
+          // __JSF would be extremely rare, hence we don't add extra logic.
           if (babelTypes.isClassDeclaration(binding.path.node) ||
               babelTypes.isClassExpression(binding.path.node)) {
-            path.scope.rename(name, '__c_' + normalizerContext.classIndex++);
+            path.scope.rename(name, '__JSF__c_' + normalizerContext.classIndex++);
           } else if (babelTypes.isFunctionDeclaration(binding.path.node) ||
                      babelTypes.isFunctionExpression(binding.path.node)) {
-            path.scope.rename(name, '__f_' + normalizerContext.funcIndex++);
+            path.scope.rename(name, '__JSF__f_' + normalizerContext.funcIndex++);
           } else {
-            path.scope.rename(name, '__v_' + normalizerContext.varIndex++);
+            path.scope.rename(name, '__JSF__v_' + normalizerContext.varIndex++);
           }
         }
       },
@@ -80,6 +83,15 @@ class IdentifierNormalizer extends mutator.Mutator {
       DoWhileStatement: loopStatement,
       ForStatement: loopStatement,
     }, {
+      // Second pass to re-normalize already renamed identifiers to their final
+      // JS_Fuzzer name pattern.
+      Scope(path) {
+        for (const [name, binding] of Object.entries(path.scope.bindings)) {
+          if (name.startsWith('__JSF__')) {
+            path.scope.rename(name, name.substring(5));
+          }
+        }
+      },
       // Second pass to rename globals that weren't declared with
       // var/let/const etc.
       Identifier(path) {
