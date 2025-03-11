@@ -7402,6 +7402,12 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
     if (isolate() != nullptr) {
       ExternalReference counter =
           ExternalReference::stress_deopt_count(isolate());
+      // The following code assumes that `Isolate::stress_deopt_count_` is 8
+      // bytes wide.
+      static constexpr size_t kSizeofRAX = 8;
+      static_assert(
+          sizeof(decltype(*isolate()->stress_deopt_count_address())) ==
+          kSizeofRAX);
 
       __ pushfq();
       __ pushq(rax);

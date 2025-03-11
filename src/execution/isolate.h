@@ -1741,7 +1741,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void DumpAndResetStats();
   void DumpAndResetBuiltinsProfileData();
 
-  void* stress_deopt_count_address() { return &stress_deopt_count_; }
+  uint64_t* stress_deopt_count_address() { return &stress_deopt_count_; }
 
   void set_force_slow_path(bool v) { force_slow_path_ = v; }
   bool force_slow_path() const { return force_slow_path_; }
@@ -2744,7 +2744,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::unique_ptr<PersistentHandlesList> persistent_handles_list_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
-  unsigned int stress_deopt_count_ = 0;
+  uint64_t stress_deopt_count_ = 0;
 
   bool force_slow_path_ = false;
 

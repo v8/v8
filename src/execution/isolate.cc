@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <atomic>
+#include <cinttypes>
 #include <cstdint>
 #include <fstream>
 #include <memory>
@@ -4484,7 +4485,8 @@ void Isolate::Deinit() {
   }
 
   if (v8_flags.print_deopt_stress) {
-    PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
+    PrintF(stdout, "=== Stress deopt counter: %" PRIu64 "\n",
+           stress_deopt_count_);
   }
 
   // We must stop the logger before we tear down other components.
