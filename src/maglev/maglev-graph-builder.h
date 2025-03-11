@@ -1763,8 +1763,8 @@ class MaglevGraphBuilder {
     }
 
     if constexpr (Node::opcode_of<NodeT> != Opcode::kAllocationBlock &&
-                  (NodeT::kProperties.can_eager_deopt() ||
-                   NodeT::kProperties.can_lazy_deopt() ||
+                  (NodeT::kProperties.can_deopt() ||
+                   NodeT::kProperties.can_throw() ||
                    NodeT::kProperties.can_allocate())) {
       ClearCurrentAllocationBlock();
     }

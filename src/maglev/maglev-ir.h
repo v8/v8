@@ -7173,9 +7173,9 @@ class FunctionEntryStackCheck
   // here. The register allocator should not spill any live registers, since the
   // builtin already handles it. The only possible live register is
   // kJavaScriptCallNewTargetRegister.
-  static constexpr OpProperties kProperties = OpProperties::LazyDeopt() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties =
+      OpProperties::LazyDeopt() | OpProperties::CanAllocate() |
+      OpProperties::DeferredCall() | OpProperties::NotIdempotent();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -10228,8 +10228,9 @@ class CheckDerivedConstructResult
 
   Input& construct_result_input() { return input(0); }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::CanThrow() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::CanThrow() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -10349,9 +10350,9 @@ class ReduceInterruptBudgetForLoop
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall() |
-                                              OpProperties::LazyDeopt() |
-                                              OpProperties::NotIdempotent();
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::CanAllocate() |
+      OpProperties::LazyDeopt() | OpProperties::NotIdempotent();
 
   int amount() const { return amount_; }
 
