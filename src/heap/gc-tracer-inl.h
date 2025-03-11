@@ -52,8 +52,7 @@ GCTracer::Scope::~Scope() {
 
   if (thread_kind_ == ThreadKind::kMain) {
     if (scope_ == ScopeId::MC_INCREMENTAL ||
-        scope_ == ScopeId::MC_INCREMENTAL_START ||
-        scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
+        scope_ == ScopeId::MC_INCREMENTAL_START) {
       auto* long_task_stats =
           tracer_->heap_->isolate_->GetCurrentLongTaskStats();
       long_task_stats->gc_full_incremental_wall_clock_duration_us +=

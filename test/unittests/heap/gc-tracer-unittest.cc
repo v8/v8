@@ -168,17 +168,17 @@ TEST_F(GCTracerTest, IncrementalScope) {
   tracer->ResetForTesting();
 
   EXPECT_EQ(base::TimeDelta(),
-            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL]);
   // Sample is added because its ScopeId is listed as incremental sample.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(100));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(100));
   StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(200),
-            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL]);
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingDetails) {
@@ -187,53 +187,49 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
   tracer->ResetForTesting();
 
   // Round 1.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(50));
   // Scavenger has no impact on incremental marking details.
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
   StopTracing(i_isolate()->heap(), GarbageCollector::SCAVENGER);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(100));
   StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
-            tracer->current_
-                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
                 .longest_step);
-  EXPECT_EQ(2, tracer->current_
-                   .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-                   .steps);
+  EXPECT_EQ(2,
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
+                .steps);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
-            tracer->current_
-                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
                 .duration);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
-            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL]);
 
   // Round 2. Numbers should be reset.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(13));
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(15));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL,
                          base::TimeDelta::FromMilliseconds(122));
   StopTracing(i_isolate()->heap(), GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(122),
-            tracer->current_
-                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
                 .longest_step);
-  EXPECT_EQ(3, tracer->current_
-                   .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-                   .steps);
+  EXPECT_EQ(3,
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
+                .steps);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
-            tracer->current_
-                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+            tracer->current_.incremental_scopes[GCTracer::Scope::MC_INCREMENTAL]
                 .duration);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
-            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL]);
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingSpeed) {

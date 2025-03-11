@@ -1064,7 +1064,6 @@ void GCTracer::PrintNVP() const {
           "sweep.old=%.1f "
           "sweep.start_jobs=%.1f "
           "incremental=%.1f "
-          "incremental.finalize=%.1f "
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
@@ -1155,7 +1154,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_SWEEP_OLD),
           current_scope(Scope::MC_SWEEP_START_JOBS),
           current_scope(Scope::MC_INCREMENTAL),
-          current_scope(Scope::MC_INCREMENTAL_FINALIZE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE),
           current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
@@ -1421,8 +1419,7 @@ void GCTracer::RecordGCSumCounters() {
   const base::TimeDelta incremental_marking =
       incremental_scopes_[Scope::MC_INCREMENTAL_LAYOUT_CHANGE].duration +
       incremental_scopes_[Scope::MC_INCREMENTAL_START].duration +
-      current_.incremental_marking_duration +
-      incremental_scopes_[Scope::MC_INCREMENTAL_FINALIZE].duration;
+      current_.incremental_marking_duration;
   const base::TimeDelta incremental_sweeping =
       incremental_scopes_[Scope::MC_INCREMENTAL_SWEEPING].duration;
   const base::TimeDelta overall_duration =
@@ -1627,8 +1624,7 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.incremental_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
           .duration +
       current_.incremental_scopes[Scope::MC_INCREMENTAL_START].duration +
-      current_.incremental_marking_duration +
-      current_.incremental_scopes[Scope::MC_INCREMENTAL_FINALIZE].duration;
+      current_.incremental_marking_duration;
   const base::TimeDelta incremental_sweeping =
       current_.incremental_scopes[Scope::MC_INCREMENTAL_SWEEPING].duration;
   const base::TimeDelta overall_duration =
