@@ -598,3 +598,31 @@ function resetTransitionFunctions() {
   assertTrue(HasHoleyObjectElements(result2));
   assertOptimized(foo);
 })();
+
+(function testMapperReducesLength() {
+  let array = [0, 1, 2];
+  function evil(x) {
+    if (x == 1) {
+      array.length = 1;
+    }
+    return x;
+  }
+  %PrepareFunctionForOptimization(evil);
+  function foo(a) {
+    return a.map(evil);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const result = foo(array);
+  assertTrue(HasHoleySmiElements(result));
+  assertEquals(undefined, result[2]);
+
+  array = [0, 1, 2];
+  %OptimizeFunctionOnNextCall(foo);
+
+  const result2 = foo(array);
+  assertTrue(HasHoleySmiElements(result2));
+  assertEquals(undefined, result2[2]);
+  // Deopted since we iterated the array out of bounds.
+  assertUnoptimized(foo);
+})();

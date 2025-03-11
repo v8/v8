@@ -331,3 +331,20 @@ function resetTransitionFunctions() {
   const result = foo(array);
   assertTrue(HasHoleyObjectElements(result));
 })();
+
+(function testMapperReducesLength() {
+  let array = [0, 1, 2];
+  function evil(x) {
+    if (x == 1) {
+      array.length = 1;
+    }
+    return x;
+  }
+  function foo(a) {
+    return a.map(evil);
+  }
+
+  const result = foo(array);
+  assertTrue(HasHoleySmiElements(result));
+  assertEquals(undefined, result[2]);
+})();
