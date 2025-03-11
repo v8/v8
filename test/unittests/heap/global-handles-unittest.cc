@@ -600,6 +600,8 @@ TEST_F(GlobalHandlesTest, TotalSizeRegularNode) {
 }
 
 TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   ManualGCScope manual_gc(i_isolate());
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
