@@ -85,6 +85,7 @@ FuzzerSupport::~FuzzerSupport() {
 
     isolate_->LowMemoryNotification();
   }
+  v8::platform::NotifyIsolateShutdown(platform_.get(), isolate_);
   isolate_->Dispose();
   isolate_ = nullptr;
 
