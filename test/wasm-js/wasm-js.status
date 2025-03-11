@@ -15,9 +15,6 @@
   # tests have been updated.
   'wpt/exception/getArg.tentative': [FAIL],
 
-  # Failing spec tests after test update
-  'proposals/js-types/function/constructor.tentative': [FAIL],
-
   # This is a spec test of the https://github.com/WebAssembly/esm-integration
   # proposal which V8 does not implement yet.
   'wpt/module/moduleSource.tentative': [FAIL],
@@ -38,9 +35,6 @@
   'wpt/memory/to-resizable-buffer': [FAIL],
   'wpt/memory/to-resizable-buffer-shared': [FAIL],
   'wpt/memory/to-fixed-length-buffer-shared': [FAIL],
-
-  # TODO(irezvov): A spec behavior was updated, but WPT test not in sync yet.
-  'wpt/jspi/js-promise-integration': [FAIL],
 }], # ALWAYS
 
 ['system == android', {

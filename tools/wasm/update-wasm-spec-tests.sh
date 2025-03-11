@@ -142,7 +142,7 @@ log_and_run rm -rf wpt
 # Generate the proposal tests.
 ###############################################################################
 
-repos='js-promise-integration exception-handling js-types tail-call memory64 extended-const multi-memory function-references gc'
+repos='js-promise-integration exception-handling tail-call memory64 extended-const multi-memory function-references gc'
 
 for repo in ${repos}; do
   new_section "Process ${repo}: core tests"
