@@ -35,5 +35,6 @@
   [0.1, "--shared-string-table"],
   [0.1, "--shared-heap"],
   [0.1, "--stress-wasm-memory-moving"],
-  [0.1, "--stress-scavenger-pinning-objects-random"]
+  [0.1, "--stress-scavenger-pinning-objects-random"],
+  [0.01, "--ephemeron-fixpoint-iterations=0"]
 ]
