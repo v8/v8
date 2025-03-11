@@ -79,7 +79,7 @@ class StackMemory {
     Address memory_limit = active_segment_
                                ? active_segment_->base()
                                : reinterpret_cast<Address>(limit_ + size_);
-#ifdef V8_USE_SIMULATOR
+#ifdef USE_SIMULATOR
     // To perform runtime calls with different signatures, some simulators
     // prepare a fixed number of arguments which is an upper bound of the actual
     // parameter count. The extra stack slots contain arbitrary data and are
