@@ -66,7 +66,7 @@ class MarkCompactCollector final {
 
   enum class MarkingWorklistProcessingMode {
     kDefault,
-    kTrackNewlyDiscoveredObjects
+    kProcessRememberedEphemerons
   };
 
   enum class CallOrigin {
@@ -88,10 +88,10 @@ class MarkCompactCollector final {
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
   static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
 
+  template <MarkingWorklistProcessingMode mode =
+                MarkingWorklistProcessingMode::kDefault>
   std::pair<size_t, size_t> ProcessMarkingWorklist(
-      v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
-      MarkingWorklistProcessingMode mode =
-          MarkingWorklistProcessingMode::kDefault);
+      v8::base::TimeDelta max_duration, size_t max_bytes_to_process);
 
   void TearDown();
 
@@ -179,22 +179,6 @@ class MarkCompactCollector final {
 
   WeakObjects* weak_objects() { return &weak_objects_; }
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
-
-  void AddNewlyDiscovered(Tagged<HeapObject> object) {
-    if (ephemeron_marking_.newly_discovered_overflowed) return;
-
-    if (ephemeron_marking_.newly_discovered.size() <
-        ephemeron_marking_.newly_discovered_limit) {
-      ephemeron_marking_.newly_discovered.push_back(object);
-    } else {
-      ephemeron_marking_.newly_discovered_overflowed = true;
-    }
-  }
-
-  void ResetNewlyDiscovered() {
-    ephemeron_marking_.newly_discovered_overflowed = false;
-    ephemeron_marking_.newly_discovered.clear();
-  }
 
   bool UseBackgroundThreadsInCycle() const {
     return use_background_threads_in_cycle_;
@@ -437,7 +421,6 @@ class MarkCompactCollector final {
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
 
   WeakObjects weak_objects_;
-  EphemeronMarking ephemeron_marking_;
 
   std::unique_ptr<MainMarkingVisitor> marking_visitor_;
   std::unique_ptr<WeakObjects::Local> local_weak_objects_;
@@ -457,6 +440,9 @@ class MarkCompactCollector final {
   std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
+
+  // Map which stores ephemeron pairs for the linear-time algorithm.
+  KeyToValues key_to_values_;
 
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;

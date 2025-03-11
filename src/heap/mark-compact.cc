@@ -904,6 +904,7 @@ void MarkCompactCollector::Finish() {
   local_marking_worklists_.reset();
   marking_worklists_.ReleaseContextWorklists();
   native_context_stats_.Clear();
+  key_to_values_.clear();
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   local_weak_objects_->next_ephemerons_local.Publish();
@@ -2118,81 +2119,36 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   // This phase doesn't support parallel marking.
   DCHECK(heap_->concurrent_marking()->IsStopped());
-  // We must use the full pointer comparison here as this map will be queried
-  // with objects from different cages (e.g. code- or trusted cage).
-  std::unordered_multimap<Tagged<HeapObject>, Tagged<HeapObject>,
-                          Object::Hasher, Object::KeyEqualSafe>
-      key_to_values;
-  Ephemeron ephemeron;
-
+  DCHECK(key_to_values_.empty());
   DCHECK(
       local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+
+  // Update visitor to directly add new ephemerons to key_to_values_.
+  marking_visitor_->SetKeyToValues(&key_to_values_);
+
+  Ephemeron ephemeron;
   while (local_weak_objects()->next_ephemerons_local.Pop(&ephemeron)) {
     if (ApplyEphemeronSemantics(ephemeron.key, ephemeron.value) ==
         EphemeronResult::kUnresolved) {
-      key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
+      auto it = key_to_values_.try_emplace(ephemeron.key).first;
+      it->second.push_back(ephemeron.value);
     }
   }
 
-  ephemeron_marking_.newly_discovered_limit = key_to_values.size();
-  bool work_to_do = true;
+  bool work_to_do;
 
-  while (work_to_do) {
+  do {
     PerformWrapperTracing();
-
-    ResetNewlyDiscovered();
-    ephemeron_marking_.newly_discovered_limit = key_to_values.size();
 
     {
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
-      // Drain marking worklist and push all discovered objects into
-      // newly_discovered.
-      ProcessMarkingWorklist(
-          v8::base::TimeDelta::Max(), SIZE_MAX,
-          MarkingWorklistProcessingMode::kTrackNewlyDiscoveredObjects);
-    }
-
-    while (local_weak_objects()->next_ephemerons_local.Pop(&ephemeron)) {
-      if (ApplyEphemeronSemantics(ephemeron.key, ephemeron.value) ==
-          EphemeronResult::kUnresolved) {
-        key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
-      }
-    }
-
-    DCHECK(local_weak_objects()->next_ephemerons_local.IsLocalAndGlobalEmpty());
-
-    if (ephemeron_marking_.newly_discovered_overflowed) {
-      // If newly_discovered was overflowed just visit all ephemerons in
-      // key_to_values.
-      for (auto it = key_to_values.begin(); it != key_to_values.end();) {
-        Tagged<HeapObject> key = it->first;
-        Tagged<HeapObject> value = it->second;
-
-        if (ApplyEphemeronSemantics(key, value) ==
-            EphemeronResult::kUnresolved) {
-          ++it;
-        } else {
-          it = key_to_values.erase(it);
-        }
-      }
-
-    } else {
-      // This is the good case: newly_discovered stores all discovered
-      // objects. Now use key_to_values to see if discovered objects keep more
-      // objects alive due to ephemeron semantics.
-      for (Tagged<HeapObject> object : ephemeron_marking_.newly_discovered) {
-        auto range = key_to_values.equal_range(object);
-        for (auto it = range.first; it != range.second;) {
-          Tagged<HeapObject> value = it->second;
-          const auto target_worklist =
-              MarkingHelper::ShouldMarkObject(heap_, value);
-          if (target_worklist) {
-            MarkObject(object, value, target_worklist.value());
-          }
-          it = key_to_values.erase(it);
-        }
-      }
+      // Drain marking worklist but:
+      // (1) push all new ephemerons directly into key_to_values_.
+      // (2) look up all traced objects in key_to_values_.
+      ProcessMarkingWorklist<
+          MarkingWorklistProcessingMode::kProcessRememberedEphemerons>(
+          v8::base::TimeDelta::Max(), SIZE_MAX);
     }
 
     // Do NOT drain marking worklist here, otherwise the current checks
@@ -2203,10 +2159,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
         !local_marking_worklists_->IsEmpty() ||
         !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get());
     CHECK(local_weak_objects()->next_ephemerons_local.IsLocalAndGlobalEmpty());
-  }
-
-  ResetNewlyDiscovered();
-  ephemeron_marking_.newly_discovered.shrink_to_fit();
+  } while (work_to_do);
 
   CHECK(local_marking_worklists_->IsEmpty());
 
@@ -2232,9 +2185,9 @@ constexpr size_t kDeadlineCheckInterval = 128u;
 
 }  // namespace
 
+template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
-    v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
-    MarkCompactCollector::MarkingWorklistProcessingMode mode) {
+    v8::base::TimeDelta max_duration, size_t max_bytes_to_process) {
   Tagged<HeapObject> object;
   size_t bytes_processed = 0;
   size_t objects_processed = 0;
@@ -2257,10 +2210,22 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
     DCHECK(heap_->Contains(object));
     DCHECK(!(marking_state_->IsUnmarked(object)));
-    if (mode == MarkCompactCollector::MarkingWorklistProcessingMode::
-                    kTrackNewlyDiscoveredObjects) {
-      AddNewlyDiscovered(object);
+
+    if constexpr (mode ==
+                  MarkingWorklistProcessingMode::kProcessRememberedEphemerons) {
+      auto it = key_to_values_.find(object);
+      if (it != key_to_values_.end()) {
+        for (Tagged<HeapObject> value : it->second) {
+          const auto target_worklist =
+              MarkingHelper::ShouldMarkObject(heap_, value);
+          if (target_worklist) {
+            MarkObject(object, value, target_worklist.value());
+          }
+        }
+        key_to_values_.erase(it);
+      }
     }
+
     Tagged<Map> map = object->map(cage_base);
     if (is_per_context_mode) {
       Address context;
@@ -2346,11 +2311,22 @@ void MarkCompactCollector::VerifyEphemeronMarking() {
   if (v8_flags.verify_heap) {
     Ephemeron ephemeron;
 
+    // In the fixpoint iteration all unresolved ephemerons are in
+    // `next_ephemerons_`.
     CHECK(
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
     weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
     while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
-      CHECK(!ProcessEphemeron(ephemeron.key, ephemeron.value));
+      CHECK_NE(ApplyEphemeronSemantics(ephemeron.key, ephemeron.value),
+               EphemeronResult::kMarkedValue);
+    }
+
+    // In the linear-time algorithm ephemerons are kept in `key_to_values_`.
+    for (auto& [key, values] : key_to_values_) {
+      for (auto value : values) {
+        CHECK_NE(ApplyEphemeronSemantics(key, value),
+                 EphemeronResult::kMarkedValue);
+      }
     }
   }
 #endif  // VERIFY_HEAP
@@ -2543,9 +2519,6 @@ void MarkCompactCollector::MarkLiveObjects() {
       FinishConcurrentMarking();
     }
     parallel_marking_ = false;
-  } else {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_SERIAL);
-    MarkTransitiveClosure();
   }
 
   {
@@ -2554,7 +2527,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   }
 
   {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE);
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_SERIAL);
     // Complete the transitive closure single-threaded to avoid races with
     // multiple threads when processing weak maps and embedder heaps.
     CHECK(heap_->concurrent_marking()->IsStopped());

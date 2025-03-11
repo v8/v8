@@ -19,11 +19,10 @@
 namespace v8 {
 namespace internal {
 
-struct EphemeronMarking {
-  std::vector<Tagged<HeapObject>> newly_discovered;
-  bool newly_discovered_overflowed;
-  size_t newly_discovered_limit;
-};
+using KeyToValues =
+    absl::flat_hash_map<Tagged<HeapObject>,
+                        base::SmallVector<Tagged<HeapObject>, 1>,
+                        Object::Hasher, Object::KeyEqualSafe>;
 
 // The base class for all marking visitors (main and concurrent marking) but
 // also for e.g. the reference summarizer. It implements marking logic with
@@ -193,6 +192,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
   V8_INLINE static constexpr bool IsTrivialWeakReferenceValue(
       Tagged<HeapObject> host, Tagged<HeapObject> heap_object);
 
+  void SetKeyToValues(KeyToValues* key_to_values) {
+    DCHECK_NULL(key_to_values_);
+    key_to_values_ = key_to_values;
+  }
+
  protected:
   using ConcurrentHeapVisitor<ConcreteVisitor>::concrete_visitor;
 
@@ -226,6 +230,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<ConcreteVisitor> {
 
   MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects::Local* const local_weak_objects_;
+  KeyToValues* key_to_values_ = nullptr;
   Heap* const heap_;
   const unsigned mark_compact_epoch_;
   const base::EnumSet<CodeFlushMode> code_flush_mode_;
