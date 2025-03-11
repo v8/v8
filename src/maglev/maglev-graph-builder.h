@@ -2585,14 +2585,14 @@ class MaglevGraphBuilder {
       compiler::JSObjectRef boilerplate, AllocationType allocation,
       int max_depth, int* max_properties);
 
-  ValueNode* BuildInlinedAllocationForConsString(VirtualObject* object,
-                                                 AllocationType allocation);
-  ValueNode* BuildInlinedAllocationForHeapNumber(VirtualObject* object,
-                                                 AllocationType allocation);
-  ValueNode* BuildInlinedAllocationForDoubleFixedArray(
+  InlinedAllocation* BuildInlinedAllocationForConsString(
       VirtualObject* object, AllocationType allocation);
-  ValueNode* BuildInlinedAllocation(VirtualObject* object,
-                                    AllocationType allocation);
+  InlinedAllocation* BuildInlinedAllocationForHeapNumber(
+      VirtualObject* object, AllocationType allocation);
+  InlinedAllocation* BuildInlinedAllocationForDoubleFixedArray(
+      VirtualObject* object, AllocationType allocation);
+  InlinedAllocation* BuildInlinedAllocation(VirtualObject* object,
+                                            AllocationType allocation);
   ValueNode* BuildInlinedArgumentsElements(int start_index, int length);
   ValueNode* BuildInlinedUnmappedArgumentsElements(int mapped_count);
 
