@@ -85,11 +85,12 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     }
     try_catch.Reset();
     task.reset();
-    // Pump the isolate's foreground task queue to ensure progress, otherwise a
-    // deadlock may result, especially with --stress-incremental-marking.
-    // Related issues: https://crbug.com/40789558 and
-    // https://crbug.com/40789559.
-    if (!isolate()->IsExecutionTerminating()) {
+    // Also pump isolate's foreground task queue to ensure progress.
+    // This can be removed once https://crbug.com/v8/10747 is fixed.
+    // TODO(10748): Enable --stress-incremental-marking after the existing
+    // tests are fixed.
+    if (!i::v8_flags.stress_incremental_marking &&
+        !isolate()->IsExecutionTerminating()) {
       while (v8::platform::PumpMessageLoop(
           v8::internal::V8::GetCurrentPlatform(), isolate(),
           isolate()->HasPendingBackgroundTasks()

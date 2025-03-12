@@ -4,6 +4,11 @@
 
 // Flags: --wasm-test-streaming
 
+// Because of https://crbug.com/v8/10748 we skip pumping the message loop
+// with --stress-incremental-marking, which makes this test fail. Thus disable
+// that stress mode here.
+// Flags: --no-stress-incremental-marking
+
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} =
