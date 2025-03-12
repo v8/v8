@@ -920,14 +920,15 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
 
   std::optional<VariableProxy*> maybe_result =
       Rewriter::RewriteBody(info, scope, block->statements());
+  if (!maybe_result) return;
   Expression* result_value =
-      (maybe_result && *maybe_result)
-          ? static_cast<Expression*>(*maybe_result)
-          : factory()->NewUndefinedLiteral(kNoSourcePosition);
+      *maybe_result ? static_cast<Expression*>(*maybe_result)
+                    : factory()->NewUndefinedLiteral(kNoSourcePosition);
   Expression* wrapped_result_value = WrapREPLResult(result_value);
   block->statements()->Add(factory()->NewAsyncReturnStatement(
                                wrapped_result_value, kNoSourcePosition),
                            zone());
+  DCHECK(!info->pending_error_handler()->stack_overflow());
   body->Add(block);
 }
 
