@@ -1034,6 +1034,7 @@ void GCTracer::PrintNVP() const {
           "complete.sweeping=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
+          "evacuate.pin_pages=%.1f "
           "evacuate.candidates=%.1f "
           "evacuate.clean_up=%.1f "
           "evacuate.copy=%.1f "
@@ -1125,6 +1126,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MC_COMPLETE_SWEEPING),
           current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),
+          current_scope(Scope::MC_EVACUATE_PIN_PAGES),
           current_scope(Scope::MC_EVACUATE_CANDIDATES),
           current_scope(Scope::MC_EVACUATE_CLEAN_UP),
           current_scope(Scope::MC_EVACUATE_COPY),

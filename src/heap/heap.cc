@@ -4888,6 +4888,11 @@ void Heap::IterateConservativeStackRoots(
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
+void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
+  IterateStackRoots(visitor);
+  isolate()->handle_scope_implementer()->Iterate(visitor);
+}
+
 // static
 size_t Heap::DefaultMinSemiSpaceSize() {
 #if ENABLE_HUGEPAGE

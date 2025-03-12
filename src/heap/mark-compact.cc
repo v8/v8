@@ -54,6 +54,7 @@
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -4841,10 +4842,86 @@ void TraceEvacuation(Isolate* isolate, size_t pages_count,
 
 }  // namespace
 
+class PrecisePagePinningVisitor final : public RootVisitor {
+ public:
+  explicit PrecisePagePinningVisitor(MarkCompactCollector* collector)
+      : RootVisitor(), collector_(collector) {}
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) final {
+    HandlePointer(p);
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) final {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      HandlePointer(p);
+    }
+  }
+
+ private:
+  void HandlePointer(FullObjectSlot p) {
+    Tagged<Object> object = *p;
+    if (!object.IsHeapObject()) {
+      return;
+    }
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(Cast<HeapObject>(object));
+    if (chunk->IsLargePage() || chunk->InReadOnlySpace()) {
+      // Large objects and read only objects are not evacuated and thus don't
+      // need to be pinned.
+      return;
+    }
+    if (chunk->InYoungGeneration()) {
+      // Young gen pages are not considered evacuation candidates. Pinning is
+      // done by marking them as quarantined and promoting the page as is.
+      DCHECK(v8_flags.minor_ms ? chunk->IsToPage() : chunk->IsFromPage());
+      if (chunk->IsQuarantined()) {
+        return;
+      }
+      chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      return;
+    }
+    if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE) ||
+        chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+      return;
+    }
+    collector_->ReportAbortedEvacuationCandidateDueToFlags(
+        PageMetadata::cast(chunk->Metadata()), chunk);
+  }
+
+  MarkCompactCollector* const collector_;
+};
+
+void MarkCompactCollector::PinPreciseRootsIfNeeded() {
+  if (!v8_flags.precise_object_pinning) {
+    return;
+  }
+
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_PIN_PAGES);
+
+  Isolate* const isolate = heap_->isolate();
+
+  PrecisePagePinningVisitor root_visitor(this);
+
+  // Mark the heap roots including global variables, stack variables,
+  // etc., and all objects reachable from them.
+  heap_->IterateRootsForPrecisePinning(&root_visitor);
+
+  if (isolate->is_shared_space_isolate()) {
+    ClientRootVisitor<> client_root_visitor(&root_visitor);
+    isolate->global_safepoint()->IterateClientIsolates(
+        [&client_root_visitor](Isolate* client) {
+          client->heap()->IterateRootsForPrecisePinning(&client_root_visitor);
+        });
+  }
+}
+
 void MarkCompactCollector::EvacuatePagesInParallel() {
   std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
       evacuation_items;
   intptr_t live_bytes = 0;
+
+  PinPreciseRootsIfNeeded();
 
   // Evacuation of new space pages cannot be aborted, so it needs to run
   // before old space evacuation.
@@ -4858,7 +4935,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         heap_->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                     : MemoryReductionMode::kNone;
     if (ShouldMovePage(page, live_bytes_on_page, memory_reduction_mode) ||
-        force_page_promotion) {
+        force_page_promotion || page->Chunk()->IsQuarantined()) {
       EvacuateNewToOldSpacePageVisitor::Move(page);
       page->Chunk()->SetFlagNonExecutable(MemoryChunk::PAGE_NEW_OLD_PROMOTION);
       DCHECK_EQ(heap_->old_space(), page->owner());
@@ -4872,7 +4949,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (heap_->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     } else if (!v8_flags.compact_code_space_with_stack ||
                heap_->isolate()->InFastCCall()) {
@@ -4880,7 +4957,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       // frame if we would relocate InstructionStream objects.
       for (PageMetadata* page : old_space_evacuation_pages_) {
         if (page->owner_identity() != CODE_SPACE) continue;
-        ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
   } else {
@@ -4898,7 +4975,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) continue;
 
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
-        ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
   }
@@ -5789,13 +5866,12 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
-    Address failed_start, PageMetadata* page) {
-  MemoryChunk* chunk = page->Chunk();
+    PageMetadata* page, MemoryChunk* chunk) {
+  DCHECK_EQ(page->Chunk(), chunk);
   DCHECK(!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
   chunk->SetFlagSlow(MemoryChunk::COMPACTION_WAS_ABORTED);
-  base::MutexGuard guard(&mutex_);
   aborted_evacuation_candidates_due_to_flags_.push_back(
-      std::make_pair(failed_start, page));
+      std::make_pair(page->area_start(), page));
 }
 
 namespace {

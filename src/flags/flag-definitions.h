@@ -503,11 +503,15 @@ DEFINE_BOOL(stress_scavenger_pinning_objects_random, false,
 DEFINE_IMPLICATION(stress_scavenger_pinning_objects_random,
                    stress_scavenger_pinning_objects)
 
-DEFINE_EXPERIMENTAL_FEATURE(scavenger_precise_pinning_objects,
-                            "Objects reachable from handles during "
-                            "scavenge will be pinned and "
-                            "won't move.")
-DEFINE_IMPLICATION(scavenger_precise_pinning_objects, separate_gc_phases)
+DEFINE_EXPERIMENTAL_FEATURE(scavenger_precise_object_pinning,
+                            "Objects reachable from handles during scavenge "
+                            "will be pinned and won't move.")
+DEFINE_IMPLICATION(scavenger_precise_object_pinning, separate_gc_phases)
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    precise_object_pinning,
+    "Objects reachable from handles during GC will be pinned and won't move.")
+DEFINE_IMPLICATION(precise_object_pinning, scavenger_precise_object_pinning)
 
 DEFINE_BOOL(scavenger_promote_quarantined_pages, true,
             "Quarantined pages in the intermediate generation will be promoted "

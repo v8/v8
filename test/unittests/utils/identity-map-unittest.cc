@@ -711,7 +711,7 @@ TEST_F(IdentityMapTest, GCShortCutting) {
   // We don't create ThinStrings immediately when using the forwarding table.
   if (v8_flags.always_use_string_forwarding_table) return;
   v8_flags.shortcut_strings_with_stack = true;
-  v8_flags.scavenger_precise_pinning_objects = false;
+  v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
   IdentityMapTester t(isolate()->heap(), zone());
   Factory* factory = isolate()->factory();

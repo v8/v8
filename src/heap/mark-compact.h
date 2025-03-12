@@ -227,6 +227,8 @@ class MarkCompactCollector final {
   void MarkObjectsFromClientHeaps();
   void MarkObjectsFromClientHeap(Isolate* client);
 
+  void PinPreciseRootsIfNeeded();
+
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
   void UpdatePointersInClientHeap(Isolate* client);
@@ -374,8 +376,8 @@ class MarkCompactCollector final {
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
                                                 PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToFlags(Address failed_start,
-                                                  PageMetadata* page);
+  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
+                                                  MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -468,6 +470,7 @@ class MarkCompactCollector final {
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
+  friend class PrecisePagePinningVisitor;
 };
 
 }  // namespace internal

@@ -870,7 +870,8 @@ UNINITIALIZED_TEST(PromotionScavenge) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
-  v8_flags.scavenger_precise_pinning_objects = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.precise_object_pinning = false;
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;
@@ -917,7 +918,8 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.scavenger_precise_pinning_objects = false;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.precise_object_pinning = false;
   i::FlagList::EnforceFlagImplications();
 
   MultiClientIsolateTest test;

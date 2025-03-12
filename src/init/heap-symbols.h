@@ -1074,6 +1074,7 @@
   F(MC_EVACUATE_COPY)                            \
   F(MC_EVACUATE_COPY_PARALLEL)                   \
   F(MC_EVACUATE_EPILOGUE)                        \
+  F(MC_EVACUATE_PIN_PAGES)                       \
   F(MC_EVACUATE_PROLOGUE)                        \
   F(MC_EVACUATE_REBALANCE)                       \
   F(MC_EVACUATE_UPDATE_POINTERS)                 \

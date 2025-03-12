@@ -1006,6 +1006,8 @@ class Heap final {
       ::heap::base::StackVisitor* stack_visitor,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
 
+  void IterateRootsForPrecisePinning(RootVisitor* visitor);
+
   // ===========================================================================
   // Remembered set API. =======================================================
   // ===========================================================================

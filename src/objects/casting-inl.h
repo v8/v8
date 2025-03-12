@@ -31,7 +31,7 @@ bool GCAwareObjectTypeCheck(Tagged<Object> object, const Heap* heap) {
   if ((heap->gc_state() == Heap::SCAVENGE) &&
       HeapLayout::InYoungGeneration(heap_object) &&
       (v8_flags.scavenger_pinning_objects ||
-       v8_flags.scavenger_precise_pinning_objects) &&
+       v8_flags.scavenger_precise_object_pinning) &&
       map_word.IsForwardingAddress() &&
       HeapLayout::IsSelfForwarded(heap_object)) {
     return true;
