@@ -20,70 +20,63 @@ class OperationMatcher;
 
 namespace detail {
 template <typename T, bool HasConstexpr>
-struct IndexMatch {
+struct ValueMatch {
   struct Wildcard {};
   using constexpr_type = typename v_traits<T>::constexpr_type;
 
-  IndexMatch() : v_(Wildcard{}) {}
-  IndexMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
-  IndexMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
-  IndexMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
-  IndexMatch(constexpr_type constant)        // NOLINT(runtime/explicit)
+  ValueMatch() : v_(Wildcard{}) {}
+  ValueMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
+  ValueMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
+  ValueMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
+  ValueMatch(constexpr_type constant)        // NOLINT(runtime/explicit)
       : v_(constant) {}
 
   inline bool matches(OpIndex matched, const OperationMatcher* matcher);
+  inline void bind(OpIndex matched, const OperationMatcher* matcher);
 
   std::variant<Wildcard, OpIndex, OpIndex*, constexpr_type> v_;
 };
 
 template <typename T>
-struct IndexMatch<T, false> {
+struct ValueMatch<T, false> {
   struct Wildcard {};
 
-  IndexMatch() : v_(Wildcard{}) {}
-  IndexMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
-  IndexMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
-  IndexMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
+  ValueMatch() : v_(Wildcard{}) {}
+  ValueMatch(OpIndex index) : v_(index) {}   // NOLINT(runtime/explicit)
+  ValueMatch(OpIndex* index) : v_(index) {}  // NOLINT(runtime/explicit)
+  ValueMatch(V<T>* index) : v_(index) {}     // NOLINT(runtime/explicit)
 
   inline bool matches(OpIndex matched, const OperationMatcher* matcher) {
-    switch (v_.index()) {
-      case 0:
-        return true;
-      case 1:
-        return std::get<1>(v_) == matched;
-      case 2:
-        *std::get<2>(v_) = matched;
-        return true;
-    }
-    // unreachable
-    return false;
+    if (v_.index() == 1) return std::get<1>(v_) == matched;
+    return true;
+  }
+
+  inline void bind(OpIndex matched, const OperationMatcher* matcher) {
+    DCHECK(matches(matched, matcher));
+    if (v_.index() == 2) *std::get<2>(v_) = matched;
   }
 
   std::variant<Wildcard, OpIndex, OpIndex*> v_;
 };
 
 template <typename T>
-struct ValueMatch {
+struct OptionMatch {
   struct Wildcard {};
 
-  ValueMatch() : v_(Wildcard{}) {}
-  ValueMatch(const T& value) : v_(value) {}  // NOLINT(runtime/explicit)
-  ValueMatch(T* value) : v_(value) {}        // NOLINT(runtime/explicit)
+  OptionMatch() : v_(Wildcard{}) {}
+  OptionMatch(const T& value) : v_(value) {}  // NOLINT(runtime/explicit)
+  OptionMatch(T* value) : v_(value) {}        // NOLINT(runtime/explicit)
 
   std::variant<Wildcard, T, T*> v_;
 
   bool matches(const T& matched) {
-    switch (v_.index()) {
-      case 0:
-        return true;
-      case 1:
-        return std::get<1>(v_) == matched;
-      case 2:
-        *std::get<2>(v_) = matched;
-        return true;
-    }
-    // unreachable
-    return false;
+    if (v_.index() == 1) return std::get<1>(v_) == matched;
+    return true;
+  }
+
+  void bind(const T& matched) {
+    DCHECK(matches(matched));
+    if (v_.index() == 2) *std::get<2>(v_) = matched;
   }
 };
 
@@ -92,9 +85,9 @@ struct ValueMatch {
 class OperationMatcher {
  public:
   template <typename T>
-  using IMatch = detail::IndexMatch<T, const_or_v_exists_v<T>>;
+  using VMatch = detail::ValueMatch<T, const_or_v_exists_v<T>>;
   template <typename T>
-  using VMatch = detail::ValueMatch<T>;
+  using OMatch = detail::OptionMatch<T>;
 
   explicit OperationMatcher(const Graph& graph) : graph_(graph) {}
 
@@ -352,19 +345,27 @@ class OperationMatcher {
   }
 
   template <typename T>
-  bool MatchChange(V<Any> matched, IMatch<T> input,
-                   VMatch<ChangeOp::Kind> kind = {},
-                   VMatch<ChangeOp::Assumption> assumption = {},
-                   VMatch<RegisterRepresentation> from = {},
-                   VMatch<RegisterRepresentation> to = {}) const {
+  bool MatchChange(V<Any> matched, VMatch<T> input,
+                   OMatch<ChangeOp::Kind> kind = {},
+                   OMatch<ChangeOp::Assumption> assumption = {},
+                   OMatch<RegisterRepresentation> from = {},
+                   OMatch<RegisterRepresentation> to = {}) const {
     const ChangeOp* op = TryCast<ChangeOp>(matched);
     if (!op) return false;
-    return input.matches(op->input(), this) && kind.matches(op->kind) &&
-           assumption.matches(op->assumption) && from.matches(op->from) &&
-           to.matches(op->to);
+    if (input.matches(op->input(), this) && kind.matches(op->kind) &&
+        assumption.matches(op->assumption) && from.matches(op->from) &&
+        to.matches(op->to)) {
+      input.bind(op->input(), this);
+      kind.bind(op->kind);
+      assumption.bind(op->assumption);
+      from.bind(op->from);
+      to.bind(op->to);
+      return true;
+    }
+    return false;
   }
 
-  bool MatchTruncateWord64ToWord32(V<Any> matched, IMatch<Word64> input) const {
+  bool MatchTruncateWord64ToWord32(V<Any> matched, VMatch<Word64> input) const {
     return MatchChange<Word64>(matched, input, ChangeOp::Kind::kTruncate, {},
                                RegisterRepresentation::Word64(),
                                RegisterRepresentation::Word32());
@@ -372,13 +373,20 @@ class OperationMatcher {
 
   template <typename T>
     requires(IsWord<T>())
-  bool MatchWordBinop(V<Any> matched, IMatch<T> left, IMatch<T> right,
-                      VMatch<WordBinopOp::Kind> kind = {},
-                      VMatch<WordRepresentation> rep = {}) const {
+  bool MatchWordBinop(V<Any> matched, VMatch<T> left, VMatch<T> right,
+                      OMatch<WordBinopOp::Kind> kind = {},
+                      OMatch<WordRepresentation> rep = {}) const {
     const WordBinopOp* op = TryCast<WordBinopOp>(matched);
     if (!op) return false;
-    return left.matches(op->left(), this) && right.matches(op->right(), this) &&
-           kind.matches(op->kind) && rep.matches(op->rep);
+    if (left.matches(op->left(), this) && right.matches(op->right(), this) &&
+        kind.matches(op->kind) && rep.matches(op->rep)) {
+      left.bind(op->left(), this);
+      right.bind(op->right(), this);
+      kind.bind(op->kind);
+      rep.bind(op->rep);
+      return true;
+    }
+    return false;
   }
 
   template <class T>
@@ -597,7 +605,7 @@ class OperationMatcher {
 };
 
 template <typename T, bool HasConstexpr>
-bool detail::IndexMatch<T, HasConstexpr>::matches(
+bool detail::ValueMatch<T, HasConstexpr>::matches(
     OpIndex matched, const OperationMatcher* matcher) {
   switch (v_.index()) {
     case 0:
@@ -605,7 +613,6 @@ bool detail::IndexMatch<T, HasConstexpr>::matches(
     case 1:
       return std::get<1>(v_) == matched;
     case 2:
-      *std::get<2>(v_) = matched;
       return true;
     case 3: {
       const ConstantOp* c = matcher->template TryCast<ConstantOp>(matched);
@@ -619,6 +626,13 @@ bool detail::IndexMatch<T, HasConstexpr>::matches(
   }
   // unreachable
   return false;
+}
+
+template <typename T, bool HasConstexpr>
+void detail::ValueMatch<T, HasConstexpr>::bind(
+    OpIndex matched, const OperationMatcher* matcher) {
+  DCHECK(matches(matched, matcher));
+  if (v_.index() == 2) *std::get<2>(v_) = matched;
 }
 
 }  // namespace v8::internal::compiler::turboshaft
