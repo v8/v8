@@ -1021,10 +1021,12 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class WasmMemoryMapDescriptor::BodyDescriptor : public DataOnlyBodyDescriptor {
+class WasmMemoryMapDescriptor::BodyDescriptor : public BodyDescriptorBase {
  public:
-  static_assert(WasmMemoryMapDescriptor::kStartOfStrongFieldsOffset ==
-                WasmMemoryMapDescriptor::kEndOfStrongFieldsOffset);
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IterateMaybeWeakPointer(obj, kMemoryOffset, v);
+  }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return map->instance_size();

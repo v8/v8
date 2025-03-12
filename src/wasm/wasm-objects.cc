@@ -1177,11 +1177,7 @@ WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
       isolate->native_context()->wasm_memory_map_descriptor_constructor(),
       isolate);
 
-  auto descriptor_object = Cast<WasmMemoryMapDescriptor>(
-      isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
-
   int file_descriptor = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
-  printf("Create file descriptor: %d\n", file_descriptor);
   if (file_descriptor == -1) {
     return {};
   }
@@ -1189,12 +1185,8 @@ WasmMemoryMapDescriptor::NewFromAnonymous(Isolate* isolate, size_t length) {
   if (ret_val == -1) {
     return {};
   }
-  v8::WasmMemoryMapDescriptor::WasmFileDescriptor wasm_fd =
-      static_cast<v8::WasmMemoryMapDescriptor::WasmFileDescriptor>(
-          file_descriptor);
-  descriptor_object->set_file_descriptor(wasm_fd);
 
-  return descriptor_object;
+  return NewFromFileDescriptor(isolate, file_descriptor);
 #else   // V8_TARGET_OS_LINUX
   return {};
 #endif  // V8_TARGET_OS_LINUX
@@ -1212,27 +1204,36 @@ WasmMemoryMapDescriptor::NewFromFileDescriptor(Isolate* isolate,
       isolate->factory()->NewJSObject(descriptor_ctor, AllocationType::kOld));
 
   descriptor_object->set_file_descriptor(file_descriptor);
+  descriptor_object->set_memory(ClearedValue(isolate));
+  descriptor_object->set_offset(0);
+  descriptor_object->set_size(0);
 
   return descriptor_object;
 }
 
-size_t WasmMemoryObject::MapDescriptor(
-    DirectHandle<WasmMemoryMapDescriptor> descriptor, size_t offset) {
+size_t WasmMemoryMapDescriptor::MapDescriptor(
+    DirectHandle<WasmMemoryObject> memory, size_t offset) {
 #if V8_TARGET_OS_LINUX
   CHECK(v8_flags.experimental_wasm_memory_control);
-  if (this->array_buffer()->is_shared()) {
+  if (memory->array_buffer()->is_shared()) {
     // TODO(ahaas): Handle concurrent calls to `MapDescriptor`. To prevent
     // concurrency issues, we disable `MapDescriptor` for shared wasm memories
     // so far.
     return 0;
   }
+  if (memory->is_memory64()) {
+    // TODO(ahaas): Handle memory64. So far the offset in the
+    // MemoryMapDescriptor is only an uint32. Either the offset has to be
+    // interpreted as a wasm memory page, or be extended to an uint64.
+    return 0;
+  }
 
   uint8_t* target =
-      reinterpret_cast<uint8_t*>(this->array_buffer()->backing_store()) +
+      reinterpret_cast<uint8_t*>(memory->array_buffer()->backing_store()) +
       offset;
 
   struct stat stat_for_size;
-  if (fstat(descriptor->file_descriptor(), &stat_for_size) == -1) {
+  if (fstat(this->file_descriptor(), &stat_for_size) == -1) {
     // Could not determine file size.
     return 0;
   }
@@ -1243,21 +1244,53 @@ size_t WasmMemoryObject::MapDescriptor(
     // Overflow
     return 0;
   }
-  if (size + offset > this->array_buffer()->byte_length()) {
+  if (size + offset > memory->array_buffer()->byte_length()) {
     return 0;
   }
 
-  void* ret_val =
-      mmap(target, size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED,
-           descriptor->file_descriptor(), 0);
-  if (ret_val == MAP_FAILED) {
-    printf("%s\n", strerror(errno));
-    return 0;
-  }
-  DCHECK_EQ(ret_val, target);
+  void* ret_val = mmap(target, size, PROT_READ | PROT_WRITE,
+                       MAP_FIXED | MAP_SHARED, this->file_descriptor(), 0);
+  CHECK_NE(ret_val, MAP_FAILED);
+  CHECK_EQ(ret_val, target);
   return size;
 #else
   return 0;
+#endif
+}
+
+bool WasmMemoryMapDescriptor::UnmapDescriptor() {
+#if V8_TARGET_OS_LINUX
+  CHECK(v8_flags.experimental_wasm_memory_control);
+  DisallowGarbageCollection no_gc;
+
+  i::Tagged<i::WasmMemoryObject> memory =
+      Cast<i::WasmMemoryObject>(MakeStrong(this->memory()));
+  if (memory.is_null()) {
+    return true;
+  }
+  uint32_t offset = this->offset();
+  uint32_t size = this->size();
+
+  // The following checks already passed during `MapDescriptor`, and they should
+  // still pass.
+  CHECK(!memory->is_memory64());
+  CHECK(!memory->array_buffer()->is_shared());
+  CHECK_EQ(size % GetArrayBufferPageAllocator()->AllocatePageSize(), 0);
+  CHECK_GE(size + offset, size);
+  CHECK_LE(size + offset, memory->array_buffer()->byte_length());
+
+  uint8_t* target =
+      reinterpret_cast<uint8_t*>(memory->array_buffer()->backing_store()) +
+      offset;
+
+  void* ret_val = mmap(target, size, PROT_READ | PROT_WRITE,
+                       MAP_FIXED | MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+  CHECK_NE(ret_val, MAP_FAILED);
+  CHECK_EQ(ret_val, target);
+  return true;
+#else
+  return false;
 #endif
 }
 

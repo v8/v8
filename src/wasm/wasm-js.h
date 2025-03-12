@@ -45,7 +45,8 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyMemoryMapDescriptor)        \
   V(WebAssemblyMemoryGetBuffer)            \
   V(WebAssemblyMemoryGrow)                 \
-  V(WebAssemblyMemoryMap)                  \
+  V(WebAssemblyMemoryMapDescriptorMap)     \
+  V(WebAssemblyMemoryMapDescriptorUnmap)   \
   V(WebAssemblyModule)                     \
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \

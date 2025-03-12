@@ -243,7 +243,11 @@ extern class WasmMemoryMapDescriptor extends JSObject {
   // in an array in the isolate, and only store an index into that array here.
   // An attacker could otherwise change the file descriptor here and thereby
   // access an arbitrary file descriptor.
+  memory: Weak<WasmMemoryObject>;
   file_descriptor: int32;
+  // TODO(339678654,ahaas): Support memory64.
+  offset: uint32;
+  size: uint32;
   @if(TAGGED_SIZE_8_BYTES) padding: uint32;
 }
 

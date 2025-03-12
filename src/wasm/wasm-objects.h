@@ -326,6 +326,13 @@ class WasmMemoryMapDescriptor
       Isolate* isolate,
       v8::WasmMemoryMapDescriptor::WasmFileDescriptor file_descriptor);
 
+  // Returns the number of bytes that got mapped into the WebAssembly.Memory.
+  V8_EXPORT_PRIVATE size_t MapDescriptor(DirectHandle<WasmMemoryObject> memory,
+                                         size_t offset);
+
+  // Returns `false` if an error occurred, otherwise `true`.
+  V8_EXPORT_PRIVATE bool UnmapDescriptor();
+
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmMemoryMapDescriptor)
@@ -368,10 +375,6 @@ class WasmMemoryObject
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
                                         uint32_t pages);
-
-  // Returns the number of bytes that got mapped into the WebAssembly.Memory.
-  V8_EXPORT_PRIVATE size_t MapDescriptor(
-      DirectHandle<WasmMemoryMapDescriptor> descriptor, size_t offset);
 
   static constexpr int kNoMaximum = -1;
 
