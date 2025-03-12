@@ -557,7 +557,7 @@ void MergePointInterpreterFrameState::MergePhis(
 }
 
 void MergePointInterpreterFrameState::MergeVirtualObject(
-    MaglevGraphBuilder* builder, const VirtualObject::List unmerged_vos,
+    MaglevGraphBuilder* builder, const VirtualObjectList unmerged_vos,
     const KnownNodeAspects& unmerged_aspects, VirtualObject* merged,
     VirtualObject* unmerged) {
   if (merged == unmerged) {
@@ -593,7 +593,7 @@ void MergePointInterpreterFrameState::MergeVirtualObject(
 
 void MergePointInterpreterFrameState::MergeVirtualObjects(
     MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
-    const VirtualObject::List unmerged_vos,
+    const VirtualObjectList unmerged_vos,
     const KnownNodeAspects& unmerged_aspects) {
   if (frame_state_.virtual_objects().is_empty()) return;
   if (unmerged_vos.is_empty()) return;
@@ -609,9 +609,9 @@ void MergePointInterpreterFrameState::MergeVirtualObjects(
 
   // We iterate both list in reversed order of ids collecting the umerged
   // objects into the map, until we find a common virtual object.
-  VirtualObject::List::WalkUntilCommon(
+  VirtualObjectList::WalkUntilCommon(
       frame_state_.virtual_objects(), unmerged_vos,
-      [&](VirtualObject* vo, VirtualObject::List vos) {
+      [&](VirtualObject* vo, VirtualObjectList vos) {
         // If we have a version in the map, it should be the most up-to-date,
         // since the list is in reverse order.
         auto& map = unmerged_vos == vos ? unmerged_map : merged_map;
@@ -855,7 +855,7 @@ const LoopEffects* MergePointInterpreterFrameState::loop_effects() {
 void MergePointInterpreterFrameState::MergeThrow(
     MaglevGraphBuilder* builder, const MaglevCompilationUnit* handler_unit,
     const KnownNodeAspects& known_node_aspects,
-    const VirtualObject::List virtual_objects) {
+    const VirtualObjectList virtual_objects) {
   // We don't count total predecessors on exception handlers, but we do want to
   // special case the first predecessor so we do count predecessors_so_far
   DCHECK_EQ(predecessor_count_, 0);

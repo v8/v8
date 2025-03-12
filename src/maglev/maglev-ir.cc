@@ -327,8 +327,8 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
 
 }  // namespace
 
-void VirtualObject::List::Print(std::ostream& os, const char* prefix,
-                                MaglevGraphLabeller* labeller) const {
+void VirtualObjectList::Print(std::ostream& os, const char* prefix,
+                              MaglevGraphLabeller* labeller) const {
   CHECK_NOT_NULL(labeller);
   os << prefix;
   for (const VirtualObject* vo : *this) {

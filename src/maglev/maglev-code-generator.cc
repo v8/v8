@@ -1138,60 +1138,6 @@ DeoptimizationFrameTranslation::FrameCount GetFrameCount(
   } while (deopt_frame);
   return {total, js_frame};
 }
-
-BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
-  switch (deopt_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      return deopt_frame.as_interpreted().bytecode_position();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      DCHECK_NOT_NULL(deopt_frame.parent());
-      return GetBytecodeOffset(*deopt_frame.parent());
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      return BytecodeOffset::None();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      return Builtins::GetContinuationBytecodeOffset(
-          deopt_frame.as_builtin_continuation().builtin_id());
-  }
-}
-SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
-  switch (deopt_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      return deopt_frame.as_interpreted().source_position();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      DCHECK_NOT_NULL(deopt_frame.parent());
-      return GetSourcePosition(*deopt_frame.parent());
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      return deopt_frame.as_construct_stub().source_position();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      DCHECK_NOT_NULL(deopt_frame.parent());
-      return GetSourcePosition(*deopt_frame.parent());
-  }
-}
-compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
-    const DeoptFrame& deopt_frame) {
-  switch (deopt_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      return deopt_frame.as_interpreted().unit().shared_function_info();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      return deopt_frame.as_inlined_arguments().unit().shared_function_info();
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      return deopt_frame.as_construct_stub().unit().shared_function_info();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      return GetSharedFunctionInfo(*deopt_frame.parent());
-  }
-}
-compiler::BytecodeArrayRef GetBytecodeArray(const DeoptFrame& deopt_frame) {
-  switch (deopt_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      return deopt_frame.as_interpreted().unit().bytecode();
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      return deopt_frame.as_inlined_arguments().unit().bytecode();
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      return deopt_frame.as_construct_stub().unit().bytecode();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      return GetBytecodeArray(*deopt_frame.parent());
-  }
-}
 }  // namespace
 
 class MaglevFrameTranslationBuilder {
@@ -1212,8 +1158,8 @@ class MaglevFrameTranslationBuilder {
     BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
-    const VirtualObject::List& virtual_objects =
-        GetVirtualObjects(deopt_info->top_frame());
+    const VirtualObjectList& virtual_objects =
+        deopt_info->top_frame().GetVirtualObjects();
     RecursiveBuildDeoptFrame(deopt_info->top_frame(), current_input_location,
                              virtual_objects);
   }
@@ -1222,8 +1168,8 @@ class MaglevFrameTranslationBuilder {
     BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
-    const VirtualObject::List& virtual_objects =
-        GetVirtualObjects(deopt_info->top_frame());
+    const VirtualObjectList& virtual_objects =
+        deopt_info->top_frame().GetVirtualObjects();
 
     if (deopt_info->top_frame().parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
@@ -1276,7 +1222,7 @@ class MaglevFrameTranslationBuilder {
 
   void RecursiveBuildDeoptFrame(const DeoptFrame& frame,
                                 const InputLocation*& current_input_location,
-                                const VirtualObject::List& virtual_objects) {
+                                const VirtualObjectList& virtual_objects) {
     if (frame.parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
@@ -1302,14 +1248,14 @@ class MaglevFrameTranslationBuilder {
 
   void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObject::List& virtual_objects,
+                             const VirtualObjectList& virtual_objects,
                              interpreter::Register result_location,
                              int result_size) {
     int return_offset = frame.ComputeReturnOffset(result_location, result_size);
     translation_array_builder_->BeginInterpretedFrame(
         frame.bytecode_position(),
-        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
-        GetProtectedDeoptLiteral(*GetBytecodeArray(frame).object()),
+        GetDeoptLiteral(frame.GetSharedFunctionInfo()),
+        GetProtectedDeoptLiteral(*frame.GetBytecodeArray().object()),
         frame.unit().register_count(), return_offset, result_size);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
@@ -1319,7 +1265,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObject::List& virtual_objects) {
+                             const VirtualObjectList& virtual_objects) {
     // Returns offset/count is used for updating an accumulator or register
     // after a lazy deopt -- this function is overloaded to allow them to be
     // passed in.
@@ -1327,8 +1273,8 @@ class MaglevFrameTranslationBuilder {
     const int return_count = 0;
     translation_array_builder_->BeginInterpretedFrame(
         frame.bytecode_position(),
-        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
-        GetProtectedDeoptLiteral(*GetBytecodeArray(frame).object()),
+        GetDeoptLiteral(frame.GetSharedFunctionInfo()),
+        GetProtectedDeoptLiteral(*frame.GetBytecodeArray().object()),
         frame.unit().register_count(), return_offset, return_count);
 
     BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
@@ -1338,11 +1284,11 @@ class MaglevFrameTranslationBuilder {
 
   void BuildSingleDeoptFrame(const InlinedArgumentsDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObject::List& virtual_objects) {
+                             const VirtualObjectList& virtual_objects) {
     translation_array_builder_->BeginInlinedExtraArguments(
-        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        GetDeoptLiteral(frame.GetSharedFunctionInfo()),
         static_cast<uint32_t>(frame.arguments().size()),
-        GetBytecodeArray(frame).parameter_count());
+        frame.GetBytecodeArray().parameter_count());
 
     // Closure
     BuildDeoptFrameSingleValue(frame.closure(), current_input_location,
@@ -1360,9 +1306,9 @@ class MaglevFrameTranslationBuilder {
 
   void BuildSingleDeoptFrame(const ConstructInvokeStubDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObject::List& virtual_objects) {
+                             const VirtualObjectList& virtual_objects) {
     translation_array_builder_->BeginConstructInvokeStubFrame(
-        GetDeoptLiteral(GetSharedFunctionInfo(frame)));
+        GetDeoptLiteral(frame.GetSharedFunctionInfo()));
 
     // Implicit receiver
     BuildDeoptFrameSingleValue(frame.receiver(), current_input_location,
@@ -1375,10 +1321,10 @@ class MaglevFrameTranslationBuilder {
 
   void BuildSingleDeoptFrame(const BuiltinContinuationDeoptFrame& frame,
                              const InputLocation*& current_input_location,
-                             const VirtualObject::List& virtual_objects) {
+                             const VirtualObjectList& virtual_objects) {
     BytecodeOffset bailout_id =
         Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
-    int literal_id = GetDeoptLiteral(GetSharedFunctionInfo(frame));
+    int literal_id = GetDeoptLiteral(frame.GetSharedFunctionInfo());
     int height = frame.parameters().length();
 
     constexpr int kExtraFixedJSFrameParameters =
@@ -1508,7 +1454,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildConsString(const VirtualObject* object,
                        const InputLocation*& input_location,
-                       const VirtualObject::List& virtual_objects) {
+                       const VirtualObjectList& virtual_objects) {
     auto cons_string = object->cons_string();
     translation_array_builder_->StringConcat();
     BuildNestedValue(cons_string.first(), input_location, virtual_objects);
@@ -1535,7 +1481,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildNestedValue(const ValueNode* value,
                         const InputLocation*& input_location,
-                        const VirtualObject::List& virtual_objects) {
+                        const VirtualObjectList& virtual_objects) {
     if (IsConstantNode(value->opcode())) {
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1567,7 +1513,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildVirtualObject(const VirtualObject* object,
                           const InputLocation*& input_location,
-                          const VirtualObject::List& virtual_objects) {
+                          const VirtualObjectList& virtual_objects) {
     if (object->type() == VirtualObject::kHeapNumber) {
       return BuildHeapNumber(object->number());
     }
@@ -1602,7 +1548,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
-                                  const VirtualObject::List& virtual_objects) {
+                                  const VirtualObjectList& virtual_objects) {
     if (value->Is<Identity>()) {
       value = value->input(0).node();
     }
@@ -1635,7 +1581,7 @@ class MaglevFrameTranslationBuilder {
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
       const ValueNode* closure, const InputLocation*& input_location,
-      const VirtualObject::List& virtual_objects,
+      const VirtualObjectList& virtual_objects,
       interpreter::Register result_location, int result_size) {
     // TODO(leszeks): The input locations array happens to be in the same
     // order as closure+parameters+context+locals+accumulator are accessed
@@ -1898,7 +1844,7 @@ bool MaglevCodeGenerator::EmitDeopts() {
       // unconditionally emit the deopt_reason when
       // IsDeoptimizationWithoutCodeInvalidation is true.
       __ RecordDeoptReason(deopt_info->reason(), 0,
-                           GetSourcePosition(deopt_info->top_frame()),
+                           deopt_info->top_frame().GetSourcePosition(),
                            deopt_index);
     }
     __ bind(deopt_info->deopt_entry_label());
@@ -1919,7 +1865,7 @@ bool MaglevCodeGenerator::EmitDeopts() {
 
     if (masm_.compilation_info()->collect_source_positions()) {
       __ RecordDeoptReason(DeoptimizeReason::kUnknown, 0,
-                           GetSourcePosition(deopt_info->top_frame()),
+                           deopt_info->top_frame().GetSourcePosition(),
                            deopt_index);
     }
     __ BindExceptionHandler(deopt_info->deopt_entry_label());
@@ -2108,7 +2054,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   int i = 0;
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data->SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
+    raw_data->SetBytecodeOffset(i, deopt_info->top_frame().GetBytecodeOffset());
     raw_data->SetTranslationIndex(
         i, Smi::FromInt(deopt_info->translation_index()));
     raw_data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
@@ -2119,7 +2065,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   }
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data->SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
+    raw_data->SetBytecodeOffset(i, deopt_info->top_frame().GetBytecodeOffset());
     raw_data->SetTranslationIndex(
         i, Smi::FromInt(deopt_info->translation_index()));
     raw_data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));

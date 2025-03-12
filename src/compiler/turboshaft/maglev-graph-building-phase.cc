@@ -4714,8 +4714,8 @@ class GraphBuildingNodeProcessor {
     const interpreter::Register result_location =
         interpreter::Register::invalid_value();
     const int result_size = 0;
-    const maglev::VirtualObject::List& virtual_objects =
-        maglev::GetVirtualObjects(eager_deopt_info->top_frame());
+    const maglev::VirtualObjectList virtual_objects =
+        eager_deopt_info->top_frame().GetVirtualObjects();
 
     switch (eager_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
@@ -4734,8 +4734,8 @@ class GraphBuildingNodeProcessor {
   OptionalV<FrameState> BuildFrameState(
       maglev::LazyDeoptInfo* lazy_deopt_info) {
     deduplicator_.Reset();
-    const maglev::VirtualObject::List& virtual_objects =
-        maglev::GetVirtualObjects(lazy_deopt_info->top_frame());
+    const maglev::VirtualObjectList virtual_objects =
+        lazy_deopt_info->top_frame().GetVirtualObjects();
     switch (lazy_deopt_info->top_frame().type()) {
       case maglev::DeoptFrame::FrameType::kInterpretedFrame:
         return BuildFrameState(
@@ -4757,7 +4757,7 @@ class GraphBuildingNodeProcessor {
 
   OptionalV<FrameState> BuildParentFrameState(
       maglev::DeoptFrame& frame,
-      const maglev::VirtualObject::List& virtual_objects) {
+      const maglev::VirtualObjectList& virtual_objects) {
     // Only the topmost frame should have a valid result_location and
     // result_size. One reason for this is that, in Maglev, the PokeAt is not an
     // attribute of the DeoptFrame but rather of the LazyDeoptInfo (to which the
@@ -4782,7 +4782,7 @@ class GraphBuildingNodeProcessor {
 
   OptionalV<FrameState> BuildFrameState(
       maglev::ConstructInvokeStubDeoptFrame& frame,
-      const maglev::VirtualObject::List& virtual_objects) {
+      const maglev::VirtualObjectList& virtual_objects) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameState> parent_frame =
@@ -4820,7 +4820,7 @@ class GraphBuildingNodeProcessor {
 
   OptionalV<FrameState> BuildFrameState(
       maglev::InlinedArgumentsDeoptFrame& frame,
-      const maglev::VirtualObject::List& virtual_objects) {
+      const maglev::VirtualObjectList& virtual_objects) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameState> parent_frame =
@@ -4860,7 +4860,7 @@ class GraphBuildingNodeProcessor {
 
   OptionalV<FrameState> BuildFrameState(
       maglev::BuiltinContinuationDeoptFrame& frame,
-      const maglev::VirtualObject::List& virtual_objects) {
+      const maglev::VirtualObjectList& virtual_objects) {
     FrameStateData::Builder builder;
     if (frame.parent() != nullptr) {
       OptionalV<FrameState> parent_frame =
@@ -4927,7 +4927,7 @@ class GraphBuildingNodeProcessor {
 
   OptionalV<FrameState> BuildFrameState(
       maglev::InterpretedDeoptFrame& frame,
-      const maglev::VirtualObject::List& virtual_objects,
+      const maglev::VirtualObjectList& virtual_objects,
       interpreter::Register result_location, int result_size) {
     DCHECK_EQ(result_size != 0, result_location.is_valid());
     FrameStateData::Builder builder;
@@ -5001,7 +5001,7 @@ class GraphBuildingNodeProcessor {
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
-                     const maglev::VirtualObject::List& virtual_objects,
+                     const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node) {
     if (const maglev::InlinedAllocation* alloc =
             node->TryCast<maglev::InlinedAllocation>()) {
@@ -5025,7 +5025,7 @@ class GraphBuildingNodeProcessor {
   }
 
   void AddDeoptInput(FrameStateData::Builder& builder,
-                     const maglev::VirtualObject::List& virtual_objects,
+                     const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node, interpreter::Register reg,
                      interpreter::Register result_location, int result_size) {
     if (result_location.is_valid() && maglev::LazyDeoptInfo::InReturnValues(
@@ -5037,7 +5037,7 @@ class GraphBuildingNodeProcessor {
   }
 
   void AddVirtualObjectInput(FrameStateData::Builder& builder,
-                             const maglev::VirtualObject::List& virtual_objects,
+                             const maglev::VirtualObjectList& virtual_objects,
                              const maglev::VirtualObject* vobj) {
     if (vobj->type() == maglev::VirtualObject::kHeapNumber) {
       // We need to add HeapNumbers as dematerialized HeapNumbers (rather than
@@ -5105,7 +5105,7 @@ class GraphBuildingNodeProcessor {
 
   void AddVirtualObjectNestedValue(
       FrameStateData::Builder& builder,
-      const maglev::VirtualObject::List& virtual_objects,
+      const maglev::VirtualObjectList& virtual_objects,
       const maglev::ValueNode* value) {
     if (maglev::IsConstantNode(value->opcode())) {
       switch (value->opcode()) {

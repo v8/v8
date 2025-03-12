@@ -597,7 +597,7 @@ MaglevGraphBuilder::MaglevSubGraphBuilder::MaglevSubGraphBuilder(
     : builder_(builder),
       compilation_unit_(MaglevCompilationUnit::NewDummy(
           builder->zone(), builder->compilation_unit(), variable_count, 0, 0)),
-      pseudo_frame_(*compilation_unit_, nullptr, VirtualObject::List()) {
+      pseudo_frame_(*compilation_unit_, nullptr, VirtualObjectList()) {
   // We need to set a context, since this is unconditional in the frame state,
   // so set it to the real context.
   pseudo_frame_.set(interpreter::Register::current_context(),
@@ -884,7 +884,7 @@ void MaglevGraphBuilder::MaglevSubGraphBuilder::
   pseudo_frame_.clear_known_node_aspects();
   builder_->current_interpreter_frame_.set_virtual_objects(
       pseudo_frame_.virtual_objects());
-  pseudo_frame_.set_virtual_objects(VirtualObject::List());
+  pseudo_frame_.set_virtual_objects(VirtualObjectList());
 }
 
 void MaglevGraphBuilder::MaglevSubGraphBuilder::MergeIntoLabel(
@@ -933,8 +933,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           is_inline() ? caller_details->known_node_aspects
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
                             compilation_unit_->zone()),
-          is_inline() ? caller_details->virtual_objects
-                      : VirtualObject::List()),
+          is_inline() ? caller_details->deopt_frame->GetVirtualObjects()
+                      : VirtualObjectList()),
       is_turbolev_(compilation_unit->info()->is_turbolev()),
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
@@ -1273,7 +1273,24 @@ bool MaglevGraphBuilder::HasOutputRegister(interpreter::Register reg) const {
 }
 #endif
 
-DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForCall(
+DeoptFrame* MaglevGraphBuilder::AddInlinedArgumentsToDeoptFrame(
+    DeoptFrame* deopt_frame, const MaglevCompilationUnit* unit,
+    ValueNode* closure, base::Vector<ValueNode*> args) {
+  // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
+  // formal parameter and arguments count.
+  if (static_cast<int>(args.size()) != unit->parameter_count()) {
+    deopt_frame = zone()->New<InlinedArgumentsDeoptFrame>(
+        *unit, BytecodeOffset(iterator_.current_offset()), closure, args,
+        deopt_frame);
+    AddDeoptUse(closure);
+    for (ValueNode* arg : deopt_frame->as_inlined_arguments().arguments()) {
+      AddDeoptUse(arg);
+    }
+  }
+  return deopt_frame;
+}
+
+DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForEagerCall(
     const MaglevCompilationUnit* unit, ValueNode* closure,
     base::Vector<ValueNode*> args) {
   // The parent resumes after the call, which is roughly equivalent to a lazy
@@ -1288,22 +1305,10 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForCall(
       interpreter::Bytecodes::WritesAccumulator(iterator_.current_bytecode()) ||
       interpreter::Bytecodes::ClobbersAccumulator(
           iterator_.current_bytecode()));
-
   DeoptFrame* deopt_frame = zone()->New<DeoptFrame>(
       GetDeoptFrameForLazyDeoptHelper(interpreter::Register::invalid_value(), 0,
                                       current_deopt_scope_, true));
-  // Only create InlinedArgumentsDeoptFrame if we have a mismatch between
-  // formal parameter and arguments count.
-  if (static_cast<int>(args.size()) != unit->parameter_count()) {
-    deopt_frame = zone()->New<InlinedArgumentsDeoptFrame>(
-        *unit, BytecodeOffset(iterator_.current_offset()), closure, args,
-        deopt_frame);
-    AddDeoptUse(closure);
-    for (ValueNode* arg : deopt_frame->as_inlined_arguments().arguments()) {
-      AddDeoptUse(arg);
-    }
-  }
-  return deopt_frame;
+  return AddInlinedArgumentsToDeoptFrame(deopt_frame, unit, closure, args);
 }
 
 DeoptFrame* MaglevGraphBuilder::GetCallerDeoptFrame() {
@@ -5289,7 +5294,7 @@ bool IsEscaping(Graph* graph, InlinedAllocation* alloc) {
   return false;
 }
 
-bool VerifyIsNotEscaping(VirtualObject::List vos, InlinedAllocation* alloc) {
+bool VerifyIsNotEscaping(VirtualObjectList vos, InlinedAllocation* alloc) {
   for (VirtualObject* vo : vos) {
     if (vo->allocation() == alloc) continue;
     bool escaped = false;
@@ -8178,9 +8183,9 @@ void ForceEscapeIfAllocation(ValueNode* value) {
 }
 }  // namespace
 
-ReduceResult MaglevGraphBuilder::BuildInlineFunction(ValueNode* context,
-                                                     ValueNode* function,
-                                                     ValueNode* new_target) {
+ReduceResult MaglevGraphBuilder::BuildInlineFunction(
+    SourcePosition call_site_position, ValueNode* context, ValueNode* function,
+    ValueNode* new_target) {
   DCHECK(is_inline());
   DCHECK_GT(caller_details_->arguments.size(), 0);
 
@@ -8205,8 +8210,7 @@ ReduceResult MaglevGraphBuilder::BuildInlineFunction(ValueNode* context,
 
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
-          shared.object(), bytecode.object(),
-          caller_details_->call_site_positiion));
+          shared.object(), bytecode.object(), call_site_position));
   if (feedback.object()->invocation_count_before_stable(kRelaxedLoad) >
       v8_flags.invocation_count_for_early_optimization) {
     compilation_unit_->info()->set_could_not_inline_all_candidates();
@@ -8416,22 +8420,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 #endif
                                                shared, arguments);
 
-  // Create a new compilation unit.
-  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, shared, feedback_cell);
-  // TODO(victorgomes): We could delay creating the compilation unit for every
-  // candidate, if we InlinedArgumentsDeoptFrame didn't need to point to the
-  // compilation unit.
-  DeoptFrame* deopt_frame =
-      GetDeoptFrameForCall(inner_unit, function, arguments);
-  MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
-      inner_unit, current_source_position_, arguments, deopt_frame,
-      zone()->New<KnownNodeAspects>(zone()),
-      current_interpreter_frame_.virtual_objects(),
-      /* loop effects */ nullptr,
-      ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(zone()),
-      CatchBlockDetails{}, IsInsideLoop(), call_frequency, generic_call);
-  graph()->inlineable_calls().push_back(caller_details);
+  MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
+      MaglevCallerDetails{
+          arguments, &generic_call->lazy_deopt_info()->top_frame(),
+          zone()->New<KnownNodeAspects>(zone()),
+          /* loop effects */ nullptr,
+          ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
+              zone()),
+          CatchBlockDetails{}, IsInsideLoop(), call_frequency},
+      generic_call, feedback_cell);
+  graph()->inlineable_calls().push_back(call_site);
   return generic_call;
 }
 
@@ -8461,14 +8459,12 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Propagate details.
   auto arguments_vector = GetArgumentsAsArrayOfValueNodes(shared, args);
   DeoptFrame* deopt_frame =
-      GetDeoptFrameForCall(inner_unit, function, arguments_vector);
+      GetDeoptFrameForEagerCall(inner_unit, function, arguments_vector);
   MaglevCallerDetails* caller_details = zone()->New<MaglevCallerDetails>(
-      inner_unit, current_source_position_, arguments_vector, deopt_frame,
-      current_interpreter_frame_.known_node_aspects(),
-      current_interpreter_frame_.virtual_objects(), loop_effects_,
+      arguments_vector, deopt_frame,
+      current_interpreter_frame_.known_node_aspects(), loop_effects_,
       unobserved_context_slot_stores_, catch_block_details, IsInsideLoop(),
-      call_frequency,
-      /* generic_call_node */ nullptr);
+      call_frequency);
 
   // Create a new graph builder for the inlined function.
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
@@ -8478,8 +8474,8 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   inner_graph_builder.current_block_ = current_block_;
 
   // Build inline function.
-  ReduceResult result =
-      inner_graph_builder.BuildInlineFunction(context, function, new_target);
+  ReduceResult result = inner_graph_builder.BuildInlineFunction(
+      current_source_position_, context, function, new_target);
 
   // Prapagate back (or reset) builder state.
   unobserved_context_slot_stores_ =

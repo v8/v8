@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_INLINING_H_
 
 #include "src/base/logging.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -15,6 +16,7 @@
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8::internal::maglev {
 
@@ -77,9 +79,9 @@ class MaglevInliner {
         // No more inlining.
         break;
       }
-      MaglevCallerDetails* details = graph_->inlineable_calls().back();
+      MaglevCallSiteInfo* call_site = graph_->inlineable_calls().back();
       graph_->inlineable_calls().pop_back();
-      ValueNode* result = BuildInlineFunction(details);
+      ValueNode* result = BuildInlineFunction(call_site);
       if (result) {
         if (auto alloc = result->TryCast<InlinedAllocation>()) {
           // TODO(victorgomes): Support eliding VOs.
@@ -89,7 +91,7 @@ class MaglevInliner {
 #endif  // DEBUG
         }
         GraphProcessor<UpdateInputsProcessor> substitute_use(
-            details->generic_call_node, result);
+            call_site->generic_call_node, result);
         substitute_use.ProcessGraph(graph_);
       }
       // If --trace-maglev-inlining-verbose, we print the graph after each
@@ -97,7 +99,8 @@ class MaglevInliner {
       if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
           v8_flags.trace_maglev_inlining_verbose) {
         std::cout << "\nAfter inlining "
-                  << details->callee->shared_function_info() << std::endl;
+                  << call_site->generic_call_node->shared_function_info()
+                  << std::endl;
         PrintGraph(std::cout, compilation_info_, graph_);
       }
     }
@@ -116,23 +119,37 @@ class MaglevInliner {
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   Zone* zone() const { return compilation_info_->zone(); }
 
-  ValueNode* BuildInlineFunction(MaglevCallerDetails* details) {
+  ValueNode* BuildInlineFunction(MaglevCallSiteInfo* call_site) {
+    CallKnownJSFunction* call_node = call_site->generic_call_node;
+    MaglevCallerDetails* caller_details = &call_site->caller_details;
+    DeoptFrame* caller_deopt_frame = caller_details->deopt_frame;
+    const MaglevCompilationUnit* caller_unit =
+        &caller_deopt_frame->GetCompilationUnit();
+    compiler::SharedFunctionInfoRef shared = call_node->shared_function_info();
+
     if (v8_flags.trace_maglev_inlining) {
-      std::cout << "  non-eager inlining "
-                << details->callee->shared_function_info() << std::endl;
+      std::cout << "  non-eager inlining " << shared << std::endl;
     }
 
-    compiler::BytecodeArrayRef bytecode =
-        details->callee->shared_function_info().GetBytecodeArray(broker());
+    // Create a new compilation unit.
+    MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+        zone(), caller_unit, shared, call_site->feedback_cell);
+
+    compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
     graph_->add_inlined_bytecode_size(bytecode.length());
 
     // Create a new graph builder for the inlined function.
     LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
-    MaglevGraphBuilder inner_graph_builder(local_isolate, details->callee,
-                                           graph_, details);
+    MaglevGraphBuilder inner_graph_builder(local_isolate, inner_unit, graph_,
+                                           &call_site->caller_details);
 
-    CallKnownJSFunction* generic_node = details->generic_call_node;
-    BasicBlock* call_block = generic_node->owner();
+    // Update caller deopt frame with inlined arguments.
+    caller_details->deopt_frame =
+        inner_graph_builder.AddInlinedArgumentsToDeoptFrame(
+            caller_deopt_frame, inner_unit, call_node->closure().node(),
+            call_site->caller_details.arguments);
+
+    BasicBlock* call_block = call_node->owner();
 
     // We truncate the graph to build the function in-place, preserving the
     // invariant that all jumps move forward (except JumpLoop).
@@ -141,14 +158,14 @@ class MaglevInliner {
     // Truncate the basic block and remove the generic call node.
     ControlNode* control_node = call_block->reset_control_node();
     ZoneVector<Node*> rem_nodes_in_call_block =
-        call_block->Split(generic_node, zone());
+        call_block->Split(call_node, zone());
 
     // Set the inner graph builder to build in the truncated call block.
     inner_graph_builder.set_current_block(call_block);
 
     ReduceResult result = inner_graph_builder.BuildInlineFunction(
-        generic_node->context().node(), generic_node->closure().node(),
-        generic_node->new_target().node());
+        caller_deopt_frame->GetSourcePosition(), call_node->context().node(),
+        call_node->closure().node(), call_node->new_target().node());
 
     if (result.IsDoneWithAbort()) {
       // Restore the rest of the graph.

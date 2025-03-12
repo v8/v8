@@ -524,7 +524,7 @@ void PrintVirtualObjects(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
   os << "  │       VOs : { ";
-  const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+  const VirtualObjectList& virtual_objects = frame.GetVirtualObjects();
   for (auto vo : virtual_objects) {
     os << PrintNodeLabel(graph_labeller, vo) << "; ";
   }

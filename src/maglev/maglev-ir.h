@@ -1344,6 +1344,7 @@ class Input : public InputLocation {
   ValueNode* node_;
 };
 
+class VirtualObjectList;
 class InterpretedDeoptFrame;
 class InlinedArgumentsDeoptFrame;
 class ConstructInvokeStubDeoptFrame;
@@ -1409,6 +1410,13 @@ class DeoptFrame {
   inline ConstructInvokeStubDeoptFrame& as_construct_stub();
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
   inline bool IsJsFrame() const;
+
+  inline const MaglevCompilationUnit& GetCompilationUnit() const;
+  inline BytecodeOffset GetBytecodeOffset() const;
+  inline SourcePosition GetSourcePosition() const;
+  inline compiler::SharedFunctionInfoRef GetSharedFunctionInfo() const;
+  inline compiler::BytecodeArrayRef GetBytecodeArray() const;
+  inline VirtualObjectList GetVirtualObjects() const;
 
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)
@@ -1598,6 +1606,58 @@ inline bool DeoptFrame::IsJsFrame() const {
     case FrameType::kInlinedArgumentsFrame:
       return false;
   }
+}
+
+inline const MaglevCompilationUnit& DeoptFrame::GetCompilationUnit() const {
+  switch (type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return as_interpreted().unit();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      return as_inlined_arguments().unit();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      return as_construct_stub().unit();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return parent()->GetCompilationUnit();
+  }
+}
+
+inline BytecodeOffset DeoptFrame::GetBytecodeOffset() const {
+  switch (type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return as_interpreted().bytecode_position();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      DCHECK_NOT_NULL(parent());
+      return parent()->GetBytecodeOffset();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      return BytecodeOffset::None();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      return Builtins::GetContinuationBytecodeOffset(
+          as_builtin_continuation().builtin_id());
+  }
+}
+
+inline SourcePosition DeoptFrame::GetSourcePosition() const {
+  switch (type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      return as_interpreted().source_position();
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      DCHECK_NOT_NULL(parent());
+      return parent()->GetSourcePosition();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      return as_construct_stub().source_position();
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      DCHECK_NOT_NULL(parent());
+      return parent()->GetSourcePosition();
+  }
+}
+
+inline compiler::SharedFunctionInfoRef DeoptFrame::GetSharedFunctionInfo()
+    const {
+  return GetCompilationUnit().shared_function_info();
+}
+
+inline compiler::BytecodeArrayRef DeoptFrame::GetBytecodeArray() const {
+  return GetCompilationUnit().bytecode();
 }
 
 class DeoptInfo {
@@ -5443,8 +5503,6 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   using Base = FixedInputValueNodeT<0, VirtualObject>;
 
  public:
-  class List;
-
   enum Type : uint8_t {
     kDefault,
     kHeapNumber,
@@ -5679,10 +5737,10 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   // A runtime input is an input to the virtual object that has runtime
   // footprint, aka, a location.
   template <typename Function>
-  inline void ForEachNestedRuntimeInput(VirtualObject::List virtual_objects,
+  inline void ForEachNestedRuntimeInput(VirtualObjectList virtual_objects,
                                         Function&& f);
   template <typename Function>
-  inline void ForEachNestedRuntimeInput(VirtualObject::List virtual_objects,
+  inline void ForEachNestedRuntimeInput(VirtualObjectList virtual_objects,
                                         Function&& f) const;
 
   template <typename Function>
@@ -5789,12 +5847,12 @@ class VirtualObject : public FixedInputValueNodeT<0, VirtualObject> {
   mutable InlinedAllocation* allocation_ = nullptr;
 
   VirtualObject* next_ = nullptr;
-  friend List;
+  friend VirtualObjectList;
 };
 
-class VirtualObject::List {
+class VirtualObjectList {
  public:
-  List() : head_(nullptr) {}
+  VirtualObjectList() : head_(nullptr) {}
 
   class Iterator final {
    public:
@@ -5817,7 +5875,7 @@ class VirtualObject::List {
     VirtualObject* entry_;
   };
 
-  bool operator==(const VirtualObject::List& other) const {
+  bool operator==(const VirtualObjectList& other) const {
     return head_ == other.head_;
   }
 
@@ -5846,8 +5904,8 @@ class VirtualObject::List {
 
   // It iterates both list in reverse other of ids until a common point.
   template <typename Function>
-  static VirtualObject* WalkUntilCommon(const VirtualObject::List& list1,
-                                        const VirtualObject::List& list2,
+  static VirtualObject* WalkUntilCommon(const VirtualObjectList& list1,
+                                        const VirtualObjectList& list2,
                                         Function&& f) {
     VirtualObject* vo1 = list1.head_;
     VirtualObject* vo2 = list2.head_;
@@ -6001,7 +6059,7 @@ class InlinedAllocation : public FixedInputValueNodeT<1, InlinedAllocation> {
 
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObject::List virtual_objects, Function&& f) {
+    VirtualObjectList virtual_objects, Function&& f) {
   ForEachInput([&](ValueNode*& value) {
     if (value->Is<Identity>()) {
       value = value->input(0).node();
@@ -6040,7 +6098,7 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
 
 template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
-    VirtualObject::List virtual_objects, Function&& f) const {
+    VirtualObjectList virtual_objects, Function&& f) const {
   ForEachInput([&](ValueNode* value) {
     if (value->Is<Identity>()) {
       value = value->input(0).node();

@@ -184,20 +184,21 @@ struct CatchBlockDetails {
 };
 
 struct MaglevCallerDetails {
-  MaglevCompilationUnit* callee;
-  SourcePosition call_site_positiion;
   base::Vector<ValueNode*> arguments;
   DeoptFrame* deopt_frame;
   KnownNodeAspects* known_node_aspects;
-  VirtualObject::List virtual_objects;
   LoopEffects* loop_effects;
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores;
   CatchBlockDetails catch_block;
   bool is_inside_loop;
   float call_frequency;
-  // Only available if non-greedy inlining, otherwise nullptr.
+};
+
+struct MaglevCallSiteInfo {
+  MaglevCallerDetails caller_details;
   CallKnownJSFunction* generic_call_node;
+  compiler::FeedbackCellRef feedback_cell;
 };
 
 class MaglevGraphBuilder {
@@ -256,7 +257,8 @@ class MaglevGraphBuilder {
     BuildBody();
   }
 
-  ReduceResult BuildInlineFunction(ValueNode* context, ValueNode* function,
+  ReduceResult BuildInlineFunction(SourcePosition call_site_position,
+                                   ValueNode* context, ValueNode* function,
                                    ValueNode* new_target);
 
   void StartPrologue();
@@ -449,6 +451,11 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
   }
+
+  DeoptFrame* AddInlinedArgumentsToDeoptFrame(DeoptFrame* deopt_frame,
+                                              const MaglevCompilationUnit* unit,
+                                              ValueNode* closure,
+                                              base::Vector<ValueNode*> args);
 
  private:
   // Helper class for building a subgraph with its own control flow, that is not
@@ -1744,9 +1751,9 @@ class MaglevGraphBuilder {
 #endif
 
   DeoptFrame* GetCallerDeoptFrame();
-  DeoptFrame* GetDeoptFrameForCall(const MaglevCompilationUnit* unit,
-                                   ValueNode* closure,
-                                   base::Vector<ValueNode*> args);
+  DeoptFrame* GetDeoptFrameForEagerCall(const MaglevCompilationUnit* unit,
+                                        ValueNode* closure,
+                                        base::Vector<ValueNode*> args);
   DeoptFrame GetDeoptFrameForLazyDeopt(interpreter::Register result_location,
                                        int result_size);
   DeoptFrame GetDeoptFrameForLazyDeoptHelper(

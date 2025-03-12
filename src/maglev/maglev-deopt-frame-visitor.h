@@ -35,7 +35,7 @@ class DeoptInfoVisitor {
 
  private:
   const DeoptInfoT* deopt_info_;
-  const VirtualObject::List virtual_objects_;
+  const VirtualObjectList virtual_objects_;
 
   using DeoptFrameT = std::conditional_t<std::is_const_v<DeoptInfoT>,
                                          const DeoptFrame, DeoptFrame>;
@@ -44,7 +44,7 @@ class DeoptInfoVisitor {
 
   explicit DeoptInfoVisitor(DeoptInfoT* deopt_info)
       : deopt_info_(deopt_info),
-        virtual_objects_(GetVirtualObjects(deopt_info->top_frame())) {}
+        virtual_objects_(deopt_info->top_frame().GetVirtualObjects()) {}
 
   template <typename Function>
   void Visit(DeoptFrameT& frame, Function&& f) {

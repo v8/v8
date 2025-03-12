@@ -20,7 +20,7 @@ using BlockConstIterator = ZoneVector<BasicBlock*>::const_iterator;
 using BlockConstReverseIterator =
     ZoneVector<BasicBlock*>::const_reverse_iterator;
 
-struct MaglevCallerDetails;
+struct MaglevCallSiteInfo;
 
 class Graph final : public ZoneObject {
  public:
@@ -119,7 +119,7 @@ class Graph final : public ZoneObject {
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
 
-  ZoneVector<MaglevCallerDetails*>& inlineable_calls() {
+  ZoneVector<MaglevCallSiteInfo*>& inlineable_calls() {
     return inlineable_calls_;
   }
 
@@ -250,7 +250,7 @@ class Graph final : public ZoneObject {
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
-  ZoneVector<MaglevCallerDetails*> inlineable_calls_;
+  ZoneVector<MaglevCallSiteInfo*> inlineable_calls_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;
