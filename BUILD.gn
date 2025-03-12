@@ -7516,6 +7516,18 @@ group("v8_fuzzers") {
       ":v8_simple_wasm_module_fuzzer",
       ":v8_simple_wasm_streaming_fuzzer",
     ]
+    if (v8_enable_drumbrake) {
+      data_deps += [
+        ":v8_simple_wasm_fast_interpreter_fuzzer",
+        ":v8_simple_wasm_interpreter_all_fuzzer",
+        ":v8_simple_wasm_interpreter_base_fuzzer",
+        ":v8_simple_wasm_interpreter_code_fuzzer",
+        ":v8_simple_wasm_interpreter_diff_fuzzer",
+        ":v8_simple_wasm_interpreter_init_expr_fuzzer",
+        ":v8_simple_wasm_interpreter_simd_fuzzer",
+        ":v8_simple_wasmgc_interpreter_fuzzer",
+      ]
+    }
   }
 }
 
@@ -7838,6 +7850,73 @@ v8_fuzzer("regexp_fuzzer") {
 if (v8_enable_webassembly) {
   v8_fuzzer("multi_return_fuzzer") {
     sources = [ "test/fuzzer/multi-return.cc" ]
+  }
+
+  if (v8_enable_drumbrake) {
+    v8_source_set("lib_wasm_interpreter_fuzzer_common") {
+      sources = [
+        "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.cc",
+        "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.h",
+      ]
+
+      deps = [
+        ":v8_internal_headers",
+        ":wasm_fuzzer_common",
+      ]
+
+      configs = [
+        ":external_config",
+        ":internal_config_base",
+      ]
+    }
+
+    v8_fuzzer("wasm_fast_interpreter_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/fast-interpreter.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_diff_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-diff.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasmgc_interpreter_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-wasmgc.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_init_expr_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-init-expr.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_simd_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-simd.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_all_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-all.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_base_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-base.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
+
+    v8_fuzzer("wasm_interpreter_code_fuzzer") {
+      sources = [ "test/fuzzer/wasm/interpreter/interpreter-code.cc" ]
+
+      deps = [ ":lib_wasm_interpreter_fuzzer_common" ]
+    }
   }
 
   v8_source_set("wasm_test_common") {

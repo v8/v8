@@ -31,6 +31,10 @@
 #include "test/fuzzer/fuzzer-support.h"
 #include "tools/wasm/mjsunit-module-disassembler-impl.h"
 
+#if V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/wasm-interpreter.h"
+#endif  // V8_ENABLE_DRUMBRAKE
+
 namespace v8::internal::wasm::fuzzing {
 
 namespace {
@@ -123,9 +127,22 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
   return WasmModuleObject::New(isolate, std::move(native_module), script);
 }
 
+#if V8_ENABLE_DRUMBRAKE
+void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
+  for (int i = 0; i < isolate->heap()->js_to_wasm_wrappers()->length(); i++) {
+    isolate->heap()->js_to_wasm_wrappers()->set(i, ClearedValue(isolate));
+  }
+}
+
+int ExecuteAgainstReference(Isolate* isolate,
+                            DirectHandle<WasmModuleObject> module_object,
+                            int32_t max_executed_instructions,
+                            bool is_wasm_jitless) {
+#else   // V8_ENABLE_DRUMBRAKE
 int ExecuteAgainstReference(Isolate* isolate,
                             DirectHandle<WasmModuleObject> module_object,
                             int32_t max_executed_instructions) {
+#endif  // V8_ENABLE_DRUMBRAKE
   // We do not instantiate the module if there is a start function, because a
   // start function can contain an infinite loop which we cannot handle.
   if (module_object->module()->start_function_index >= 0) return -1;
@@ -207,6 +224,31 @@ int ExecuteAgainstReference(Isolate* isolate,
     execute = false;
     isolate->CancelTerminateExecution();
   }
+
+#if V8_ENABLE_DRUMBRAKE
+  if (is_wasm_jitless) {
+    v8::internal::v8_flags.jitless = true;
+    v8::internal::v8_flags.wasm_jitless = true;
+    FlagList::EnforceFlagImplications();
+    v8::internal::wasm::WasmInterpreterThread::Initialize();
+    ClearJsToWasmWrappersForTesting(isolate);
+
+    // Compiled WasmCode objects should be cleared before running drumbrake.
+    module_ref = Handle<WasmModuleObject>::null();
+    isolate->heap()->CollectAllGarbage(GCFlag::kNoFlags,
+                                       i::GarbageCollectionReason::kTesting);
+
+    // The module should be validated when compiled for jitless mode.
+    // But, we already compiled the module without jitless for the reference
+    // instance. So, we run the validation here before running drumbrake.
+    auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
+    WasmDetectedFeatures unused_detected_features;
+    ModuleDecoderImpl decoder(
+        enabled_features, module_object->native_module()->wire_bytes(),
+        ModuleOrigin::kWasmOrigin, &unused_detected_features);
+    if (decoder.DecodeModule(/*validate_functions=*/true).failed()) return -1;
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
 
   if (exception_ref) {
     if (strcmp(exception_ref.get(),
