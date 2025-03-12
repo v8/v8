@@ -6022,9 +6022,9 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
       case Opcode::kInlinedAllocation: {
         InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
         VirtualObject* inner_vobject = virtual_objects.FindAllocatedWith(alloc);
-        CHECK_NOT_NULL(inner_vobject);
         // Check if it has escaped.
-        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+        if (inner_vobject &&
+            (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
           inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f);
         } else {
           f(value);
@@ -6061,9 +6061,9 @@ inline void VirtualObject::ForEachNestedRuntimeInput(
       case Opcode::kInlinedAllocation: {
         InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
         VirtualObject* inner_vobject = virtual_objects.FindAllocatedWith(alloc);
-        CHECK_NOT_NULL(inner_vobject);
         // Check if it has escaped.
-        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+        if (inner_vobject &&
+            (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
           inner_vobject->ForEachNestedRuntimeInput(virtual_objects, f);
         } else {
           f(value);
