@@ -1552,8 +1552,6 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
 }
 
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
-  DCHECK_IMPLIES(initial_size_overwritten_, !configured_);
-
   SetOldGenerationAndGlobalAllocationLimit(
       initial_old_generation_size_,
       GlobalMemorySizeFromV8Size(initial_old_generation_size_));
@@ -1860,9 +1858,7 @@ class IdleTaskOnContextDispose : public CancelableIdleTask {
 int Heap::NotifyContextDisposed(bool has_dependent_context) {
   if (!has_dependent_context) {
     tracer()->ResetSurvivalEvents();
-    if (!initial_size_overwritten_) {
-      ResetOldGenerationAndGlobalAllocationLimit();
-    }
+    ResetOldGenerationAndGlobalAllocationLimit();
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
     }
