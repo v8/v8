@@ -114,10 +114,19 @@ class GrowableStacksReducer : public Next {
         register_return_values.push_back(return_values[i]);
         continue;
       }
-      __ Store(old_fp, return_values[i], StoreOp::Kind::RawAligned(),
-               MemoryRepresentation::FromMachineType(loc.GetType()),
-               compiler::kNoWriteBarrier,
-               FrameSlotToFPOffset(loc.GetLocation()));
+      MemoryRepresentation mem_rep =
+          MemoryRepresentation::FromMachineType(loc.GetType());
+      OpIndex ret_value = return_values[i];
+      // Pointers are stored uncompressed on the stacks.
+      // Also, we don't need to mark the stack slot as a reference, because
+      // we are about to return from this frame, so it is the caller's
+      // responsibility to track the tagged return values using the signature.
+      if (mem_rep == MemoryRepresentation::AnyTagged()) {
+        mem_rep = MemoryRepresentation::UintPtr();
+        ret_value = __ BitcastTaggedToWordPtr(ret_value);
+      }
+      __ StoreOffHeap(old_fp, ret_value, mem_rep,
+                      FrameSlotToFPOffset(loc.GetLocation()));
     }
     return Next::ReduceReturn(pop_count, base::VectorOf(register_return_values),
                               spill_caller_frame_slots);
