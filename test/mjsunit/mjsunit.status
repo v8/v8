@@ -2631,6 +2631,7 @@
   'wasm/generate-random-module*': [FAIL],
   'regress/wasm/regress-369652650': [SKIP],
   'regress/wasm/regress-382816108': [SKIP],
+  'regress/wasm/regress-388934347-a': [SKIP],
 }],  # 'wasm_random_fuzzers == False'
 
 ##############################################################################

@@ -4150,9 +4150,11 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
   if (dynamic_tiering_ &&
       static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
           bytes_since_last_chunk_) {
-    // Trigger caching immediately if there is no timeout or the hard threshold
-    // was reached.
-    if (v8_flags.wasm_caching_timeout_ms <= 0 ||
+    // Trigger caching immediately if
+    // - there is no timeout,
+    // - the hard threshold was reached, or
+    // - we are running single-threaded.
+    if (v8_flags.single_threaded || v8_flags.wasm_caching_timeout_ms <= 0 ||
         static_cast<size_t>(v8_flags.wasm_caching_hard_threshold) <=
             bytes_since_last_chunk_) {
       triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
