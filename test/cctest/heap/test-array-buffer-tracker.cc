@@ -150,16 +150,20 @@ TEST(ArrayBuffer_Compaction) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
 
-  v8::HandleScope handle_scope(isolate);
-  Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
-  IndirectHandle<JSArrayBuffer> buf1 = v8::Utils::OpenIndirectHandle(*ab1);
-  CHECK(IsTracked(heap, *buf1));
-  heap::InvokeAtomicMajorGC(heap);
+  Global<v8::ArrayBuffer> ab1_global;
+  PageMetadata* page_before_gc;
+  {
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
+    IndirectHandle<JSArrayBuffer> buf1 = v8::Utils::OpenIndirectHandle(*ab1);
+    CHECK(IsTracked(heap, *buf1));
+    heap::InvokeAtomicMajorGC(heap);
 
-  PageMetadata* page_before_gc = PageMetadata::FromHeapObject(*buf1);
-  heap::ForceEvacuationCandidate(page_before_gc);
-  CHECK(IsTracked(heap, *buf1));
-
+    page_before_gc = PageMetadata::FromHeapObject(*buf1);
+    heap::ForceEvacuationCandidate(page_before_gc);
+    CHECK(IsTracked(heap, *buf1));
+    ab1_global.Reset(isolate, ab1);
+  }
   {
     // We need to invoke GC without stack, otherwise no compaction is
     // performed.
@@ -167,10 +171,15 @@ TEST(ArrayBuffer_Compaction) {
     heap::InvokeMajorGC(heap);
   }
 
-  PageMetadata* page_after_gc = PageMetadata::FromHeapObject(*buf1);
-  CHECK(IsTracked(heap, *buf1));
+  {
+    v8::HandleScope scope(isolate);
+    IndirectHandle<JSArrayBuffer> buf1 =
+        v8::Utils::OpenHandle(*ab1_global.Get(isolate));
+    PageMetadata* page_after_gc = PageMetadata::FromHeapObject(*buf1);
+    CHECK(IsTracked(heap, *buf1));
 
-  CHECK_NE(page_before_gc, page_after_gc);
+    CHECK_NE(page_before_gc, page_after_gc);
+  }
 }
 
 TEST(ArrayBuffer_UnregisterDuringSweep) {

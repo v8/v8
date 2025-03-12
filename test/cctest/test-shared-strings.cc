@@ -826,6 +826,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.main_isolate();
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
@@ -834,23 +835,25 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
   const char raw_one_byte[] = "foo";
 
   {
-    HandleScope scope(i_isolate);
+    Global<v8::String> one_byte_seq_global;
+    ObjectSlot slot;
+    {
+      HandleScope scope(i_isolate);
 
-    // heap::SealCurrentObjects(heap);
-    // heap::SealCurrentObjects(shared_heap);
+      IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kYoung);
 
-    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
-        raw_one_byte, AllocationType::kYoung);
+      CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+      CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
-    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
+      // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
+      // old space.
+      heap::InvokeMajorGC(heap);
+      heap::ForceEvacuationCandidate(
+          i::PageMetadata::FromHeapObject(*one_byte_seq));
 
-    // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
-    // old space.
-    heap::InvokeMajorGC(heap);
-    heap::ForceEvacuationCandidate(
-        i::PageMetadata::FromHeapObject(*one_byte_seq));
-
+      one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
+    }
     {
       // We need to invoke GC without stack, otherwise no compaction is
       // performed.
@@ -858,9 +861,14 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
       heap::InvokeMajorGC(heap);
     }
 
-    // In-place-internalizable strings are promoted into the shared heap when
-    // sharing.
-    CHECK(heap->SharedHeapContains(*one_byte_seq));
+    {
+      v8::HandleScope nested_scope(isolate);
+      IndirectHandle<String> one_byte_seq =
+          v8::Utils::OpenHandle(*one_byte_seq_global.Get(isolate));
+      // In-place-internalizable strings are promoted into the shared heap when
+      // sharing.
+      CHECK(heap->SharedHeapContains(*one_byte_seq));
+    }
   }
 }
 
@@ -983,6 +991,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   v8_flags.page_promotion = false;
 
   MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.main_isolate();
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
@@ -997,12 +1006,17 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
-    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
-        raw_one_byte, AllocationType::kYoung);
-    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+    Global<v8::String> one_byte_seq_global;
+    {
+      HandleScope nested_scope(i_isolate);
+      IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kYoung);
+      CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+      CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
-    old_object->set(0, *one_byte_seq);
+      old_object->set(0, *one_byte_seq);
+      one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
+    }
     ObjectSlot slot = old_object->RawFieldOfFirstElement();
     CHECK(RememberedSet<OLD_TO_NEW>::Contains(
         MutablePageMetadata::cast(old_object_chunk->Metadata()),
@@ -1014,11 +1028,14 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
       DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
       heap::InvokeMajorGC(heap);
     }
-
-    // In-place-internalizable strings are promoted into the shared heap when
-    // sharing.
-    CHECK(heap->SharedHeapContains(*one_byte_seq));
-
+    {
+      v8::HandleScope nested_scope(isolate);
+      IndirectHandle<String> one_byte_seq =
+          v8::Utils::OpenHandle(*one_byte_seq_global.Get(isolate));
+      // In-place-internalizable strings are promoted into the shared heap when
+      // sharing.
+      CHECK(heap->SharedHeapContains(*one_byte_seq));
+    }
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
@@ -1043,6 +1060,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.main_isolate();
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
@@ -1057,27 +1075,34 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
-    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
-        raw_one_byte, AllocationType::kYoung);
-    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
-    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+    Global<v8::String> one_byte_seq_global;
+    ObjectSlot slot;
+    {
+      HandleScope nested_scope(i_isolate);
+      IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kYoung);
+      CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+      CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
 
-    DirectHandleVector<FixedArray> handles(i_isolate);
-    // Fill the page and do a full GC. Page promotion should kick in and promote
-    // the page as is to old space.
-    heap::FillCurrentPage(heap->new_space(), &handles);
-    heap::InvokeMajorGC(heap);
-    // Make sure 'one_byte_seq' is in old space.
-    CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
-    CHECK(heap->Contains(*one_byte_seq));
+      DirectHandleVector<FixedArray> handles(i_isolate);
+      // Fill the page and do a full GC. Page promotion should kick in and
+      // promote the page as is to old space.
+      heap::FillCurrentPage(heap->new_space(), &handles);
+      heap::InvokeMajorGC(heap);
+      // Make sure 'one_byte_seq' is in old space.
+      CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+      CHECK(heap->Contains(*one_byte_seq));
 
-    old_object->set(0, *one_byte_seq);
-    ObjectSlot slot = old_object->RawFieldOfFirstElement();
-    CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
-        MutablePageMetadata::cast(old_object_chunk->Metadata()),
-        slot.address()));
+      old_object->set(0, *one_byte_seq);
+      slot = old_object->RawFieldOfFirstElement();
+      CHECK(!RememberedSet<OLD_TO_NEW>::Contains(
+          MutablePageMetadata::cast(old_object_chunk->Metadata()),
+          slot.address()));
 
-    heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*one_byte_seq));
+      heap::ForceEvacuationCandidate(
+          PageMetadata::FromHeapObject(*one_byte_seq));
+      one_byte_seq_global.Reset(isolate, v8::Utils::ToLocal(one_byte_seq));
+    }
     {
       // We need to invoke GC without stack, otherwise no compaction is
       // performed.
@@ -1085,10 +1110,15 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
       heap::InvokeMajorGC(heap);
     }
 
-    // In-place-internalizable strings are promoted into the shared heap when
-    // sharing.
-    CHECK(heap->SharedHeapContains(*one_byte_seq));
+    {
+      v8::HandleScope nested_scope(isolate);
+      IndirectHandle<String> one_byte_seq =
+          v8::Utils::OpenHandle(*one_byte_seq_global.Get(isolate));
 
+      // In-place-internalizable strings are promoted into the shared heap when
+      // sharing.
+      CHECK(heap->SharedHeapContains(*one_byte_seq));
+    }
     // Since the GC promoted that string into shared heap, it also needs to
     // create an OLD_TO_SHARED slot.
     CHECK(RememberedSet<OLD_TO_SHARED>::Contains(

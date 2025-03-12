@@ -627,6 +627,7 @@ TEST(DeleteWeakGlobalHandle) {
 
 TEST(BytecodeArray) {
   if (!v8_flags.compact) return;
+  if (v8_flags.precise_object_pinning) return;
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int32_t kFrameSize = 32;
@@ -3436,7 +3437,6 @@ TEST(ReleaseOverReservedPages) {
   if (!isolate->snapshot_available()) return;
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
-  v8::HandleScope scope(CcTest::isolate());
 
   // Ensure that the young generation is empty.
   {
@@ -3451,14 +3451,24 @@ TEST(ReleaseOverReservedPages) {
   PagedSpace* old_space = heap->old_space();
   const int initial_page_count = old_space->CountTotalPages();
   const int overall_page_count = number_of_test_pages + initial_page_count;
-  for (int i = 0; i < number_of_test_pages; i++) {
-    AlwaysAllocateScopeForTesting always_allocate(heap);
-    {
-      DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-      heap::SimulateFullSpace(old_space);
+
+  Global<v8::FixedArray> fixed_arrays[number_of_test_pages];
+  {
+    v8::HandleScope scope(CcTest::isolate());
+
+    for (int i = 0; i < number_of_test_pages; i++) {
+      AlwaysAllocateScopeForTesting always_allocate(heap);
+      {
+        DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+        heap::SimulateFullSpace(old_space);
+      }
+      Handle<FixedArray> fixed_array =
+          factory->NewFixedArray(1, AllocationType::kOld);
+      fixed_arrays[i].Reset(CcTest::isolate(),
+                            v8::Utils::FixedArrayToLocal(fixed_array));
     }
-    factory->NewFixedArray(1, AllocationType::kOld);
   }
+
   CHECK_EQ(overall_page_count, old_space->CountTotalPages());
 
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
@@ -3477,14 +3487,17 @@ TEST(ReleaseOverReservedPages) {
            (old_space->CountTotalPages() - initial_page_count) * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
-  // OS so that other processes can seize the memory.  If we get a failure here
-  // where there are 2 pages left instead of 1, then we should increase the
-  // size of the first page a little in SizeOfFirstPage in spaces.cc.  The
-  // first page should be small in order to reduce memory used when the VM
-  // boots, but if the 20 small arrays don't fit on the first page then that's
-  // an indication that it is too small.
+  // OS so that other processes can seize the memory.
+  const int page_count_before_memory_reducing_gcs =
+      old_space->CountTotalPages();
   heap::InvokeMemoryReducingMajorGCs(heap);
-  CHECK_GE(initial_page_count, old_space->CountTotalPages());
+  // With precise object pinning, some pages may be pinned and thus not
+  // evacuated. It is therefore not guararnteed that the page count can return
+  // to the initial count.
+  CHECK_GE(v8_flags.precise_object_pinning
+               ? page_count_before_memory_reducing_gcs
+               : initial_page_count,
+           old_space->CountTotalPages());
 }
 
 static int forced_gc_counter = 0;
@@ -4122,35 +4135,44 @@ TEST(LargeObjectSlotRecording) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
 
-  // Create an object on an evacuation candidate.
-  heap::SimulateFullSpace(heap->old_space());
-  IndirectHandle<FixedArray> lit =
-      isolate->factory()->NewFixedArray(4, AllocationType::kOld);
-  PageMetadata* evac_page = PageMetadata::FromHeapObject(*lit);
-  heap::ForceEvacuationCandidate(evac_page);
-  Tagged<FixedArray> old_location = *lit;
-
-  // Allocate a large object.
   int size = std::max(1000000, kMaxRegularHeapObjectSize + KB);
-  CHECK_LT(kMaxRegularHeapObjectSize, size);
-  IndirectHandle<FixedArray> lo =
-      isolate->factory()->NewFixedArray(size, AllocationType::kOld);
-  CHECK(heap->lo_space()->Contains(*lo));
-
-  // Start incremental marking to active write barrier.
-  heap::SimulateIncrementalMarking(heap, false);
-
-  // Create references from the large object to the object on the evacuation
-  // candidate.
   const int kStep = size / 10;
-  for (int i = 0; i < size; i += kStep) {
-    lo->set(i, *lit);
-    CHECK(lo->get(i) == old_location);
-  }
 
-  heap::SimulateIncrementalMarking(heap, true);
+  Global<v8::FixedArray> lit_global;
+  Global<v8::FixedArray> lo_global;
+  Tagged<FixedArray> old_location;
+  {
+    HandleScope scope(isolate);
+
+    // Create an object on an evacuation candidate.
+    heap::SimulateFullSpace(heap->old_space());
+    IndirectHandle<FixedArray> lit =
+        isolate->factory()->NewFixedArray(4, AllocationType::kOld);
+    PageMetadata* evac_page = PageMetadata::FromHeapObject(*lit);
+    heap::ForceEvacuationCandidate(evac_page);
+    old_location = *lit;
+
+    // Allocate a large object.
+    CHECK_LT(kMaxRegularHeapObjectSize, size);
+    IndirectHandle<FixedArray> lo =
+        isolate->factory()->NewFixedArray(size, AllocationType::kOld);
+    CHECK(heap->lo_space()->Contains(*lo));
+
+    // Start incremental marking to active write barrier.
+    heap::SimulateIncrementalMarking(heap, false);
+
+    // Create references from the large object to the object on the evacuation
+    // candidate.
+    for (int i = 0; i < size; i += kStep) {
+      lo->set(i, *lit);
+      CHECK(lo->get(i) == old_location);
+    }
+
+    heap::SimulateIncrementalMarking(heap, true);
+    lit_global.Reset(CcTest::isolate(), v8::Utils::FixedArrayToLocal(lit));
+    lo_global.Reset(CcTest::isolate(), v8::Utils::FixedArrayToLocal(lo));
+  }
 
   // Move the evacuation candidate object.
   {
@@ -4159,10 +4181,17 @@ TEST(LargeObjectSlotRecording) {
     heap::InvokeMajorGC(heap);
   }
 
-  // Verify that the pointers in the large object got updated.
-  for (int i = 0; i < size; i += kStep) {
-    CHECK_EQ(lo->get(i).ptr(), lit->ptr());
-    CHECK_NE(lo->get(i).ptr(), old_location.ptr());
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    IndirectHandle<FixedArray> lit =
+        v8::Utils::OpenHandle(*lit_global.Get(CcTest::isolate()));
+    IndirectHandle<FixedArray> lo =
+        v8::Utils::OpenHandle(*lo_global.Get(CcTest::isolate()));
+    // Verify that the pointers in the large object got updated.
+    for (int i = 0; i < size; i += kStep) {
+      CHECK_EQ(lo->get(i).ptr(), lit->ptr());
+      CHECK_NE(lo->get(i).ptr(), old_location.ptr());
+    }
   }
 }
 
@@ -6570,29 +6599,34 @@ TEST(RememberedSet_OldToOld) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   heap::SealCurrentObjects(heap);
-  HandleScope scope(isolate);
 
-  IndirectHandle<FixedArray> arr =
-      factory->NewFixedArray(10, AllocationType::kOld);
+  Global<v8::FixedArray> arr_global;
+  Tagged<FixedArray> prev_location;
   {
-    HandleScope short_lived(isolate);
-    factory->NewFixedArray(100, AllocationType::kOld);
-  }
-  IndirectHandle<Object> ref =
+    HandleScope scope(isolate);
+
+    IndirectHandle<FixedArray> arr =
+        factory->NewFixedArray(10, AllocationType::kOld);
+    {
+      HandleScope short_lived(isolate);
       factory->NewFixedArray(100, AllocationType::kOld);
-  arr->set(0, *ref);
+    }
+    IndirectHandle<Object> ref =
+        factory->NewFixedArray(100, AllocationType::kOld);
+    arr->set(0, *ref);
 
-  // To force compaction of the old space, fill it with garbage and start a new
-  // page (so that the page with 'arr' becomes subject to compaction).
-  {
-    HandleScope short_lived(isolate);
-    heap::SimulateFullSpace(heap->old_space());
-    factory->NewFixedArray(100, AllocationType::kOld);
+    // To force compaction of the old space, fill it with garbage and start a
+    // new page (so that the page with 'arr' becomes subject to compaction).
+    {
+      HandleScope short_lived(isolate);
+      heap::SimulateFullSpace(heap->old_space());
+      factory->NewFixedArray(100, AllocationType::kOld);
+    }
+
+    heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*arr));
+    prev_location = *arr;
+    arr_global.Reset(CcTest::isolate(), v8::Utils::FixedArrayToLocal(arr));
   }
-
-  heap::ForceEvacuationCandidate(PageMetadata::FromHeapObject(*arr));
-  const auto prev_location = *arr;
-
   {
     // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
     // create OLD_TO_OLD remembered set to track the reference.
@@ -6600,7 +6634,12 @@ TEST(RememberedSet_OldToOld) {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
     heap::InvokeMajorGC(heap);
   }
-  CHECK_NE(prev_location.ptr(), arr->ptr());
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    IndirectHandle<FixedArray> arr =
+        v8::Utils::OpenHandle(*arr_global.Get(CcTest::isolate()));
+    CHECK_NE(prev_location.ptr(), arr->ptr());
+  }
 }
 
 TEST(RememberedSetRemoveRange) {
