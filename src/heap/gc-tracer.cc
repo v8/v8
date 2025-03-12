@@ -870,6 +870,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
+          "new_space_capacity=%zu "
           "pool_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -907,6 +908,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
+          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
@@ -959,6 +961,7 @@ void GCTracer::PrintNVP() const {
           "average_survival_ratio=%.1f%% "
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
+          "new_space_capacity=%zu "
           "new_space_allocation_throughput=%.1f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
           current_.reduce_memory, current_scope(Scope::MINOR_MS),
@@ -998,6 +1001,7 @@ void GCTracer::PrintNVP() const {
           heap_->nodes_promoted_, heap_->promotion_ratio_,
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
+          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
           NewSpaceAllocationThroughputInBytesPerMillisecond());
       break;
     case Event::Type::MARK_COMPACTOR:
@@ -1096,6 +1100,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
+          "new_space_capacity=%zu "
           "pool_chunks=%zu "
           "compaction_speed=%.f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
@@ -1183,6 +1188,7 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
+          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
           CompactionSpeedInBytesPerMillisecond().value_or(0.0));
       break;
