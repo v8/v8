@@ -87,6 +87,11 @@ include_rules = [
   "+builtins-generated",
   "+torque-generated",
   "+starboard",
+  # Using cppgc inside v8 is not (yet) allowed.
+  "-include/cppgc",
+  "+include/cppgc/common.h",
+  "+include/cppgc/platform.h",
+  "+include/cppgc/source-location.h",
 ]
 
 specific_include_rules = {
