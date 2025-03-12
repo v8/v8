@@ -136,8 +136,6 @@ class V8_EXPORT Platform {
   virtual TracingController* GetTracingController();
 };
 
-V8_EXPORT bool IsInitialized();
-
 /**
  * Process-global initialization of the garbage collector. Must be called before
  * creating a Heap.
