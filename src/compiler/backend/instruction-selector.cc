@@ -1122,8 +1122,8 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
         const Operation& use_op = this->Get(call_use);
         if (use_op.Is<DidntThrowOp>()) {
           for (OpIndex use : turboshaft_uses(call_use)) {
-            DCHECK(this->is_projection(use));
-            size_t index = this->projection_index_of(use);
+            const ProjectionOp& projection = Cast<ProjectionOp>(use);
+            size_t index = projection.index;
             DCHECK_LT(index, buffer->output_nodes.size());
             DCHECK(!buffer->output_nodes[index].node.valid());
             buffer->output_nodes[index].node = use;
@@ -1889,8 +1889,9 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
 #endif  // !V8_TARGET_ARCH_ARM64
 
 void InstructionSelectorT::VisitParameter(OpIndex node) {
+  const ParameterOp& parameter = Cast<ParameterOp>(node);
+  const int index = parameter.parameter_index;
   OperandGenerator g(this);
-  int index = this->parameter_index_of(node);
 
   if (linkage()->GetParameterLocation(index).IsNullRegister()) {
     EmitMoveParamToFPR(node, index);
@@ -1929,10 +1930,10 @@ void InstructionSelectorT::VisitIfException(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitOsrValue(OpIndex node) {
+  const OsrValueOp& osr_value = Cast<OsrValueOp>(node);
   OperandGenerator g(this);
-  int index = this->osr_value_index_of(node);
-  Emit(kArchNop,
-       g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index)));
+  Emit(kArchNop, g.DefineAsLocation(
+                     node, linkage()->GetOsrValueLocation(osr_value.index)));
 }
 
 void InstructionSelectorT::VisitPhi(OpIndex node) {
@@ -2356,15 +2357,16 @@ void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
 // scheduled (and a few other conditions must be satisfied, see
 // InstructionSelectorXXX::VisitWordCompareZero).
 // TryPrepareScheduleFirstProjection is thus called from
-// VisitDeoptimizeIf/VisitDeoptimizeUnless/VisitBranch and detects if the 1st
+// VisitDeoptimizeIf/VisitBranch and detects if the 1st
 // projection could be scheduled now, and, if so, defines it.
 void InstructionSelectorT::TryPrepareScheduleFirstProjection(
     OpIndex maybe_projection) {
-  // The DeoptimizeIf/DeoptimizeUnless/Branch condition is not a projection.
-  if (!this->is_projection(maybe_projection)) return;
+  // The DeoptimizeIf/Branch condition is not a projection.
+  const ProjectionOp* projection = TryCast<ProjectionOp>(maybe_projection);
+  if (!projection) return;
 
-  if (this->projection_index_of(maybe_projection) != 1u) {
-    // The DeoptimizeIf/DeoptimizeUnless/Branch isn't on the Projection[1]
+  if (projection->index != 1u) {
+    // The DeoptimizeIf/Branch isn't on the Projection[1]
     // (ie, not on the overflow bit of a BinopOverflow).
     return;
   }
@@ -2429,25 +2431,13 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
 }
 
 void InstructionSelectorT::VisitDeoptimizeIf(OpIndex node) {
-  auto deopt = this->deoptimize_view(node);
-  DCHECK(deopt.is_deoptimize_if());
+  const DeoptimizeIfOp& deopt = Cast<DeoptimizeIfOp>(node);
 
   TryPrepareScheduleFirstProjection(deopt.condition());
 
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, deopt.reason(), this->id(node), deopt.feedback(),
-      deopt.frame_state());
-  VisitWordCompareZero(node, deopt.condition(), &cont);
-}
-
-void InstructionSelectorT::VisitDeoptimizeUnless(OpIndex node) {
-  auto deopt = this->deoptimize_view(node);
-  DCHECK(deopt.is_deoptimize_unless());
-  TryPrepareScheduleFirstProjection(deopt.condition());
-
-  FlagsContinuation cont =
-      FlagsContinuation::ForDeoptimize(kEqual, deopt.reason(), this->id(node),
-                                       deopt.feedback(), deopt.frame_state());
+      deopt.negated ? kEqual : kNotEqual, deopt.parameters->reason(), node.id(),
+      deopt.parameters->feedback(), deopt.frame_state());
   VisitWordCompareZero(node, deopt.condition(), &cont);
 }
 
@@ -3358,9 +3348,6 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
     case Opcode::kProjection:
       return VisitProjection(node);
     case Opcode::kDeoptimizeIf:
-      if (Get(node).Cast<DeoptimizeIfOp>().negated) {
-        return VisitDeoptimizeUnless(node);
-      }
       return VisitDeoptimizeIf(node);
 #if V8_ENABLE_WEBASSEMBLY
     case Opcode::kTrapIf: {

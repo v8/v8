@@ -352,15 +352,22 @@ class OperationMatcher {
   }
 
   template <typename T>
-  bool MatchChange(V<Any> matched, V<T>* input, ChangeOp::Kind kind,
-                   RegisterRepresentation from,
-                   RegisterRepresentation to) const {
+  bool MatchChange(V<Any> matched, IMatch<T> input,
+                   VMatch<ChangeOp::Kind> kind = {},
+                   VMatch<ChangeOp::Assumption> assumption = {},
+                   VMatch<RegisterRepresentation> from = {},
+                   VMatch<RegisterRepresentation> to = {}) const {
     const ChangeOp* op = TryCast<ChangeOp>(matched);
-    if (!op || op->kind != kind || op->from != from || op->to != to) {
-      return false;
-    }
-    *input = op->input<T>();
-    return true;
+    if (!op) return false;
+    return input.matches(op->input(), this) && kind.matches(op->kind) &&
+           assumption.matches(op->assumption) && from.matches(op->from) &&
+           to.matches(op->to);
+  }
+
+  bool MatchTruncateWord64ToWord32(V<Any> matched, IMatch<Word64> input) const {
+    return MatchChange<Word64>(matched, input, ChangeOp::Kind::kTruncate, {},
+                               RegisterRepresentation::Word64(),
+                               RegisterRepresentation::Word32());
   }
 
   template <typename T>

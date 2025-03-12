@@ -1069,9 +1069,9 @@ void InstructionSelectorT::VisitTraceInstruction(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitStackSlot(OpIndex node) {
-  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot =
-      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
+  const StackSlotOp& stack_slot = Cast<StackSlotOp>(node);
+  int slot = frame_->AllocateSpillSlot(stack_slot.size, stack_slot.alignment,
+                                       stack_slot.is_tagged);
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -1524,8 +1524,9 @@ void VisitStoreCommon(InstructionSelectorT* selector,
     } else {
       if (ElementSizeLog2Of(store_rep.representation()) <
           kSystemPointerSizeLog2) {
-        if (selector->is_truncate_word64_to_word32(value)) {
-          value = selector->input_at(value, 0);
+        if (V<Word64> value64;
+            selector->MatchTruncateWord64ToWord32(value, &value64)) {
+          value = value64;
         }
       }
 
@@ -1824,8 +1825,8 @@ void VisitWord32Shift(InstructionSelectorT* selector, OpIndex node,
   auto left = selector->input_at(node, 0);
   auto right = selector->input_at(node, 1);
 
-  if (selector->is_truncate_word64_to_word32(left)) {
-    left = selector->input_at(left, 0);
+  if (V<Word64> left64; selector->MatchTruncateWord64ToWord32(left, &left64)) {
+    left = left64;
   }
 
   if (g.CanBeImmediate(right)) {
@@ -2142,8 +2143,12 @@ void InstructionSelectorT::VisitInt32Add(OpIndex node) {
   OpIndex left = add.left();
   OpIndex right = add.right();
   // No need to truncate the values before Int32Add.
-  left = this->remove_truncate_word64_to_word32(left);
-  right = this->remove_truncate_word64_to_word32(right);
+  if (V<Word64> left64; MatchTruncateWord64ToWord32(left, &left64)) {
+    left = left64;
+  }
+  if (V<Word64> right64; MatchTruncateWord64ToWord32(right, &right64)) {
+    right = right64;
+  }
 
   DCHECK(LhsIsNotOnlyConstant(this->turboshaft_graph(), left, right));
 
@@ -2639,7 +2644,7 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
       return false;
     }
     case Opcode::kChange:
-      return this->is_truncate_word64_to_word32(node);
+      return Is<Opmask::kTruncateWord64ToWord32>(node);
     default:
       return false;
   }
@@ -3388,11 +3393,13 @@ void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
   // The 32-bit comparisons automatically truncate Word64
   // values to Word32 range, no need to do that explicitly.
   if (opcode == kX64Cmp32 || opcode == kX64Test32) {
-    if (selector->is_truncate_word64_to_word32(left)) {
-      left = selector->input_at(left, 0);
+    if (V<Word64> left64;
+        selector->MatchTruncateWord64ToWord32(left, &left64)) {
+      left = left64;
     }
-    if (selector->is_truncate_word64_to_word32(right)) {
-      right = selector->input_at(right, 0);
+    if (V<Word64> right64;
+        selector->MatchTruncateWord64ToWord32(right, &right64)) {
+      right = right64;
     }
   }
 

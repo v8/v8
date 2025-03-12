@@ -904,9 +904,9 @@ std::tuple<InstructionCode, ImmediateMode> GetStoreOpcodeAndImmediate(
 void InstructionSelectorT::VisitTraceInstruction(OpIndex node) {}
 
 void InstructionSelectorT::VisitStackSlot(OpIndex node) {
-  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot =
-      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
+  const StackSlotOp& stack_slot = Cast<StackSlotOp>(node);
+  int slot = frame_->AllocateSpillSlot(stack_slot.size, stack_slot.alignment,
+                                       stack_slot.is_tagged);
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -3779,9 +3779,10 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
   ConsumeEqualZero(&user, &value, cont);
 
   // Remove Word64->Word32 truncation.
-  if (this->is_truncate_word64_to_word32(value) && CanCover(user, value)) {
+  if (V<Word64> value64;
+      MatchTruncateWord64ToWord32(value, &value64) && CanCover(user, value)) {
     user = value;
-    value = this->remove_truncate_word64_to_word32(value);
+    value = value64;
   }
 
   // Try to match bit checks to create TBZ/TBNZ instructions.

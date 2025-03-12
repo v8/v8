@@ -1045,7 +1045,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void VisitConstant(turboshaft::OpIndex node);
   void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
-  void VisitDeoptimizeUnless(turboshaft::OpIndex node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(turboshaft::OpIndex node, TrapId trap_id);
   void VisitTrapUnless(turboshaft::OpIndex node, TrapId trap_id);

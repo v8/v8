@@ -283,50 +283,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const turboshaft::StoreOp* op_;
   };
 
-  class DeoptimizeView {
-   public:
-    DeoptimizeView(const turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      const auto& op = graph->Get(node);
-      if (op.Is<turboshaft::DeoptimizeOp>()) {
-        deoptimize_op_ = &op.Cast<turboshaft::DeoptimizeOp>();
-        parameters_ = deoptimize_op_->parameters;
-      } else {
-        DCHECK(op.Is<turboshaft::DeoptimizeIfOp>());
-        deoptimize_if_op_ = &op.Cast<turboshaft::DeoptimizeIfOp>();
-        parameters_ = deoptimize_if_op_->parameters;
-      }
-    }
-
-    DeoptimizeReason reason() const { return parameters_->reason(); }
-    FeedbackSource feedback() const { return parameters_->feedback(); }
-    turboshaft::OpIndex frame_state() const {
-      return deoptimize_op_ ? deoptimize_op_->frame_state()
-                            : deoptimize_if_op_->frame_state();
-    }
-
-    bool is_deoptimize() const { return deoptimize_op_ != nullptr; }
-    bool is_deoptimize_if() const {
-      return deoptimize_if_op_ != nullptr && !deoptimize_if_op_->negated;
-    }
-    bool is_deoptimize_unless() const {
-      return deoptimize_if_op_ != nullptr && deoptimize_if_op_->negated;
-    }
-
-    turboshaft::OpIndex condition() const {
-      DCHECK(is_deoptimize_if() || is_deoptimize_unless());
-      return deoptimize_if_op_->condition();
-    }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::DeoptimizeOp* deoptimize_op_ = nullptr;
-    const turboshaft::DeoptimizeIfOp* deoptimize_if_op_ = nullptr;
-    const DeoptimizeParameters* parameters_;
-  };
-
   class AtomicRMWView {
    public:
     AtomicRMWView(const turboshaft::Graph* graph, turboshaft::OpIndex node)
@@ -430,9 +386,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   StoreView store_view(turboshaft::OpIndex node) {
     return StoreView(graph_, node);
-  }
-  DeoptimizeView deoptimize_view(turboshaft::OpIndex node) {
-    return DeoptimizeView(graph_, node);
   }
   AtomicRMWView atomic_rmw_view(turboshaft::OpIndex node) {
     return AtomicRMWView(graph_, node);
@@ -611,50 +564,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const turboshaft::FrameStateOp& frame_state =
         graph_->Get(node).Cast<turboshaft::FrameStateOp>();
     return frame_state.parent_frame_state();
-  }
-  int parameter_index_of(turboshaft::OpIndex node) const {
-    const turboshaft::ParameterOp& parameter =
-        graph_->Get(node).Cast<turboshaft::ParameterOp>();
-    return parameter.parameter_index;
-  }
-  bool is_projection(turboshaft::OpIndex node) const {
-    return graph_->Get(node).Is<turboshaft::ProjectionOp>();
-  }
-  size_t projection_index_of(turboshaft::OpIndex node) const {
-    DCHECK(is_projection(node));
-    const turboshaft::ProjectionOp& projection =
-        graph_->Get(node).Cast<turboshaft::ProjectionOp>();
-    return projection.index;
-  }
-  int osr_value_index_of(turboshaft::OpIndex node) const {
-    const turboshaft::OsrValueOp& osr_value =
-        graph_->Get(node).Cast<turboshaft::OsrValueOp>();
-    return osr_value.index;
-  }
-
-  bool is_truncate_word64_to_word32(turboshaft::OpIndex node) const {
-    return graph_->Get(node).Is<turboshaft::Opmask::kTruncateWord64ToWord32>();
-  }
-  turboshaft::OpIndex remove_truncate_word64_to_word32(
-      turboshaft::OpIndex node) const {
-    if (const turboshaft::ChangeOp* change =
-            graph_->Get(node)
-                .TryCast<turboshaft::Opmask::kTruncateWord64ToWord32>()) {
-      return change->input();
-    }
-    return node;
-  }
-
-  bool is_stack_slot(turboshaft::OpIndex node) const {
-    return graph_->Get(node).Is<turboshaft::StackSlotOp>();
-  }
-  StackSlotRepresentation stack_slot_representation_of(
-      turboshaft::OpIndex node) const {
-    DCHECK(is_stack_slot(node));
-    const turboshaft::StackSlotOp& stack_slot =
-        graph_->Get(node).Cast<turboshaft::StackSlotOp>();
-    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment,
-                                   stack_slot.is_tagged);
   }
   bool IsRequiredWhenUnused(turboshaft::OpIndex node) const {
     return graph_->Get(node).IsRequiredWhenUnused();

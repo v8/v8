@@ -2459,10 +2459,10 @@ class MachineOptimizationReducer : public Next {
   }
 
   bool IsFloat32ConvertedToFloat64(V<Any> value) {
-    if (V<Float32> input;
-        matcher_.MatchChange(value, &input, ChangeOp::Kind::kFloatConversion,
-                             RegisterRepresentation::Float32(),
-                             RegisterRepresentation::Float64())) {
+    if (V<Float32> input; matcher_.MatchChange<Float32>(
+            value, &input, ChangeOp::Kind::kFloatConversion, {},
+            RegisterRepresentation::Float32(),
+            RegisterRepresentation::Float64())) {
       return true;
     }
     if (double c;
@@ -2473,10 +2473,10 @@ class MachineOptimizationReducer : public Next {
   }
 
   V<Float32> UndoFloat32ToFloat64Conversion(V<Float64> value) {
-    if (V<Float32> input;
-        matcher_.MatchChange(value, &input, ChangeOp::Kind::kFloatConversion,
-                             RegisterRepresentation::Float32(),
-                             RegisterRepresentation::Float64())) {
+    if (V<Float32> input; matcher_.MatchChange<Float32>(
+            value, &input, ChangeOp::Kind::kFloatConversion, {},
+            RegisterRepresentation::Float32(),
+            RegisterRepresentation::Float64())) {
       return input;
     }
     if (double c;
