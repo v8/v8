@@ -36,11 +36,6 @@ function _isBeingDeclared(path) {
 }
 
 class VariableMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 

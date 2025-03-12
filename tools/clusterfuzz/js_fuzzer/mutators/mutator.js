@@ -29,7 +29,8 @@ class MutationContext {
 const EMPTY_DEFAULT_CONTEXT = new MutationContext();
 
 class Mutator {
-  constructor() {
+  constructor(settings) {
+    this.settings = settings;
     this.context = EMPTY_DEFAULT_CONTEXT;
   }
 
@@ -60,12 +61,13 @@ class Mutator {
 
   mutate(source, context=EMPTY_DEFAULT_CONTEXT) {
     this.context = context;
-    if (Array.isArray(this.visitor)) {
-      for (const visitor of this.visitor) {
+    const result = this.visitor;
+    if (Array.isArray(result)) {
+      for (const visitor of result) {
         this._traverse(source.ast, visitor);
       }
     } else {
-      this._traverse(source.ast, this.visitor);
+      this._traverse(source.ast, result);
     }
   }
 

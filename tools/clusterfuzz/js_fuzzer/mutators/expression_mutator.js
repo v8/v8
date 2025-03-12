@@ -14,11 +14,6 @@ const random = require('../random.js');
 const mutator = require('./mutator.js');
 
 class ExpressionMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 

@@ -83,8 +83,7 @@ function needsTryCatch(source) {
 
 class CrossOverMutator extends mutator.Mutator {
   constructor(settings, db) {
-    super();
-    this.settings = settings;
+    super(settings);
     this._db = db;
   }
 

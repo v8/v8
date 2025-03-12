@@ -53,11 +53,6 @@ function createRandomNumber(value) {
 }
 
 class NumberMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   ignore(path) {
     return !random.choose(this.settings.MUTATE_NUMBERS) ||
            common.isInForLoopCondition(path) ||

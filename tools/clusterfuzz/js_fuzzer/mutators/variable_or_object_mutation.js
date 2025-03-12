@@ -42,11 +42,6 @@ function maybeGCTemplate(expression) {
 }
 
 class VariableOrObjectMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   _randomVariableOrObject(path) {
     const randomVar = common.randomVariable(path);
     if (random.choose(0.05) || !randomVar) {

@@ -31,11 +31,6 @@ function keyToString(key) {
 }
 
 class ObjectMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 

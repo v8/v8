@@ -21,11 +21,6 @@ const MUTATION_CHOICES = [1, 1, 1, 1, 1, 2, 2, 2, 3];
 const MAX_ARRAY_LENGTH = 50;
 
 class ArrayMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 

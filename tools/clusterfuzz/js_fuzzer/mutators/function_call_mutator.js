@@ -61,11 +61,6 @@ function availableReplacementFunctionNames(path, context) {
 }
 
 class FunctionCallMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 
