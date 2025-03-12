@@ -133,6 +133,7 @@ struct GraphComponent : public ComponentWithZone<kGraphZoneName> {
   Pointer<SourcePositionTable> source_positions = nullptr;
   Pointer<NodeOriginTable> node_origins = nullptr;
   bool graph_has_special_rpo = false;
+  bool graph_has_lowered_fast_api_calls = false;
 };
 
 struct CodegenComponent : public ComponentWithZone<kCodegenZoneName> {
@@ -493,6 +494,12 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
   void set_graph_has_special_rpo() {
     graph_component_->graph_has_special_rpo = true;
+  }
+  bool graph_has_lowered_fast_api_calls() const {
+    return graph_component_->graph_has_lowered_fast_api_calls;
+  }
+  void set_graph_has_lowered_fast_api_calls() {
+    graph_component_->graph_has_lowered_fast_api_calls = true;
   }
 
  private:

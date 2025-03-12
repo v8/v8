@@ -29,6 +29,8 @@ class FastApiCallLoweringReducer : public Next {
       base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
+    __ data() -> set_graph_has_lowered_fast_api_calls();
+
     FastApiCallFunction c_function = parameters->c_function;
     const auto& c_signature = parameters->c_signature();
     const int c_arg_count = c_signature->ArgumentCount();
