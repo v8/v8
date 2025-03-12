@@ -17,23 +17,6 @@ try {
 } catch (e) {}
 try {
   if (foo) {
-    baz();
-    baz();
-    if (bar) {
-      baz();
-      baz();
-    }
-  }
-} catch (e) {}
-// Original: try_catch_distribution.js
-try {
-  baz();
-} catch (e) {}
-try {
-  baz();
-} catch (e) {}
-try {
-  if (foo) {
     try {
       baz();
     } catch (e) {}
@@ -42,8 +25,12 @@ try {
     } catch (e) {}
     try {
       if (bar) {
-        baz();
-        baz();
+        try {
+          baz();
+        } catch (e) {}
+        try {
+          baz();
+        } catch (e) {}
       }
     } catch (e) {}
   }
@@ -117,6 +104,23 @@ try {
         } catch (e) {}
       }
     } catch (e) {}
+  }
+} catch (e) {}
+// Original: try_catch_distribution.js
+try {
+  baz();
+} catch (e) {}
+try {
+  baz();
+} catch (e) {}
+try {
+  if (foo) {
+    baz();
+    baz();
+    if (bar) {
+      baz();
+      baz();
+    }
   }
 } catch (e) {}
 // Original: try_catch_distribution.js

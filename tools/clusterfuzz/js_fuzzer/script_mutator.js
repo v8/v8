@@ -20,6 +20,7 @@ const sourceHelpers = require('./source_helpers.js');
 
 const { AddTryCatchMutator } = require('./mutators/try_catch.js');
 const { ArrayMutator } = require('./mutators/array_mutator.js');
+const { ClosureRemover } = require('./mutators/closure_remover.js');
 const { ContextAnalyzer } = require('./mutators/analyzer.js');
 const { CrossOverMutator } = require('./mutators/crossover_mutator.js');
 const { ExpressionMutator } = require('./mutators/expression_mutator.js');
@@ -51,6 +52,11 @@ function defaultSettings() {
     MUTATE_VARIABLES: 0.075,
     SCRIPT_MUTATOR_EXTRA_MUTATIONS: 0.2,
     SCRIPT_MUTATOR_SHUFFLE: 0.2,
+    // Probability to remove certain types of closures: Anonymous parameterless
+    // functions calling themselves, but not referencing themselves. These
+    // appear often appear in test input and subsequent mutations are more
+    // likely without these closures.
+    TRANSFORM_CLOSURES: 0.2,
   };
 }
 
@@ -85,6 +91,7 @@ class ScriptMutator {
       new FunctionCallMutator(settings),
       new VariableOrObjectMutator(settings),
     ];
+    this.closures = new ClosureRemover(settings);
     this.trycatch = new AddTryCatchMutator(settings);
     this.settings = settings;
   }
@@ -188,6 +195,9 @@ class ScriptMutator {
         annotations.push(` Script mutator: extra ${mutator.constructor.name}`);
       }
     }
+
+    // We always remove certain closures first.
+    mutators.unshift(this.closures);
 
     // Try-catch wrapping should always be the last mutation.
     mutators.push(this.trycatch);
@@ -342,6 +352,11 @@ class WasmScriptMutator extends ScriptMutator {
     this.settings.MUTATE_NUMBERS = 0.1;
     this.settings.MUTATE_VARIABLES = 0.1;
     this.settings.MUTATE_FUNCTION_CALLS = 0.15;
+
+    // High likelihood to drop closures, as many wasm-module-builder cases
+    // are wrapped with those. After the transformation, subsequent
+    // mutations have more impact on the resulting code.
+    this.settings.TRANSFORM_CLOSURES = 0.5;
   }
 
   get runnerClass() {

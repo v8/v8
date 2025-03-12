@@ -10,6 +10,8 @@ print("I'm a resource.");
 
 // Original: regress/yield/input.js
 function* __f_0() {
-  let __v_0 = yield 1;
-  let __v_1 = 3 + (yield 2);
+  try {
+    let __v_0 = yield 1;
+    let __v_1 = 3 + (yield 2);
+  } catch (e) {}
 }

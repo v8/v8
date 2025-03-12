@@ -17,24 +17,24 @@ try {
   /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1();
 } catch (e) {}
 try {
-  /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1();
-} catch (e) {}
-try {
   /* FunctionCallMutator: Replaced __f_0 with __f_2 */__f_2();
 } catch (e) {}
 try {
   /* FunctionCallMutator: Replaced __f_0 with __f_3 */__f_3();
 } catch (e) {}
 try {
-  /* FunctionCallMutator: Replaced __f_0 with __f_2 */__f_2();
-} catch (e) {}
-try {
-  /* FunctionCallMutator: Replaced __f_0 with __f_2 */__f_2();
+  /* FunctionCallMutator: Replaced __f_0 with __f_3 */__f_3();
 } catch (e) {}
 try {
   /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1();
 } catch (e) {}
 try {
+  /* FunctionCallMutator: Replaced __f_0 with __f_3 */__f_3();
+} catch (e) {}
+try {
+  /* FunctionCallMutator: Replaced __f_0 with __f_3 */__f_3();
+} catch (e) {}
+try {
   /* FunctionCallMutator: Replaced __f_2 with __f_0 */__f_0();
 } catch (e) {}
 try {
@@ -47,7 +47,7 @@ try {
   /* FunctionCallMutator: Replaced __f_2 with __f_0 */__f_0();
 } catch (e) {}
 try {
-  /* FunctionCallMutator: Replaced __f_2 with __f_3 */__f_3();
+  /* FunctionCallMutator: Replaced __f_2 with __f_0 */__f_0();
 } catch (e) {}
 try {
   /* FunctionCallMutator: Replaced __f_2 with __f_3 */__f_3();

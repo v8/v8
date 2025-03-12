@@ -8,21 +8,22 @@ print("I'm a resource.");
 // Original: differential_fuzz/fake_resource.js
 print("I'm a resource.");
 
+/* ClosureRemover: Transformed 0 closures. */
 // Original: loop_mutations.js
 let __v_0 = 0;
 let __v_1 = 0;
 for (const __v_7 = 0; __v_7 < 10000; __v_7++) {
-  console.log(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
   /* VariableOrObjectMutator: Random mutation */
-  __v_0 = __v_0;
+  __v_1 = __v_7;
+  console.log(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
   console.log(/* VariableMutator: Replaced __v_1 with __v_1 */__v_1);
   /* VariableOrObjectMutator: Random mutation */
-  __v_0 = __getRandomObject(572933);
+  __v_0 = __v_7;
   __v_1 = /* VariableMutator: Replaced __v_7 with __v_0 */__v_0;
   /* VariableOrObjectMutator: Random mutation */
   __v_0 = __v_0;
-  /* VariableMutator: Replaced __v_1 with __v_0 */__v_0 = /* VariableMutator: Replaced __v_7 with __v_7 */__v_7;
-  /* VariableMutator: Replaced __v_1 with __v_0 */__v_0 = /* VariableMutator: Replaced __v_7 with __v_7 */__v_7;
+  /* VariableMutator: Replaced __v_1 with __v_1 */__v_1 = /* VariableMutator: Replaced __v_7 with __v_0 */__v_0;
+  /* VariableMutator: Replaced __v_1 with __v_1 */__v_1 = /* VariableMutator: Replaced __v_7 with __v_0 */__v_0;
   /* VariableOrObjectMutator: Random mutation */
   __v_0 = __v_0;
   /* VariableOrObjectMutator: Random mutation */
@@ -32,7 +33,7 @@ for (const __v_7 = 0; __v_7 < 10000; __v_7++) {
   __v_0 = __v_7, __callGC(true);
   __v_7 = __v_1;
   __v_7 = __v_1;
-  /* VariableMutator: Replaced __v_5 with __v_7 */__v_7(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
+  /* VariableMutator: Replaced __v_5 with __v_1 */__v_1(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
 }
 let __v_2 = 0;
 while (true) {
@@ -59,12 +60,12 @@ let __v_5 = true;
 do {
   /* VariableOrObjectMutator: Random mutation */
   __v_2 = __v_2, __callGC(false);
-  console.log(/* VariableMutator: Replaced __v_4 with __v_4 */__v_4);
-} while (/* VariableMutator: Replaced __v_5 with __v_5 */__v_5);
+  console.log(/* VariableMutator: Replaced __v_4 with __v_2 */__v_2);
+} while (/* VariableMutator: Replaced __v_5 with __v_4 */__v_4);
 const __v_6 = 10;
 for (const __v_8 = __v_6; __v_8 > 0; __v_8--) {
-  console.log(/* VariableMutator: Replaced __v_8 with __v_0 */__v_0);
-  console.log(/* VariableMutator: Replaced __v_6 with __v_1 */__v_1);
+  console.log(/* VariableMutator: Replaced __v_8 with __v_6 */__v_6);
+  console.log(/* VariableMutator: Replaced __v_6 with __v_3 */__v_3);
   /* VariableOrObjectMutator: Random mutation */
   __v_0 = __v_3, __callGC(true);
   if (strange) {
@@ -79,7 +80,7 @@ for (const __v_8 = __v_6; __v_8 > 0; __v_8--) {
 }
 /* VariableOrObjectMutator: Random mutation */
 __v_0 = __v_2, __callGC(false);
-console.log(/* VariableMutator: Replaced __v_0 with __v_0 */__v_0);
+console.log(/* VariableMutator: Replaced __v_0 with __v_2 */__v_2);
 /* VariableOrObjectMutator: Random mutation */
 __v_0 = __v_2, __callGC(true);
-console.log(/* VariableMutator: Replaced __v_6 with __v_1 */__v_1);
+console.log(/* VariableMutator: Replaced __v_6 with __v_2 */__v_2);

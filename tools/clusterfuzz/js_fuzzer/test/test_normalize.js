@@ -8,8 +8,10 @@
 
 'use strict';
 
+const { ClosureRemover } = require('../mutators/closure_remover.js');
 const helpers = require('./helpers.js');
 const normalizer = require('../mutators/normalizer.js');
+const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
 
 describe('Normalize', () => {
@@ -60,5 +62,22 @@ describe('Normalize', () => {
     const normalized = sourceHelpers.generateCode(source);
     helpers.assertExpectedResult(
         'normalize_fuzz_test_functions_expected.js', normalized);
+  });
+
+  it('test closure transformations', () => {
+    const source = helpers.loadTestData('closures.js');
+
+    const mutator = new normalizer.IdentifierNormalizer();
+    mutator.mutate(source);
+
+    // Ensure we activate closure transformations.
+    const settings = scriptMutator.defaultSettings();
+    settings['TRANSFORM_CLOSURES'] = 1.0;
+
+    const closures = new ClosureRemover(settings);
+    closures.mutate(source);
+
+    helpers.assertExpectedResult(
+        'closures_expected.js', sourceHelpers.generateCode(source));
   });
 });

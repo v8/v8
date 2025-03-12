@@ -315,6 +315,9 @@ describe('Regression tests', () => {
     this.settings['MUTATE_VARIABLES'] = 1.0;
     this.settings['ADD_VAR_OR_OBJ_MUTATIONS'] = 1.0;
 
+    // Also stress closure removal (though it has no effect in this test).
+    this.settings['TRANSFORM_CLOSURES'] = 1.0;
+
     const source = helpers.loadTestData('loop_mutations.js');
     const mutator = new scriptMutator.ScriptMutator(
         this.settings, 'test_data/regress/empty_db');

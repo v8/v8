@@ -9,7 +9,7 @@
 // Script mutator: extra ArrayMutator
 // Original: mutation_order/input.js
 try {
-  var __v_0 = /* NumberMutator: Replaced 1 with NaN */NaN;
+  var __v_0 = /* NumberMutator: Replaced 1 with 0 */0;
 } catch (e) {}
 try {
   var __v_1 = 'str';
@@ -19,7 +19,7 @@ try {
 } catch (e) {}
 try {
   var __v_3 = {
-    /* NumberMutator: Replaced 0 with 1 */1: /* NumberMutator: Replaced 1 with -11 */-11
+    /* NumberMutator: Replaced 0 with 11 */11: /* NumberMutator: Replaced 1 with -7 */-7
   };
 } catch (e) {}
 function __f_0(__v_4, __v_5) {
@@ -28,19 +28,7 @@ function __f_0(__v_4, __v_5) {
   } catch (e) {}
 }
 try {
-  %PrepareFunctionForOptimization(__f_0);
-} catch (e) {}
-try {
-  __f_0(__v_0, /* NumberMutator: Replaced 3 with 16 */16);
-} catch (e) {}
-try {
-  __f_0(__v_0, /* NumberMutator: Replaced 3 with 18 */18);
-} catch (e) {}
-try {
-  %OptimizeFunctionOnNextCall(__f_0);
-} catch (e) {}
-try {
-  /* FunctionCallMutator: Optimizing __f_0 */__f_0(__v_0, /* NumberMutator: Replaced 3 with -5 */-5);
+  /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1(__v_0, /* NumberMutator: Replaced 3 with 5 */5);
 } catch (e) {}
 function __f_1(__v_6) {
   try {
@@ -48,34 +36,16 @@ function __f_1(__v_6) {
   } catch (e) {}
 }
 try {
-  %PrepareFunctionForOptimization(__f_0);
+  /* FunctionCallMutator: Compiling baseline __f_0 */%CompileBaseline(__f_0);
 } catch (e) {}
 try {
   __f_0('foo', __v_1);
 } catch (e) {}
 try {
-  __f_0('foo', __v_1);
+  /* FunctionCallMutator: Deoptimizing __f_1 */__f_1(/* NumberMutator: Replaced 2 with 4 */4, __f_0(__v_0, __v_1));
 } catch (e) {}
 try {
-  %OptimizeFunctionOnNextCall(__f_0);
-} catch (e) {}
-try {
-  /* FunctionCallMutator: Optimizing __f_0 */__f_0('foo', __v_1);
-} catch (e) {}
-try {
-  %PrepareFunctionForOptimization(__f_1);
-} catch (e) {}
-try {
-  __f_1(/* NumberMutator: Replaced 2 with 1 */1, __f_0(__v_0, __v_1));
-} catch (e) {}
-try {
-  __f_1(/* NumberMutator: Replaced 2 with -13 */-13, __f_0(__v_0, __v_1));
-} catch (e) {}
-try {
-  %OptimizeMaglevOnNextCall(__f_1);
-} catch (e) {}
-try {
-  /* FunctionCallMutator: Optimizing __f_1 */__f_1(/* NumberMutator: Replaced 2 with 8 */8, __f_0(__v_0, __v_1));
+  %DeoptimizeFunction(__f_1);
 } catch (e) {}
 try {
   /* FunctionCallMutator: Replaced __f_0 with __f_1 */__f_1(__v_0, __v_1);
@@ -84,14 +54,14 @@ try {
   %PrepareFunctionForOptimization(__f_1);
 } catch (e) {}
 try {
-  __f_1(__v_1, /* NumberMutator: Replaced 3 with -6 */-6);
+  __f_1(__v_1, /* NumberMutator: Replaced 3 with NaN */NaN);
 } catch (e) {}
 try {
-  __f_1(__v_1, /* NumberMutator: Replaced 3 with 13 */13);
+  __f_1(__v_1, /* NumberMutator: Replaced 3 with 2 */2);
 } catch (e) {}
 try {
   %OptimizeMaglevOnNextCall(__f_1);
 } catch (e) {}
 try {
-  /* FunctionCallMutator: Optimizing __f_1 */__f_1(__v_1, /* NumberMutator: Replaced 3 with -6 */-6);
+  /* FunctionCallMutator: Optimizing __f_1 */__f_1(__v_1, /* NumberMutator: Replaced 3 with -9 */-9);
 } catch (e) {}
