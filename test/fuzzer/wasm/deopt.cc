@@ -121,6 +121,10 @@ std::vector<ExecutionResult> PerformReferenceRun(
     WasmEnabledFeatures enabled_features, bool valid, Isolate* isolate) {
   std::vector<ExecutionResult> results;
   FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
+  // Reference runs use extra compile settings (like non-determinism detection),
+  // which would be removed and replaced with a new liftoff function without
+  // these options.
+  FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
   ErrorThrower thrower(isolate, "WasmFuzzerSyncCompileReference");
 
   int32_t max_steps = kDefaultMaxFuzzerExecutedInstructions;

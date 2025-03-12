@@ -486,6 +486,10 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                                  tier_mask);
   FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
                                   debug_mask);
+  // Reference runs use extra compile settings (like non-determinism detection),
+  // which would be removed and replaced with a new liftoff function without
+  // these options.
+  FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled_module =
