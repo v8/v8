@@ -1777,7 +1777,7 @@ class OutBuffer {
   V8_INLINE void AppendCharacter(SrcChar c) {
     DCHECK_GT(SegmentFreeChars(), 0);
     *cur_++ = c;
-    if (cur_ == segment_end_) {
+    if (V8_UNLIKELY(cur_ == segment_end_)) {
       Extend();
     }
   }
@@ -1785,7 +1785,7 @@ class OutBuffer {
     requires(sizeof(Char) >= sizeof(SrcChar))
   void Append(const SrcChar* chars, size_t length) {
     DCHECK_GT(SegmentFreeChars(), 0);
-    if (length <= SegmentFreeChars()) {
+    if (V8_LIKELY(length <= SegmentFreeChars())) {
       CopyChars(cur_, chars, length);
       cur_ += length;
     } else {
@@ -1806,8 +1806,11 @@ class OutBuffer {
         remaining_length -= copy_length;
       }
     }
-    if (SegmentFreeChars() <= 0) Extend();
+    if (V8_UNLIKELY(cur_ == segment_end_)) {
+      Extend();
+    }
   }
+
   size_t length() const {
     if (ZoneUsed()) {
       DCHECK_GT(segments_->length(), 0);
@@ -1956,9 +1959,9 @@ class FastJsonStringifier {
 
   template <typename OldChar>
     requires(sizeof(OldChar) < sizeof(Char))
-  FastJsonStringifierResult ResumeFrom(
-      FastJsonStringifier<OldChar>& old_stringifier,
-      const DisallowGarbageCollection& no_gc);
+  V8_NOINLINE FastJsonStringifierResult
+  ResumeFrom(FastJsonStringifier<OldChar>& old_stringifier,
+             const DisallowGarbageCollection& no_gc);
 
  private:
   static constexpr bool is_one_byte = sizeof(Char) == sizeof(uint8_t);
@@ -1984,7 +1987,7 @@ class FastJsonStringifier {
   FastJsonStringifierResult SerializeObject(
       ContinuationRecord cont, const DisallowGarbageCollection& no_gc);
   template <bool deferred_key>
-  FastJsonStringifierResult SerializeJSPrimitiveWrapper(
+  V8_NOINLINE FastJsonStringifierResult SerializeJSPrimitiveWrapper(
       Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
       const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult SerializeJSObject(
@@ -2003,8 +2006,8 @@ class FastJsonStringifier {
   V8_INLINE FastJsonStringifierResult
   SerializeFixedArrayElement(Tagged<T> elements, uint32_t i, uint32_t length);
 
-  FastJsonStringifierResult HandleInterruptAndCheckCycle();
-  bool CheckCycle();
+  V8_NOINLINE FastJsonStringifierResult HandleInterruptAndCheckCycle();
+  V8_NOINLINE bool CheckCycle();
 
   template <typename SrcChar>
   V8_INLINE void AppendCharacter(SrcChar c) {
@@ -2085,29 +2088,29 @@ V8_INLINE bool CanFastSerializeJSArrayFastPath(Tagged<JSArray> object,
   // Check if the prototype is the initial array prototype without interesting
   // properties (toJSON).
   Tagged<Map> map = object->map();
-  if (map->may_have_interesting_properties()) return false;
+  if (V8_UNLIKELY(map->may_have_interesting_properties())) return false;
   Tagged<HeapObject> proto = map->prototype();
   // Note: This will also fail for sub-objects in different native contexts.
   // This should be rare and bailing-out to the slow-path is fine.
-  return proto == initial_proto;
+  return V8_LIKELY(proto == initial_proto);
 }
 
 V8_INLINE bool CanFastSerializeJSObjectFastPath(
     Tagged<JSObject> object, Tagged<HeapObject> initial_proto, Tagged<Map> map,
     Isolate* isolate) {
-  if (IsCustomElementsReceiverMap(map)) return false;
-  if (!object->HasFastProperties()) return false;
+  if (V8_UNLIKELY(IsCustomElementsReceiverMap(map))) return false;
+  if (V8_UNLIKELY(!object->HasFastProperties())) return false;
   auto roots = ReadOnlyRoots(isolate);
   auto elements = object->elements();
-  if (elements != roots.empty_fixed_array() &&
-      elements != roots.empty_slow_element_dictionary()) {
+  if (V8_UNLIKELY(elements != roots.empty_fixed_array() &&
+                  elements != roots.empty_slow_element_dictionary())) {
     return false;
   }
-  if (map->may_have_interesting_properties()) return false;
+  if (V8_UNLIKELY(map->may_have_interesting_properties())) return false;
   Tagged<HeapObject> proto = map->prototype();
   // Note: This will also fail for sub-objects in different native contexts.
   // This should be rare and bailing-out to the slow-path is fine.
-  return proto == initial_proto;
+  return V8_LIKELY(proto == initial_proto);
 }
 
 }  // namespace
@@ -2129,7 +2132,7 @@ void FastJsonStringifier<Char>::SerializeSmi(Tagged<Smi> object) {
 
 template <typename Char>
 void FastJsonStringifier<Char>::SerializeDouble(double number) {
-  if (std::isinf(number) || std::isnan(number)) {
+  if (V8_UNLIKELY(std::isinf(number) || std::isnan(number))) {
     AppendCStringLiteral("null");
     return;
   }
@@ -2155,9 +2158,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
     return SerializeObjectKey<ExternalOneByteString>(key, comma, no_gc);
   } else {
     if constexpr (is_one_byte) {
-      if (InstanceTypeChecker::IsTwoByteString(map)) {
-        return CHANGE_ENCODING_KEY;
-      }
+      DCHECK(InstanceTypeChecker::IsTwoByteString(map));
+      return CHANGE_ENCODING_KEY;
     } else {
       if (map == roots.internalized_two_byte_string_map()) {
         return SerializeObjectKey<SeqTwoByteString>(key, comma, no_gc);
@@ -2569,14 +2571,18 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         return result;
       case CHANGE_ENCODING:
       case CHANGE_ENCODING_KEY:
-        DCHECK(is_one_byte);
-        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                            i.as_uint32() + 1, length);
-        stack_.emplace_back(ContinuationRecord::kSimpleObject, property, 0);
-        if (result == CHANGE_ENCODING_KEY) {
-          stack_.emplace_back(ContinuationRecord::kObjectKey, key_name, comma);
+        if constexpr (is_one_byte) {
+          stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
+                              i.as_uint32() + 1, length);
+          stack_.emplace_back(ContinuationRecord::kSimpleObject, property, 0);
+          if (result == CHANGE_ENCODING_KEY) {
+            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
+                                comma);
+          }
+          return result;
+        } else {
+          UNREACHABLE();
         }
-        return result;
       case SLOW_PATH:
       case EXCEPTION:
         return result;
@@ -2731,12 +2737,16 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
         AppendCStringLiteral("null");
         return SUCCESS;
       case CHANGE_ENCODING:
-        DCHECK(IsString(obj) || IsStringWrapper(obj));
-        stack_.emplace_back(
-            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
-            i + 1, length);
-        stack_.emplace_back(ContinuationRecord::kSimpleObject, obj, 0);
-        return result;
+        if constexpr (is_one_byte) {
+          DCHECK(IsString(obj) || IsStringWrapper(obj));
+          stack_.emplace_back(
+              ContinuationTypeForArray(kind, with_interrupt_checks), elements,
+              i + 1, length);
+          stack_.emplace_back(ContinuationRecord::kSimpleObject, obj, 0);
+          return result;
+        } else {
+          UNREACHABLE();
+        }
       case JS_OBJECT:
       case JS_ARRAY:
         stack_.emplace_back(
@@ -2811,23 +2821,25 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
     // Load initial JSObject/JSArray prototypes from native context.
     Tagged<Map> meta_map = obj->map()->map();
     // Don't deal with context-less meta maps.
-    if (meta_map == ReadOnlyRoots(isolate_).meta_map()) {
+    if (V8_UNLIKELY(meta_map == ReadOnlyRoots(isolate_).meta_map())) {
       return SLOW_PATH;
     }
     Tagged<NativeContext> native_context = meta_map->native_context();
     initial_jsobject_proto_ = native_context->initial_object_prototype();
     initial_jsarray_proto_ = native_context->initial_array_prototype();
     // Prototypes don't have interesting properties (toJSON).
-    if (initial_jsarray_proto_->map()->may_have_interesting_properties()) {
+    if (V8_UNLIKELY(
+            initial_jsarray_proto_->map()->may_have_interesting_properties())) {
       return SLOW_PATH;
     }
-    if (initial_jsobject_proto_->map()->may_have_interesting_properties()) {
+    if (V8_UNLIKELY(initial_jsobject_proto_->map()
+                        ->may_have_interesting_properties())) {
       return SLOW_PATH;
     }
     // JSArray's prototype is the initial object prototype.
     Tagged<HeapObject> jsarray_proto_proto =
         initial_jsarray_proto_->map()->prototype();
-    if (jsarray_proto_proto != initial_jsobject_proto_) {
+    if (V8_UNLIKELY(jsarray_proto_proto != initial_jsobject_proto_)) {
       return SLOW_PATH;
     }
   }
@@ -2864,9 +2876,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
 
   FastJsonStringifierResult result;
   while (true) {
-    if (--interrupt_budget == 0) {
+    --interrupt_budget;
+    if (V8_UNLIKELY(interrupt_budget == 0)) {
       result = HandleInterruptAndCheckCycle();
-      if (result != SUCCESS) return result;
+      if (V8_UNLIKELY(result != SUCCESS)) return result;
       interrupt_budget = kGlobalInterruptBudget;
     }
     switch (cont.type) {
@@ -2925,15 +2938,15 @@ FastJsonStringifier<Char>::HandleInterruptAndCheckCycle() {
     // message object. We don't touch any of the heap objects after we
     // encountered an exception, so this is fine.
     AllowGarbageCollection allow_gc;
-    if (interrupt_check.InterruptRequested() &&
-        IsException(isolate_->stack_guard()->HandleInterrupts(
-                        StackGuard::InterruptLevel::kNoGC),
-                    isolate_)) {
+    if (V8_UNLIKELY(interrupt_check.InterruptRequested() &&
+                    IsException(isolate_->stack_guard()->HandleInterrupts(
+                                    StackGuard::InterruptLevel::kNoGC),
+                                isolate_))) {
       return EXCEPTION;
     }
   }
 
-  if (CheckCycle()) {
+  if (V8_UNLIKELY(CheckCycle())) {
     // TODO(pthier): Construct exception message on fast-path and avoid falling
     // back to slow path just to handle the exception.
     return SLOW_PATH;
@@ -2951,7 +2964,7 @@ bool FastJsonStringifier<Char>::CheckCycle() {
         rec.type == ContinuationRecord::kSimpleObject)
       continue;
     Tagged<Object> obj = rec.object;
-    if (set.find(obj.ptr()) != set.end()) {
+    if (V8_UNLIKELY(set.find(obj.ptr()) != set.end())) {
       return true;
     }
     set.insert(obj.ptr());
