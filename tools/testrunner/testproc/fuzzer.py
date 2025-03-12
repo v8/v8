@@ -61,7 +61,7 @@ EXTRA_FLAGS = [
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-pinning-objects-random'),
     (0.25, '--wasm-staging'),
-    (0.01, '--ephemeron-fixpoint-iterations=0'),
+    (0.1, '--ephemeron-fixpoint-iterations=0'),
 ]
 
 MIN_DEOPT = 1
