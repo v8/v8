@@ -290,35 +290,41 @@ BUILTIN(DatePrototypeSetHours) {
   DirectHandle<Object> hour = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
-  double h = Object::NumberValue(*hour);
+  double const h = Object::NumberValue(*hour);
   double time_val = date->value();
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, day);
-    double m = (time_within_day / (60 * 1000)) % 60;
-    double s = (time_within_day / 1000) % 60;
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> min = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
-                                         Object::ToNumber(isolate, min));
-      m = Object::NumberValue(*min);
-      if (argc >= 3) {
-        DirectHandle<Object> sec = args.at(3);
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
-                                           Object::ToNumber(isolate, sec));
-        s = Object::NumberValue(*sec);
-        if (argc >= 4) {
-          DirectHandle<Object> ms = args.at(4);
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                             Object::ToNumber(isolate, ms));
-          milli = Object::NumberValue(*ms);
-        }
+  std::optional<double> m;
+  std::optional<double> s;
+  std::optional<double> milli;
+
+  if (argc >= 2) {
+    DirectHandle<Object> min = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
+                                       Object::ToNumber(isolate, min));
+    m = Object::NumberValue(*min);
+    if (argc >= 3) {
+      DirectHandle<Object> sec = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
+                                         Object::ToNumber(isolate, sec));
+      s = Object::NumberValue(*sec);
+      if (argc >= 4) {
+        DirectHandle<Object> ms = args.at(4);
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                           Object::ToNumber(isolate, ms));
+        milli = Object::NumberValue(*ms);
       }
     }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+  }
+
+  if (!std::isnan(time_val)) {
+    int64_t const time_ms = static_cast<int64_t>(time_val);
+    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+    int const time_within_day =
+        isolate->date_cache()->TimeInDay(local_time_ms, day);
+    time_val = MakeDate(
+        day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
+                      s.value_or((time_within_day / 1000) % 60),
+                      milli.value_or(time_within_day % 1000)));
   }
   return SetLocalDateValue(isolate, date, time_val);
 }
@@ -333,12 +339,13 @@ BUILTIN(DatePrototypeSetMilliseconds) {
   double time_val = date->value();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    int m = (time_within_day / (60 * 1000)) % 60;
-    int s = (time_within_day / 1000) % 60;
+    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+    int const time_within_day =
+        isolate->date_cache()->TimeInDay(local_time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    int const m = (time_within_day / (60 * 1000)) % 60;
+    int const s = (time_within_day / 1000) % 60;
     time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
   }
   return SetLocalDateValue(isolate, date, time_val);
@@ -353,28 +360,33 @@ BUILTIN(DatePrototypeSetMinutes) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
   double time_val = date->value();
+  std::optional<double> s;
+  std::optional<double> milli;
+
+  if (argc >= 2) {
+    DirectHandle<Object> sec = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
+                                       Object::ToNumber(isolate, sec));
+    s = Object::NumberValue(*sec);
+    if (argc >= 3) {
+      DirectHandle<Object> ms = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                         Object::ToNumber(isolate, ms));
+      milli = Object::NumberValue(*ms);
+    }
+  }
+
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    double m = Object::NumberValue(*min);
-    double s = (time_within_day / 1000) % 60;
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> sec = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
-                                         Object::ToNumber(isolate, sec));
-      s = Object::NumberValue(*sec);
-      if (argc >= 3) {
-        DirectHandle<Object> ms = args.at(3);
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                           Object::ToNumber(isolate, ms));
-        milli = Object::NumberValue(*ms);
-      }
-    }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+    int const time_within_day =
+        isolate->date_cache()->TimeInDay(local_time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    double const m = Object::NumberValue(*min);
+    time_val =
+        MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
+                               milli.value_or(time_within_day % 1000)));
   }
   return SetLocalDateValue(isolate, date, time_val);
 }
@@ -388,22 +400,25 @@ BUILTIN(DatePrototypeSetMonth) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
   double time_val = this_date->value();
+  std::optional<double> dt;
+
+  if (argc >= 2) {
+    DirectHandle<Object> date = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
+                                       Object::ToNumber(isolate, date));
+    dt = Object::NumberValue(*date);
+  }
+
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int days = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
+    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+    int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
+    int const time_within_day =
+        isolate->date_cache()->TimeInDay(local_time_ms, days);
     int year, unused, day;
     isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
-    double m = Object::NumberValue(*month);
-    double dt = day;
-    if (argc >= 2) {
-      DirectHandle<Object> date = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = Object::NumberValue(*date);
-    }
-    time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
+    double const m = Object::NumberValue(*month);
+    time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
   }
   return SetLocalDateValue(isolate, this_date, time_val);
 }
@@ -417,22 +432,26 @@ BUILTIN(DatePrototypeSetSeconds) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
   double time_val = date->value();
+  std::optional<double> milli;
+
+  if (argc >= 2) {
+    DirectHandle<Object> ms = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                       Object::ToNumber(isolate, ms));
+    milli = Object::NumberValue(*ms);
+  }
+
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    double m = (time_within_day / (60 * 1000)) % 60;
-    double s = Object::NumberValue(*sec);
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> ms = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                         Object::ToNumber(isolate, ms));
-      milli = Object::NumberValue(*ms);
-    }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+    int const time_within_day =
+        isolate->date_cache()->TimeInDay(local_time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    double const m = (time_within_day / (60 * 1000)) % 60;
+    double const s = Object::NumberValue(*sec);
+    time_val = MakeDate(
+        day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
   }
   return SetLocalDateValue(isolate, date, time_val);
 }
@@ -528,34 +547,39 @@ BUILTIN(DatePrototypeSetUTCHours) {
   DirectHandle<Object> hour = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
-  double h = Object::NumberValue(*hour);
+  double const h = Object::NumberValue(*hour);
+  std::optional<double> m;
+  std::optional<double> s;
+  std::optional<double> milli;
+
+  if (argc >= 2) {
+    DirectHandle<Object> min = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
+                                       Object::ToNumber(isolate, min));
+    m = Object::NumberValue(*min);
+    if (argc >= 3) {
+      DirectHandle<Object> sec = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
+                                         Object::ToNumber(isolate, sec));
+      s = Object::NumberValue(*sec);
+      if (argc >= 4) {
+        DirectHandle<Object> ms = args.at(4);
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                           Object::ToNumber(isolate, ms));
+        milli = Object::NumberValue(*ms);
+      }
+    }
+  }
+
   double time_val = date->value();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int day = isolate->date_cache()->DaysFromTime(time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    double m = (time_within_day / (60 * 1000)) % 60;
-    double s = (time_within_day / 1000) % 60;
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> min = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
-                                         Object::ToNumber(isolate, min));
-      m = Object::NumberValue(*min);
-      if (argc >= 3) {
-        DirectHandle<Object> sec = args.at(3);
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
-                                           Object::ToNumber(isolate, sec));
-        s = Object::NumberValue(*sec);
-        if (argc >= 4) {
-          DirectHandle<Object> ms = args.at(4);
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                             Object::ToNumber(isolate, ms));
-          milli = Object::NumberValue(*ms);
-        }
-      }
-    }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+    int const day = isolate->date_cache()->DaysFromTime(time_ms);
+    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+    time_val = MakeDate(
+        day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
+                      s.value_or((time_within_day / 1000) % 60),
+                      milli.value_or(time_within_day % 1000)));
   }
   return SetDateValue(isolate, date, time_val);
 }
@@ -570,11 +594,11 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
   double time_val = date->value();
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int day = isolate->date_cache()->DaysFromTime(time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    int m = (time_within_day / (60 * 1000)) % 60;
-    int s = (time_within_day / 1000) % 60;
+    int const day = isolate->date_cache()->DaysFromTime(time_ms);
+    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    int const m = (time_within_day / (60 * 1000)) % 60;
+    int const s = (time_within_day / 1000) % 60;
     time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
   }
   return SetDateValue(isolate, date, time_val);
@@ -589,27 +613,31 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
   double time_val = date->value();
+  std::optional<double> s;
+  std::optional<double> milli;
+
+  if (argc >= 2) {
+    DirectHandle<Object> sec = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
+                                       Object::ToNumber(isolate, sec));
+    s = Object::NumberValue(*sec);
+    if (argc >= 3) {
+      DirectHandle<Object> ms = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                         Object::ToNumber(isolate, ms));
+      milli = Object::NumberValue(*ms);
+    }
+  }
+
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int day = isolate->date_cache()->DaysFromTime(time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    double m = Object::NumberValue(*min);
-    double s = (time_within_day / 1000) % 60;
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> sec = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
-                                         Object::ToNumber(isolate, sec));
-      s = Object::NumberValue(*sec);
-      if (argc >= 3) {
-        DirectHandle<Object> ms = args.at(3);
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                           Object::ToNumber(isolate, ms));
-        milli = Object::NumberValue(*ms);
-      }
-    }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+    int const day = isolate->date_cache()->DaysFromTime(time_ms);
+    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    double const m = Object::NumberValue(*min);
+    time_val =
+        MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
+                               milli.value_or(time_within_day % 1000)));
   }
   return SetDateValue(isolate, date, time_val);
 }
@@ -623,21 +651,22 @@ BUILTIN(DatePrototypeSetUTCMonth) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
   double time_val = this_date->value();
+  std::optional<double> dt;
+  if (argc >= 2) {
+    DirectHandle<Object> date = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
+                                       Object::ToNumber(isolate, date));
+    dt = Object::NumberValue(*date);
+  }
+
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int days = isolate->date_cache()->DaysFromTime(time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
+    int const days = isolate->date_cache()->DaysFromTime(time_ms);
+    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
     int year, unused, day;
     isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
-    double m = Object::NumberValue(*month);
-    double dt = day;
-    if (argc >= 2) {
-      DirectHandle<Object> date = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = Object::NumberValue(*date);
-    }
-    time_val = MakeDate(MakeDay(year, m, dt), time_within_day);
+    double const m = Object::NumberValue(*month);
+    time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
   }
   return SetDateValue(isolate, this_date, time_val);
 }
@@ -651,21 +680,22 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
   double time_val = date->value();
+  std::optional<double> milli;
+  if (argc >= 2) {
+    DirectHandle<Object> ms = args.at(2);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
+                                       Object::ToNumber(isolate, ms));
+    milli = Object::NumberValue(*ms);
+  }
   if (!std::isnan(time_val)) {
     int64_t const time_ms = static_cast<int64_t>(time_val);
-    int day = isolate->date_cache()->DaysFromTime(time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int h = time_within_day / (60 * 60 * 1000);
-    double m = (time_within_day / (60 * 1000)) % 60;
-    double s = Object::NumberValue(*sec);
-    double milli = time_within_day % 1000;
-    if (argc >= 2) {
-      DirectHandle<Object> ms = args.at(2);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
-                                         Object::ToNumber(isolate, ms));
-      milli = Object::NumberValue(*ms);
-    }
-    time_val = MakeDate(day, MakeTime(h, m, s, milli));
+    int const day = isolate->date_cache()->DaysFromTime(time_ms);
+    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+    int const h = time_within_day / (60 * 60 * 1000);
+    double const m = (time_within_day / (60 * 1000)) % 60;
+    double const s = Object::NumberValue(*sec);
+    time_val = MakeDate(
+        day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
   }
   return SetDateValue(isolate, date, time_val);
 }

@@ -1056,16 +1056,6 @@
   'built-ins/ShadowRealm/prototype/evaluate/globalthis-ordinary-object': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/throws-if-exportname-not-string': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12524
-  'built-ins/Date/prototype/setHours/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setMinutes/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setMonth/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setSeconds/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setUTCHours/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setUTCMinutes/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setUTCMonth/arg-coercion-order': [FAIL],
-  'built-ins/Date/prototype/setUTCSeconds/arg-coercion-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=14288
   'intl402/DateTimeFormat/timezone-case-insensitive': [FAIL],
   'intl402/DateTimeFormat/timezone-not-canonicalized': [FAIL],
@@ -2476,7 +2466,6 @@
   'staging/sm/class/superCallOrder': [FAIL],
   'staging/sm/class/superPropOrdering': [FAIL],
   'staging/sm/DataView/detach-after-construction': [FAIL],
-  'staging/sm/Date/setTime-argument-shortcircuiting': [FAIL],
   'staging/sm/eval/redeclared-arguments-in-param-expression-eval': [FAIL],
   'staging/sm/expressions/short-circuit-compound-assignment-property-key-evaluation': [FAIL],
   'staging/sm/extensions/ArrayBuffer-slice-arguments-detaching': [FAIL],
