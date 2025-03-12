@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-incremental-marking
-
 let {session, contextGroup, Protocol} =
-  InspectorTest.start('Tests that contextDesrtoyed nofitication is fired when context is collected.');
+  InspectorTest.start('Tests that contextDestroyed notification is fired when context is collected.');
 
 (async function test() {
   await Protocol.Runtime.enable();

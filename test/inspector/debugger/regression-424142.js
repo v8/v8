@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The script below will not survive a GC, which may occur in case of
+// --stress-incremental-marking or any other stress mode.
+
+// Flags: --no-stress-incremental-marking
+
 let {session, contextGroup, Protocol} =
   InspectorTest.start('Breakpoint can be set at line return this.x;');
 

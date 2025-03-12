@@ -2,21 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Checks if we keep alive breakpoint information for top-level functions when calling getPossibleBreakpoints.');
 
 session.setupScriptMap();
 var executionContextId;
 
-const callGarbageCollector = `
-  %CollectGarbage("");
-  %CollectGarbage("");
-  %CollectGarbage("");
-  %CollectGarbage("");
-`;
-
+// Using a `function` in each script ensures that the script will survive a GC,
+// which may occur in case of --stress-incremental-marking or any other stress mode.
 const moduleFunction =
     `function testFunc() { console.log('This is a module function') }`;
 let mixedFunctions = ` function A() {}
@@ -49,7 +42,7 @@ async function testGetPossibleBreakpoints(executionContextId, func, url) {
   const scriptId = obj.result.scriptId;
   const location = {start: {lineNumber: 0, columnNumber: 0, scriptId}};
   await Protocol.Runtime.runScript({scriptId});
-  await Protocol.Runtime.evaluate({expression: `${callGarbageCollector}`});
+  await Protocol.HeapProfiler.collectGarbage();
   const {result: {locations}} =
       await Protocol.Debugger.getPossibleBreakpoints(location);
   InspectorTest.log(`Result of get possible breakpoints in ${url}`);

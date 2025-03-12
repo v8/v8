@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-stress-flush-code
-
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks internal [[Entries]] in Runtime.getProperties output');
 
 Protocol.Runtime.enable();
