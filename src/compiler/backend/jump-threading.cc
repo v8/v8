@@ -297,8 +297,10 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
               instr_move->Eliminate();
             }
           }
-          // If this block was marked as a handler, it can be unmarked now.
+          // If this block was marked as a handler or a switch target, it can be
+          // unmarked now.
           code->InstructionBlockAt(block_rpo)->UnmarkHandler();
+          code->InstructionBlockAt(block_rpo)->set_switch_target(false);
           code->InstructionBlockAt(block_rpo)->set_omitted_by_jump_threading();
         }
       }
