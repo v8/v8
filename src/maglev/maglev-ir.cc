@@ -805,6 +805,18 @@ void CallRuntime::MarkTaggedInputsAsDecompressing() {
 }
 #endif
 
+void StoreTaggedFieldNoWriteBarrier::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  Base::VerifyInputs(graph_labeller);
+  if (auto host_alloc =
+          input(kObjectIndex).node()->TryCast<InlinedAllocation>()) {
+    if (input(kValueIndex).node()->Is<InlinedAllocation>()) {
+      CHECK_EQ(host_alloc->allocation_block()->allocation_type(),
+               AllocationType::kYoung);
+    }
+  }
+}
+
 void InlinedAllocation::VerifyInputs(
     MaglevGraphLabeller* graph_labeller) const {
   Base::VerifyInputs(graph_labeller);
@@ -816,19 +828,25 @@ AllocationBlock* InlinedAllocation::allocation_block() {
   return allocation_block_input().node()->Cast<AllocationBlock>();
 }
 
-void AllocationBlock::Pretenure() {
+void AllocationBlock::TryPretenure() {
   DCHECK(v8_flags.maglev_pretenure_store_values);
-  if (allocation_type_ == AllocationType::kOld) return;
+
+  if (elided_write_barriers_depend_on_type() ||
+      allocation_type_ == AllocationType::kOld) {
+    return;
+  }
   allocation_type_ = AllocationType::kOld;
+
+  // Recurse over my own inputs
   for (auto alloc : allocation_list_) {
     alloc->object()->ForEachInput([&](ValueNode* value) {
       if (auto next_alloc = value->TryCast<InlinedAllocation>()) {
-        next_alloc->allocation_block()->Pretenure();
+        next_alloc->allocation_block()->TryPretenure();
       } else if (auto phi = value->TryCast<Phi>()) {
         for (int i = 0; i < phi->input_count(); ++i) {
           if (auto phi_alloc =
                   phi->input(i).node()->TryCast<InlinedAllocation>()) {
-            phi_alloc->allocation_block()->Pretenure();
+            phi_alloc->allocation_block()->TryPretenure();
           }
         }
       }

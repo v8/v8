@@ -5240,6 +5240,7 @@ bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
   if (allocation != nullptr && current_allocation_block_ == allocation &&
       allocation->allocation_type() == AllocationType::kYoung &&
       allocation == GetAllocation(value)) {
+    allocation->set_elided_write_barriers_depend_on_type();
     return true;
   }
 
@@ -5425,7 +5426,7 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
         if (alloc->allocation_block()->allocation_type() ==
             AllocationType::kOld) {
           if (auto value_alloc = value->TryCast<InlinedAllocation>()) {
-            value_alloc->allocation_block()->Pretenure();
+            value_alloc->allocation_block()->TryPretenure();
           }
         }
       }

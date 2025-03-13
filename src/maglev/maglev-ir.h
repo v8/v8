@@ -6162,11 +6162,19 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     size_ += alloc->size();
   }
 
-  void Pretenure();
+  void TryPretenure();
+
+  bool elided_write_barriers_depend_on_type() const {
+    return elided_write_barriers_depend_on_type_;
+  }
+  void set_elided_write_barriers_depend_on_type() {
+    elided_write_barriers_depend_on_type_ = true;
+  }
 
  private:
   AllocationType allocation_type_;
   int size_ = 0;
+  bool elided_write_barriers_depend_on_type_ = false;
   InlinedAllocation::List allocation_list_;
 };
 
@@ -8551,6 +8559,8 @@ class StoreTaggedFieldNoWriteBarrier
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 
  private:
   using InitializingOrTransitioningField = NextBitField<bool, 1>;
