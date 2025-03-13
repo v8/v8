@@ -6010,9 +6010,17 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
       return AddNewNode<StringLength>({string});
     }
     case compiler::PropertyAccessInfo::kTypedArrayLength: {
-      DCHECK_EQ(receiver, lookup_start_object);
       CHECK(!IsRabGsabTypedArrayElementsKind(access_info.elements_kind()));
-      return BuildLoadTypedArrayLength(receiver, access_info.elements_kind());
+      if (receiver != lookup_start_object) {
+        // We're accessing the TypedArray length via a prototype (a TypedArray
+        // object in the prototype chain, objects below it not having a "length"
+        // property, reading via super.length). That will throw a TypeError.
+        // This should never occur in any realistic code, so we can deopt here
+        // instead of implementing special handling for it.
+        return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+      }
+      return BuildLoadTypedArrayLength(lookup_start_object,
+                                       access_info.elements_kind());
     }
   }
 }
