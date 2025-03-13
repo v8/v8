@@ -853,10 +853,12 @@ void GCTracer::PrintNVP() const {
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
-          "total_size_before=%zu "
-          "total_size_after=%zu "
-          "holes_size_before=%zu "
-          "holes_size_after=%zu "
+          "start_object_size=%zu "
+          "end_object_size=%zu "
+          "start_memory_size=%zu "
+          "end_memory_size=%zu "
+          "start_holes_size=%zu "
+          "end_holes_size=%zu "
           "allocated=%zu "
           "promoted=%zu "
           "quarantined_size=%zu "
@@ -871,6 +873,7 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "new_space_capacity=%zu "
+          "allocation_throughput=%.1f "
           "pool_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -898,6 +901,7 @@ void GCTracer::PrintNVP() const {
               YoungGenerationSpeedMode::kOnlyAtomicPause)
               .value_or(0.0),
           current_.start_object_size, current_.end_object_size,
+          current_.start_memory_size, current_.end_memory_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->semi_space_new_space()->QuarantinedSize(),
@@ -909,6 +913,7 @@ void GCTracer::PrintNVP() const {
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+          AllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
@@ -947,10 +952,12 @@ void GCTracer::PrintNVP() const {
           "background.sweep=%.2f "
           "background.sweep.array_buffers=%.2f "
           "conservative_stack_scanning=%.2f "
-          "total_size_before=%zu "
-          "total_size_after=%zu "
-          "holes_size_before=%zu "
-          "holes_size_after=%zu "
+          "start_object_size=%zu "
+          "end_object_size=%zu "
+          "start_memory_size=%zu "
+          "end_memory_size=%zu "
+          "start_holes_size=%zu "
+          "end_holes_size=%zu "
           "allocated=%zu "
           "promoted=%zu "
           "new_space_survived=%zu "
@@ -962,7 +969,8 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_capacity=%zu "
-          "new_space_allocation_throughput=%.1f\n",
+          "new_space_allocation_throughput=%.1f "
+          "allocation_throughput=%.1f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
           current_.reduce_memory, current_scope(Scope::MINOR_MS),
           current_scope(Scope::TIME_TO_SAFEPOINT),
@@ -994,6 +1002,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
           current_.start_object_size, current_.end_object_size,
+          current_.start_memory_size, current_.end_memory_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
@@ -1002,7 +1011,8 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
-          NewSpaceAllocationThroughputInBytesPerMillisecond());
+          NewSpaceAllocationThroughputInBytesPerMillisecond(),
+          AllocationThroughputInBytesPerMillisecond());
       break;
     case Event::Type::MARK_COMPACTOR:
     case Event::Type::INCREMENTAL_MARK_COMPACTOR:
@@ -1085,10 +1095,12 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
           "conservative_stack_scanning=%.2f "
-          "total_size_before=%zu "
-          "total_size_after=%zu "
-          "holes_size_before=%zu "
-          "holes_size_after=%zu "
+          "start_object_size=%zu "
+          "end_object_size=%zu "
+          "start_memory_size=%zu "
+          "end_memory_size=%zu "
+          "start_holes_size=%zu "
+          "end_holes_size=%zu "
           "allocated=%zu "
           "promoted=%zu "
           "new_space_survived=%zu "
@@ -1101,8 +1113,9 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "new_space_capacity=%zu "
+          "allocation_throughput=%.1f "
           "pool_chunks=%zu "
-          "compaction_speed=%.f\n",
+          "compaction_speed=%.1f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           current_scope(Scope::TIME_TO_SAFEPOINT),
@@ -1180,6 +1193,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
           current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
           current_.start_object_size, current_.end_object_size,
+          current_.start_memory_size, current_.end_memory_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
@@ -1189,6 +1203,7 @@ void GCTracer::PrintNVP() const {
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+          AllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
           CompactionSpeedInBytesPerMillisecond().value_or(0.0));
       break;
