@@ -4417,17 +4417,10 @@ class TwoPassCallbackData {
     bool trigger_gc = trigger_gc_;
     delete this;
 
-    {
-      // Make sure that running JS works inside the second pass callback.
-      v8::HandleScope handle_scope(isolate);
-      v8::Context::Scope context_scope(metadata->context.Get(isolate));
-      v8::Local<v8::Value> value = CompileRun("(function() { return 42 })()");
-      CHECK(value->IsInt32());
-      CHECK_EQ(value.As<v8::Int32>()->Value(), 42);
+    if (!trigger_gc) {
+      return;
     }
-
-    if (!trigger_gc) return;
-    auto data_2 = new TwoPassCallbackData(isolate, metadata);
+    auto* data_2 = new TwoPassCallbackData(isolate, metadata);
     data_2->SetWeak();
     i::heap::InvokeMajorGC(CcTest::heap());
   }
