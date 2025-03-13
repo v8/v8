@@ -973,6 +973,12 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         } else {
           value = handle(context_->get(index), isolate_);
         }
+        if (v8_flags.script_context_mutable_heap_number &&
+            context_->IsScriptContext()) {
+          value = indirect_handle(Context::LoadScriptContextElement(
+                                      context_, index, value, isolate_),
+                                  isolate_);
+        }
         break;
 
       case VariableLocation::MODULE: {
@@ -1132,7 +1138,15 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
               index) {
             return false;
           }
-          context_->set(index, *new_value);
+          if ((v8_flags.script_context_mutable_heap_number ||
+               v8_flags.const_tracking_let) &&
+              context_->IsScriptContext()) {
+            Context::StoreScriptContextAndUpdateSlotProperty(
+                context_, index, new_value, isolate_);
+          } else {
+            context_->set(index, *new_value);
+          }
+
           return true;
 
         case VariableLocation::MODULE:
