@@ -4236,14 +4236,14 @@ void MacroAssembler::StoreU16LE(Register src, const MemOperand& mem,
 
 void MacroAssembler::StoreF64LE(DoubleRegister src, const MemOperand& opnd,
                                 Register scratch) {
-  DCHECK(is_uint12(opnd.offset()));
+  DCHECK(is_int20(opnd.offset()));
   lgdr(scratch, src);
   strvg(scratch, opnd);
 }
 
 void MacroAssembler::StoreF32LE(DoubleRegister src, const MemOperand& opnd,
                                 Register scratch) {
-  DCHECK(is_uint12(opnd.offset()));
+  DCHECK(is_int20(opnd.offset()));
   lgdr(scratch, src);
   ShiftRightU64(scratch, scratch, Operand(32));
   strv(scratch, opnd);
