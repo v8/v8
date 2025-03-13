@@ -44,6 +44,10 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
+    "stress_maglev_non_eager_inlining": [[
+        "--maglev", "--stress-maglev", "--maglev-non-eager-inlining",
+        "--optimize-on-next-call-optimizes-to-maglev"
+    ]],
     "conservative_pinning": [[
         "--scavenger-conservative-object-pinning",
         "--stress-scavenger-conservative-object-pinning"
@@ -190,6 +194,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
     ],
     "stress_maglev": ["--jitless"],
+    "stress_maglev_non_eager_inlining": ["--jitless"],
     "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
     "stress_maglev_no_turbofan": [
         "--jitless",
