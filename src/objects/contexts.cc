@@ -553,9 +553,15 @@ DirectHandle<Object> TryLoadMutableHeapNumber(
   if (IsSmi(data)) {
     property =
         static_cast<ContextSidePropertyCell::Property>(data.ToSmi().value());
-  } else {
-    CHECK(Is<ContextSidePropertyCell>(data));
+  } else if (Is<ContextSidePropertyCell>(data)) {
     property = Cast<ContextSidePropertyCell>(data)->context_side_property();
+  } else {
+    // We should not reach this point. The debugger has updated the value
+    // without updating the side data table. Fall back to other. There is also
+    // no dependent code to this cell, since this is not a
+    // ContextSidePropertyCell.
+    property = ContextSidePropertyCell::kOther;
+    side_data_table->set(side_data_index, Smi::FromInt(property));
   }
   if (property == ContextSidePropertyCell::kMutableInt32) {
     int32_t int32_value =
