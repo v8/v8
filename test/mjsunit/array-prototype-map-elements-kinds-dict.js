@@ -23,12 +23,7 @@ function plusOneInObject(x) {
   }
 
   const array = [1, 2, 3];
-  for (let i = 0; i < 100000; i += 100) {
-    array[i] = 0;
-    if (%HasDictionaryElements(array)) {
-      break;
-    }
-  }
+  MakeArrayDictionaryMode(array, () => { return 0; });
   assertTrue(%HasDictionaryElements(array));
 
   const result = foo(array);
@@ -41,12 +36,7 @@ function plusOneInObject(x) {
   }
 
   const array = [1, 2, 3];
-  for (let i = 0; i < 100000; i += 100) {
-    array[i] = 0.1;
-    if (%HasDictionaryElements(array)) {
-      break;
-    }
-  }
+  MakeArrayDictionaryMode(array, () => { return 0.1; });
   assertTrue(%HasDictionaryElements(array));
 
   const result = foo(array);
@@ -59,12 +49,7 @@ function plusOneInObject(x) {
   }
 
   const array = [{a: 1}, {a: 2}, {a: 3}];
-  for (let i = 0; i < 100000; i += 100) {
-    array[i] = {a: 0};
-    if (%HasDictionaryElements(array)) {
-      break;
-    }
-  }
+  MakeArrayDictionaryMode(array, () => { return {a: 0}; });
   assertTrue(%HasDictionaryElements(array));
 
   const result = foo(array);

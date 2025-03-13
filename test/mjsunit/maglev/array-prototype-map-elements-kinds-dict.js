@@ -27,13 +27,8 @@ function plusOneInObject(x) {
 
   const array = [1, 2, 3];
   const array2 = [1, 2, 3];
-  for (let i = 0; i < 100000; i += 100) {
-    array[i] = 0;
-    array2[i] = 0;
-    if (%HasDictionaryElements(array)) {
-      break;
-    }
-  }
+  MakeArrayDictionaryMode(array, () => { return 0; });
+  MakeArrayDictionaryMode(array2, () => { return 0; });
   assertTrue(%HasDictionaryElements(array));
   assertTrue(%HasDictionaryElements(array2));
 
@@ -55,13 +50,8 @@ function plusOneInObject(x) {
 
   const array = [1, 2, 3];
   const array2 = [1, 2, 3];
-  for (let i = 0; i < 100000; i += 100) {
-    array[i] = 0.1;
-    array2[i] = 0.1;
-    if (%HasDictionaryElements(array)) {
-      break;
-    }
-  }
+  MakeArrayDictionaryMode(array, () => { return 0.1; });
+  MakeArrayDictionaryMode(array2, () => { return 0.1; });
   assertTrue(%HasDictionaryElements(array));
   assertTrue(%HasDictionaryElements(array2));
 
@@ -72,5 +62,27 @@ function plusOneInObject(x) {
 
   const result2 = foo(array2);
   assertTrue(HasHoleyDoubleElements(result2));
+  assertTrue(isMaglevved(foo));
+})();
+
+(function testDictionaryElements3() {
+  function foo(a) {
+    return a.map(plusOneInObject);
+  }
+  %PrepareFunctionForOptimization(foo);
+
+  const array = [{a: 1}, {a: 2}, {a: 3}];
+  const array2 = [{a: 1}, {a: 2}, {a: 3}];
+  MakeArrayDictionaryMode(array, () => { return {a: 0}; });
+  MakeArrayDictionaryMode(array2, () => { return {a: 0}; });
+  assertTrue(%HasDictionaryElements(array));
+
+  const result = foo(array);
+  assertTrue(HasHoleyObjectElements(result));
+
+  %OptimizeMaglevOnNextCall(foo);
+
+  const result2 = foo(array2);
+  assertTrue(HasHoleyObjectElements(result2));
   assertTrue(isMaglevved(foo));
 })();

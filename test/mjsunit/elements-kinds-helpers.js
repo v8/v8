@@ -27,3 +27,12 @@ function HasHoleyDoubleElements(xs) {
 function HasHoleyObjectElements(xs) {
   return %HasHoleyElements(xs) && %HasObjectElements(xs);
 }
+
+function MakeArrayDictionaryMode(array, elementCreationCallback) {
+  // Add elements into the array until it turns dictionary mode.
+  let i = 0;
+  while (!%HasDictionaryElements(array)) {
+    array[i] = elementCreationCallback();
+    i += 100;
+  }
+}
