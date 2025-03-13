@@ -1996,7 +1996,9 @@ class ModuleDecoderImpl : public Decoder {
                                         const FunctionSig** sig) {
     const uint8_t* pos = pc_;
     ModuleTypeIndex sig_index = consume_sig_index(module, sig);
-    if (*sig && (*sig)->return_count() != 0) {
+
+    if (!enabled_features_.has_wasmfx() && *sig &&
+        (*sig)->return_count() != 0) {
       errorf(pos, "tag signature %u has non-void return", sig_index);
       *sig = nullptr;
       return {};

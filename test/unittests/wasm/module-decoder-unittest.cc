@@ -1166,6 +1166,20 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_sig_return) {
   EXPECT_NOT_OK(result, "tag signature 0 has non-void return");
 }
 
+TEST_F(WasmModuleVerifyTest, Allowed_Tag_return) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  static const uint8_t data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_i_i),
+      SECTION(Tag, ENTRY_COUNT(1), EXCEPTION_ENTRY(SIG_INDEX(0)))};
+  // Tags are allowed to have returns with wasmfx
+  ModuleResult result = DecodeModule(base::ArrayVector(data));
+  EXPECT_OK(result);
+  const WasmTag& e0 = result.value()->tags.front();
+
+  EXPECT_EQ(1u, e0.sig->parameter_count());
+  EXPECT_EQ(1u, e0.sig->return_count());
+}
+
 TEST_F(WasmModuleVerifyTest, Exception_invalid_attribute) {
   static const uint8_t data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_i_i),

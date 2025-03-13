@@ -2172,6 +2172,18 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.TypeError("Argument 0 cannot be WebAssembly.JSTag");
     return;
   }
+  const i::wasm::CanonicalSig* sig =
+      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
+          i::wasm::CanonicalTypeIndex{
+              static_cast<uint32_t>(tag_object->canonical_type_index())});
+
+  if (sig->return_count() != 0) {
+    thrower.TypeError(
+        "Invalid WebAssembly tag (return values not permitted in Exception "
+        "tag)");
+    return;
+  }
+
   uint32_t size = GetEncodedSize(tag_object);
   i::DirectHandle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);

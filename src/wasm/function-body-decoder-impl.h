@@ -3217,6 +3217,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                              : WasmDetectedFeature::legacy_eh);
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    if (imm.tag->sig->return_count() != 0) {
+      this->DecodeError("tag signature %u has non-void return", imm.index);
+      return 0;
+    }
     PoppedArgVector args = PopArgs(imm.tag->ToFunctionSig());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, args.data());
     MarkMightThrow();
@@ -3256,6 +3260,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     current_code_reachable_and_ok_ = VALIDATE(this->ok()) && c->reachable();
     RollbackLocalsInitialization(c);
     const WasmTagSig* sig = imm.tag->sig;
+
+    // tags can have return values, so we have to check.
+    if (sig->return_count() != 0) {
+      this->DecodeError("tag signature %u has non-void return", imm.index);
+      return 0;
+    }
+
     stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
                               this->zone_);
     for (ValueType type : sig->parameters()) Push(type);
@@ -3355,9 +3366,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         this->DecodeError("invalid catch kind in try table");
         return 0;
       }
-      if ((catch_case.kind == kCatch || catch_case.kind == kCatchRef) &&
-          !this->Validate(this->pc_, catch_case.maybe_tag.tag_imm)) {
-        return 0;
+      if ((catch_case.kind == kCatch || catch_case.kind == kCatchRef)) {
+        if (!this->Validate(this->pc_, catch_case.maybe_tag.tag_imm)) {
+          return 0;
+        }
+        const WasmTagSig* sig = catch_case.maybe_tag.tag_imm.tag->sig;
+        if (sig->return_count() != 0) {
+          // tags can have return values, so we have to check.
+          this->DecodeError("tag signature %u has non-void return",
+                            catch_case.maybe_tag.tag_imm.index);
+          return 0;
+        }
       }
       catch_case.br_imm.depth += 1;
       if (!this->Validate(this->pc_, catch_case.br_imm, control_.size())) {

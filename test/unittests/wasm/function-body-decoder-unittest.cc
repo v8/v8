@@ -3057,6 +3057,22 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
                 "catch kind generates 1 operand, target block expects 0");
 }
 
+TEST_F(FunctionBodyDecoderTest, BadTryTable) {
+  WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
+  uint8_t ex = builder.AddException(sigs.v_v());
+  uint8_t bd = builder.AddException(sigs.i_i());
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, ex,
+                   U32V_1(0), kExprEnd},
+                  kAppendEnd);
+  // Using a handler tag for the exception tag
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, bd, U32V_1(0),
+                 kExprEnd},
+                kAppendEnd, "tag signature 1 has non-void return");
+}
+
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectValidates(
