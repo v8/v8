@@ -1930,7 +1930,10 @@ struct ContinuationRecord {
   using ObjectT = UnionOf<JSAny, FixedArrayBase>;
   Tagged<ObjectT> object;
   uint32_t index;
-  uint32_t length;
+  uint32_t length;  // TODO(pthier): Could be uint16_t for objects..
+  uint8_t in_object_properties = 0;
+  uint8_t in_object_properties_start = 0;
+  Tagged<DescriptorArray> descriptors = Tagged<DescriptorArray>();
 };
 
 enum FastJsonStringifierResult {
@@ -1992,9 +1995,11 @@ class FastJsonStringifier {
       const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult SerializeJSObject(
       Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc);
-  V8_INLINE FastJsonStringifierResult
-  ResumeJSObject(Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
-                 bool comma, const DisallowGarbageCollection& no_gc);
+  V8_INLINE FastJsonStringifierResult ResumeJSObject(
+      Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
+      uint8_t in_object_properties, uint8_t in_object_properties_start,
+      Tagged<DescriptorArray> descriptors, bool comma,
+      const DisallowGarbageCollection& no_gc);
   FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array);
   template <ElementsKind kind>
   FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
@@ -2517,25 +2522,30 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
     return SLOW_PATH;
   }
   AppendCharacter('{');
-  uint32_t length = map->NumberOfOwnDescriptors();
-  return ResumeJSObject(obj, 0, length, false, no_gc);
+  const uint32_t length = map->NumberOfOwnDescriptors();
+  const uint8_t in_object_properties = map->GetInObjectProperties();
+  const uint8_t in_object_properties_start =
+      map->GetInObjectPropertiesStartInWords();
+  const Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+  return ResumeJSObject(obj, 0, length, in_object_properties,
+                        in_object_properties_start, descriptors, false, no_gc);
 }
 
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
-    Tagged<JSObject> obj, uint32_t start_idx, uint32_t length, bool comma,
+    Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
+    uint8_t in_object_properties, uint8_t in_object_properties_start,
+    Tagged<DescriptorArray> descriptors, bool comma,
     const DisallowGarbageCollection& no_gc) {
-  Tagged<Map> map = obj->map();
-  Tagged<DescriptorArray> descriptors = map->instance_descriptors();
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   InternalIndex::Range range{start_idx, length};
   for (InternalIndex i : range) {
-    PropertyDetails details = PropertyDetails::Empty();
     Tagged<Name> name = descriptors->GetKey(i);
     if (V8_UNLIKELY(IsSymbol(name))) {
       continue;
     }
     DCHECK(IsInternalizedString(name));
-    details = descriptors->GetDetails(i);
+    PropertyDetails details = descriptors->GetDetails(i);
     if (V8_UNLIKELY(details.IsDontEnum())) {
       continue;
     }
@@ -2543,8 +2553,17 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       return SLOW_PATH;
     }
     DCHECK_EQ(PropertyKind::kData, details.kind());
-    FieldIndex field_index = FieldIndex::ForDetails(map, details);
-    Tagged<JSAny> property = obj->RawFastPropertyAt(field_index);
+    int property_index = details.field_index();
+    const bool is_inobject = property_index < in_object_properties;
+    Tagged<JSAny> property;
+    if (is_inobject) {
+      int offset = (in_object_properties_start + property_index) * kTaggedSize;
+      property = TaggedField<JSAny>::Relaxed_Load(cage_base, obj, offset);
+    } else {
+      property_index -= in_object_properties;
+      property = obj->property_array(cage_base)->get(cage_base, property_index);
+    }
+
     Tagged<String> key_name = Cast<String>(name);
     FastJsonStringifierResult result =
         TrySerializeSimpleObject<true>(property, comma, key_name);
@@ -2557,7 +2576,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       case JS_OBJECT:
       case JS_ARRAY:
         stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                            i.as_uint32() + 1, length);
+                            i.as_uint32() + 1, length, in_object_properties,
+                            in_object_properties_start, descriptors);
         stack_.emplace_back(ContinuationTypeFromResult(result), property, 0);
         result = SerializeObjectKey(key_name, comma, no_gc);
         if constexpr (is_one_byte) {
@@ -2573,7 +2593,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       case CHANGE_ENCODING_KEY:
         if constexpr (is_one_byte) {
           stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                              i.as_uint32() + 1, length);
+                              i.as_uint32() + 1, length, in_object_properties,
+                              in_object_properties_start, descriptors);
           stack_.emplace_back(ContinuationRecord::kSimpleObject, property, 0);
           if (result == CHANGE_ENCODING_KEY) {
             stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
@@ -2889,7 +2910,9 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
       }
       case ContinuationRecord::kObjectResume: {
         result = ResumeJSObject(Cast<JSObject>(cont.object), cont.index,
-                                cont.length, true, no_gc);
+                                cont.length, cont.in_object_properties,
+                                cont.in_object_properties_start,
+                                cont.descriptors, true, no_gc);
         break;
       }
       case ContinuationRecord::kArray: {
