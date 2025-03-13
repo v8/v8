@@ -849,6 +849,7 @@ void GCTracer::PrintNVP() const {
           "scavenge.parallel=%.2f "
           "scavenge.update_refs=%.2f "
           "scavenge.sweep_array_buffers=%.2f "
+          "scavenge.resize_new_space=%.2f "
           "background.scavenge.parallel=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
@@ -894,6 +895,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL),
           current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS),
           current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::SCAVENGER_RESIZE_NEW_SPACE),
           current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
           incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
           current_scope(Scope::MC_INCREMENTAL),

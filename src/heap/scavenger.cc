@@ -961,7 +961,10 @@ void ScavengerCollector::CollectGarbage() {
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 
-  heap_->ResizeNewSpace();
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_RESIZE_NEW_SPACE);
+    heap_->ResizeNewSpace();
+  }
 }
 
 void ScavengerCollector::SweepArrayBufferExtensions() {

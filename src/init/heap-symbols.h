@@ -1027,6 +1027,7 @@
   F(SCAVENGER)                                          \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)             \
   F(SCAVENGER_FREE_REMEMBERED_SET)                      \
+  F(SCAVENGER_RESIZE_NEW_SPACE)                         \
   F(SCAVENGER_SCAVENGE)                                 \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY)    \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)     \
