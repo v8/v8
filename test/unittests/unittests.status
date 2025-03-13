@@ -344,9 +344,9 @@
 }],  # 'device_type == bullhead'
 
 ##############################################################################
-['variant == stress_pinning_scavenger', {
+['variant == conservative_pinning', {
   'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],
-}],  # variant == stress_pinning_scavenger
+}],  # variant == conservative_pinning
 
 ['variant == precise_pinning', {
   'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],

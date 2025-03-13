@@ -484,24 +484,26 @@ DEFINE_BOOL_READONLY(direct_handle, V8_ENABLE_DIRECT_HANDLE_BOOL,
 // break the correctness of the GC.
 DEFINE_NEG_NEG_IMPLICATION(conservative_stack_scanning, direct_handle)
 
-DEFINE_EXPERIMENTAL_FEATURE(scavenger_pinning_objects,
+DEFINE_EXPERIMENTAL_FEATURE(scavenger_conservative_object_pinning,
                             "Objects reachable from the native stack during "
                             "scavenge will be pinned and "
                             "won't move.")
-DEFINE_IMPLICATION(scavenger_pinning_objects, separate_gc_phases)
-DEFINE_BOOL(stress_scavenger_pinning_objects, false,
+DEFINE_IMPLICATION(scavenger_conservative_object_pinning, separate_gc_phases)
+DEFINE_BOOL(stress_scavenger_conservative_object_pinning, false,
             "Treat some precise refernces as conservative references to stress "
             "test object pinning in Scavenger")
-DEFINE_IMPLICATION(stress_scavenger_pinning_objects, scavenger_pinning_objects)
-DEFINE_NEG_IMPLICATION(stress_scavenger_pinning_objects, minor_gc_task)
-DEFINE_VALUE_IMPLICATION(stress_scavenger_pinning_objects,
+DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning,
+                   scavenger_conservative_object_pinning)
+DEFINE_NEG_IMPLICATION(stress_scavenger_conservative_object_pinning,
+                       minor_gc_task)
+DEFINE_VALUE_IMPLICATION(stress_scavenger_conservative_object_pinning,
                          scavenger_max_new_space_capacity_mb, 1u)
-DEFINE_BOOL(stress_scavenger_pinning_objects_random, false,
+DEFINE_BOOL(stress_scavenger_conservative_object_pinning_random, false,
             "Enables random stressing of object pinning in Scavenger, such "
             "that each GC would randomly pick a subset of the precise "
             "references to treat conservatively")
-DEFINE_IMPLICATION(stress_scavenger_pinning_objects_random,
-                   stress_scavenger_pinning_objects)
+DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning_random,
+                   stress_scavenger_conservative_object_pinning)
 
 DEFINE_EXPERIMENTAL_FEATURE(scavenger_precise_object_pinning,
                             "Objects reachable from handles during scavenge "

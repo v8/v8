@@ -44,8 +44,9 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
-    "stress_pinning_scavenger": [[
-        "--scavenger-pinning-objects", "--stress-scavenger-pinning-objects"
+    "conservative_pinning": [[
+        "--scavenger-conservative-object-pinning",
+        "--stress-scavenger-conservative-object-pinning"
     ]],
     "precise_pinning": [[
         "--precise-object-pinning", "--scavenger-precise-object-pinning"

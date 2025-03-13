@@ -792,7 +792,7 @@ TEST_F(HeapTest,
        PinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_pinning_objects = true;
+  v8_flags.scavenger_conservative_object_pinning = true;
   v8_flags.scavenger_precise_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = false;
   ManualGCScope manual_gc_scope(isolate());
@@ -824,7 +824,7 @@ TEST_F(HeapTest,
 TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_pinning_objects = true;
+  v8_flags.scavenger_conservative_object_pinning = true;
   v8_flags.scavenger_precise_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = true;
   ManualGCScope manual_gc_scope(isolate());
@@ -850,7 +850,7 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
 TEST_F(HeapTest, PinningScavengerObjectWithSelfReference) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.scavenger_pinning_objects = true;
+  v8_flags.scavenger_conservative_object_pinning = true;
   ManualGCScope manual_gc_scope(isolate());
 
   static constexpr int kArraySize = 10;
@@ -870,7 +870,7 @@ TEST_F(HeapTest,
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_precise_object_pinning = true;
-  v8_flags.scavenger_pinning_objects = false;
+  v8_flags.scavenger_conservative_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = false;
   ManualGCScope manual_gc_scope(isolate());
 
@@ -893,7 +893,7 @@ TEST_F(HeapTest, PrecisePinningScavengerDoesntMoveObjectReachableFromHandles) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_precise_object_pinning = true;
-  v8_flags.scavenger_pinning_objects = false;
+  v8_flags.scavenger_conservative_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = true;
   ManualGCScope manual_gc_scope(isolate());
 

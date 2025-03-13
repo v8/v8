@@ -59,7 +59,7 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.1, '--stress-wasm-memory-moving'),
-    (0.1, '--stress-scavenger-pinning-objects-random'),
+    (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--precise-object-pinning'),
     (0.25, '--wasm-staging'),
     (0.1, '--ephemeron-fixpoint-iterations=0'),

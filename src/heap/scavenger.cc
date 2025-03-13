@@ -69,7 +69,7 @@ class IterateAndScavengePromotedObjectsVisitor final
       // Surviving new large objects and pinned objects have forwarding pointers
       // in the map word.
       DCHECK(MemoryChunk::FromHeapObject(host)->InNewLargeObjectSpace() ||
-             v8_flags.scavenger_pinning_objects);
+             v8_flags.scavenger_conservative_object_pinning);
       return;
     }
     HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
@@ -410,7 +410,7 @@ class YoungGenerationConservativeStackVisitor
   YoungGenerationConservativeStackVisitor(Isolate* isolate,
                                           RootVisitor* root_visitor)
       : ConservativeStackVisitorBase(isolate, root_visitor), isolate_(isolate) {
-    DCHECK(v8_flags.scavenger_pinning_objects);
+    DCHECK(v8_flags.scavenger_conservative_object_pinning);
     DCHECK(!v8_flags.minor_ms);
     DCHECK(!v8_flags.sticky_mark_bits);
     DCHECK(std::all_of(
@@ -599,9 +599,10 @@ class TreatConservativelyVisitor final : public RootVisitor {
       : RootVisitor(),
         stack_visitor_(v),
         rng_(heap->isolate()->fuzzer_rng()),
-        stressing_threshold_(v8_flags.stress_scavenger_pinning_objects_random
-                                 ? rng_->NextDouble()
-                                 : 0) {}
+        stressing_threshold_(
+            v8_flags.stress_scavenger_conservative_object_pinning_random
+                ? rng_->NextDouble()
+                : 0) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -782,7 +783,7 @@ void ScavengerCollector::CollectGarbage() {
             }
           });
 
-      if (v8_flags.scavenger_pinning_objects &&
+      if (v8_flags.scavenger_conservative_object_pinning &&
           heap_->IsGCWithMainThreadStack()) {
         // Pinning objects must be the first step and must happen before
         // scavenging any objects. Specifically we must all pin all objects
@@ -801,7 +802,8 @@ void ScavengerCollector::CollectGarbage() {
             isolate_, &conservative_pinning_visitor);
         // Marker was already set by Heap::CollectGarbage.
         heap_->stack().IteratePointersUntilMarker(&stack_visitor);
-        if (V8_UNLIKELY(v8_flags.stress_scavenger_pinning_objects)) {
+        if (V8_UNLIKELY(
+                v8_flags.stress_scavenger_conservative_object_pinning)) {
           TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
           heap_->IterateRootsForPrecisePinning(&handles_visitor);
         }
