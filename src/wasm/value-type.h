@@ -966,9 +966,6 @@ class ValueType : public ValueTypeBase {
   constexpr bool operator==(ValueType other) const {
     return bit_field_ == other.bit_field_;
   }
-  constexpr bool operator!=(ValueType other) const {
-    return bit_field_ != other.bit_field_;
-  }
 
   constexpr HeapType heap_type() const {
     DCHECK(!is_numeric());
@@ -1017,9 +1014,6 @@ class CanonicalValueType : public ValueTypeBase {
   constexpr bool operator==(CanonicalValueType other) const {
     return bit_field_ == other.bit_field_;
   }
-  constexpr bool operator!=(CanonicalValueType other) const {
-    return bit_field_ != other.bit_field_;
-  }
 
   constexpr bool IsFunctionType() const {
     return ref_type_kind() == RefTypeKind::kFunction;
@@ -1063,6 +1057,15 @@ class IndependentValueType : public ValueTypeBase {
     return CanonicalValueType{*this};
   }
 
+  // Implicit conversions aren't enough when the IndependentValueType is the
+  // left-hand side.
+  constexpr bool operator==(ValueType b) const {
+    return raw_bit_field() == b.raw_bit_field();
+  }
+  constexpr bool operator==(CanonicalValueType b) const {
+    return raw_bit_field() == b.raw_bit_field();
+  }
+
  protected:
   explicit constexpr IndependentValueType(GenericKind kind,
                                           Nullability nullable, bool shared)
@@ -1082,21 +1085,6 @@ class IndependentHeapType : public IndependentValueType {
   constexpr HeapType heap_type() const { return HeapType{*this}; }
   constexpr operator HeapType() const { return HeapType{*this}; }
 };
-
-// Implicit conversions aren't enough when the IndependentValueType is the
-// left-hand side.
-constexpr bool operator==(IndependentValueType a, ValueType b) {
-  return a.raw_bit_field() == b.raw_bit_field();
-}
-constexpr bool operator==(IndependentValueType a, CanonicalValueType b) {
-  return a.raw_bit_field() == b.raw_bit_field();
-}
-constexpr bool operator!=(IndependentValueType a, ValueType b) {
-  return a.raw_bit_field() != b.raw_bit_field();
-}
-constexpr bool operator!=(IndependentValueType a, CanonicalValueType b) {
-  return a.raw_bit_field() != b.raw_bit_field();
-}
 
 // TODO(jkummerow): See how many of these ValueKind-based helpers we can
 // replace with ValueType methods.

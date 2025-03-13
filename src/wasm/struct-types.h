@@ -212,7 +212,6 @@ class StructType : public StructTypeBase {
            std::equal(mutabilities().begin(), mutabilities().end(),
                       other.mutabilities().begin());
   }
-  bool operator!=(const StructType& other) const { return !(*this == other); }
 
   ValueType field(uint32_t index) const {
     return ValueType{StructTypeBase::field(index)};
@@ -245,9 +244,6 @@ class CanonicalStructType : public StructTypeBase {
                       other.fields().begin()) &&
            std::equal(mutabilities().begin(), mutabilities().end(),
                       other.mutabilities().begin());
-  }
-  bool operator!=(const CanonicalStructType& other) const {
-    return !(*this == other);
   }
 
   base::iterator_range<const CanonicalValueType*> fields() const {
@@ -284,9 +280,6 @@ class ArrayType : public ArrayTypeBase {
   bool operator==(const ArrayType& other) const {
     return rep_ == other.rep_ && mutability_ == other.mutability_;
   }
-  bool operator!=(const ArrayType& other) const {
-    return rep_ != other.rep_ || mutability_ != other.mutability_;
-  }
 
   ValueType element_type() const { return rep_; }
   // Only for the ModuleDecoder, to finish populating the type.
@@ -304,9 +297,6 @@ class CanonicalArrayType : public ArrayTypeBase {
   bool operator==(const CanonicalArrayType& other) const {
     return rep_ == other.rep_ && mutability_ == other.mutability_;
   }
-  bool operator!=(const CanonicalArrayType& other) const {
-    return rep_ != other.rep_ || mutability_ != other.mutability_;
-  }
 
   CanonicalValueType element_type() const { return rep_; }
 
@@ -320,9 +310,6 @@ class ContType : public ZoneObject {
 
   bool operator==(const ContType& other) const {
     return index_ == other.index_;
-  }
-  bool operator!=(const ContType& other) const {
-    return index_ != other.index_;
   }
 
   ModuleTypeIndex contfun_typeindex() const { return index_; }
@@ -338,9 +325,6 @@ class CanonicalContType : public ZoneObject {
 
   bool operator==(const CanonicalContType& other) const {
     return index_ == other.index_;
-  }
-  bool operator!=(const CanonicalContType& other) const {
-    return index_ != other.index_;
   }
 
   CanonicalTypeIndex contfun_typeindex() const { return index_; }

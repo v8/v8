@@ -94,9 +94,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
     bool operator==(const iterator_base& that) const {
       return this->ptr_ == that.ptr_;
     }
-    bool operator!=(const iterator_base& that) const {
-      return this->ptr_ != that.ptr_;
-    }
 
    protected:
     const uint8_t* ptr_;

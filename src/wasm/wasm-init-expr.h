@@ -215,10 +215,6 @@ class WasmInitExpr : public ZoneObject {
     }
   }
 
-  V8_INLINE bool operator!=(const WasmInitExpr& other) const {
-    return !(*this == other);
-  }
-
   static WasmInitExpr DefaultValue(ValueType type) {
     // No initializer, emit a default value.
     switch (type.kind()) {

@@ -31,10 +31,7 @@ class WasmImportWrapperCache {
           expected_arity(expected_arity),
           suspend(suspend) {}
 
-    bool operator==(const CacheKey& rhs) const {
-      return kind == rhs.kind && type_index == rhs.type_index &&
-             expected_arity == rhs.expected_arity && suspend == rhs.suspend;
-    }
+    bool operator==(const CacheKey& rhs) const = default;
 
     ImportCallKind kind;
     CanonicalTypeIndex type_index;

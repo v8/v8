@@ -70,7 +70,6 @@ class DebugSideTable {
             return stack_offset == other.stack_offset;
         }
       }
-      bool operator!=(const Value& other) const { return !(*this == other); }
 
       bool is_constant() const { return storage == kConstant; }
       bool is_register() const { return storage == kRegister; }

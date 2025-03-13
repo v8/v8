@@ -500,10 +500,6 @@ struct TypeDefinition {
     return *array_type == *other.array_type;
   }
 
-  bool operator!=(const TypeDefinition& other) const {
-    return !(*this == other);
-  }
-
   union {
     const FunctionSig* function_sig = nullptr;
     const StructType* struct_type;
@@ -1024,9 +1020,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     DCHECK_GE(kMaxInt, end - start);
   }
 
-  bool operator==(ModuleWireBytes other) const {
-    return module_bytes_ == other.module_bytes_;
-  }
+  bool operator==(const ModuleWireBytes& other) const = default;
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(WireBytesRef ref) const;

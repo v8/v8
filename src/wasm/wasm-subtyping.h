@@ -147,10 +147,6 @@ struct TypeInModule {
   bool operator==(const TypeInModule& other) const {
     return type == other.type && module == other.module;
   }
-
-  bool operator!=(const TypeInModule& other) const {
-    return type != other.type || module != other.module;
-  }
 };
 
 inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
