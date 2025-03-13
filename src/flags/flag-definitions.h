@@ -3366,6 +3366,12 @@ DEFINE_STRING(print_builtin_code_filter, "*",
 DEFINE_BOOL(print_regexp_code, false, "print generated regexp code")
 DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
 
+#if defined(ENABLE_DISASSEMBLER) && \
+    (defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64))
+DEFINE_BOOL(use_aliases, true,
+            "use aliases for instruction mnemonics when printing code")
+#endif
+
 #ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(print_all_code, false, "enable all flags related to printing code")
 DEFINE_IMPLICATION(print_all_code, print_code)
