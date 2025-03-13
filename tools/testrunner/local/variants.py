@@ -47,6 +47,9 @@ ALL_VARIANT_FLAGS = {
     "stress_pinning_scavenger": [[
         "--scavenger-pinning-objects", "--stress-scavenger-pinning-objects"
     ]],
+    "precise_pinning": [[
+        "--precise-object-pinning", "--scavenger-precise-object-pinning"
+    ]],
     # We test both the JS and Wasm Turboshaft pipelines under the same variant.
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
     "turboshaft": [[
