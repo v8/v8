@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining-call-indirect
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-type-reflection
 // Flags: --no-wasm-tier-up --wasm-dynamic-tiering --allow-natives-syntax
 
 // These tests check if functions are speculatively inlined as expected. We do
