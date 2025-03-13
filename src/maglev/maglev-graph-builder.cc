@@ -10954,6 +10954,7 @@ MaglevGraphBuilder::TryGetNonEscapingArgumentsObject(ValueNode* value) {
   // we keep track of the arguments object changes so far.
   if (alloc->IsEscaping()) return {};
   VirtualObject* object = alloc->object();
+  if (!object->has_static_map()) return {};
   // TODO(victorgomes): Support simple JSArray forwarding.
   compiler::MapRef map = object->map();
   // It is a rest parameter, if it is an array with ArgumentsElements node as
