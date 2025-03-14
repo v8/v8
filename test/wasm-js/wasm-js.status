@@ -35,17 +35,6 @@
   'wpt/memory/to-resizable-buffer': [FAIL],
   'wpt/memory/to-resizable-buffer-shared': [FAIL],
   'wpt/memory/to-fixed-length-buffer-shared': [FAIL],
-
-  # TODO(402340845): This requires the type reflection proposal to be staged or enabled by default.
-  'wpt/function/call.tentative': [FAIL],
-  'wpt/function/table.tentative': [FAIL],
-  'wpt/function/type.tentative': [FAIL],
-  'wpt/global/type.tentative': [FAIL],
-  'wpt/memory/constructor-types.tentative': [FAIL],
-  'wpt/memory/type.tentative': [FAIL],
-  'wpt/table/constructor-types.tentative': [FAIL],
-  'wpt/table/type.tentative': [FAIL],
-  'wpt/tag/type.tentative': [FAIL],
 }], # ALWAYS
 
 ['system == android', {
