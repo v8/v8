@@ -722,11 +722,16 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
 bool Map::CanTransition() const {
   // Only JSObject and subtypes have map transitions and back pointers.
   const InstanceType type = instance_type();
+  // JSExternalObjects are non-extensible and thus the map is allocated in
+  // read only sapce.
+  DCHECK_IMPLIES(InstanceTypeChecker::IsMaybeReadOnlyJSObject(type),
+                 HeapLayout::InReadOnlySpace(*this));
   // Shared JS objects have fixed shapes and do not transition. Their maps are
   // either in shared space or RO space.
   DCHECK_IMPLIES(InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type),
                  HeapLayout::InAnySharedSpace(*this));
   return InstanceTypeChecker::IsJSObject(type) &&
+         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type) &&
          !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
 }
 

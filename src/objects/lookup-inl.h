@@ -298,8 +298,7 @@ bool LookupIterator::ExtendingNonExtensible(DirectHandle<JSReceiver> receiver) {
   // These JSObject types are wrappers around a set of primitive values
   // and exist only for the purpose of passing the data across V8 Api.
   // They are not supposed to be ever leaked to user JS code.
-  CHECK(!IsJSMessageObjectMap(receiver_map) &&
-        !IsJSExternalObjectMap(receiver_map));
+  CHECK(!IsMaybeReadOnlyJSObjectMap(receiver_map));
 
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.

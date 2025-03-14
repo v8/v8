@@ -2336,9 +2336,13 @@ Tagged<Map> Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   map->init_prototype_and_constructor_or_back_pointer(roots);
   map->set_instance_size(instance_size);
   if (InstanceTypeChecker::IsJSObject(type)) {
+    // JSObjects that may be allocated in RO space must have RO maps.
+    DCHECK_IMPLIES(InstanceTypeChecker::IsMaybeReadOnlyJSObject(type),
+                   ReadOnlyHeap::Contains(map));
     // Shared space JS objects have fixed layout and can have RO maps. No other
     // JS objects have RO maps.
-    DCHECK_IMPLIES(!IsAlwaysSharedSpaceJSObjectMap(*map),
+    DCHECK_IMPLIES(!IsMaybeReadOnlyJSObjectMap(*map) &&
+                       !IsAlwaysSharedSpaceJSObjectMap(*map),
                    !ReadOnlyHeap::Contains(map));
     map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);

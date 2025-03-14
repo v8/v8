@@ -4167,13 +4167,12 @@ THREADED_TEST(External) {
   CHECK_EQ(x, 10);
 
   {
+    i::ReadOnlyRoots roots(CcTest::i_isolate());
     i::DirectHandle<i::Object> obj = v8::Utils::OpenDirectHandle(*ext);
-    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(),
-             CcTest::heap()->external_map());
+    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(), roots.external_map());
     CHECK(ext->IsExternal());
     CHECK(!CompileRun("new Set().add(this.ext)").IsEmpty());
-    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(),
-             CcTest::heap()->external_map());
+    CHECK_EQ(i::Cast<i::HeapObject>(*obj)->map(), roots.external_map());
     CHECK(ext->IsExternal());
   }
 

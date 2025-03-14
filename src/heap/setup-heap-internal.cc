@@ -76,6 +76,8 @@ DirectHandle<SharedFunctionInfo> CreateSharedFunctionInfo(
 
 #ifdef DEBUG
 bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
+  bool is_maybe_read_only_js_object =
+      InstanceTypeChecker::IsMaybeReadOnlyJSObject(instance_type);
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
   bool is_always_shared_space_js_object =
       InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type);
@@ -88,11 +90,14 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind) ||
+                     is_maybe_read_only_js_object ||
                      (is_always_shared_space_js_object &&
                       elements_kind == SHARED_ARRAY_ELEMENTS));
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE. Maps for managed Wasm objects have mutable subtype lists.
-  return (is_js_object && !is_always_shared_space_js_object) || is_wasm_object;
+  return (is_js_object && !is_maybe_read_only_js_object &&
+          !is_always_shared_space_js_object) ||
+         is_wasm_object;
 }
 #endif
 
@@ -216,25 +221,6 @@ bool Heap::CreateReadOnlyHeapObjects() {
 
 bool Heap::CreateMutableHeapObjects() {
   ReadOnlyRoots roots(this);
-
-#define ALLOCATE_MAP(instance_type, size, field_name)                       \
-  {                                                                         \
-    Tagged<Map> map;                                                        \
-    if (!AllocateMap(AllocationType::kMap, (instance_type), size).To(&map)) \
-      return false;                                                         \
-    set_##field_name##_map(map);                                            \
-  }
-
-  {  // Map allocation
-    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
-                 message_object)
-    message_object_map()->set_is_extensible(false);
-
-    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
-                 external)
-    external_map()->set_is_extensible(false);
-  }
-#undef ALLOCATE_MAP
 
   // Ensure that all young generation pages are iterable. It must be after heap
   // setup, so that the maps have been created.
@@ -823,6 +809,22 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
   HandleScope late_jsreceiver_maps_handle_scope(isolate());
   Factory* factory = isolate()->factory();
   ReadOnlyRoots roots(this);
+
+  {
+    // JSMessageObject and JSExternalObject types are wrappers around a set
+    // of primitive values and exist only for the purpose of passing the data
+    // across V8 Api. They are not supposed to be leaked to user JS code
+    // except from d8 tests and they are not proper JSReceivers.
+    ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
+                 message_object)
+    roots.message_object_map()->SetEnumLength(0);
+    roots.message_object_map()->set_is_extensible(false);
+
+    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
+                 external)
+    roots.external_map()->SetEnumLength(0);
+    roots.external_map()->set_is_extensible(false);
+  }
 
   // Shared space object maps are immutable and can be in RO space.
   {

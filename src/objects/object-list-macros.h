@@ -426,6 +426,7 @@ namespace internal {
   V(JSSetKeyValueIterator)                   \
   V(JSSetValueIterator)                      \
   V(JSSpecialApiObject)                      \
+  V(MaybeReadOnlyJSObject)                   \
   V(ModuleContext)                           \
   V(NonNullForeign)                          \
   V(ScriptContext)                           \

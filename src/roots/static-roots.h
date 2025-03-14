@@ -1051,15 +1051,17 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kManyClosuresCell = 0x63a1;
   static constexpr Tagged_t kWasmNullPadding = 0x63b1;
   static constexpr Tagged_t kWasmNull = 0xfffd;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
+  static constexpr Tagged_t kJSMessageObjectMap = 0x20001;
+  static constexpr Tagged_t kExternalMap = 0x20029;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x20051;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x20095;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x200bd;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x2006d;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x200bd;
 };
 
-static constexpr std::array<Tagged_t, 1025> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1027> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -2085,6 +2087,8 @@ static constexpr std::array<Tagged_t, 1025> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStoreHandler1Map,
     StaticReadOnlyRoot::kStoreHandler2Map,
     StaticReadOnlyRoot::kStoreHandler3Map,
+    StaticReadOnlyRoot::kExternalMap,
+    StaticReadOnlyRoot::kJSMessageObjectMap,
 };
 
 }  // namespace internal
