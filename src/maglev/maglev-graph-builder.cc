@@ -13324,21 +13324,21 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
       break;
     case VirtualObject::kDefault: {
       SmallZoneVector<ValueNode*, 8> values(zone());
-      vobject->ForEachInput([&](ValueNode*& node) {
-        ValueNode* value_to_push;
-        if (node->Is<VirtualObject>()) {
-          VirtualObject* nested = node->Cast<VirtualObject>();
-          node = BuildInlinedAllocation(nested, allocation_type);
-          value_to_push = node;
-        } else if (node->Is<Float64Constant>()) {
-          value_to_push = BuildInlinedAllocationForHeapNumber(
-              CreateHeapNumber(node->Cast<Float64Constant>()->value()),
-              allocation_type);
-        } else {
-          value_to_push = GetTaggedValue(node);
-        }
-        values.push_back(value_to_push);
-      });
+      vobject->ForEachDeoptInputLocation(
+          [&](ValueNode* node, ValueNode*& input) {
+            if (node->Is<VirtualObject>()) {
+              VirtualObject* nested = node->Cast<VirtualObject>();
+              node = BuildInlinedAllocation(nested, allocation_type);
+              input = node;
+            } else if (node->Is<Float64Constant>()) {
+              node = BuildInlinedAllocationForHeapNumber(
+                  CreateHeapNumber(node->Cast<Float64Constant>()->value()),
+                  allocation_type);
+            } else {
+              node = GetTaggedValue(node);
+            }
+            values.push_back(node);
+          });
       allocation =
           ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
