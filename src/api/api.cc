@@ -6474,6 +6474,12 @@ bool v8::V8::Initialize(const int build_config) {
   }
 
   i::V8::Initialize();
+  if (!cppgc::IsInitialized()) {
+    // cppgc::InitializeProcess() has to becalled after V8::Initialize().
+    // V8::Initialize() triggers OS::Platform initialization code that is needed
+    // by the default page allocator on Fuchsia to allocate memory correctly.
+    cppgc::InitializeProcess(i::V8::GetCurrentPlatform()->GetPageAllocator());
+  }
   return true;
 }
 
@@ -10025,7 +10031,14 @@ void Isolate::Initialize(Isolate* v8_isolate,
   i_isolate->set_api_external_references(params.external_references);
   i_isolate->set_allow_atomics_wait(params.allow_atomics_wait);
 
-  i_isolate->heap()->ConfigureHeap(params.constraints, params.cpp_heap);
+  CppHeap* cpp_heap = params.cpp_heap;
+  if (!cpp_heap) {
+    cpp_heap =
+        CppHeap::Create(i::V8::GetCurrentPlatform(), CppHeapCreateParams{{}})
+            .release();
+  }
+
+  i_isolate->heap()->ConfigureHeap(params.constraints, cpp_heap);
   if (params.constraints.stack_limit() != nullptr) {
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());

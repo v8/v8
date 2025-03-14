@@ -280,9 +280,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   bool already_terminated_ = false;
-#if DEBUG
   bool is_detached_ = true;
-#endif  // DEBUG
 
   friend class MetricRecorderAdapter;
 };
