@@ -141,7 +141,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Returns probe entry.
   inline static InternalIndex FirstProbe(uint32_t hash, uint32_t size) {
-    if (!TodoShape::kDoHashSpreading || size <= (1 << TodoShape::kHashBits)) {
+    if (!TodoShape::kDoHashSpreading || size <= (1u << TodoShape::kHashBits)) {
       return InternalIndex(hash & (size - 1));
     }
     // If the hash only has N bits and size is large, the hashes will all be
