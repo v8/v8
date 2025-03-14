@@ -1016,32 +1016,6 @@ inline void SaveRegisterStateForCall::DefineSafepointWithLazyDeopt(
   masm->MaybeEmitPlaceHolderForDeopt();
 }
 
-inline void MaglevAssembler::AssertElidedWriteBarrier(
-    Register object, Register value, RegisterSnapshot snapshot) {
-#ifdef V8_ENABLE_DEBUG_CODE
-  if (!v8_flags.slow_debug_code) return;
-
-  ZoneLabelRef ok(this);
-  Label* deferred_write_barrier_check = MakeDeferredCode(
-      [](MaglevAssembler* masm, ZoneLabelRef ok, Register object,
-         Register value, RegisterSnapshot snapshot) {
-        masm->set_allow_call(true);
-        {
-          SaveRegisterStateForCall save_register_state(masm, snapshot);
-          masm->Push(object, value);
-          masm->Move(kContextRegister, masm->native_context().object());
-          masm->CallRuntime(Runtime::kCheckNoWriteBarrierNeeded, 2);
-        }
-        masm->set_allow_call(false);
-        masm->Jump(*ok);
-      },
-      ok, object, value, snapshot);
-
-  JumpIfNotSmi(value, deferred_write_barrier_check);
-  bind(*ok);
-#endif  // V8_ENABLE_DEBUG_CODE
-}
-
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
