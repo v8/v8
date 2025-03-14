@@ -32,25 +32,25 @@ class TemplateInfo
  public:
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
-  // While we could grow the slow cache until we run out of memory, we put
+  // While we could grow the cache until we run out of memory, we put
   // a limit on it anyway to not crash for embedders that re-create templates
   // instead of caching them.
-  static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
+  static constexpr int kMaxTemplateInstantiationsCacheSize = 1 * MB;
 
   // Initial serial number value.
   static const int kUninitializedSerialNumber = 0;
 
   // Serial numbers less than this must not be reused.
   static const int kFirstNonUniqueSerialNumber =
-      kSlowTemplateInstantiationsCacheSize;
+      kFastTemplateInstantiationsCacheSize;
 
   DECL_BOOLEAN_ACCESSORS(is_cacheable)
   DECL_PRIMITIVE_ACCESSORS(serial_number, uint32_t)
 
-  inline bool has_serial_number() const;
-
   // Initializes serial number if necessary and returns it.
   inline uint32_t EnsureHasSerialNumber(Isolate* isolate);
+
+  inline uint32_t GetHash() const;
 
   inline bool TryGetIsolate(Isolate** isolate) const;
   inline Isolate* GetIsolateChecked() const;

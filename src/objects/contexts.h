@@ -312,7 +312,7 @@ enum ContextLookupFlags {
     slow_object_with_null_prototype_map)                                       \
   V(SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP, Map,                                \
     slow_object_with_object_prototype_map)                                     \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, SimpleNumberDictionary,          \
+  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, EphemeronHashTable,              \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
   V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \

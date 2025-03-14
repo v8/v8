@@ -6888,6 +6888,8 @@ bool MayContainObjectsToFreeze(i::InstanceType obj_type) {
   if (i::InstanceTypeChecker::IsString(obj_type)) return false;
   // SharedFunctionInfo is cross-context so it shouldn't be frozen.
   if (i::InstanceTypeChecker::IsSharedFunctionInfo(obj_type)) return false;
+  // All TemplateInfo objects are cross-context so they shouldn't be frozen.
+  if (i::InstanceTypeChecker::IsTemplateInfo(obj_type)) return false;
   return true;
 }
 

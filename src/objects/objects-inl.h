@@ -1822,6 +1822,10 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     int id = Cast<Script>(object)->id();
     return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
+  } else if (InstanceTypeChecker::IsTemplateInfo(instance_type)) {
+    uint32_t hash = Cast<TemplateInfo>(object)->GetHash();
+    DCHECK_EQ(hash, hash & Smi::kMaxValue);
+    return Smi::FromInt(hash);
   }
 
   DCHECK(!InstanceTypeChecker::IsHole(instance_type));

@@ -1206,7 +1206,12 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
     os << "\n - maybe_redirected_callback: " << kUnavailableString;
   }
 
-  os << " - serial_number: " << serial_number();
+  os << "\n - serial_number: ";
+  if (serial_number() == kUninitializedSerialNumber) {
+    os << "n/a";
+  } else {
+    os << serial_number();
+  }
   os << "\n --- flags: ";
   if (is_cacheable()) os << "\n - is_cacheable";
   if (is_object_template_call_handler()) {

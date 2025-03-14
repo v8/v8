@@ -6137,8 +6137,8 @@ bool Genesis::InstallABunchOfRandomThings() {
   native_context()->set_fast_template_instantiations_cache(
       *fast_template_instantiations_cache);
 
-  auto slow_template_instantiations_cache = SimpleNumberDictionary::New(
-      isolate(), ApiNatives::kInitialFunctionCacheSize);
+  auto slow_template_instantiations_cache =
+      EphemeronHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize);
   native_context()->set_slow_template_instantiations_cache(
       *slow_template_instantiations_cache);
 

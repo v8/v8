@@ -310,17 +310,20 @@ void TemplateInfo::set_serial_number(uint32_t value) {
       SerialNumberBits::update(template_info_flags(), value));
 }
 
-bool TemplateInfo::has_serial_number() const {
-  return serial_number() != kUninitializedSerialNumber;
+uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
+  uint32_t serial_number = this->serial_number();
+  if (serial_number == kUninitializedSerialNumber) {
+    serial_number = isolate->heap()->GetNextTemplateSerialNumber();
+    set_serial_number(serial_number);
+  }
+  return serial_number;
 }
 
-uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
-  uint32_t ser_number = serial_number();
-  if (ser_number == kUninitializedSerialNumber) {
-    ser_number = isolate->heap()->GetNextTemplateSerialNumber();
-    set_serial_number(ser_number);
-  }
-  return ser_number;
+uint32_t TemplateInfo::GetHash() const {
+  uint32_t hash = ComputeUnseededHash(serial_number());
+  // Make sure that the hash can be encoded in a Smi in order to make it
+  // compatible with Object::GetSimpleHash() and avoid surprises.
+  return hash & Smi::kMaxValue;
 }
 
 // static
@@ -343,14 +346,14 @@ MaybeHandle<Object> TemplateInfo::ProbeInstantiationsCache(
     }
     return handle(object, isolate);
   }
-  if (caching_mode == CachingMode::kUnlimited ||
-      (serial_number < kSlowTemplateInstantiationsCacheSize)) {
-    Tagged<SimpleNumberDictionary> slow_cache =
-        native_context->slow_template_instantiations_cache();
-    InternalIndex entry = slow_cache->FindEntry(isolate, serial_number);
-    if (entry.is_found()) {
-      return handle(slow_cache->ValueAt(entry), isolate);
-    }
+  Tagged<EphemeronHashTable> cache =
+      native_context->slow_template_instantiations_cache();
+  ReadOnlyRoots roots(isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  InternalIndex entry = cache->FindEntry(isolate, roots, info, hash);
+  if (entry.is_found()) {
+    return handle(cache->ValueAt(entry), isolate);
   }
   return {};
 }
@@ -367,25 +370,21 @@ void TemplateInfo::CacheTemplateInstantiation(
   if (serial_number < kFastTemplateInstantiationsCacheSize) {
     Handle<FixedArray> fast_cache =
         handle(native_context->fast_template_instantiations_cache(), isolate);
-    DirectHandle<FixedArray> new_cache =
-        FixedArray::SetAndGrow(isolate, fast_cache, serial_number, object);
-    if (*new_cache != *fast_cache) {
-      native_context->set_fast_template_instantiations_cache(*new_cache);
-    }
-
-  } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number < kSlowTemplateInstantiationsCacheSize)) {
-    Handle<SimpleNumberDictionary> cache =
-        handle(native_context->slow_template_instantiations_cache(), isolate);
+    fast_cache->set(serial_number, *object);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  if (caching_mode == CachingMode::kUnlimited ||
+      (cache->NumberOfElements() < kMaxTemplateInstantiationsCacheSize)) {
+    ReadOnlyRoots roots(isolate);
+    // Instead of detouring via Object::GetHash() load the hash directly.
+    uint32_t hash = info->GetHash();
     auto new_cache =
-        SimpleNumberDictionary::Set(isolate, cache, serial_number, object);
+        EphemeronHashTable::Put(isolate, cache, info, object, hash);
     if (*new_cache != *cache) {
       native_context->set_slow_template_instantiations_cache(*new_cache);
     }
-
-  } else {
-    // we've overflowed the cache limit, no more caching
-    info->set_is_cacheable(false);
   }
 }
 
@@ -402,15 +401,18 @@ void TemplateInfo::UncacheTemplateInstantiation(
     DCHECK(!IsUndefined(fast_cache->get(serial_number), isolate));
     fast_cache->set(serial_number, ReadOnlyRoots{isolate}.the_hole_value(),
                     SKIP_WRITE_BARRIER);
-
-  } else if (caching_mode == CachingMode::kUnlimited ||
-             (serial_number < kSlowTemplateInstantiationsCacheSize)) {
-    Handle<SimpleNumberDictionary> cache =
-        handle(native_context->slow_template_instantiations_cache(), isolate);
-    InternalIndex entry = cache->FindEntry(isolate, serial_number);
-    DCHECK(entry.is_found());
-    cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
-    native_context->set_slow_template_instantiations_cache(*cache);
+    return;
+  }
+  Handle<EphemeronHashTable> cache =
+      handle(native_context->slow_template_instantiations_cache(), isolate);
+  // Instead of detouring via Object::GetHash() load the hash directly.
+  uint32_t hash = info->GetHash();
+  bool was_present = false;
+  auto new_cache =
+      EphemeronHashTable::Remove(isolate, cache, info, &was_present, hash);
+  DCHECK(was_present);
+  if (!new_cache.is_identical_to(cache)) {
+    native_context->set_slow_template_instantiations_cache(*new_cache);
   }
 }
 
