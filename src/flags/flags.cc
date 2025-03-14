@@ -96,16 +96,16 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
                             SetBy set_by) {
   DCHECK_EQ(TYPE_STRING, type_);
   DCHECK_IMPLIES(owns_new_value, new_value != nullptr);
-  auto* flag_value = reinterpret_cast<FlagValue<const char*>*>(valptr_);
-  const char* old_value = *flag_value;
+  const char* old_value = string_value();
   DCHECK_IMPLIES(owns_ptr_, old_value != nullptr);
   bool change_flag = old_value
                          ? !new_value || std::strcmp(old_value, new_value) != 0
                          : !!new_value;
   change_flag = CheckFlagChange(set_by, change_flag);
   if (change_flag) {
+    DCHECK(!IsReadOnly());
     if (owns_ptr_) DeleteArray(old_value);
-    *flag_value = new_value;
+    *reinterpret_cast<FlagValue<const char*>*>(valptr_) = new_value;
     owns_ptr_ = owns_new_value;
   } else {
     if (owns_new_value) DeleteArray(new_value);

@@ -51,6 +51,9 @@ const SKIPPED_FILES = [
 
     // Very slow pattern that just makes fuzz tests time out.
     'regress-crbug-400504688.js',
+
+    // Empty test that just sets flags.
+    'regress-392928803.js',
 ];
 
 const SKIPPED_DIRECTORIES = [

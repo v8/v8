@@ -2522,6 +2522,7 @@
   'regress-399698534': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
 
+##############################################################################
 ['(variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)) and (arch != arm)', {
   # Maglev doesn't suppress BigInt size errors on truncation.
   # On Arm that works, since we always _and_ the shift amount first.
@@ -2529,6 +2530,7 @@
   'compiler/bigint-multiply-truncate': [FAIL],
 }], # (variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev))' and (arch != arm)
 
+##############################################################################
 ['variant == turbolev', {
   # Because of frontend lowerings being different in Maglev and Turbofan, some
   # unit tests don't pass when using Maglev as a frontend for Turboshaft.
@@ -2611,6 +2613,7 @@
 
 }], # variant == turbolev
 
+##############################################################################
 ['(variant == turbolev) and (arch == arm64)', {
   # Turboshaft cannot call Construct_WithFeedback, which is required to make
   # this test  pass with Maglev as a frontend (Turbofan does other lowering
@@ -2645,12 +2648,14 @@
   'compiler/regress-9945-2': [SKIP],
 }],  # 'leaptiering'
 
+##############################################################################
 ['variant == stress_wasm_stack_switching', {
   # TODO(thibaudm): Fix profiler.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 }],
 
+##############################################################################
 ['variant == stress_wasm_stack_switching and mode == debug', {
   # Very slow.
   'wasm/turboshaft/reduction-shuffle': [SKIP]
@@ -2671,12 +2676,14 @@
   'regress/wasm/regress-361717714': [SKIP]
 }],  # cet_shadow_stack
 
+##############################################################################
 ['variant == conservative_pinning', {
   'regress/regress-12657': [SKIP],
   'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
 }],  # variant == conservative_pinning
 
+##############################################################################
 ['variant in [jit_fuzzing, jit_fuzzing_maglev]', {
   # Extremely slow tests.
   'regress/wasm/regress-808848': [SKIP],
@@ -2693,5 +2700,11 @@
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
+
+##############################################################################
+['not disassembler', {
+  # Sets a flag which is read-only if the disassembler is disabled.
+  'regress/regress-392928803': [FAIL],
+}],  # not disassembler
 
 ]

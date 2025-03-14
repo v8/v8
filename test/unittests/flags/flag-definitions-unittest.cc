@@ -168,6 +168,11 @@ TEST_F(FlagDefinitionsTest, Flags6b) {
   CHECK_EQ(3, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
+TEST_F(FlagDefinitionsTest, AssignReadOnlyStringFlag) {
+  const char* str = "--print-opt-code-filter=MEH";
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
+}
+
 TEST_F(FlagDefinitionsTest, FlagsRemoveIncomplete) {
   // Test that processed command line arguments are removed, even
   // if the list of arguments ends unexpectedly.
