@@ -378,6 +378,8 @@ class MarkCompactCollector final {
                                                 PageMetadata* page);
   void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
                                                   MemoryChunk* chunk);
+  void ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(
+      PageMetadata* page, MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -439,8 +441,7 @@ class MarkCompactCollector final {
   std::vector<PageMetadata*> new_space_evacuation_pages_;
   std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_oom_;
-  std::vector<std::pair<Address, PageMetadata*>>
-      aborted_evacuation_candidates_due_to_flags_;
+  std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
 
   // Map which stores ephemeron pairs for the linear-time algorithm.

@@ -9,8 +9,6 @@
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
@@ -4947,7 +4945,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (heap_->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
+                                                               page->Chunk());
       }
     } else if (!v8_flags.compact_code_space_with_stack ||
                heap_->isolate()->InFastCCall()) {
@@ -4955,7 +4954,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       // frame if we would relocate InstructionStream objects.
       for (PageMetadata* page : old_space_evacuation_pages_) {
         if (page->owner_identity() != CODE_SPACE) continue;
-        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
+                                                               page->Chunk());
       }
     }
   } else {
@@ -4973,7 +4973,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) continue;
 
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
-        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
+                                                               page->Chunk());
       }
     }
   }
@@ -5868,8 +5869,16 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
   DCHECK_EQ(page->Chunk(), chunk);
   DCHECK(!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
   chunk->SetFlagSlow(MemoryChunk::COMPACTION_WAS_ABORTED);
-  aborted_evacuation_candidates_due_to_flags_.push_back(
-      std::make_pair(page->area_start(), page));
+  aborted_evacuation_candidates_due_to_flags_.push_back(page);
+}
+
+void MarkCompactCollector::
+    ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(PageMetadata* page,
+                                                           MemoryChunk* chunk) {
+  if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+    return;
+  }
+  ReportAbortedEvacuationCandidateDueToFlags(page, chunk);
 }
 
 namespace {
@@ -5919,8 +5928,8 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     ReRecordPage(heap_, start_and_page.first, start_and_page.second);
   }
-  for (auto start_and_page : aborted_evacuation_candidates_due_to_flags_) {
-    ReRecordPage(heap_, start_and_page.first, start_and_page.second);
+  for (auto page : aborted_evacuation_candidates_due_to_flags_) {
+    ReRecordPage(heap_, page->area_start(), page);
   }
   const size_t aborted_pages =
       aborted_evacuation_candidates_due_to_oom_.size() +
