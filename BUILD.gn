@@ -6939,6 +6939,7 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/internal/atomic-entry-flag.h",
     "include/cppgc/internal/base-page-handle.h",
     "include/cppgc/internal/compiler-specific.h",
+    "include/cppgc/internal/conditional-stack-allocated.h",
     "include/cppgc/internal/finalizer-trait.h",
     "include/cppgc/internal/gc-info.h",
     "include/cppgc/internal/member-storage.h",

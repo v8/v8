@@ -7,6 +7,7 @@
 
 #include <cstring>
 
+#include "cppgc/internal/conditional-stack-allocated.h"  // NOLINT(build/include_directory)
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -21,7 +22,8 @@ static constexpr int kInternalFieldsInWeakCallback = 2;
 static constexpr int kEmbedderFieldsInWeakCallback = 2;
 
 template <typename T>
-class WeakCallbackInfo {
+class WeakCallbackInfo
+    : public cppgc::internal::ConditionalStackAllocatedBase<T> {
  public:
   using Callback = void (*)(const WeakCallbackInfo<T>& data);
 

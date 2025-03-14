@@ -30,6 +30,10 @@ namespace cppgc {
 #define CPPGC_STACK_ALLOCATED_IGNORE(bug_or_reason)
 #endif  // !defined(__clang__)
 
+template <typename T>
+concept IsStackAllocatedType =
+    requires { typename T::IsStackAllocatedTypeMarker; };
+
 }  // namespace cppgc
 
 #endif  // INCLUDE_CPPGC_MACROS_H_
