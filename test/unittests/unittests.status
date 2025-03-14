@@ -348,6 +348,10 @@
   'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],
 }],  # variant == conservative_pinning
 
+['variant == precise_pinning', {
+  'ExperimentalFlagImplication/ExperimentalFlagImplicationTest.TestExperimentalNotEnabled/*': [SKIP],
+}],  # variant == precise_pinning
+
 ##############################################################################
 ['simulator_run', {
   # Do not execute tests which abort the process in the simulator; the
