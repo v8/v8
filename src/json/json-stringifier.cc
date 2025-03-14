@@ -1976,7 +1976,7 @@ class ContinuationRecord {
   }
 
   Type type() const { return type_; }
-  Tagged<Object> object() const { return object_; }
+  Tagged<ObjectT> object() const { return object_; }
   Tagged<JSAny> simple_object() const {
     DCHECK_EQ(type(), Type::kSimpleObject);
     return Cast<JSAny>(object_);
