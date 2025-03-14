@@ -4841,7 +4841,10 @@ void TraceEvacuation(Isolate* isolate, size_t pages_count,
 class PrecisePagePinningVisitor final : public RootVisitor {
  public:
   explicit PrecisePagePinningVisitor(MarkCompactCollector* collector)
-      : RootVisitor(), collector_(collector) {}
+      : RootVisitor(),
+        collector_(collector),
+        should_pin_in_shared_space_(
+            collector->heap()->isolate()->is_shared_space_isolate()) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -4867,6 +4870,9 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       // need to be pinned.
       return;
     }
+    if (!should_pin_in_shared_space_ && chunk->InWritableSharedSpace()) {
+      return;
+    }
     if (chunk->InYoungGeneration()) {
       // Young gen pages are not considered evacuation candidates. Pinning is
       // done by marking them as quarantined and promoting the page as is.
@@ -4877,8 +4883,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
       return;
     }
-    if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE) ||
-        chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+    if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
       return;
     }
     collector_->ReportAbortedEvacuationCandidateDueToFlags(
@@ -4886,6 +4891,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
   }
 
   MarkCompactCollector* const collector_;
+  const bool should_pin_in_shared_space_;
 };
 
 void MarkCompactCollector::PinPreciseRootsIfNeeded() {
@@ -4945,8 +4951,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (heap_->IsGCWithStack()) {
     if (!v8_flags.compact_with_stack) {
       for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
-                                                               page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     } else if (!v8_flags.compact_code_space_with_stack ||
                heap_->isolate()->InFastCCall()) {
@@ -4954,8 +4959,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       // frame if we would relocate InstructionStream objects.
       for (PageMetadata* page : old_space_evacuation_pages_) {
         if (page->owner_identity() != CODE_SPACE) continue;
-        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
-                                                               page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
   } else {
@@ -4969,12 +4973,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     const double kFraction = 0.05;
 
     for (PageMetadata* page : old_space_evacuation_pages_) {
-      MemoryChunk* chunk = page->Chunk();
-      if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) continue;
-
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
-        ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(page,
-                                                               page->Chunk());
+        ReportAbortedEvacuationCandidateDueToFlags(page, page->Chunk());
       }
     }
   }
@@ -5867,18 +5867,11 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
     PageMetadata* page, MemoryChunk* chunk) {
   DCHECK_EQ(page->Chunk(), chunk);
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
-  chunk->SetFlagSlow(MemoryChunk::COMPACTION_WAS_ABORTED);
-  aborted_evacuation_candidates_due_to_flags_.push_back(page);
-}
-
-void MarkCompactCollector::
-    ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(PageMetadata* page,
-                                                           MemoryChunk* chunk) {
   if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
     return;
   }
-  ReportAbortedEvacuationCandidateDueToFlags(page, chunk);
+  chunk->SetFlagSlow(MemoryChunk::COMPACTION_WAS_ABORTED);
+  aborted_evacuation_candidates_due_to_flags_.push_back(page);
 }
 
 namespace {

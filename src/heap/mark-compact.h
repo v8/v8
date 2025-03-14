@@ -378,8 +378,6 @@ class MarkCompactCollector final {
                                                 PageMetadata* page);
   void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
                                                   MemoryChunk* chunk);
-  void ReportAbortedEvacuationCandidateDueToFlagsIfNotAborted(
-      PageMetadata* page, MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
 

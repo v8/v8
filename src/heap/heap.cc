@@ -5827,11 +5827,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   space_[CODE_SPACE] = std::make_unique<CodeSpace>(this);
   code_space_ = static_cast<CodeSpace*>(space_[CODE_SPACE].get());
 
-  if (isolate()->is_shared_space_isolate()) {
-    space_[SHARED_SPACE] = std::make_unique<SharedSpace>(this);
-    shared_space_ = static_cast<SharedSpace*>(space_[SHARED_SPACE].get());
-  }
-
   space_[LO_SPACE] = std::make_unique<OldLargeObjectSpace>(this);
   lo_space_ = static_cast<OldLargeObjectSpace*>(space_[LO_SPACE].get());
 
@@ -5848,6 +5843,10 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (isolate()->is_shared_space_isolate()) {
     DCHECK(!v8_flags.sticky_mark_bits);
+
+    space_[SHARED_SPACE] = std::make_unique<SharedSpace>(this);
+    shared_space_ = static_cast<SharedSpace*>(space_[SHARED_SPACE].get());
+
     space_[SHARED_LO_SPACE] = std::make_unique<SharedLargeObjectSpace>(this);
     shared_lo_space_ =
         static_cast<SharedLargeObjectSpace*>(space_[SHARED_LO_SPACE].get());
