@@ -5,7 +5,8 @@
 // Increase the profiler sampling interval to avoid a data race between
 // interval-triggered samples and explicitly triggered samples. The goal of the
 // big interval is to avoid any interval-triggered samples.
-// Flags: --cpu-profiler-sampling-interval=1000000 --wasm-staging
+// Flags: --cpu-profiler-sampling-interval=1000000
+// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

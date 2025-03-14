@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --wasm-staging
+// Flags: --experimental-wasm-stack-switching
+// Flags: --allow-natives-syntax --experimental-wasm-type-reflection
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");

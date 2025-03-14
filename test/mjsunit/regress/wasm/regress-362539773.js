@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-wrapper-tiering-budget=1
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();

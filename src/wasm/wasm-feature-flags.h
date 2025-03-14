@@ -24,6 +24,12 @@
 
 // Experimental features (disabled by default).
 #define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) /*     (force 80 columns) */ \
+  /* Type reflection proposal. */                                              \
+  /* https://github.com/webassembly/js-types */                                \
+  /* V8 side owner: ahaas */                                                   \
+  /* Staged in v7.8, unstaged in v13.6 (see https://crbug.com/402340845) */    \
+  V(type_reflection, "wasm type reflection in JS", false)                      \
+                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -71,12 +77,6 @@
 // Consider adding a chromium-side use counter if you want to track usage in the
 // wild (also see {V8::UseCounterFeature}).
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Type reflection proposal. */                                              \
-  /* https://github.com/webassembly/js-types */                                \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  V(type_reflection, "wasm type reflection in JS", false)                      \
-                                                                               \
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-type-reflection
 
 (function TestTableSetAndGetFunction() {
   let func = new WebAssembly.Function({ parameters: [], results: [] }, x => x);
