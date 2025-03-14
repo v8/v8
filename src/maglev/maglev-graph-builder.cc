@@ -12885,7 +12885,7 @@ VirtualObject* MaglevGraphBuilder::CreateJSStringIterator(compiler::MapRef map,
 InlinedAllocation* MaglevGraphBuilder::ExtendOrReallocateCurrentAllocationBlock(
     AllocationType allocation_type, VirtualObject* vobject) {
   DCHECK_LE(vobject->size(), kMaxRegularHeapObjectSize);
-  if (!current_allocation_block_ ||
+  if (!current_allocation_block_ || v8_flags.maglev_allocation_folding == 0 ||
       current_allocation_block_->allocation_type() != allocation_type ||
       !v8_flags.inline_new || is_turbolev()) {
     current_allocation_block_ =
@@ -12935,7 +12935,7 @@ void MaglevGraphBuilder::AddDeoptUse(VirtualObject* vobject) {
   });
 }
 
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForConsString(
+InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForConsString(
     VirtualObject* vobject, AllocationType allocation_type) {
   InlinedAllocation* allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
@@ -12960,7 +12960,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForConsString(
   return allocation;
 }
 
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
+InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
     VirtualObject* vobject, AllocationType allocation_type) {
   DCHECK(vobject->map().IsHeapNumberMap());
   InlinedAllocation* allocation =
@@ -12973,7 +12973,8 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
   return allocation;
 }
 
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
+InlinedAllocation*
+MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
     VirtualObject* vobject, AllocationType allocation_type) {
   DCHECK(vobject->map().IsFixedDoubleArrayMap());
   InlinedAllocation* allocation =
@@ -12996,17 +12997,23 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
   return allocation;
 }
 
-ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
+InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
     VirtualObject* vobject, AllocationType allocation_type) {
   current_interpreter_frame_.add_object(vobject);
+  InlinedAllocation* allocation;
   switch (vobject->type()) {
     case VirtualObject::kHeapNumber:
-      return BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
+      allocation =
+          BuildInlinedAllocationForHeapNumber(vobject, allocation_type);
+      break;
     case VirtualObject::kFixedDoubleArray:
-      return BuildInlinedAllocationForDoubleFixedArray(vobject,
-                                                       allocation_type);
+      allocation =
+          BuildInlinedAllocationForDoubleFixedArray(vobject, allocation_type);
+      break;
     case VirtualObject::kConsString:
-      return BuildInlinedAllocationForConsString(vobject, allocation_type);
+      allocation =
+          BuildInlinedAllocationForConsString(vobject, allocation_type);
+      break;
     case VirtualObject::kDefault: {
       SmallZoneVector<ValueNode*, 8> values(zone());
       vobject->ForEachDeoptInputLocation(
@@ -13024,7 +13031,7 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
             }
             values.push_back(node);
           });
-      InlinedAllocation* allocation =
+      allocation =
           ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
       AddNonEscapingUses(allocation, static_cast<int>(values.size()));
       if (vobject->has_static_map()) {
@@ -13038,9 +13045,13 @@ ValueNode* MaglevGraphBuilder::BuildInlinedAllocation(
       if (is_loop_effect_tracking()) {
         loop_effects_->allocations.insert(allocation);
       }
-      return allocation;
+      break;
     }
   }
+  if (v8_flags.maglev_allocation_folding < 2) {
+    ClearCurrentAllocationBlock();
+  }
+  return allocation;
 }
 
 ValueNode* MaglevGraphBuilder::BuildInlinedArgumentsElements(int start_index,
