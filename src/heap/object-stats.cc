@@ -417,6 +417,10 @@ class ObjectStatsCollectorImpl {
   bool RecordSimpleVirtualObjectStats(Tagged<HeapObject> parent,
                                       Tagged<HeapObject> obj,
                                       ObjectStats::VirtualInstanceType type);
+  // Records space wasted for property details and value (field type) slots
+  // in DescriptorArrays.
+  void RecordPotentialDescriptorArraySavingsStats(Tagged<DescriptorArray> obj);
+
   // For HashTable it is possible to compute over allocated memory.
   template <typename Dictionary>
   void RecordHashTableVirtualObjectStats(Tagged<HeapObject> parent,
@@ -432,7 +436,7 @@ class ObjectStatsCollectorImpl {
   // objects dispatch to the low level ObjectStats::RecordObjectStats manually.
   bool ShouldRecordObject(Tagged<HeapObject> object, CowMode check_cow_array);
 
-  void RecordObjectStats(
+  bool RecordObjectStats(
       Tagged<HeapObject> obj, InstanceType type, size_t size,
       size_t over_allocated = ObjectStats::kNoOverAllocation);
 
@@ -513,6 +517,33 @@ bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     ObjectStats::VirtualInstanceType type) {
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(cage_base()),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
+}
+
+void ObjectStatsCollectorImpl::RecordPotentialDescriptorArraySavingsStats(
+    Tagged<DescriptorArray> obj) {
+  // The caller ensures that these stats were not recorded for this object yet.
+
+  int wasted_value_slots_count = obj->number_of_slack_descriptors();
+  for (InternalIndex i : InternalIndex::Range(obj->number_of_descriptors())) {
+    PropertyDetails details = obj->GetDetails(i);
+    if (details.location() != PropertyLocation::kField) continue;
+    Tagged<FieldType> field_type = obj->GetFieldType(i);
+    if (IsAny(field_type)) {
+      ++wasted_value_slots_count;
+    }
+  }
+  if (wasted_value_slots_count == 0) return;
+  int wasted_value_slots_size = wasted_value_slots_count * kTaggedSize;
+  stats_->RecordVirtualObjectStats(
+      StatsEnum::WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE, wasted_value_slots_size,
+      ObjectStats::kNoOverAllocation);
+
+  // It should be possible to pack PropertyDetails into one byte.
+  int wasted_details_space =
+      obj->number_of_all_descriptors() * (kTaggedSize - 1);
+  stats_->RecordVirtualObjectStats(
+      StatsEnum::WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE, wasted_details_space,
+      ObjectStats::kNoOverAllocation);
 }
 
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
@@ -795,17 +826,24 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       }
       break;
     case kPhase2:
+      size_t over_allocated = ObjectStats::kNoOverAllocation;
       if (InstanceTypeChecker::IsExternalString(instance_type)) {
         // This has to be in Phase2 to avoid conflicting with recording Script
         // sources. We still want to run RecordObjectStats after though.
         RecordVirtualExternalStringDetails(Cast<ExternalString>(obj));
-      }
-      size_t over_allocated = ObjectStats::kNoOverAllocation;
-      if (InstanceTypeChecker::IsJSObject(instance_type)) {
+
+      } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
         over_allocated = map->instance_size() - map->UsedInstanceSize();
       }
-      RecordObjectStats(obj, instance_type, obj->Size(cage_base()),
-                        over_allocated);
+      bool recorded = RecordObjectStats(obj, instance_type,
+                                        obj->Size(cage_base()), over_allocated);
+
+      if (recorded && InstanceTypeChecker::IsDescriptorArray(instance_type)) {
+        // This DescriptorArray has just been recorded, append stats about
+        // potentially wasted memory in the object.
+        RecordPotentialDescriptorArraySavingsStats(Cast<DescriptorArray>(obj));
+      }
+
       if (collect_field_stats == CollectFieldStats::kYes) {
         field_stats_collector_.RecordStats(obj);
       }
@@ -841,12 +879,14 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  StatsEnum::SCRIPT_LIST_TYPE);
 }
 
-void ObjectStatsCollectorImpl::RecordObjectStats(Tagged<HeapObject> obj,
+bool ObjectStatsCollectorImpl::RecordObjectStats(Tagged<HeapObject> obj,
                                                  InstanceType type, size_t size,
                                                  size_t over_allocated) {
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
     stats_->RecordObjectStats(type, size, over_allocated);
+    return true;
   }
+  return false;
 }
 
 bool ObjectStatsCollectorImpl::CanRecordFixedArray(
@@ -909,12 +949,19 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Tagged<Map> map) {
     // (DESCRIPTOR_ARRAY_TYPE), but we'd like to be able to tell which
     // of those are for (abandoned) prototypes, and which of those are
     // owned by deprecated maps.
+    bool recorded = false;
     if (map->is_prototype_map()) {
-      RecordSimpleVirtualObjectStats(
+      recorded = RecordSimpleVirtualObjectStats(
           map, array, StatsEnum::PROTOTYPE_DESCRIPTOR_ARRAY_TYPE);
+
     } else if (map->is_deprecated()) {
-      RecordSimpleVirtualObjectStats(
+      recorded = RecordSimpleVirtualObjectStats(
           map, array, StatsEnum::DEPRECATED_DESCRIPTOR_ARRAY_TYPE);
+    }
+    if (recorded) {
+      // This DescriptorArray has just been recorded, append stats about
+      // potentially wasted memory in the object.
+      RecordPotentialDescriptorArraySavingsStats(array);
     }
 
     Tagged<EnumCache> enum_cache = array->enum_cache();
