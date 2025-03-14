@@ -1905,7 +1905,19 @@ class OutBuffer {
   std::optional<ZoneList<base::Vector<Char>>> segments_;
 };
 
-struct ContinuationRecord {
+enum FastJsonStringifierResult {
+  SUCCESS,
+  JS_OBJECT,
+  JS_ARRAY,
+  UNDEFINED,
+  CHANGE_ENCODING,
+  CHANGE_ENCODING_KEY,
+  SLOW_PATH,
+  EXCEPTION
+};
+
+class ContinuationRecord {
+ public:
   enum Type {
     kObject,
     kArray,
@@ -1916,35 +1928,178 @@ struct ContinuationRecord {
     kArrayResume_Holey_WithInterrupts,
     kSimpleObject,  // Resume after encoding change.
                     // Object is any simple object that can be serialized
-                    // successfully with TrySerializeSimpleObject(). |index| is
-                    // ignored for this type.
+                    // successfully with TrySerializeSimpleObject().
     kObjectKey      // For encoding changes triggered by object keys.
                     // This is required (instead of simply resuming with the
                     // object/index that triggered the change), to avoid
                     // re-serializing '{' if the first property key triggered
                     // the change.
-                    // |index| is used to indicate comma requirement
-                    // (0 = no comma, otherwise add comma).
   };
-  Type type;
-  using ObjectT = UnionOf<JSAny, FixedArrayBase>;
-  Tagged<ObjectT> object;
-  uint32_t index;
-  uint32_t length;  // TODO(pthier): Could be uint16_t for objects..
-  uint8_t in_object_properties = 0;
-  uint8_t in_object_properties_start = 0;
-  Tagged<DescriptorArray> descriptors = Tagged<DescriptorArray>();
-};
 
-enum FastJsonStringifierResult {
-  SUCCESS,
-  JS_OBJECT,
-  JS_ARRAY,
-  UNDEFINED,
-  CHANGE_ENCODING,
-  CHANGE_ENCODING_KEY,
-  SLOW_PATH,
-  EXCEPTION
+  using ObjectT = UnionOf<JSAny, FixedArrayBase>;
+
+  static constexpr ContinuationRecord ForSimpleObject(Tagged<JSAny> obj) {
+    return ContinuationRecord(Type::kSimpleObject, obj, 0, 0);
+  }
+  static constexpr ContinuationRecord ForJSAny(
+      Tagged<JSAny> obj, FastJsonStringifierResult result) {
+    return ContinuationRecord(ContinuationTypeFromResult(result), obj, 0, 0);
+  }
+  static constexpr ContinuationRecord ForJSArray(Tagged<JSAny> obj) {
+    DCHECK(Is<JSArray>(obj));
+    return ContinuationRecord(Type::kArray, obj, 0, 0);
+  }
+  template <ElementsKind kind, bool with_interrupt_check>
+  static constexpr ContinuationRecord ForJSArrayResume(
+      Tagged<FixedArrayBase> obj, uint32_t index, uint32_t length) {
+    return ContinuationRecord(
+        ContinuationTypeForArray(kind, with_interrupt_check), obj, index,
+        length);
+  }
+  static constexpr ContinuationRecord ForJSObject(Tagged<JSAny> obj) {
+    DCHECK(Is<JSObject>(obj));
+    return ContinuationRecord(Type::kObject, obj, 0, 0, 0, 0,
+                              Tagged<DescriptorArray>());
+  }
+  static constexpr ContinuationRecord ForJSObjectResume(
+      Tagged<JSAny> obj, uint16_t descriptor_idx, uint16_t nof_descriptors,
+      uint8_t in_object_properties = 0, uint8_t in_object_properties_start = 0,
+      Tagged<DescriptorArray> descriptors = Tagged<DescriptorArray>()) {
+    DCHECK(Is<JSObject>(obj));
+    return ContinuationRecord(Type::kObjectResume, obj, descriptor_idx,
+                              nof_descriptors, in_object_properties,
+                              in_object_properties_start, descriptors);
+  }
+  static constexpr ContinuationRecord ForObjectKey(Tagged<String> key,
+                                                   bool comma) {
+    return ContinuationRecord(Type::kObjectKey, key, comma);
+  }
+
+  Type type() const { return type_; }
+  Tagged<Object> object() const { return object_; }
+  Tagged<JSAny> simple_object() const {
+    DCHECK_EQ(type(), Type::kSimpleObject);
+    return Cast<JSAny>(object_);
+  }
+  Tagged<JSArray> js_array() const {
+    DCHECK_EQ(type(), Type::kArray);
+    return Cast<JSArray>(object_);
+  }
+  Tagged<FixedArrayBase> array_elements() const {
+    DCHECK(type() == Type::kArrayResume || type() == Type::kArrayResume_Holey ||
+           type() == Type::kArrayResume_WithInterrupts ||
+           type() == Type::kArrayResume_Holey_WithInterrupts);
+    return Cast<FixedArrayBase>(object_);
+  }
+  Tagged<JSObject> js_object() const {
+    DCHECK(type() == Type::kObject || type() == Type::kObjectResume);
+    return Cast<JSObject>(object_);
+  }
+  Tagged<String> object_key() const {
+    DCHECK_EQ(type(), Type::kObjectKey);
+    return Cast<String>(object_);
+  }
+
+  uint32_t array_index() const {
+    DCHECK(type() == Type::kArrayResume || type() == Type::kArrayResume_Holey ||
+           type() == Type::kArrayResume_WithInterrupts ||
+           type() == Type::kArrayResume_Holey_WithInterrupts);
+    return js_array_.index;
+  }
+  uint32_t array_length() const {
+    DCHECK(type() == Type::kArrayResume || type() == Type::kArrayResume_Holey ||
+           type() == Type::kArrayResume_WithInterrupts ||
+           type() == Type::kArrayResume_Holey_WithInterrupts);
+    return js_array_.length;
+  }
+
+  uint16_t object_descriptor_idx() const {
+    DCHECK_EQ(type(), Type::kObjectResume);
+    return js_object_.descriptor_idx;
+  }
+  uint16_t object_nof_descriptors() const {
+    DCHECK_EQ(type(), Type::kObjectResume);
+    return js_object_.nof_descriptors;
+  }
+  uint8_t object_in_object_properties() const {
+    DCHECK_EQ(type(), Type::kObjectResume);
+    return js_object_.in_object_properties;
+  }
+  uint8_t object_in_object_properties_start() const {
+    DCHECK_EQ(type(), Type::kObjectResume);
+    return js_object_.in_object_properties_start;
+  }
+  Tagged<DescriptorArray> object_descriptors() const {
+    DCHECK_EQ(type(), Type::kObjectResume);
+    return js_object_.descriptors;
+  }
+
+  bool object_key_comma() const {
+    DCHECK_EQ(type(), Type::kObjectKey);
+    return object_key_.comma;
+  }
+
+ private:
+  constexpr ContinuationRecord(Type type, Tagged<ObjectT> obj, uint32_t index,
+                               uint32_t length)
+      : type_(type), object_(obj), js_array_({index, length}) {}
+  constexpr ContinuationRecord(Type type, Tagged<ObjectT> obj,
+                               uint16_t descriptor_idx,
+                               uint16_t nof_descriptors,
+                               uint8_t in_object_properties,
+                               uint8_t in_object_properties_start,
+                               Tagged<DescriptorArray> descriptors)
+      : type_(type),
+        object_(obj),
+        js_object_({descriptor_idx, nof_descriptors, in_object_properties,
+                    in_object_properties_start, descriptors}) {}
+  constexpr ContinuationRecord(Type type, Tagged<ObjectT> obj, bool comma)
+      : type_(type), object_(obj), object_key_{comma} {}
+
+  static constexpr Type ContinuationTypeFromResult(
+      FastJsonStringifierResult result) {
+    DCHECK(result == JS_OBJECT || result == JS_ARRAY);
+    static_assert(JS_OBJECT - 1 == Type::kObject);
+    static_assert(JS_ARRAY - 1 == Type::kArray);
+    return static_cast<Type>(result - 1);
+  }
+
+  static consteval Type ContinuationTypeForArray(ElementsKind kind,
+                                                 bool with_interrupt_check) {
+    DCHECK(IsObjectElementsKind(kind));
+    if (IsHoleyElementsKind(kind)) {
+      if (with_interrupt_check) {
+        return kArrayResume_Holey_WithInterrupts;
+      } else {
+        return kArrayResume_Holey;
+      }
+    } else {
+      if (with_interrupt_check) {
+        return kArrayResume_WithInterrupts;
+      } else {
+        return kArrayResume;
+      }
+    }
+  }
+
+  Type type_;
+  Tagged<ObjectT> object_;
+  union {
+    struct {
+      uint32_t index;
+      uint32_t length;
+    } js_array_;
+    struct {
+      uint16_t descriptor_idx;
+      uint16_t nof_descriptors;
+      uint8_t in_object_properties;
+      uint8_t in_object_properties_start;
+      Tagged<DescriptorArray> descriptors;
+    } js_object_;
+    struct {
+      bool comma;
+    } object_key_;
+  };
 };
 
 template <typename Char>
@@ -1996,10 +2151,10 @@ class FastJsonStringifier {
   V8_INLINE FastJsonStringifierResult SerializeJSObject(
       Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult ResumeJSObject(
-      Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
-      uint8_t in_object_properties, uint8_t in_object_properties_start,
-      Tagged<DescriptorArray> descriptors, bool comma,
-      const DisallowGarbageCollection& no_gc);
+      Tagged<JSObject> obj, uint16_t start_descriptor_idx,
+      uint16_t nof_descriptors, uint8_t in_object_properties,
+      uint8_t in_object_properties_start, Tagged<DescriptorArray> descriptors,
+      bool comma, const DisallowGarbageCollection& no_gc);
   FastJsonStringifierResult SerializeJSArray(Tagged<JSArray> array);
   template <ElementsKind kind>
   FastJsonStringifierResult SerializeFixedArrayWithInterruptCheck(
@@ -2501,18 +2656,6 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
   UNREACHABLE();
 }
 
-namespace {
-
-constexpr ContinuationRecord::Type ContinuationTypeFromResult(
-    FastJsonStringifierResult result) {
-  DCHECK(result == JS_OBJECT || result == JS_ARRAY);
-  static_assert(JS_OBJECT - 1 == ContinuationRecord::kObject);
-  static_assert(JS_ARRAY - 1 == ContinuationRecord::kArray);
-  return static_cast<ContinuationRecord::Type>(result - 1);
-}
-
-}  // namespace
-
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
     Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc) {
@@ -2522,24 +2665,31 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeJSObject(
     return SLOW_PATH;
   }
   AppendCharacter('{');
-  const uint32_t length = map->NumberOfOwnDescriptors();
+  const uint16_t nof_descriptors = map->NumberOfOwnDescriptors();
   const uint8_t in_object_properties = map->GetInObjectProperties();
   const uint8_t in_object_properties_start =
       map->GetInObjectPropertiesStartInWords();
   const Tagged<DescriptorArray> descriptors = map->instance_descriptors();
-  return ResumeJSObject(obj, 0, length, in_object_properties,
+  return ResumeJSObject(obj, 0, nof_descriptors, in_object_properties,
                         in_object_properties_start, descriptors, false, no_gc);
 }
 
 template <typename Char>
 FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
-    Tagged<JSObject> obj, uint32_t start_idx, uint32_t length,
-    uint8_t in_object_properties, uint8_t in_object_properties_start,
-    Tagged<DescriptorArray> descriptors, bool comma,
-    const DisallowGarbageCollection& no_gc) {
+    Tagged<JSObject> obj, uint16_t start_descriptor_idx,
+    uint16_t nof_descriptors, uint8_t in_object_properties,
+    uint8_t in_object_properties_start, Tagged<DescriptorArray> descriptors,
+    bool comma, const DisallowGarbageCollection& no_gc) {
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  InternalIndex::Range range{start_idx, length};
+  InternalIndex::Range range{start_descriptor_idx, nof_descriptors};
   for (InternalIndex i : range) {
+    // We don't deal with dictionary mode objects on the fast-path, so the index
+    // is guaranteed to be less than uint16_t::max.
+    static_assert(kMaxNumberOfDescriptors <
+                  std::numeric_limits<uint16_t>::max());
+    DCHECK_LE(i.as_uint32(), kMaxNumberOfDescriptors);
+    const uint16_t descriptor_idx = static_cast<uint16_t>(i.as_uint32());
+
     Tagged<Name> name = descriptors->GetKey(i);
     if (V8_UNLIKELY(IsSymbol(name))) {
       continue;
@@ -2575,16 +2725,15 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         break;
       case JS_OBJECT:
       case JS_ARRAY:
-        stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                            i.as_uint32() + 1, length, in_object_properties,
-                            in_object_properties_start, descriptors);
-        stack_.emplace_back(ContinuationTypeFromResult(result), property, 0);
+        stack_.push_back(ContinuationRecord::ForJSObjectResume(
+            obj, descriptor_idx + 1, nof_descriptors, in_object_properties,
+            in_object_properties_start, descriptors));
+        stack_.push_back(ContinuationRecord::ForJSAny(property, result));
         result = SerializeObjectKey(key_name, comma, no_gc);
         if constexpr (is_one_byte) {
           if (V8_UNLIKELY(result != SUCCESS)) {
             DCHECK_EQ(result, CHANGE_ENCODING_KEY);
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
+            stack_.push_back(ContinuationRecord::ForObjectKey(key_name, comma));
             return result;
           }
         }
@@ -2592,13 +2741,12 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       case CHANGE_ENCODING:
       case CHANGE_ENCODING_KEY:
         if constexpr (is_one_byte) {
-          stack_.emplace_back(ContinuationRecord::kObjectResume, obj,
-                              i.as_uint32() + 1, length, in_object_properties,
-                              in_object_properties_start, descriptors);
-          stack_.emplace_back(ContinuationRecord::kSimpleObject, property, 0);
+          stack_.push_back(ContinuationRecord::ForJSObjectResume(
+              obj, descriptor_idx + 1, nof_descriptors, in_object_properties,
+              in_object_properties_start, descriptors));
+          stack_.push_back(ContinuationRecord::ForSimpleObject(property));
           if (result == CHANGE_ENCODING_KEY) {
-            stack_.emplace_back(ContinuationRecord::kObjectKey, key_name,
-                                comma);
+            stack_.push_back(ContinuationRecord::ForObjectKey(key_name, comma));
           }
           return result;
         } else {
@@ -2711,28 +2859,6 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArray(
   return SUCCESS;
 }
 
-namespace {
-
-consteval ContinuationRecord::Type ContinuationTypeForArray(
-    ElementsKind kind, bool with_interrupt_check) {
-  DCHECK(IsObjectElementsKind(kind));
-  if (IsHoleyElementsKind(kind)) {
-    if (with_interrupt_check) {
-      return ContinuationRecord::kArrayResume_Holey_WithInterrupts;
-    } else {
-      return ContinuationRecord::kArrayResume_Holey;
-    }
-  } else {
-    if (with_interrupt_check) {
-      return ContinuationRecord::kArrayResume_WithInterrupts;
-    } else {
-      return ContinuationRecord::kArrayResume;
-    }
-  }
-}
-
-}  // namespace
-
 template <typename Char>
 template <ElementsKind kind, bool with_interrupt_checks, typename T>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
@@ -2760,20 +2886,20 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
       case CHANGE_ENCODING:
         if constexpr (is_one_byte) {
           DCHECK(IsString(obj) || IsStringWrapper(obj));
-          stack_.emplace_back(
-              ContinuationTypeForArray(kind, with_interrupt_checks), elements,
-              i + 1, length);
-          stack_.emplace_back(ContinuationRecord::kSimpleObject, obj, 0);
+          stack_.push_back(
+              ContinuationRecord::ForJSArrayResume<kind, with_interrupt_checks>(
+                  elements, i + 1, length));
+          stack_.push_back(ContinuationRecord::ForSimpleObject(obj));
           return result;
         } else {
           UNREACHABLE();
         }
       case JS_OBJECT:
       case JS_ARRAY:
-        stack_.emplace_back(
-            ContinuationTypeForArray(kind, with_interrupt_checks), elements,
-            i + 1, length);
-        stack_.emplace_back(ContinuationTypeFromResult(result), obj, 0);
+        stack_.push_back(
+            ContinuationRecord::ForJSArrayResume<kind, with_interrupt_checks>(
+                elements, i + 1, length));
+        stack_.push_back(ContinuationRecord::ForJSAny(obj, result));
         return result;
       case SUCCESS:
       case SLOW_PATH:
@@ -2802,10 +2928,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
   stack_ = old_stringifier.stack_;
   ContinuationRecord cont = stack_.back();
   stack_.pop_back();
-  if (cont.type == ContinuationRecord::kObjectKey) {
+  if (cont.type() == ContinuationRecord::kObjectKey) {
     // Serializing an object key caused an encoding change.
     FastJsonStringifierResult result =
-        SerializeObjectKey(Cast<String>(cont.object), cont.index, no_gc);
+        SerializeObjectKey(cont.object_key(), cont.object_key_comma(), no_gc);
     USE(result);
     DCHECK_EQ(result, SUCCESS);
     // Resuming due to encoding change of an object key guarantees that there
@@ -2815,11 +2941,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     cont = stack_.back();
     stack_.pop_back();
     // Check that we have the object's continuation record.
-    DCHECK_EQ(stack_.back().type, ContinuationRecord::kObjectResume);
+    DCHECK_EQ(stack_.back().type(), ContinuationRecord::kObjectResume);
   }
-  if (cont.type == ContinuationRecord::kSimpleObject) {
+  if (cont.type() == ContinuationRecord::kSimpleObject) {
     FastJsonStringifierResult result =
-        TrySerializeSimpleObject<false>(Cast<JSAny>(cont.object));
+        TrySerializeSimpleObject<false>(cont.simple_object());
     DCHECK_EQ(result, SUCCESS);
 
     // Early return if a top-level string triggered the encoding change.
@@ -2828,8 +2954,8 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     cont = stack_.back();
     stack_.pop_back();
   }
-  DCHECK(cont.type != ContinuationRecord::kSimpleObject &&
-         cont.type != ContinuationRecord::kObjectKey);
+  DCHECK(cont.type() != ContinuationRecord::kSimpleObject &&
+         cont.type() != ContinuationRecord::kObjectKey);
   return SerializeObject(cont, no_gc);
 }
 
@@ -2871,7 +2997,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
       DCHECK(IsString(object) || IsStringWrapper(object));
-      stack_.emplace_back(ContinuationRecord::kSimpleObject, object, 0);
+      stack_.push_back(ContinuationRecord::ForSimpleObject(object));
       return result;
     }
   } else {
@@ -2880,11 +3006,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
   if (result != JS_OBJECT && result != JS_ARRAY) {
     return result;
   }
-  return SerializeObject(
-      ContinuationRecord{result == JS_OBJECT ? ContinuationRecord::kObject
-                                             : ContinuationRecord::kArray,
-                         object, 0, 0},
-      no_gc);
+  return SerializeObject(ContinuationRecord::ForJSAny(object, result), no_gc);
 }
 
 template <typename Char>
@@ -2903,40 +3025,41 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
       if (V8_UNLIKELY(result != SUCCESS)) return result;
       interrupt_budget = kGlobalInterruptBudget;
     }
-    switch (cont.type) {
+    switch (cont.type()) {
       case ContinuationRecord::kObject: {
-        result = SerializeJSObject(Cast<JSObject>(cont.object), no_gc);
+        result = SerializeJSObject(cont.js_object(), no_gc);
         break;
       }
       case ContinuationRecord::kObjectResume: {
-        result = ResumeJSObject(Cast<JSObject>(cont.object), cont.index,
-                                cont.length, cont.in_object_properties,
-                                cont.in_object_properties_start,
-                                cont.descriptors, true, no_gc);
+        result = ResumeJSObject(cont.js_object(), cont.object_descriptor_idx(),
+                                cont.object_nof_descriptors(),
+                                cont.object_in_object_properties(),
+                                cont.object_in_object_properties_start(),
+                                cont.object_descriptors(), true, no_gc);
         break;
       }
       case ContinuationRecord::kArray: {
-        result = SerializeJSArray(Cast<JSArray>(cont.object));
+        result = SerializeJSArray(cont.js_array());
         break;
       }
       case ContinuationRecord::kArrayResume: {
         result = SerializeFixedArray<PACKED_ELEMENTS>(
-            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+            cont.array_elements(), cont.array_index(), cont.array_length());
         break;
       }
       case ContinuationRecord::kArrayResume_Holey: {
         result = SerializeFixedArray<HOLEY_ELEMENTS>(
-            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+            cont.array_elements(), cont.array_index(), cont.array_length());
         break;
       }
       case ContinuationRecord::kArrayResume_WithInterrupts: {
         result = SerializeFixedArrayWithInterruptCheck<PACKED_ELEMENTS>(
-            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+            cont.array_elements(), cont.array_index(), cont.array_length());
         break;
       }
       case ContinuationRecord::kArrayResume_Holey_WithInterrupts: {
         result = SerializeFixedArrayWithInterruptCheck<HOLEY_ELEMENTS>(
-            Cast<FixedArrayBase>(cont.object), cont.index, cont.length);
+            cont.array_elements(), cont.array_index(), cont.array_length());
         break;
       }
       default:
@@ -2983,10 +3106,10 @@ bool FastJsonStringifier<Char>::CheckCycle() {
   std::unordered_set<Address> set;
   for (uint32_t i = 0; i < stack_.size(); i++) {
     ContinuationRecord rec = stack_[i];
-    if (rec.type == ContinuationRecord::kObjectKey ||
-        rec.type == ContinuationRecord::kSimpleObject)
+    if (rec.type() == ContinuationRecord::kObjectKey ||
+        rec.type() == ContinuationRecord::kSimpleObject)
       continue;
-    Tagged<Object> obj = rec.object;
+    Tagged<Object> obj = rec.object();
     if (V8_UNLIKELY(set.find(obj.ptr()) != set.end())) {
       return true;
     }
