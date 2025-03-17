@@ -489,6 +489,13 @@ class MutateDb {
         this.outputDir, choices[random.randInt(0, choices.length - 1)]);
     return JSON.parse(fs.readFileSync(path), 'utf-8');
   }
+
+  *iterateStatements() {
+    for (const exp of this.index.all) {
+      const path = fsPath.join(this.outputDir, exp);
+      yield JSON.parse(fs.readFileSync(path), 'utf-8');
+    }
+  }
 }
 
 module.exports = {

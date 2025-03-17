@@ -92,6 +92,55 @@ class CrossOverMutator extends mutator.Mutator {
     return this._db;
   }
 
+  createInsertion(path, expression) {
+    if (expression.needsSuper &&
+        !validateSuper(path, expression.source)) {
+      return undefined;
+    }
+
+    // Insert the statement.
+    let toInsert = babelTemplate(
+        expression.source,
+        sourceHelpers.BABYLON_REPLACE_VAR_OPTIONS);
+    const dependencies = {};
+    const expressionDependencies = expression.dependencies;
+
+    if (expressionDependencies) {
+      const variables = common.availableVariables(path);
+      if (variables.length < expressionDependencies.length) {
+        return undefined;
+      }
+      const chosenVariables = random.sample(
+          variables, expressionDependencies.length);
+      for (const [index, dependency] of expressionDependencies.entries()) {
+        dependencies[dependency] = chosenVariables[index];
+      }
+    }
+
+    try {
+      toInsert = toInsert(dependencies);
+    } catch (e) {
+      if (this.settings.testing) {
+        // Fail early in tests.
+        throw e;
+      }
+      console.log('ERROR: Failed to parse:', expression.source);
+      console.log(e);
+      return undefined;
+    }
+
+    if (random.choose(WRAP_TC_IF_NEEDED_PROB) &&
+        needsTryCatch(expression.source)) {
+      toInsert = tryCatch.wrapTryCatch(toInsert);
+    }
+
+    this.annotate(
+        toInsert,
+        'Crossover from ' + expression.originalPath);
+
+    return toInsert;
+  }
+
   get visitor() {
     const thisMutator = this;
 
@@ -112,50 +161,8 @@ class CrossOverMutator extends mutator.Mutator {
         const randomExpression = thisMutator.db().getRandomStatement(
             {canHaveSuper: canHaveSuper});
 
-        if (randomExpression.needsSuper &&
-            !validateSuper(path, randomExpression.source)) {
-          return;
-        }
-
-        // Insert the statement.
-        let toInsert = babelTemplate(
-            randomExpression.source,
-            sourceHelpers.BABYLON_REPLACE_VAR_OPTIONS);
-        const dependencies = {};
-        const expressionDependencies = randomExpression.dependencies;
-
-        if (expressionDependencies) {
-          const variables = common.availableVariables(path);
-          if (variables.length < expressionDependencies.length) {
-            return;
-          }
-          const chosenVariables = random.sample(
-              variables, expressionDependencies.length);
-          for (const [index, dependency] of expressionDependencies.entries()) {
-            dependencies[dependency] = chosenVariables[index];
-          }
-        }
-
-        try {
-          toInsert = toInsert(dependencies);
-        } catch (e) {
-          if (thisMutator.settings.testing) {
-            // Fail early in tests.
-            throw e;
-          }
-          console.log('ERROR: Failed to parse:', randomExpression.source);
-          console.log(e);
-          return;
-        }
-
-        if (random.choose(WRAP_TC_IF_NEEDED_PROB) &&
-            needsTryCatch(randomExpression.source)) {
-          toInsert = tryCatch.wrapTryCatch(toInsert);
-        }
-
-        thisMutator.annotate(
-            toInsert,
-            'Crossover from ' + randomExpression.originalPath);
+        const toInsert = thisMutator.createInsertion(path, randomExpression);
+        if (!toInsert) return;
 
         if (random.choose(0.5)) {
           thisMutator.insertBeforeSkip(path, toInsert);

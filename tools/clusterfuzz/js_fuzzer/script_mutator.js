@@ -8,8 +8,12 @@
 
 'use strict';
 
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+
+const babelTraverse = require('@babel/traverse').default;
+const babelTypes = require('@babel/types');
 
 const common = require('./mutators/common.js');
 const db = require('./db.js');
@@ -81,12 +85,13 @@ class ScriptMutator {
   constructor(settings, db_path=undefined) {
     // Use process.cwd() to bypass pkg's snapshot filesystem.
     this.mutateDb = new db.MutateDb(db_path || path.join(process.cwd(), 'db'));
+    this.crossover = new CrossOverMutator(settings, this.mutateDb);
     this.mutators = [
       new ArrayMutator(settings),
       new ObjectMutator(settings),
       new VariableMutator(settings),
       new NumberMutator(settings),
-      new CrossOverMutator(settings, this.mutateDb),
+      this.crossover,
       new ExpressionMutator(settings),
       new FunctionCallMutator(settings),
       new VariableOrObjectMutator(settings),
@@ -287,6 +292,10 @@ class ScriptMutator {
     return dependencies;
   }
 
+  concatInputs(inputs) {
+    return common.concatPrograms(inputs);
+  }
+
   // Normalizes, combines and mutates multiple inputs.
   mutateInputs(inputs, dependencies) {
     const normalizerMutator = new IdentifierNormalizer();
@@ -303,7 +312,7 @@ class ScriptMutator {
 
     // Combine ASTs into one. This is so that mutations have more context to
     // cross over content between ASTs (e.g. variables).
-    const combinedSource = common.concatPrograms(inputs);
+    const combinedSource = this.concatInputs(inputs);
 
     // First pass for context information, then run other mutators.
     const context = analyzeContext(combinedSource);
@@ -364,9 +373,53 @@ class WasmScriptMutator extends ScriptMutator {
   }
 }
 
+/**
+ * Script mutator that only inserts one cross-over expression from the DB to
+ * validate.
+ */
+class CrossScriptMutator extends ScriptMutator {
+
+  // We don't do any mutations except a deterministic insertion of one
+  // snippet into a predefined place in a template.
+  mutate(source, context) {
+    // The __expression was pinned to the expression in the FixtureRunner.
+    assert(source.__expression);
+    const crossover = this.crossover;
+    let done = false;
+    babelTraverse(source.ast, {
+      ExpressionStatement(path) {
+        if (done || !path.node.expression ||
+            !babelTypes.isCallExpression(path.node.expression)) {
+          return;
+        }
+        // Avoid infinite loops if there's an expression statement in the
+        // inserted expression.
+        done = true;
+        path.insertAfter(crossover.createInsertion(path, source.__expression));
+      }
+    });
+  }
+
+  // This mutator has only one input to which the __expression was pinned.
+  concatInputs(inputs) {
+    assert(inputs.length == 1);
+    return inputs[0];
+  }
+
+  // No dependencies needed for simple snippet evaluation.
+  resolveDependencies() {
+    return [];
+  }
+
+  get runnerClass() {
+    return runner.FixtureRunner;
+  }
+}
+
 module.exports = {
   analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
+  CrossScriptMutator: CrossScriptMutator,
   ScriptMutator: ScriptMutator,
   WasmScriptMutator: WasmScriptMutator,
 };
