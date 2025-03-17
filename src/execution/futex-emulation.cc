@@ -22,8 +22,6 @@
 
 namespace v8::internal {
 
-using AtomicsWaitEvent = v8::Isolate::AtomicsWaitEvent;
-
 // A {FutexWaitList} manages all contexts waiting (synchronously or
 // asynchronously) on any address.
 class FutexWaitList {
@@ -153,7 +151,7 @@ void FutexWaitListNode::NotifyWake() {
 
 class ResolveAsyncWaiterPromisesTask : public CancelableTask {
  public:
-  ResolveAsyncWaiterPromisesTask(Isolate* isolate)
+  explicit ResolveAsyncWaiterPromisesTask(Isolate* isolate)
       : CancelableTask(isolate), isolate_(isolate) {}
 
   void RunInternal() override {
@@ -263,19 +261,6 @@ void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
   Verify();
 }
 
-void AtomicsWaitWakeHandle::Wake() {
-  // Adding a separate `NotifyWake()` variant that doesn't acquire the lock
-  // itself would likely just add unnecessary complexity..
-  // The split lock by itself isn’t an issue, as long as the caller properly
-  // synchronizes this with the closing `AtomicsWaitCallback`.
-  FutexWaitList* wait_list = GetWaitList();
-  {
-    NoGarbageCollectionMutexGuard lock_guard(wait_list->mutex());
-    stopped_ = true;
-  }
-  isolate_->futex_wait_list_node()->NotifyWake();
-}
-
 enum WaitReturnValue : int { kOk = 0, kNotEqualValue = 1, kTimedOut = 2 };
 
 namespace {
@@ -356,15 +341,6 @@ Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
               rel_timeout_ns);
 }
 
-namespace {
-double WaitTimeoutInMs(double timeout_ns) {
-  return timeout_ns < 0
-             ? V8_INFINITY
-             : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
-                             base::Time::kMicrosecondsPerMillisecond);
-}
-}  // namespace
-
 template <typename T>
 Tagged<Object> FutexEmulation::Wait(Isolate* isolate, WaitMode mode,
                                     DirectHandle<JSArrayBuffer> array_buffer,
@@ -388,16 +364,7 @@ Tagged<Object> FutexEmulation::WaitSync(
   base::TimeDelta rel_timeout =
       base::TimeDelta::FromNanoseconds(rel_timeout_ns);
 
-  // We have to convert the timeout back to double for the AtomicsWaitCallback.
-  double rel_timeout_ms = WaitTimeoutInMs(static_cast<double>(rel_timeout_ns));
-  AtomicsWaitWakeHandle stop_handle(isolate);
-
-  isolate->RunAtomicsWaitCallback(AtomicsWaitEvent::kStartWait, array_buffer,
-                                  addr, value, rel_timeout_ms, &stop_handle);
-  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
-
   DirectHandle<Object> result;
-  AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   FutexWaitList* wait_list = GetWaitList();
   FutexWaitListNode* node = isolate->futex_wait_list_node();
@@ -428,7 +395,6 @@ Tagged<Object> FutexEmulation::WaitSync(
     if (loaded_value != value) {
       result =
           direct_handle(Smi::FromInt(WaitReturnValue::kNotEqualValue), isolate);
-      callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
 
@@ -465,7 +431,6 @@ Tagged<Object> FutexEmulation::WaitSync(
 
         if (IsException(interrupt_object, isolate)) {
           result = direct_handle(interrupt_object, isolate);
-          callback_result = AtomicsWaitEvent::kTerminatedExecution;
           break;
         }
       }
@@ -475,13 +440,8 @@ Tagged<Object> FutexEmulation::WaitSync(
         continue;
       }
 
-      if (stop_handle.has_stopped()) {
-        node->waiting_ = false;
-        callback_result = AtomicsWaitEvent::kAPIStopped;
-      }
-
       if (!node->waiting_) {
-        // We were woken either via the stop_handle or via Wake.
+        // We were woken via Wake.
         result = direct_handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
@@ -492,7 +452,6 @@ Tagged<Object> FutexEmulation::WaitSync(
         if (current_time >= timeout_time) {
           result =
               direct_handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
-          callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }
 
@@ -512,14 +471,6 @@ Tagged<Object> FutexEmulation::WaitSync(
     wait_list->RemoveNode(node);
   } while (false);
   DCHECK(!node->waiting_);
-
-  isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
-                                  rel_timeout_ms, nullptr);
-
-  if (isolate->has_exception() &&
-      callback_result != AtomicsWaitEvent::kTerminatedExecution) {
-    return ReadOnlyRoots(isolate).exception();
-  }
 
   return *result;
 }

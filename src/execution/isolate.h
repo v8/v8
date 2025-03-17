@@ -1864,14 +1864,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap);
 
-  void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
-                              void* data);
-  void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
-                              DirectHandle<JSArrayBuffer> array_buffer,
-                              size_t offset_in_bytes, int64_t value,
-                              double timeout_in_ms,
-                              AtomicsWaitWakeHandle* stop_handle);
-
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, DirectHandle<JSPromise> promise,
                       DirectHandle<Object> parent);
@@ -2611,9 +2603,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   DateCache* date_cache_ = nullptr;
   base::RandomNumberGenerator* random_number_generator_ = nullptr;
   base::RandomNumberGenerator* fuzzer_rng_ = nullptr;
-  v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   v8::Isolate::ReleaseCppHeapCallback release_cpp_heap_callback_ = nullptr;
-  void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;

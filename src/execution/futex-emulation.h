@@ -39,18 +39,6 @@ class FutexWaitList;
 class Isolate;
 class JSArrayBuffer;
 
-class AtomicsWaitWakeHandle {
- public:
-  explicit AtomicsWaitWakeHandle(Isolate* isolate) : isolate_(isolate) {}
-
-  void Wake();
-  inline bool has_stopped() const { return stopped_; }
-
- private:
-  Isolate* isolate_;
-  bool stopped_ = false;
-};
-
 class FutexWaitListNode {
  public:
   // Create a sync FutexWaitListNode.
@@ -138,8 +126,8 @@ class FutexWaitListNode {
   void* wait_location_ = nullptr;
 
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
-  // if this node is currently contained in FutexEmulationGlobalState::wait_list
-  // or an AtomicsWaitWakeHandle has access to it.
+  // if this node is currently contained in
+  // FutexEmulationGlobalState::wait_list.
   bool waiting_ = false;
   bool interrupted_ = false;
 
@@ -210,7 +198,6 @@ class FutexEmulation : public AllStatic {
 
  private:
   friend class FutexWaitListNode;
-  friend class AtomicsWaitWakeHandle;
   friend class ResolveAsyncWaiterPromisesTask;
   friend class AsyncWaiterTimeoutTask;
 

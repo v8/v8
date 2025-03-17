@@ -10451,15 +10451,6 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i_isolate->RemoveCallCompletedCallback(callback);
 }
 
-void Isolate::AtomicsWaitWakeHandle::Wake() {
-  reinterpret_cast<i::AtomicsWaitWakeHandle*>(this)->Wake();
-}
-
-void Isolate::SetAtomicsWaitCallback(AtomicsWaitCallback callback, void* data) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->SetAtomicsWaitCallback(callback, data);
-}
-
 void Isolate::SetPromiseHook(PromiseHook hook) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetPromiseHook(hook);

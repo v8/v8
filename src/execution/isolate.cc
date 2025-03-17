@@ -6880,29 +6880,6 @@ void Isolate::RunReleaseCppHeapCallback(std::unique_ptr<v8::CppHeap> cpp_heap) {
   }
 }
 
-void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
-                                     void* data) {
-  atomics_wait_callback_ = callback;
-  atomics_wait_callback_data_ = data;
-}
-
-void Isolate::RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
-                                     DirectHandle<JSArrayBuffer> array_buffer,
-                                     size_t offset_in_bytes, int64_t value,
-                                     double timeout_in_ms,
-                                     AtomicsWaitWakeHandle* stop_handle) {
-  START_ALLOW_USE_DEPRECATED()
-  DCHECK(array_buffer->is_shared());
-  if (atomics_wait_callback_ == nullptr) return;
-  HandleScope handle_scope(this);
-  atomics_wait_callback_(
-      event, v8::Utils::ToLocalShared(array_buffer), offset_in_bytes, value,
-      timeout_in_ms,
-      reinterpret_cast<v8::Isolate::AtomicsWaitWakeHandle*>(stop_handle),
-      atomics_wait_callback_data_);
-  END_ALLOW_USE_DEPRECATED()
-}
-
 void Isolate::SetPromiseHook(PromiseHook hook) {
   promise_hook_ = hook;
   PromiseHookStateUpdated();
