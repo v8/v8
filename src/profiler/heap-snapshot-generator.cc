@@ -3430,7 +3430,6 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   writer_->AddNumber(edge_name_or_index);
   writer_->AddCharacter(',');
   writer_->AddNumber(to_node_index(edge->to()));
-  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeEdges() {
@@ -3464,7 +3463,6 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
     CHECK_EQ(0, entry->trace_node_id());
   }
   writer_->AddNumber(entry->detachedness());
-  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeNodes() {
@@ -3623,7 +3621,6 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
     writer_->AddNumber(info->line + 1);
     writer_->AddCharacter(',');
     writer_->AddNumber(info->column + 1);
-    writer_->AddCharacter('\n');
   }
 }
 
@@ -3641,12 +3638,10 @@ void HeapSnapshotJSONSerializer::SerializeSamples() {
     writer_->AddNumber(time_delta.InMicroseconds());
     writer_->AddCharacter(',');
     writer_->AddNumber(sample.last_assigned_id());
-    writer_->AddCharacter('\n');
   }
 }
 
 void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
-  writer_->AddCharacter('\n');
   writer_->AddCharacter('\"');
   for (; *s != '\0'; ++s) {
     switch (*s) {
@@ -3720,7 +3715,6 @@ void HeapSnapshotJSONSerializer::SerializeLocation(
   writer_->AddNumber(location.line);
   writer_->AddCharacter(',');
   writer_->AddNumber(location.col);
-  writer_->AddCharacter('\n');
 }
 
 void HeapSnapshotJSONSerializer::SerializeLocations() {
