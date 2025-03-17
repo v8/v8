@@ -58,10 +58,8 @@ String16::String16(const UChar* characters) : m_impl(characters) {}
 String16::String16(const char* characters)
     : String16(characters, std::strlen(characters)) {}
 
-String16::String16(const char* characters, size_t size) {
-  m_impl.resize(size);
-  for (size_t i = 0; i < size; ++i) m_impl[i] = characters[i];
-}
+String16::String16(const char* characters, size_t size)
+    : m_impl(characters, characters + size) {}
 String16::String16(std::string_view string)
     : String16(string.data(), string.length()) {}
 
