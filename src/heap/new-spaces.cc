@@ -553,8 +553,6 @@ SemiSpaceNewSpace::AllocateOnNewPageBeyondCapacity(
     int size_in_bytes, AllocationAlignment alignment) {
   DCHECK_LT(Available(), size_in_bytes);
   DCHECK(!AddFreshPage());
-  DCHECK(heap_->ShouldExpandYoungGenerationOnSlowAllocation(
-      PageMetadata::kPageSize));
   to_space_.allow_to_grow_beyond_capacity_ = true;
   if (!to_space_.AllocateFreshPage()) return std::nullopt;
   return Allocate(size_in_bytes, alignment);
