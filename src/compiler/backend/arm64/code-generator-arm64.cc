@@ -858,47 +858,43 @@ void Shuffle4Helper(MacroAssembler* masm, Arm64OperandConverter i,
   int32_t max_src0_lane = lane_count - 1;
   int32_t lane_mask = GetLaneMask(lane_count);
 
+  DCHECK_EQ(f, kFormat4S);
   // Check whether we can reduce the number of vmovs by performing a dup
   // first. So, for [1, 1, 2, 1] we can dup lane zero and then perform
   // a single lane move for lane two.
-  if (src0 == src1 && f == kFormat4S) {
-    const std::array<int, 4> lanes{
-        shuffle & max_src0_lane, shuffle >> 8 & max_src0_lane,
-        shuffle >> 16 & max_src0_lane, shuffle >> 24 & max_src0_lane};
-    std::array<int, 16> lane_counts{};
-    for (int lane : lanes) {
-      ++lane_counts[lane];
-    }
+  const std::array<int, 4> input_lanes{
+      shuffle & lane_mask, shuffle >> 8 & lane_mask, shuffle >> 16 & lane_mask,
+      shuffle >> 24 & lane_mask};
+  std::array<int, 8> lane_counts = {0};
+  for (int lane : input_lanes) {
+    ++lane_counts[lane];
+  }
 
-    int duplicate_lane = -1;
-    for (int lane = 0; lane < 16; ++lane) {
-      if (lane_counts[lane] > 1) {
-        duplicate_lane = lane;
-        break;
+  // Find first duplicate lane, if any, and insert dup.
+  int duplicate_lane = -1;
+  for (size_t lane = 0; lane < lane_counts.size(); ++lane) {
+    if (lane_counts[lane] > 1) {
+      duplicate_lane = static_cast<int>(lane);
+      if (duplicate_lane > max_src0_lane) {
+        masm->Dup(dst, src1, duplicate_lane & max_src0_lane);
+      } else {
+        masm->Dup(dst, src0, duplicate_lane);
       }
-    }
-
-    if (duplicate_lane != -1) {
-      masm->Dup(dst, src0, duplicate_lane);
-      for (int i = 0; i < 4; ++i) {
-        int lane = lanes[i];
-        if (lane == duplicate_lane) continue;
-        masm->Mov(dst, i, src0, lane);
-      }
-      return;
+      break;
     }
   }
 
   // Perform shuffle as a vmov per lane.
   for (int i = 0; i < 4; i++) {
-    VRegister src = src0;
     int lane = shuffle & lane_mask;
+    shuffle >>= 8;
+    if (lane == duplicate_lane) continue;
+    VRegister src = src0;
     if (lane > max_src0_lane) {
       src = src1;
       lane &= max_src0_lane;
     }
     masm->Mov(dst, i, src, lane);
-    shuffle >>= 8;
   }
 }
 
