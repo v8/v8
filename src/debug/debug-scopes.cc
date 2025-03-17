@@ -964,15 +964,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (mode == Mode::STACK) continue;
         DCHECK(var->IsContextSlot());
 
-        // We know of at least one open bug where the context and scope chain
-        // don't match (https://crbug.com/753338).
-        // Return `undefined` if the context's ScopeInfo doesn't know anything
-        // about this variable.
-        if (context_->scope_info()->ContextSlotIndex(var->name()) != index) {
-          value = isolate_->factory()->undefined_value();
-        } else {
-          value = handle(context_->get(index), isolate_);
-        }
+        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var->name()), index);
+        value = handle(context_->get(index), isolate_);
+
         if (v8_flags.script_context_mutable_heap_number &&
             context_->IsScriptContext()) {
           value = indirect_handle(Context::LoadScriptContextElement(
