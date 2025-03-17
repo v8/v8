@@ -1545,6 +1545,9 @@
   # Flaky under GC stress (sometimes precludes the tested optimization)
   'compiler/load-elimination-const-field': [SKIP],
 
+  # BUG(403297803): Flaky under GC stress.
+  'code-stats-flag': [SKIP],
+
   # Passes incompatible arguments.
   'd8/d8-arguments': [SKIP],
 
