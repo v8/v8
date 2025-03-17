@@ -1527,7 +1527,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&store_global);
     {
-      if (p->IsDefineKeyedOwn()) {
+      if (p->IsDefineNamedOwn()) {
+        // The global proxy has its attributes set in the global object,
+        // which can't be handled by StoreGlobalIC_PropertyCellCase when
+        // defining public fields. Handle it in runtime.
+        GotoIf(IsJSGlobalProxy(CAST(p->receiver())), &if_slow);
+      } else if (p->IsDefineKeyedOwn()) {
         Label proceed_defining(this);
         // StoreGlobalIC_PropertyCellCase doesn't support definition
         // of private fields, so handle them in runtime.
