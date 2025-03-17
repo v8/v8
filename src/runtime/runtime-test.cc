@@ -2289,25 +2289,23 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 #endif  // not V8_JITLESS
 }
 
-RUNTIME_FUNCTION(Runtime_IsNoWriteBarrierNeeded) {
-  HandleScope scope(isolate);
+RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
+#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
   DisallowGarbageCollection no_gc;
-  if (args.length() != 1) {
+  if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
-  DirectHandle<Object> object = args.at(0);
-  if (!(*object).IsHeapObject()) {
+  Tagged<Object> object = args[0];
+  if (!object.IsHeapObject()) {
     return CrashUnlessFuzzing(isolate);
   }
   auto heap_object = Cast<HeapObject>(object);
-  if (HeapLayout::InReadOnlySpace(*heap_object)) {
-    return ReadOnlyRoots(isolate).true_value();
-  }
-  if (WriteBarrier::GetWriteBarrierModeForObject(*heap_object, no_gc) !=
-      WriteBarrierMode::SKIP_WRITE_BARRIER) {
-    return ReadOnlyRoots(isolate).false_value();
-  }
-  return ReadOnlyRoots(isolate).true_value();
+  Tagged<Object> value = args[1];
+  CHECK(!WriteBarrier::IsRequired(heap_object, value));
+  return args[0];
+#else
+  UNREACHABLE();
+#endif
 }
 
 }  // namespace internal

@@ -2958,6 +2958,7 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
           AllocationType::kYoung) {
         __ StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset,
                                           value);
+        __ AssertElidedWriteBarrier(object, value, register_snapshot());
         break;
       }
       [[fallthrough]];
@@ -5047,7 +5048,9 @@ void StoreTaggedFieldNoWriteBarrier::GenerateCode(
   Register value = ToRegister(value_input());
 
   __ AssertNotSmi(object);
+
   __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
+  __ AssertElidedWriteBarrier(object, value, register_snapshot());
 }
 
 int StringAt::MaxCallStackArgs() const {
@@ -5964,6 +5967,7 @@ void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
   Register index = ToRegister(index_input());
   Register value = ToRegister(value_input());
   __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
+  __ AssertElidedWriteBarrier(elements, value, register_snapshot());
 }
 
 // ---
