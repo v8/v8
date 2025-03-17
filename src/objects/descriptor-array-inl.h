@@ -179,6 +179,19 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   return RawField(OffsetOfDescriptorAt(descriptor));
 }
 
+bool DescriptorArray::IsInitializedDescriptor(
+    InternalIndex descriptor_number) const {
+  DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  Tagged<Object> maybe_name =
+      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset);
+  bool is_initialized = !IsUndefined(maybe_name);
+  DCHECK_IMPLIES(is_initialized,
+                 IsSmi(EntryDetailsField::Relaxed_Load(*this, entry_offset)));
+  return is_initialized;
+}
+
 Tagged<Name> DescriptorArray::GetKey(InternalIndex descriptor_number) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetKey(cage_base, descriptor_number);

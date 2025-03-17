@@ -525,6 +525,10 @@ void ObjectStatsCollectorImpl::RecordPotentialDescriptorArraySavingsStats(
 
   int wasted_value_slots_count = obj->number_of_slack_descriptors();
   for (InternalIndex i : InternalIndex::Range(obj->number_of_descriptors())) {
+    if (!obj->IsInitializedDescriptor(i)) {
+      // This is a half-initialized DescriptorArray, don't read from it.
+      return;
+    }
     PropertyDetails details = obj->GetDetails(i);
     if (details.location() != PropertyLocation::kField) continue;
     Tagged<FieldType> field_type = obj->GetFieldType(i);

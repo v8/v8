@@ -82,6 +82,10 @@ class DescriptorArray
   inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number);
 
+  // Returns true if given entry is already initialized. Useful in cases
+  // when a heap stats collector might see a half-initialized descriptor.
+  inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
+
   inline Tagged<Name> GetSortedKey(int descriptor_number);
   inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
                                    int descriptor_number);
