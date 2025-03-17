@@ -81,7 +81,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:6b0b080aea4fa142b573795daa977e8751947452',
+  'siso_version': 'git_revision:3a38836e06344016dce6092148a07a114807f9f0',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f36fe658e8b3585a78f035b88905e607da35edf1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd4833a820ab65b136261fdebdb713b4299bd9d0a',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8550f0913b2123020a91365e64af979ba3ddadec',
   'buildtools/linux64': {
@@ -305,7 +305,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e2e6f2a67e9420e770b014ce9bba476fa2ab9874',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'b1b40281b395b40701da5c49643efe8584924362',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '14489e08b2c25aa5715e082fd2dc57bb1fb805aa',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
