@@ -186,20 +186,6 @@ class V8_EXPORT_PRIVATE Pipeline {
 
     Run<turboshaft::MachineLoweringPhase>();
 
-    // TODO(dmercadier): find a way to merge LoopPeeling and LoopUnrolling. It's
-    // not currently possible for 2 reasons. First, LoopPeeling reduces the
-    // number of iteration of a loop, thus invalidating LoopUnrolling's
-    // analysis. This could probably be worked around fairly easily though.
-    // Second, LoopPeeling has to emit the non-peeled header of peeled loops, in
-    // order to fix their loop phis (because their 1st input should be replace
-    // by their 2nd input coming from the peeled iteration), but LoopUnrolling
-    // has to be triggered before emitting the loop header. This could be fixed
-    // by changing LoopUnrolling start unrolling after the 1st header has been
-    // emitted, but this would also require updating CloneSubgraph.
-    if (v8_flags.turboshaft_loop_peeling) {
-      Run<turboshaft::LoopPeelingPhase>();
-    }
-
     if (v8_flags.turboshaft_loop_unrolling) {
       Run<turboshaft::LoopUnrollingPhase>();
     }
