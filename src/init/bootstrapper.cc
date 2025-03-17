@@ -4703,6 +4703,104 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     }
   }
 
+  {  // -- I t e r a t o r and helpers
+    DirectHandle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype(), isolate());
+    DirectHandle<JSFunction> iterator_function = InstallFunction(
+        isolate(), global, "Iterator", JS_OBJECT_TYPE, JSObject::kHeaderSize, 0,
+        iterator_prototype, Builtin::kIteratorConstructor, 0, kAdapt);
+
+    SimpleInstallFunction(isolate(), iterator_function, "from",
+                          Builtin::kIteratorFrom, 1, kAdapt);
+    InstallWithIntrinsicDefaultProto(isolate(), iterator_function,
+                                     Context::ITERATOR_FUNCTION_INDEX);
+
+    // --- %WrapForValidIteratorPrototype%
+    DirectHandle<JSObject> wrap_for_valid_iterator_prototype =
+        factory->NewJSObject(isolate()->object_function(),
+                             AllocationType::kOld);
+    JSObject::ForceSetPrototype(isolate(), wrap_for_valid_iterator_prototype,
+                                iterator_prototype);
+    JSObject::AddProperty(isolate(), iterator_prototype,
+                          factory->constructor_string(), iterator_function,
+                          DONT_ENUM);
+    SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "next",
+                          Builtin::kWrapForValidIteratorPrototypeNext, 0,
+                          kAdapt);
+    SimpleInstallFunction(
+        isolate(), wrap_for_valid_iterator_prototype, "return",
+        Builtin::kWrapForValidIteratorPrototypeReturn, 0, kAdapt);
+    DirectHandle<Map> valid_iterator_wrapper_map =
+        factory->NewContextfulMapForCurrentContext(
+            JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
+                      wrap_for_valid_iterator_prototype);
+    valid_iterator_wrapper_map->SetConstructor(*iterator_function);
+    native_context()->set_valid_iterator_wrapper_map(
+        *valid_iterator_wrapper_map);
+
+    // --- %IteratorHelperPrototype%
+    DirectHandle<JSObject> iterator_helper_prototype = factory->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
+    JSObject::ForceSetPrototype(isolate(), iterator_helper_prototype,
+                                iterator_prototype);
+    InstallToStringTag(isolate(), iterator_helper_prototype, "Iterator Helper");
+    SimpleInstallFunction(isolate(), iterator_helper_prototype, "next",
+                          Builtin::kIteratorHelperPrototypeNext, 0, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_helper_prototype, "return",
+                          Builtin::kIteratorHelperPrototypeReturn, 0, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "reduce",
+                          Builtin::kIteratorPrototypeReduce, 1, kDontAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "toArray",
+                          Builtin::kIteratorPrototypeToArray, 0, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "forEach",
+                          Builtin::kIteratorPrototypeForEach, 1, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "some",
+                          Builtin::kIteratorPrototypeSome, 1, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "every",
+                          Builtin::kIteratorPrototypeEvery, 1, kAdapt);
+    SimpleInstallFunction(isolate(), iterator_prototype, "find",
+                          Builtin::kIteratorPrototypeFind, 1, kAdapt);
+    SimpleInstallGetterSetter(isolate(), iterator_prototype,
+                              factory->to_string_tag_symbol(),
+                              Builtin::kIteratorPrototypeGetToStringTag,
+                              Builtin::kIteratorPrototypeSetToStringTag);
+
+    SimpleInstallGetterSetter(isolate(), iterator_prototype,
+                              factory->constructor_string(),
+                              Builtin::kIteratorPrototypeGetConstructor,
+                              Builtin::kIteratorPrototypeSetConstructor);
+
+    // --- Helper maps
+#define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \
+                                ALL_CAPS_NAME, argc)                           \
+  {                                                                            \
+    DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(        \
+        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                             \
+        JSIterator##Capitalized_name##Helper::kHeaderSize,                     \
+        TERMINAL_FAST_ELEMENTS_KIND, 0);                                       \
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
+    map->SetConstructor(*iterator_function);                                   \
+    native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
+    SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
+                          Builtin::kIteratorPrototype##Capitalized_name, argc, \
+                          kAdapt);                                             \
+  }
+
+#define ITERATOR_HELPERS(V)    \
+  V(map, Map, MAP, 1)          \
+  V(filter, Filter, FILTER, 1) \
+  V(take, Take, TAKE, 1)       \
+  V(drop, Drop, DROP, 1)       \
+  V(flatMap, FlatMap, FLAT_MAP, 1)
+
+    ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
+
+#undef INSTALL_ITERATOR_HELPER
+#undef ITERATOR_HELPERS
+  }
+
   {  // -- I t e r a t o r R e s u l t
     std::array<DirectHandle<Name>, 2> fields{factory->value_string(),
                                              factory->done_string()};
@@ -5517,110 +5615,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_remove_intl_locale_info_getters)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
-
-void Genesis::InitializeGlobal_harmony_iterator_helpers() {
-  if (!v8_flags.harmony_iterator_helpers) return;
-
-  // --- Iterator
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-  DirectHandle<JSObject> iterator_prototype(
-      native_context()->initial_iterator_prototype(), isolate());
-  DirectHandle<JSFunction> iterator_function = InstallFunction(
-      isolate(), global, "Iterator", JS_OBJECT_TYPE, JSObject::kHeaderSize, 0,
-      iterator_prototype, Builtin::kIteratorConstructor, 0, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_function, "from",
-                        Builtin::kIteratorFrom, 1, kAdapt);
-  InstallWithIntrinsicDefaultProto(isolate(), iterator_function,
-                                   Context::ITERATOR_FUNCTION_INDEX);
-
-  // --- %WrapForValidIteratorPrototype%
-  DirectHandle<JSObject> wrap_for_valid_iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(),
-                             AllocationType::kOld);
-  JSObject::ForceSetPrototype(isolate(), wrap_for_valid_iterator_prototype,
-                              iterator_prototype);
-  JSObject::AddProperty(isolate(), iterator_prototype,
-                        factory()->constructor_string(), iterator_function,
-                        DONT_ENUM);
-  SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "next",
-                        Builtin::kWrapForValidIteratorPrototypeNext, 0, kAdapt);
-  SimpleInstallFunction(isolate(), wrap_for_valid_iterator_prototype, "return",
-                        Builtin::kWrapForValidIteratorPrototypeReturn, 0,
-                        kAdapt);
-  DirectHandle<Map> valid_iterator_wrapper_map =
-      factory()->NewContextfulMapForCurrentContext(
-          JS_VALID_ITERATOR_WRAPPER_TYPE, JSValidIteratorWrapper::kHeaderSize,
-          TERMINAL_FAST_ELEMENTS_KIND, 0);
-  Map::SetPrototype(isolate(), valid_iterator_wrapper_map,
-                    wrap_for_valid_iterator_prototype);
-  valid_iterator_wrapper_map->SetConstructor(*iterator_function);
-  native_context()->set_valid_iterator_wrapper_map(*valid_iterator_wrapper_map);
-  LOG(isolate(), MapDetails(*valid_iterator_wrapper_map));
-
-  // --- %IteratorHelperPrototype%
-  DirectHandle<JSObject> iterator_helper_prototype = factory()->NewJSObject(
-      isolate()->object_function(), AllocationType::kOld);
-  JSObject::ForceSetPrototype(isolate(), iterator_helper_prototype,
-                              iterator_prototype);
-  InstallToStringTag(isolate(), iterator_helper_prototype, "Iterator Helper");
-  SimpleInstallFunction(isolate(), iterator_helper_prototype, "next",
-                        Builtin::kIteratorHelperPrototypeNext, 0, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_helper_prototype, "return",
-                        Builtin::kIteratorHelperPrototypeReturn, 0, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "reduce",
-                        Builtin::kIteratorPrototypeReduce, 1, kDontAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "toArray",
-                        Builtin::kIteratorPrototypeToArray, 0, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "forEach",
-                        Builtin::kIteratorPrototypeForEach, 1, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "some",
-                        Builtin::kIteratorPrototypeSome, 1, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "every",
-                        Builtin::kIteratorPrototypeEvery, 1, kAdapt);
-  SimpleInstallFunction(isolate(), iterator_prototype, "find",
-                        Builtin::kIteratorPrototypeFind, 1, kAdapt);
-
-  // https://github.com/tc39/proposal-iterator-helpers/pull/287
-  SimpleInstallGetterSetter(isolate(), iterator_prototype,
-                            isolate()->factory()->to_string_tag_symbol(),
-                            Builtin::kIteratorPrototypeGetToStringTag,
-                            Builtin::kIteratorPrototypeSetToStringTag);
-
-  SimpleInstallGetterSetter(isolate(), iterator_prototype,
-                            isolate()->factory()->constructor_string(),
-                            Builtin::kIteratorPrototypeGetConstructor,
-                            Builtin::kIteratorPrototypeSetConstructor);
-
-  // --- Helper maps
-#define INSTALL_ITERATOR_HELPER(lowercase_name, Capitalized_name,              \
-                                ALL_CAPS_NAME, argc)                           \
-  {                                                                            \
-    DirectHandle<Map> map = factory()->NewContextfulMapForCurrentContext(      \
-        JS_ITERATOR_##ALL_CAPS_NAME##_HELPER_TYPE,                             \
-        JSIterator##Capitalized_name##Helper::kHeaderSize,                     \
-        TERMINAL_FAST_ELEMENTS_KIND, 0);                                       \
-    Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
-    map->SetConstructor(*iterator_function);                                   \
-    native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
-    LOG(isolate(), MapDetails(*map));                                          \
-    SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
-                          Builtin::kIteratorPrototype##Capitalized_name, argc, \
-                          kAdapt);                                             \
-  }
-
-#define ITERATOR_HELPERS(V)    \
-  V(map, Map, MAP, 1)          \
-  V(filter, Filter, FILTER, 1) \
-  V(take, Take, TAKE, 1)       \
-  V(drop, Drop, DROP, 1)       \
-  V(flatMap, FlatMap, FLAT_MAP, 1)
-
-  ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
-
-#undef INSTALL_ITERATOR_HELPER
-#undef ITERATOR_HELPERS
-}
 
 void Genesis::InitializeGlobal_js_atomics_pause() {
   if (!v8_flags.js_atomics_pause) return;
