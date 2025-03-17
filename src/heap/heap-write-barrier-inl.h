@@ -390,7 +390,7 @@ void WriteBarrier::GenerationalBarrierForCppHeapPointer(Tagged<JSObject> host,
       host, value);
 }
 
-#ifdef ENABLE_SLOW_DCHECKS
+#if defined(ENABLE_SLOW_DCHECKS) || defined(V8_ENABLE_DEBUG_CODE)
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
@@ -409,6 +409,9 @@ bool WriteBarrier::IsRequired(Tagged<HeapObject> host, T value) {
   }
   return !IsImmortalImmovableHeapObject(target);
 }
+#endif
+
+#ifdef ENABLE_SLOW_DCHECKS
 // static
 template <typename T>
 bool WriteBarrier::IsRequired(const HeapObjectLayout* host, T value) {

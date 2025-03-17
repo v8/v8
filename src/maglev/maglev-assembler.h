@@ -261,6 +261,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void StoreInt32Field(Register object, int offset, int32_t value);
 
+  inline void AssertElidedWriteBarrier(Register object, Register value,
+                                       RegisterSnapshot snapshot);
+
 #ifdef V8_ENABLE_SANDBOX
 
   void StoreTrustedPointerFieldWithWriteBarrier(

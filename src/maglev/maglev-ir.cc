@@ -2950,13 +2950,26 @@ void StoreMap::GenerateCode(MaglevAssembler* masm,
   Register value = temps.Acquire();
   __ MoveTagged(value, map_.object());
 
-  if (kind() == Kind::kInitializingYoung) {
-    __ StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, value);
-  } else {
-    __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
-                                        register_snapshot(),
-                                        MaglevAssembler::kValueIsCompressed,
-                                        MaglevAssembler::kValueCannotBeSmi);
+  switch (kind()) {
+    case Kind::kInlinedAllocation: {
+      DCHECK(object_input().node()->Cast<InlinedAllocation>());
+      auto inlined = object_input().node()->Cast<InlinedAllocation>();
+      if (inlined->allocation_block()->allocation_type() ==
+          AllocationType::kYoung) {
+        __ StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset,
+                                          value);
+        __ AssertElidedWriteBarrier(object, value, register_snapshot());
+        break;
+      }
+      [[fallthrough]];
+    }
+    case Kind::kInitializing:
+    case Kind::kTransitioning:
+      __ StoreTaggedFieldWithWriteBarrier(object, HeapObject::kMapOffset, value,
+                                          register_snapshot(),
+                                          MaglevAssembler::kValueIsCompressed,
+                                          MaglevAssembler::kValueCannotBeSmi);
+      break;
   }
 }
 
@@ -5035,7 +5048,9 @@ void StoreTaggedFieldNoWriteBarrier::GenerateCode(
   Register value = ToRegister(value_input());
 
   __ AssertNotSmi(object);
+
   __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
+  __ AssertElidedWriteBarrier(object, value, register_snapshot());
 }
 
 int StringAt::MaxCallStackArgs() const {
@@ -5952,6 +5967,7 @@ void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
   Register index = ToRegister(index_input());
   Register value = ToRegister(value_input());
   __ StoreFixedArrayElementNoWriteBarrier(elements, index, value);
+  __ AssertElidedWriteBarrier(elements, value, register_snapshot());
 }
 
 // ---
@@ -7807,8 +7823,8 @@ std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
     case StoreMap::Kind::kInitializing:
       os << "Initializing";
       break;
-    case StoreMap::Kind::kInitializingYoung:
-      os << "InitializingYoung";
+    case StoreMap::Kind::kInlinedAllocation:
+      os << "InlinedAllocation";
       break;
     case StoreMap::Kind::kTransitioning:
       os << "Transitioning";
@@ -8065,7 +8081,7 @@ void NodeBase::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
 void StoreMap::ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects) {
   switch (kind()) {
     case Kind::kInitializing:
-    case Kind::kInitializingYoung:
+    case Kind::kInlinedAllocation:
       return;
     case Kind::kTransitioning: {
       if (NodeInfo* node_info =
