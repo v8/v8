@@ -1838,6 +1838,9 @@ class ExceptionHandlerInfo {
   ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
       : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
 
+  ExceptionHandlerInfo(BasicBlock* catch_block_ref, int depth)
+      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
+
   bool HasExceptionHandler() const {
     return pc_offset != kNoExceptionHandlerPCOffsetMarker;
   }

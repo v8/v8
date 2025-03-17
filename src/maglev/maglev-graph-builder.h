@@ -177,10 +177,8 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
-  MergePointInterpreterFrameState* state = nullptr;
-  const MaglevCompilationUnit* unit = nullptr;
+  bool exception_handler_was_used = false;
   int deopt_frame_distance = 0;
-  MaglevGraphBuilder* builder = nullptr;
 };
 
 struct MaglevCallerDetails {
@@ -192,6 +190,7 @@ struct MaglevCallerDetails {
       unobserved_context_slot_stores;
   CatchBlockDetails catch_block;
   bool is_inside_loop;
+  bool is_eager_inline;
   float call_frequency;
 };
 
@@ -389,6 +388,13 @@ class MaglevGraphBuilder {
   // function.
   bool is_inline() const { return caller_details_ != nullptr; }
   int inlining_depth() const { return compilation_unit_->inlining_depth(); }
+
+  bool is_eager_inline() const {
+    DCHECK(is_inline());
+    DCHECK_IMPLIES(!caller_details_->is_eager_inline,
+                   v8_flags.maglev_non_eager_inlining);
+    return caller_details_->is_eager_inline;
+  }
 
   DeoptFrame GetLatestCheckpointedFrame();
 
@@ -1161,7 +1167,7 @@ class MaglevGraphBuilder {
     if constexpr (NodeT::kProperties.can_throw()) {
       CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
       if (catch_block.ref) {
-        if (!catch_block.state->exception_handler_was_used()) {
+        if (!catch_block.exception_handler_was_used) {
           // Attach an empty live exception handler to mark that there's a
           // matching catch but we'll lazy deopt if we ever throw.
           new (node->exception_handler_info()) ExceptionHandlerInfo(
@@ -1171,17 +1177,31 @@ class MaglevGraphBuilder {
           return;
         }
 
-        new (node->exception_handler_info()) ExceptionHandlerInfo(
-            catch_block.ref, catch_block.deopt_frame_distance);
+        DCHECK_IMPLIES(!IsInsideTryBlock(), is_inline());
+        if (!IsInsideTryBlock() && !is_eager_inline()) {
+          // If we are inlining a function non-eagerly and we are not inside a
+          // try block, then the catch block already exists.
+          new (node->exception_handler_info()) ExceptionHandlerInfo(
+              catch_block.ref->block_ptr(), catch_block.deopt_frame_distance);
+        } else {
+          // If we are inside a try block for the current builder or if we are
+          // inside an eager inlined call inside a try block, the catch basic
+          // block doesn't exist yet, use the ref-list mechanism.
+          new (node->exception_handler_info()) ExceptionHandlerInfo(
+              catch_block.ref, catch_block.deopt_frame_distance);
+        }
+
         DCHECK(node->exception_handler_info()->HasExceptionHandler());
         DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
-        // Merge the current state into the handler state.
-        DCHECK_NOT_NULL(catch_block.state);
-        catch_block.state->MergeThrow(
-            catch_block.builder, catch_block.unit,
-            *current_interpreter_frame_.known_node_aspects(),
-            current_interpreter_frame_.virtual_objects());
+        if (IsInsideTryBlock()) {
+          // Merge the current state into the handler state.
+          auto state = GetCatchBlockFrameState();
+          DCHECK_NOT_NULL(state);
+          state->MergeThrow(this, compilation_unit_,
+                            *current_interpreter_frame_.known_node_aspects(),
+                            current_interpreter_frame_.virtual_objects());
+        }
       } else {
         // Patch no exception handler marker.
         // TODO(victorgomes): Avoid allocating exception handler data in this
@@ -1196,12 +1216,17 @@ class MaglevGraphBuilder {
   // region.
   bool IsInsideTryBlock() const { return catch_block_stack_.size() > 0; }
 
+  MergePointInterpreterFrameState* GetCatchBlockFrameState() {
+    DCHECK(IsInsideTryBlock());
+    return merge_states_[catch_block_stack_.top().handler];
+  }
+
   CatchBlockDetails GetCurrentTryCatchBlock() {
     if (IsInsideTryBlock()) {
       // Inside a try-block.
       int offset = catch_block_stack_.top().handler;
-      return {&jump_targets_[offset], merge_states_[offset], compilation_unit_,
-              0, this};
+      return {&jump_targets_[offset],
+              merge_states_[offset]->exception_handler_was_used(), 0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};

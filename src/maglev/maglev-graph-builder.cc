@@ -8429,6 +8429,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 #endif
                                                shared, arguments);
 
+  CatchBlockDetails catch_details = GetCurrentTryCatchBlock();
+  catch_details.deopt_frame_distance++;
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
@@ -8436,7 +8438,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
           /* loop effects */ nullptr,
           ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
               zone()),
-          CatchBlockDetails{}, IsInsideLoop(), call_frequency},
+          catch_details, IsInsideLoop(), /* is_eager_inline */ false,
+          call_frequency},
       generic_call, feedback_cell);
   graph()->inlineable_calls().push_back(call_site);
   return generic_call;
@@ -8452,12 +8455,14 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
   // Merge catch block state if needed.
   CatchBlockDetails catch_block_details = GetCurrentTryCatchBlock();
   if (catch_block_details.ref &&
-      catch_block_details.state->exception_handler_was_used()) {
-    // Merge the current state into the handler state.
-    catch_block_details.state->MergeThrow(
-        catch_block_details.builder, catch_block_details.unit,
-        *current_interpreter_frame_.known_node_aspects(),
-        current_interpreter_frame_.virtual_objects());
+      catch_block_details.exception_handler_was_used) {
+    if (IsInsideTryBlock()) {
+      // Merge the current state into the handler state.
+      GetCatchBlockFrameState()->MergeThrow(
+          this, compilation_unit_,
+          *current_interpreter_frame_.known_node_aspects(),
+          current_interpreter_frame_.virtual_objects());
+    }
     catch_block_details.deopt_frame_distance++;
   }
 
@@ -8473,7 +8478,7 @@ ReduceResult MaglevGraphBuilder::BuildEagerInlineCall(
       arguments_vector, deopt_frame,
       current_interpreter_frame_.known_node_aspects(), loop_effects_,
       unobserved_context_slot_stores_, catch_block_details, IsInsideLoop(),
-      call_frequency);
+      /* is_eager_inline */ true, call_frequency);
 
   // Create a new graph builder for the inlined function.
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
