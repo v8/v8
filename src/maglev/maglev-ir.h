@@ -8577,7 +8577,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
  public:
   enum class Kind {
     kInitializing,
-    kInlinedAllocation,
+    kInitializingYoung,
     kTransitioning,
   };
   explicit StoreMap(uint64_t bitfield, compiler::MapRef map, Kind kind)
@@ -8593,6 +8593,10 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
 
   compiler::MapRef map() const { return map_; }
   Kind kind() const { return KindField::decode(bitfield()); }
+  static Kind initializing_kind(AllocationType type) {
+    return type == AllocationType::kYoung ? Kind::kInitializingYoung
+                                          : Kind::kInitializing;
+  }
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();

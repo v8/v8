@@ -5821,13 +5821,16 @@ void CodeStubAssembler::FillFixedDoubleArrayWithZero(
 
 void CodeStubAssembler::TrySkipWriteBarrier(TNode<Object> object,
                                             Label* if_needs_write_barrier) {
-  static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
   TNode<BoolT> may_need_write_barrier =
       IsPageFlagSet(BitcastTaggedToWord(object),
                     MemoryChunk::kPointersFromHereAreInterestingMask);
   // TODO(olivf): Also skip the WB with V8_ENABLE_STICKY_MARK_BITS if the mark
   // bit is set.
   GotoIf(may_need_write_barrier, if_needs_write_barrier);
+
+  CSA_DCHECK(this, TaggedEqual(CallRuntime(Runtime::kIsNoWriteBarrierNeeded,
+                                           NoContextConstant(), object),
+                               TrueConstant()));
 }
 
 void CodeStubAssembler::MoveElements(ElementsKind kind,

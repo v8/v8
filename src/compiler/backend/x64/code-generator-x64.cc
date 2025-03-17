@@ -25,7 +25,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/heap-write-barrier.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
@@ -1847,7 +1846,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        not_zero, ool->stub_call());
       __ CheckMarkBit(object, scratch0, scratch1, carry, ool->entry());
 #else   // !V8_ENABLE_STICKY_MARK_BITS_BOOL
-      static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());

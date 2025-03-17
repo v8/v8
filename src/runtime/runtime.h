@@ -535,7 +535,6 @@ namespace internal {
   F(BaselineOsr, -1, 1)                       \
   F(BenchMaglev, 2, 1)                        \
   F(BenchTurbofan, 2, 1)                      \
-  F(CheckNoWriteBarrierNeeded, 2, 1)          \
   F(ClearFunctionFeedback, 1, 1)              \
   F(ClearMegamorphicStubCache, 0, 1)          \
   F(CompleteInobjectSlackTracking, 1, 1)      \
@@ -605,6 +604,7 @@ namespace internal {
   F(IsEfficiencyModeEnabled, 0, 1)            \
   F(IsInPlaceInternalizableString, 1, 1)      \
   F(IsInternalizedString, 1, 1)               \
+  F(IsNoWriteBarrierNeeded, 1, 1)             \
   F(StringToCString, 1, 1)                    \
   F(StringUtf8Value, 1, 1)                    \
   F(IsMaglevEnabled, 0, 1)                    \

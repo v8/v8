@@ -13000,7 +13000,7 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocationForHeapNumber(
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, 2);
   BuildStoreMap(allocation, broker()->heap_number_map(),
-                StoreMap::Kind::kInlinedAllocation);
+                StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreFloat64>({allocation, GetFloat64Constant(vobject->number())},
                            static_cast<int>(offsetof(HeapNumber, value_)));
   return allocation;
@@ -13015,7 +13015,7 @@ MaglevGraphBuilder::BuildInlinedAllocationForDoubleFixedArray(
   int length = vobject->double_elements_length();
   AddNonEscapingUses(allocation, length + 2);
   BuildStoreMap(allocation, broker()->fixed_double_array_map(),
-                StoreMap::Kind::kInlinedAllocation);
+                StoreMap::initializing_kind(allocation_type));
   AddNewNode<StoreTaggedFieldNoWriteBarrier>(
       {allocation, GetSmiConstant(length)},
       static_cast<int>(offsetof(FixedDoubleArray, length_)),
@@ -13070,7 +13070,7 @@ InlinedAllocation* MaglevGraphBuilder::BuildInlinedAllocation(
       if (vobject->has_static_map()) {
         AddNonEscapingUses(allocation, 1);
         BuildStoreMap(allocation, vobject->map(),
-                      StoreMap::Kind::kInlinedAllocation);
+                      StoreMap::initializing_kind(allocation_type));
       }
       for (uint32_t i = 0; i < values.size(); i++) {
         BuildInitializeStore(allocation, values[i], (i + 1) * kTaggedSize);

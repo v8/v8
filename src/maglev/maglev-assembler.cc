@@ -560,7 +560,6 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
     JumpIfSmi(value, *done);
   }
 
-  static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
   MaglevAssembler::TemporaryRegisterScope temp(this);
   Register scratch = temp.AcquireScratch();
   CheckPageFlag(object, scratch,

@@ -48,9 +48,6 @@ MarkingBarrier* WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
 
 void WriteBarrier::MarkingSlow(Tagged<HeapObject> host, HeapObjectSlot slot,
                                Tagged<HeapObject> value) {
-  SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
-                      MemoryChunk::FromHeapObject(host)->GetFlags() &
-                          MemoryChunk::kPointersFromHereAreInterestingMask);
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   marking_barrier->Write(host, slot, value);
 }
@@ -340,9 +337,6 @@ void WriteBarrier::GenerationalBarrierForCodeSlow(
 // static
 void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
-  SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
-                      MemoryChunk::FromAddress(slot)->GetFlags() &
-                          MemoryChunk::kPointersFromHereAreInterestingMask);
   if (HeapLayout::InYoungGeneration(value)) {
     MutablePageMetadata* table_chunk =
         MutablePageMetadata::FromHeapObject(table);

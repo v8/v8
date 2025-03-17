@@ -101,23 +101,15 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
   static inline void MarkingForTesting(Tagged<HeapObject> host, ObjectSlot,
                                        Tagged<Object> value);
 
-#if defined(ENABLE_SLOW_DCHECKS) || defined(V8_ENABLE_DEBUG_CODE)
+#ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
-#endif
-
-#ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(const HeapObjectLayout* host, T value);
   static bool VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
                                                JSDispatchHandle value,
                                                WriteBarrierMode mode);
 #endif
-
-  // In native code we skip any further write barrier processing if the hosts
-  // page does not have the kPointersFromHereAreInterestingMask. Users of this
-  // variable rely on that fact.
-  static constexpr bool kUninterestingPagesCanBeSkipped = true;
 
  private:
   static bool PageFlagsAreConsistent(Tagged<HeapObject> object);
