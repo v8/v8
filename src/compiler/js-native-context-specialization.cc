@@ -3066,11 +3066,23 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     value = graph()->NewNode(simplified()->StringWrapperLength(),
                              lookup_start_object);
   } else if (access_info.IsTypedArrayLength()) {
-    const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
-    DCHECK_EQ(maps.size(), 1);
-    value = graph()->NewNode(
-        simplified()->TypedArrayLength(maps[0].elements_kind()),
-        lookup_start_object);
+    if (receiver != lookup_start_object) {
+      // We're accessing the TypedArray length via a prototype (a TypedArray
+      // object in the prototype chain, objects below it not having a "length"
+      // property, reading via super.length). That will throw a TypeError.
+      value = effect = control = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowTypeError, 3),
+          jsgraph()->ConstantNoHole(
+              static_cast<int>(MessageTemplate::kIncompatibleMethodReceiver)),
+          jsgraph()->HeapConstantNoHole(factory()->TypedArrayLength_string()),
+          receiver, context, frame_state, effect, control);
+    } else {
+      const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
+      DCHECK_EQ(maps.size(), 1);
+      value = graph()->NewNode(
+          simplified()->TypedArrayLength(maps[0].elements_kind()),
+          lookup_start_object);
+    }
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant() ||
            access_info.IsDictionaryProtoDataConstant());

@@ -850,6 +850,7 @@
   V(_, toString_string, "toString")                                           \
   V(_, true_string, "true")                                                   \
   V(_, total_string, "total")                                                 \
+  V(_, TypedArrayLength_string, "get TypedArray.prototype.length")            \
   V(_, TypeError_string, "TypeError")                                         \
   V(_, Uint16Array_string, "Uint16Array")                                     \
   V(_, Uint32Array_string, "Uint32Array")                                     \
