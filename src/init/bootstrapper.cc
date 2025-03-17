@@ -4654,15 +4654,30 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
         isolate_, prototype, "delete", Builtin::kSetPrototypeDelete, 1, kAdapt);
     native_context()->set_set_delete(*set_delete);
 
+    SimpleInstallFunction(isolate_, prototype, "difference",
+                          Builtin::kSetPrototypeDifference, 1, kAdapt);
     SimpleInstallFunction(isolate_, prototype, "clear",
                           Builtin::kSetPrototypeClear, 0, kAdapt);
     SimpleInstallFunction(isolate_, prototype, "entries",
                           Builtin::kSetPrototypeEntries, 0, kAdapt);
     SimpleInstallFunction(isolate_, prototype, "forEach",
                           Builtin::kSetPrototypeForEach, 1, kDontAdapt);
+    SimpleInstallFunction(isolate_, prototype, "intersection",
+                          Builtin::kSetPrototypeIntersection, 1, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "isSubsetOf",
+                          Builtin::kSetPrototypeIsSubsetOf, 1, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "isSupersetOf",
+                          Builtin::kSetPrototypeIsSupersetOf, 1, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "isDisjointFrom",
+                          Builtin::kSetPrototypeIsDisjointFrom, 1, kAdapt);
     SimpleInstallGetter(isolate_, prototype,
                         factory->InternalizeUtf8String("size"),
                         Builtin::kSetPrototypeGetSize, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "symmetricDifference",
+                          Builtin::kSetPrototypeSymmetricDifference, 1, kAdapt);
+    SimpleInstallFunction(isolate_, prototype, "union",
+                          Builtin::kSetPrototypeUnion, 1, kAdapt);
+
     DirectHandle<JSFunction> values = SimpleInstallFunction(
         isolate_, prototype, "values", Builtin::kSetPrototypeValues, 0, kAdapt);
     JSObject::AddProperty(isolate_, prototype, factory->keys_string(), values,
@@ -5640,32 +5655,6 @@ void Genesis::InitializeGlobal_js_error_iserror() {
                                      isolate());
   InstallFunctionWithBuiltinId(isolate(), error_fun, "isError",
                                Builtin::kErrorIsError, 1, kAdapt);
-}
-
-void Genesis::InitializeGlobal_harmony_set_methods() {
-  if (!v8_flags.harmony_set_methods) return;
-
-  DirectHandle<JSObject> set_prototype(
-      native_context()->initial_set_prototype(), isolate());
-  SimpleInstallFunction(isolate(), set_prototype, "union",
-                        Builtin::kSetPrototypeUnion, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "intersection",
-                        Builtin::kSetPrototypeIntersection, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "difference",
-                        Builtin::kSetPrototypeDifference, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "symmetricDifference",
-                        Builtin::kSetPrototypeSymmetricDifference, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "isSubsetOf",
-                        Builtin::kSetPrototypeIsSubsetOf, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "isSupersetOf",
-                        Builtin::kSetPrototypeIsSupersetOf, 1, kAdapt);
-  SimpleInstallFunction(isolate(), set_prototype, "isDisjointFrom",
-                        Builtin::kSetPrototypeIsDisjointFrom, 1, kAdapt);
-
-  // The fast path in the Set constructor builtin checks for Set.prototype
-  // having been modified from its initial state. So, after adding new methods,
-  // we should reset the Set.prototype initial map.
-  native_context()->set_initial_set_prototype_map(set_prototype->map());
 }
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
