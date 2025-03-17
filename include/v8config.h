@@ -371,6 +371,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_USED (__has_attribute(used))
 # define V8_HAS_ATTRIBUTE_RETAIN (__has_attribute(retain))
+# define V8_HAS_ATTRIBUTE_OPTNONE (__has_attribute(optnone))
 // Support for the "preserve_most" attribute is limited:
 // - 32-bit platforms do not implement it,
 // - component builds fail because _dl_runtime_resolve clobbers registers,

@@ -6566,8 +6566,7 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 //
 // The following functions are used by our gdb macros.
 //
-V8_DONT_STRIP_SYMBOL
-V8_EXPORT_PRIVATE extern bool _v8_internal_Simulator_ExecDebugCommand(
+V8_DEBUGGING_EXPORT extern bool _v8_internal_Simulator_ExecDebugCommand(
     const char* command) {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate) {
