@@ -1018,8 +1018,7 @@ inline void SaveRegisterStateForCall::DefineSafepointWithLazyDeopt(
 
 inline void MaglevAssembler::AssertElidedWriteBarrier(
     Register object, Register value, RegisterSnapshot snapshot) {
-  // TODO(olivf): Enable the following.
-#if 0 && defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
+#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
   if (!v8_flags.slow_debug_code) return;
 
   ZoneLabelRef ok(this);
