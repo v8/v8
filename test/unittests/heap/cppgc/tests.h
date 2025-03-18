@@ -130,9 +130,6 @@ class TestSupportingAllocationOnly : public TestWithHeap {
   TestSupportingAllocationOnly();
 
  private:
-  CPPGC_PLUGIN_IGNORE(
-      "crbug.com/402564649: CPPGC_STACK_ALLOCATED_IGNORE not yet supported by "
-      "plugin")
   CPPGC_STACK_ALLOCATED_IGNORE("permitted for test code")
   subtle::NoGarbageCollectionScope no_gc_scope_;
 };

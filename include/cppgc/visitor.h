@@ -45,11 +45,7 @@ struct EphemeronPair {
   CPPGC_DISALLOW_NEW();
 
   EphemeronPair(K* k, V* v) : key(k), value(v) {}
-  CPPGC_PLUGIN_IGNORE(
-      "crbug.com/402564649: TraceEphemeron not yet recognized by plugin")
   WeakMember<K> key;
-  CPPGC_PLUGIN_IGNORE(
-      "crbug.com/402564649: TraceEphemeron not yet recognized by plugin")
   Member<V> value;
 
   void ClearValueIfKeyIsDead(const LivenessBroker& broker) {
