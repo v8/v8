@@ -7583,13 +7583,13 @@ TEST(Regress10900) {
 }
 
 namespace {
-void GenerateGarbage() {
+v8::Local<v8::Value> GenerateGarbage() {
   const char* source =
       "let roots = [];"
       "for (let i = 0; i < 100; i++) roots.push(new Array(1000).fill(0));"
       "roots.push(new Array(1000000).fill(0));"
       "roots;";
-  CompileRun(source);
+  return CompileRun(source);
 }
 
 }  // anonymous namespace
@@ -7630,7 +7630,7 @@ TEST(LongTaskStatsFullIncremental) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(CcTest::isolate());
-  GenerateGarbage();
+  v8::Global<v8::Value> objects(isolate, GenerateGarbage());
   v8::metrics::LongTaskStats::Reset(isolate);
   CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
                    .gc_full_incremental_wall_clock_duration_us);
