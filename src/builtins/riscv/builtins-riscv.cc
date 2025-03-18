@@ -4751,7 +4751,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC. Dereference the address and check for
     // this.
-    __ Uld(a4, MemOperand(t6));
+    __ LoadWord(a4, MemOperand(t6));
     __ Assert(ne, AbortReason::kReceivedInvalidReturnAddress, a4,
               Operand(kZapValue));
   }

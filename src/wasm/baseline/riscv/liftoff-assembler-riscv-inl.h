@@ -1140,7 +1140,6 @@ void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  DCHECK(is_uint5(rhs));
   VU.set(kScratchReg, E8, m1);
   vsll_vi(dst.fp().toV(), lhs.fp().toV(), rhs % 8);
 }
@@ -1306,7 +1305,6 @@ void LiftoffAssembler::emit_i16x8_shr_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_shri_u(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  DCHECK(is_uint5(rhs));
   VU.set(kScratchReg, E16, m1);
   vsrl_vi(dst.fp().toV(), lhs.fp().toV(), rhs % 16);
 }
