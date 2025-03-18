@@ -9912,6 +9912,10 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   Utils::ApiCheck(i::v8_flags.expose_gc,
                   "v8::Isolate::RequestGarbageCollectionForTesting",
                   "Must use --expose-gc");
+  // The embedder must have entered the isolate (via `Isolate::Scope`) such that
+  // the GC can get the "current" isolate from TLS.
+  DCHECK_EQ(this, Isolate::TryGetCurrent());
+
   if (type == kMinorGarbageCollection) {
     reinterpret_cast<i::Isolate*>(this)->heap()->CollectGarbage(
         i::NEW_SPACE, i::GarbageCollectionReason::kTesting,
