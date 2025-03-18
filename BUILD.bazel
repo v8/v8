@@ -638,7 +638,6 @@ filegroup(
         "include/cppgc/cross-thread-persistent.h",
         "include/cppgc/custom-space.h",
         "include/cppgc/default-platform.h",
-        "include/cppgc/ephemeron-pair.h",
         "include/cppgc/explicit-management.h",
         "include/cppgc/garbage-collected.h",
         "include/cppgc/heap.h",

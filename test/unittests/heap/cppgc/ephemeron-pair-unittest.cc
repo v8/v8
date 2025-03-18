@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/ephemeron-pair.h"
-
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
