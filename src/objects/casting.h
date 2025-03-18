@@ -222,7 +222,7 @@ inline bool Is(Tagged<MaybeWeak<U>> value) {
   }
 }
 template <typename T, typename... U>
-inline bool Is(Tagged<Union<U...>> value) {
+constexpr inline bool Is(Tagged<Union<U...>> value) {
   using UnionU = Union<U...>;
   if constexpr (is_subtype_v<UnionU, HeapObject>) {
     return Is<T>(Tagged<HeapObject>(value));
