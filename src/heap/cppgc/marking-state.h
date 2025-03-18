@@ -521,7 +521,7 @@ void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());
   DCHECK(header.IsMarked<AccessMode::kAtomic>());
-  header.Trace<mode>(&visitor);
+  header.TraceImpl<mode>(&visitor);
 }
 
 }  // namespace internal

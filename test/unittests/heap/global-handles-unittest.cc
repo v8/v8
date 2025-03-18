@@ -27,6 +27,7 @@
 
 #include "src/handles/global-handles.h"
 
+#include "include/cppgc/macros.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
@@ -45,10 +46,13 @@ namespace internal {
 namespace {
 
 struct TracedReferenceWrapper {
+  void Trace(cppgc::Visitor* v) { v->Trace(handle); }
   v8::TracedReference<v8::Object> handle;
 };
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
+  CPPGC_STACK_ALLOCATED();
+
  public:
   NonRootingEmbedderRootsHandler() : v8::EmbedderRootsHandler() {}
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
