@@ -2915,13 +2915,15 @@ void WebAssemblyExceptionGetArgImpl(
       case i::wasm::kRefNull:
         decode_index++;
         break;
+      case i::wasm::kS128:
+        decode_index += 8;
+        break;
       case i::wasm::kI8:
       case i::wasm::kI16:
       case i::wasm::kF16:
       case i::wasm::kVoid:
       case i::wasm::kTop:
       case i::wasm::kBottom:
-      case i::wasm::kS128:
         UNREACHABLE();
     }
   }
