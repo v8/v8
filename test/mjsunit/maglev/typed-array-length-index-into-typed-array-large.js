@@ -4,6 +4,7 @@
 //
 // Flags: --allow-natives-syntax --maglev --no-always-turbofan
 // Flags: --typed-array-length-loading
+// Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 function foo(size) {
   let a = new Uint8Array(size);
@@ -28,5 +29,7 @@ if (%Is64Bit()) {
 
   // TODO(389019544): Fix the deopt loop and enable this:
   // assertTrue(isMaglevved(foo));
+  // Once this is fixed also --no-optimize-maglev-optimizes-to-turbofan
+  // could be removed.
   assertFalse(isMaglevved(foo));  // This will fail when the issue is fixed.
 }

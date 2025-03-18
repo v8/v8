@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --maglev --no-always-turbofan
+// Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 class Vector {
   constructor(x) {

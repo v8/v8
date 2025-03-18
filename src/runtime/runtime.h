@@ -1092,8 +1092,9 @@ enum class OptimizationStatus {
   kIsLazy = 1 << 18,
   kTopmostFrameIsMaglev = 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev = 1 << 20,
-  kMarkedForMaglevOptimization = 1 << 21,
-  kMarkedForConcurrentMaglevOptimization = 1 << 22,
+  kOptimizeMaglevOptimizesToTurbofan = 1 << 21,
+  kMarkedForMaglevOptimization = 1 << 22,
+  kMarkedForConcurrentMaglevOptimization = 1 << 23,
 };
 
 // The number of isolates used for testing in d8.

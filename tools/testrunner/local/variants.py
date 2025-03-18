@@ -104,6 +104,9 @@ ALL_VARIANT_FLAGS = {
     "stress_js_bg_compile_wasm_code_gc": [[
         "--stress-background-compile", "--stress-wasm-code-gc"
     ]],
+    "stress_maglev_tests_with_turbofan": [[
+        "--turbofan", "--optimize-maglev-optimizes-to-turbofan"
+    ]],
     "stress_wasm_stack_switching": [["--stress-wasm-stack-switching"]],
     "stress_incremental_marking": [["--stress-incremental-marking"]],
     "stress_snapshot": [["--stress-snapshot"]],
@@ -203,6 +206,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
+    "stress_maglev_tests_with_turbofan": ["--jitless"],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "always_sparkplug_and_stress_regexp_jit": ["--jitless", "--no-sparkplug"],
     "code_serializer": [

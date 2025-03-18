@@ -205,8 +205,9 @@ var V8OptimizationStatus = {
   kIsLazy: 1 << 18,
   kTopmostFrameIsMaglev: 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
-  kMarkedForMagkevOptimization: 1 << 21,
-  kMarkedForConcurrentMaglevOptimization: 1 << 22,
+  kOptimizeMaglevOptimizesToTurbofan: 1 << 21,
+  kMarkedForMagkevOptimization: 1 << 22,
+  kMarkedForConcurrentMaglevOptimization: 1 << 23,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -837,6 +838,13 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
+    if ((opt_status &
+         V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0) {
+      // When --optimize-maglev-optimizes-to-turbofan is used it's no longer
+      // guaranteed that a particular function stays optimized the same way
+      // as with Maglev.
+      return;
+    }
     assertTrue(
         (opt_status & V8OptimizationStatus.kOptimized) !== 0,
         'should be optimized: ' + name_opt);
@@ -895,8 +903,16 @@ var prettyPrinted;
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
-           (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+
+    const is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+    const is_maglevved = (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+    // When --optimize-maglev-optimizes-to-turbofan is used, in many tests this
+    // method is synonym with isTurboFanned. Tests where this doesn't hold
+    // might need to negate that flag.
+    const is_turbofanned_by_flag = (
+        (opt_status & V8OptimizationStatus.kTurboFanned) !== 0 &&
+        (opt_status & V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0);
+    return is_optimized && (is_maglevved || is_turbofanned_by_flag);
   }
 
   willBeMaglevved = function willBeMaglevved(fun) {

@@ -571,7 +571,10 @@ RUNTIME_FUNCTION(Runtime_CurrentFrameIsTurbofan) {
 #ifdef V8_ENABLE_MAGLEV
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   HandleScope scope(isolate);
-  return OptimizeFunctionOnNextCall(args, isolate, CodeKind::MAGLEV);
+  return OptimizeFunctionOnNextCall(
+      args, isolate,
+      v8_flags.optimize_maglev_optimizes_to_turbofan ? CodeKind::TURBOFAN_JS
+                                                     : CodeKind::MAGLEV);
 }
 #else
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
@@ -916,6 +919,10 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
     status |= static_cast<int>(
         OptimizationStatus::kOptimizeOnNextCallOptimizesToMaglev);
+  }
+  if (v8_flags.optimize_maglev_optimizes_to_turbofan) {
+    status |= static_cast<int>(
+        OptimizationStatus::kOptimizeMaglevOptimizesToTurbofan);
   }
 
   Handle<Object> function_object = args.at(0);
