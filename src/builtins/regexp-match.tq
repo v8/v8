@@ -15,9 +15,6 @@ const kEXPERIMENTAL: constexpr uint8
 const kRegExpDataIndirectPointerTag:
     constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
-extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
-    implicit context: Context)(JSAny, constexpr Flag, constexpr bool): bool;
-
 extern macro LoadTrustedPointerFromObject(
     HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 extern transitioning macro RegExpBuiltinsAssembler::RegExpMatchGlobal(
@@ -34,8 +31,21 @@ transitioning macro RegExpPrototypeMatchBody(
   if constexpr (isFastPath) {
     dcheck(Is<FastJSRegExp>(regexp));
   }
+  let isGlobal: bool;
+  let flagsString: String = StringConstant('');
 
-  const isGlobal: bool = FlagGetter(regexp, Flag::kGlobal, isFastPath);
+  // 4. Let flags be ? ToString(? Get(rx, "flags")).
+  // 5. If flags does not contain "g", then
+  //    a. Return ? RegExpExec(rx, S).
+  if constexpr (isFastPath) {
+    isGlobal = FastFlagGetter(UnsafeCast<FastJSRegExp>(regexp), Flag::kGlobal);
+  } else {
+    const flags = GetProperty(regexp, 'flags');
+    flagsString = ToString_Inline(flags);
+    const globalCharString: String = StringConstant('g');
+    const globalIndex: Smi = StringIndexOf(flagsString, globalCharString, 0);
+    isGlobal = globalIndex != -1;
+  }
 
   if (!isGlobal) {
     return isFastPath ? RegExpPrototypeExecBodyFast(regexp, string) :
@@ -61,8 +71,16 @@ transitioning macro RegExpPrototypeMatchBody(
     // .. and the generic slow path.
     dcheck(!isFastPath);
 
-    const isUnicode: bool = FlagGetter(regexp, Flag::kUnicode, isFastPath) ||
-        FlagGetter(regexp, Flag::kUnicodeSets, isFastPath);
+    // a. If flags contains "u" or flags contains "v", let fullUnicode be
+    // true. Otherwise, let fullUnicode be false.
+    const unicodeCharString = StringConstant('u');
+    const unicodeSetsCharString = StringConstant('v');
+
+    const fullUnicode =
+        StringIndexOf(flagsString, unicodeCharString, 0) != -1 ||
+        StringIndexOf(flagsString, unicodeSetsCharString, 0) != -1;
+
+    // b. Perform ? Set(rx, "lastIndex", +0𝔽, true).
     StoreLastIndex(regexp, 0, isFastPath);
 
     let array = growable_fixed_array::NewGrowableFixedArray();
@@ -91,7 +109,7 @@ transitioning macro RegExpPrototypeMatchBody(
         lastIndex = ToLength_Inline(lastIndex);
 
         const newLastIndex: Number = AdvanceStringIndex(
-            string, UnsafeCast<Number>(lastIndex), isUnicode, isFastPath);
+            string, UnsafeCast<Number>(lastIndex), fullUnicode, isFastPath);
 
         StoreLastIndex(regexp, newLastIndex, isFastPath);
       }

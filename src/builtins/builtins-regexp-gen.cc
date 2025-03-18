@@ -1494,59 +1494,6 @@ TNode<BoolT> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
              base::bits::CountTrailingZeros(static_cast<int>(flag)))));
 }
 
-// Load through the GetProperty stub.
-TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
-                                                     TNode<JSAny> regexp,
-                                                     JSRegExp::Flag flag) {
-  Label out(this), if_true(this), if_false(this);
-  TVARIABLE(BoolT, var_result);
-
-  // Only enabled based on a runtime flag.
-  if (flag == JSRegExp::kLinear) {
-    TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
-        MachineType::Uint8(),
-        ExternalConstant(ExternalReference::
-                             address_of_enable_experimental_regexp_engine())));
-    GotoIf(Word32Equal(Word32And(flag_value, Int32Constant(0xFF)),
-                       Int32Constant(0)),
-           &if_false);
-  }
-
-  Handle<String> name;
-  switch (flag) {
-    case JSRegExp::kNone:
-      UNREACHABLE();
-#define V(Lower, Camel, LowerCamel, Char, Bit)          \
-  case JSRegExp::k##Camel:                              \
-    name = isolate()->factory()->LowerCamel##_string(); \
-    break;
-      REGEXP_FLAG_LIST(V)
-#undef V
-  }
-
-  TNode<Object> value = GetProperty(context, regexp, name);
-  BranchIfToBooleanIsTrue(value, &if_true, &if_false);
-
-  BIND(&if_true);
-  var_result = BoolConstant(true);
-  Goto(&out);
-
-  BIND(&if_false);
-  var_result = BoolConstant(false);
-  Goto(&out);
-
-  BIND(&out);
-  return var_result.value();
-}
-
-TNode<BoolT> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
-                                                 TNode<JSAny> regexp,
-                                                 JSRegExp::Flag flag,
-                                                 bool is_fastpath) {
-  return is_fastpath ? FastFlagGetter(CAST(regexp), flag)
-                     : SlowFlagGetter(context, regexp, flag);
-}
-
 TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
     TNode<String> string, TNode<Number> index, TNode<BoolT> is_unicode,
     bool is_fastpath) {

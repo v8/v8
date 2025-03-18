@@ -202,8 +202,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   }
   TNode<BoolT> SlowFlagGetter(TNode<Context> context, TNode<JSAny> regexp,
                               JSRegExp::Flag flag);
-  TNode<BoolT> FlagGetter(TNode<Context> context, TNode<JSAny> regexp,
-                          JSRegExp::Flag flag, bool is_fastpath);
 
   TNode<Object> RegExpInitialize(const TNode<Context> context,
                                  const TNode<JSRegExp> regexp,

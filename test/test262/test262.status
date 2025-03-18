@@ -264,9 +264,6 @@
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=13174
-  'built-ins/RegExp/prototype/Symbol.match/flags-tostring-error': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/get-flags-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/get-unicode-error': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/flags-tostring-error': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/get-flags-err': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/get-unicode-error': [FAIL],
@@ -2482,8 +2479,6 @@
   'staging/sm/lexical-environment/var-in-catch-body-annex-b-eval': [FAIL],
   'staging/sm/object/clear-dictionary-accessor-getset': [FAIL],
   'staging/sm/object/values-entries-typedarray': [FAIL],
-  'staging/sm/RegExp/lastIndex-match-or-replace': [FAIL],
-  'staging/sm/RegExp/match-trace': [FAIL],
   'staging/sm/RegExp/replace-trace': [FAIL],
   'staging/sm/regress/regress-1507322-deep-weakmap': [FAIL],
   'staging/sm/regress/regress-563221': [FAIL],

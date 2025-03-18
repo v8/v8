@@ -1388,8 +1388,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
 
     BIND(&fast);
     {
-      TNode<BoolT> is_global = regexp_asm.FlagGetter(context, heap_maybe_regexp,
-                                                     JSRegExp::kGlobal, true);
+      TNode<BoolT> is_global =
+          regexp_asm.FastFlagGetter(CAST(heap_maybe_regexp), JSRegExp::kGlobal);
       Branch(is_global, &next, &throw_exception);
     }
 
