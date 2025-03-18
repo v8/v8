@@ -9,6 +9,7 @@
 'use strict';
 
 const assert = require('assert');
+const dircompare = require('dir-compare');
 const path = require('path');
 const fs = require('fs');
 
@@ -66,6 +67,26 @@ function loadV8TestData(relPath) {
   return sourceHelpers.loadSource(V8_TEST_CORPUS, relPath);
 }
 
+function assertExpectedPath(expectedPath, actualPath) {
+  const absPath = path.join(BASE_DIR, expectedPath);
+  if (process.env.GENERATE) {
+    if (fs.existsSync(absPath)) {
+      fs.rmSync(absPath, { recursive: true, force: true });
+    }
+    fs.cpSync(actualPath, absPath, {recursive: true});
+  }
+  const options = { compareSize: true };
+  const res = dircompare.compareSync(absPath, actualPath, options);
+
+  const message = (
+      `Equal: ${res.equal}, distinct: ${res.distinct}, ` +
+      `expected only: ${res.left}, actual only: ${res.right}, ` +
+      `differences: ${res.differences}`
+  );
+
+  assert.ok(res.same, message);
+}
+
 function assertExpectedResult(expectedPath, result) {
   const absPath = path.join(BASE_DIR, expectedPath);
   if (process.env.GENERATE) {
@@ -91,6 +112,7 @@ module.exports = {
   DB_DIR: DB_DIR,
   FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
   TEST_CORPUS: TEST_CORPUS,
+  assertExpectedPath: assertExpectedPath,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,
   deterministicRandom: deterministicRandom,
