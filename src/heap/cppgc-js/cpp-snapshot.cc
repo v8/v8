@@ -655,7 +655,7 @@ class WeakVisitor : public JSVisitor {
       // In case the visitor is used stand-alone, we trace through the container
       // here to create the same state as we would when the container is traced
       // separately.
-      container_header.Trace(this);
+      container_header.TraceImpl(this);
     }
   }
   void VisitEphemeron(const void* key, const void* value,
@@ -839,7 +839,7 @@ class CppGraphBuilderImpl::VisitationItem final : public WorkstackItemBase {
     VisiblityVisitor object_visitor(graph_builder, parent_scope);
     if (!current_.header()->IsInConstruction()) {
       // TODO(mlippautz): Handle in construction objects.
-      current_.header()->Trace(&object_visitor);
+      current_.header()->TraceImpl(&object_visitor);
     }
     if (!parent_) {
       current_.UnmarkPending();
@@ -871,7 +871,7 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
     // In case the names are visible, the graph is not traversed in this phase.
     // Explicitly trace one level to handle weak containers.
     WeakVisitor weak_visitor(*this);
-    header.Trace(&weak_visitor);
+    header.TraceImpl(&weak_visitor);
     if (parent) {
       // Eagerly update a parent object as its visibility state is now fixed.
       parent->MarkVisible();
@@ -1020,7 +1020,7 @@ void CppGraphBuilderImpl::Run() {
     GraphBuildingVisitor object_visitor(*this, parent_scope);
     if (!state.header()->IsInConstruction()) {
       // TODO(mlippautz): Handle in-construction objects.
-      state.header()->Trace(&object_visitor);
+      state.header()->TraceImpl(&object_visitor);
     }
     state.ForAllEphemeronEdges([this, &state](const HeapObjectHeader& value) {
       AddEdge(state, value, "part of key -> value pair in ephemeron table");

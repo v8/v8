@@ -32,7 +32,10 @@ struct DerivedMixin : GarbageCollectedMixin {
 };
 
 struct DerivedGCed : GCed, DerivedMixin {
-  void Trace(cppgc::Visitor* v) const override { GCed::Trace(v); }
+  void Trace(cppgc::Visitor* v) const override {
+    GCed::Trace(v);
+    DerivedMixin::Trace(v);
+  }
 };
 
 // Compile tests.
@@ -105,7 +108,7 @@ using MemberWithCustomBarrier =
     BasicMember<GCed, StrongMemberTag, CustomWriteBarrierPolicy>;
 
 struct CustomCheckingPolicy {
-  static std::vector<GCed*> Cached;
+  static std::vector<UntracedMember<GCed>> Cached;
   static size_t ChecksTriggered;
   template <typename T>
   void CheckPointer(RawPointer raw_pointer) {
@@ -125,7 +128,7 @@ struct CustomCheckingPolicy {
     ++ChecksTriggered;
   }
 };
-std::vector<GCed*> CustomCheckingPolicy::Cached;
+std::vector<UntracedMember<GCed>> CustomCheckingPolicy::Cached;
 size_t CustomCheckingPolicy::ChecksTriggered = 0;
 
 using MemberWithCustomChecking =
@@ -636,9 +639,8 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
 
 // The following tests create multiple heaps per thread, which is not supported
 // with pointer compression enabled.
-#if !defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
-  std::vector<Member<LinkedNode>> off_heap_member;
+  std::vector<UntracedMember<LinkedNode>> off_heap_member;
   // Verification state is constructed on first assignment.
   off_heap_member.emplace_back(
       MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr));
@@ -674,7 +676,6 @@ TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
         "");
   }
 }
-#endif  // defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 TEST_F(MemberTest, CompressDecompress) {

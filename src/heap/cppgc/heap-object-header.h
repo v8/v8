@@ -120,7 +120,7 @@ class HeapObjectHeader {
       GetName(HeapObjectNameForUnnamedObject) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
-  void Trace(Visitor*) const;
+  void TraceImpl(Visitor*) const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
@@ -340,7 +340,7 @@ HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
 #endif  // defined(CPPGC_CAGED_HEAP)
 
 template <AccessMode mode>
-void HeapObjectHeader::Trace(Visitor* visitor) const {
+void HeapObjectHeader::TraceImpl(Visitor* visitor) const {
   const GCInfo& gc_info =
       GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
   return gc_info.trace(visitor, ObjectStart());

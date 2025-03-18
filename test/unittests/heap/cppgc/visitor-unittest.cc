@@ -399,6 +399,8 @@ class GCedWithMultipleMember final
     visitor->TraceMultiple(fields, kNumElements);
   }
 
+  CPPGC_PLUGIN_IGNORE(
+      "crbug.com/402564649: TraceMultiple not yet recognized by plugin")
   MemberType<GCType> fields[kNumElements];
 };
 
@@ -446,6 +448,8 @@ class GCedWithMultipleComposite final
     visitor->TraceMultiple(fields, kNumElements);
   }
 
+  CPPGC_PLUGIN_IGNORE(
+      "crbug.com/402564649: TraceMultiple not yet recognized by plugin")
   Composite fields[kNumElements];
 };
 
@@ -468,6 +472,8 @@ class GCedWithMultipleCompositeUninitializedVtable final
     visitor->TraceMultiple(fields, kNumElements);
   }
 
+  CPPGC_PLUGIN_IGNORE(
+      "crbug.com/402564649: TraceMultiple not yet recognized by plugin")
   CompositeWithVtable fields[kNumElements];
 };
 
