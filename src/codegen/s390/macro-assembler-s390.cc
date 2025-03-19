@@ -6446,7 +6446,8 @@ void MacroAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
                                       Simd128Register scratch1,
                                       Simd128Register scratch2,
                                       Simd128Register scratch3) {
-  DCHECK(!AreAliased(src1, src2, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(src1, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(src2, scratch1, scratch2, scratch3));
   vrepi(scratch1, Operand(0x4000), Condition(2));
   Q15_MUL_ROAUND(scratch2, src1, src2, scratch1, scratch3, vupl)
   Q15_MUL_ROAUND(dst, src1, src2, scratch1, scratch3, vuph)
