@@ -62,6 +62,12 @@ constexpr bool IsEitherUnicode(RegExpFlags f) {
   return IsUnicode(f) || IsUnicodeSets(f);
 }
 
+// Whether to rewind the index when it initially points into the middle of a
+// surrogate pair. See also OptionallyStepBackToLeadSurrogate().
+constexpr bool ShouldOptionallyStepBackToLeadSurrogate(RegExpFlags f) {
+  return IsEitherUnicode(f) && (IsGlobal(f) || IsSticky(f));
+}
+
 // clang-format off
 #define V(Lower, Camel, LowerCamel, Char, Bit) \
   c == Char ? RegExpFlag::k##Camel :

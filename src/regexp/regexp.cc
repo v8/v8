@@ -64,7 +64,7 @@ class RegExpImpl final : public AllStatic {
                          int result_offsets_vector_length);
   static int AtomExecRaw(Isolate* isolate, const String::FlatContent& pattern,
                          const String::FlatContent& subject, int index,
-                         int32_t* result_offsets_vector,
+                         RegExpFlags flags, int32_t* result_offsets_vector,
                          int result_offsets_vector_length,
                          const DisallowGarbageCollection& no_gc);
 
@@ -395,7 +395,7 @@ namespace {
 template <typename SChar, typename PChar>
 int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
                     base::Vector<const PChar> pattern, int index,
-                    int32_t* output, int output_size,
+                    RegExpFlags flags, int32_t* output, int output_size,
                     const DisallowGarbageCollection& no_gc) {
   const int subject_length = subject.length();
   const int pattern_length = pattern.length();
@@ -404,6 +404,18 @@ int AtomExecRawImpl(Isolate* isolate, base::Vector<const SChar> subject,
 
   StringSearch<PChar, SChar> search(isolate, pattern);
   for (int i = 0; i < output_size; i += JSRegExp::kAtomRegisterCount) {
+    if constexpr (std::is_same_v<SChar, uint16_t>) {
+      if (index > 0 && index < subject_length &&
+          ShouldOptionallyStepBackToLeadSurrogate(flags)) {
+        // See https://github.com/tc39/ecma262/issues/128 and
+        // https://codereview.chromium.org/1608693003.
+        if (unibrow::Utf16::IsTrailSurrogate(subject[index]) &&
+            unibrow::Utf16::IsLeadSurrogate(subject[index - 1])) {
+          index--;
+        }
+      }
+    }
+
     if (index > max_index) {
       static_assert(RegExp::RE_FAILURE == 0);
       return i / JSRegExp::kAtomRegisterCount;  // Return number of matches.
@@ -434,9 +446,10 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate,
 
   DisallowGarbageCollection no_gc;
   Tagged<String> needle = regexp_data->pattern(isolate);
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(regexp_data->flags());
   String::FlatContent needle_content = needle->GetFlatContent(no_gc);
   String::FlatContent subject_content = subject->GetFlatContent(no_gc);
-  return AtomExecRaw(isolate, needle_content, subject_content, index,
+  return AtomExecRaw(isolate, needle_content, subject_content, index, flags,
                      result_offsets_vector, result_offsets_vector_length,
                      no_gc);
 }
@@ -445,7 +458,7 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate,
 int RegExpImpl::AtomExecRaw(Isolate* isolate,
                             const String::FlatContent& pattern,
                             const String::FlatContent& subject, int index,
-                            int32_t* result_offsets_vector,
+                            RegExpFlags flags, int32_t* result_offsets_vector,
                             int result_offsets_vector_length,
                             const DisallowGarbageCollection& no_gc) {
   DCHECK_GE(index, 0);
@@ -457,20 +470,20 @@ int RegExpImpl::AtomExecRaw(Isolate* isolate,
   return pattern.IsOneByte()
              ? (subject.IsOneByte()
                     ? AtomExecRawImpl(isolate, subject.ToOneByteVector(),
-                                      pattern.ToOneByteVector(), index,
+                                      pattern.ToOneByteVector(), index, flags,
                                       result_offsets_vector,
                                       result_offsets_vector_length, no_gc)
                     : AtomExecRawImpl(isolate, subject.ToUC16Vector(),
-                                      pattern.ToOneByteVector(), index,
+                                      pattern.ToOneByteVector(), index, flags,
                                       result_offsets_vector,
                                       result_offsets_vector_length, no_gc))
              : (subject.IsOneByte()
                     ? AtomExecRawImpl(isolate, subject.ToOneByteVector(),
-                                      pattern.ToUC16Vector(), index,
+                                      pattern.ToUC16Vector(), index, flags,
                                       result_offsets_vector,
                                       result_offsets_vector_length, no_gc)
                     : AtomExecRawImpl(isolate, subject.ToUC16Vector(),
-                                      pattern.ToUC16Vector(), index,
+                                      pattern.ToUC16Vector(), index, flags,
                                       result_offsets_vector,
                                       result_offsets_vector_length, no_gc));
 }
@@ -488,10 +501,11 @@ intptr_t RegExp::AtomExecRaw(Isolate* isolate,
   auto subject = Cast<String>(Tagged<Object>(subject_address));
 
   Tagged<String> pattern = data->pattern(isolate);
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(data->flags());
   String::FlatContent pattern_content = pattern->GetFlatContent(no_gc);
   String::FlatContent subject_content = subject->GetFlatContent(no_gc);
   return RegExpImpl::AtomExecRaw(isolate, pattern_content, subject_content,
-                                 index, result_offsets_vector,
+                                 index, flags, result_offsets_vector,
                                  result_offsets_vector_length, no_gc);
 }
 
