@@ -135,8 +135,8 @@ struct JSBuiltinDispatchHandleRoot {
   V(NewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)       \
   V(OldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)       \
   ISOLATE_DATA_FAST_C_CALL_PADDING(V)                                          \
-  V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \
   V(FastCCallCallerPC, kSystemPointerSize, fast_c_call_caller_pc)              \
+  V(FastCCallCallerFP, kSystemPointerSize, fast_c_call_caller_fp)              \
   V(FastApiCallTarget, kSystemPointerSize, fast_api_call_target)               \
   V(LongTaskStatsCounter, kSizetSize, long_task_stats_counter)                 \
   V(ThreadLocalTop, ThreadLocalTop::kSizeInBytes, thread_local_top)            \
@@ -458,10 +458,13 @@ class IsolateData final {
   // the sampling CPU profiler can iterate the stack during such calls. These
   // are stored on IsolateData so that they can be stored to with only one move
   // instruction in compiled code.
+  // Note that the PC field is right before FP. This is necessary for simulator
+  // builds for ARM64. This ensures that the PC is written before the FP with
+  // the stp instruction.
   struct {
     // The FP and PC that are saved right before MacroAssembler::CallCFunction.
-    Address fast_c_call_caller_fp_ = kNullAddress;
     Address fast_c_call_caller_pc_ = kNullAddress;
+    Address fast_c_call_caller_fp_ = kNullAddress;
   };
   // The address of the fast API callback right before it's executed from
   // generated code.

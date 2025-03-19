@@ -2148,11 +2148,15 @@ int MacroAssembler::CallCFunction(Register function, int num_of_reg_args,
     Adr(pc_scratch, &get_pc);
 
     CHECK(root_array_available());
-    static_assert(IsolateData::GetOffset(IsolateFieldId::kFastCCallCallerPC) ==
-                  IsolateData::GetOffset(IsolateFieldId::kFastCCallCallerFP) +
+    // Note that the field for PC is just before the FP. This ensures that in
+    // simulator builds the `Stp` below stores the PC (the lower address) first
+    // and only then the FP. This is necessary because during profiling we
+    // assume that once the FP field is set, the PC is also set already.
+    static_assert(IsolateData::GetOffset(IsolateFieldId::kFastCCallCallerFP) ==
+                  IsolateData::GetOffset(IsolateFieldId::kFastCCallCallerPC) +
                       8);
-    Stp(fp, pc_scratch,
-        ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
+    Stp(pc_scratch, fp,
+        ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerPC));
   }
 
   // Call directly. The function called cannot cause a GC, or allow preemption,
