@@ -162,7 +162,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   verification_state_.SetCurrentParent(&header);
 
   if (!header.IsInConstruction()) {
-    header.TraceImpl(visitor_.get());
+    header.Trace(visitor_.get());
   } else {
     // Dispatches to conservative tracing implementation.
     TraceConservativelyIfNeeded(header);

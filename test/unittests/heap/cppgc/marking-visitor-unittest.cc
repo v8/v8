@@ -5,7 +5,6 @@
 #include "src/heap/cppgc/marking-visitor.h"
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/source-location.h"
@@ -330,42 +329,27 @@ TEST_F(MarkingVisitorTest, StrongTracingMarksWeakMember) {
 namespace {
 
 struct GCedWithDestructor : GarbageCollected<GCedWithDestructor> {
-  explicit GCedWithDestructor(bool is_child = false) : is_child_(is_child) {}
   ~GCedWithDestructor() { ++g_finalized; }
 
   static size_t g_finalized;
 
-  void Trace(Visitor* v) const;
-  void TraceAfterDispatch(Visitor* v) const {}
-
- private:
-  const bool is_child_;
+  void Trace(Visitor* v) const {}
 };
 
 size_t GCedWithDestructor::g_finalized = 0;
 
 struct GCedWithInConstructionCallbackWithMember : GCedWithDestructor {
   template <typename Callback>
-  explicit GCedWithInConstructionCallbackWithMember(Callback callback)
-      : GCedWithDestructor(true) {
+  explicit GCedWithInConstructionCallbackWithMember(Callback callback) {
     callback(this);
   }
 
-  void TraceAfterDispatch(Visitor* v) const {
-    GCedWithDestructor::TraceAfterDispatch(v);
+  void Trace(Visitor* v) const {
+    GCedWithDestructor::Trace(v);
     v->Trace(member);
   }
   Member<GCed> member;
 };
-
-void GCedWithDestructor::Trace(Visitor* v) const {
-  if (is_child_) {
-    static_cast<const GCedWithInConstructionCallbackWithMember*>(this)
-        ->TraceAfterDispatch(v);
-  } else {
-    TraceAfterDispatch(v);
-  }
-}
 
 struct ConservativeTracerTest : public testing::TestWithHeap {
   ConservativeTracerTest() { GCedWithDestructor::g_finalized = 0; }

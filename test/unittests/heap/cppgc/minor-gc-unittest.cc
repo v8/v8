@@ -412,7 +412,7 @@ TYPED_TEST(MinorGCTestForType, InterGenerationalPointerForDifferentPageTypes) {
 TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForOnStackObject) {
   using Type = typename TestFixture::Type;
 
-  class StackAllocated {
+  class StackAllocated : GarbageCollected<StackAllocated> {
     CPPGC_STACK_ALLOCATED();
 
    public:
@@ -540,9 +540,7 @@ namespace {
 
 template <typename Value>
 struct InlinedObject {
-  CPPGC_DISALLOW_NEW();
   struct Inner {
-    CPPGC_DISALLOW_NEW();
     Inner() = default;
     explicit Inner(AllocationHandle& handle)
         : ref(MakeGarbageCollected<Value>(handle)) {}

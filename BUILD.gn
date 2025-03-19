@@ -17,10 +17,6 @@ import("//third_party/icu/config.gni")
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
 
-if (is_clang) {
-  import("//build/config/clang/clang.gni")
-}
-
 if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
@@ -505,10 +501,6 @@ declare_args() {
       false && !build_with_v8_embedder &&
       !(defined(build_with_node) && build_with_node) &&
       (v8_target_cpu != "ppc64" && v8_target_cpu != "s390x")
-
-  # V8 uses Chrome's blink-gc clang plugin for checking V8's internal cppgc
-  # usages. The plugin is not exhaustive but covers most common known pitfalls.
-  use_cppgc_clang_plugin = true
 }
 
 # Derived defaults.
@@ -1656,17 +1648,6 @@ config("toolchain") {
       # earlier. See https://reviews.llvm.org/D56731 for details about this
       # warning.
       cflags += [ "-Wctad-maybe-unsupported" ]
-    }
-
-    if (is_clang && use_cppgc_clang_plugin && clang_use_chrome_plugins) {
-      # The plugin is built directly into clang, so there's no need to load it
-      # dynamically.
-      cflags += [
-        "-Xclang",
-        "-add-plugin",
-        "-Xclang",
-        "blink-gc-plugin",
-      ]
     }
   }
 

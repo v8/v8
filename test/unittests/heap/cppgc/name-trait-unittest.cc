@@ -36,9 +36,7 @@ class ClassWithName final : public GarbageCollected<ClassWithName>,
 
 }  // namespace
 
-class NameTraitTest : public testing::TestWithHeap {};
-
-TEST_F(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
+TEST(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
   // Use a runtime test instead of static_assert to allow local builds but block
   // enabling the feature accidentally through the waterfall.
   //
@@ -51,7 +49,7 @@ TEST_F(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
 #endif
 }
 
-TEST_F(NameTraitTest, DefaultName) {
+TEST(NameTraitTest, DefaultName) {
   EXPECT_STREQ(
       NameProvider::SupportsCppClassNamesAsObjectNames()
           ? "cppgc::internal::(anonymous namespace)::NoName"
@@ -78,17 +76,16 @@ TEST_F(NameTraitTest, DefaultName) {
                    .value);
 }
 
-TEST_F(NameTraitTest, CustomName) {
-  ClassWithName* with_name =
-      MakeGarbageCollected<ClassWithName>(GetAllocationHandle(), "CustomName");
+TEST(NameTraitTest, CustomName) {
+  ClassWithName with_name("CustomName");
   EXPECT_STREQ(
       "CustomName",
       NameTrait<ClassWithName>::GetName(
-          with_name, HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+          &with_name, HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
           .value);
   EXPECT_STREQ("CustomName",
                NameTrait<ClassWithName>::GetName(
-                   with_name, HeapObjectNameForUnnamedObject::kUseHiddenName)
+                   &with_name, HeapObjectNameForUnnamedObject::kUseHiddenName)
                    .value);
 }
 
@@ -102,13 +99,13 @@ class TraitTester : public NameTraitBase {
 
 }  // namespace
 
-TEST_F(NameTraitTest, NoTypeAvailable) {
+TEST(NameTraitTest, NoTypeAvailable) {
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(nullptr);
   EXPECT_STREQ(NameProvider::kNoNameDeducible, name.value);
   EXPECT_FALSE(name.name_was_hidden);
 }
 
-TEST_F(NameTraitTest, ParsingPrettyFunction) {
+TEST(NameTraitTest, ParsingPrettyFunction) {
   // Test assumes that __PRETTY_FUNCTION__ and friends return a string
   // containing the the type as [T = <type>].
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(

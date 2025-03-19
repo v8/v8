@@ -7,7 +7,6 @@
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/heap.h"
-#include "include/cppgc/macros.h"
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/trace-event.h"
@@ -130,9 +129,6 @@ class TestSupportingAllocationOnly : public TestWithHeap {
   TestSupportingAllocationOnly();
 
  private:
-  CPPGC_PLUGIN_IGNORE(
-      "crbug.com/402564649: CPPGC_STACK_ALLOCATED_IGNORE not yet supported by "
-      "plugin")
   CPPGC_STACK_ALLOCATED_IGNORE("permitted for test code")
   subtle::NoGarbageCollectionScope no_gc_scope_;
 };

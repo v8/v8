@@ -273,13 +273,13 @@ class RessurectingPrefinalizer
 
  public:
   explicit RessurectingPrefinalizer(RefType<GCed>& ref, GCed* obj)
-      : ref_(reinterpret_cast<void*>(&ref)), obj_(obj) {}
+      : ref_(ref), obj_(obj) {}
   void Trace(Visitor*) const {}
-  void PreFinalizer() { *reinterpret_cast<RefType<GCed>*>(ref_) = obj_; }
+  void PreFinalizer() { ref_ = obj_; }
 
  private:
-  void* const ref_;
-  const UntracedMember<GCed> obj_;
+  RefType<GCed>& ref_;
+  GCed* obj_;
 };
 
 class GCedHolder : public GarbageCollected<GCedHolder> {

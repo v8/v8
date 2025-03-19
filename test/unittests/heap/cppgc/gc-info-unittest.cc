@@ -245,48 +245,15 @@ static_assert(std::is_same<typename internal::GCInfoFolding<
 class TypeWithCustomFinalizationMethodAtBase
     : public GarbageCollected<TypeWithCustomFinalizationMethodAtBase> {
  public:
-  explicit TypeWithCustomFinalizationMethodAtBase(bool is_child = false)
-      : is_child_(is_child) {}
-
-  void FinalizeGarbageCollectedObject();
-  void Trace(Visitor* v) const;
-
-  void TraceAfterDispatch(Visitor* v) const {}
-
- protected:
-  const bool is_child_;
+  void FinalizeGarbageCollectedObject() {}
+  void Trace(Visitor*) const {}
 
  private:
   std::unique_ptr<Dummy> non_trivially_destructible_;
 };
 
 class ChildOfTypeWithCustomFinalizationMethodAtBase
-    : public TypeWithCustomFinalizationMethodAtBase {
- public:
-  ChildOfTypeWithCustomFinalizationMethodAtBase()
-      : TypeWithCustomFinalizationMethodAtBase(true) {}
-  void TraceAfterDispatch(Visitor* v) const {
-    TypeWithCustomFinalizationMethodAtBase::TraceAfterDispatch(v);
-  }
-};
-
-void TypeWithCustomFinalizationMethodAtBase::FinalizeGarbageCollectedObject() {
-  if (is_child_) {
-    static_cast<const ChildOfTypeWithCustomFinalizationMethodAtBase*>(this)
-        ->~ChildOfTypeWithCustomFinalizationMethodAtBase();
-  } else {
-    this->~TypeWithCustomFinalizationMethodAtBase();
-  }
-}
-
-void TypeWithCustomFinalizationMethodAtBase::Trace(Visitor* v) const {
-  if (is_child_) {
-    static_cast<const ChildOfTypeWithCustomFinalizationMethodAtBase*>(this)
-        ->TraceAfterDispatch(v);
-  } else {
-    TraceAfterDispatch(v);
-  }
-}
+    : public TypeWithCustomFinalizationMethodAtBase {};
 
 static_assert(
     !std::has_virtual_destructor<TypeWithCustomFinalizationMethodAtBase>::value,
