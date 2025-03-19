@@ -874,6 +874,8 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "new_space_capacity=%zu "
+          "old_gen_allocation_limit=%zu "
+          "global_allocation_limit=%zu "
           "allocation_throughput=%.1f "
           "pool_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
@@ -915,6 +917,8 @@ void GCTracer::PrintNVP() const {
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+          heap_->old_generation_allocation_limit(),
+          heap_->global_allocation_limit(),
           AllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
       break;
@@ -971,6 +975,8 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_capacity=%zu "
+          "old_gen_allocation_limit=%zu "
+          "global_allocation_limit=%zu "
           "new_space_allocation_throughput=%.1f "
           "allocation_throughput=%.1f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
@@ -1013,6 +1019,8 @@ void GCTracer::PrintNVP() const {
           AverageSurvivalRatio(), heap_->promotion_rate_,
           heap_->new_space_surviving_rate_,
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+          heap_->old_generation_allocation_limit(),
+          heap_->global_allocation_limit(),
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           AllocationThroughputInBytesPerMillisecond());
       break;
@@ -1115,6 +1123,8 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "new_space_capacity=%zu "
+          "old_gen_allocation_limit=%zu "
+          "global_allocation_limit=%zu "
           "allocation_throughput=%.1f "
           "pool_chunks=%zu "
           "compaction_speed=%.1f\n",
@@ -1205,6 +1215,8 @@ void GCTracer::PrintNVP() const {
           heap_->new_space_surviving_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
+          heap_->old_generation_allocation_limit(),
+          heap_->global_allocation_limit(),
           AllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
           CompactionSpeedInBytesPerMillisecond().value_or(0.0));
