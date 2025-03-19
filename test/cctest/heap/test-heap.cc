@@ -7167,7 +7167,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
   if (!v8_flags.minor_ms) heap->ReduceNewSpaceSizeForTesting();
-  heap->memory_allocator()->pool()->ReleasePooledChunks();
+  heap->memory_allocator()->ReleasePooledChunksImmediately();
 }
 
 class DeleteNative {

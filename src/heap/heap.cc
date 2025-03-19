@@ -85,6 +85,7 @@
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
+#include "src/heap/page-pool.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/pretenuring-handler.h"
@@ -360,12 +361,6 @@ size_t Heap::CommittedOldGenerationMemory() {
   }
   return total + lo_space_->Size() + code_lo_space_->Size() +
          trusted_lo_space_->Size();
-}
-
-size_t Heap::CommittedMemoryOfPool() {
-  if (!HasBeenSetUp()) return 0;
-
-  return memory_allocator()->pool()->CommittedBufferedMemory();
 }
 
 size_t Heap::CommittedMemory() {
@@ -661,9 +656,9 @@ void Heap::PrintShortHeapStatistics() {
                (this->SizeOfObjects() + ro_space->Size()) / KB,
                (this->Available()) / KB, sweeping_in_progress() ? "*" : "",
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
+  const size_t chunks = memory_allocator()->GetPooledChunksCount();
   PrintIsolate(isolate_, "Pool buffering %zu chunks of committed: %6zu KB\n",
-               memory_allocator()->pool()->NumberOfCommittedChunks(),
-               CommittedMemoryOfPool() / KB);
+               chunks, (chunks * PageMetadata::kPageSize) / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory() / KB);
   PrintIsolate(isolate_, "Backing store memory: %6" PRIu64 " KB\n",
@@ -1143,7 +1138,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     }
     // Discard memory if the GC was requested to reduce memory.
     if (ShouldReduceMemory()) {
-      memory_allocator_->pool()->ReleasePooledChunks();
+      memory_allocator_->ReleasePooledChunksImmediately();
 #if V8_ENABLE_WEBASSEMBLY
       isolate_->stack_pool().ReleaseFinishedStacks();
 #endif
@@ -6229,6 +6224,7 @@ void Heap::TearDown() {
 
   read_only_space_ = nullptr;
 
+  memory_allocator()->pool()->ReleaseOnTearDown(isolate());
   memory_allocator()->TearDown();
 
   StrongRootsEntry* next = nullptr;

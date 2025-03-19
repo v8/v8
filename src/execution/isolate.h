@@ -2431,6 +2431,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static void IterateRegistersAndStackOfSimulator(
       ::heap::base::StackVisitor* visitor);
 
+  std::shared_ptr<v8::TaskRunner> task_runner() const { return task_runner_; }
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
@@ -2810,6 +2812,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::ArrayBuffer::Allocator* array_buffer_allocator_ = nullptr;
   std::shared_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_shared_;
   size_t array_buffer_max_size_ = 0;
+
+  std::shared_ptr<v8::TaskRunner> task_runner_;
 
   FutexWaitListNode futex_wait_list_node_;
 

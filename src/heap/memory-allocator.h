@@ -37,6 +37,7 @@ class TestMemoryAllocatorScope;
 class Heap;
 class Isolate;
 class ReadOnlyPageMetadata;
+class PagePool;
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
@@ -44,47 +45,6 @@ class ReadOnlyPageMetadata;
 // pages for large object space.
 class MemoryAllocator {
  public:
-  // Pool keeps pages allocated and accessible until explicitly flushed.
-  class V8_EXPORT_PRIVATE Pool {
-   public:
-    explicit Pool(MemoryAllocator* allocator) : allocator_(allocator) {}
-
-    Pool(const Pool&) = delete;
-    Pool& operator=(const Pool&) = delete;
-
-    void Add(MutablePageMetadata* chunk) {
-      // This method is called only on the main thread and only during the
-      // atomic pause so a lock is not needed.
-      DCHECK_NOT_NULL(chunk);
-      DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
-      DCHECK(!chunk->Chunk()->IsLargePage());
-      DCHECK(!chunk->Chunk()->IsTrusted());
-      DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
-      chunk->ReleaseAllAllocatedMemory();
-      pooled_chunks_.push_back(chunk);
-    }
-
-    MutablePageMetadata* TryGetPooled() {
-      base::MutexGuard guard(&mutex_);
-      if (pooled_chunks_.empty()) return nullptr;
-      MutablePageMetadata* chunk = pooled_chunks_.back();
-      pooled_chunks_.pop_back();
-      return chunk;
-    }
-
-    void ReleasePooledChunks();
-
-    size_t NumberOfCommittedChunks() const;
-    size_t CommittedBufferedMemory() const;
-
-   private:
-    MemoryAllocator* const allocator_;
-    std::vector<MutablePageMetadata*> pooled_chunks_;
-    mutable base::Mutex mutex_;
-
-    friend class MemoryAllocator;
-  };
-
   enum class AllocationMode {
     // Regular allocation path. Does not use pool.
     kRegular,
@@ -227,7 +187,7 @@ class MemoryAllocator {
     }
   }
 
-  Pool* pool() { return &pool_; }
+  PagePool* pool() { return pool_; }
 
   void UnregisterReadOnlyPage(ReadOnlyPageMetadata* page);
 
@@ -249,6 +209,21 @@ class MemoryAllocator {
   // We postpone page freeing until the pointer-update phase is done (updating
   // slots may happen for dead objects which point to dead memory).
   void ReleaseQueuedPages();
+
+  // Returns the number of cached chunks for this isolate.
+  V8_EXPORT_PRIVATE size_t GetPooledChunksCount();
+
+  // Returns the number of shared cached chunks.
+  V8_EXPORT_PRIVATE size_t GetSharedPooledChunksCount();
+
+  // Returns the number of total cached chunks (including cached pages of other
+  // isolates).
+  V8_EXPORT_PRIVATE size_t GetTotalPooledChunksCount();
+
+  // Releases all pooled chunks for this isolate immediately.
+  V8_EXPORT_PRIVATE void ReleasePooledChunksImmediately();
+
+  static void DeleteMemoryChunk(MutablePageMetadata* metadata);
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -430,7 +405,7 @@ class MemoryAllocator {
   std::atomic<Address> highest_executable_ever_allocated_{kNullAddress};
 
   std::optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
-  Pool pool_;
+  PagePool* pool_;
   std::vector<MutablePageMetadata*> queued_pages_to_be_freed_;
 
 #ifdef DEBUG

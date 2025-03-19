@@ -849,14 +849,13 @@ void Sweeper::EnsureMajorCompleted() {
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
     // Discard all pooled pages on memory-reducing GCs.
     if (major_sweeping_state_.should_reduce_memory()) {
-      heap_->memory_allocator()->pool()->ReleasePooledChunks();
+      heap_->memory_allocator()->ReleasePooledChunksImmediately();
     }
     FinishMajorJobs();
     major_sweeping_state_.FinishSweeping();
     // Sweeping should not add pages to the pool.
-    DCHECK_IMPLIES(
-        major_sweeping_state_.should_reduce_memory(),
-        heap_->memory_allocator()->pool()->NumberOfCommittedChunks() == 0);
+    DCHECK_IMPLIES(major_sweeping_state_.should_reduce_memory(),
+                   heap_->memory_allocator()->GetPooledChunksCount() == 0);
   }
 }
 

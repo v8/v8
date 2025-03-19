@@ -133,6 +133,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // further allocations (to make it easier to keep track of the intermediate
     // generation). This flag should only ever be set during a scavenge cycle.
     IS_QUARANTINED = 1u << 23,
+
+    // Set on pages which were shrunk to the "high water mark".
+    SHRINK_TO_HIGH_WATER_MARK = 1u << 24,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

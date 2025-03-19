@@ -1263,9 +1263,6 @@ class Heap final {
 
   base::Mutex* heap_expansion_mutex() { return &heap_expansion_mutex_; }
 
-  // Returns the amount of memory currently held alive by the pool.
-  size_t CommittedMemoryOfPool();
-
   // Returns the amount of memory currently committed for the heap.
   size_t CommittedMemory();
 

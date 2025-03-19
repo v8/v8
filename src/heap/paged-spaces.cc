@@ -96,8 +96,12 @@ void PagedSpaceBase::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MutablePageMetadata* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                     chunk);
+    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE) &&
+                        !chunk->Chunk()->IsFlagSet(
+                            MemoryChunk::SHRINK_TO_HIGH_WATER_MARK)
+                    ? MemoryAllocator::FreeMode::kPool
+                    : MemoryAllocator::FreeMode::kImmediately;
+    heap()->memory_allocator()->Free(mode, chunk);
   }
   accounting_stats_.Clear();
 }

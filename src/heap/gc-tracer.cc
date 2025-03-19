@@ -800,8 +800,8 @@ void GCTracer::Print() const {
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB,
-      static_cast<double>(
-          heap_->memory_allocator()->pool()->CommittedBufferedMemory()) /
+      static_cast<double>(heap_->memory_allocator()->GetPooledChunksCount() *
+                          PageMetadata::kPageSize) /
           MB,
       duration.InMillisecondsF(), total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),
@@ -877,7 +877,9 @@ void GCTracer::PrintNVP() const {
           "old_gen_allocation_limit=%zu "
           "global_allocation_limit=%zu "
           "allocation_throughput=%.1f "
-          "pool_chunks=%zu\n",
+          "pool_local_chunks=%zu "
+          "pool_shared_chunks=%zu "
+          "pool_total_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
           young_gc_while_full_gc_,
@@ -920,7 +922,9 @@ void GCTracer::PrintNVP() const {
           heap_->old_generation_allocation_limit(),
           heap_->global_allocation_limit(),
           AllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfCommittedChunks());
+          heap_->memory_allocator()->GetPooledChunksCount(),
+          heap_->memory_allocator()->GetSharedPooledChunksCount(),
+          heap_->memory_allocator()->GetTotalPooledChunksCount());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
@@ -1126,7 +1130,9 @@ void GCTracer::PrintNVP() const {
           "old_gen_allocation_limit=%zu "
           "global_allocation_limit=%zu "
           "allocation_throughput=%.1f "
-          "pool_chunks=%zu "
+          "pool_local_chunks=%zu "
+          "pool_shared_chunks=%zu "
+          "pool_total_chunks=%zu "
           "compaction_speed=%.1f\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
@@ -1218,7 +1224,9 @@ void GCTracer::PrintNVP() const {
           heap_->old_generation_allocation_limit(),
           heap_->global_allocation_limit(),
           AllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->pool()->NumberOfCommittedChunks(),
+          heap_->memory_allocator()->GetPooledChunksCount(),
+          heap_->memory_allocator()->GetSharedPooledChunksCount(),
+          heap_->memory_allocator()->GetTotalPooledChunksCount(),
           CompactionSpeedInBytesPerMillisecond().value_or(0.0));
       break;
     case Event::Type::START:

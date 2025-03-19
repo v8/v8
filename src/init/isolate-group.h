@@ -7,7 +7,9 @@
 
 #include <memory>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-memory-span.h"
+#include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/mutex.h"
@@ -34,6 +36,8 @@ class LeakyObject;
 }  // namespace base
 
 namespace internal {
+
+class PagePool;
 
 #ifdef V8_ENABLE_SANDBOX
 class MemoryChunkMetadata;
@@ -235,11 +239,44 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   void AddIsolate(Isolate* isolate);
   void RemoveIsolate(Isolate* isolate);
 
+  PagePool* page_pool() const {
+    DCHECK(page_pool_);
+    return page_pool_.get();
+  }
+
+  template <typename Callback>
+  bool FindAnotherIsolateLocked(Isolate* isolate, Callback callback) {
+    // Holding this mutex while invoking the callback avoids the isolate tearing
+    // down in the mean time.
+    base::MutexGuard group_guard(mutex_);
+    Isolate* target_isolate = nullptr;
+    DCHECK_NOT_NULL(main_isolate_);
+
+    if (main_isolate_ != isolate) {
+      target_isolate = main_isolate_;
+    } else {
+      for (Isolate* entry : isolates_) {
+        if (entry != isolate) {
+          target_isolate = entry;
+          break;
+        }
+      }
+    }
+
+    if (target_isolate) {
+      callback(target_isolate);
+      return true;
+    }
+
+    return false;
+  }
+
   V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
  private:
   friend class base::LeakyObject<IsolateGroup>;
   friend class PoolTest;
+  friend class PagePool;
 
   // Unless you manually create a new isolate group, all isolates in a process
   // are in the same isolate group and share process-wide resources from
@@ -279,6 +316,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   thread_local static IsolateGroup* current_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
+  std::unique_ptr<PagePool> page_pool_;
+
   base::OnceType init_code_range_ = V8_ONCE_INIT;
   std::unique_ptr<CodeRange> code_range_;
   Address external_ref_table_[ExternalReferenceTable::kSizeIsolateIndependent] =
@@ -294,6 +333,14 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   Isolate* shared_space_isolate_ = nullptr;
   std::unique_ptr<OptimizingCompileTaskExecutor>
       optimizing_compile_task_executor_;
+
+  // Set of isolates currently in the IsolateGroup. Guarded by mutex_.
+  absl::flat_hash_set<Isolate*> isolates_;
+
+  // The first isolate to join the group. However, it will be replaced by
+  // another isolate if that isolate tears down before all other isolates have
+  // left.
+  Isolate* main_isolate_ = nullptr;
 
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* sandbox_ = nullptr;

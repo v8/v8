@@ -123,6 +123,8 @@ size_t PageMetadata::ShrinkToHighWaterMark() {
   DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
 
+  Chunk()->SetFlagNonExecutable(MemoryChunk::SHRINK_TO_HIGH_WATER_MARK);
+
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
                             MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {

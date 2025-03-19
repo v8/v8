@@ -1800,6 +1800,8 @@ filegroup(
         "src/heap/page-metadata.cc",
         "src/heap/page-metadata.h",
         "src/heap/page-metadata-inl.h",
+        "src/heap/page-pool.cc",
+        "src/heap/page-pool.h",
         "src/heap/paged-spaces.cc",
         "src/heap/paged-spaces.h",
         "src/heap/paged-spaces-inl.h",

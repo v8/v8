@@ -4,6 +4,8 @@
 
 #include "src/init/isolate-group.h"
 
+#include <memory>
+
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
@@ -11,6 +13,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
+#include "src/heap/page-pool.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
@@ -90,6 +93,10 @@ struct PtrComprCageReservationParams
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK_EQ(isolate_count_, 0);
+  DCHECK(isolates_.empty());
+  DCHECK_NULL(main_isolate_);
+
+  page_pool_->TearDown();
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table_.TearDown();
@@ -140,6 +147,7 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   code_pointer_table()->Initialize();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
+  page_pool_ = std::make_unique<PagePool>();
 
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
@@ -161,6 +169,7 @@ void IsolateGroup::Initialize(bool process_wide) {
   trusted_pointer_compression_cage_ = &reservation_;
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
+  page_pool_ = std::make_unique<PagePool>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
@@ -171,6 +180,7 @@ void IsolateGroup::Initialize(bool process_wide) {
   page_allocator_ = GetPlatformPageAllocator();
   optimizing_compile_task_executor_ =
       std::make_unique<OptimizingCompileTaskExecutor>();
+  page_pool_ = std::make_unique<PagePool>();
 #ifdef V8_ENABLE_LEAPTIERING
   js_dispatch_table()->Initialize();
 #endif  // V8_ENABLE_LEAPTIERING
@@ -270,6 +280,13 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   ++isolate_count_;
 
+  const bool inserted = isolates_.insert(isolate).second;
+  CHECK(inserted);
+
+  if (!main_isolate_) {
+    main_isolate_ = isolate;
+  }
+
   optimizing_compile_task_executor_->EnsureInitialized();
 
   if (v8_flags.shared_heap) {
@@ -300,6 +317,16 @@ void IsolateGroup::RemoveIsolate(Isolate* isolate) {
   } else {
     // The shared space isolate needs to be removed last.
     DCHECK(!isolate->is_shared_space_isolate());
+  }
+
+  CHECK_EQ(isolates_.erase(isolate), 1);
+
+  if (main_isolate_ == isolate) {
+    if (isolates_.empty()) {
+      main_isolate_ = nullptr;
+    } else {
+      main_isolate_ = *isolates_.begin();
+    }
   }
 }
 
