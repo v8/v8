@@ -121,32 +121,6 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
-  V<Object> CheckConstructResult(V<Object> construct_result,
-                                 V<Object> implicit_receiver) {
-    // If the result is an object (in the ECMA sense), we should get rid
-    // of the receiver and use the result; see ECMA-262 version 5.1
-    // section 13.2.2-7 on page 74.
-    Label<Object> done(this);
-
-    GOTO_IF(
-        __ RootEqual(construct_result, RootIndex::kUndefinedValue, isolate_),
-        done, implicit_receiver);
-
-    // If the result is a smi, it is *not* an object in the ECMA sense.
-    GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);
-
-    // Check if the type of the result is not an object in the ECMA sense.
-    GOTO_IF(JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result)), done,
-            construct_result);
-
-    // Throw away the result of the constructor invocation and use the
-    // implicit receiver as the result.
-    GOTO(done, implicit_receiver);
-
-    BIND(done, result);
-    return result;
-  }
-
   V<Object> LoadScriptContextSideData(V<Context> script_context, int index) {
     V<FixedArray> side_table = __ template LoadTaggedField<FixedArray>(
         script_context,
@@ -259,6 +233,32 @@ class MaglevEarlyLoweringReducer : public Next {
     }
   }
 
+  V<Object> CheckConstructResult(V<Object> construct_result,
+                                 V<Object> implicit_receiver) {
+    // If the result is an object (in the ECMA sense), we should get rid
+    // of the receiver and use the result; see ECMA-262 version 5.1
+    // section 13.2.2-7 on page 74.
+    Label<Object> done(this);
+
+    GOTO_IF(
+        __ RootEqual(construct_result, RootIndex::kUndefinedValue, isolate_),
+        done, implicit_receiver);
+
+    // If the result is a smi, it is *not* an object in the ECMA sense.
+    GOTO_IF(__ IsSmi(construct_result), done, implicit_receiver);
+
+    // Check if the type of the result is not an object in the ECMA sense.
+    GOTO_IF(JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result)), done,
+            construct_result);
+
+    // Throw away the result of the constructor invocation and use the
+    // implicit receiver as the result.
+    GOTO(done, implicit_receiver);
+
+    BIND(done, result);
+    return result;
+  }
+
   void CheckDerivedConstructResult(V<Object> construct_result,
                                    V<FrameState> frame_state,
                                    V<NativeContext> native_context,
@@ -266,19 +266,25 @@ class MaglevEarlyLoweringReducer : public Next {
     // The result of a derived construct should be an object (in the ECMA
     // sense).
     Label<> do_throw(this);
+    Label<> end(this);
 
     // If the result is a smi, it is *not* an object in the ECMA sense.
-    GOTO_IF(__ IsSmi(construct_result), do_throw);
+    GOTO_IF(UNLIKELY(__ IsSmi(construct_result)), do_throw);
 
-    // Check if the type of the result is not an object done the ECMA sense.
-    IF_NOT (JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result))) {
-      GOTO(do_throw);
-      BIND(do_throw);
+    // Check if the type of the result is not an object in the ECMA sense.
+    GOTO_IF(LIKELY(JSAnyIsNotPrimitive(V<HeapObject>::Cast(construct_result))),
+            end);
+    GOTO(do_throw);
+
+    BIND(do_throw);
+    {
       __ CallRuntime_ThrowConstructorReturnedNonObject(
           isolate_, frame_state, native_context, lazy_deopt_on_throw);
       // ThrowConstructorReturnedNonObject should not return.
       __ Unreachable();
     }
+
+    BIND(end);
   }
 
   V<Smi> UpdateJSArrayLength(V<Word32> length_raw, V<JSArray> object,
@@ -341,7 +347,7 @@ class MaglevEarlyLoweringReducer : public Next {
 
   V<Word32> JSAnyIsNotPrimitive(V<HeapObject> heap_object) {
     V<Map> map = __ LoadMapField(heap_object);
-    if (V8_STATIC_ROOTS_BOOL) {
+    if constexpr (V8_STATIC_ROOTS_BOOL) {
       // All primitive object's maps are allocated at the start of the read only
       // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
       // addresses.
