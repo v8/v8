@@ -1029,6 +1029,7 @@ void TrustedConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   }
 
 TURBOLEV_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
+TURBOLEV_NON_VALUE_NODE_LIST(TURBOLEV_UNREACHABLE_NODE)
 #undef TURBOLEV_UNREACHABLE_NODE
 
 void ExternalConstant::SetValueLocationConstraints() { DefineAsConstant(this); }

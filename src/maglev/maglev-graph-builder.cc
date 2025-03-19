@@ -412,6 +412,7 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
       case Builtin::kGetIteratorWithFeedbackLazyDeoptContinuation:
       case Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation:
       case Builtin::kArrayForEachLoopLazyDeoptContinuation:
+      case Builtin::kArrayMapLoopLazyDeoptContinuation:
       case Builtin::kGenericLazyDeoptContinuation:
       case Builtin::kToBooleanLazyDeoptContinuation:
         return true;
@@ -4522,6 +4523,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       NON_VALUE_NODE_LIST(GENERATE_CASE)
 #undef GENERATE_CASE
       UNREACHABLE();
+    case Opcode::kCreateFastArrayElements:
     case Opcode::kTransitionElementsKind:
     // Unsorted value nodes. TODO(maglev): See which of these should return
     // something else than kUnknown.
@@ -8628,19 +8630,207 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     return {};
   }
 
+  auto get_lazy_deopt_scope =
+      [this](compiler::JSFunctionRef target, ValueNode* receiver,
+             ValueNode* callback, ValueNode* this_arg, ValueNode* index_int32,
+             ValueNode* next_index_int32, ValueNode* original_length) {
+        return DeoptFrameScope(
+            this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
+            base::VectorOf<ValueNode*>({receiver, callback, this_arg,
+                                        next_index_int32, original_length}));
+      };
+
+  auto get_eager_deopt_scope =
+      [this](compiler::JSFunctionRef target, ValueNode* receiver,
+             ValueNode* callback, ValueNode* this_arg, ValueNode* index_int32,
+             ValueNode* next_index_int32, ValueNode* original_length) {
+        return DeoptFrameScope(
+            this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
+            base::VectorOf<ValueNode*>({receiver, callback, this_arg,
+                                        next_index_int32, original_length}));
+      };
+
+  MaybeReduceResult builtin_result = TryReduceArrayIteratingBuiltin(
+      "Array.prototype.forEach", target, args, get_eager_deopt_scope,
+      get_lazy_deopt_scope);
+  if (builtin_result.IsFail() || builtin_result.IsDoneWithAbort()) {
+    return builtin_result;
+  }
+  DCHECK(builtin_result.IsDoneWithoutValue());
+  return GetRootConstant(RootIndex::kUndefinedValue);
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!is_turbolev()) {
+    return {};
+  }
+
+  if (!broker()->dependencies()->DependOnArraySpeciesProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.map - invalidated "
+                   "array species protector"
+                << std::endl;
+    }
+    return {};
+  }
+
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  compiler::MapRef holey_smi_map =
+      native_context.GetInitialJSArrayMap(broker(), HOLEY_SMI_ELEMENTS);
+  compiler::MapRef holey_map =
+      native_context.GetInitialJSArrayMap(broker(), HOLEY_ELEMENTS);
+  compiler::MapRef holey_double_map =
+      native_context.GetInitialJSArrayMap(broker(), HOLEY_DOUBLE_ELEMENTS);
+
+  ValueNode* result_array = nullptr;
+
+  // We don't need to check the "array constructor inlining" protector (probably
+  // Turbofan wouldn't need either for the Array.p.map case, but it does
+  // anyway). CanInlineArrayIteratingBuiltin allows only fast mode maps, and if
+  // at runtime we encounter a dictionary mode map, we will deopt. If the
+  // feedback contains dictionary mode maps to start with, we won't even lower
+  // Array.prototype.map here, so there's no risk for a deopt loop.
+
+  // We always inline the Array ctor here, even if Turbofan doesn't. Since the
+  // top frame cannot be deopted because of the allocation, we don't need a
+  // DeoptFrameScope here.
+
+  auto initial_callback = [this, &result_array,
+                           holey_smi_map](ValueNode* length_smi) {
+    ValueNode* elements = AddNewNode<CreateFastArrayElements>(
+        {length_smi}, AllocationType::kYoung);
+    VirtualObject* array;
+    GET_VALUE_OR_ABORT(
+        array, CreateJSArray(holey_smi_map, holey_smi_map.instance_size(),
+                             length_smi));
+    array->set(JSArray::kElementsOffset, elements);
+    result_array = BuildInlinedAllocation(array, AllocationType::kYoung);
+    return ReduceResult::Done();
+  };
+
+  auto process_element_callback = [this, &holey_map, &holey_double_map,
+                                   &result_array](ValueNode* index_int32,
+                                                  ValueNode* element) {
+    AddNewNode<TransitionAndStoreArrayElement>(
+        {result_array, index_int32, element}, holey_map, holey_double_map);
+  };
+
+  auto get_lazy_deopt_scope = [this, &result_array](
+                                  compiler::JSFunctionRef target,
+                                  ValueNode* receiver, ValueNode* callback,
+                                  ValueNode* this_arg, ValueNode* index_int32,
+                                  ValueNode* next_index_int32,
+                                  ValueNode* original_length) {
+    DCHECK_NOT_NULL(result_array);
+    return DeoptFrameScope(
+        this, Builtin::kArrayMapLoopLazyDeoptContinuation, target,
+        base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
+                                    index_int32, original_length}));
+  };
+
+  auto get_eager_deopt_scope = [this, &result_array](
+                                   compiler::JSFunctionRef target,
+                                   ValueNode* receiver, ValueNode* callback,
+                                   ValueNode* this_arg, ValueNode* index_int32,
+                                   ValueNode* next_index_int32,
+                                   ValueNode* original_length) {
+    DCHECK_NOT_NULL(result_array);
+    return DeoptFrameScope(
+        this, Builtin::kArrayMapLoopEagerDeoptContinuation, target,
+        base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
+                                    index_int32, original_length}));
+  };
+
+  MaybeReduceResult builtin_result = TryReduceArrayIteratingBuiltin(
+      "Array.prototype.map", target, args, get_eager_deopt_scope,
+      get_lazy_deopt_scope, initial_callback, process_element_callback);
+  if (builtin_result.IsFail() || builtin_result.IsDoneWithAbort()) {
+    return builtin_result;
+  }
+  DCHECK(builtin_result.IsDoneWithoutValue());
+
+  // If the result was not fail or abort, the initial callback has successfully
+  // created the array which we can return now.
+  DCHECK(result_array);
+  return result_array;
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratingBuiltin(
+    const char* name, compiler::JSFunctionRef target, CallArguments& args,
+    GetDeoptScopeCallback get_eager_deopt_scope,
+    GetDeoptScopeCallback get_lazy_deopt_scope,
+    const std::optional<InitialCallback>& initial_callback,
+    const std::optional<ProcessElementCallback>& process_element_callback) {
+  DCHECK_EQ(initial_callback.has_value(), process_element_callback.has_value());
+
+  if (!CanSpeculateCall()) return {};
+
+  ValueNode* receiver = args.receiver();
+  if (!receiver) return {};
+
+  if (args.count() < 1) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce " << name << " - not enough arguments"
+                << std::endl;
+    }
+    return {};
+  }
+
+  auto node_info = known_node_aspects().TryGetInfoFor(receiver);
+  if (!node_info || !node_info->possible_maps_are_known()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce " << name
+                << " - receiver map is unknown" << std::endl;
+    }
+    return {};
+  }
+
+  ElementsKind elements_kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), node_info->possible_maps(),
+                                      &elements_kind)) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce " << name
+                << " - doesn't support fast array iteration or incompatible"
+                << " maps" << std::endl;
+    }
+    return {};
+  }
+
+  // TODO(leszeks): May only be needed for holey elements kinds.
+  if (!broker()->dependencies()->DependOnNoElementsProtector()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce " << name
+                << " - invalidated no elements protector" << std::endl;
+    }
+    return {};
+  }
+
+  ValueNode* callback = args[0];
+  if (!callback->is_tagged()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce " << name
+                << " - callback is untagged value" << std::endl;
+    }
+    return {};
+  }
+
   ValueNode* this_arg =
       args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
 
   ValueNode* original_length = BuildLoadJSArrayLength(receiver);
 
+  if (initial_callback) {
+    RETURN_IF_ABORT((*initial_callback)(original_length));
+  }
+
   // Elide the callable check if the node is known callable.
   EnsureType(callback, NodeType::kCallable, [&](NodeType old_type) {
     // ThrowIfNotCallable is wrapped in a lazy_deopt_scope to make sure the
     // exception has the right call stack.
-    DeoptFrameScope lazy_deopt_scope(
-        this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
-        base::VectorOf<ValueNode*>({receiver, callback, this_arg,
-                                    GetSmiConstant(0), original_length}));
+    const DeoptFrameScope& lazy_deopt_scope = get_lazy_deopt_scope(
+        target, receiver, callback, this_arg, GetSmiConstant(0),
+        GetSmiConstant(0), original_length);
     AddNewNode<ThrowIfNotCallable>({callback});
   });
 
@@ -8650,7 +8840,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   bool receiver_maps_were_unstable = node_info->possible_maps_are_unstable();
   PossibleMaps receiver_maps_before_loop(node_info->possible_maps());
 
-  // Create a sub graph builder with two variable (index and length)
+  // Create a sub graph builder with two variables (index and length).
   MaglevSubGraphBuilder sub_builder(this, 2);
   MaglevSubGraphBuilder::Variable var_index(0);
   MaglevSubGraphBuilder::Variable var_length(1);
@@ -8707,10 +8897,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // TODO(pthier): In practice this increment can never overflow, as the max
     // possible array length is less than int32 max value. Add a new
     // Int32Increment that asserts no overflow instead of deopting.
-    DeoptFrameScope eager_deopt_scope(
-        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, index_int32, original_length}));
+    DeoptFrameScope eager_deopt_scope =
+        get_eager_deopt_scope(target, receiver, callback, this_arg, index_int32,
+                              index_int32, original_length);
     next_index_int32 = AddNewNode<Int32IncrementWithOverflow>({index_int32});
     EnsureType(next_index_int32, NodeType::kSmi);
   }
@@ -8748,11 +8937,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   MaybeReduceResult result;
   {
-    DeoptFrameScope lazy_deopt_scope(
-        this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, next_index_int32, original_length}));
-
+    const DeoptFrameScope& lazy_deopt_scope =
+        get_lazy_deopt_scope(target, receiver, callback, this_arg, index_int32,
+                             next_index_int32, original_length);
     CallArguments call_args =
         args.count() < 2
             ? CallArguments(ConvertReceiverMode::kNullOrUndefined,
@@ -8772,6 +8959,11 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
   // No need to finish the loop if this code is unreachable.
   if (!result.IsDoneWithAbort()) {
+    if (process_element_callback) {
+      ValueNode* value = result.value();
+      (*process_element_callback)(index_int32, value);
+    }
+
     // If any of the receiver's maps were unstable maps, we have to re-check the
     // maps on each iteration, in case the callback changed them. That said, we
     // know that the maps are valid on the first iteration, so we can rotate the
@@ -8795,10 +8987,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
     // Make sure to finish the loop if we eager deopt in the map check or index
     // check.
-    DeoptFrameScope eager_deopt_scope(
-        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, next_index_int32, original_length}));
+    const DeoptFrameScope& eager_deopt_scope =
+        get_eager_deopt_scope(target, receiver, callback, this_arg, index_int32,
+                              next_index_int32, original_length);
 
     if (recheck_maps_after_call) {
       // Build the CheckMap manually, since we're doing it with already known
@@ -8846,7 +9037,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   sub_builder.Bind(&loop_end);
 
-  return GetRootConstant(RootIndex::kUndefinedValue);
+  return ReduceResult::Done();
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(

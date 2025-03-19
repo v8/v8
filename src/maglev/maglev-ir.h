@@ -152,7 +152,10 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
   V(MapPrototypeGet)                \
-  V(MapPrototypeGetInt32Key)
+  V(MapPrototypeGetInt32Key)        \
+  V(CreateFastArrayElements)
+
+#define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
 
 #define VALUE_NODE_LIST(V)                          \
   V(Identity)                                       \
@@ -377,7 +380,8 @@ class ExceptionHandlerInfo;
   V(ThrowIfNotSuperConstructor)               \
   V(TransitionElementsKindOrCheckMap)         \
   V(SetContinuationPreservedEmbedderData)     \
-  GAP_MOVE_NODE_LIST(V)
+  GAP_MOVE_NODE_LIST(V)                       \
+  TURBOLEV_NON_VALUE_NODE_LIST(V)
 
 #define NODE_LIST(V)     \
   NON_VALUE_NODE_LIST(V) \
@@ -7475,6 +7479,70 @@ class MapPrototypeGetInt32Key
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CreateFastArrayElements
+    : public FixedInputValueNodeT<1, CreateFastArrayElements> {
+  using Base = FixedInputValueNodeT<1, CreateFastArrayElements>;
+
+ public:
+  explicit CreateFastArrayElements(uint64_t bitfield,
+                                   AllocationType allocation_type)
+      : Base(bitfield), allocation_type_(allocation_type) {}
+
+  AllocationType allocation_type() const { return allocation_type_; }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::NotIdempotent();
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& length_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const AllocationType allocation_type_;
+};
+
+class TransitionAndStoreArrayElement
+    : public FixedInputValueNodeT<3, TransitionAndStoreArrayElement> {
+  using Base = FixedInputValueNodeT<3, TransitionAndStoreArrayElement>;
+
+ public:
+  explicit TransitionAndStoreArrayElement(uint64_t bitfield,
+                                          const compiler::MapRef& fast_map,
+                                          const compiler::MapRef& double_map)
+      : Base(bitfield), fast_map_(fast_map), double_map_(double_map) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32,
+      ValueRepresentation::kTagged};
+
+  Input& array_input() { return input(0); }
+  Input& index_input() { return input(1); }
+  Input& value_input() { return input(2); }
+
+  compiler::MapRef fast_map() const { return fast_map_; }
+  compiler::MapRef double_map() const { return double_map_; }
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::MapRef fast_map_;
+  const compiler::MapRef double_map_;
 };
 
 class PolymorphicAccessInfo {

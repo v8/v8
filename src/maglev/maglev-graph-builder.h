@@ -2041,6 +2041,7 @@ class MaglevGraphBuilder {
   V(ArrayForEach)                              \
   V(ArrayIsArray)                              \
   V(ArrayIteratorPrototypeNext)                \
+  V(ArrayMap)                                  \
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
@@ -2082,6 +2083,24 @@ class MaglevGraphBuilder {
                                     CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
+
+  using InitialCallback = std::function<ReduceResult(ValueNode*)>;
+  using ProcessElementCallback = std::function<void(ValueNode*, ValueNode*)>;
+  using GetDeoptScopeCallback = std::function<DeoptFrameScope(
+      compiler::JSFunctionRef, ValueNode*, ValueNode*, ValueNode*, ValueNode*,
+      ValueNode*, ValueNode*)>;
+
+  // Used for reduding Array.prototype.forEach and Array.prototype.map.
+  // initial_callback will be called to generate code before starting the
+  // iteration, and process_element_callback will be called to generate code for
+  // each result element.
+  MaybeReduceResult TryReduceArrayIteratingBuiltin(
+      const char* name, compiler::JSFunctionRef target, CallArguments& args,
+      GetDeoptScopeCallback get_eager_deopt_scope,
+      GetDeoptScopeCallback get_lazy_deopt_scope,
+      const std::optional<InitialCallback>& initial_callback = {},
+      const std::optional<ProcessElementCallback>& process_element_callback =
+          {});
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 

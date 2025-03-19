@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan --no-always-turbofan
+// Flags: --no-optimize-on-next-call-optimizes-to-maglev
 
 load('test/mjsunit/elements-kinds-helpers.js');
 

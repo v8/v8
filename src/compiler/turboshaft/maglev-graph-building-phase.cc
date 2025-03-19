@@ -2187,6 +2187,15 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::CreateFastArrayElements* node,
+                                const maglev::ProcessingState& state) {
+    V<Word32> length = Map(node->length_input());
+    SetMap(node,
+           __ NewArray(__ ChangeInt32ToIntPtr(length),
+                       NewArrayOp::Kind::kObject, node->allocation_type()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CreateArrayLiteral* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());
@@ -2602,6 +2611,17 @@ class GraphBuildingNodeProcessor {
                      Map(node->property_array_input()),
                      Map(node->object_input()), node->old_length(), frame_state,
                      node->eager_deopt_info()->feedback_to_update()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::TransitionAndStoreArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    __ TransitionAndStoreArrayElement(
+        Map(node->array_input()),
+        __ ChangeInt32ToIntPtr(Map(node->index_input())),
+        Map(node->value_input()),
+        TransitionAndStoreArrayElementOp::Kind::kElement,
+        node->fast_map().object(), node->double_map().object());
     return maglev::ProcessResult::kContinue;
   }
 
