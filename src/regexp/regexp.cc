@@ -622,6 +622,16 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
                                  DirectHandle<IrRegExpData> re_data,
                                  DirectHandle<String> sample_subject,
                                  bool is_one_byte) {
+  // Since we can't abort gracefully during compilation, check for sufficient
+  // stack space (including the additional gap as used for Turbofan
+  // compilation) here in advance.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    RegExp::ThrowRegExpException(isolate, re_data,
+                                 RegExpError::kAnalysisStackOverflow);
+    return false;
+  }
+
   // Compile the RegExp.
   Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
