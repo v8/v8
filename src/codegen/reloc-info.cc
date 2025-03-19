@@ -303,6 +303,17 @@ void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
   }
 }
 
+void WritableRelocInfo::set_js_dispatch_handle(
+    Tagged<InstructionStream> host, JSDispatchHandle handle,
+    WriteBarrierMode write_barrier_mode, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsJSDispatchHandle(rmode_));
+  Assembler::set_uint32_constant_at(pc_, constant_pool_, *handle,
+                                    &jit_allocation_, icache_flush_mode);
+  if (!v8_flags.disable_write_barriers && handle != kNullJSDispatchHandle) {
+    WriteBarrier::ForJSDispatchHandle(host, handle, write_barrier_mode);
+  }
+}
+
 void RelocInfo::set_off_heap_target_address(Address target,
                                             ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTargetMode(rmode_));

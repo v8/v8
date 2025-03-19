@@ -3215,7 +3215,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
                                          LazyDeoptimizeReason::kWeakObjects);
         have_code_to_deoptimize_ = true;
       }
-      code->ClearEmbeddedObjects(heap_);
+      code->ClearEmbeddedObjectsAndJSDispatchHandles(heap_);
       DCHECK(code->embedded_objects_cleared());
     }
   }

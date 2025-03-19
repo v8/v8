@@ -316,7 +316,7 @@ class Code : public ExposedTrustedObject {
       Tagged<Object> object);
 
   // This function should be called only from GC.
-  void ClearEmbeddedObjects(Heap* heap);
+  void ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap);
 
   // [embedded_objects_cleared]: If CodeKindIsOptimizedJSFunction(kind), tells
   // whether the embedded objects in the code marked for deoptimization were
