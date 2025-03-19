@@ -14328,8 +14328,11 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 
     // Generate new code objects sparsely distributed across several
     // different fragmented code-space pages.
-    const int kIterations = 10;
+    static constexpr int kIterations = 10;
+    std::array<v8::Global<v8::Object>, kIterations> bars;
+    std::array<v8::Global<v8::Object>, kIterations> foos;
     for (int i = 0; i < kIterations; ++i) {
+      v8::HandleScope nested_scope(isolate);
       LocalContext env(isolate);
       i::AlwaysAllocateScopeForTesting always_allocate(heap);
       CompileRun(script);
@@ -14339,10 +14342,12 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
           v8::Utils::OpenHandle(*env->Global()
                                      ->Get(env.local(), v8_str("bar"))
                                      .ToLocalChecked()));
+      bars[i].Reset(isolate, v8::Utils::ToLocal(bar));
       i::DirectHandle<i::JSFunction> foo = i::Cast<i::JSFunction>(
           v8::Utils::OpenHandle(*env->Global()
                                      ->Get(env.local(), v8_str("foo"))
                                      .ToLocalChecked()));
+      foos[i].Reset(isolate, v8::Utils::ToLocal(foo));
 
       i::PagedSpace* foo_owning_space = reinterpret_cast<i::PagedSpace*>(
           i::PageMetadata::FromHeapObject(foo->abstract_code(i_isolate))
