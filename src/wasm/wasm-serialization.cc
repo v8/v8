@@ -1114,11 +1114,8 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), compile_imports, isolate);
   if (shared_native_module == nullptr) {
-    const bool dynamic_tiering = v8_flags.wasm_dynamic_tiering;
-    const bool include_liftoff = !dynamic_tiering;
     size_t code_size_estimate =
-        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-            module.get(), include_liftoff, DynamicTiering{dynamic_tiering});
+        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
     shared_native_module = wasm_engine->NewNativeModule(
         isolate, enabled_features, detected_features, compile_imports,
         std::move(module), code_size_estimate);

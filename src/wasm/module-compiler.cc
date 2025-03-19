@@ -2404,12 +2404,8 @@ std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
         isolate->counters(), module->origin, wasm_compile, module_time));
   }
 
-  const bool include_liftoff =
-      module->origin == kWasmOrigin && v8_flags.liftoff;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module.get(), include_liftoff,
-          DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, detected_features, std::move(compile_imports),
       module, code_size_estimate);
@@ -2509,7 +2505,7 @@ struct ValidateFunctionsStreamingJobData {
     base::Vector<const uint8_t> code;
 
     // Check whether the unit is valid.
-    operator bool() const {  // NOLINT(google-explicit-constructor)
+    operator bool() const {
       DCHECK_LE(-1, func_index);
       return func_index >= 0;
     }
@@ -3096,10 +3092,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     } else {
       // Decode passed.
       std::shared_ptr<WasmModule> module = std::move(result).value();
-      const bool include_liftoff = v8_flags.liftoff;
       size_t code_size_estimate =
-          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-              module.get(), include_liftoff, job->dynamic_tiering_);
+          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
       job->DoSync<PrepareAndStartCompile>(
           std::move(module), true /* start_compilation */,
           true /* lazy_functions_are_validated */, code_size_estimate);
@@ -3319,11 +3313,9 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   int num_imported_functions =
       static_cast<int>(decoder_.module()->num_imported_functions);
   DCHECK_EQ(kWasmOrigin, decoder_.module()->origin);
-  const bool include_liftoff = v8_flags.liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          num_functions, num_imported_functions, code_section_length,
-          include_liftoff, job_->dynamic_tiering_);
+          num_functions, num_imported_functions, code_section_length);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(),
       // start_compilation: false; triggered when we receive the bodies.
@@ -3483,10 +3475,8 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (prefix_cache_hit_) {
     // Restart as an asynchronous, non-streaming compilation. Most likely
     // {PrepareAndStartCompile} will get the native module from the cache.
-    const bool include_liftoff = v8_flags.liftoff;
     size_t code_size_estimate =
-        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-            module.get(), include_liftoff, job_->dynamic_tiering_);
+        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
     job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
         std::move(module), true /* start_compilation */,
         false /* lazy_functions_are_validated_ */, code_size_estimate);

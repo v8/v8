@@ -2319,9 +2319,7 @@ size_t WasmCodeManager::EstimateLiftoffCodeSize(int body_size) {
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleCodeSize(
-    const WasmModule* module, bool include_liftoff,
-    DynamicTiering dynamic_tiering) {
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   int num_functions = static_cast<int>(module->num_declared_functions);
   int num_imported_functions = static_cast<int>(module->num_imported_functions);
   int code_section_length = 0;
@@ -2333,14 +2331,13 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
         static_cast<int>(last_fn->code.end_offset() - first_fn->code.offset());
   }
   return EstimateNativeModuleCodeSize(num_functions, num_imported_functions,
-                                      code_section_length, include_liftoff,
-                                      dynamic_tiering);
+                                      code_section_length);
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleCodeSize(
-    int num_functions, int num_imported_functions, int code_section_length,
-    bool include_liftoff, DynamicTiering dynamic_tiering) {
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
+                                                     int num_imported_functions,
+                                                     int code_section_length) {
   // The size for the jump table and far jump table is added later, per code
   // space (see {OverheadPerCodeSpace}). We still need to add the overhead for
   // the lazy compile table once, though. There are configurations where we do
@@ -2358,15 +2355,20 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
 
   const size_t overhead_per_function_liftoff =
       kLiftoffFunctionOverhead + kCodeAlignment / 2;
-  const size_t size_of_liftoff =
-      include_liftoff ? overhead_per_function_liftoff * num_functions +
-                            kLiftoffCodeSizeMultiplier * code_section_length
-                      : 0;
+  // Note: For asm.js we do not have Liftoff support, but this corner case is
+  // being ignored here.
+  size_t size_of_liftoff =
+      v8_flags.liftoff ? overhead_per_function_liftoff * num_functions +
+                             kLiftoffCodeSizeMultiplier * code_section_length
+                       : 0;
+  // Expect that typically not more than half of the functions are actually
+  // compiled.
+  if (v8_flags.wasm_lazy_compilation) size_of_liftoff /= 2;
 
   // With dynamic tiering we don't expect to compile more than 25% with
   // TurboFan. If there is no liftoff though then all code will get generated
   // by TurboFan.
-  if (include_liftoff && dynamic_tiering) size_of_turbofan /= 4;
+  if (v8_flags.liftoff && v8_flags.wasm_dynamic_tiering) size_of_turbofan /= 4;
 
   return lazy_compile_table_size + size_of_imports + size_of_liftoff +
          size_of_turbofan;

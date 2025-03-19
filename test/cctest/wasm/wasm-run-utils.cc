@@ -437,14 +437,12 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // later. By disabling dynamic tiering, the tiering budget does not get
   // accessed by generated code.
   FlagScope<bool> no_dynamic_tiering(&v8_flags.wasm_dynamic_tiering, false);
-  const bool kUsesLiftoff = true;
   // Compute the estimate based on {kMaxFunctions} because we might still add
   // functions later. Assume 1k of code per function.
   int estimated_code_section_length = kMaxFunctions * 1024;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          kMaxFunctions, 0, estimated_code_section_length, kUsesLiftoff,
-          DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
+          kMaxFunctions, 0, estimated_code_section_length);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, WasmDetectedFeatures{}, CompileTimeImports{},
       test_module_, code_size_estimate);

@@ -1155,19 +1155,15 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // the function body (wasm byte code).
   static size_t EstimateLiftoffCodeSize(int body_size);
   // Estimate the needed code space from a completely decoded module.
-  static size_t EstimateNativeModuleCodeSize(const WasmModule* module,
-                                             bool include_liftoff,
-                                             DynamicTiering dynamic_tiering);
+  static size_t EstimateNativeModuleCodeSize(const WasmModule*);
   // Estimate the needed code space from the number of functions and total code
   // section length.
   static size_t EstimateNativeModuleCodeSize(int num_functions,
                                              int num_imported_functions,
-                                             int code_section_length,
-                                             bool include_liftoff,
-                                             DynamicTiering dynamic_tiering);
+                                             int code_section_length);
   // Estimate the size of metadata needed for the NativeModule, excluding
   // generated code. This data is stored on the C++ heap.
-  static size_t EstimateNativeModuleMetaDataSize(const WasmModule* module);
+  static size_t EstimateNativeModuleMetaDataSize(const WasmModule*);
 
   // Returns true if there is hardware support for PKU. Use
   // {MemoryProtectionKeysEnabled} to also check if PKU usage is enabled via
