@@ -916,7 +916,6 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
 NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
                            WasmDetectedFeatures detected_features,
                            CompileTimeImports compile_imports,
-                           DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
@@ -938,9 +937,8 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   DCHECK_NOT_NULL(shared_this);
   DCHECK_NULL(*shared_this);
   shared_this->reset(this);
-  compilation_state_ =
-      CompilationState::New(*shared_this, std::move(async_counters),
-                            dynamic_tiering, detected_features);
+  compilation_state_ = CompilationState::New(
+      *shared_this, std::move(async_counters), detected_features);
   compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
@@ -2430,7 +2428,6 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     VirtualMemory code_space;
     std::shared_ptr<NativeModule> ret;
     new NativeModule(enabled_features, detected_features, compile_imports,
-                     DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                      std::move(code_space), std::move(module),
                      isolate->async_counters(), &ret);
     // The constructor initialized the shared_ptr.
@@ -2499,7 +2496,6 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   std::shared_ptr<NativeModule> ret;
   new NativeModule(enabled_features, detected_features,
                    std::move(compile_imports),
-                   DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.

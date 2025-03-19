@@ -955,7 +955,8 @@ class LiftoffCompiler {
   }
 
   bool dynamic_tiering() {
-    return env_->dynamic_tiering && for_debugging_ == kNotForDebugging &&
+    return v8_flags.wasm_dynamic_tiering &&
+           for_debugging_ == kNotForDebugging &&
            (v8_flags.wasm_tier_up_filter == -1 ||
             v8_flags.wasm_tier_up_filter == func_index_);
   }

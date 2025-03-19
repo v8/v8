@@ -61,6 +61,13 @@ TestingModuleBuilder::TestingModuleBuilder(
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmEnabledFeatures::FromIsolate(isolate_)),
       execution_tier_(tier) {
+  // In this test setup, the NativeModule gets allocated before functions get
+  // added. The tiering budget array, which gets allocated in the NativeModule
+  // constructor, therefore does not have slots for functions that get added
+  // later. By disabling dynamic tiering, the tiering budget does not get
+  // accessed by generated code.
+  v8_flags.wasm_dynamic_tiering = false;
+
   WasmJs::Install(isolate_);
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   // The GlobalsData must be located inside the sandbox, so allocate it from the
@@ -431,12 +438,6 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
-  // In this test setup, the NativeModule gets allocated before functions get
-  // added. The tiering budget array, which gets allocated in the NativeModule
-  // constructor, therefore does not have slots for functions that get added
-  // later. By disabling dynamic tiering, the tiering budget does not get
-  // accessed by generated code.
-  FlagScope<bool> no_dynamic_tiering(&v8_flags.wasm_dynamic_tiering, false);
   // Compute the estimate based on {kMaxFunctions} because we might still add
   // functions later. Assume 1k of code per function.
   int estimated_code_section_length = kMaxFunctions * 1024;

@@ -936,8 +936,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEnabledFeatures enabled_features,
                WasmDetectedFeatures detected_features,
-               CompileTimeImports compile_imports,
-               DynamicTiering dynamic_tiering, VirtualMemory code_space,
+               CompileTimeImports compile_imports, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);

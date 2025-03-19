@@ -569,7 +569,6 @@ class CompilationStateImpl {
  public:
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        std::shared_ptr<Counters> async_counters,
-                       DynamicTiering dynamic_tiering,
                        WasmDetectedFeatures detected_features);
   ~CompilationStateImpl() {
     if (baseline_compile_job_->IsValid()) {
@@ -698,8 +697,6 @@ class CompilationStateImpl {
     return outstanding_baseline_units_ == 0;
   }
 
-  DynamicTiering dynamic_tiering() const { return dynamic_tiering_; }
-
   Counters* counters() const { return async_counters_.get(); }
 
   void SetWireBytesStorage(
@@ -758,10 +755,6 @@ class CompilationStateImpl {
   std::atomic<bool> compile_cancelled_{false};
 
   CompilationUnitQueues compilation_unit_queues_;
-
-  // Cache the dynamic tiering configuration to be consistent for the whole
-  // compilation.
-  const DynamicTiering dynamic_tiering_;
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -847,7 +840,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 472);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -948,10 +941,6 @@ void CompilationState::set_compilation_id(int compilation_id) {
   Impl(this)->set_compilation_id(compilation_id);
 }
 
-DynamicTiering CompilationState::dynamic_tiering() const {
-  return Impl(this)->dynamic_tiering();
-}
-
 size_t CompilationState::EstimateCurrentMemoryConsumption() const {
   return Impl(this)->EstimateCurrentMemoryConsumption();
 }
@@ -964,12 +953,11 @@ std::vector<WasmCode*> CompilationState::PublishCode(
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
     const std::shared_ptr<NativeModule>& native_module,
-    std::shared_ptr<Counters> async_counters, DynamicTiering dynamic_tiering,
+    std::shared_ptr<Counters> async_counters,
     WasmDetectedFeatures detected_features) {
-  return std::unique_ptr<CompilationState>(
-      reinterpret_cast<CompilationState*>(new CompilationStateImpl(
-          std::move(native_module), std::move(async_counters), dynamic_tiering,
-          detected_features)));
+  return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
+      new CompilationStateImpl(std::move(native_module),
+                               std::move(async_counters), detected_features)));
 }
 
 WasmDetectedFeatures CompilationState::detected_features() const {
@@ -1042,7 +1030,6 @@ struct ExecutionTierPair {
 // a consistent view on the debug state, the caller reads the debug state once
 // and then passes it to this function.
 ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
-                                           DynamicTiering dynamic_tiering,
                                            DebugState is_in_debug_state,
                                            bool lazy_module) {
   const WasmModule* module = native_module->module();
@@ -1058,7 +1045,7 @@ ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
   }
   ExecutionTier baseline_tier =
       v8_flags.liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
-  bool eager_tier_up = !dynamic_tiering && v8_flags.wasm_tier_up;
+  bool eager_tier_up = !v8_flags.wasm_dynamic_tiering && v8_flags.wasm_tier_up;
   ExecutionTier top_tier =
       eager_tier_up ? ExecutionTier::kTurbofan : baseline_tier;
   return {baseline_tier, top_tier};
@@ -1067,13 +1054,11 @@ ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
 ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
                                           uint32_t func_index,
                                           DebugState is_in_debug_state) {
-  DynamicTiering dynamic_tiering =
-      Impl(native_module->compilation_state())->dynamic_tiering();
   // For lazy compilation, get the tiers we would use if lazy compilation is
   // disabled.
   constexpr bool kNotLazy = false;
-  ExecutionTierPair tiers = GetDefaultTiersPerModule(
-      native_module, dynamic_tiering, is_in_debug_state, kNotLazy);
+  ExecutionTierPair tiers =
+      GetDefaultTiersPerModule(native_module, is_in_debug_state, kNotLazy);
   // If we are in debug mode, we ignore compilation hints.
   if (is_in_debug_state) return tiers;
 
@@ -2463,7 +2448,6 @@ AsyncCompileJob::AsyncCompileJob(
       api_method_name_(api_method_name),
       enabled_features_(enabled_features),
       compile_imports_(std::move(compile_imports)),
-      dynamic_tiering_(DynamicTiering{v8_flags.wasm_dynamic_tiering.value()}),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes)),
       wire_bytes_(bytes_copy_.as_vector()),
@@ -3577,14 +3561,13 @@ bool AsyncStreamingProcessor::Deserialize(
 
 CompilationStateImpl::CompilationStateImpl(
     const std::shared_ptr<NativeModule>& native_module,
-    std::shared_ptr<Counters> async_counters, DynamicTiering dynamic_tiering,
+    std::shared_ptr<Counters> async_counters,
     WasmDetectedFeatures detected_features)
     : native_module_(native_module.get()),
       native_module_weak_(std::move(native_module)),
       async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_imported_functions(),
                                native_module->num_declared_functions()),
-      dynamic_tiering_(dynamic_tiering),
       detected_features_(detected_features) {}
 
 void CompilationStateImpl::InitCompileJob() {
@@ -3775,8 +3758,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
 
     // Compute the default compilation progress for all functions, and set it.
     const ExecutionTierPair default_tiers = GetDefaultTiersPerModule(
-        native_module_, dynamic_tiering_, native_module_->IsInDebugState(),
-        IsLazyModule(module));
+        native_module_, native_module_->IsInDebugState(), IsLazyModule(module));
     const uint8_t default_progress =
         RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
         RequiredTopTierField::encode(default_tiers.top_tier) |
@@ -3916,9 +3898,8 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
 
     // Update compilation state for eagerly compiled functions.
     constexpr bool kNotLazy = false;
-    ExecutionTierPair default_tiers =
-        GetDefaultTiersPerModule(native_module_, dynamic_tiering_,
-                                 native_module_->IsInDebugState(), kNotLazy);
+    ExecutionTierPair default_tiers = GetDefaultTiersPerModule(
+        native_module_, native_module_->IsInDebugState(), kNotLazy);
     uint8_t progress_for_eager_functions =
         RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
         RequiredTopTierField::encode(default_tiers.top_tier) |
@@ -4137,7 +4118,7 @@ void CompilationStateImpl::TriggerOutstandingCallbacks() {
 
   // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
   // of size {v8_flags.wasm_caching_threshold}.
-  if (dynamic_tiering_ &&
+  if (v8_flags.wasm_dynamic_tiering &&
       static_cast<size_t>(v8_flags.wasm_caching_threshold) <=
           bytes_since_last_chunk_) {
     // Trigger caching immediately if

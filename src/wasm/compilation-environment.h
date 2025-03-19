@@ -34,11 +34,6 @@ class WasmCode;
 class WasmEngine;
 class WasmError;
 
-enum DynamicTiering : bool {
-  kDynamicTiering = true,
-  kNoDynamicTiering = false
-};
-
 // The Arm architecture does not specify the results in memory of
 // partially-in-bound writes, which does not align with the wasm spec. This
 // affects when trap handlers can be used for OOB detection; however, Mac
@@ -60,8 +55,6 @@ struct CompilationEnv {
   // Features enabled for this compilation.
   const WasmEnabledFeatures enabled_features;
 
-  const DynamicTiering dynamic_tiering;
-
   const std::atomic<Address>* fast_api_targets;
 
   std::atomic<const MachineSignature*>* fast_api_signatures;
@@ -76,11 +69,10 @@ struct CompilationEnv {
  private:
   constexpr CompilationEnv(
       const WasmModule* module, WasmEnabledFeatures enabled_features,
-      DynamicTiering dynamic_tiering, std::atomic<Address>* fast_api_targets,
+      std::atomic<Address>* fast_api_targets,
       std::atomic<const MachineSignature*>* fast_api_signatures)
       : module(module),
         enabled_features(enabled_features),
-        dynamic_tiering(dynamic_tiering),
         fast_api_targets(fast_api_targets),
         fast_api_signatures(fast_api_signatures) {}
 };
@@ -169,8 +161,6 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void set_compilation_id(int compilation_id);
 
-  DynamicTiering dynamic_tiering() const;
-
   size_t EstimateCurrentMemoryConsumption() const;
 
   std::vector<WasmCode*> PublishCode(
@@ -192,7 +182,7 @@ class V8_EXPORT_PRIVATE CompilationState {
   // certain scopes.
   static std::unique_ptr<CompilationState> New(
       const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>,
-      DynamicTiering dynamic_tiering, WasmDetectedFeatures detected_features);
+      WasmDetectedFeatures detected_features);
 };
 
 }  // namespace wasm
