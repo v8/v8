@@ -341,7 +341,7 @@ void WriteBarrier::GenerationalBarrierForCodeSlow(
 void WriteBarrier::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value) {
   SLOW_DCHECK_IMPLIES(kUninterestingPagesCanBeSkipped,
-                      MemoryChunk::FromAddress(slot)->GetFlags() &
+                      MemoryChunk::FromHeapObject(table)->GetFlags() &
                           MemoryChunk::kPointersFromHereAreInterestingMask);
   if (HeapLayout::InYoungGeneration(value)) {
     MutablePageMetadata* table_chunk =
