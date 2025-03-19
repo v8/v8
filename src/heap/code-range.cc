@@ -33,53 +33,20 @@ void FunctionInStaticBinaryForAddressHint() {}
 }  // anonymous namespace
 
 Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
-                                             size_t alignment) {
+                                             size_t allocate_page_size) {
   base::MutexGuard guard(&mutex_);
-
-  // Try to allocate code range in the preferred region where we can use
-  // short instructions for calling/jumping to embedded builtins.
-  base::AddressRegion preferred_region = Isolate::GetShortBuiltinsCallRegion();
 
   Address result = 0;
   auto it = recently_freed_.find(code_range_size);
   // No recently freed region has been found, try to provide a hint for placing
   // a code region.
   if (it == recently_freed_.end() || it->second.empty()) {
-    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL && !preferred_region.is_empty()) {
-      const auto memory_ranges = base::OS::GetFirstFreeMemoryRangeWithin(
-          preferred_region.begin(), preferred_region.end(), code_range_size,
-          alignment);
-      if (memory_ranges.has_value()) {
-        result = memory_ranges.value().start;
-        CHECK(IsAligned(result, alignment));
-        return result;
-      }
-      // The empty memory_ranges means that GetFirstFreeMemoryRangeWithin() API
-      // is not supported, so use the lowest address from the preferred region
-      // as a hint because it'll be at least as good as the fallback hint but
-      // with a higher chances to point to the free address space range.
-      return RoundUp(preferred_region.begin(), alignment);
-    }
     return RoundUp(FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint),
-                   alignment);
-  }
-
-  // Try to reuse near code range first.
-  if (V8_ENABLE_NEAR_CODE_RANGE_BOOL && !preferred_region.is_empty()) {
-    auto freed_regions_for_size = it->second;
-    for (auto it_freed = freed_regions_for_size.rbegin();
-         it_freed != freed_regions_for_size.rend(); ++it_freed) {
-      Address code_range_start = *it_freed;
-      if (preferred_region.contains(code_range_start, code_range_size)) {
-        CHECK(IsAligned(code_range_start, alignment));
-        freed_regions_for_size.erase((it_freed + 1).base());
-        return code_range_start;
-      }
-    }
+                   allocate_page_size);
   }
 
   result = it->second.back();
-  CHECK(IsAligned(result, alignment));
+  CHECK(IsAligned(result, allocate_page_size));
   it->second.pop_back();
   return result;
 }
@@ -112,15 +79,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   }
 
   const size_t kPageSize = MutablePageMetadata::kPageSize;
-  CHECK(IsAligned(kPageSize, page_allocator->AllocatePageSize()));
-
-  // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
-  // not cross the 4Gb boundary and thus the default compression scheme of
-  // truncating the InstructionStream pointers to 32-bits still works. It's
-  // achieved by specifying base_alignment parameter.
-  const size_t base_alignment = V8_EXTERNAL_CODE_SPACE_BOOL
-                                    ? base::bits::RoundUpToPowerOfTwo(requested)
-                                    : kPageSize;
+  const size_t allocate_page_size = page_allocator->AllocatePageSize();
+  CHECK(IsAligned(kPageSize, allocate_page_size));
 
   DCHECK_IMPLIES(kPlatformRequiresCodeRange,
                  requested <= kMaximalCodeRangeSize);
@@ -128,6 +88,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   VirtualMemoryCage::ReservationParams params;
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
+  params.base_alignment =
+      VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.page_size = kPageSize;
   if (v8_flags.jitless) {
     params.permissions = PageAllocator::Permission::kNoAccess;
@@ -141,7 +103,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     params.page_freeing_mode = base::PageFreeingMode::kDiscard;
   }
 
-  const size_t allocate_page_size = page_allocator->AllocatePageSize();
   constexpr size_t kRadiusInMB =
       kMaxPCRelativeCodeRangeInMB > 1024 ? kMaxPCRelativeCodeRangeInMB : 4096;
   auto preferred_region = GetPreferredRegion(kRadiusInMB, kPageSize);
@@ -158,10 +119,6 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                                 v8_flags.better_code_range_allocation;
 
   if (kShouldTryHarder) {
-    // Relax alignment requirement while trying to allocate code range inside
-    // preferred region.
-    params.base_alignment = kPageSize;
-
     // TODO(v8:11880): consider using base::OS::GetFirstFreeMemoryRangeWithin()
     // to avoid attempts that's going to fail anyway.
 
@@ -195,12 +152,9 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     }
   }
   if (!IsReserved()) {
-    // TODO(v8:11880): Use base_alignment here once ChromeOS issue is fixed.
     Address the_hint = GetCodeRangeAddressHint()->GetAddressHint(
         requested, allocate_page_size);
-    the_hint = RoundDown(the_hint, base_alignment);
-    // Last resort, use whatever region we get.
-    params.base_alignment = base_alignment;
+    // Last resort, use whatever region we could get with minimum constraints.
     params.requested_start_hint = the_hint;
     if (!VirtualMemoryCage::InitReservation(params)) {
       params.requested_start_hint = kNullAddress;
@@ -330,15 +284,6 @@ base::AddressRegion CodeRange::GetPreferredRegion(size_t radius_in_megabytes,
 
   region_start = std::max(region_start, four_gb_cage_start);
   region_end = std::min(region_end, four_gb_cage_end);
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // If ExternalCodeCompressionScheme ever changes then the requirements might
-  // need to be updated.
-  static_assert(k4GB <= kPtrComprCageReservationSize);
-  DCHECK_EQ(four_gb_cage_start,
-            ExternalCodeCompressionScheme::PrepareCageBaseAddress(
-                embedded_blob_code_start));
-#endif  // V8_EXTERNAL_CODE_SPACE
 
   return base::AddressRegion(region_start, region_end - region_start);
 #else
