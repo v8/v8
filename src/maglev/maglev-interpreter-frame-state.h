@@ -873,8 +873,6 @@ class MergePointInterpreterFrameState {
   // Clears dead loop state, after all merges have already be done.
   void TurnLoopIntoRegularBlock() {
     DCHECK(is_loop());
-    DCHECK_EQ(predecessor_count_, 2);
-    DCHECK_EQ(predecessors_so_far_, predecessor_count_);
     predecessor_count_--;
     predecessors_so_far_--;
     ReducePhiPredecessorCount(1);

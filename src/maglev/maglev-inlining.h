@@ -71,8 +71,13 @@ class MaglevInliner {
       : compilation_info_(compilation_info), graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
-    // TODO(victorgomes): Add some heuristics to choose which function to
-    // inline.
+    // TODO(victorgomes): Improve heuristics.
+    // TODO(victorgomes): Reverse the current vector for now, so that we have
+    // the same heuristics as eager inlining. At least for the top-level
+    // function, this is still wrong for the inlining calls inside an inline
+    // function.
+    std::reverse(graph_->inlineable_calls().begin(),
+                 graph_->inlineable_calls().end());
     while (!graph_->inlineable_calls().empty()) {
       if (graph_->total_inlined_bytecode_size() >
           v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
@@ -81,19 +86,8 @@ class MaglevInliner {
       }
       MaglevCallSiteInfo* call_site = graph_->inlineable_calls().back();
       graph_->inlineable_calls().pop_back();
-      ValueNode* result = BuildInlineFunction(call_site);
-      if (result) {
-        if (auto alloc = result->TryCast<InlinedAllocation>()) {
-          // TODO(victorgomes): Support eliding VOs.
-          alloc->ForceEscaping();
-#ifdef DEBUG
-          alloc->set_is_returned_value_from_inline_call();
-#endif  // DEBUG
-        }
-        GraphProcessor<UpdateInputsProcessor> substitute_use(
-            call_site->generic_call_node, result);
-        substitute_use.ProcessGraph(graph_);
-      }
+      MaybeReduceResult result = BuildInlineFunction(call_site);
+      if (result.IsFail()) continue;
       // If --trace-maglev-inlining-verbose, we print the graph after each
       // inlining step/call.
       if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
@@ -119,17 +113,41 @@ class MaglevInliner {
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   Zone* zone() const { return compilation_info_->zone(); }
 
-  ValueNode* BuildInlineFunction(MaglevCallSiteInfo* call_site) {
+  MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site) {
     CallKnownJSFunction* call_node = call_site->generic_call_node;
+    BasicBlock* call_block = call_node->owner();
     MaglevCallerDetails* caller_details = &call_site->caller_details;
     DeoptFrame* caller_deopt_frame = caller_details->deopt_frame;
     const MaglevCompilationUnit* caller_unit =
         &caller_deopt_frame->GetCompilationUnit();
     compiler::SharedFunctionInfoRef shared = call_node->shared_function_info();
 
+    if (std::find(graph_->blocks().begin(), graph_->blocks().end(),
+                  call_block) == graph_->blocks().end()) {
+      // The block containing the call is unreachable, and it was previously
+      // removed. Do not try to inline the call.
+      return ReduceResult::Fail();
+    }
+
     if (v8_flags.trace_maglev_inlining) {
       std::cout << "  non-eager inlining " << shared << std::endl;
     }
+
+    // Truncate the basic block and remove the generic call node.
+    std::optional<ZoneVector<Node*>> maybe_rem_nodes_in_call_block =
+        call_block->Split(call_node, zone());
+    if (!maybe_rem_nodes_in_call_block.has_value()) {
+      // TODO(victorgomes): Remove this once we use identity nodes instead of
+      // patching the result.
+      // We didn't find the node in the call_node->owner(), this can only happen
+      // when we inlined a call before this one in the same basic block and did
+      // not update the call_node owner. This can only be if we soft deopt in
+      // the previous call, since otherwise the call_node owner would be
+      // updated in FinishInlinedBlockForCaller.
+      return ReduceResult::Fail();
+    }
+    ZoneVector<Node*>& rem_nodes_in_call_block =
+        maybe_rem_nodes_in_call_block.value();
 
     // Create a new compilation unit.
     MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
@@ -149,16 +167,10 @@ class MaglevInliner {
             caller_deopt_frame, inner_unit, call_node->closure().node(),
             call_site->caller_details.arguments);
 
-    BasicBlock* call_block = call_node->owner();
-
     // We truncate the graph to build the function in-place, preserving the
     // invariant that all jumps move forward (except JumpLoop).
     std::vector<BasicBlock*> saved_bb = TruncateGraphAt(call_block);
-
-    // Truncate the basic block and remove the generic call node.
     ControlNode* control_node = call_block->reset_control_node();
-    ZoneVector<Node*> rem_nodes_in_call_block =
-        call_block->Split(call_node, zone());
 
     // Set the inner graph builder to build in the truncated call block.
     inner_graph_builder.set_current_block(call_block);
@@ -177,7 +189,7 @@ class MaglevInliner {
       // remove unreachable blocks, but only the successors of control_node in
       // saved_bbs.
       RemoveUnreachableBlocks();
-      return nullptr;
+      return result;
     }
 
     DCHECK(result.IsDoneWithValue());
@@ -204,7 +216,30 @@ class MaglevInliner {
       graph_->Add(bb);
     }
 
-    return returned_value;
+    if (auto alloc = returned_value->TryCast<InlinedAllocation>()) {
+      // TODO(victorgomes): Support eliding VOs.
+      alloc->ForceEscaping();
+#ifdef DEBUG
+      alloc->set_is_returned_value_from_inline_call();
+#endif  // DEBUG
+    }
+    // TODO(victorgomes): Use identity nodes instead.
+    GraphProcessor<UpdateInputsProcessor> substitute_use(
+        call_site->generic_call_node, returned_value);
+    substitute_use.ProcessGraph(graph_);
+    // TODO(victorgomes): This is ugly, but it should go away after we use
+    // identity nodes. Patch all arguments vectors inside CatchDetails.
+    for (MaglevCallSiteInfo* call_site_info : graph_->inlineable_calls()) {
+      for (ValueNode*& arg : call_site_info->caller_details.arguments) {
+        if (arg == call_node) {
+          // Note: using the result.value(), since we don't currently accept
+          // conversion nodes inside the arguments vector.
+          arg = result.value();
+        }
+      }
+    }
+
+    return ReduceResult::Done();
   }
 
   // Truncates the graph at the given basic block `block`.  All blocks
@@ -296,7 +331,6 @@ class MaglevInliner {
 
   void RemoveUnreachableBlocks() {
     absl::flat_hash_set<BasicBlock*> reachable_blocks;
-    absl::flat_hash_set<BasicBlock*> loop_headers_unreachable_by_backegde;
     std::vector<BasicBlock*> worklist;
 
     DCHECK(!graph_->blocks().empty());
@@ -305,43 +339,30 @@ class MaglevInliner {
     reachable_blocks.insert(initial_bb);
     DCHECK(!initial_bb->is_loop());
 
-    // Add all exception handler blocks to the worklist.
-    // TODO(victorgomes): A catch block could still be unreachable, if no
-    // bbs in its try-block are unreachables, or its nodes cannot throw.
-    for (BasicBlock* bb : graph_->blocks()) {
-      if (bb->is_exception_handler_block()) {
-        worklist.push_back(bb);
-        reachable_blocks.insert(bb);
-      }
-    }
-
     while (!worklist.empty()) {
       BasicBlock* current = worklist.back();
       worklist.pop_back();
-      if (current->is_loop()) {
-        loop_headers_unreachable_by_backegde.insert(current);
-      }
-      current->ForEachSuccessor([&](BasicBlock* succ) {
-        if (reachable_blocks.contains(succ)) {
-          // We have already added this block to the worklist, check only if
-          // that's a reachable loop header.
-          if (succ->is_loop()) {
-            // This must be the loop back edge.
-            DCHECK(succ->is_loop());
-            DCHECK_EQ(succ->backedge_predecessor(), current);
-            DCHECK(loop_headers_unreachable_by_backegde.contains(succ));
-            loop_headers_unreachable_by_backegde.erase(succ);
+
+      // TODO(victorgomes): This is expensive, maybe cache the blocks that can
+      // be reached via a throw in the block.
+      for (Node* node : current->nodes()) {
+        if (node->properties().can_throw()) {
+          ExceptionHandlerInfo* handler = node->exception_handler_info();
+          if (!handler->HasExceptionHandler()) continue;
+          BasicBlock* catch_block = handler->catch_block.block_ptr();
+          if (!reachable_blocks.contains(catch_block)) {
+            reachable_blocks.insert(catch_block);
+            worklist.push_back(catch_block);
           }
-        } else {
+        }
+      }
+
+      current->ForEachSuccessor([&](BasicBlock* succ) {
+        if (!reachable_blocks.contains(succ)) {
           reachable_blocks.insert(succ);
           worklist.push_back(succ);
         }
       });
-    }
-
-    for (BasicBlock* bb : loop_headers_unreachable_by_backegde) {
-      DCHECK(bb->has_state());
-      bb->state()->TurnLoopIntoRegularBlock();
     }
 
     ZoneVector<BasicBlock*> new_blocks(zone());
@@ -350,8 +371,14 @@ class MaglevInliner {
         new_blocks.push_back(bb);
         // Remove unreachable predecessors.
         // If block doesn't have a merge state, it has only one predecessor, so
-        // it must be a reachable one.
+        // it must be the reachable one.
         if (!bb->has_state()) continue;
+        if (bb->is_loop() &&
+            !reachable_blocks.contains(bb->backedge_predecessor())) {
+          // If the backedge predecessor is not reachable, we can turn the loop
+          // into a regular block.
+          bb->state()->TurnLoopIntoRegularBlock();
+        }
         for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
           if (!reachable_blocks.contains(bb->predecessor_at(i))) {
             bb->state()->RemovePredecessorAt(i);

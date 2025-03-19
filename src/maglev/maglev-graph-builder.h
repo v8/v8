@@ -2596,10 +2596,14 @@ class MaglevGraphBuilder {
     if (InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject =
           current_interpreter_frame_.virtual_objects().FindAllocatedWith(alloc);
-      CHECK_NOT_NULL(vobject);
-      AddDeoptUse(vobject);
-      // Add an escaping use for the allocation.
-      AddNonEscapingUses(alloc, 1);
+      if (vobject) {
+        CHECK_NOT_NULL(vobject);
+        AddDeoptUse(vobject);
+        // Add an escaping use for the allocation.
+        AddNonEscapingUses(alloc, 1);
+      } else {
+        DCHECK(alloc->is_returned_value_from_inline_call());
+      }
       alloc->add_use();
     } else {
       node->add_use();
