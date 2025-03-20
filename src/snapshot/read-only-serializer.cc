@@ -25,6 +25,7 @@ class ObjectPreProcessor final {
 
 #define PRE_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                \
+  V(JSExternalObject)            \
   V(FunctionTemplateInfo)        \
   V(Code)
 
@@ -69,6 +70,12 @@ class ObjectPreProcessor final {
         o->getter(isolate_));  // Pass the non-redirected value.
     EncodeExternalPointerSlot(o->RawExternalPointerField(
         AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
+  }
+  void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
+    EncodeExternalPointerSlot(
+        o->RawExternalPointerField(JSExternalObject::kValueOffset,
+                                   kExternalObjectValueTag),
+        reinterpret_cast<Address>(o->value(isolate_)));
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(

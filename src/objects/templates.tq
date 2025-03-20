@@ -4,7 +4,8 @@
 
 bitfield struct TemplateInfoFlags extends uint31 {
   is_cacheable: bool: 1 bit;
-  serial_number: uint32: 30 bit;
+  should_promote_to_read_only: bool: 1 bit;
+  serial_number: uint32: 29 bit;
 }
 
 @abstract

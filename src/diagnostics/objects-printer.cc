@@ -1214,6 +1214,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   }
   os << "\n --- flags: ";
   if (is_cacheable()) os << "\n - is_cacheable";
+  if (should_promote_to_read_only()) os << "\n - should_promote_to_read_only";
   if (is_object_template_call_handler()) {
     os << "\n - is_object_template_call_handler";
   }

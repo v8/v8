@@ -6,6 +6,7 @@
 
 #include <unordered_set>
 
+#include "src/codegen/external-reference-encoder.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
@@ -44,7 +45,10 @@ class Committee final {
   }
 
  private:
-  explicit Committee(Isolate* isolate) : isolate_(isolate) {}
+  explicit Committee(Isolate* isolate)
+      : isolate_(isolate), ref_encoder_(isolate) {}
+
+  const ExternalReferenceEncoder& ref_encoder() const { return ref_encoder_; }
 
   HeapObjectList DeterminePromotees(const SafepointScope& safepoint_scope) {
     DCHECK(promo_accepted_.empty());
@@ -118,7 +122,7 @@ class Committee final {
     if (Contains(promo_accepted_, o)) return true;
     if (Contains(*visited, o)) return true;
     visited->insert(o);
-    if (!IsPromoCandidate(isolate_, o)) {
+    if (!IsPromoCandidate(this, isolate_, o)) {
       const auto& [it, inserted] = promo_rejected_.insert(o);
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion) && inserted) {
         LogRejectedPromotionForFailedPredicate(o);
@@ -134,6 +138,12 @@ class Committee final {
         LogRejectedPromotionForInvalidSubgraph(o,
                                                v.first_rejected_slot_offset());
       }
+      if (Tagged<TemplateInfo> info; TryCast<TemplateInfo>(o, &info)) {
+        CHECK_WITH_MSG(!info->should_promote_to_read_only(),
+                       "v8::Template was asked to be promoted to "
+                       "read only space but it wasn't possible. "
+                       "Use --trace-read-only-promotion for debugging.");
+      }
       return false;
     }
 
@@ -147,6 +157,8 @@ class Committee final {
   V(AccessorInfo)                    \
   V(Code)                            \
   V(CodeWrapper)                     \
+  V(JSExternalObject)                \
+  V(FunctionTemplateInfo)            \
   V(InterceptorInfo)                 \
   V(ScopeInfo)                       \
   V(SharedFunctionInfo)              \
@@ -154,12 +166,13 @@ class Committee final {
   // TODO(jgruber): Don't forget to extend ReadOnlyPromotionImpl::Verify when
   // adding new object types here.
 
-  static bool IsPromoCandidate(Isolate* isolate, Tagged<HeapObject> o) {
+  static bool IsPromoCandidate(Committee* committee, Isolate* isolate,
+                               Tagged<HeapObject> o) {
     const InstanceType itype = o->map(isolate)->instance_type();
-#define V(TYPE)                                            \
-  if (InstanceTypeChecker::Is##TYPE(itype)) {              \
-    return IsPromoCandidate##TYPE(isolate, Cast<TYPE>(o)); \
-    /* NOLINTNEXTLINE(readability/braces) */               \
+#define V(TYPE)                                                       \
+  if (InstanceTypeChecker::Is##TYPE(itype)) {                         \
+    return IsPromoCandidate##TYPE(committee, isolate, Cast<TYPE>(o)); \
+    /* NOLINTNEXTLINE(readability/braces) */                          \
   } else
     PROMO_CANDIDATE_TYPE_LIST(V)
     /* if { ... } else */ {
@@ -170,23 +183,43 @@ class Committee final {
   }
 #undef PROMO_CANDIDATE_TYPE_LIST
 
-#define DEF_PROMO_CANDIDATE(Type)                                        \
-  static bool IsPromoCandidate##Type(Isolate* isolate, Tagged<Type> o) { \
-    return true;                                                         \
+#define DEF_PROMO_CANDIDATE(Type)                                            \
+  static bool IsPromoCandidate##Type(Committee* committee, Isolate* isolate, \
+                                     Tagged<Type> o) {                       \
+    return true;                                                             \
   }
 
   DEF_PROMO_CANDIDATE(AccessCheckInfo)
   DEF_PROMO_CANDIDATE(AccessorInfo)
-  static bool IsPromoCandidateCode(Isolate* isolate, Tagged<Code> o) {
+
+  static bool IsPromoCandidateJSExternalObject(Committee* committee,
+                                               Isolate* isolate,
+                                               Tagged<JSExternalObject> o) {
+    // Check if the external pointer value is serializable.
+    DCHECK(IsNull(o->map()->map()->native_context_or_null()));
+    Address address = reinterpret_cast<Address>(o->value());
+    auto maybe_index = committee->ref_encoder().TryEncode(address);
+    return !maybe_index.IsNothing();
+  }
+  static bool IsPromoCandidateFunctionTemplateInfo(
+      Committee* committee, Isolate* isolate, Tagged<FunctionTemplateInfo> o) {
+    // This flag is set by the embedder explicitly by calling
+    // v8::FunctionTemplate::SealAndPrepareForPromotionToReadOnly(..).
+    return o->should_promote_to_read_only();
+  }
+  static bool IsPromoCandidateCode(Committee* committee, Isolate* isolate,
+                                   Tagged<Code> o) {
     return Builtins::kCodeObjectsAreInROSpace && o->is_builtin();
   }
-  static bool IsPromoCandidateCodeWrapper(Isolate* isolate,
+  static bool IsPromoCandidateCodeWrapper(Committee* committee,
+                                          Isolate* isolate,
                                           Tagged<CodeWrapper> o) {
-    return IsPromoCandidateCode(isolate, o->code(isolate));
+    return IsPromoCandidateCode(committee, isolate, o->code(isolate));
   }
   DEF_PROMO_CANDIDATE(InterceptorInfo)
   DEF_PROMO_CANDIDATE(ScopeInfo)
-  static bool IsPromoCandidateSharedFunctionInfo(Isolate* isolate,
+  static bool IsPromoCandidateSharedFunctionInfo(Committee* committee,
+                                                 Isolate* isolate,
                                                  Tagged<SharedFunctionInfo> o) {
     // Only internal SFIs are guaranteed to remain immutable.
     if (o->has_script(kAcquireLoad)) return false;
@@ -198,7 +231,12 @@ class Committee final {
     // TODO(jgruber): A better solution. Remove the liveness assumption (see
     // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
     // pre-serialization? Implement a RO GC pass pre-serialization?
-    return o->HasBuiltinId() && o->builtin_id() != Builtin::kIllegal;
+    if (o->HasBuiltinId() && o->builtin_id() != Builtin::kIllegal) {
+      return true;
+    }
+    // Api functions are good candidates for promotion.
+    if (o->IsApiFunction()) return true;
+    return false;
   }
   DEF_PROMO_CANDIDATE(Symbol)
 
@@ -294,6 +332,7 @@ class Committee final {
   }
 
   Isolate* const isolate_;
+  ExternalReferenceEncoder ref_encoder_;
   HeapObjectSet promo_accepted_;
   HeapObjectSet promo_rejected_;
 };
@@ -388,6 +427,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     Heap* heap = isolate->heap();
     CHECK(HeapLayout::InReadOnlySpace(
         heap->promise_all_resolve_element_closure_shared_fun()));
+    CHECK(HeapLayout::InReadOnlySpace(heap->error_stack_getter_fun_template()));
+    CHECK(HeapLayout::InReadOnlySpace(heap->error_stack_setter_fun_template()));
+
     // TODO(jgruber): Extend here with more objects as they are added to
     // the promotion algorithm.
 

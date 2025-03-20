@@ -45,8 +45,18 @@ BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
                RemovePrototypeBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, published,
-               PublishedBit::kShift)
+
+bool FunctionTemplateInfo::published() const {
+  return BooleanBit::get(relaxed_flag(), PublishedBit::kShift);
+}
+
+void FunctionTemplateInfo::set_published(bool value) {
+  DCHECK(value);
+  if (published()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*this));
+  set_relaxed_flag(
+      BooleanBit::set(relaxed_flag(), PublishedBit::kShift, value));
+}
 
 BIT_FIELD_ACCESSORS(
     FunctionTemplateInfo, relaxed_flag,
@@ -302,6 +312,16 @@ void TemplateInfo::set_is_cacheable(bool is_cacheable) {
       IsCacheableBit::update(template_info_flags(), is_cacheable));
 }
 
+bool TemplateInfo::should_promote_to_read_only() const {
+  return ShouldPromoteToReadOnlyBit::decode(template_info_flags());
+}
+void TemplateInfo::set_should_promote_to_read_only(
+    bool should_promote_to_read_only) {
+  DCHECK(should_promote_to_read_only);
+  set_template_info_flags(ShouldPromoteToReadOnlyBit::update(
+      template_info_flags(), should_promote_to_read_only));
+}
+
 uint32_t TemplateInfo::serial_number() const {
   return SerialNumberBits::decode(template_info_flags());
 }
@@ -313,6 +333,7 @@ void TemplateInfo::set_serial_number(uint32_t value) {
 uint32_t TemplateInfo::EnsureHasSerialNumber(Isolate* isolate) {
   uint32_t serial_number = this->serial_number();
   if (serial_number == kUninitializedSerialNumber) {
+    CHECK(!HeapLayout::InReadOnlySpace(*this));
     serial_number = isolate->heap()->GetNextTemplateSerialNumber();
     set_serial_number(serial_number);
   }

@@ -45,6 +45,7 @@ class TemplateInfo
       kFastTemplateInstantiationsCacheSize;
 
   DECL_BOOLEAN_ACCESSORS(is_cacheable)
+  DECL_BOOLEAN_ACCESSORS(should_promote_to_read_only)
   DECL_PRIMITIVE_ACCESSORS(serial_number, uint32_t)
 
   // Initializes serial number if necessary and returns it.
@@ -234,6 +235,9 @@ class FunctionTemplateInfo
   // functions that is done by IsTemplateFor).
   bool IsLeafTemplateForApiObject(Tagged<Object> object) const;
   inline bool instantiated();
+
+  static void SealAndPrepareForPromotionToReadOnly(
+      Isolate* isolate, DirectHandle<FunctionTemplateInfo> info);
 
   bool BreakAtEntry(Isolate* isolate);
   bool HasInstanceType();

@@ -7501,6 +7501,13 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
   return self->IsLeafTemplateForApiObject(object);
 }
 
+void FunctionTemplate::SealAndPrepareForPromotionToReadOnly() {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = self->GetIsolateChecked();
+  i::FunctionTemplateInfo::SealAndPrepareForPromotionToReadOnly(i_isolate,
+                                                                self);
+}
+
 Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
   static_assert(sizeof(value) == sizeof(i::Address));
   // Nullptr is not allowed here because serialization/deserialization of
@@ -7517,7 +7524,9 @@ Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
 }
 
 void* External::Value() const {
-  return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))->value();
+  i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
+  return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))
+      ->value(isolate);
 }
 
 // anonymous namespace for string creation helper functions

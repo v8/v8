@@ -3591,7 +3591,8 @@ intptr_t replaced_external_references[] = {
     0};
 
 intptr_t short_external_references[] = {
-    reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
+    reinterpret_cast<intptr_t>(SerializedCallbackReplacement),
+    reinterpret_cast<intptr_t>(&serialized_static_field), 0};
 
 }  // namespace
 
@@ -3607,8 +3608,11 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
+      v8::Local<v8::External> external =
+          v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
-          v8::FunctionTemplate::New(isolate, SerializedCallback);
+          v8::FunctionTemplate::New(isolate, SerializedCallback, external);
+      callback->SealAndPrepareForPromotionToReadOnly();
       v8::Local<v8::Value> function =
           callback->GetFunction(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
@@ -3660,6 +3664,12 @@ UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
       CHECK(!one_byte->IsExternalTwoByte());
       CHECK(!two_byte->IsExternalOneByte());
       CHECK(two_byte->IsExternalTwoByte());
+
+      // Ensure function template was promoted to RO space.
+      v8::Local<v8::Function> v8_func = CompileRun("f").As<v8::Function>();
+      auto func = Cast<i::JSFunction>(Utils::OpenHandle(*v8_func));
+      Tagged<FunctionTemplateInfo> func_temp = func->shared()->api_func_data();
+      CHECK(HeapLayout::InReadOnlySpace(func_temp));
     }
     isolate->Dispose();
   }
@@ -3704,8 +3714,11 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
+      v8::Local<v8::External> external =
+          v8::External::New(isolate, &serialized_static_field);
       v8::Local<v8::FunctionTemplate> callback =
-          v8::FunctionTemplate::New(isolate, SerializedCallback);
+          v8::FunctionTemplate::New(isolate, SerializedCallback, external);
+      callback->SealAndPrepareForPromotionToReadOnly();
       v8::Local<v8::Value> function =
           callback->GetFunction(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
@@ -3730,6 +3743,12 @@ UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 1337);
+
+      // Ensure function template was promoted to RO space.
+      v8::Local<v8::Function> v8_func = CompileRun("f").As<v8::Function>();
+      auto func = Cast<i::JSFunction>(Utils::OpenHandle(*v8_func));
+      Tagged<FunctionTemplateInfo> func_temp = func->shared()->api_func_data();
+      CHECK(HeapLayout::InReadOnlySpace(func_temp));
     }
     isolate->Dispose();
   }

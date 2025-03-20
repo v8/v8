@@ -1436,17 +1436,21 @@ void Heap::CreateInitialMutableObjects() {
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
 
-  // Error.stack accessor callbacks:
+  // Error.stack accessor callbacks and their SharedFunctionInfos:
   {
     DirectHandle<FunctionTemplateInfo> function_template;
     function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
         isolate_, Accessors::ErrorStackGetter, 0,
         SideEffectType::kHasSideEffect);
+    FunctionTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+        isolate_, function_template);
     set_error_stack_getter_fun_template(*function_template);
 
     function_template = ApiNatives::CreateAccessorFunctionTemplateInfo(
         isolate_, Accessors::ErrorStackSetter, 1,
         SideEffectType::kHasSideEffectToReceiver);
+    FunctionTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+        isolate_, function_template);
     set_error_stack_setter_fun_template(*function_template);
   }
 

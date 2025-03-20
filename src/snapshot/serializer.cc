@@ -912,7 +912,7 @@ void Serializer::ObjectSerializer::SerializeObject() {
 
   // Descriptor arrays have complex element weakness, that is dependent on the
   // maps pointing to them. During deserialization, this can cause them to get
-  // prematurely trimmed one of their owners isn't deserialized yet. We work
+  // prematurely trimmed if one of their owners isn't deserialized yet. We work
   // around this by forcing all descriptor arrays to be serialized as "strong",
   // i.e. no custom weakness, and "re-weaken" them in the deserializer once
   // deserialization completes.
