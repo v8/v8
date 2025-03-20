@@ -240,8 +240,8 @@ class V8_EXPORT IsolateGroup {
   IsolateGroup(IsolateGroup&& other);
   IsolateGroup& operator=(IsolateGroup&& other);
 
-  IsolateGroup(const IsolateGroup&) = delete;
-  IsolateGroup& operator=(const IsolateGroup&) = delete;
+  IsolateGroup(const IsolateGroup&);
+  IsolateGroup& operator=(const IsolateGroup&);
 
   ~IsolateGroup();
 

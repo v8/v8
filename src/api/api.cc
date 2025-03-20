@@ -9697,6 +9697,20 @@ IsolateGroup::IsolateGroup(i::IsolateGroup*&& isolate_group)
   DCHECK_NOT_NULL(isolate_group_);
 }
 
+IsolateGroup::IsolateGroup(const IsolateGroup& other)
+    : isolate_group_(other.isolate_group_) {
+  if (isolate_group_) isolate_group_->Acquire();
+}
+
+IsolateGroup& IsolateGroup::operator=(const IsolateGroup& other) {
+  if (this != &other && isolate_group_ != other.isolate_group_) {
+    if (isolate_group_) isolate_group_->Release();
+    isolate_group_ = other.isolate_group_;
+    if (isolate_group_) isolate_group_->Acquire();
+  }
+  return *this;
+}
+
 IsolateGroup::~IsolateGroup() {
   if (isolate_group_) {
     isolate_group_->Release();
