@@ -272,9 +272,14 @@ class ExperimentalFlagImplicationTest
 // {FlagAndName} combinations.
 TEST_P(ExperimentalFlagImplicationTest, TestExperimentalNotEnabled) {
   FlagList::EnforceFlagImplications();
-  // --experimental should be disabled by default. Note that unittests do not
-  // get executed in variants.
-  CHECK(!v8_flags.experimental);
+
+  // --experimental should normally be disabled by default. Note that unittests
+  // do not normally get executed in variants for experimental features.
+  // However, there may be exceptions and also the tests may run locally with
+  // experimental flags explicitly set. In such cases, i.e., if experimental was
+  // already enabled, this test must take it into account.
+  bool already_in_experimental = v8_flags.experimental;
+
   auto [flag_value, flag_name, test_name] = GetParam();
   CHECK_EQ(flag_value == nullptr, flag_name == nullptr);
 
@@ -288,6 +293,14 @@ TEST_P(ExperimentalFlagImplicationTest, TestExperimentalNotEnabled) {
 
   // Always enforce implications before checking if --experimental is set.
   FlagList::EnforceFlagImplications();
+
+  // If experimental was already enabled, we don't expect this to have changed.
+  if (already_in_experimental) {
+    if (!v8_flags.experimental) {
+      FATAL("--experimental was enabled and then disabled");
+    }
+    return;
+  }
 
   if (v8_flags.experimental) {
     if (flag_value == nullptr) {
