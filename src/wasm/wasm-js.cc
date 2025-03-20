@@ -77,17 +77,16 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->Finish(can_use_compiled_module);
   }
 
-  void Abort(MaybeLocal<Value> exception) {
+  void Abort(i::MaybeHandle<i::JSAny> exception) {
     i::HandleScope scope(i_isolate_);
     streaming_decoder_->Abort();
 
     // If no exception value is provided, we do not reject the promise. This can
     // happen when streaming compilation gets aborted when no script execution
     // is allowed anymore, e.g. when a browser tab gets refreshed.
-    if (exception.IsEmpty()) return;
+    if (exception.is_null()) return;
 
-    resolver_->OnCompilationFailed(
-        Utils::OpenDirectHandle(*exception.ToLocalChecked()));
+    resolver_->OnCompilationFailed(exception.ToHandleChecked());
   }
 
   bool SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
@@ -136,7 +135,12 @@ void WasmStreaming::Finish(bool can_use_compiled_module) {
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
   TRACE_EVENT0("v8.wasm", "wasm.AbortStreaming");
-  impl_->Abort(exception);
+  i::MaybeHandle<i::JSAny> maybe_exception;
+  if (!exception.IsEmpty()) {
+    maybe_exception =
+        Cast<i::JSAny>(Utils::OpenHandle(*exception.ToLocalChecked()));
+  }
+  impl_->Abort(maybe_exception);
 }
 
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
@@ -301,7 +305,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
              WasmAsyncSuccess::kSuccess);
   }
 
-  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (finished_) return;
     finished_ = true;
     if (context_.IsEmpty()) return;
@@ -348,7 +352,7 @@ class InstantiateModuleResultResolver
              WasmAsyncSuccess::kSuccess);
   }
 
-  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
@@ -427,7 +431,7 @@ class InstantiateBytesResultResolver
              success);
   }
 
-  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (context_.IsEmpty()) return;
     auto callback = reinterpret_cast<i::Isolate*>(isolate_)
                         ->wasm_async_resolve_promise_callback();
@@ -480,7 +484,7 @@ class AsyncInstantiateCompileResultResolver
         result, ImportsAsMaybeReceiver(imports_.Get(isolate_)));
   }
 
-  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     if (finished_) return;
     finished_ = true;
     if (context_.IsEmpty()) return;
@@ -757,9 +761,10 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       ArgumentToCompileOptions(info[1], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
-    resolver->OnCompilationFailed(
-        direct_handle(i_isolate->exception(), i_isolate));
+    i::DirectHandle<i::JSAny> exception(Cast<i::JSAny>(i_isolate->exception()),
+                                        i_isolate);
     i_isolate->clear_exception();
+    resolver->OnCompilationFailed(exception);
     return;
   }
   i::wasm::GetWasmEngine()->AsyncCompile(
@@ -821,9 +826,10 @@ void StartAsyncCompilationWithResolver(
       ArgumentToCompileOptions(options_arg_value, i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
-    resolver->OnCompilationFailed(
-        direct_handle(i_isolate->exception(), i_isolate));
+    i::DirectHandle<i::JSAny> exception(Cast<i::JSAny>(i_isolate->exception()),
+                                        i_isolate);
     i_isolate->clear_exception();
+    resolver->OnCompilationFailed(exception);
     return;
   }
 
@@ -1241,9 +1247,10 @@ void WebAssemblyInstantiateImpl(
       ArgumentToCompileOptions(info[2], i_isolate, enabled_features);
   if (i_isolate->has_exception()) {
     if (i_isolate->is_execution_terminating()) return;
-    compilation_resolver->OnCompilationFailed(
-        direct_handle(i_isolate->exception(), i_isolate));
+    i::DirectHandle<i::JSAny> exception(Cast<i::JSAny>(i_isolate->exception()),
+                                        i_isolate);
     i_isolate->clear_exception();
+    compilation_resolver->OnCompilationFailed(exception);
     return;
   }
 

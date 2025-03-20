@@ -191,7 +191,7 @@ class TestResolver : public CompilationResultResolver {
     *module_object_ = isolate_->global_handles()->Create(*module);
   }
 
-  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     *state_ = CompilationState::kFailed;
     DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();

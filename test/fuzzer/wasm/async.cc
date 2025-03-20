@@ -34,7 +34,7 @@ class AsyncFuzzerResolver : public CompilationResultResolver {
         isolate_, module, kDefaultMaxFuzzerExecutedInstructions);
   }
 
-  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<JSAny> error_reason) override {
     *done_ = true;
     // Keep {fuzzing_return_value_} at -1; while failed compilation is also
     // somewhat interesting, we get this often enough via mutation, so no need

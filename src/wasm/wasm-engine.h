@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
   virtual void OnCompilationSucceeded(
       DirectHandle<WasmModuleObject> result) = 0;
-  virtual void OnCompilationFailed(DirectHandle<Object> error_reason) = 0;
+  virtual void OnCompilationFailed(DirectHandle<JSAny> error_reason) = 0;
   virtual ~CompilationResultResolver() = default;
 };
 
@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
  public:
   virtual void OnInstantiationSucceeded(
       DirectHandle<WasmInstanceObject> result) = 0;
-  virtual void OnInstantiationFailed(DirectHandle<Object> error_reason) = 0;
+  virtual void OnInstantiationFailed(DirectHandle<JSAny> error_reason) = 0;
   virtual ~InstantiationResultResolver() = default;
 };
 

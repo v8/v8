@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   }
 
   // Create and return exception object.
-  V8_WARN_UNUSED_RESULT DirectHandle<Object> Reify();
+  V8_WARN_UNUSED_RESULT DirectHandle<JSObject> Reify();
 
   // Reset any error which was set on this thrower.
   void Reset();

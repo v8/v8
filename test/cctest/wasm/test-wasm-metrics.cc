@@ -166,7 +166,7 @@ class TestInstantiateResolver : public InstantiationResultResolver {
     *status_ = CompilationStatus::kFinished;
   }
 
-  void OnInstantiationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
@@ -201,7 +201,7 @@ class TestCompileResolver : public CompilationResultResolver {
     }
   }
 
-  void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(CcTest::i_isolate(), error_reason).ToHandleChecked();

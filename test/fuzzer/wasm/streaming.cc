@@ -47,7 +47,7 @@ class TestResolver : public CompilationResultResolver {
     native_module_ = module->shared_native_module();
   }
 
-  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<JSAny> error_reason) override {
     done_ = true;
     failed_ = true;
     DirectHandle<String> str =

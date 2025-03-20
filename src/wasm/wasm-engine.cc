@@ -778,8 +778,7 @@ void WasmEngine::AsyncInstantiate(
     if (isolate->is_execution_terminating()) return;
     // The JS code executed during instantiation has thrown an exception.
     // We have to move the exception to the promise chain.
-    DirectHandle<Object> exception(isolate->exception(), isolate);
-    DCHECK(!IsHole(*exception));
+    DirectHandle<JSAny> exception(Cast<JSAny>(isolate->exception()), isolate);
     isolate->clear_exception();
     resolver->OnInstantiationFailed(exception);
   } else {

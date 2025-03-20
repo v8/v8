@@ -119,7 +119,7 @@ class MockInstantiationResolver : public InstantiationResultResolver {
       DirectHandle<WasmInstanceObject> result) override {
     *out_instance_->location() = result->ptr();
   }
-  void OnInstantiationFailed(DirectHandle<Object> error_reason) override {
+  void OnInstantiationFailed(DirectHandle<JSAny> error_reason) override {
     UNREACHABLE();
   }
 
@@ -137,7 +137,7 @@ class MockCompilationResolver : public CompilationResultResolver {
         isolate_->isolate(),
         std::make_unique<MockInstantiationResolver>(out_instance_), result, {});
   }
-  void OnCompilationFailed(DirectHandle<Object> error_reason) override {
+  void OnCompilationFailed(DirectHandle<JSAny> error_reason) override {
     UNREACHABLE();
   }
 

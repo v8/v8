@@ -30372,7 +30372,7 @@ TEST(WasmAbortStreamingAfterContextDisposal) {
         i::DirectHandle<i::WasmModuleObject> result) override {
       UNREACHABLE();
     }
-    void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+    void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
       UNREACHABLE();
     }
   };

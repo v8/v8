@@ -78,7 +78,7 @@ class WasmCompileHelper : public AllStatic {
       ASSERT_EQ(true, pending_.exchange(false, std::memory_order_relaxed));
     }
 
-    void OnCompilationFailed(i::DirectHandle<i::Object> error_reason) override {
+    void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
       Print(*error_reason);
       FAIL();
     }
