@@ -6372,7 +6372,8 @@ void MacroAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
 void MacroAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, Register scratch1,
                                   Register scratch2, Simd128Register scratch3) {
-  DCHECK(!AreAliased(src1, src2, scratch3));
+  DCHECK(!AreAliased(src1, scratch3));
+  DCHECK(!AreAliased(src2, scratch3));
   // Saturate the indices to 5 bits. Input indices more than 31 should
   // return 0.
   vrepi(scratch3, Operand(31), Condition(0));
