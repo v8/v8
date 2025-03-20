@@ -103,6 +103,13 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     params.page_freeing_mode = base::PageFreeingMode::kDiscard;
   }
 
+#if defined(V8_TARGET_OS_IOS)
+  // We only get one shot at doing MAP_JIT on iOS. So we need to make it
+  // the least restrictive so it succeeds otherwise we will terminate the
+  // process on the failed allocation.
+  params.requested_start_hint = kNullAddress;
+  if (!VirtualMemoryCage::InitReservation(params)) return false;
+#else
   constexpr size_t kRadiusInMB =
       kMaxPCRelativeCodeRangeInMB > 1024 ? kMaxPCRelativeCodeRangeInMB : 4096;
   auto preferred_region = GetPreferredRegion(kRadiusInMB, kPageSize);
@@ -171,6 +178,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     // We didn't manage to allocate the code range close enough.
     FATAL("Failed to allocate code range close to the .text section");
   }
+#endif  // defined(V8_TARGET_OS_IOS)
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
@@ -402,11 +410,14 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
 
   if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
       V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT || ThreadIsolation::Enabled()) {
+    // iOS code pages are already RWX and don't need to be modified.
+#if !defined(V8_TARGET_OS_IOS)
     if (!page_allocator()->RecommitPages(embedded_blob_code_copy, code_size,
                                          PageAllocator::kReadWriteExecute)) {
       V8::FatalProcessOutOfMemory(isolate,
                                   "Re-embedded builtins: recommit pages");
     }
+#endif  // defined(V8_TARGET_OS_IOS)
     RwxMemoryWriteScope rwx_write_scope(
         "Enable write access to copy the blob code into the code range");
     memcpy(embedded_blob_code_copy, embedded_blob_code,
