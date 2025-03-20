@@ -333,9 +333,14 @@ def v8_stop_handler(event):
       except:
         pass
       select_frame = frame.older()
-    if frame_name.startswith('V8_Fatal'):
-      select_frame = frame.older()
-    if frame_name == 'v8::base::OS::DebugBreak':
+    if any([
+        frame_name.startswith('V8_Fatal'),
+        frame_name == 'v8::base::OS::DebugBreak',
+        frame_name == '__GI_abort',
+        frame_name == '__GI_raise',
+        frame_name == 'v8::base::OS::Abort',
+        frame_name == 'v8::Utils::ApiCheck',
+      ]):
       select_frame = frame.older()
     frame = frame.older()
 
