@@ -4962,6 +4962,7 @@ v8_header_set("v8_internal_headers") {
     ":v8_abseil",
     ":v8_heap_base_headers",
     ":v8_libbase",
+    "//third_party/simdutf:simdutf",
   ]
 }
 
