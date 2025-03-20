@@ -8436,12 +8436,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
-          zone()->New<KnownNodeAspects>(zone()),
-          /* loop effects */ nullptr,
-          ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
-              zone()),
-          catch_details, IsInsideLoop(), /* is_eager_inline */ false,
-          call_frequency},
+          known_node_aspects().Clone(zone()), loop_effects_,
+          unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
+          /* is_eager_inline */ false, call_frequency},
       generic_call, feedback_cell);
   graph()->inlineable_calls().push_back(call_site);
   return generic_call;
