@@ -87,10 +87,12 @@ V8_INLINE IsolateForSandbox GetIsolateForSandbox(Tagged<HeapObject> object) {
     allow_isolate_sharing = true;
   }
   if (allow_isolate_sharing) {
-    SBXCHECK(IsolateForSandbox{isolate}.SharesPointerTablesWith(
+    // TODO(396607238): Make this a `SBXCHECK`.
+    DCHECK(IsolateForSandbox{isolate}.SharesPointerTablesWith(
         Isolate::TryGetCurrent()));
   } else {
-    SBXCHECK_EQ(isolate, Isolate::TryGetCurrent());
+    // TODO(396607238): Make this a `SBXCHECK`.
+    DCHECK_EQ(isolate, Isolate::TryGetCurrent());
   }
   return isolate;
 }
