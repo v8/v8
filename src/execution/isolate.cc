@@ -2248,8 +2248,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> exception = this->exception();
 
-  auto FoundHandler = [&](Tagged<Context> context, Address instruction_start,
-                          intptr_t handler_offset,
+  auto FoundHandler = [&](StackFrameIterator& iter, Tagged<Context> context,
+                          Address instruction_start, intptr_t handler_offset,
                           Address constant_pool_address, Address handler_sp,
                           Address handler_fp, int num_frames_above_handler) {
     // Store information to be consumed by the CEntry.
@@ -2262,6 +2262,25 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     thread_local_top()->num_frames_above_pending_handler_ =
         num_frames_above_handler;
 
+#if V8_ENABLE_WEBASSEMBLY
+    // The unwinder is running on the central stack. If the target frame is in a
+    // secondary stack, update the central stack flags and the stack limit.
+    Address stack_address =
+        handler_sp != kNullAddress ? handler_sp : handler_fp;
+    if (!IsOnCentralStack(stack_address)) {
+      thread_local_top()->is_on_central_stack_flag_ = false;
+      uintptr_t limit =
+          reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
+      stack_guard()->SetStackLimitForStackSwitching(limit);
+      thread_local_top()->secondary_stack_limit_ = 0;
+      thread_local_top()->secondary_stack_sp_ = 0;
+#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
+      Simulator::current(this)->SetStackLimit(limit);
+#endif
+      iter.wasm_stack()->clear_stack_switch_info();
+    }
+#endif
+
     // Return and clear exception. The contract is that:
     // (1) the exception is stored in one place (no duplication), and
     // (2) within generated-code land, that one place is the return register.
@@ -2271,29 +2290,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     clear_internal_exception();
     return exception;
   };
-
-#if V8_ENABLE_WEBASSEMBLY
-  auto HandleStackSwitch = [&](StackFrameIterator& iter) {
-    if (iter.wasm_stack() == nullptr) return;
-    auto& switch_info = iter.wasm_stack()->stack_switch_info();
-    if (!switch_info.has_value()) return;
-    Tagged<Object> suspender_obj = root(RootIndex::kActiveSuspender);
-    if (!IsUndefined(suspender_obj)) {
-      // If the wasm-to-js wrapper was on a secondary stack and switched
-      // to the central stack, handle the implicit switch back.
-      if (switch_info.source_fp == iter.frame()->fp()) {
-        thread_local_top()->is_on_central_stack_flag_ = false;
-        uintptr_t limit =
-            reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
-        stack_guard()->SetStackLimitForStackSwitching(limit);
-#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
-        Simulator::current(this)->SetStackLimit(limit);
-#endif
-        iter.wasm_stack()->clear_stack_switch_info();
-      }
-    }
-  };
-#endif
 
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
@@ -2323,7 +2319,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         Address instruction_start =
             code->InstructionStart(this, iter.frame()->pc());
         int handler_offset = table.LookupReturn(0);
-        return FoundHandler(Context(), instruction_start, handler_offset,
+        return FoundHandler(iter, Context(), instruction_start, handler_offset,
                             kNullAddress, iter.frame()->sp(),
                             iter.frame()->fp(), visited_frames);
       } else {
@@ -2382,14 +2378,14 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code->stack_slots() * kSystemPointerSize;
-        return FoundHandler(Context(), code->instruction_start(), offset,
+        return FoundHandler(iter, Context(), code->instruction_start(), offset,
                             code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
 
       debug()->clear_restart_frame();
       Tagged<Code> code = *BUILTIN_CODE(this, RestartFrameTrampoline);
-      return FoundHandler(Context(), code->instruction_start(), 0,
+      return FoundHandler(iter, Context(), code->instruction_start(), 0,
                           code->constant_pool(), kNullAddress, frame->fp(),
                           visited_frames);
     }
@@ -2406,7 +2402,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Tagged<Code> code = frame->LookupCode();
         HandlerTable table(code);
-        return FoundHandler(Context(),
+        return FoundHandler(iter, Context(),
                             code->InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code->constant_pool(),
                             handler->address() + StackHandlerConstants::kSize,
@@ -2432,9 +2428,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           if (trap_handler::IsThreadInWasm()) {
             trap_handler::ClearThreadInWasm();
           }
-          return FoundHandler(Context(), instruction_start, handler_offset,
-                              code->constant_pool(), return_sp, frame->fp(),
-                              visited_frames);
+          return FoundHandler(iter, Context(), instruction_start,
+                              handler_offset, code->constant_pool(), return_sp,
+                              frame->fp(), visited_frames);
         }
 #endif  // V8_ENABLE_DRUMBRAKE
 
@@ -2451,7 +2447,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code->stack_slots() * kSystemPointerSize;
-        return FoundHandler(Context(), instruction_start, handler_offset,
+        return FoundHandler(iter, Context(), instruction_start, handler_offset,
                             code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
@@ -2499,20 +2495,15 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // flag. The {SetThreadInWasmFlagScope} will set the flag after all
         // destructors have been executed.
         set_thread_in_wasm_flag_scope.Enable();
-        return FoundHandler(Context(), wasm_code->instruction_start(), offset,
-                            wasm_code->constant_pool(), return_sp, frame->fp(),
-                            visited_frames);
+        return FoundHandler(iter, Context(), wasm_code->instruction_start(),
+                            offset, wasm_code->constant_pool(), return_sp,
+                            frame->fp(), visited_frames);
       }
 
       case StackFrame::WASM_LIFTOFF_SETUP: {
         // The WasmLiftoffFrameSetup builtin doesn't throw, and doesn't call
         // out to user code that could throw.
         UNREACHABLE();
-      }
-      case StackFrame::WASM_TO_JS:
-      case StackFrame::WASM_TO_JS_FUNCTION: {
-        HandleStackSwitch(iter);
-        break;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2543,14 +2534,11 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         }
 
         return FoundHandler(
-            Context(), code->InstructionStart(this, frame->pc()), offset,
+            iter, Context(), code->InstructionStart(this, frame->pc()), offset,
             code->constant_pool(), return_sp, frame->fp(), visited_frames);
       }
 
       case StackFrame::STUB: {
-#if V8_ENABLE_WEBASSEMBLY
-        HandleStackSwitch(iter);
-#endif
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
@@ -2575,7 +2563,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
                             code->stack_slots() * kSystemPointerSize;
 
         return FoundHandler(
-            Context(), code->InstructionStart(this, frame->pc()), offset,
+            iter, Context(), code->InstructionStart(this, frame->pc()), offset,
             code->constant_pool(), return_sp, frame->fp(), visited_frames);
       }
 
@@ -2614,9 +2602,9 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(Context(), code->instruction_start(), pc_offset,
-                              code->constant_pool(), return_sp, sp_frame->fp(),
-                              visited_frames);
+          return FoundHandler(iter, Context(), code->instruction_start(),
+                              pc_offset, code->constant_pool(), return_sp,
+                              sp_frame->fp(), visited_frames);
         } else {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
@@ -2630,7 +2618,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           // because at a minimum, an exit frame into C++ has to separate
           // it and the context in which this C++ code runs.
           CHECK_GE(visited_frames, 1);
-          return FoundHandler(context, code->instruction_start(), 0,
+          return FoundHandler(iter, context, code->instruction_start(), 0,
                               code->constant_pool(), return_sp, frame->fp(),
                               visited_frames - 1);
         }
@@ -2654,7 +2642,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
         Tagged<Code> code = js_frame->LookupCode();
-        return FoundHandler(Context(), code->instruction_start(), 0,
+        return FoundHandler(iter, Context(), code->instruction_start(), 0,
                             code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }

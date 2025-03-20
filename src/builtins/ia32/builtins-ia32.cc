@@ -4244,12 +4244,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Result is in eax or edx:eax - do not destroy these registers!
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // Check result for exception sentinel.
   Label exception_returned;
   __ CompareRoot(eax, RootIndex::kException);
@@ -4270,6 +4264,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ bind(&okay);
     __ pop(edx);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   __ LeaveExitFrame(esi);
   if (argv_mode == ArgvMode::kStack) {

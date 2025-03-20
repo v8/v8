@@ -4093,16 +4093,16 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Result returned in r0 or r1:r0 - do not destroy these registers!
 
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ CompareRoot(r0, RootIndex::kException);
+  __ b(eq, &exception_returned);
+
 #if V8_ENABLE_WEBASSEMBLY
   if (switch_to_central_stack) {
     SwitchFromTheCentralStackIfNeeded(masm);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-  // Check result for exception sentinel.
-  Label exception_returned;
-  __ CompareRoot(r0, RootIndex::kException);
-  __ b(eq, &exception_returned);
 
   // Check that there is no exception, otherwise we
   // should have returned the exception sentinel.
