@@ -1468,11 +1468,13 @@ class CompareSequence {
 
  private:
   InstructionCode GetOpcode(RegisterRepresentation rep) const {
-    if (rep == RegisterRepresentation::Word32()) {
-      return kArm64Cmp32;
-    } else {
-      DCHECK_EQ(rep, RegisterRepresentation::Word64());
-      return kArm64Cmp;
+    switch (rep.MapTaggedToWord().value()) {
+      case RegisterRepresentation::Word32():
+        return kArm64Cmp32;
+      case RegisterRepresentation::Word64():
+        return kArm64Cmp;
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -1555,7 +1557,8 @@ static std::optional<FlagsCondition> GetFlagsCondition(
   if (const ComparisonOp* comparison =
           selector->Get(node).TryCast<ComparisonOp>()) {
     if (comparison->rep == RegisterRepresentation::Word32() ||
-        comparison->rep == RegisterRepresentation::Word64()) {
+        comparison->rep == RegisterRepresentation::Word64() ||
+        comparison->rep == RegisterRepresentation::Tagged()) {
       switch (comparison->kind) {
         case ComparisonOp::Kind::kEqual:
           return FlagsCondition::kEqual;

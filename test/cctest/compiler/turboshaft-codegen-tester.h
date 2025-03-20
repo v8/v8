@@ -506,6 +506,7 @@ class IntBinopWrapper {
 };
 
 #define COMPARE_LIST(V)    \
+  V(TaggedEqual)           \
   V(Word32Equal)           \
   V(Int32LessThan)         \
   V(Int32LessThanOrEqual)  \
@@ -548,6 +549,7 @@ class CompareWrapper {
   bool Int32Compare(int32_t a, int32_t b) const {
     switch (op) {
       case TurboshaftComparison::kWord32Equal:
+      case TurboshaftComparison::kTaggedEqual:
         return a == b;
       case TurboshaftComparison::kInt32LessThan:
         return a < b;
@@ -565,6 +567,7 @@ class CompareWrapper {
   bool Int64Compare(int64_t a, int64_t b) const {
     switch (op) {
       case TurboshaftComparison::kWord64Equal:
+      case TurboshaftComparison::kTaggedEqual:
         return a == b;
       case TurboshaftComparison::kInt64LessThan:
         return a < b;
