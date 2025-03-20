@@ -8670,6 +8670,10 @@ MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   Local<Promise::Resolver> result;
   has_exception = !ToLocal<Promise::Resolver>(
       i_isolate->factory()->NewJSPromise(), &result);
+  // Also check if promise hooks set an exception.
+  // TODO(clemensb): Should `Factory::NewJSPromise()` return a MaybeHandle
+  // instead?
+  has_exception |= i_isolate->has_exception();
   RETURN_ON_FAILED_EXECUTION(Promise::Resolver);
   RETURN_ESCAPED(result);
 }

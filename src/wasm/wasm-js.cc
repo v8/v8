@@ -171,18 +171,6 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
 
 namespace {
 
-#define ASSIGN(type, var, expr)                          \
-  Local<type> var;                                       \
-  do {                                                   \
-    if (!expr.ToLocal(&var)) {                           \
-      DCHECK(i_isolate->has_exception());                \
-      return;                                            \
-    } else {                                             \
-      if (i_isolate->is_execution_terminating()) return; \
-      DCHECK(!i_isolate->has_exception());               \
-    }                                                    \
-  } while (false)
-
 i::DirectHandle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
 }
@@ -732,10 +720,12 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   RecordCompilationMethod(i_isolate, kAsyncCompilation);
 
   Local<Context> context = isolate->GetCurrentContext();
-  ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
+  Local<Promise::Resolver> promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&promise_resolver)) {
+    return js_api_scope.AssertException();
+  }
   Local<Promise> promise = promise_resolver->GetPromise();
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(promise);
+  info.GetReturnValue().Set(promise);
 
   std::shared_ptr<i::wasm::CompilationResultResolver> resolver(
       new AsyncCompilationResolver(isolate, context, promise_resolver));
@@ -843,12 +833,15 @@ void StartAsyncCompilationWithResolver(
       i::Managed<WasmStreaming>::From(i_isolate, 0, streaming);
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
-  ASSIGN(v8::Function, compile_callback,
-         v8::Function::New(context, i_isolate->wasm_streaming_callback(),
-                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
-  ASSIGN(v8::Function, reject_callback,
-         v8::Function::New(context, WasmStreamingPromiseFailedCallback,
-                           Utils::ToLocal(i::Cast<i::Object>(data)), 1));
+  Local<v8::Function> compile_callback, reject_callback;
+  if (!v8::Function::New(context, i_isolate->wasm_streaming_callback(),
+                         Utils::ToLocal(i::Cast<i::Object>(data)), 1)
+           .ToLocal(&compile_callback) ||
+      !v8::Function::New(context, WasmStreamingPromiseFailedCallback,
+                         Utils::ToLocal(i::Cast<i::Object>(data)), 1)
+           .ToLocal(&reject_callback)) {
+    return js_api_scope.AssertException();
+  }
 
   // The parameter may be of type {Response} or of type {Promise<Response>}.
   // Treat either case of parameter as Promise.resolve(parameter)
@@ -856,8 +849,11 @@ void StartAsyncCompilationWithResolver(
 
   // Ending with:
   //    return Promise.resolve(parameter).then(compile_callback);
-  ASSIGN(Promise::Resolver, input_resolver, Promise::Resolver::New(context));
-  if (!input_resolver->Resolve(context, response_or_promise).IsJust()) return;
+  Local<Promise::Resolver> input_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&input_resolver) ||
+      input_resolver->Resolve(context, response_or_promise).IsNothing()) {
+    return js_api_scope.AssertException();
+  }
 
   // Calling `then` on the promise can fail if the user monkey-patched stuff,
   // see https://crbug.com/374820218 / https://crbug.com/396461004.
@@ -883,7 +879,10 @@ void WebAssemblyCompileStreaming(
   Local<Context> context = isolate->GetCurrentContext();
 
   // Create and assign the return value of this function.
-  ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
+  Local<Promise::Resolver> promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&promise_resolver)) {
+    return js_api_scope.AssertException();
+  }
   Local<Promise> promise = promise_resolver->GetPromise();
   info.GetReturnValue().Set(promise);
 
@@ -1145,7 +1144,10 @@ void WebAssemblyInstantiateStreaming(
   Local<Context> context = isolate->GetCurrentContext();
 
   // Create and assign the return value of this function.
-  ASSIGN(Promise::Resolver, result_resolver, Promise::Resolver::New(context));
+  Local<Promise::Resolver> result_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&result_resolver)) {
+    return js_api_scope.AssertException();
+  }
   Local<Promise> promise = result_resolver->GetPromise();
   info.GetReturnValue().Set(promise);
 
@@ -1179,7 +1181,10 @@ void WebAssemblyInstantiateImpl(
 
   Local<Context> context = isolate->GetCurrentContext();
 
-  ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
+  Local<Promise::Resolver> promise_resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&promise_resolver)) {
+    return js_api_scope.AssertException();
+  }
   Local<Promise> promise = promise_resolver->GetPromise();
   info.GetReturnValue().Set(promise);
 
@@ -2829,8 +2834,7 @@ void WebAssemblyMemoryGetBufferImpl(
       return;
     }
   }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(buffer));
+  info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
 // WebAssembly.Memory.type() -> MemoryType
