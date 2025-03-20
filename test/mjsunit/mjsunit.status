@@ -2712,4 +2712,8 @@
   'regress/regress-392928803': [FAIL],
 }],  # not disassembler
 
+# https://issues.chromium.org/issues/404881599
+['(arch == arm64) and simulator_run', {
+'wasm/growable-stacks': [PASS, CRASH],
+}]
 ]
