@@ -1548,7 +1548,9 @@ DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
                             "enable optimizations for Webassembly SIMD")
 #endif  // V8_TARGET_ARCH_ARM64
 
-DEFINE_EXPERIMENTAL_FEATURE(turbolev, "use Maglev as a frontend for Turboshaft")
+DEFINE_BOOL(turbolev, false,
+            "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
+            "compiler instead of Turbofan")
 // inline_api_calls are not supported by the Turboshaft->Maglev translation.
 DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 
