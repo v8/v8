@@ -3765,6 +3765,10 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
 
   __ Move(new_wrapper_buffer, sp);
   // Copy data needed for return handling from old wrapper buffer to new one.
+  // kWrapperBufferRefReturnCount will be copied too, because 8 bytes are copied
+  // at the same time.
+  static_assert(JSToWasmWrapperFrameConstants::kWrapperBufferRefReturnCount ==
+                JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount + 4);
 
   __ LoadU64(
       scratch,
@@ -3776,14 +3780,6 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
                  JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount));
   __ LoadU64(
       scratch,
-      MemOperand(wrapper_buffer,
-                 JSToWasmWrapperFrameConstants::kWrapperBufferRefReturnCount));
-  __ StoreU64(
-      scratch,
-      MemOperand(new_wrapper_buffer,
-                 JSToWasmWrapperFrameConstants::kWrapperBufferRefReturnCount));
-  __ LoadU64(
-      scratch,
       MemOperand(
           wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray));
@@ -3792,19 +3788,6 @@ void SwitchToAllocatedStack(MacroAssembler* masm, RegisterAllocator& regs,
       MemOperand(
           new_wrapper_buffer,
           JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray));
-
-  __ LoadU64(
-      scratch,
-      MemOperand(
-          wrapper_buffer,
-          JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray +
-              4));
-  __ StoreU64(
-      scratch,
-      MemOperand(
-          new_wrapper_buffer,
-          JSToWasmWrapperFrameConstants::kWrapperBufferSigRepresentationArray +
-              4));
 }
 
 void SwitchBackAndReturnPromise(MacroAssembler* masm, RegisterAllocator& regs,
@@ -3979,8 +3962,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   int stack_params_offset =
       (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
       arraysize(wasm::kFpParamRegisters) * kDoubleSize;
-  int param_padding = stack_params_offset & kSystemPointerSize;
-  stack_params_offset += param_padding;
 
   {
     DEFINE_SCOPED(params_start);
@@ -4007,7 +3988,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
 
       // Push parameter
       {
-        DEFINE_SCOPED(scratch);
         __ AddS64(params_end, params_end, Operand(-kSystemPointerSize));
         __ LoadU64(r0, MemOperand(params_end), r0);
         __ push(r0);
@@ -4028,7 +4008,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
       next_offset += kSystemPointerSize;
     }
 
-    next_offset += param_padding;
     for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
       __ LoadF64(wasm::kFpParamRegisters[i],
                  MemOperand(params_start, next_offset));
@@ -4153,28 +4132,31 @@ void Builtins::Generate_JSToWasmStressSwitchStacksAsm(MacroAssembler* masm) {
 namespace {
 
 static constexpr Register kOldSPRegister = r16;
-static constexpr Register kSwitchFlagRegister = r17;
 
 void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
                                      Register target_input,
                                      Register argv_input) {
   using ER = ExternalReference;
 
-  __ Move(kOldSPRegister, sp);
+  // kOldSPRegister used as a switch flag, if it is zero - no switch performed
+  // if it is not zero, it contains old sp value.
+  __ mov(kOldSPRegister, Operand(0));
 
   // Using r5 & r6 as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
 
   ER on_central_stack_flag_loc = ER::Create(
       IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
-  __ Move(kSwitchFlagRegister, on_central_stack_flag_loc);
-  __ LoadU8(kSwitchFlagRegister, MemOperand(kSwitchFlagRegister));
+  __ Move(ip, on_central_stack_flag_loc);
+  __ LoadU8(ip, MemOperand(ip));
 
   Label do_not_need_to_switch;
-  __ CmpU32(kSwitchFlagRegister, Operand(0), r0);
+  __ CmpU32(ip, Operand(0), r0);
   __ bne(&do_not_need_to_switch);
 
   // Switch to central stack.
+
+  __ Move(kOldSPRegister, sp);
 
   Register central_stack_sp = r5;
   DCHECK(!AreAliased(central_stack_sp, argc_input, argv_input, target_input));
@@ -4213,8 +4195,9 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
 
   Label no_stack_change;
 
-  __ CmpU32(kSwitchFlagRegister, Operand(0), r0);
-  __ bne(&no_stack_change);
+  __ CmpU64(kOldSPRegister, Operand(0), r0);
+  __ beq(&no_stack_change);
+  __ Move(sp, kOldSPRegister);
 
   {
     __ Push(kReturnRegister0, kReturnRegister1);
@@ -4224,8 +4207,6 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
                      SetIsolateDataSlots::kNo);
     __ Pop(kReturnRegister0, kReturnRegister1);
   }
-
-  __ Move(sp, kOldSPRegister);
 
   __ bind(&no_stack_change);
 }
