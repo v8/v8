@@ -545,6 +545,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Current overall size of objects that were quarantined in the last GC.
   size_t quarantined_size_ = 0;
 
+  // Size right after the last GC. Used for computing `AllocatedSinceLastGC()`.
+  size_t size_after_last_gc_ = 0;
+
   friend class SemiSpaceObjectIterator;
   friend class SemiSpaceNewSpaceAllocatorPolicy;
 };

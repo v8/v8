@@ -741,33 +741,9 @@ size_t SemiSpaceNewSpace::Size() const {
 }
 
 size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
-  const Address age_mark = to_space_.age_mark();
-  DCHECK_NE(age_mark, kNullAddress);
-  DCHECK_NE(allocation_top(), kNullAddress);
-  PageMetadata* const age_mark_page =
-      PageMetadata::FromAllocationAreaAddress(age_mark);
-  PageMetadata* const last_page =
-      PageMetadata::FromAllocationAreaAddress(allocation_top());
-  PageMetadata* current_page = age_mark_page;
-  size_t allocated = 0;
-  if (current_page != last_page) {
-    DCHECK_EQ(current_page, age_mark_page);
-    DCHECK_GE(age_mark_page->area_end(), age_mark);
-    allocated += age_mark_page->area_end() - age_mark;
-    current_page = current_page->next_page();
-  } else {
-    DCHECK_GE(allocation_top(), age_mark);
-    return allocation_top() - age_mark;
-  }
-  while (current_page != last_page) {
-    DCHECK_NE(current_page, age_mark_page);
-    allocated += MemoryChunkLayout::AllocatableMemoryInDataPage();
-    current_page = current_page->next_page();
-  }
-  DCHECK_GE(allocation_top(), current_page->area_start());
-  allocated += allocation_top() - current_page->area_start();
-  DCHECK_LE(allocated, Size());
-  return allocated;
+  size_t current_size = Size();
+  DCHECK_GE(current_size, size_after_last_gc_);
+  return current_size - size_after_last_gc_;
 }
 
 void SemiSpaceNewSpace::GarbageCollectionPrologue() {
@@ -793,6 +769,7 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
 void SemiSpaceNewSpace::GarbageCollectionEpilogue() {
   DCHECK(!heap()->allocator()->new_space_allocator()->IsLabValid());
   set_age_mark_to_top();
+  size_after_last_gc_ = Size();
 
   if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
     ZapUnusedMemory();
