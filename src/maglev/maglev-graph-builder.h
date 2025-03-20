@@ -1170,8 +1170,8 @@ class MaglevGraphBuilder {
         if (!catch_block.exception_handler_was_used) {
           // Attach an empty live exception handler to mark that there's a
           // matching catch but we'll lazy deopt if we ever throw.
-          new (node->exception_handler_info()) ExceptionHandlerInfo(
-              catch_block.ref, ExceptionHandlerInfo::kLazyDeopt);
+          new (node->exception_handler_info())
+              ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
           DCHECK(node->exception_handler_info()->HasExceptionHandler());
           DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
           return;
@@ -1227,6 +1227,16 @@ class MaglevGraphBuilder {
       int offset = catch_block_stack_.top().handler;
       return {&jump_targets_[offset],
               merge_states_[offset]->exception_handler_was_used(), 0};
+    }
+    if (!is_inline()) {
+      return CatchBlockDetails{};
+    }
+    return caller_details_->catch_block;
+  }
+
+  CatchBlockDetails GetTryCatchBlockFromInfo(ExceptionHandlerInfo* info) {
+    if (IsInsideTryBlock()) {
+      return {&info->catch_block, !info->ShouldLazyDeopt(), 0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};

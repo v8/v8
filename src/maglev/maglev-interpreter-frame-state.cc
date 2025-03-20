@@ -1397,9 +1397,6 @@ bool MergePointInterpreterFrameState::IsUnreachableByForwardEdge() const {
       DCHECK(!is_loop());
       return true;
     case 1:
-      // Only resumable loops can be reachable by back-edge only. Others we
-      // prune in the front-end.
-      DCHECK_EQ(is_loop(), is_resumable_loop());
       return is_loop();
     default:
       return false;

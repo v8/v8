@@ -8341,10 +8341,6 @@ bool MaglevGraphBuilder::CanInlineCall(compiler::SharedFunctionInfoRef shared,
     TRACE_CANNOT_INLINE("use unsupported NewTargetOrGenerator register");
     return false;
   }
-  if (v8_flags.maglev_non_eager_inlining && IsInsideTryBlock()) {
-    TRACE_CANNOT_INLINE("non greedy inlining does not support catch blocks");
-    return false;
-  }
   if (call_frequency < min_inlining_frequency()) {
     TRACE_CANNOT_INLINE("call frequency (" << call_frequency
                                            << ") < minimum threshold ("
@@ -8431,7 +8427,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
 #endif
                                                shared, arguments);
 
-  CatchBlockDetails catch_details = GetCurrentTryCatchBlock();
+  // Note: We point to the generic call exception handler instead of
+  // jump_targets_ because the former contains a BasicBlockRef that is
+  // guaranteed to be updated correctly upon exception block creation.
+  // BuildLoopForPeeling might reset the BasicBlockRef in jump_targets_. If this
+  // happens, inlined calls within the peeled loop would incorrectly point to
+  // the loop's exception handler instead of the original call's.
+  CatchBlockDetails catch_details =
+      GetTryCatchBlockFromInfo(generic_call->exception_handler_info());
   catch_details.deopt_frame_distance++;
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{

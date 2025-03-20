@@ -1833,21 +1833,24 @@ class LazyDeoptInfo : public DeoptInfo {
 
 class ExceptionHandlerInfo {
  public:
-  static const int kNoExceptionHandlerPCOffsetMarker = 0xdeadbeef;
-  static const int kLazyDeopt = -1;
+  enum Mode {
+    kNoExceptionHandler = -1,
+    kLazyDeopt = -2,
+  };
 
-  ExceptionHandlerInfo()
-      : catch_block(), depth(0), pc_offset(kNoExceptionHandlerPCOffsetMarker) {}
+  explicit ExceptionHandlerInfo(Mode mode = kNoExceptionHandler)
+      : catch_block(), depth(static_cast<int>(mode)), pc_offset(-1) {}
 
   ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
-      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
+      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {
+    DCHECK_NE(depth, kNoExceptionHandler);
+    DCHECK_NE(depth, kLazyDeopt);
+  }
 
   ExceptionHandlerInfo(BasicBlock* catch_block_ref, int depth)
       : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
 
-  bool HasExceptionHandler() const {
-    return pc_offset != kNoExceptionHandlerPCOffsetMarker;
-  }
+  bool HasExceptionHandler() const { return depth != kNoExceptionHandler; }
 
   bool ShouldLazyDeopt() const { return depth == kLazyDeopt; }
 
