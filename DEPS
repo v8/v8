@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'fb60666cb1896901bb14a5feb10001d20c8833c3',
+  'partition_alloc_version': 'df5d4c1b2bdc8d18253cec8a3be4e0fa9194a2bb',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -112,7 +112,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platform-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_platform-tools_version': 'WihaseZR6cojZbkzIqwGhpTp92ztaGfqq8njBU8eTXYC',
+  'android_sdk_platform-tools_version': 'mjFmRj7k_XR9yj60pYbr9mG38FyEbU5oWdU56bZQ5cwC',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platforms_version
   # and whatever else without interference from each other.
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bcaac35c149ba998cb3eb7297a5cb664fc62a3d5',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '179db8bed65e85e49a1149edb77f80696fc2f38f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '244e7cf4453305d0c17d500662a69fba2e46a73e',
   'buildtools/linux64': {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'da5fbc656a3996bae47cda76ca1c898f3bf4a077',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'd9c28e08e64ec9613f43c2dbab18c5614fe81063',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -471,7 +471,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0428dbcf80bb7ff89b391fa58b41b7a24bfaa2f3',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '88c45122c8b8c5fab29f9d77bd3140e0385ba35c',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'dbe04005a29d9c5597aa3bddb974f46d8372574c',
   'third_party/re2/src':
