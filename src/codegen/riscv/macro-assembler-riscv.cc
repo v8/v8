@@ -7060,10 +7060,12 @@ void MacroAssembler::AssertSmiOrHeapObjectInMainCompressionCage(
   // We may not have any scratch registers so we preserve our input register.
   Push(object, zero_reg);
   Label ok;
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  SmiTst(object, scratch);
-  BranchShort(&ok, kEqual, scratch, Operand(zero_reg));
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    SmiTst(object, scratch);
+    BranchShort(&ok, kEqual, scratch, Operand(zero_reg));
+  }
   // Clear the lower 32 bits.
   Srl64(object, object, Operand(32));
   Sll64(object, object, Operand(32));
