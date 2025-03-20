@@ -9081,6 +9081,16 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+/*
+ * This instruction takes two string map inputs and returns the result map that
+ * is required for a cons string of these two inputs types (i.e.,
+ * Const(One|Two)ByteStringMap).
+ *
+ * TODO(olivf): Remove this instruction and instead select the result map using
+ * normal branches. This needs allocation folding support across the resulting
+ * sub-graph.
+ *
+ */
 class ConsStringMap : public FixedInputValueNodeT<2, ConsStringMap> {
   using Base = FixedInputValueNodeT<2, ConsStringMap>;
 

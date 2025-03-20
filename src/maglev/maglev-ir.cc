@@ -5156,6 +5156,10 @@ void ConsStringMap::GenerateCode(MaglevAssembler* masm,
   Register left = ToRegister(lhs());
   Register right = ToRegister(rhs());
 
+  // Fast case for when the lhs() (which is identical to the result) happens to
+  // contain the result for one byte string map inputs. In this case we only
+  // need to check the rhs() and if it is one byte too, already have the result
+  // in the correct register.
   bool left_contains_one_byte_res_map =
       lhs().node()->Is<RootConstant>() &&
       lhs().node()->Cast<RootConstant>()->index() ==
@@ -5165,7 +5169,7 @@ void ConsStringMap::GenerateCode(MaglevAssembler* masm,
   static_assert(InstanceTypeChecker::kOneByteStringMapBit == 0 ||
                 InstanceTypeChecker::kTwoByteStringMapBit == 0);
   auto TestForTwoByte = [&](Register reg, Register second) {
-    if (InstanceTypeChecker::kOneByteStringMapBit == 0) {
+    if constexpr (InstanceTypeChecker::kOneByteStringMapBit == 0) {
       // Two-byte is represented as 1: Check if either of them have the two-byte
       // bit set
       if (second != no_reg) {
@@ -5200,8 +5204,10 @@ void ConsStringMap::GenerateCode(MaglevAssembler* masm,
                                   Label::kNear);
   } else {
     __ LoadByte(left, FieldMemOperand(left, Map::kInstanceTypeOffset));
-    __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
-    __ AndInt32(scratch, left);
+    if (left != right) {
+      __ LoadByte(scratch, FieldMemOperand(right, Map::kInstanceTypeOffset));
+      __ AndInt32(scratch, left);
+    }
     __ TestInt32AndJumpIfAllClear(scratch, kStringEncodingMask, &two_byte,
                                   Label::kNear);
   }
