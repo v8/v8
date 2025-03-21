@@ -246,10 +246,13 @@ Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
     size_t remaining_capacity = content_capacity - write_index;
     if (remaining_capacity < required_capacity) {
       // Not enough space left, so stop here.
-      if (replace_invalid_utf8 && Utf16::IsLeadSurrogate(last)) {
+      if (Utf16::IsSurrogatePair(last, character)) {
         DCHECK_GE(write_index, Utf8::kSizeOfUnmatchedSurrogate);
         // We're in the middle of a surrogate pair. Delete the first part again.
         write_index -= Utf8::kSizeOfUnmatchedSurrogate;
+        // We've already read at least one character which is a lead surrogate
+        DCHECK_NE(read_index, 0);
+        --read_index;
       }
       break;
     }
@@ -257,8 +260,14 @@ Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
     if constexpr (kSourceIsOneByte) {
       write_index += Utf8::EncodeOneByte(buffer + write_index, character);
     } else {
-      write_index += Utf8::Encode(buffer + write_index, character, last,
-                                  replace_invalid_utf8);
+      // Handle the case where we cut off in the middle of a surrogate pair.
+      if ((read_index + 1 < string.size()) &&
+          Utf16::IsSurrogatePair(character, characters[read_index + 1])) {
+        write_index += Utf8::kSizeOfUnmatchedSurrogate;
+      } else {
+        write_index += Utf8::Encode(buffer + write_index, character, last,
+                                    replace_invalid_utf8);
+      }
     }
 
     last = character;

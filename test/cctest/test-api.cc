@@ -8796,6 +8796,24 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(13, len);
   CHECK_EQ(0, strcmp(utf8buf, "ab\xEF\xBF\xBDwx\xEF\xBF\xBDyz"));
 
+  // replace orphan lead surrogates even if we hit buffer capacity
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8V2(isolate, utf8buf, 5,
+                                 String::WriteFlags::kReplaceInvalidUtf8,
+                                 &processed_characters);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strncmp(utf8buf, "ab\xEF\xBF\xBD", 5));
+  CHECK_EQ(3, processed_characters);
+
+  // Encode orphan lead surrogates as their WTF-8 equivalent
+  // if ReplaceInvalidUtf8 flag is not passed
+  memset(utf8buf, 0x1, 1000);
+  len = orphans_str->WriteUtf8V2(isolate, utf8buf, 5, String::WriteFlags::kNone,
+                                 &processed_characters);
+  CHECK_EQ(5, len);
+  CHECK_EQ(0, strncmp(utf8buf, "ab\xED\xA0\x80", 5));
+  CHECK_EQ(3, processed_characters);
+
   // replace single lead surrogate with Unicode replacement character
   memset(utf8buf, 0x1, 1000);
   len = lead_str->WriteUtf8V2(isolate, utf8buf, sizeof(utf8buf),
@@ -8816,8 +8834,20 @@ THREADED_TEST(StringWrite) {
   // space
   memset(utf8buf, 0x1, 1000);
   len = pair_str->WriteUtf8V2(isolate, utf8buf, 3,
-                              String::WriteFlags::kReplaceInvalidUtf8);
+                              String::WriteFlags::kReplaceInvalidUtf8,
+                              &processed_characters);
   CHECK_EQ(0, len);
+  CHECK_EQ(0, processed_characters);
+  CHECK_EQ(0, strncmp(utf8buf, "\x01\x01\x01", 3));
+
+  // do not replace / write anything if surrogate pair does not fit the buffer
+  // space regardless of String::WriteFlags::kReplaceInvalidUtf8
+  memset(utf8buf, 0x1, 1000);
+  len = pair_str->WriteUtf8V2(isolate, utf8buf, 3, String::WriteFlags::kNone,
+                              &processed_characters);
+  CHECK_EQ(0, len);
+  CHECK_EQ(0, processed_characters);
+  CHECK_EQ(0, strncmp(utf8buf, "\x01\x01\x01", 3));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
   len = left_tree->Utf8LengthV2(isolate);
