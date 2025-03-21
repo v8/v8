@@ -188,7 +188,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   const size_t required_writable_area_size = GetWritableReservedAreaSize();
   // The size of the area that might have been excluded from the area
   // allocatable by the BoundedPageAllocator.
-  size_t reserved_area = 0;
+  size_t excluded_allocatable_area_size = 0;
   if (required_writable_area_size > 0) {
     CHECK_LE(required_writable_area_size, kPageSize);
 
@@ -201,12 +201,13 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
           reinterpret_cast<void*>(base()),
           reinterpret_cast<void*>(base() + non_allocatable_size));
 
-    // Exclude the reserved area from further allocations if it doesn't fit
-    // into non-allocatable area.
+    // Exclude the first page from allocatable pages if the required writable
+    // area doesn't fit into the non-allocatable area.
     if (non_allocatable_size < required_writable_area_size) {
       TRACE("=== Exclude the first page from allocatable area\n");
-      reserved_area = kPageSize;
-      CHECK(page_allocator_->AllocatePagesAt(base(), reserved_area,
+      excluded_allocatable_area_size = kPageSize;
+      CHECK(page_allocator_->AllocatePagesAt(page_allocator_->begin(),
+                                             excluded_allocatable_area_size,
                                              PageAllocator::kNoAccess));
     }
     // Commit required amount of writable memory.
@@ -229,9 +230,9 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 #if !defined(V8_OS_WIN) && !defined(V8_OS_IOS)
   if (params.page_initialization_mode ==
       base::PageInitializationMode::kRecommitOnly) {
-    void* base =
-        reinterpret_cast<void*>(page_allocator_->begin() + reserved_area);
-    size_t size = page_allocator_->size() - reserved_area;
+    void* base = reinterpret_cast<void*>(page_allocator_->begin() +
+                                         excluded_allocatable_area_size);
+    size_t size = page_allocator_->size() - excluded_allocatable_area_size;
     if (ThreadIsolation::Enabled()) {
       if (!ThreadIsolation::MakeExecutable(reinterpret_cast<Address>(base),
                                            size)) {
