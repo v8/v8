@@ -31233,3 +31233,73 @@ TEST(GettingHashSeed) {
   // Validate existence of the function.
   CHECK_GT(isolate->GetHashSeed(), 0);
 }
+
+TEST(LocalCasts) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  {
+    // Cast v8::Local<v8::String>.
+    v8::Local<v8::String> str = v8_str("foo");
+    // Implicit up-casts.
+    v8::Local<v8::Value> val = str;
+    v8::Local<v8::Data> data = str;
+    // Implicit cast and up-casts to MaybeLocal.
+    v8::MaybeLocal<v8::String> maybe_str = str;
+    v8::MaybeLocal<v8::Value> maybe_val = str;
+    v8::MaybeLocal<v8::Data> maybe_data = str;
+
+    // Equivalent casts and explicit down-casts.
+    v8::Local<v8::Value>::Cast(str);
+    v8::Local<v8::Value>::Cast(data);
+    v8::Local<v8::String>::Cast(str);
+    v8::Local<v8::String>::Cast(data);
+  }
+
+  {
+    // Cast v8::MaybeLocal<v8::String>.
+    v8::MaybeLocal<v8::String> maybe_str = v8_str("foo");
+    // Implicit up-casts.
+    v8::MaybeLocal<v8::Value> maybe_val = maybe_str;
+    v8::MaybeLocal<v8::Data> maybe_data = maybe_str;
+
+    // Equivalent casts and explicit down-casts.
+    v8::MaybeLocal<v8::Value>::Cast(maybe_str);
+    v8::MaybeLocal<v8::Value>::Cast(maybe_data);
+    v8::MaybeLocal<v8::String>::Cast(maybe_str);
+    v8::MaybeLocal<v8::String>::Cast(maybe_data);
+  }
+
+  {
+    // Cast an empty v8::Local<v8::String>.
+    v8::Local<v8::String> no_str;
+    // Implicit up-casts.
+    v8::Local<v8::Value> no_val = no_str;
+    v8::Local<v8::Data> no_data = no_str;
+    // Implicit cast and up-casts to MaybeLocal.
+    v8::MaybeLocal<v8::String> no_maybe_str = no_str;
+    v8::MaybeLocal<v8::Value> no_maybe_val = no_str;
+    v8::MaybeLocal<v8::Data> no_maybe_data = no_str;
+
+    // Equivalent casts and explicit down-casts.
+    v8::Local<v8::Value>::Cast(no_str);
+    v8::Local<v8::Value>::Cast(no_data);
+    v8::Local<v8::String>::Cast(no_str);
+    v8::Local<v8::String>::Cast(no_data);
+  }
+
+  {
+    // Cast an empty v8::MaybeLocal<v8::String>.
+    v8::MaybeLocal<v8::String> no_str;
+    // Implicit up-casts.
+    v8::MaybeLocal<v8::Value> no_val = no_str;
+    v8::MaybeLocal<v8::Data> no_data = no_str;
+
+    // Equivalent casts and explicit down-casts.
+    v8::MaybeLocal<v8::Value>::Cast(no_str);
+    v8::MaybeLocal<v8::Value>::Cast(no_data);
+    v8::MaybeLocal<v8::String>::Cast(no_str);
+    v8::MaybeLocal<v8::String>::Cast(no_data);
+  }
+}
