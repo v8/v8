@@ -697,10 +697,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   using CallIndirectTargetMap = absl::flat_hash_map<WasmCodePointer, uint32_t>;
   CallIndirectTargetMap CreateIndirectCallTargetToFunctionIndexMap() const;
 
-  // For cctests, where we build both WasmModule and the runtime objects
-  // on the fly, and bypass the instance builder pipeline.
-  void ReserveCodeTableForTesting(uint32_t max_functions);
-
   // Log all owned code in the given isolate, using the given script as the
   // containing script. Use this after transferring the module to a new isolate
   // or when enabling a component that needs all code to be logged (profiler).

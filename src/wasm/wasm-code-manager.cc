@@ -967,39 +967,6 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   AddCodeSpaceLocked(initial_region);
 }
 
-void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
-  if (v8_flags.wasm_jitless) return;
-
-  WasmCodeRefScope code_ref_scope;
-  CHECK_LE(module_->num_declared_functions, max_functions);
-  auto new_table = std::make_unique<WasmCode*[]>(max_functions);
-  if (module_->num_declared_functions > 0) {
-    memcpy(new_table.get(), code_table_.get(),
-           module_->num_declared_functions * sizeof(WasmCode*));
-  }
-  code_table_ = std::move(new_table);
-  InitializeCodePointerTableHandles(max_functions);
-
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
-  CHECK_EQ(1, code_space_data_.size());
-  base::AddressRegion single_code_space_region = code_space_data_[0].region;
-  // Re-allocate the near and far jump tables.
-  main_jump_table_ = CreateEmptyJumpTableInRegionLocked(
-      JumpTableAssembler::SizeForNumberOfSlots(max_functions),
-      single_code_space_region, JumpTableType::kJumpTable);
-  CHECK(
-      single_code_space_region.contains(main_jump_table_->instruction_start()));
-  main_far_jump_table_ = CreateEmptyJumpTableInRegionLocked(
-      JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          BuiltinLookup::BuiltinCount(),
-          NumWasmFunctionsInFarJumpTable(max_functions)),
-      single_code_space_region, JumpTableType::kFarJumpTable);
-  CHECK(single_code_space_region.contains(
-      main_far_jump_table_->instruction_start()));
-  code_space_data_[0].jump_table = main_jump_table_;
-  InitializeJumpTableForLazyCompilation(max_functions);
-}
-
 void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
   DisallowGarbageCollection no_gc;
   if (!WasmCode::ShouldBeLogged(isolate)) return;
@@ -1797,8 +1764,8 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   if (needs_jump_table) {
     // Allocate additional jump tables just as big as the first one.
     // This is in particular needed in cctests which add functions to the module
-    // after the jump tables are already created (see https://crbug.com/v8/14213
-    // and {NativeModule::ReserveCodeTableForTesting}.
+    // after the jump tables are already created (see
+    // https://crbug.com/v8/14213).
     int jump_table_size =
         is_first_code_space
             ? JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions)

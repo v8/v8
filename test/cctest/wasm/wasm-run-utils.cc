@@ -441,12 +441,17 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // Compute the estimate based on {kMaxFunctions} because we might still add
   // functions later. Assume 1k of code per function.
   int estimated_code_section_length = kMaxFunctions * 1024;
+  // Pretend to have `kMaxFunctions` already when allocating the `NativeModule`.
+  DCHECK_EQ(0, test_module_->num_declared_functions);
+  test_module_->num_declared_functions = kMaxFunctions;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           kMaxFunctions, estimated_code_section_length);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, WasmDetectedFeatures{}, CompileTimeImports{},
       test_module_, code_size_estimate);
+  // Reset the declared functions; functions will be added later in the test.
+  test_module_->num_declared_functions = 0;
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
   constexpr base::Vector<const char> kNoSourceUrl{"", 0};
@@ -461,7 +466,6 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
   native_module_ = module_object->native_module();
-  native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       WasmTrustedInstanceData::New(isolate_, module_object, false);
