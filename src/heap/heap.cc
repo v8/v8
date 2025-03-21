@@ -3847,7 +3847,8 @@ size_t ComputeReducedNewSpaceSize(NewSpace* new_space) {
       std::max(new_space->MinimumCapacity(), 2 * new_space->Size());
   size_t rounded_new_capacity =
       ::RoundUp(new_capacity, PageMetadata::kPageSize);
-  return rounded_new_capacity;
+  DCHECK_LE(new_space->TotalCapacity(), new_space->MaximumCapacity());
+  return std::min(new_space->TotalCapacity(), rounded_new_capacity);
 }
 }  // anonymous namespace
 

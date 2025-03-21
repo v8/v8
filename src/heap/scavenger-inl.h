@@ -207,8 +207,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
   SLOW_DCHECK(static_cast<size_t>(object_size) <=
               MemoryChunkLayout::AllocatableMemoryInDataPage());
 
-  if (!SemiSpaceNewSpace::From(heap()->new_space())
-           ->ShouldBePromoted(object.address())) {
+  if (!heap()->semi_space_new_space()->ShouldBePromoted(object.address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
     // try to promote the object.
     result = SemiSpaceCopyObject(map, slot, object, object_size, object_fields);

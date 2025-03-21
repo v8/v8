@@ -99,20 +99,12 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     return AllocationMemento();
   }
 
-  // Bail out if the memento is below the age mark, which can happen when
-  // mementos survived because a page got moved within new space.
-  MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
-  if (object_chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
-    PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
-    Address age_mark =
-        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
-    if (!object_page->Contains(age_mark)) {
-      return AllocationMemento();
-    }
-    // Do an exact check in the case where the age mark is on the same page.
-    if (object_address < age_mark) {
-      return AllocationMemento();
-    }
+  // Bailout if memento is below the age mark. This is only possible for pinned
+  // pages in the scavenger. Full GC has page promotion but clears the
+  // NEW_SPACE_BELOW_AGE_MARK page flags before checking mementos.
+  if (!v8_flags.minor_ms &&
+      heap->semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
+    return AllocationMemento();
   }
 
   Tagged<AllocationMemento> memento_candidate =

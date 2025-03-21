@@ -90,6 +90,34 @@ void SemiSpaceNewSpace::DecrementAllocationTop(Address new_top) {
   allocation_top_ = new_top;
 }
 
+bool SemiSpaceNewSpace::IsAddressBelowAgeMark(Address address) const {
+  // Note that we use MemoryChunk here on purpose to avoid the page metadata
+  // table lookup for performance reasons.
+  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+
+  // This method is only ever used on non-large pages in the young generation.
+  // However, on page promotion (new to old) during a full GC the page flags are
+  // already updated to old space before using this method.
+  DCHECK(chunk->InYoungGeneration() ||
+         chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+  DCHECK(!chunk->IsLargePage());
+
+  if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
+    return false;
+  }
+
+  const Address age_mark = age_mark_;
+  const bool on_age_mark_page =
+      chunk->address() < age_mark &&
+      age_mark <= chunk->address() + PageMetadata::kPageSize;
+  DCHECK_EQ(chunk->Metadata()->ContainsLimit(age_mark), on_age_mark_page);
+  return !on_age_mark_page || address < age_mark;
+}
+
+bool SemiSpaceNewSpace::ShouldBePromoted(Address object) const {
+  return IsAddressBelowAgeMark(object);
+}
+
 }  // namespace internal
 }  // namespace v8
 
