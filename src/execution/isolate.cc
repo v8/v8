@@ -3875,38 +3875,23 @@ void Isolate::SwitchStacks(Tagged<WasmContinuationObject> old_continuation) {
 #endif
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);
-  UpdateCentralStackInfo();
-}
-
-void Isolate::UpdateCentralStackInfo() {
-  Tagged<Object> current = root(RootIndex::kActiveContinuation);
-  DCHECK(!IsUndefined(current));
-  wasm::StackMemory* wasm_stack = reinterpret_cast<wasm::StackMemory*>(
-      Cast<WasmContinuationObject>(current)->stack());
-  current = Cast<WasmContinuationObject>(current)->parent();
-  thread_local_top()->is_on_central_stack_flag_ =
-      IsOnCentralStack(wasm_stack->jmpbuf()->sp);
-  // Update the central stack info on switch. Only consider the innermost stack
-  bool updated_central_stack = false;
-  // We don't need to add all inactive stacks. Only the ones in the active chain
-  // may contain cpp heap pointers.
-  while (!IsUndefined(current)) {
-    auto cont = Cast<WasmContinuationObject>(current);
-    wasm_stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
-    // On x64 and arm64 we don't need to record the stack segments for
-    // conservative stack scanning. We switch to the central stack for foreign
-    // calls, so secondary stacks only contain wasm frames which use the precise
-    // GC.
-    current = cont->parent();
-    if (!updated_central_stack && IsOnCentralStack(wasm_stack->jmpbuf()->sp)) {
-      // This is the most recent use of the central stack in the call chain.
-      // Switch to this SP if we need to switch to the central stack in the
-      // future.
-      thread_local_top()->central_stack_sp_ = wasm_stack->jmpbuf()->sp;
-      thread_local_top()->central_stack_limit_ =
-          reinterpret_cast<Address>(wasm_stack->jmpbuf()->stack_limit);
-      updated_central_stack = true;
-    }
+  // Update the central stack info.
+  if (stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
+    // When returning/suspending from a stack, the parent must be on
+    // the central stack.
+    // TODO(388533754): This assumption will not hold anymore with core
+    // stack-switching, so we will need to revisit this.
+    DCHECK(IsOnCentralStack(stack->jmpbuf()->sp));
+    thread_local_top()->is_on_central_stack_flag_ = true;
+    thread_local_top()->central_stack_sp_ = stack->jmpbuf()->sp;
+    thread_local_top()->central_stack_limit_ =
+        reinterpret_cast<Address>(stack->jmpbuf()->stack_limit);
+  } else {
+    // A suspended stack cannot hold central stack frames.
+    thread_local_top()->is_on_central_stack_flag_ = false;
+    thread_local_top()->central_stack_sp_ = old_stack->jmpbuf()->sp;
+    thread_local_top()->central_stack_limit_ =
+        reinterpret_cast<Address>(old_stack->jmpbuf()->stack_limit);
   }
 }
 

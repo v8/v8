@@ -2330,9 +2330,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
   }
-  // Update the thread local's Stack object so that it is aware of the new stack
-  // start and the inactive stacks.
-  void UpdateCentralStackInfo();
 
   // Post processes a stack switch after having already updated the active
   // continuation root. Sets the new stack limit, updates the central stack info
