@@ -78,6 +78,8 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   DCHECK(AllowHeapAllocation::IsAllowed());
   CHECK(AllowHeapAllocationInRelease::IsAllowed());
   DCHECK(local_heap_->IsRunning());
+  // We need to have entered the isolate before allocating.
+  DCHECK_EQ(heap_->isolate(), Isolate::TryGetCurrent());
 #if V8_ENABLE_WEBASSEMBLY
   if (!v8_flags.wasm_jitless) {
     trap_handler::AssertThreadNotInWasm();
