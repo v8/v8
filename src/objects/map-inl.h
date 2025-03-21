@@ -42,6 +42,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
 
 ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
           kInstanceDescriptorsOffset)
+#if V8_ENABLE_WEBASSEMBLY
+ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
+                  kInstanceDescriptorsOffset, IsWasmStructMap(*this))
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 RELAXED_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                   kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,

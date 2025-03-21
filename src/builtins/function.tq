@@ -64,7 +64,8 @@ transitioning javascript builtin FastFunctionPrototypeBind(
           goto Slow;
         }
 
-        const descriptors: DescriptorArray = fn.map.instance_descriptors;
+        const descriptors: DescriptorArray =
+            UnsafeCast<DescriptorArray>(fn.map.instance_descriptors);
         CheckAccessor(
             descriptors, kLengthDescriptorIndex, LengthStringConstant())
             otherwise Slow;

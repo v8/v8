@@ -218,8 +218,9 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [constructor_or_back_pointer_or_native_context] |
 // +---------------+-------------------------------------------------+
-// | TaggedPointer | [instance_descriptors]                          |
-// +*****************************************************************+
+// | TaggedPointer | [instance_descriptors] (if JS object)           |
+// |               | [custom_descriptor]    (if WasmStruct)          |
+// +---------------+-------------------------------------------------+
 // | TaggedPointer | [dependent_code]                                |
 // +---------------+-------------------------------------------------+
 // | TaggedPointer | [prototype_validity_cell]                       |
@@ -668,6 +669,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, Tagged<DescriptorArray> descriptors,
       int number_of_own_descriptors,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Only for WasmStructs: custom descriptor instead of instance_descriptors.
+  DECL_ACCESSORS(custom_descriptor, Tagged<WasmStruct>)
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   inline void UpdateDescriptors(Isolate* isolate,
                                 Tagged<DescriptorArray> descriptors,

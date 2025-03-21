@@ -73,7 +73,8 @@ macro EnsureArrayLengthWritable(implicit context: Context)(
   // Check whether the length property is writable. The length property is the
   // only default named property on arrays. It's nonconfigurable, hence is
   // guaranteed to stay the first property.
-  const descriptors: DescriptorArray = map.instance_descriptors;
+  const descriptors: DescriptorArray =
+      UnsafeCast<DescriptorArray>(map.instance_descriptors);
   const descriptor:&DescriptorEntry =
       &descriptors.descriptors[kLengthDescriptorIndex];
   dcheck(TaggedEqual(descriptor->key, LengthStringConstant()));

@@ -164,7 +164,11 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // We don't need to check the exact accessor here because the only case
   // custom accessor arise is with function templates via API, and in that
   // case the object is in dictionary mode
+#if V8_ENABLE_WEBASSEMBLY
+  TNode<DescriptorArray> descriptors = CAST(LoadMapInstanceDescriptors(map));
+#else
   TNode<DescriptorArray> descriptors = LoadMapInstanceDescriptors(map);
+#endif  // V8_ENABLE_WEBASSEMBLY
   CheckAccessor(
       descriptors,
       IntPtrConstant(
