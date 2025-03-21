@@ -23,8 +23,9 @@ module. You can use these commands to do so:
 
 Options:
 
-    --start <start_hash>    At which commit to start the bisect
-    --end <end_hash>        At which commit to end the bisect
+    --start <start_hash>    At which commit to start the bisect.
+    --end <end_hash>        At which commit to end the bisect.
+    --range <start>..<end>  Alternative to the above start/end.
     --run <command>         The command line to run the benchmark. Use V8 as a placeholder in there:
                             it will be replace by the path to the actual V8 being tested.
     --run-dir <dir>         The directory from which benchmarks should be ran: this script will `cd`
@@ -34,6 +35,9 @@ Options:
     --score-regex <regex>   If specified, use <regex> to extract the performance from the benchmark's
                             output. The regex is assumed to use a capture group to extract the result.
                             Either --perl-time or --score-regex should always be passed.
+    --total-score           If specified, expect a JetStream style TotalScore: xxx output.
+    --average-score         If specified, expect a JetStream style AverageScore: xxx output.
+    --first-score           If specified, expect a JetStream style FirstScore: xxx output.
     --nb-run <num>          How many repetition for each benchmark for each commit. Default is 30.
     --retry <num>           How many times to retry benchmark at a given commit when bisect fails
                             because it doesn't find a statistical difference between the begining and
@@ -70,15 +74,18 @@ use Cwd qw(getcwd abs_path);
 
 $| = 1; # auto-flusing
 
-
 my $START = ""; # first commit
 my $END = ""; # last commit
+my $RANGE = "";
 my $RUN_CMD = ""; # command to run to check perf
 my $RUN_CMD_DIR = ""; # directory to run perf command from
-my $COMPILE_DIR = "out/x64.release"; # Thing to compile
-my $BISECT_DIR = "bisect";
+my $COMPILE_DIR = `arch` eq "arm64\n" ? "out/arm64.release" : "out/x64.release"; # Thing to compile
+my $BISECT_DIR = "out/bisect";
 my $PERL_TIME = 0; # If true, use Perl's timer for the comparison
 my $SCORE_REGEX = ""; # If non-empty, use to extract score
+my $TOTAL_SCORE_REGEX = "";
+my $FIRST_SCORE_REGEX = "";
+my $AVERAGE_SCORE_REGEX = "";
 my $NB_RUN = 30; # number of runs per measure
 my $RETRY = 3; # if no statistical difference is found, retry $RETRY times.
 my $VERBOSE = 1;
@@ -88,19 +95,20 @@ my $PROBA_THRESHOLD = 0.05; # Wilcoxon's threshold
 
 GetOptions("start=s"       => \$START,
            "end=s"         => \$END,
+           "range=s"       => \$RANGE,
            "run=s"         => \$RUN_CMD,
            "run-dir=s"     => \$RUN_CMD_DIR,
            "compile=s"     => \$COMPILE_DIR,
            "bisect-dir=s"  => \$BISECT_DIR,
            "perl-time"     => \$PERL_TIME,
            "score-regex=s" => \$SCORE_REGEX,
+           "total-score"   => \$TOTAL_SCORE_REGEX,
+           "average-score" => \$AVERAGE_SCORE_REGEX,
+           "first-score"   => \$FIRST_SCORE_REGEX,
            "nb-run=i"      => \$NB_RUN,
            "retry=i"       => \$RETRY,
            "verbose!"      => \$VERBOSE);
 
-my $START_DIR = "$BISECT_DIR/start";
-my $MID_DIR = "$BISECT_DIR/mid";
-my $END_DIR = "$BISECT_DIR/end";
 my $LOG_FILE = abs_path("$BISECT_DIR/logs.txt");
 
 sub trace {
@@ -124,6 +132,10 @@ if (-f $LOG_FILE) {
   unlink $LOG_FILE;
 }
 
+if (!$START && !$END && $RANGE) {
+  ($START, $END) = split('\.\.', $RANGE);
+}
+
 trace("Checking parameters...\n");
 if (!$START || !$END || !$RUN_CMD) {
   my @missings = map { $_->[1] } grep { !$_->[0] }
@@ -138,6 +150,15 @@ if (!-d $COMPILE_DIR) {
 if ($RUN_CMD_DIR ne "" && !-d $RUN_CMD_DIR) {
   say "Run directory $RUN_CMD_DIR does not exist.";
   usage();
+}
+if ($TOTAL_SCORE_REGEX && !$SCORE_REGEX) {
+  $SCORE_REGEX="Total-Score: (\\d+\\.?\\d*)"
+}
+if ($AVERAGE_SCORE_REGEX && !$SCORE_REGEX) {
+  $SCORE_REGEX="Average-Score: (\\d+\\.?\\d*)"
+}
+if ($FIRST_SCORE_REGEX && !$SCORE_REGEX) {
+  $SCORE_REGEX="First-Score: (\\d+\\.?\\d*)"
 }
 if (!$PERL_TIME && !$SCORE_REGEX) {
   say "One of --perl-time and --score-regex must be specified.";
@@ -167,16 +188,16 @@ while (1) {
         colored($end, "red"), " (middle = ", colored($mid, 'yellow'), ")\n");
 
   trace(colored("  Compiling...\n", 'bold'));
-  if (-d $START_DIR) { remove_tree $START_DIR; }
-  if (-d $MID_DIR) { remove_tree $MID_DIR; }
-  if (-d $END_DIR) { remove_tree $END_DIR; }
-  compile($start, $START_DIR, 'green');
-  compile($mid, $MID_DIR, 'yellow');
-  compile($end, $END_DIR, 'red');
+  my $start_dir = "$BISECT_DIR/$start";
+  my $mid_dir = "$BISECT_DIR/$mid";
+  my $end_dir = "$BISECT_DIR/$end";
+  compile($start, "$start_dir", 'green');
+  compile($mid, "$mid_dir", 'yellow');
+  compile($end, "$end_dir", 'red');
 
-  my $start_bin = abs_path("$START_DIR/d8");
-  my $mid_bin = abs_path("$MID_DIR/d8");
-  my $end_bin = abs_path("$END_DIR/d8");
+  my $start_bin = abs_path("$start_dir/d8");
+  my $mid_bin = abs_path("$mid_dir/d8");
+  my $end_bin = abs_path("$end_dir/d8");
   if ($RUN_CMD_DIR ne "") {
     chdir $RUN_CMD_DIR;
   }
@@ -192,10 +213,24 @@ while (1) {
         my $time = time();
         my $cmd = $RUN_CMD =~ s/^V8/$bin/r;
         my $out = `$cmd`;
+	if ($? != 0) {
+          say "\n==== Error:";
+          say "`$cmd` exited with $?:";
+          say "====";
+	  say "$out";
+	  exit 1;
+	}
         if ($PERL_TIME) {
           push @{$scores{$bin}}, time() - $time;
         } else {
           my ($score) = $out =~ /$SCORE_REGEX/;
+	  if (!defined $score) {
+            say "\n==== Error:";
+            say "`$cmd` did not return output matching $SCORE_REGEX:";
+            say "====";
+	    say "$out";
+	    exit 1;
+	  }
           push @{$scores{$bin}}, $score;
         }
       }
@@ -249,12 +284,18 @@ sub compile {
   my ($commit, $dst, $color) = @_;
   my $commit_title = get_commit_title($commit);
   trace("    Compiling at ", colored($commit, $color), ": ", colored($commit_title, 'italic'), "\n");
+  if (-d $dst && -f "$dst/d8") {
+    trace("     - reusing existing d8\n");
+    return;
+  }
   system("git checkout $commit >>$LOG_FILE 2>&1") and die "Failed to checkout commit $commit";
   system("gclient sync >>$LOG_FILE 2>&1") and die "Failed to gclient sync";
   system("gn gen $COMPILE_DIR >>$LOG_FILE 2>&1") and die "Failed to gn gen";
   system("gn clean $COMPILE_DIR >>$LOG_FILE 2>&1") and die "Failed to clean $COMPILE_DIR";
   system("autoninja -C $COMPILE_DIR d8 >>$LOG_FILE 2>&1") and die "Failed to compile $COMPILE_DIR";
-  system("cp -r $COMPILE_DIR $dst") and die "Failed to copy $COMPILE_DIR to $dst";
+  system("mkdir -p $dst");
+  system("cp $COMPILE_DIR/d8 $COMPILE_DIR/icudtl.dat $COMPILE_DIR/snapshot_blob.bin $dst/")
+	  and die "Failed to copy $COMPILE_DIR to $dst";
 }
 
 sub get_middle_commit {
