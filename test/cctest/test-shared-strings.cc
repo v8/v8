@@ -156,7 +156,11 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
                                               test.main_isolate());
   Isolate* i_isolate1 = test.i_main_isolate();
   Factory* factory1 = i_isolate1->factory();
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
+  Factory* factory2 = i_isolate2->factory();
+
   HandleScope scope1(i_isolate1);
+  HandleScope scope2(i_isolate2);
 
   const char raw_one_byte[] = "foo";
   base::uc16 raw_two_byte[] = {2001, 2002, 2003};
@@ -185,10 +189,6 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   // Allocate two in-place internalizable strings with the same contents in
   // isolate2 then intern them. They should be the same as the interned strings
   // from isolate1.
-  v8::Isolate::Scope isolate2_scope(isolate_wrapper.isolate);
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
-  Factory* factory2 = i_isolate2->factory();
-  HandleScope scope2(i_isolate2);
   DirectHandle<String> old_one_byte_seq2 =
       factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
   DirectHandle<String> old_two_byte_seq2 =

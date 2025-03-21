@@ -143,7 +143,6 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   // might change across multiple invocations (its internal state could be
   // updated concurrently from another thread between invocations).
   CHECK(CanBeStarted());
-  DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const size_t old_generation_size_mb =
