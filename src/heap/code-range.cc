@@ -185,14 +185,32 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   //   https://cs.chromium.org/chromium/src/components/crash/content/
   //     app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
-  const size_t reserved_area = GetWritableReservedAreaSize();
-  if (reserved_area > 0) {
-    CHECK_LE(reserved_area, kPageSize);
-    // Exclude the reserved area from further allocations.
-    CHECK(page_allocator_->AllocatePagesAt(base(), kPageSize,
-                                           PageAllocator::kNoAccess));
+  const size_t required_writable_area_size = GetWritableReservedAreaSize();
+  // The size of the area that might have been excluded from the area
+  // allocatable by the BoundedPageAllocator.
+  size_t reserved_area = 0;
+  if (required_writable_area_size > 0) {
+    CHECK_LE(required_writable_area_size, kPageSize);
+
+    // If the start of the reservation is not kPageSize-aligned then
+    // there's a non-allocatable region before the area controlled by
+    // the BoundedPageAllocator. Use it if it's big enough.
+    const Address non_allocatable_size = page_allocator_->begin() - base();
+
+    TRACE("=== non-allocatable region: [%p, %p)\n",
+          reinterpret_cast<void*>(base()),
+          reinterpret_cast<void*>(base() + non_allocatable_size));
+
+    // Exclude the reserved area from further allocations if it doesn't fit
+    // into non-allocatable area.
+    if (non_allocatable_size < required_writable_area_size) {
+      TRACE("=== Exclude the first page from allocatable area\n");
+      reserved_area = kPageSize;
+      CHECK(page_allocator_->AllocatePagesAt(base(), reserved_area,
+                                             PageAllocator::kNoAccess));
+    }
     // Commit required amount of writable memory.
-    if (!reservation()->SetPermissions(base(), reserved_area,
+    if (!reservation()->SetPermissions(base(), required_writable_area_size,
                                        PageAllocator::kReadWrite)) {
       return false;
     }
