@@ -2280,25 +2280,21 @@ constexpr size_t kTurbofanFunctionOverhead = 24;
 constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 56;
 constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-constexpr size_t kImportSize = 640;
 #elif V8_TARGET_ARCH_IA32
 constexpr size_t kTurbofanFunctionOverhead = 20;
 constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 48;
 constexpr size_t kLiftoffCodeSizeMultiplier = 3;
-constexpr size_t kImportSize = 600;
 #elif V8_TARGET_ARCH_ARM
 constexpr size_t kTurbofanFunctionOverhead = 44;
 constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 96;
 constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-constexpr size_t kImportSize = 550;
 #elif V8_TARGET_ARCH_ARM64
 constexpr size_t kTurbofanFunctionOverhead = 40;
 constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 68;
 constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-constexpr size_t kImportSize = 750;
 #else
 // Other platforms should add their own estimates for best performance. Numbers
 // below are the maximum of other architectures.
@@ -2306,7 +2302,6 @@ constexpr size_t kTurbofanFunctionOverhead = 44;
 constexpr size_t kTurbofanCodeSizeMultiplier = 4;
 constexpr size_t kLiftoffFunctionOverhead = 96;
 constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-constexpr size_t kImportSize = 750;
 #endif
 }  // namespace
 
@@ -2318,23 +2313,21 @@ size_t WasmCodeManager::EstimateLiftoffCodeSize(int body_size) {
 
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
-  int num_functions = static_cast<int>(module->num_declared_functions);
-  int num_imported_functions = static_cast<int>(module->num_imported_functions);
   int code_section_length = 0;
-  if (num_functions > 0) {
-    DCHECK_EQ(module->functions.size(), num_imported_functions + num_functions);
+  if (module->num_declared_functions > 0) {
+    DCHECK_EQ(module->functions.size(),
+              module->num_imported_functions + module->num_declared_functions);
     auto* first_fn = &module->functions[module->num_imported_functions];
     auto* last_fn = &module->functions.back();
     code_section_length =
         static_cast<int>(last_fn->code.end_offset() - first_fn->code.offset());
   }
-  return EstimateNativeModuleCodeSize(num_functions, num_imported_functions,
+  return EstimateNativeModuleCodeSize(module->num_declared_functions,
                                       code_section_length);
 }
 
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
-                                                     int num_imported_functions,
                                                      int code_section_length) {
   // The size for the jump table and far jump table is added later, per code
   // space (see {OverheadPerCodeSpace}). We still need to add the overhead for
@@ -2343,8 +2336,6 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
   // we ignore this here as most of the time we will need it.
   const size_t lazy_compile_table_size =
       JumpTableAssembler::SizeForNumberOfLazyFunctions(num_functions);
-
-  const size_t size_of_imports = kImportSize * num_imported_functions;
 
   const size_t overhead_per_function_turbofan =
       kTurbofanFunctionOverhead + kCodeAlignment / 2;
@@ -2368,8 +2359,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
   // by TurboFan.
   if (v8_flags.liftoff && v8_flags.wasm_dynamic_tiering) size_of_turbofan /= 4;
 
-  return lazy_compile_table_size + size_of_imports + size_of_liftoff +
-         size_of_turbofan;
+  return lazy_compile_table_size + size_of_liftoff + size_of_turbofan;
 }
 
 // static

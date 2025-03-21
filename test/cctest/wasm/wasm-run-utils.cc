@@ -443,7 +443,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   int estimated_code_section_length = kMaxFunctions * 1024;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          kMaxFunctions, 0, estimated_code_section_length);
+          kMaxFunctions, estimated_code_section_length);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, WasmDetectedFeatures{}, CompileTimeImports{},
       test_module_, code_size_estimate);

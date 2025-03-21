@@ -3294,12 +3294,10 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task.
-  int num_imported_functions =
-      static_cast<int>(decoder_.module()->num_imported_functions);
   DCHECK_EQ(kWasmOrigin, decoder_.module()->origin);
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          num_functions, num_imported_functions, code_section_length);
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(num_functions,
+                                                          code_section_length);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(),
       // start_compilation: false; triggered when we receive the bodies.
