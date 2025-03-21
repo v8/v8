@@ -4342,24 +4342,24 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 #else
   __ StoreReturnAddressAndCall(target_fun);
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
     __ mov(r2, r8);
     __ LoadU64(r3, MemOperand(r2, kSystemPointerSize));
     __ LoadU64(r2, MemOperand(r2));
   }
-#endif
 
   // Check result for exception sentinel.
   Label exception_returned;
   __ CompareRoot(r2, RootIndex::kException);
   __ beq(&exception_returned, Label::kNear);
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif
 
   // Check that there is no exception, otherwise we
   // should have returned the exception sentinel.
