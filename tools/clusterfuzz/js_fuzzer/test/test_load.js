@@ -91,3 +91,11 @@ describe('Sandbox dependencies', () => {
         'sandbox/load_expected.js');
   });
 });
+
+describe('Language features', () => {
+  it('test', () => {
+    testLoad(
+        'language/features.js',
+        'language/features_expected.js');
+  });
+});

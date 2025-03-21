@@ -463,6 +463,10 @@ class MutateDbWriter {
   }
 
   writeIndex() {
+    this.index.all.sort();
+    this.index.statements.sort();
+    this.index.superStatements.sort();
+
     fs.writeFileSync(
         fsPath.join(this.outputDir, 'index.json'),
         JSON.stringify(this.index));

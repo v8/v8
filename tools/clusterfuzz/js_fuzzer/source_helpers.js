@@ -35,18 +35,9 @@ const BABYLON_OPTIONS = {
     tokens: false,
     ranges: false,
     plugins: [
-        'asyncGenerators',
-        'bigInt',
-        'classPrivateMethods',
-        'classPrivateProperties',
-        'classProperties',
         'doExpressions',
+        'explicitResourceManagement',
         'exportDefaultFrom',
-        'nullishCoalescingOperator',
-        'numericSeparator',
-        'objectRestSpread',
-        'optionalCatchBinding',
-        'optionalChaining',
     ],
 }
 
