@@ -54,7 +54,6 @@ bool SemiSpace::EnsureCurrentCapacity() {
   if (IsCommitted()) {
     EnsureCapacity(target_capacity_);
   }
-  allow_to_grow_beyond_capacity_ = false;
   return true;
 }
 
@@ -286,6 +285,17 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // payload) from to and from space.
   to->FixPagesFlags();
   from->FixPagesFlags();
+}
+
+bool SemiSpace::AdvancePage() {
+  PageMetadata* next_page = current_page_->next_page();
+  if (!next_page) return false;
+  current_page_ = next_page;
+  base::AsAtomicWord::Relaxed_Store(
+      &current_capacity_, current_capacity_ + PageMetadata::kPageSize);
+  DCHECK_IMPLIES(current_capacity_ > target_capacity_,
+                 heap()->IsNewSpaceAllowedToGrowAboveTargetCapacity());
+  return true;
 }
 
 void SemiSpace::IncrementCommittedPhysicalMemory(size_t increment_value) {
@@ -553,7 +563,6 @@ SemiSpaceNewSpace::AllocateOnNewPageBeyondCapacity(
     int size_in_bytes, AllocationAlignment alignment) {
   DCHECK_LT(Available(), size_in_bytes);
   DCHECK(!AddFreshPage());
-  to_space_.allow_to_grow_beyond_capacity_ = true;
   if (!to_space_.AllocateFreshPage()) return std::nullopt;
   return Allocate(size_in_bytes, alignment);
 }

@@ -1645,6 +1645,8 @@ class Heap final {
     return new_space() || v8_flags.sticky_mark_bits;
   }
 
+  bool IsNewSpaceAllowedToGrowAboveTargetCapacity() const;
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1952,7 +1954,7 @@ class Heap final {
 
   void ResetOldGenerationAndGlobalAllocationLimit();
 
-  bool always_allocate() { return always_allocate_scope_count_ != 0; }
+  bool always_allocate() const { return always_allocate_scope_count_ != 0; }
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);

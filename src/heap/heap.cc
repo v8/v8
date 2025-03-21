@@ -5397,6 +5397,11 @@ bool Heap::ShouldExpandYoungGenerationOnSlowAllocation(size_t allocation_size) {
   return false;
 }
 
+bool Heap::IsNewSpaceAllowedToGrowAboveTargetCapacity() const {
+  return always_allocate() || gc_state() == TEAR_DOWN ||
+         incremental_marking()->IsMarking();
+}
+
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
   if (ShouldReduceMemory() || v8_flags.stress_compaction) {
     return Heap::HeapGrowingMode::kMinimal;

@@ -86,20 +86,7 @@ class SemiSpace final : public Space {
   // Returns one past the end address of the current page of the space.
   Address page_high() const { return current_page_->area_end(); }
 
-  bool AdvancePage() {
-    PageMetadata* next_page = current_page_->next_page();
-    // We cannot expand if we reached the target capacity. Note
-    // that we need to account for the next page already for this check as we
-    // could potentially fill the whole page after advancing.
-    if (next_page == nullptr || ((current_capacity_ == target_capacity_) &&
-                                 !allow_to_grow_beyond_capacity_)) {
-      return false;
-    }
-    current_page_ = next_page;
-    base::AsAtomicWord::Relaxed_Store(
-        &current_capacity_, current_capacity_ + PageMetadata::kPageSize);
-    return true;
-  }
+  bool AdvancePage();
 
   // Resets the space to using the first page.
   void Reset();
@@ -215,7 +202,6 @@ class SemiSpace final : public Space {
   SemiSpaceId id_;
   PageMetadata* current_page_ = nullptr;
   size_t quarantined_pages_count_ = 0;
-  bool allow_to_grow_beyond_capacity_ = false;
 
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;
