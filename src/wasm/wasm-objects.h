@@ -1542,6 +1542,14 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 #undef DECL_OPTIONAL_ACCESSORS
 
+DirectHandle<Map> CreateStructMap(Isolate* isolate,
+                                  wasm::CanonicalTypeIndex type,
+                                  DirectHandle<Map> opt_rtt_parent);
+
+DirectHandle<Map> CreateArrayMap(Isolate* isolate,
+                                 wasm::CanonicalTypeIndex array_index,
+                                 DirectHandle<Map> opt_rtt_parent);
+
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent);

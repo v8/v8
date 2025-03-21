@@ -52,63 +52,6 @@ uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
          offset;
 }
 
-DirectHandle<Map> CreateStructMap(Isolate* isolate,
-                                  CanonicalTypeIndex struct_index,
-                                  DirectHandle<Map> opt_rtt_parent) {
-  const wasm::CanonicalStructType* type =
-      wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
-  const int inobject_properties = 0;
-  // We have to use the variable size sentinel because the instance size
-  // stored directly in a Map is capped at 255 pointer sizes.
-  const int map_instance_size = kVariableSizeSentinel;
-  const InstanceType instance_type = WASM_STRUCT_TYPE;
-  // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
-  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  const wasm::CanonicalValueType no_array_element = kWasmBottom;
-  constexpr bool shared = false;  // TODO(42204563): Implement.
-  // If we had a CanonicalHeapType, we could use that here.
-  wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
-      struct_index, shared, wasm::RefTypeKind::kStruct);
-  DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent);
-  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
-      instance_type, map_instance_size, elements_kind, inobject_properties);
-  map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate,
-                              *isolate->factory()->empty_descriptor_array(), 0,
-                              SKIP_WRITE_BARRIER);
-  map->set_is_extensible(false);
-  const int real_instance_size = WasmStruct::Size(type);
-  WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
-  return map;
-}
-
-DirectHandle<Map> CreateArrayMap(Isolate* isolate,
-                                 CanonicalTypeIndex array_index,
-                                 DirectHandle<Map> opt_rtt_parent) {
-  const wasm::CanonicalArrayType* type =
-      wasm::GetTypeCanonicalizer()->LookupArray(array_index);
-  wasm::CanonicalValueType element_type = type->element_type();
-  const int inobject_properties = 0;
-  const int instance_size = kVariableSizeSentinel;
-  const InstanceType instance_type = WASM_ARRAY_TYPE;
-  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  constexpr bool shared = false;  // TODO(42204563): Implement.
-  wasm::CanonicalValueType heaptype =
-      wasm::CanonicalValueType::Ref(array_index, shared, RefTypeKind::kArray);
-  DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, element_type, opt_rtt_parent);
-  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
-      instance_type, instance_size, elements_kind, inobject_properties);
-  map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate,
-                              *isolate->factory()->empty_descriptor_array(), 0,
-                              SKIP_WRITE_BARRIER);
-  map->set_is_extensible(false);
-  WasmArray::EncodeElementSizeInMap(element_type.value_kind_size(), *map);
-  return map;
-}
-
 }  // namespace
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
@@ -2137,6 +2080,9 @@ bool InstanceBuilder::ProcessImportedTable(
   DCHECK_IMPLIES(table_object->unsafe_type().has_index(),
                  table_type_module != nullptr);
 
+  // We need to check type equivalence (rather than subtyping) because tables
+  // are mutable: we cannot allow the importing module to write supertyped
+  // values into a subtyped table.
   if (!EquivalentTypes(table.type, table_object->type(table_type_module),
                        module_, table_type_module)) {
     thrower_->LinkError("%s: imported table does not match the expected type",
