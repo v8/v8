@@ -358,11 +358,11 @@ class Assembler : public AssemblerBase {
 
 #define DECLARE_PPC_X_INSTRUCTIONS_F_FORM(name, instr_name, instr_value)    \
   inline void name(const Register src1, const Register src2,                \
-                   const CRegister cr = cr7, const RCBit rc = LeaveRC) {    \
+                   const CRegister cr = cr0, const RCBit rc = LeaveRC) {    \
     x_form(instr_name, cr, src1, src2, rc);                                 \
   }                                                                         \
   inline void name##w(const Register src1, const Register src2,             \
-                      const CRegister cr = cr7, const RCBit rc = LeaveRC) { \
+                      const CRegister cr = cr0, const RCBit rc = LeaveRC) { \
     x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
   }
 
@@ -691,7 +691,7 @@ class Assembler : public AssemblerBase {
     return cr;
   }
 
-  void bc_short(Condition cond, Label* L, CRegister cr = cr7,
+  void bc_short(Condition cond, Label* L, CRegister cr = cr0,
                 LKBit lk = LeaveLK) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
@@ -736,7 +736,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  void bclr(Condition cond, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bclr(Condition cond, CRegister cr = cr0, LKBit lk = LeaveLK) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
 
@@ -780,7 +780,7 @@ class Assembler : public AssemblerBase {
 
   void isel(Register rt, Register ra, Register rb, int cb);
   void isel(Condition cond, Register rt, Register ra, Register rb,
-            CRegister cr = cr7) {
+            CRegister cr = cr0) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
 
@@ -822,7 +822,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  void b(Condition cond, Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void b(Condition cond, Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     if (cond == al) {
       b(L, lk);
       return;
@@ -840,28 +840,28 @@ class Assembler : public AssemblerBase {
     bind(&skip);
   }
 
-  void bne(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bne(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ne, L, cr, lk);
   }
-  void beq(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void beq(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(eq, L, cr, lk);
   }
-  void blt(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void blt(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(lt, L, cr, lk);
   }
-  void bge(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bge(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ge, L, cr, lk);
   }
-  void ble(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void ble(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(le, L, cr, lk);
   }
-  void bgt(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bgt(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(gt, L, cr, lk);
   }
-  void bunordered(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bunordered(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(unordered, L, cr, lk);
   }
-  void bordered(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bordered(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ordered, L, cr, lk);
   }
   void boverflow(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
@@ -921,10 +921,10 @@ class Assembler : public AssemblerBase {
   void oris(Register dst, Register src, const Operand& imm);
   void xori(Register dst, Register src, const Operand& imm);
   void xoris(Register ra, Register rs, const Operand& imm);
-  void cmpi(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmpli(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmpwi(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmplwi(Register src1, const Operand& src2, CRegister cr = cr7);
+  void cmpi(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmpli(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmpwi(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmplwi(Register src1, const Operand& src2, CRegister cr = cr0);
   void li(Register dst, const Operand& src);
   void lis(Register dst, const Operand& imm);
   void mr(Register dst, Register src);
@@ -1035,7 +1035,7 @@ class Assembler : public AssemblerBase {
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
-            CRegister cr = cr7);
+            CRegister cr = cr0);
 
   void bkpt(uint32_t imm16);  // v5 and above
 
@@ -1064,7 +1064,7 @@ class Assembler : public AssemblerBase {
   void fmul(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frc, RCBit rc = LeaveRC);
   void fcmpu(const DoubleRegister fra, const DoubleRegister frb,
-             CRegister cr = cr7);
+             CRegister cr = cr0);
   void fmr(const DoubleRegister frt, const DoubleRegister frb,
            RCBit rc = LeaveRC);
   void fctiwz(const DoubleRegister frt, const DoubleRegister frb);

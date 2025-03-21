@@ -1664,8 +1664,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       fctiwz(kScratchDoubleReg, src.fp());
       MovDoubleLowToInt(dst.gp(), kScratchDoubleReg);
-      mcrfs(cr7, VXCVI);
-      boverflow(trap, cr7);
+      mcrfs(cr0, VXCVI);
+      boverflow(trap, cr0);
       return true;
     }
     case kExprI32UConvertF64:
@@ -1673,8 +1673,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       ConvertDoubleToUnsignedInt64(src.fp(), r0, kScratchDoubleReg,
                                    kRoundToZero);
-      mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-      boverflow(trap, cr7);
+      mcrfs(cr0, VXCVI);  // extract FPSCR field containing VXCVI into cr0
+      boverflow(trap, cr0);
       ZeroExtWord32(dst.gp(), r0);
       CmpU64(dst.gp(), r0);
       bne(trap);
@@ -1689,8 +1689,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       fctidz(kScratchDoubleReg, src.fp());
       MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
-      mcrfs(cr7, VXCVI);
-      boverflow(trap, cr7);
+      mcrfs(cr0, VXCVI);
+      boverflow(trap, cr0);
       return true;
     }
     case kExprI64UConvertF64:
@@ -1702,8 +1702,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       fctiduz(kScratchDoubleReg, src.fp());
       MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
-      mcrfs(cr7, VXCVI);
-      boverflow(trap, cr7);
+      mcrfs(cr0, VXCVI);
+      boverflow(trap, cr0);
       return true;
     }
     case kExprI32SConvertSatF64:

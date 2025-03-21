@@ -1779,10 +1779,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (set_overflow_to_min_i32) {
         // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
         // because INT32_MIN allows easier out-of-bounds detection.
-        CRegister cr = cr7;
+        CRegister cr = cr0;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
         __ li(kScratchReg, Operand(1));
         __ ShiftLeftU64(kScratchReg, kScratchReg,
                         Operand(31));  // generate INT32_MIN.
@@ -1800,10 +1800,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (set_overflow_to_min_u32) {
         // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
         // because 0 allows easier out-of-bounds detection.
-        CRegister cr = cr7;
+        CRegister cr = cr0;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
         __ li(kScratchReg, Operand::Zero());
         __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
       }
@@ -1811,14 +1811,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #define DOUBLE_TO_INT32(op)                                                \
   bool check_conversion = i.OutputCount() > 1;                             \
-  CRegister cr = cr7;                                                      \
+  CRegister cr = cr0;                                                      \
   FPSCRBit fps_bit = VXCVI;                                                \
   int cr_bit = v8::internal::Assembler::encode_crbit(                      \
       cr, static_cast<CRBit>(fps_bit % CRWIDTH));                          \
   __ mtfsb0(fps_bit); /* clear FPSCR:VXCVI bit */                          \
   __ op(kScratchDoubleReg, i.InputDoubleRegister(0));                      \
   __ MovDoubleLowToInt(i.OutputRegister(0), kScratchDoubleReg);            \
-  __ mcrfs(cr, VXCVI); /* extract FPSCR field containing VXCVI into cr7 */ \
+  __ mcrfs(cr, VXCVI); /* extract FPSCR field containing VXCVI into cr0 */ \
   if (check_conversion) {                                                  \
     __ li(i.OutputRegister(1), Operand(1));                                \
     __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), cr_bit);         \
@@ -1839,10 +1839,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
                               i.OutputRegister(0), kScratchDoubleReg);
-      CRegister cr = cr7;
+      CRegister cr = cr0;
       int crbit = v8::internal::Assembler::encode_crbit(
           cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-      __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+      __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
       // Handle conversion failures (such as overflow).
       if (check_conversion) {
         __ li(i.OutputRegister(1), Operand(1));
@@ -1862,10 +1862,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                       i.OutputRegister(0), kScratchDoubleReg);
       if (check_conversion) {
         // Set 2nd output to zero if conversion fails.
-        CRegister cr = cr7;
+        CRegister cr = cr0;
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
-        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr0
         __ li(i.OutputRegister(1), Operand(1));
         __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
       }

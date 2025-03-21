@@ -192,11 +192,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr7);
+  void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr0);
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
-  inline void SafeCall(Label* to, Condition cond = al, CRegister cr = cr7);
+  inline void SafeCall(Label* to, Condition cond = al, CRegister cr = cr0);
   inline void SafeReturn();
   inline void SafeCallTarget(Label* name);
 
