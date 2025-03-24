@@ -794,15 +794,11 @@ V8 shared library set USING_V8_SHARED.
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-# ifdef BUILDING_V8_SHARED
-#  define V8_EXPORT __attribute__ ((visibility("default")))
-# else
-#  define V8_EXPORT
-# endif
+#if V8_HAS_ATTRIBUTE_VISIBILITY && (defined(BUILDING_V8_SHARED) || USING_V8_SHARED)
+# define V8_EXPORT __attribute__((visibility("default")))
 #else
 # define V8_EXPORT
-#endif
+# endif  // V8_HAS_ATTRIBUTE_VISIBILITY && ...
 
 #endif  // V8_OS_WIN
 

@@ -22,7 +22,7 @@
 
 #else  // defined(_WIN32)
 
-#ifdef BUILDING_V8_DEBUG_HELPER
+#if defined(BUILDING_V8_DEBUG_HELPER) || USING_V8_DEBUG_HELPER
 #define V8_DEBUG_HELPER_EXPORT __attribute__((visibility("default")))
 #else
 #define V8_DEBUG_HELPER_EXPORT

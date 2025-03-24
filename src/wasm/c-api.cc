@@ -63,15 +63,12 @@
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-#ifdef BUILDING_V8_SHARED
+#if V8_HAS_ATTRIBUTE_VISIBILITY && \
+    (defined(BUILDING_V8_SHARED) || defined(USING_V8_SHARED))
 #define WASM_EXPORT __attribute__((visibility("default")))
 #else
 #define WASM_EXPORT
-#endif
-#else
-#define WASM_EXPORT
-#endif
+#endif  // V8_HAS_ATTRIBUTE_VISIBILITY && ...
 
 #endif  // V8_OS_WIN
 

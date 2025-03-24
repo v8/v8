@@ -64,15 +64,25 @@ namespace v8::internal::trap_handler {
 #endif
 
 // Setup for shared library export.
-#if defined(BUILDING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
+#ifdef V8_OS_WIN
+
+#if defined(BUILDING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
-#elif defined(BUILDING_V8_SHARED_PRIVATE)
-#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
-#elif defined(USING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
+#elif defined(USING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __declspec(dllimport)
 #else
+#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
+#endif  // BUILDING_V8_SHARED_PRIVATE
+
+#else  // V8_OS_WIN
+
+#if defined(BUILDING_V8_SHARED_PRIVATE) || defined(USING_V8_SHARED_PRIVATE)
+#define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
+#else
 #define TH_EXPORT_PRIVATE
-#endif
+#endif  // BUILDING_V8_SHARED_PRIVATE ||
+
+#endif  // V8_OS_WIN
 
 #define TH_CHECK(condition) \
   if (!(condition)) IMMEDIATE_CRASH();
