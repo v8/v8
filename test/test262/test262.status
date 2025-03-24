@@ -284,7 +284,6 @@
 
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
 
-  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months': [FAIL],
   'staging/Intl402/Temporal/old/date-time-format': [FAIL],
   'staging/Intl402/Temporal/old/datetime-toLocaleString': [FAIL],
   'staging/Intl402/Temporal/old/date-toLocaleString': [FAIL],
@@ -293,7 +292,6 @@
   'staging/Intl402/Temporal/old/instant-toLocaleString': [FAIL],
   'staging/Intl402/Temporal/old/japanese-era': [FAIL],
   'staging/Intl402/Temporal/old/monthday-toLocaleString': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars': [FAIL],
   'staging/Intl402/Temporal/old/yearmonth-toLocaleString': [FAIL],
 
   # intl402
@@ -1498,9 +1496,6 @@
 ##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
-  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
 }], # variant == jitless
 
 ['variant == no_wasm_traps', {
@@ -2693,4 +2688,57 @@
 }],
 # end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
 ###
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'built-ins/String/prototype/match/cstm-matcher-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/match/cstm-matcher-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/matchAll/cstm-matchall-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/replace/cstm-replace-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/replaceAll/cstm-replaceall-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/search/cstm-search-on-string-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-bigint-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-boolean-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-number-primitive': [SKIP],
+  'built-ins/String/prototype/split/cstm-split-on-string-primitive': [SKIP],
+  'intl402/DateTimeFormat/canonicalize-utc-timezone': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/equals/canonicalize-utc-timezone': [SKIP],
+  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [SKIP],
+  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-gregory': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-iso8601': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-persian': [SKIP],
+  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [SKIP],
+}],
+# End roll-watcher patch
+####
 ]
