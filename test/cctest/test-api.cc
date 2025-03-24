@@ -31274,11 +31274,15 @@ TEST(LocalCasts) {
     v8::Local<v8::String> str = v8_str("foo");
     // Implicit up-casts.
     v8::Local<v8::Value> val = str;
+    USE(val);
     v8::Local<v8::Data> data = str;
     // Implicit cast and up-casts to MaybeLocal.
     v8::MaybeLocal<v8::String> maybe_str = str;
+    USE(maybe_str);
     v8::MaybeLocal<v8::Value> maybe_val = str;
+    USE(maybe_val);
     v8::MaybeLocal<v8::Data> maybe_data = str;
+    USE(maybe_data);
 
     // Equivalent casts and explicit down-casts.
     v8::Local<v8::Value>::Cast(str);
@@ -31292,6 +31296,7 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String> maybe_str = v8_str("foo");
     // Implicit up-casts.
     v8::MaybeLocal<v8::Value> maybe_val = maybe_str;
+    USE(maybe_val);
     v8::MaybeLocal<v8::Data> maybe_data = maybe_str;
 
     // Equivalent casts and explicit down-casts.
@@ -31304,13 +31309,18 @@ TEST(LocalCasts) {
   {
     // Cast an empty v8::Local<v8::String>.
     v8::Local<v8::String> no_str;
+    USE(no_str);
     // Implicit up-casts.
     v8::Local<v8::Value> no_val = no_str;
+    USE(no_val);
     v8::Local<v8::Data> no_data = no_str;
     // Implicit cast and up-casts to MaybeLocal.
     v8::MaybeLocal<v8::String> no_maybe_str = no_str;
+    USE(no_maybe_str);
     v8::MaybeLocal<v8::Value> no_maybe_val = no_str;
+    USE(no_maybe_val);
     v8::MaybeLocal<v8::Data> no_maybe_data = no_str;
+    USE(no_maybe_data);
 
     // Equivalent casts and explicit down-casts.
     v8::Local<v8::Value>::Cast(no_str);
@@ -31324,6 +31334,7 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String> no_str;
     // Implicit up-casts.
     v8::MaybeLocal<v8::Value> no_val = no_str;
+    USE(no_val);
     v8::MaybeLocal<v8::Data> no_data = no_str;
 
     // Equivalent casts and explicit down-casts.
