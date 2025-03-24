@@ -1028,6 +1028,7 @@ class FormatConverter {
 
  private:
   static constexpr int kModuleHeaderSize = 8;
+  enum class ParseLiteralResult { kSuccess, kTryNext, kEOF };
 
   class Output {
    public:
@@ -1085,7 +1086,13 @@ class FormatConverter {
           std::vector<uint8_t>(std::istreambuf_iterator<char>(input), {});
       return true;
     }
-    if (TryParseLiteral(input, raw_bytes_)) return true;
+    do {
+      ParseLiteralResult result = TryParseLiteral(input, raw_bytes_);
+      if (result == ParseLiteralResult::kSuccess) return true;
+      if (result == ParseLiteralResult::kEOF) break;
+      DCHECK_EQ(result, ParseLiteralResult::kTryNext);
+      raw_bytes_.clear();
+    } while (true);
     std::cerr << "That's not a Wasm module!\n";
     return false;
   }
@@ -1100,8 +1107,8 @@ class FormatConverter {
   //   braces is ignored.
   // - Whitespace, line comments, and block comments are ignored.
   // So in particular, this can consume what --full-hexdump produces.
-  bool TryParseLiteral(std::istream& input,
-                       std::vector<uint8_t>& output_bytes) {
+  ParseLiteralResult TryParseLiteral(std::istream& input,
+                                     std::vector<uint8_t>& output_bytes) {
     int c = input.get();
     // Skip anything before the first opening '['.
     while (c != '[' && c != EOF) c = input.get();
@@ -1115,7 +1122,7 @@ class FormatConverter {
         while (IsWhitespace(c)) c = input.get();
       }
       // End of file before ']' is unexpected = invalid.
-      if (c == EOF) return false;
+      if (c == EOF) return ParseLiteralResult::kEOF;
       // Skip comments.
       if (c == '/' && input.peek() == '/') {
         // Line comment. Skip until '\n'.
@@ -1146,9 +1153,10 @@ class FormatConverter {
           state = kDecimal;
           // Fall through to handling kDecimal below.
         } else if (c == ']') {
-          return true;
+          return ParseLiteralResult::kSuccess;
         } else {
-          return false;
+          return c == EOF ? ParseLiteralResult::kEOF
+                          : ParseLiteralResult::kTryNext;
         }
       }
       DCHECK(state == kDecimal || state == kHex || state == kAfterValue);
@@ -1162,12 +1170,13 @@ class FormatConverter {
       if (c == ']') {
         DCHECK_LT(value, 256);
         output_bytes.push_back(static_cast<uint8_t>(value));
-        return true;
+        return ParseLiteralResult::kSuccess;
       }
       if (state == kAfterValue) {
         // Didn't take the ',' or ']' paths above, anything else is invalid.
         DCHECK(c != ',' && c != ']');
-        return false;
+        return c == EOF ? ParseLiteralResult::kEOF
+                        : ParseLiteralResult::kTryNext;
       }
       DCHECK(state == kDecimal || state == kHex);
       if (IsWhitespace(c)) {
@@ -1181,10 +1190,11 @@ class FormatConverter {
         // Setting the "0x20" bit maps uppercase onto lowercase letters.
         v = (c | 0x20) - 'a' + 10;
       } else {
-        return false;
+        return c == EOF ? ParseLiteralResult::kEOF
+                        : ParseLiteralResult::kTryNext;
       }
       value = value * state + v;
-      if (value > 0xFF) return false;
+      if (value > 0xFF) return ParseLiteralResult::kTryNext;
     }
   }
 
