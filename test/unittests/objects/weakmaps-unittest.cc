@@ -222,14 +222,14 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  IndirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   InvokeAtomicMinorGC();
   CHECK(HeapLayout::InYoungGeneration(weakmap->table()));
 
   DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
+  IndirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
   DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -238,7 +238,7 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   if (!v8_flags.minor_ms) {
-    // CSS prevent promoting objects to old gen.
+    // CSS prevents promoting objects to the old generation.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         isolate->heap());
     InvokeAtomicMinorGC();

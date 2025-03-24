@@ -192,8 +192,6 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
   Isolate* isolate = i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      isolate->heap());
 
   // Create a number of handles that will not be on a block boundary
   const int kArrayLength = 2048 - 1;
@@ -218,7 +216,13 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
     CHECK(!eternals[i].IsEmpty());
   }
 
-  InvokeMemoryReducingMajorGCs(isolate);
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
+    InvokeMemoryReducingMajorGCs(isolate);
+  }
 
   for (int i = 0; i < kArrayLength; i++) {
     for (int j = 0; j < 2; j++) {

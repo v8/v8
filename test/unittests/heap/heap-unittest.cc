@@ -448,7 +448,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   HandleScope handle_scope(isolate());
 
   // Create a young object and age it one generation inside the new space.
-  DirectHandle<FixedArray> arr = factory->NewFixedArray(1);
+  IndirectHandle<FixedArray> arr = factory->NewFixedArray(1);
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_ms) {
     NewSpace* new_space = heap->new_space();
@@ -797,9 +797,11 @@ TEST_F(HeapTest,
   v8_flags.scavenger_promote_quarantined_pages = false;
   ManualGCScope manual_gc_scope(isolate());
 
-  DirectHandle<HeapObject> number =
+  IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
 
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during GCs with stack.
   Address number_address = number->address();
 
   CHECK(HeapLayout::InYoungGeneration(*number));
@@ -811,7 +813,7 @@ TEST_F(HeapTest,
   }
 
   // `number` is already in the intermediate generation. A stackless GC should
-  // now move it to old gen.
+  // now evacuate the object to the old generation.
   {
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         isolate()->heap());
@@ -829,9 +831,11 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   v8_flags.scavenger_promote_quarantined_pages = true;
   ManualGCScope manual_gc_scope(isolate());
 
-  DirectHandle<HeapObject> number =
+  IndirectHandle<HeapObject> number =
       isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
 
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during a GC with stack.
   Address number_address = number->address();
 
   CHECK(HeapLayout::InYoungGeneration(*number));
@@ -841,7 +845,7 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   CHECK_EQ(number_address, number->address());
 
   // `number` is already in the intermediate generation. Another GC should
-  // now move it to old gen.
+  // now promote the page to the old generation, again not moving the object.
   InvokeMinorGC();
   CHECK(!HeapLayout::InYoungGeneration(*number));
   CHECK_EQ(number_address, number->address());

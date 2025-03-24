@@ -896,7 +896,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     // heap::SealCurrentObjects(heap);
     // heap::SealCurrentObjects(shared_heap);
 
-    DirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
 
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
@@ -941,12 +941,12 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   {
     HandleScope scope(i_isolate);
 
-    DirectHandle<FixedArray> old_object =
+    IndirectHandle<FixedArray> old_object =
         factory->NewFixedArray(1, AllocationType::kOld);
     MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
     CHECK(!old_object_chunk->InYoungGeneration());
 
-    DirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+    IndirectHandle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
