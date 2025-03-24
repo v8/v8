@@ -6419,6 +6419,59 @@ TEST(CreateMessageDoesNotInspectStack) {
 }
 
 namespace {
+v8::Persistent<v8::Message> message_from_rethrow_callback_;
+}
+
+void RethrowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  {
+    v8::TryCatch try_catch(info.GetIsolate());
+    info.GetIsolate()->ThrowError(v8_str("Error"));
+    CHECK(try_catch.HasCaught());
+    CHECK(!try_catch.Message().IsEmpty());
+    message_from_rethrow_callback_.Reset(info.GetIsolate(),
+                                         try_catch.Message());
+    try_catch.ReThrow();
+  }
+}
+
+class ClearPendingMessageOnExceptionDelegate : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType exception_type) override {
+    CcTest::i_isolate()->clear_pending_message();
+  }
+};
+
+TEST(DebugRethrowMessageClobber) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  ClearPendingMessageOnExceptionDelegate delegate;
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  ChangeBreakOnException(isolate, true, true);
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), RethrowCallback);
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.local()).ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+
+  v8::TryCatch try_catch(isolate);
+  CompileRun("f();");
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Message().IsEmpty());
+
+  auto expected_msg = v8::Utils::OpenPersistent(message_from_rethrow_callback_);
+  auto caught_msg = v8::Utils::OpenHandle(*try_catch.Message());
+  CHECK_EQ(*expected_msg, *caught_msg);
+  message_from_rethrow_callback_.Reset();
+}
+
+namespace {
 
 class ScopeListener : public v8::debug::DebugDelegate {
  public:
