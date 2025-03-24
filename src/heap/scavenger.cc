@@ -784,7 +784,7 @@ void ScavengerCollector::CollectGarbage() {
           });
 
       if (v8_flags.scavenger_conservative_object_pinning &&
-          heap_->IsGCWithMainThreadStack()) {
+          heap_->IsGCWithStack()) {
         // Pinning objects must be the first step and must happen before
         // scavenging any objects. Specifically we must all pin all objects
         // before visiting other pinned objects. If we scavenge some object X
@@ -801,7 +801,7 @@ void ScavengerCollector::CollectGarbage() {
         YoungGenerationConservativeStackVisitor stack_visitor(
             isolate_, &conservative_pinning_visitor);
         // Marker was already set by Heap::CollectGarbage.
-        heap_->stack().IteratePointersUntilMarker(&stack_visitor);
+        heap_->IterateConservativeStackRoots(&stack_visitor);
         if (V8_UNLIKELY(
                 v8_flags.stress_scavenger_conservative_object_pinning)) {
           TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);

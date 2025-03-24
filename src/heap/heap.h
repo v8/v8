@@ -1002,9 +1002,7 @@ class Heap final {
   void IterateConservativeStackRoots(
       RootVisitor* root_visitor,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
-  void IterateConservativeStackRoots(
-      ::heap::base::StackVisitor* stack_visitor,
-      IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
+  void IterateConservativeStackRoots(::heap::base::StackVisitor* stack_visitor);
 
   void IterateRootsForPrecisePinning(RootVisitor* visitor);
 

@@ -4868,20 +4868,18 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
-  IterateConservativeStackRoots(&stack_visitor, roots_mode);
+  IterateConservativeStackRoots(&stack_visitor);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void Heap::IterateConservativeStackRoots(
-    ::heap::base::StackVisitor* stack_visitor, IterateRootsMode roots_mode) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+    ::heap::base::StackVisitor* stack_visitor) {
   DCHECK(IsGCWithStack());
 
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(stack_visitor);
   }
   stack().IterateBackgroundStacks(stack_visitor);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void Heap::IterateRootsForPrecisePinning(RootVisitor* visitor) {
