@@ -204,6 +204,24 @@ class MaglevGraphBuilder {
  public:
   class DeoptFrameScope;
 
+  class V8_NODISCARD LazyDeoptResultLocationScope {
+   public:
+    LazyDeoptResultLocationScope(MaglevGraphBuilder* builder,
+                                 interpreter::Register result_location,
+                                 int result_size);
+    ~LazyDeoptResultLocationScope();
+
+    interpreter::Register result_location() { return result_location_; }
+
+    int result_size() const { return result_size_; }
+
+   private:
+    MaglevGraphBuilder* builder_;
+    LazyDeoptResultLocationScope* previous_;
+    interpreter::Register result_location_;
+    int result_size_;
+  };
+
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
                               MaglevCompilationUnit* compilation_unit,
                               Graph* graph,
@@ -1155,10 +1173,17 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void AttachLazyDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      auto [register_result, register_count] = GetResultLocationAndSize();
+      interpreter::Register result_location;
+      int result_size;
+      if (lazy_deopt_result_location_scope_) {
+        result_location = lazy_deopt_result_location_scope_->result_location();
+        result_size = lazy_deopt_result_location_scope_->result_size();
+      } else {
+        std::tie(result_location, result_size) = GetResultLocationAndSize();
+      }
       new (node->lazy_deopt_info()) LazyDeoptInfo(
-          zone(), GetDeoptFrameForLazyDeopt(register_result, register_count),
-          register_result, register_count, current_speculation_feedback_);
+          zone(), GetDeoptFrameForLazyDeopt(result_location, result_size),
+          result_location, result_size, current_speculation_feedback_);
     }
   }
 
@@ -3228,6 +3253,7 @@ class MaglevGraphBuilder {
   int next_handler_table_index_ = 0;
 
   DeoptFrameScope* current_deopt_scope_ = nullptr;
+  LazyDeoptResultLocationScope* lazy_deopt_result_location_scope_ = nullptr;
 
   struct HandlerTableEntry {
     int end;

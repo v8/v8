@@ -1749,15 +1749,6 @@ class LazyDeoptInfo : public DeoptInfo {
   }
 
   bool IsResultRegister(interpreter::Register reg) const;
-  void UpdateResultLocation(interpreter::Register result_location,
-                            int result_size) {
-    // We should only update to a subset of the existing result location.
-    DCHECK_GE(result_location.index(), result_location_.index());
-    DCHECK_LE(result_location.index() + result_size,
-              result_location_.index() + this->result_size());
-    result_location_ = result_location;
-    bitfield_ = ResultSizeField::update(bitfield_, result_size);
-  }
   bool HasResultLocation() const {
     DCHECK(IsConsideredForResultLocation());
     return result_location_.is_valid();

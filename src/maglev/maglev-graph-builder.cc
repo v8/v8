@@ -337,6 +337,21 @@ class V8_NODISCARD MaglevGraphBuilder::SaveCallSpeculationScope {
   }
 };
 
+MaglevGraphBuilder::LazyDeoptResultLocationScope::LazyDeoptResultLocationScope(
+    MaglevGraphBuilder* builder, interpreter::Register result_location,
+    int result_size)
+    : builder_(builder),
+      previous_(builder->lazy_deopt_result_location_scope_),
+      result_location_(result_location),
+      result_size_(result_size) {
+  builder_->lazy_deopt_result_location_scope_ = this;
+}
+
+MaglevGraphBuilder::LazyDeoptResultLocationScope::
+    ~LazyDeoptResultLocationScope() {
+  builder_->lazy_deopt_result_location_scope_ = previous_;
+}
+
 class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
  public:
   DeoptFrameScope(MaglevGraphBuilder* builder, Builtin continuation,
@@ -8144,14 +8159,11 @@ bool MaglevGraphBuilder::TryBuildFindNonDefaultConstructorOrConstruct(
               CreateJSConstructor(new_target_function->AsJSFunction()),
               AllocationType::kYoung);
         } else {
+          // We've already stored "true" into result.first, so a deopt here just
+          // has to store result.second.
+          LazyDeoptResultLocationScope new_location(this, result.second, 1);
           object = BuildCallBuiltin<Builtin::kFastNewObject>(
               {GetConstant(current_function), GetTaggedValue(new_target)});
-          // We've already stored "true" into result.first, so a deopt here just
-          // has to store result.second. Also mark result.first as being used,
-          // since the lazy deopt frame won't have marked it since it used to be
-          // a result register.
-          AddDeoptUse(current_interpreter_frame_.get(result.first));
-          object->lazy_deopt_info()->UpdateResultLocation(result.second, 1);
         }
         StoreRegister(result.second, object);
       } else {
