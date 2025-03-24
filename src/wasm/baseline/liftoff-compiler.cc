@@ -7094,9 +7094,8 @@ class LiftoffCompiler {
   // Falls through on match (=successful type check).
   // Returns the register containing the object.
   void SubtypeCheck(const WasmModule* module, Register obj_reg,
-                    ValueType obj_type, Register rtt_reg,
-                    ModuleTypeIndex target_type, Register scratch_null,
-                    Register scratch2, Label* no_match,
+                    ValueType obj_type, Register rtt_reg, HeapType target_type,
+                    Register scratch_null, Register scratch2, Label* no_match,
                     NullSucceeds null_succeeds,
                     const FreezeCacheState& frozen) {
     Label match;
@@ -7120,7 +7119,8 @@ class LiftoffCompiler {
     __ LoadMap(tmp1, obj_reg);
     // {tmp1} now holds the object's map.
 
-    if (module->type(target_type).is_final) {
+    if (module->type(target_type.ref_index()).is_final ||
+        target_type.is_exact()) {
       // In this case, simply check for map equality.
       __ emit_cond_jump(kNotEqual, no_match, ValueKind::kRef, tmp1, rtt_reg,
                         frozen);
@@ -7147,7 +7147,7 @@ class LiftoffCompiler {
           Map::kConstructorOrBackPointerOrNativeContextOffset);
       __ LoadTaggedPointer(tmp1, tmp1, no_reg, kTypeInfoOffset);
       // Step 2: check the list's length if needed.
-      uint32_t rtt_depth = GetSubtypingDepth(module, target_type);
+      uint32_t rtt_depth = GetSubtypingDepth(module, target_type.ref_index());
       if (rtt_depth >= kMinimumSupertypeArraySize) {
         LiftoffRegister list_length(scratch2);
         int offset =
@@ -7169,11 +7169,12 @@ class LiftoffCompiler {
     __ bind(&match);
   }
 
-  void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
-               const Value& obj, Value* /* result_val */, bool null_succeeds) {
+  void RefTest(FullDecoder* decoder, HeapType target_type, const Value& obj,
+               Value* /* result_val */, bool null_succeeds) {
     Label return_false, done;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
+    LiftoffRegister rtt_reg =
+        pinned.set(RttCanon(target_type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7185,7 +7186,7 @@ class LiftoffCompiler {
     {
       FREEZE_STATE(frozen);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   ref_index, scratch_null, result.gp(), &return_false,
+                   target_type, scratch_null, result.gp(), &return_false,
                    null_succeeds ? kNullSucceeds : kNullFails, frozen);
 
       __ LoadConstant(result, WasmValue(1));
@@ -7231,12 +7232,12 @@ class LiftoffCompiler {
     }
   }
 
-  void RefCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
-               const Value& obj, Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, const Value& obj, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
 
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
+    LiftoffRegister rtt =
+        pinned.set(RttCanon(result->type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7246,12 +7247,13 @@ class LiftoffCompiler {
     }
 
     {
-      NullSucceeds on_null = null_succeeds ? kNullSucceeds : kNullFails;
+      NullSucceeds on_null =
+          result->type.is_nullable() ? kNullSucceeds : kNullFails;
       OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
-      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   ref_index, scratch_null, scratch2, trap.label(), on_null,
-                   trap.frozen());
+      SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
+                   result->type.heap_type(), scratch_null, scratch2,
+                   trap.label(), on_null, trap.frozen());
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -7288,8 +7290,8 @@ class LiftoffCompiler {
     }
   }
 
-  void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
-                const Value& obj, Value* /* result_on_branch */, uint32_t depth,
+  void BrOnCast(FullDecoder* decoder, HeapType target_type, const Value& obj,
+                Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
@@ -7298,7 +7300,8 @@ class LiftoffCompiler {
 
     Label cont_false;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
+    LiftoffRegister rtt_reg =
+        pinned.set(RttCanon(target_type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7310,15 +7313,15 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 ref_index, scratch_null, scratch2, &cont_false, null_handling,
-                 frozen);
+                 target_type, scratch_null, scratch2, &cont_false,
+                 null_handling, frozen);
 
     BrOrRet(decoder, depth);
 
     __ bind(&cont_false);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
+  void BrOnCastFail(FullDecoder* decoder, HeapType target_type,
                     const Value& obj, Value* /* result_on_fallthrough */,
                     uint32_t depth, bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
@@ -7328,7 +7331,8 @@ class LiftoffCompiler {
 
     Label cont_branch, fallthrough;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
+    LiftoffRegister rtt_reg =
+        pinned.set(RttCanon(target_type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7340,8 +7344,8 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 ref_index, scratch_null, scratch2, &cont_branch, null_handling,
-                 frozen);
+                 target_type, scratch_null, scratch2, &cont_branch,
+                 null_handling, frozen);
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);

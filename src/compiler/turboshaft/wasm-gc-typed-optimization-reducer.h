@@ -218,7 +218,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       wasm::ValueType from_type =
           wasm::Intersection(type, cast_op.config.from, module_, module_).type;
       DCHECK(!from_type.is_uninhabited());
-      WasmTypeCheckConfig config{from_type, cast_op.config.to};
+      WasmTypeCheckConfig config{from_type, cast_op.config.to,
+                                 cast_op.config.exactness};
       return __ WasmTypeCast(__ MapToNewGraph(cast_op.object()),
                              __ MapToNewGraph(cast_op.rtt()), config);
     }
@@ -280,7 +281,8 @@ class WasmGCTypedOptimizationReducer : public Next {
           wasm::Intersection(type, type_check.config.from, module_, module_)
               .type;
       DCHECK(!from_type.is_uninhabited());
-      WasmTypeCheckConfig config{from_type, type_check.config.to};
+      WasmTypeCheckConfig config{from_type, type_check.config.to,
+                                 type_check.config.exactness};
       return __ WasmTypeCheck(__ MapToNewGraph(type_check.object()),
                               __ MapToNewGraph(type_check.rtt()), config);
     }

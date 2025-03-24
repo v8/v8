@@ -741,7 +741,10 @@ class WasmLoweringReducer : public Next {
 
     V<Map> map = __ LoadMapField(object);
 
-    if (module_->type(config.to.ref_index()).is_final) {
+    DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
+                   config.exactness == kExactMatchOnly);
+
+    if (config.exactness == kExactMatchOnly) {
       __ TrapIfNot(__ TaggedEqual(map, rtt.value()), TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
@@ -810,7 +813,10 @@ class WasmLoweringReducer : public Next {
 
     V<Map> map = __ LoadMapField(object);
 
-    if (module_->type(config.to.ref_index()).is_final) {
+    DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
+                   config.exactness == kExactMatchOnly);
+
+    if (config.exactness == kExactMatchOnly) {
       GOTO(end_label, __ TaggedEqual(map, rtt.value()));
     } else {
       // First, check if types happen to be equal. This has been shown to give

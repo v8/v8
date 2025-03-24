@@ -4758,14 +4758,25 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
-  void RefTest(FullDecoder* decoder, ModuleTypeIndex ref_index,
-               const Value& object, Value* result, bool null_succeeds) {
-    HeapType target = decoder->module_->heap_type(ref_index);
-    V<Map> rtt =
-        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
+  compiler::ExactOrSubtype GetExactness(FullDecoder* decoder, HeapType target) {
+    // For exact target types, an exact match is needed for correctness;
+    // for final target types, it's a performance optimization.
+    if (target.is_exact() ||
+        decoder->module_->type(target.ref_index()).is_final) {
+      return compiler::kExactMatchOnly;
+    }
+    return compiler::kMayBeSubtype;
+  }
+
+  void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
+               Value* result, bool null_succeeds) {
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target.ref_index());
     compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         target, null_succeeds ? kNullable : kNonNullable)};
+        object.type,
+        ValueType::RefMaybeNull(target,
+                                null_succeeds ? kNullable : kNonNullable),
+        GetExactness(decoder, target)};
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
@@ -4778,19 +4789,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
-  void RefCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
-               const Value& object, Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
     }
     ValueType target = result->type;
-    DCHECK_EQ(target.ref_index(), ref_index);
-    V<Map> rtt =
-        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
-    DCHECK_EQ(result->type.is_nullable(), null_succeeds);
-    compiler::WasmTypeCheckConfig config{object.type, result->type};
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target.ref_index());
+    compiler::WasmTypeCheckConfig config{
+        object.type, target, GetExactness(decoder, target.heap_type())};
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
@@ -4812,18 +4821,17 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   // TODO(jkummerow): Pass {target} to the interface.
-  void BrOnCast(FullDecoder* decoder, ModuleTypeIndex ref_index,
-                const Value& object, Value* value_on_branch, uint32_t br_depth,
-                bool null_succeeds) {
+  void BrOnCast(FullDecoder* decoder, HeapType target_type, const Value& object,
+                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
     // Note: we cannot just take {ref_index} and {null_succeeds} from
     // {value_on_branch->type} because of
     // https://github.com/WebAssembly/gc/issues/516.
-    ValueType target =
-        ValueType::RefMaybeNull(decoder->module_->heap_type(ref_index),
-                                null_succeeds ? kNullable : kNonNullable);
-    V<Map> rtt =
-        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
-    compiler::WasmTypeCheckConfig config{object.type, target};
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target_type.ref_index());
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         GetExactness(decoder, target_type)};
     return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
                         null_succeeds);
   }
@@ -4839,15 +4847,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         null_succeeds);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, ModuleTypeIndex ref_index,
+  void BrOnCastFail(FullDecoder* decoder, HeapType target_type,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
-    ValueType target =
-        ValueType::RefMaybeNull(decoder->module_->heap_type(ref_index),
-                                null_succeeds ? kNullable : kNonNullable);
-    V<Map> rtt =
-        __ RttCanon(managed_object_maps(target.is_shared()), ref_index);
-    compiler::WasmTypeCheckConfig config{object.type, target};
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target_type.ref_index());
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         GetExactness(decoder, target_type)};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }

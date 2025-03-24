@@ -36,9 +36,14 @@ class CallDescriptor;
 // {from} may change in compiler optimization passes as the object's type gets
 // narrowed.
 // TODO(12166): Add modules if we have cross-module inlining.
+enum ExactOrSubtype : bool {
+  kMayBeSubtype = false,
+  kExactMatchOnly = true,
+};
 struct WasmTypeCheckConfig {
   wasm::ValueType from;
   const wasm::ValueType to;
+  ExactOrSubtype exactness{kMayBeSubtype};
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,

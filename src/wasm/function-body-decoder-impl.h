@@ -1347,19 +1347,18 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& length)                                                       \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
-  F(RefTest, ModuleTypeIndex ref_index, const Value& obj, Value* result,       \
+  F(RefTest, HeapType target_type, const Value& obj, Value* result,            \
     bool null_succeeds)                                                        \
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
-  F(RefCast, ModuleTypeIndex ref_index, const Value& obj, Value* result,       \
-    bool null_succeeds)                                                        \
+  F(RefCast, const Value& obj, Value* result)                                  \
   F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
   F(AssertNullTypecheck, const Value& obj, Value* result)                      \
   F(AssertNotNullTypecheck, const Value& obj, Value* result)                   \
-  F(BrOnCast, ModuleTypeIndex ref_index, const Value& obj,                     \
-    Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
-  F(BrOnCastFail, ModuleTypeIndex ref_index, const Value& obj,                 \
+  F(BrOnCast, HeapType target_type, const Value& obj, Value* result_on_branch, \
+    uint32_t depth, bool null_succeeds)                                        \
+  F(BrOnCastFail, HeapType target_type, const Value& obj,                      \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
   F(BrOnCastAbstract, const Value& obj, HeapType type,                         \
     Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
@@ -5374,8 +5373,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             }
           } else {
             if (target_type.is_index()) {
-              CALL_INTERFACE(RefCast, target_type.ref_index(), obj, value,
-                             null_succeeds);
+              CALL_INTERFACE(RefCast, obj, value);
             } else {
               CALL_INTERFACE(RefCastAbstract, obj, target_type, value,
                              null_succeeds);
@@ -5441,8 +5439,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             CALL_INTERFACE(I32Const, result, 0);
           } else {
             if (imm.type.is_index()) {
-              CALL_INTERFACE(RefTest, imm.type.ref_index(), obj, result,
-                             null_succeeds);
+              CALL_INTERFACE(RefTest, imm.type, obj, result, null_succeeds);
             } else {
               CALL_INTERFACE(RefTestAbstract, obj, target_type, result,
                              null_succeeds);
@@ -5485,10 +5482,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprBrOnCast:
       case kExprBrOnCastFail: {
         NON_CONST_ONLY
-        uint32_t pc_offset = opcode_length;
-        BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
-        pc_offset += flags_imm.length;
-        return ParseBrOnCast(opcode, pc_offset, flags_imm.flags);
+        return ParseBrOnCast(opcode, opcode_length);
       }
       case kExprAnyConvertExtern: {
         Value extern_val = Pop(kWasmExternRef);
@@ -5516,17 +5510,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   enum class WasmArrayAccess { kRead, kWrite };
 
-  int ParseBrOnCast(WasmOpcode opcode, uint32_t opcode_length,
-                    BrOnCastFlags flags) {
-    BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
-                                      validate);
-    if (!this->Validate(this->pc_ + opcode_length, branch_depth,
-                        control_.size())) {
+  int ParseBrOnCast(WasmOpcode opcode, uint32_t pc_offset) {
+    BrOnCastImmediate flags_imm(this, this->pc_ + pc_offset, validate);
+    pc_offset += flags_imm.length;
+    BrOnCastFlags flags = flags_imm.flags;
+
+    BranchDepthImmediate branch_depth(this, this->pc_ + pc_offset, validate);
+    if (!this->Validate(this->pc_ + pc_offset, branch_depth, control_.size())) {
       return 0;
     }
-    uint32_t pc_offset = opcode_length + branch_depth.length;
-
-    Value obj = Pop();
+    pc_offset += branch_depth.length;
 
     HeapTypeImmediate src_imm(this->enabled_, this, this->pc_ + pc_offset,
                               validate);
@@ -5534,11 +5527,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     pc_offset += src_imm.length;
     ValueType src_type = ValueType::RefMaybeNull(
         src_imm.type, flags.src_is_null ? kNullable : kNonNullable);
-    ValidateStackValue(0, obj, src_type);
 
-    HeapTypeImmediate target_imm(this->enabled_, this, this->pc_ + pc_offset,
-                                 validate);
-    if (!this->Validate(this->pc_ + pc_offset, target_imm)) return 0;
+    const uint8_t* target_imm_pc = this->pc_ + pc_offset;
+    HeapTypeImmediate target_imm(this->enabled_, this, target_imm_pc, validate);
+    if (!this->Validate(target_imm_pc, target_imm)) return 0;
     pc_offset += target_imm.length;
     bool null_succeeds = flags.res_is_null;
     ValueType target_type = ValueType::RefMaybeNull(
@@ -5550,6 +5542,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                         target_type.name().c_str(), src_type.name().c_str());
       return 0;
     }
+
+    Value obj = Pop(src_type);
 
     if (!VALIDATE(
             (obj.type.is_object_reference() &&
@@ -5600,8 +5594,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type.heap_type(),
                                                    null_succeeds))) {
           if (target_imm.type.is_index()) {
-            CALL_INTERFACE(BrOnCast, target_imm.type.ref_index(), obj,
-                           value_on_branch, branch_depth.depth, null_succeeds);
+            CALL_INTERFACE(BrOnCast, target_imm.type, obj, value_on_branch,
+                           branch_depth.depth, null_succeeds);
           } else {
             CALL_INTERFACE(BrOnCastAbstract, obj, target_type.heap_type(),
                            value_on_branch, branch_depth.depth, null_succeeds);
@@ -5666,7 +5660,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           }
         } else {
           if (target_imm.type.is_index()) {
-            CALL_INTERFACE(BrOnCastFail, target_imm.type.ref_index(), obj,
+            CALL_INTERFACE(BrOnCastFail, target_imm.type, obj,
                            &result_on_fallthrough, branch_depth.depth,
                            null_succeeds);
           } else {

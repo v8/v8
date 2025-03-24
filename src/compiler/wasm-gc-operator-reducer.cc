@@ -427,7 +427,8 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   WasmTypeCheckConfig current_config =
       OpParameter<WasmTypeCheckConfig>(node->op());
   NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCast(
-                                     {object_type.type, current_config.to}));
+                                     {object_type.type, current_config.to,
+                                      current_config.exactness}));
 
   wasm::TypeInModule new_type =
       wasm::Intersection(object_type, {rtt_type.type.AsNullable(), module_});
@@ -486,8 +487,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCastAbstract(Node* node) {
   }
 
   // Update the from-type in the type cast.
-  NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCastAbstract(
-                                     {object_type.type, config.to}));
+  NodeProperties::ChangeOp(
+      node, gasm_.simplified()->WasmTypeCastAbstract(
+                {object_type.type, config.to, config.exactness}));
 
   wasm::TypeInModule new_type =
       wasm::Intersection(object_type, {config.to, module_});
@@ -550,7 +552,8 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheck(Node* node) {
   WasmTypeCheckConfig current_config =
       OpParameter<WasmTypeCheckConfig>(node->op());
   NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCheck(
-                                     {object_type.type, current_config.to}));
+                                     {object_type.type, current_config.to,
+                                      current_config.exactness}));
 
   return TakeStatesFromFirstControl(node);
 }
@@ -605,8 +608,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCheckAbstract(Node* node) {
   }
 
   // Update the from-type in the type cast.
-  NodeProperties::ChangeOp(node, gasm_.simplified()->WasmTypeCheckAbstract(
-                                     {object_type.type, config.to}));
+  NodeProperties::ChangeOp(
+      node, gasm_.simplified()->WasmTypeCheckAbstract(
+                {object_type.type, config.to, config.exactness}));
 
   return TakeStatesFromFirstControl(node);
 }
