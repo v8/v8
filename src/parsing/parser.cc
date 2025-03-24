@@ -835,9 +835,15 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
               RuntimeCallStats::kThreadSpecific);
-    if (!Rewriter::Rewrite(info) || !DeclarationScope::Analyze(info)) {
+    bool has_stack_overflow = false;
+    if (!Rewriter::Rewrite(info, &has_stack_overflow) ||
+        !DeclarationScope::Analyze(info)) {
       // Null out the literal to indicate that something failed.
       info->set_literal(nullptr);
+      if (has_stack_overflow) {
+        // Propagate stack overflow state from Rewriter to parser.
+        set_stack_overflow();
+      }
       return;
     }
   }
@@ -918,9 +924,16 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
 
   if (has_error()) return;
 
-  std::optional<VariableProxy*> maybe_result =
-      Rewriter::RewriteBody(info, scope, block->statements());
-  if (!maybe_result) return;
+  bool has_stack_overflow = false;
+  std::optional<VariableProxy*> maybe_result = Rewriter::RewriteBody(
+      info, scope, block->statements(), &has_stack_overflow);
+  if (!maybe_result) {
+    if (has_stack_overflow) {
+      // Propagate stack overflow state from Rewriter to parser.
+      set_stack_overflow();
+    }
+    return;
+  }
   Expression* result_value =
       *maybe_result ? static_cast<Expression*>(*maybe_result)
                     : factory()->NewUndefinedLiteral(kNoSourcePosition);
