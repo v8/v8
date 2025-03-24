@@ -80,7 +80,7 @@ RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
   // returns a uintptr_t directly (without allocating on the heap).
   SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
 
-  CHECK_EQ(0, array_buffer->byte_length());
+  CHECK_EQ(0, array_buffer->byte_length_unchecked());
   size_t byte_length = array_buffer->GetBackingStore()->byte_length();
   return *isolate->factory()->NewNumberFromSize(byte_length);
 }

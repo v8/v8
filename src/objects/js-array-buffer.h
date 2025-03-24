@@ -40,6 +40,7 @@ class JSArrayBuffer
 
   // [byte_length]: length in bytes
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
+  inline size_t byte_length_unchecked() const;
 
   // [max_byte_length]: maximum length in bytes
   DECL_PRIMITIVE_ACCESSORS(max_byte_length, size_t)

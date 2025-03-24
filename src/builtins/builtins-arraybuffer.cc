@@ -422,7 +422,7 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
                                    kMethodName)));
   }
 
-  if (is_shared && new_byte_length < array_buffer->byte_length()) {
+  if (is_shared && new_byte_length < array_buffer->GetByteLength()) {
     // GrowableSharedArrayBuffer is only allowed to grow.
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferResizeLength,
@@ -492,8 +492,9 @@ static Tagged<Object> ResizeHelper(BuiltinArguments args, Isolate* isolate,
               isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
     }
     // Invariant: byte_length for a GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    CHECK_EQ(0, array_buffer->byte_length());
+    // BackingStore). Don't use the byte_length getter, which DCHECKs that it's
+    // not used on growable SharedArrayBuffers
+    CHECK_EQ(0, array_buffer->byte_length_unchecked());
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

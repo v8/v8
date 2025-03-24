@@ -32,6 +32,12 @@ RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)
 
 size_t JSArrayBuffer::byte_length() const {
+  // Use GetByteLength() for growable SharedArrayBuffers.
+  DCHECK(!is_shared() || !is_resizable_by_js());
+  return byte_length_unchecked();
+}
+
+size_t JSArrayBuffer::byte_length_unchecked() const {
   return ReadBoundedSizeField(kRawByteLengthOffset);
 }
 
@@ -65,8 +71,9 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 size_t JSArrayBuffer::GetByteLength() const {
   if (V8_UNLIKELY(is_shared() && is_resizable_by_js())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    DCHECK_EQ(0, byte_length());
+    // BackingStore). Don't use the byte_length getter, which DCHECKs that it's
+    // not used on growable SharedArrayBuffers.
+    DCHECK_EQ(0, byte_length_unchecked());
 
     // If the byte length is read after the JSArrayBuffer object is allocated
     // but before it's attached to the backing store, GetBackingStore returns
