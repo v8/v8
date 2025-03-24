@@ -3498,7 +3498,8 @@ bool MaglevGraphBuilder::ContextMayAlias(
     ValueNode* context, compiler::OptionalScopeInfoRef scope_info) {
   // Distinguishing contexts by their scope info only works if scope infos are
   // guaranteed to be unique.
-  if (!v8_flags.reuse_scope_infos) return true;
+  // TODO(crbug.com/401059828): reenable when crashes are gone.
+  if ((true) || !v8_flags.reuse_scope_infos) return true;
   if (!scope_info.has_value()) {
     return true;
   }
