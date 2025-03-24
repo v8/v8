@@ -10,6 +10,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
+#include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/compiler/turboshaft/reducer-test.h"
 

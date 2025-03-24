@@ -366,6 +366,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Load16x4U:
     case kArm64S128Load32x2S:
     case kArm64S128Load32x2U:
+    case kArm64S128LoadPairDeinterleave:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kIsLoadOperation;
 

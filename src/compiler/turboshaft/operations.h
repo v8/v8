@@ -149,6 +149,13 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)
 
+#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+#define TURBOSHAFT_DEINTERLEAVED_OPERATION_LIST(V) \
+  V(Simd128LoadPairDeinterleave)
+#else
+#define TURBOSHAFT_DEINTERLEAVED_OPERATION_LIST(V)
+#endif
+
 #if V8_ENABLE_WASM_SIMD256_REVEC
 #define TURBOSHAFT_SIMD256_COMMOM_OPERATION_LIST(V) \
   V(Simd256Constant)                                \
@@ -193,7 +200,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Simd128LaneMemory)                    \
   V(Simd128LoadTransform)                 \
   V(Simd128Shuffle)                       \
-  TURBOSHAFT_SIMD256_OPERATION_LIST(V)
+  TURBOSHAFT_SIMD256_OPERATION_LIST(V)    \
+  TURBOSHAFT_DEINTERLEAVED_OPERATION_LIST(V)
 
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
@@ -847,6 +855,15 @@ inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
   return first.produces.bits() & (second.consumes.bits());
 }
 
+inline bool CannotSwapProtectedLoads(OpEffects first, OpEffects second) {
+  EffectDimensions produces = first.produces;
+  // The control flow effects produced by Loads are due to trap handler. We can
+  // ignore this kind of effect when swapping two Loads that both have trap
+  // handler.
+  produces.control_flow = false;
+  return produces.bits() & (second.consumes.bits());
+}
+
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            OpEffects op_effects);
 
@@ -987,6 +1004,7 @@ struct alignas(OpIndex) Operation {
     DCHECK_IMPLIES(IsBlockTerminator(), Effects().is_required_when_unused());
     return Effects().is_required_when_unused();
   }
+  bool IsProtectedLoad() const;
 
   std::string ToString() const;
   void PrintInputs(std::ostream& os, const std::string& op_index_prefix) const;
@@ -8332,7 +8350,74 @@ struct Simd128ShuffleOp : FixedArityOperationT<2, Simd128ShuffleOp> {
   void PrintOptions(std::ostream& os) const;
 };
 
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
+// Load from memory and write the result into two registers, the first
+// containing the even numbered elements and the other containing the odd
+// elements.
+struct Simd128LoadPairDeinterleaveOp
+    : FixedArityOperationT<2, Simd128LoadPairDeinterleaveOp> {
+  using LoadKind = LoadOp::Kind;
+  enum class Kind : uint8_t {
+    k8x32,
+    k16x16,
+    k32x8,
+    k64x4,
+  };
+
+  LoadKind load_kind;
+  Kind kind;
+
+  OpEffects Effects() const {
+    OpEffects effects = OpEffects().CanReadMemory().CanDependOnChecks();
+    if (load_kind.with_trap_handler) {
+      effects = effects.CanLeaveCurrentFunction();
+    }
+    return effects;
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128(),
+                     RegisterRepresentation::Simd128()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<RegisterRepresentation::WordPtr(),
+                          RegisterRepresentation::WordPtr()>();
+  }
+
+  Simd128LoadPairDeinterleaveOp(V<WordPtr> base, V<WordPtr> index,
+                                LoadKind load_kind, Kind kind)
+      : Base(base, index), load_kind(load_kind), kind(kind) {}
+
+  V<WordPtr> base() const { return Base::input<WordPtr>(0); }
+  V<WordPtr> index() const { return Base::input<WordPtr>(1); }
+
+  uint32_t lane_size() const {
+    switch (kind) {
+      case Kind::k8x32:
+        return 8;
+      case Kind::k16x16:
+        return 16;
+      case Kind::k32x8:
+        return 32;
+      case Kind::k64x4:
+        return 64;
+    }
+  }
+
+  void Validate(const Graph& graph) const { DCHECK(!load_kind.tagged_base); }
+
+  auto options() const { return std::tuple{load_kind, kind}; }
+
+  void PrintOptions(std::ostream& os) const;
+};
+
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
 #if V8_ENABLE_WASM_SIMD256_REVEC
+
 struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
   static constexpr uint8_t kZero[kSimd256Size] = {};
   uint8_t value[kSimd256Size];
@@ -9074,6 +9159,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<Simd128LaneMemoryOp>().Effects();
     case Opcode::kSimd128LoadTransform:
       return Cast<Simd128LoadTransformOp>().Effects();
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+    case Opcode::kSimd128LoadPairDeinterleave:
+      return Cast<Simd128LoadPairDeinterleaveOp>().Effects();
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 #if V8_ENABLE_WASM_SIMD256_REVEC
     case Opcode::kSimd256LoadTransform:
       return Cast<Simd256LoadTransformOp>().Effects();

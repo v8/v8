@@ -299,6 +299,202 @@ TEST_F(ReducerTest, BinaryExtLowUnaryShuffle) {
   }
 }
 
+#if V8_ENABLE_WASM_INTERLEAVED_MEM_OPS
+
+namespace {
+auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
+constexpr uint8_t shuffle_bytes_even[kSimd128Size] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23};
+constexpr uint8_t shuffle_bytes_odd[kSimd128Size] = {
+    8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31};
+}  // namespace
+
+TEST_F(ReducerTest, LoadInterleaveTwo) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Add));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoNoIndex) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto ld0 = __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Mul));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_TRUE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoWrongIndex) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    auto ld0 = __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    auto ld1 = __ Load(Asm.GetParameter(0), index, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Mul));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoNoIndexWrongOffset) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 2 * kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kI64x2Mul));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotSameKind) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto ld0 = __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kI64x2Sub));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoNoIndexNotLeftAndRight) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Mul));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoNoIndexCantReschedule) {
+  auto test = CreateFromGraph(1, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto data = __ HeapConstant(Asm.factory().undefined_value());
+    __ Store(Asm.GetParameter(0), data, StoreOp::Kind::TaggedBase(),
+             MemoryRepresentation::TaggedPointer(),
+             WriteBarrierKind::kNoWriteBarrier, 0, true);
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Mul));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveTwoWrongBlocks) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    Block* block_a = __ NewBlock();
+    Block* block_b = __ NewBlock();
+    Block* block_c = __ NewBlock();
+    Block* block_d = __ NewBlock();
+    __ Bind(block_a);
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    __ Goto(block_b);
+    __ Bind(block_b);
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    __ Goto(block_c);
+    __ Bind(block_c);
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    __ Goto(block_d);
+    __ Bind(block_d);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Add));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+#endif  // V8_ENABLE_WASM_INTERLEAVED_MEM_OPS
+
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft

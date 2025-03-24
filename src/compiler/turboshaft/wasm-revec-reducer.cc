@@ -784,24 +784,6 @@ bool SLPTree::TryMatchExtendIntToF32x4(const NodeGroup& node_group,
   return true;
 }
 
-bool CannotSwapProtectedLoads(OpEffects first, OpEffects second) {
-  EffectDimensions produces = first.produces;
-  // The control flow effects produces by Loads are due to trap handler. We can
-  // ignore this kind of effect when swapping two Loads that both have trap
-  // handler.
-  produces.control_flow = false;
-  return produces.bits() & (second.consumes.bits());
-}
-
-bool IsProtectedLoad(Operation& op) {
-  if (op.opcode == Opcode::kLoad) {
-    return op.Cast<LoadOp>().kind.with_trap_handler;
-  } else if (op.opcode == Opcode::kSimd128LoadTransform) {
-    return op.Cast<Simd128LoadTransformOp>().load_kind.with_trap_handler;
-  }
-  return false;
-}
-
 bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
   DCHECK_LE(first.offset(), second.offset());
   if (first == second) return true;
@@ -809,8 +791,8 @@ bool SLPTree::IsSideEffectFree(OpIndex first, OpIndex second) {
   OpIndex prev_node = graph().PreviousIndex(second);
   while (prev_node != first) {
     OpEffects prev_effects = graph().Get(prev_node).Effects();
-    if ((IsProtectedLoad(graph().Get(second)) &&
-         IsProtectedLoad(graph().Get(prev_node)))
+    if ((graph().Get(second).IsProtectedLoad() &&
+         graph().Get(prev_node).IsProtectedLoad())
             ? CannotSwapProtectedLoads(prev_effects, effects)
             : CannotSwapOperations(prev_effects, effects)) {
       TRACE("break side effect %d, %d\n", prev_node.id(), second.id());

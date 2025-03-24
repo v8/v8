@@ -1360,6 +1360,12 @@ bool InstructionSelectorT::IsSourcePositionUsed(OpIndex node) {
             operation.TryCast<Simd128LaneMemoryOp>()) {
       return lm->kind.with_trap_handler;
     }
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+    if (const Simd128LoadPairDeinterleaveOp* dl =
+            operation.TryCast<Simd128LoadPairDeinterleaveOp>()) {
+      return dl->load_kind.with_trap_handler;
+    }
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 #endif
     if (additional_protected_instructions_->Contains(this->id(node))) {
       return true;
@@ -1969,6 +1975,10 @@ void InstructionSelectorT::VisitProjection(OpIndex node) {
     UNREACHABLE();
   } else if (value_op.Is<AtomicWord32PairOp>()) {
     // Nothing to do here.
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  } else if (value_op.Is<Simd128LoadPairDeinterleaveOp>()) {
+    MarkAsUsed(projection.input());
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
   } else {
     UNIMPLEMENTED();
   }
@@ -3656,6 +3666,18 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
 #undef VISIT_SIMD_TERNARY
       }
     }
+
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+    case Opcode::kSimd128LoadPairDeinterleave: {
+      OptionalOpIndex projection0 = FindProjection(node, 0);
+      DCHECK(projection0.valid());
+      MarkAsSimd128(projection0.value());
+      OptionalOpIndex projection1 = FindProjection(node, 1);
+      DCHECK(projection1.valid());
+      MarkAsSimd128(projection1.value());
+      return VisitSimd128LoadPairDeinterleave(node);
+    }
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
     // SIMD256
 #if V8_ENABLE_WASM_SIMD256_REVEC

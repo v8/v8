@@ -1140,6 +1140,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // to specific architectural instructions.
   void SwapShuffleInputs(TurboshaftAdapter::SimdShuffleView& node);
 
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  void VisitSimd128LoadPairDeinterleave(turboshaft::OpIndex node);
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
 #if V8_ENABLE_WASM_SIMD256_REVEC
   void VisitSimd256LoadTransform(turboshaft::OpIndex node);
 

@@ -1829,6 +1829,30 @@ void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  if (load_kind.maybe_unaligned) os << "unaligned, ";
+  if (load_kind.with_trap_handler) os << "protected, ";
+
+  switch (kind) {
+    case Kind::k8x32:
+      os << "8x32";
+      break;
+    case Kind::k16x16:
+      os << "16x16";
+      break;
+    case Kind::k32x8:
+      os << "32x8";
+      break;
+    case Kind::k64x4:
+      os << "64x4";
+      break;
+  }
+  os << ']';
+}
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
 #if V8_ENABLE_WASM_SIMD256_REVEC
 void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
   PrintSimdValue(os, value);
@@ -2130,5 +2154,20 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
          value.saturated_use_count.Get();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+bool Operation::IsProtectedLoad() const {
+  if (const auto* load = TryCast<LoadOp>()) {
+    return load->kind.with_trap_handler;
+  } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {
+    return load_t->load_kind.with_trap_handler;
+#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  } else if (const auto* load_t = TryCast<Simd128LoadPairDeinterleaveOp>()) {
+    return load_t->load_kind.with_trap_handler;
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  }
+  return false;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -36,6 +36,7 @@ namespace compiler {
   IF_WASM(V, Arm64S128Load8x8S)                            \
   IF_WASM(V, Arm64S128Load8x8U)                            \
   IF_WASM(V, Arm64StoreLane)                               \
+  IF_WASM(V, Arm64S128LoadPairDeinterleave)                \
   V(Arm64Str)                                              \
   V(Arm64StrPair)                                          \
   V(Arm64Strb)                                             \

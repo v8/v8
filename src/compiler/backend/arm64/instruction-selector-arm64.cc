@@ -1008,10 +1008,13 @@ InstructionOperand EmitAddBeforeLoadOrStore(InstructionSelectorT* selector,
                                             OpIndex node,
                                             InstructionCode* opcode) {
   Arm64OperandGeneratorT g(selector);
-  InstructionOperand addr = g.TempRegister();
-  selector->Emit(kArm64Add, addr, g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
   *opcode |= AddressingModeField::encode(kMode_MRI);
+  OpIndex input0 = selector->input_at(node, 0);
+  OpIndex input1 = selector->input_at(node, 1);
+  InstructionOperand addr = g.TempRegister();
+  auto rhs = g.CanBeImmediate(input1, kArithmeticImm) ? g.UseImmediate(input1)
+                                                      : g.UseRegister(input1);
+  selector->Emit(kArm64Add, addr, g.UseRegister(input0), rhs);
   return addr;
 }
 }  // namespace
@@ -5329,8 +5332,8 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
       {CanonicalShuffle::kS64x2Even, kArm64S64x2UnzipLeft},
       {CanonicalShuffle::kS64x2Odd, kArm64S64x2UnzipRight},
       {CanonicalShuffle::kS64x2ReverseBytes, kArm64S8x8Reverse},
-      {CanonicalShuffle::kS32x4InterleaveEven, kArm64S32x4UnzipLeft},
-      {CanonicalShuffle::kS32x4InterleaveOdd, kArm64S32x4UnzipRight},
+      {CanonicalShuffle::kS32x4Even, kArm64S32x4UnzipLeft},
+      {CanonicalShuffle::kS32x4Odd, kArm64S32x4UnzipRight},
       {CanonicalShuffle::kS32x4InterleaveLowHalves, kArm64S32x4ZipLeft},
       {CanonicalShuffle::kS32x4InterleaveHighHalves, kArm64S32x4ZipRight},
       {CanonicalShuffle::kS32x4ReverseBytes, kArm64S8x4Reverse},
@@ -5338,8 +5341,8 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
       {CanonicalShuffle::kS32x2Reverse, kArm64S32x2Reverse},
       {CanonicalShuffle::kS32x4TransposeEven, kArm64S32x4TransposeLeft},
       {CanonicalShuffle::kS32x4TransposeOdd, kArm64S32x4TransposeRight},
-      {CanonicalShuffle::kS16x8InterleaveEven, kArm64S16x8UnzipLeft},
-      {CanonicalShuffle::kS16x8InterleaveOdd, kArm64S16x8UnzipRight},
+      {CanonicalShuffle::kS16x8Even, kArm64S16x8UnzipLeft},
+      {CanonicalShuffle::kS16x8Odd, kArm64S16x8UnzipRight},
       {CanonicalShuffle::kS16x8InterleaveLowHalves, kArm64S16x8ZipLeft},
       {CanonicalShuffle::kS16x8InterleaveHighHalves, kArm64S16x8ZipRight},
       {CanonicalShuffle::kS16x2Reverse, kArm64S16x2Reverse},
@@ -5347,8 +5350,8 @@ std::optional<ArchOpcode> TryMapCanonicalShuffleToArch(
       {CanonicalShuffle::kS16x8ReverseBytes, kArm64S8x2Reverse},
       {CanonicalShuffle::kS16x8TransposeEven, kArm64S16x8TransposeLeft},
       {CanonicalShuffle::kS16x8TransposeOdd, kArm64S16x8TransposeRight},
-      {CanonicalShuffle::kS8x16InterleaveEven, kArm64S8x16UnzipLeft},
-      {CanonicalShuffle::kS8x16InterleaveOdd, kArm64S8x16UnzipRight},
+      {CanonicalShuffle::kS8x16Even, kArm64S8x16UnzipLeft},
+      {CanonicalShuffle::kS8x16Odd, kArm64S8x16UnzipRight},
       {CanonicalShuffle::kS8x16InterleaveLowHalves, kArm64S8x16ZipLeft},
       {CanonicalShuffle::kS8x16InterleaveHighHalves, kArm64S8x16ZipRight},
       {CanonicalShuffle::kS8x16TransposeEven, kArm64S8x16TransposeLeft},
@@ -5649,6 +5652,34 @@ void InstructionSelectorT::VisitI8x16Popcnt(OpIndex node) {
   code |= LaneSizeField::encode(8);
   VisitRR(this, code, node);
 }
+
+#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
+void InstructionSelectorT::VisitSimd128LoadPairDeinterleave(OpIndex node) {
+  const auto& load = this->Get(node).Cast<Simd128LoadPairDeinterleaveOp>();
+  Arm64OperandGeneratorT g(this);
+  InstructionCode opcode = kArm64S128LoadPairDeinterleave;
+  opcode |= LaneSizeField::encode(load.lane_size());
+  if (load.load_kind.with_trap_handler) {
+    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  }
+  OptionalOpIndex first = FindProjection(node, 0);
+  OptionalOpIndex second = FindProjection(node, 1);
+
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(first.value(), fp_fixed1),
+      g.DefineAsFixed(second.value(), fp_fixed2),
+  };
+
+  InstructionOperand inputs[] = {
+      EmitAddBeforeLoadOrStore(this, node, &opcode),
+      g.TempImmediate(0),
+  };
+  Emit(opcode, arraysize(outputs), outputs, arraysize(inputs), inputs);
+}
+
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,

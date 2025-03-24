@@ -2931,6 +2931,12 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   // improve block ordering, independent of loop unrolling.
   turboshaft_pipeline.Run<turboshaft::WasmLoweringPhase>();
 
+  // TODO(14108): Do we need value numbering if wasm_opt is turned off?
+  const bool is_asm_js = is_asmjs_module(module);
+  if (v8_flags.wasm_opt || is_asm_js) {
+    turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
+  }
+
 #if V8_TARGET_ARCH_ARM64
   if (v8_flags.experimental_wasm_simd_opt && v8_flags.wasm_opt &&
       detected->has_simd()) {
@@ -2938,11 +2944,6 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
   }
 #endif  // V8_TARGET_ARCH_ARM64
 
-  // TODO(14108): Do we need value numbering if wasm_opt is turned off?
-  const bool is_asm_js = is_asmjs_module(module);
-  if (v8_flags.wasm_opt || is_asm_js) {
-    turboshaft_pipeline.Run<turboshaft::WasmOptimizePhase>();
-  }
 #if DEBUG
   if (!v8_flags.wasm_opt) {
     // We still need to lower allocation operations even with optimizations

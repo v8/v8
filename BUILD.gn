@@ -509,6 +509,9 @@ declare_args() {
   # V8 uses Chrome's blink-gc clang plugin for checking V8's internal cppgc
   # usages. The plugin is not exhaustive but covers most common known pitfalls.
   use_cppgc_clang_plugin = true
+
+  # Deinterleaving load support.
+  v8_enable_wasm_deinterleaved_mem_ops = false
 }
 
 # Derived defaults.
@@ -735,6 +738,10 @@ if (v8_builtins_profiling_log_file == "default") {
 
 if (v8_enable_webassembly && !target_is_simulator && v8_current_cpu == "x64") {
   v8_enable_wasm_simd256_revec = true
+}
+
+if (v8_enable_webassembly && v8_target_cpu == "arm64") {
+  v8_enable_wasm_deinterleaved_mem_ops = true
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
@@ -1397,6 +1404,9 @@ config("features") {
   }
   if (v8_enable_wasm_simd256_revec) {
     defines += [ "V8_ENABLE_WASM_SIMD256_REVEC" ]
+  }
+  if (v8_enable_wasm_deinterleaved_mem_ops) {
+    defines += [ "V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS" ]
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]

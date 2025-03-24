@@ -4,6 +4,8 @@
 
 #include "src/compiler/turboshaft/wasm-shuffle-reducer.h"
 
+#include "src/wasm/simd-shuffle.h"
+
 namespace v8::internal::compiler::turboshaft {
 
 void DemandedElementAnalysis::AddUnaryOp(const Simd128UnaryOp& unop,
@@ -226,12 +228,174 @@ void WasmShuffleAnalyzer::ProcessShuffleOfShuffle(
   }
 }
 
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+bool WasmShuffleAnalyzer::CouldLoadPair(const LoadOp& load0,
+                                        const LoadOp& load1) const {
+  DCHECK_NE(load0, load1);
+  // Before adding a candidate, ensure that the loads can be scheduled together
+  // and that the accesses are consecutive.
+  if (load0.kind != load1.kind) {
+    return false;
+  }
+
+  // Only try this for loads in the same block.
+  if (input_graph().BlockIndexOf(load0) != input_graph().BlockIndexOf(load1)) {
+    return false;
+  }
+
+  if (load0.base() != load1.base()) {
+    return false;
+  }
+  if (load0.index() != load1.index()) {
+    return false;
+  }
+
+  // TODO(sparker): Can we use absolute diff..? I guess this would require
+  // some permutation after the load.
+  if (load1.offset - load0.offset != kSimd128Size) {
+    return false;
+  }
+
+  // Calculate whether second can be moved next to first by comparing the
+  // effects through the sequence of operations in between.
+  auto CanReschedule = [this](OpIndex first_idx, OpIndex second_idx) {
+    const Operation& second = input_graph().Get(second_idx);
+    OpEffects second_effects = second.Effects();
+    OpIndex prev_idx = input_graph().PreviousIndex(second_idx);
+    bool second_is_protected_load = second.IsProtectedLoad();
+
+    while (prev_idx != first_idx) {
+      const Operation& prev_op = input_graph().Get(prev_idx);
+      OpEffects prev_effects = prev_op.Effects();
+      bool both_protected =
+          second_is_protected_load && prev_op.IsProtectedLoad();
+      if (both_protected &&
+          CannotSwapProtectedLoads(prev_effects, second_effects)) {
+        return false;
+      } else if (CannotSwapOperations(prev_effects, second_effects)) {
+        return false;
+      }
+      prev_idx = input_graph().PreviousIndex(prev_idx);
+    }
+    return true;
+  };
+
+  OpIndex first_idx = input_graph().Index(load0);
+  OpIndex second_idx = input_graph().Index(load1);
+  if (first_idx.offset() > second_idx.offset()) {
+    std::swap(first_idx, second_idx);
+  }
+
+  return CanReschedule(first_idx, second_idx);
+}
+
+void WasmShuffleAnalyzer::AddLoadMultipleCandidate(
+    const Simd128ShuffleOp& even_shuffle, const Simd128ShuffleOp& odd_shuffle,
+    const LoadOp& left, const LoadOp& right,
+    Simd128LoadPairDeinterleaveOp::Kind kind) {
+  DCHECK_NE(even_shuffle, odd_shuffle);
+
+  if (CouldLoadPair(left, right)) {
+    deinterleave_load_candidates_.emplace_back(kind, left, right, even_shuffle,
+                                               odd_shuffle);
+  }
+}
+
+void WasmShuffleAnalyzer::ProcessShuffleOfLoads(const Simd128ShuffleOp& shuffle,
+                                                const LoadOp& left,
+                                                const LoadOp& right) {
+  DCHECK_EQ(shuffle.left(), input_graph().Index(left));
+  DCHECK_EQ(shuffle.right(), input_graph().Index(right));
+  // We're looking for two shuffle users of these two loads, so ensure the
+  // number of users doesn't exceed two.
+  if (left.saturated_use_count.Get() != 2 ||
+      right.saturated_use_count.Get() != 2) {
+    return;
+  }
+
+  // Look for even and odd shuffles. If we find one, then also check if we've
+  // already found another shuffle, performing the opposite action, on the same
+  // two loads. And if this is true, then we add a candidate including both
+  // shuffles and both loads.
+  auto AddShuffle = [this, &shuffle, &left, &right](
+                        SmallShuffleVector& shuffles,
+                        const SmallShuffleVector& other_shuffles, bool is_even,
+                        Simd128LoadPairDeinterleaveOp::Kind kind) {
+    shuffles.push_back(&shuffle);
+    if (auto other_shuffle = GetOtherShuffleUser(left, right, other_shuffles)) {
+      if (is_even) {
+        AddLoadMultipleCandidate(shuffle, *other_shuffle.value(), left, right,
+                                 kind);
+      } else {
+        AddLoadMultipleCandidate(*other_shuffle.value(), shuffle, left, right,
+                                 kind);
+      }
+    }
+  };
+
+  if (!DemandedByteLanes(&shuffle)) {
+    // Full width shuffles.
+    wasm::SimdShuffle::ShuffleArray shuffle_bytes;
+    std::copy_n(shuffle.shuffle, kSimd128Size, shuffle_bytes.begin());
+    auto canonical = wasm::SimdShuffle::TryMatchCanonical(shuffle_bytes);
+    switch (canonical) {
+      default:
+        return;
+      case wasm::SimdShuffle::CanonicalShuffle::kS64x2Even:
+        AddShuffle(even_64x2_shuffles_, odd_64x2_shuffles_, true,
+                   Simd128LoadPairDeinterleaveOp::Kind::k64x4);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS64x2Odd:
+        AddShuffle(odd_64x2_shuffles_, even_64x2_shuffles_, false,
+                   Simd128LoadPairDeinterleaveOp::Kind::k64x4);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS32x4Even:
+        AddShuffle(even_32x4_shuffles_, odd_32x4_shuffles_, true,
+                   Simd128LoadPairDeinterleaveOp::Kind::k32x8);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS32x4Odd:
+        AddShuffle(odd_32x4_shuffles_, even_32x4_shuffles_, false,
+                   Simd128LoadPairDeinterleaveOp::Kind::k32x8);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS16x8Even:
+        AddShuffle(even_16x8_shuffles_, odd_16x8_shuffles_, true,
+                   Simd128LoadPairDeinterleaveOp::Kind::k16x16);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS16x8Odd:
+        AddShuffle(odd_16x8_shuffles_, even_16x8_shuffles_, false,
+                   Simd128LoadPairDeinterleaveOp::Kind::k16x16);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS8x16Even:
+        AddShuffle(even_8x16_shuffles_, odd_8x16_shuffles_, true,
+                   Simd128LoadPairDeinterleaveOp::Kind::k8x32);
+        break;
+      case wasm::SimdShuffle::CanonicalShuffle::kS8x16Odd:
+        AddShuffle(odd_8x16_shuffles_, even_8x16_shuffles_, false,
+                   Simd128LoadPairDeinterleaveOp::Kind::k8x32);
+        break;
+    }
+  }
+}
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+
 void WasmShuffleAnalyzer::ProcessShuffle(const Simd128ShuffleOp& shuffle) {
   if (shuffle.kind != Simd128ShuffleOp::Kind::kI8x16) {
     return;
   }
   const Operation& left = input_graph().Get(shuffle.left());
   const Operation& right = input_graph().Get(shuffle.right());
+
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  auto* load_left = left.TryCast<LoadOp>();
+  auto* load_right = right.TryCast<LoadOp>();
+
+  // TODO(sparker): Handle I8x8 shuffles, which will likely mean that the input
+  // to the shuffles are Simd128LoadTransformOp::Load64Zero.
+  if (load_left && load_right) {
+    ProcessShuffleOfLoads(shuffle, *load_left, *load_right);
+    return;
+  }
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
   auto* shuffle_left = left.TryCast<Simd128ShuffleOp>();
   auto* shuffle_right = right.TryCast<Simd128ShuffleOp>();

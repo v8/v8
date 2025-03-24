@@ -2163,6 +2163,7 @@
   'wasm/deopt/deopt-untagged-parameters-s128': [SKIP],
   'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
+  'wasm/interleaved-loads': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
