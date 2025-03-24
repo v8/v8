@@ -198,6 +198,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU32V(WasmOpcode opcode, ModuleTypeIndex index) {
     EmitWithU32V(opcode, index.index);
   }
+  void EmitHeapType(HeapType type);
   void EmitValueType(ValueType type);
   void EmitDirectCallIndex(uint32_t index);
   void EmitFromInitializerExpression(const WasmInitExpr& init_expr);

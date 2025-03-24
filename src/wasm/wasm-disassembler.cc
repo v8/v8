@@ -405,12 +405,10 @@ class ImmediatesPrinter {
     if (imm.type.is_index()) use_type(imm.type.ref_index());
   }
 
-  void ValueType(HeapTypeImmediate& imm, bool is_nullable) {
+  void ValueType(ValueType type) {
     out_ << " ";
-    names()->PrintValueType(
-        out_, ValueType::RefMaybeNull(imm.type,
-                                      is_nullable ? kNullable : kNonNullable));
-    if (imm.type.is_index()) use_type(imm.type.ref_index());
+    names()->PrintValueType(out_, type);
+    if (type.has_index()) use_type(type.ref_index());
   }
 
   void BrOnCastFlags(BrOnCastImmediate& flags) {

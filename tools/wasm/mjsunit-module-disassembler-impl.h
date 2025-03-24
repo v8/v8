@@ -327,29 +327,44 @@ class MjsunitNamesProvider {
       // clang-format on
       case kRefNull:
         switch (type.heap_representation()) {
-#define CASE(kCpp, _, _2) case HeapType::kCpp:
-          ABSTRACT_TYPE_LIST(CASE)
-#undef CASE
-          return PrintHeapType(out, type.heap_type(), mode);
           case HeapType::kBottom:
           case HeapType::kTop:
             UNREACHABLE();
+#define CASE(kCpp, _, _2) case HeapType::kCpp:
+            ABSTRACT_TYPE_LIST(CASE)
+#undef CASE
+            if (!type.is_exact()) {
+              return PrintHeapType(out, type.heap_type(), mode);
+            }
+            [[fallthrough]];
           default:
-            out << (mode == kEmitObjects ? "wasmRefNullType("
-                                         : "kWasmRefNull, ");
+            if (mode == kEmitObjects) {
+              out << "wasmRefNullType(";
+            } else {
+              out << "kWasmRefNull, ";
+              if (type.is_exact()) out << "kWasmExact, ";
+            }
             break;
         }
         break;
       case kRef:
         switch (type.heap_representation()) {
+          case HeapType::kBottom:
+            UNREACHABLE();
 #define CASE(kCpp, _, _2) case HeapType::kCpp:
           ABSTRACT_NN_TYPE_LIST(CASE)
 #undef CASE
-          return PrintHeapType(out, type.heap_type(), mode);
-          case HeapType::kBottom:
-            UNREACHABLE();
+          if (!type.is_exact()) {
+            return PrintHeapType(out, type.heap_type(), mode);
+          }
+          [[fallthrough]];
           default:
-            out << (mode == kEmitObjects ? "wasmRefType(" : "kWasmRef, ");
+            if (mode == kEmitObjects) {
+              out << "wasmRefType(";
+            } else {
+              out << "kWasmRef, ";
+              if (type.is_exact()) out << "kWasmExact, ";
+            }
             break;
         }
         break;
@@ -361,7 +376,10 @@ class MjsunitNamesProvider {
         UNREACHABLE();
     }
     PrintHeapType(out, type.heap_type(), mode);
-    if (mode == kEmitObjects) out << ")";
+    if (mode == kEmitObjects) {
+      out << ")";
+      if (type.is_exact()) out << ".exact()";
+    }
   }
 
   void PrintMakeSignature(StringBuilder& out, const FunctionSig* sig) {
@@ -815,27 +833,24 @@ class MjsunitImmediatesPrinter {
     }
   }
 
-  void HeapType(HeapTypeImmediate& imm) {
+  void HeapType(HeapType type) {
     out_ << " ";
-    names()->PrintHeapType(out_, imm.type, kEmitWireBytes);
+    names()->PrintHeapType(out_, type, kEmitWireBytes);
     out_ << ",";
   }
+  void HeapType(HeapTypeImmediate& imm) { HeapType(imm.type); }
 
-  void ValueType(HeapTypeImmediate& imm, bool is_nullable) {
+  void ValueType(ValueType type) {
     if (owner_->current_opcode_ == kExprBrOnCast ||
         owner_->current_opcode_ == kExprBrOnCastFail) {
       // We somewhat incorrectly use the {ValueType} callback rather than
       // {HeapType()} for br_on_cast[_fail], because that's convenient
       // for disassembling to the text format. For module builder output,
       // fix that hack here, by dispatching back to {HeapType()}.
-      return HeapType(imm);
+      return HeapType(type.heap_type());
     }
     out_ << " ";
-    names()->PrintValueType(
-        out_,
-        ValueType::RefMaybeNull(imm.type,
-                                is_nullable ? kNullable : kNonNullable),
-        kEmitWireBytes);
+    names()->PrintValueType(out_, type, kEmitWireBytes);
     out_ << ",";
   }
 

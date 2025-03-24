@@ -124,6 +124,7 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
       break;
     case WasmInitExpr::kRefNullConst:
       buffer->write_u8(kExprRefNull);
+      if (init.heap_type().encoding_needs_exact()) buffer->write_u8(kExactCode);
       buffer->write_i32v(init.heap_type().code());
       break;
     case WasmInitExpr::kRefFuncConst:
@@ -284,16 +285,24 @@ void WasmFunctionBuilder::EmitWithU32V(WasmOpcode opcode, uint32_t immediate) {
 }
 
 namespace {
+void WriteHeapType(ZoneBuffer* buffer, HeapType type) {
+  if (type.encoding_needs_exact()) buffer->write_u8(kExactCode);
+  buffer->write_i32v(type.code());
+}
 void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
   buffer->write_u8(type.value_type_code());
   if (type.encoding_needs_shared()) {
     buffer->write_u8(kSharedFlagCode);
   }
   if (type.encoding_needs_heap_type()) {
-    buffer->write_i32v(type.heap_type().code());
+    WriteHeapType(buffer, type.heap_type());
   }
 }
 }  // namespace
+
+void WasmFunctionBuilder::EmitHeapType(HeapType type) {
+  WriteHeapType(&body_, type);
+}
 
 void WasmFunctionBuilder::EmitValueType(ValueType type) {
   WriteValueType(&body_, type);

@@ -1173,6 +1173,7 @@ class Binary {
     } else {
       this.emit_u8(type.opcode);
       if (type.is_shared) this.emit_u8(kWasmSharedTypeForm);
+      if (type.is_exact) this.emit_u8(kWasmExact);
       this.emit_heap_type(type.heap_type);
     }
   }
@@ -2373,23 +2374,34 @@ function wasmS128Const(f) {
   return result;
 }
 
-let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
+let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
+(function() {
   return [
     (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, false),
-      (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, true),
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCast),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastFail),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDesc),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescFail),
   ];
-  function wasmBrOnCastImpl(labelIdx, sourceType, targetType, brOnFail) {
+  function EncodeHeapType(type) {
+    let result = wasmSignedLeb(type.heap_type, kMaxVarInt32Size);
+    if (type.is_exact) {
+      result = [kWasmExact].concat(result);
+    }
+    return result;
+  }
+  function wasmBrOnCastImpl(labelIdx, sourceType, targetType, opcode) {
     labelIdx = wasmUnsignedLeb(labelIdx, kMaxVarInt32Size);
-    let srcHeap = wasmSignedLeb(sourceType.heap_type, kMaxVarInt32Size);
-    let tgtHeap = wasmSignedLeb(targetType.heap_type, kMaxVarInt32Size);
     let srcIsNullable = sourceType.opcode == kWasmRefNull;
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
     flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, brOnFail ? kExprBrOnCastFail : kExprBrOnCast,
-      flags, ...labelIdx, ...srcHeap, ...tgtHeap];
+      kGCPrefix, opcode, flags, ...labelIdx, ...EncodeHeapType(sourceType),
+      ...EncodeHeapType(targetType)
+    ];
   }
 })();
 

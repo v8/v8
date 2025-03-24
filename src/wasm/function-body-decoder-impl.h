@@ -215,6 +215,8 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                              WasmEnabledFeatures enabled) {
   auto [heap_index, length] =
       decoder->read_i33v<ValidationTag>(pc, "heap type");
+  Exactness exactness = Exactness::kAnySubtype;
+  uint32_t type_index;
   if (heap_index < 0) {
     int64_t min_1_byte_leb128 = -64;
     if (!VALIDATE(heap_index >= min_1_byte_leb128)) {
@@ -256,6 +258,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               decoder, pc,
               "invalid heap type '%s', enable with --experimental-wasm-exnref",
               HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
         }
         return {HeapType::from_code(code, is_shared), length};
       case kStringRefCode:
@@ -268,6 +271,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               "invalid heap type '%s', enable with "
               "--experimental-wasm-stringref",
               HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
         }
         return {HeapType::from_code(code, is_shared), length};
       case kNoContCode:
@@ -278,31 +282,45 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               "invalid heap type '%s', enable with "
               "--experimental-wasm-wasmfx",
               HeapType::from_code(code, is_shared).name().c_str());
+          return {kWasmBottom, 0};
         }
         return {HeapType::from_code(code, is_shared), length};
-      case kExactCode:
+      case kExactCode: {
+        if (!VALIDATE(enabled.has_custom_descriptors())) {
+          DecodeError<ValidationTag>(decoder, pc,
+                                     "invalid heap type 'exact', enable with "
+                                     "--experimental-wasm-custom-descriptors");
+          return {kWasmBottom, 0};
+        }
+        auto [nested_index, index_length] =
+            decoder->read_u32v<ValidationTag>(pc + 1, "type index");
+        type_index = nested_index;
+        exactness = Exactness::kExact;
+        length += index_length;
+        break;
+      }
       default:
         DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                    heap_index);
         return {kWasmBottom, length};
     }
   } else {
-    uint32_t type_index = static_cast<uint32_t>(heap_index);
-    if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-      DecodeError<ValidationTag>(
-          decoder, pc,
-          "Type index %u is greater than the maximum number %zu "
-          "of type definitions supported by V8",
-          type_index, kV8MaxWasmTypes);
-      return {kWasmBottom, length};
-    }
-    // We don't have a module yet, so we can only fill in default values:
-    bool kDefaultShared = false;
-    RefTypeKind kDefaultKind = RefTypeKind::kOther;
-    return {HeapType::Index(ModuleTypeIndex{type_index}, kDefaultShared,
-                            kDefaultKind),
-            length};
+    type_index = static_cast<uint32_t>(heap_index);
   }
+  if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
+    DecodeError<ValidationTag>(
+        decoder, pc,
+        "Type index %u is greater than the maximum number %zu "
+        "of type definitions supported by V8",
+        type_index, kV8MaxWasmTypes);
+    return {kWasmBottom, length};
+  }
+  // We don't have a module yet, so we can only fill in default values:
+  bool kDefaultShared = false;
+  RefTypeKind kDefaultKind = RefTypeKind::kOther;
+  return {HeapType::Index(ModuleTypeIndex{type_index}, kDefaultShared,
+                          kDefaultKind, exactness),
+          length};
 }
 
 // Read a value type starting at address {pc} using {decoder}.
@@ -357,6 +375,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
                            : ValueType::Ref(HeapType::from_code(code, false));
       return {type, 1};
     }
+    case kContRefCode:
     case kNoContCode:
       if (!VALIDATE(enabled.has_wasmfx())) {
         DecodeError<ValidationTag>(
@@ -365,16 +384,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, false).name().c_str());
         return {kWasmBottom, 0};
       }
-      return {kWasmNullContRef, 1};
-    case kContRefCode:
-      if (!VALIDATE(enabled.has_wasmfx())) {
-        DecodeError<ValidationTag>(
-            decoder, pc,
-            "invalid value type '%s', enable with --experimental-wasm-wasmfx",
-            HeapType::from_code(code, false).name().c_str());
-        return {kWasmBottom, 0};
-      }
-      return {kWasmContRef, 1};
+      return {code == kContRefCode ? kWasmContRef : kWasmNullContRef, 1};
     case kI32Code:
       return {kWasmI32, 1};
     case kI64Code:
@@ -2558,8 +2568,14 @@ class WasmDecoder : public Decoder {
             // pretend that we have two ValueTypes; whereas the mjsunit
             // module builder format cares only about the encapsulated
             // HeapTypes (and the raw flags value, see callback above).
-            (ios.ValueType(source_imm, flags_imm.flags.src_is_null), ...);
-            (ios.ValueType(target_imm, flags_imm.flags.res_is_null), ...);
+            (ios.ValueType(ValueType::RefMaybeNull(
+                 source_imm.type,
+                 flags_imm.flags.src_is_null ? kNullable : kNonNullable)),
+             ...);
+            (ios.ValueType(ValueType::RefMaybeNull(
+                 target_imm.type,
+                 flags_imm.flags.res_is_null ? kNullable : kNonNullable)),
+             ...);
             return length + flags_imm.length + branch.length +
                    source_imm.length + target_imm.length;
           }
