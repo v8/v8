@@ -2463,6 +2463,19 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         committed + (max_committed_code_space_ - committed) / 2);
   }
 
+  // On 32-bit platforms where no far jumps are needed between code spaces, use
+  // a reduced code size estimate. This saves some precious address space at the
+  // cost of needing more code spaces, but those are cheaper if they do not
+  // result in more far jumps.
+  // For now it is the case that far jumps are only needed on 64-bit platforms,
+  // so those two conditions can be interchanged. Think about which logic to use
+  // once those diverge.
+  static_assert(NativeModule::kNeedsFarJumpsBetweenCodeSpaces ==
+                (kSystemPointerSize == kInt64Size));
+  if constexpr (!NativeModule::kNeedsFarJumpsBetweenCodeSpaces) {
+    code_size_estimate /= 2;
+  }
+
   size_t code_vmem_size = ReservationSizeForWasmCode(
       code_size_estimate, module->num_declared_functions, 0);
   DCHECK_EQ(code_vmem_size == 0, module->num_declared_functions == 0);
