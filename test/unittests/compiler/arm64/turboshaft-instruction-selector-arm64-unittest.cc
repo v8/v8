@@ -1720,6 +1720,44 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
     EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
     EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
   }
+  {
+    // Test that we accept tagged inputs.
+    StreamBuilder m(this, MachineType::Int64(), MachineType::AnyTagged(),
+                    MachineType::AnyTagged(), MachineType::AnyTagged());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.TaggedEqual(m.Parameter(0), m.Parameter(1));
+    OpIndex cond_b = m.TaggedEqual(m.Parameter(0), m.Parameter(2));
+    m.Branch(m.Word32BitwiseOr(cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    if (COMPRESS_POINTERS_BOOL) {
+      EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    } else {
+      EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    }
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
+  {
+    // Test that the 32-bit compare becomes the first cmp in the chain,
+    // because of its immediate.
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64(),
+                    MachineType::Int64(), MachineType::Int32());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
+    OpIndex cond_b = m.Word32Equal(m.Parameter(2), m.Int32Constant(0x2d));
+    m.Branch(m.Word32BitwiseAnd(cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(0x2d, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
 }
 
 // -----------------------------------------------------------------------------

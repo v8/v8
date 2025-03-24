@@ -1523,9 +1523,6 @@ class CompareChainNode final : public ZoneObject {
     user_condition_ = NegateFlagsCondition(user_condition_);
     requires_negation_ = false;
   }
-  void CommuteFlags() {
-    user_condition_ = CommuteFlagsCondition(user_condition_);
-  }
   bool IsLegalFirstCombine() const {
     DCHECK(IsLogicalCombine());
     // We need two cmps feeding the first logic op.
@@ -1738,27 +1735,28 @@ void CombineFlagSettingOps(CompareChainNode* logic_node,
     // This is the beginning of the conditional compare chain.
     DCHECK(lhs->IsFlagSetting());
     DCHECK(rhs->IsFlagSetting());
-    OpIndex cmp = lhs->node();
-    OpIndex ccmp = rhs->node();
-    // ccmp has a much smaller immediate range than cmp, so swap the
-    // operations if possible.
-    if ((g.CanBeImmediate(selector->input_at(cmp, 0), kConditionalCompareImm) ||
-         g.CanBeImmediate(selector->input_at(cmp, 1),
-                          kConditionalCompareImm)) &&
-        (!g.CanBeImmediate(selector->input_at(ccmp, 0),
-                           kConditionalCompareImm) &&
-         !g.CanBeImmediate(selector->input_at(ccmp, 1),
-                           kConditionalCompareImm))) {
-      std::swap(lhs, rhs);
-      std::swap(cmp, ccmp);
-    }
 
-    OpIndex left = selector->input_at(cmp, 0);
-    OpIndex right = selector->input_at(cmp, 1);
-    if (g.CanBeImmediate(left, kArithmeticImm)) {
-      std::swap(left, right);
-      lhs->CommuteFlags();
+    {
+      // ccmp has a much smaller immediate range than cmp, so swap the
+      // operations if possible.
+      OpIndex cmp = lhs->node();
+      OpIndex ccmp = rhs->node();
+      OpIndex cmp_right = selector->input_at(cmp, 1);
+      OpIndex ccmp_right = selector->input_at(ccmp, 1);
+      if (g.CanBeImmediate(cmp_right, kConditionalCompareImm) &&
+          !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
+        // If the ccmp could use the cmp immediate, swap them.
+        std::swap(lhs, rhs);
+      } else if (g.CanBeImmediate(ccmp_right, kArithmeticImm) &&
+                 !g.CanBeImmediate(ccmp_right, kConditionalCompareImm)) {
+        // If the ccmp can't use its immediate, but a cmp could, swap them.
+        std::swap(lhs, rhs);
+      }
     }
+    OpIndex cmp = lhs->node();
+    OpIndex left = selector->input_at(lhs->node(), 0);
+    OpIndex right = selector->input_at(lhs->node(), 1);
+
     // Initialize chain with the compare which will hold the continuation.
     RegisterRepresentation rep = selector->Get(cmp).Cast<ComparisonOp>().rep;
     sequence->InitialCompare(cmp, left, right, rep);
