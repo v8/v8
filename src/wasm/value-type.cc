@@ -30,6 +30,12 @@ FOREACH_NUMERIC_VALUE_TYPE(CHECK_MASK)
 // Check correctness of enum conversions.
 static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
 
+// Some subtyping-related code relies on none-types having the "is_exact" bit.
+#define CHECK_EXACT(kind, ...) \
+  static_assert(IndependentHeapType{GenericKind::k##kind}.is_exact());
+FOREACH_NONE_TYPE(CHECK_EXACT)
+#undef CHECK_EXACT
+
 }  // namespace value_type_impl
 
 static_assert(kWasmBottom.is_bottom());
@@ -82,6 +88,36 @@ std::string ValueTypeBase::generic_heaptype_name() const {
   UNREACHABLE();
 }
 
+namespace {
+
+void PrintGenericHeaptypeName(std::ostringstream& buf, ValueTypeBase type) {
+  DCHECK(type.is_generic());
+  if (type.is_nullable()) {
+    GenericKind kind = type.generic_kind();
+    if (kind == GenericKind::kNone) {
+      // The code below would produce "noneref", and we need to keep it
+      // that way for "(ref none)", so we need this special case.
+      buf << "nullref";
+      return;
+    } else if (kind == GenericKind::kNoExn) {
+      buf << "nullexnref";
+      return;
+    } else if (kind == GenericKind::kNoExtern) {
+      buf << "nullexternref";
+      return;
+    } else if (kind == GenericKind::kNoFunc) {
+      buf << "nullfuncref";
+      return;
+    } else if (kind == GenericKind::kNoCont) {
+      buf << "nullcontref";
+      return;
+    }
+  }
+  buf << type.generic_heaptype_name();
+}
+
+}  // namespace
+
 std::string ValueTypeBase::name() const {
   if (is_numeric()) {
     switch (numeric_kind()) {
@@ -97,6 +133,7 @@ std::string ValueTypeBase::name() const {
   if (has_index()) {
     buf << "(ref ";
     if (is_nullable()) buf << "null ";
+    if (is_exact()) buf << "exact ";
     buf << raw_index().index << ")";
   } else {
     DCHECK(is_generic());
@@ -116,10 +153,12 @@ std::string ValueTypeBase::name() const {
         return "nullcontref";
       }
     }
-    bool shorthand = is_nullable() || is_sentinel() || is_string_view();
-    bool append_ref = is_nullable() && !is_sentinel();
+    bool shorthand =
+        (is_nullable() || is_sentinel() || is_string_view()) && !is_exact();
+    bool append_ref = is_nullable() && !is_sentinel() && !is_exact();
     if (!shorthand) buf << "(ref ";
-    buf << generic_heaptype_name();
+    if (!shorthand && is_nullable()) buf << "null ";
+    PrintGenericHeaptypeName(buf, *this);
     if (append_ref) buf << "ref";
     if (!shorthand) buf << ")";
   }

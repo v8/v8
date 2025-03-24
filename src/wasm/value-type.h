@@ -142,7 +142,7 @@ enum ValueKind : uint8_t {
 //
 // With these assignments, it turns out that "HeapType" is effectively a
 // subset of "ValueType", where bits 0-1 are known to *not* be "numeric",
-// and bits 2-3 (which are ValueType-specific) are ignored.
+// and bit 2 (which is ValueType-specific) is ignored.
 
 namespace value_type_impl {
 
@@ -159,15 +159,18 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
 #define CONT value_type_impl::RefTypeKindField::encode(RefTypeKind::kCont)
 #define REF value_type_impl::IsRefField::encode(true)
 #define SENTINEL value_type_impl::HasIndexOrSentinelField::encode(true)
+#define EXACT value_type_impl::IsExactField::encode(Exactness::kExact)
 
 // Abstract ref types that can occur in wire bytes.
+// We mark them as "exact" to require less special-casing in the subtyping
+// implementation.
 // Format: kName, ValueTypeCode, extra_bits, printable_name
 #define FOREACH_NONE_TYPE(V) /*                               force 80 cols */ \
-  V(NoCont, NoCont, REF | CONT, "nocont")                                      \
-  V(NoExn, NoExn, REF, "noexn")                                                \
-  V(NoExtern, NoExtern, REF, "noextern")                                       \
-  V(NoFunc, NoFunc, REF | FUNC, "nofunc")                                      \
-  V(None, None, REF, "none")
+  V(NoCont, NoCont, REF | CONT | EXACT, "nocont")                              \
+  V(NoExn, NoExn, REF | EXACT, "noexn")                                        \
+  V(NoExtern, NoExtern, REF | EXACT, "noextern")                               \
+  V(NoFunc, NoFunc, REF | FUNC | EXACT, "nofunc")                              \
+  V(None, None, REF | EXACT, "none")
 
 #define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
   FOREACH_NONE_TYPE(V)                                                         \
@@ -192,7 +195,7 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
 #define FOREACH_INTERNAL_TYPE(V) /*                           force 80 cols */ \
   V(Void, Void, SENTINEL, "<void>")                                            \
   V(Top, Void, SENTINEL, "<top>")                                              \
-  V(Bottom, Void, SENTINEL, "<bot>")                                           \
+  V(Bottom, Void, SENTINEL | EXACT, "<bot>")                                   \
   V(ExternString, Void, REF, "<extern_string>")
 
 #define FOREACH_GENERIC_TYPE(V) /*                            force 80 cols */ \
@@ -240,7 +243,8 @@ static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
 static constexpr uint32_t kGenericKindMask =
-    PayloadField::kMask | RefTypeKindField::kMask | TypeKindField::kMask;
+    PayloadField::kMask | RefTypeKindField::kMask | TypeKindField::kMask |
+    IsExactField::kMask;
 // Useful for numeric types which are always considered "shared".
 static constexpr uint32_t kNumericKindMask =
     kGenericKindMask | IsSharedField::kMask;
@@ -293,6 +297,7 @@ enum class NumericKind : uint32_t {
 #undef CONT
 #undef REF
 #undef SENTINEL
+#undef EXACT
 
 namespace value_type_impl {
 
@@ -345,8 +350,7 @@ class ValueTypeBase {
   static const uint32_t kIndexShift = value_type_impl::PayloadField::kShift;
 
   constexpr ValueTypeBase()
-      : ValueTypeBase(GenericKind::kVoid, kNonNullable, Exactness::kAnySubtype,
-                      false) {}
+      : ValueTypeBase(GenericKind::kVoid, kNonNullable, false) {}
 
   // This is specifically for the needs of the decoder: sometimes we need to
   // create the ValueType instance when we still only know the type index.
@@ -392,9 +396,10 @@ class ValueTypeBase {
   constexpr bool is_non_nullable() const {
     return is_ref() && !static_cast<bool>(nullability());
   }
-  constexpr bool is_exact() const {
+  constexpr Exactness exactness() const {
     return value_type_impl::IsExactField::decode(bit_field_);
   }
+  constexpr bool is_exact() const { return exactness() == Exactness::kExact; }
   constexpr bool is_shared() const {
     return value_type_impl::IsSharedField::decode(bit_field_);
   }
@@ -451,7 +456,6 @@ class ValueTypeBase {
     if (is_bottom()) return true;
     if (is_defaultable()) return false;  // Includes all nullable refs.
     if (has_index()) return false;
-    // TODO(jkummerow): Update for exact types.
     // Non-nullable references to null types are uninhabitable.
     return IsNullKind(generic_kind());
   }
@@ -541,6 +545,10 @@ class ValueTypeBase {
     return is_abstract_ref() && is_shared();
   }
 
+  constexpr bool encoding_needs_exact() const {
+    return has_index() && is_exact();
+  }
+
   V8_EXPORT_PRIVATE ValueTypeCode value_type_code_numeric() const;
   V8_EXPORT_PRIVATE ValueTypeCode value_type_code_generic() const;
 
@@ -611,8 +619,7 @@ class ValueTypeBase {
       case kF16:
         return ValueTypeBase(NumericKind::kF16);
       case kVoid:
-        return ValueTypeBase(GenericKind::kVoid, kNonNullable,
-                             Exactness::kAnySubtype, false);
+        return ValueTypeBase(GenericKind::kVoid, kNonNullable, false);
       case kRef:
       case kRefNull:
       case kTop:
@@ -667,10 +674,9 @@ class ValueTypeBase {
   }
 
   explicit constexpr ValueTypeBase(GenericKind kind, Nullability nullable,
-                                   Exactness exact, bool is_shared)
+                                   bool is_shared)
       : bit_field_(static_cast<uint32_t>(kind) |
                    value_type_impl::IsNullableField::encode(nullable) |
-                   value_type_impl::IsExactField::encode(exact) |
                    value_type_impl::IsSharedField::encode(is_shared)) {
     DCHECK(is_generic());
   }
@@ -700,18 +706,17 @@ class ValueTypeBase {
 ASSERT_TRIVIALLY_COPYABLE(ValueTypeBase);
 
 // A HeapType is like a ValueType where {is_numeric()} is known to be false
-// and the values of {is_nullable()} and {is_exact()} are ignored.
+// and the value of {is_nullable()} is ignored.
 // Uses module-specific type indices.
 class HeapType : public ValueTypeBase {
  public:
   static constexpr HeapType Generic(GenericKind kind, bool shared) {
-    return HeapType{
-        ValueTypeBase(kind, kNullable, Exactness::kAnySubtype, shared)};
+    return HeapType{ValueTypeBase(kind, kNullable, shared)};
   }
   static constexpr HeapType Index(ModuleTypeIndex index, bool shared,
-                                  RefTypeKind kind) {
-    return HeapType{
-        ValueTypeBase(index, kNullable, Exactness::kAnySubtype, shared, kind)};
+                                  RefTypeKind kind,
+                                  Exactness exact = Exactness::kAnySubtype) {
+    return HeapType{ValueTypeBase(index, kNullable, exact, shared, kind)};
   }
   static constexpr HeapType FromBits(uint32_t bits) {
     HeapType type{ValueTypeBase(bits)};
@@ -742,6 +747,11 @@ class HeapType : public ValueTypeBase {
     return Generic(kLookupTable[code - kFirst], is_shared);
   }
 
+  constexpr HeapType AsExact(Exactness exact = Exactness::kExact) const {
+    return HeapType{ValueTypeBase(
+        value_type_impl::IsExactField::update(raw_bit_field(), exact))};
+  }
+
   int32_t code() const {
     if (has_index()) return static_cast<int32_t>(ref_index().index);
     // Value type codes represent the first byte of the LEB128 encoding. To get
@@ -755,14 +765,16 @@ class HeapType : public ValueTypeBase {
 
   constexpr bool operator==(HeapType other) const {
     constexpr uint32_t kMask = ~value_type_impl::IsRefField::kMask &
-                               ~value_type_impl::IsNullableField::kMask &
-                               ~value_type_impl::IsExactField::kMask;
+                               ~value_type_impl::IsNullableField::kMask;
     return (bit_field_ & kMask) == (other.bit_field_ & kMask);
   }
 
   /****************************** Pretty-printing *****************************/
   std::string name() const {
-    if (has_index()) return std::to_string(raw_index().index);
+    if (has_index()) {
+      if (is_exact()) return "exact " + std::to_string(raw_index().index);
+      return std::to_string(raw_index().index);
+    }
     return generic_heaptype_name();
   }
 
@@ -826,6 +838,12 @@ class HeapType : public ValueTypeBase {
     return static_cast<Representation>(raw_heap_representation(true));
   }
   constexpr bool is_index() const { return has_index(); }
+
+ private:
+  // Hide inherited methods that don't make sense for HeapTypes.
+  constexpr bool is_nullable() const;
+  constexpr bool is_non_nullable() const;
+  constexpr Nullability nullability() const;
 };
 
 // Deprecated.
@@ -864,8 +882,7 @@ class ValueType : public ValueTypeBase {
   }
   static constexpr ValueType Generic(GenericKind kind, Nullability nullable,
                                      bool shared) {
-    return ValueType{
-        ValueTypeBase(kind, nullable, Exactness::kAnySubtype, shared)};
+    return ValueType{ValueTypeBase(kind, nullable, shared)};
   }
   static constexpr ValueType Ref(ModuleTypeIndex index, bool shared,
                                  RefTypeKind kind) {
@@ -902,6 +919,20 @@ class ValueType : public ValueTypeBase {
     DCHECK(!is_numeric());
     return ValueType{ValueTypeBase(
         value_type_impl::IsNullableField::update(raw_bit_field(), nullable))};
+  }
+
+  constexpr ValueType AsExact(Exactness exact = Exactness::kExact) const {
+    DCHECK(!is_numeric());
+    return ValueType{ValueTypeBase(
+        value_type_impl::IsExactField::update(raw_bit_field(), exact))};
+  }
+
+  // This will be replaced by direct calls to {AsExact} once the proposal
+  // has shipped by default and the flag is removed.
+  ValueType AsExactIfProposalEnabled(
+      Exactness exact = Exactness::kExact) const {
+    if V8_LIKELY (!v8_flags.experimental_wasm_custom_descriptors) return *this;
+    return AsExact(exact);
   }
 
   constexpr ValueType AsNonShared() const {
@@ -1007,6 +1038,21 @@ class CanonicalValueType : public ValueTypeBase {
     return CanonicalValueType{ValueTypeBase(bits)};
   }
 
+  constexpr CanonicalValueType AsExact(
+      Exactness exact = Exactness::kExact) const {
+    DCHECK(!is_numeric());
+    return CanonicalValueType{ValueTypeBase(
+        value_type_impl::IsExactField::update(raw_bit_field(), exact))};
+  }
+
+  // This will be replaced by direct calls to {AsExact} once the proposal
+  // has shipped by default and the flag is removed.
+  CanonicalValueType AsExactIfProposalEnabled(
+      Exactness exact = Exactness::kExact) const {
+    if V8_LIKELY (!v8_flags.experimental_wasm_custom_descriptors) return *this;
+    return AsExact(exact);
+  }
+
   constexpr CanonicalTypeIndex ref_index() const {
     return CanonicalTypeIndex{raw_index()};
   }
@@ -1069,7 +1115,7 @@ class IndependentValueType : public ValueTypeBase {
  protected:
   explicit constexpr IndependentValueType(GenericKind kind,
                                           Nullability nullable, bool shared)
-      : ValueTypeBase(kind, nullable, Exactness::kAnySubtype, shared) {}
+      : ValueTypeBase(kind, nullable, shared) {}
 };
 class IndependentHeapType : public IndependentValueType {
  public:

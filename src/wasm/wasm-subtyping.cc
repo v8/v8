@@ -392,6 +392,17 @@ std::optional<bool> IsSubtypeOf_Abstract(ValueTypeBase subtype,
   DCHECK(!subtype.is_numeric() && !supertype.is_numeric());
 
   if (subtype.is_shared() != supertype.is_shared()) return false;
+  if (supertype.is_exact()) {
+    if (!subtype.is_exact()) return false;
+    if (subtype.is_bottom()) return true;
+    if (supertype.has_index()) {
+      if (!subtype.has_index()) return false;
+      return {};
+    }
+    // supertype is a none-type. Subtype must be the same.
+    return !subtype.has_index() &&
+           subtype.generic_kind() == supertype.generic_kind();
+  }
   if (supertype.has_index()) {
     // If both types are indexed, the specialized implementations need to
     // take care of it.
@@ -418,6 +429,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       super_module->canonical_type_id(supertype.ref_index());
   // Comparing canonicalized type indices handles both different modules
   // and different recgroups in the same module.
+  if (supertype.is_exact()) {
+    return sub_module->canonical_type_id(sub_index) == super_canon;
+  }
   do {
     if (sub_module->canonical_type_id(sub_index) == super_canon) return true;
     sub_index = sub_module->supertype(sub_index);
@@ -437,7 +451,6 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   if (subtype.is_numeric()) return subtype == supertype;
   if (supertype.is_numeric()) return subtype.is_bottom();
   if (subtype.is_nullable() && !supertype.is_nullable()) return false;
-  // TODO(jkummerow): Implement support for exact references.
   HeapType sub_heap = subtype.heap_type();
   HeapType super_heap = supertype.heap_type();
   if (sub_heap == super_heap && sub_module == super_module) return true;
@@ -459,6 +472,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   CanonicalTypeIndex super_index = supertype.ref_index();
   // Can happen despite subtype != supertype, e.g. when nullability differs.
   if (sub_index == super_index) return true;
+  if (supertype.is_exact()) return false;
   return GetTypeCanonicalizer()->IsHeapSubtype(sub_index, super_index);
 }
 
@@ -467,8 +481,8 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
                                  const WasmModule* module2) {
   if (type1 == type2 && module1 == module2) return true;
   if (!type1.has_index() || !type2.has_index()) return type1 == type2;
-  // TODO(jkummerow): Handle exact references.
   if (type1.nullability() != type2.nullability()) return false;
+  if (type1.is_exact() != type2.is_exact()) return false;
 
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&
          type2.has_index() && module2->has_type(type2.ref_index()));
@@ -542,6 +556,24 @@ HeapType CommonAncestorWithAbstract(HeapType heap1, HeapType heap2,
   return HeapType::Generic(ToGenericKind(generic_ancestor), is_shared);
 }
 
+Exactness UnionExactness(ValueType type1, ValueType type2,
+                         const WasmModule* module1, const WasmModule* module2) {
+  if (!type1.is_exact() || !type2.is_exact()) return Exactness::kAnySubtype;
+  // <top> and <bottom> are ruled out by the caller, non-null abstract
+  // types were {NormalizeUninhabited()} before.
+  if (!type1.has_index()) {
+    DCHECK(IsNullSentinel(type1.heap_type()));
+    return Exactness::kExact;
+  }
+  if (!type2.has_index()) {
+    DCHECK(IsNullSentinel(type2.heap_type()));
+    return Exactness::kExact;
+  }
+  bool same =
+      EquivalentIndices(type1.ref_index(), type2.ref_index(), module1, module2);
+  return same ? Exactness::kExact : Exactness::kAnySubtype;
+}
+
 }  // namespace
 
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
@@ -555,10 +587,11 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
   }
   Nullability nullability =
       type1.is_nullable() || type2.is_nullable() ? kNullable : kNonNullable;
+  Exactness exactness = UnionExactness(type1, type2, module1, module2);
   HeapType heap1 = type1.heap_type();
   HeapType heap2 = type2.heap_type();
   if (heap1 == heap2 && module1 == module2) {
-    return {type1.AsNullable(nullability), module1};
+    return {type1.AsNullable(nullability).AsExact(exactness), module1};
   }
   HeapType result_type = kWasmBottom;
   const WasmModule* result_module;
@@ -575,9 +608,8 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
   // The type could only be kBottom if the input was kBottom but any kBottom
   // HeapType should be "normalized" to kWasmBottom ValueType.
   DCHECK_NE(result_type, kWasmBottom);
-  return {result_type.is_top()
-              ? kWasmTop
-              : ValueType::RefMaybeNull(result_type, nullability),
+  if (result_type.is_top()) return {kWasmTop, result_module};
+  return {ValueType::RefMaybeNull(result_type, nullability).AsExact(exactness),
           result_module};
 }
 
@@ -591,16 +623,21 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
   }
   Nullability nullability =
       type1.is_nullable() && type2.is_nullable() ? kNullable : kNonNullable;
+  Exactness exactness = type1.is_exact() || type2.is_exact()
+                            ? Exactness::kExact
+                            : Exactness::kAnySubtype;
   // non-nullable null type is not a valid type.
   if (nullability == kNonNullable && (IsNullSentinel(type1.heap_type()) ||
                                       IsNullSentinel(type2.heap_type()))) {
     return {kWasmBottom, module1};
   }
   if (IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module1, module2)) {
-    return TypeInModule{type1.AsNullable(nullability), module1};
+    return TypeInModule{type1.AsNullable(nullability).AsExact(exactness),
+                        module1};
   }
   if (IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module2, module1)) {
-    return TypeInModule{type2.AsNullable(nullability), module2};
+    return TypeInModule{type2.AsNullable(nullability).AsExact(exactness),
+                        module2};
   }
   if (nullability == kNonNullable) {
     return {kWasmBottom, module1};

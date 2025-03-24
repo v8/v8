@@ -390,6 +390,7 @@ void NamesProvider::PrintTagName(StringBuilder& out, uint32_t tag_index,
 
 void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
   if (type.is_index()) {
+    if (type.is_exact()) out << "exact ";
     PrintTypeName(out, type.ref_index());
   } else {
     out << type.name();
@@ -399,6 +400,7 @@ void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
 void NamesProvider::PrintValueType(StringBuilder& out, ValueType type) {
   if (type.has_index()) {
     out << (type.is_nullable() ? "(ref null " : "(ref ");
+    if (type.is_exact()) out << "exact ";
     PrintTypeName(out, type.ref_index());
     out << ')';
   } else {
@@ -506,6 +508,7 @@ void CanonicalTypeNamesProvider::PrintValueType(StringBuilder& out,
     case kRefNull:
       if (type.encoding_needs_heap_type()) {
         out << (type.kind() == kRef ? "(ref " : "(ref null ");
+        if (type.is_exact()) out << "exact ";
         if (type.has_index()) {
           PrintTypeName(out, type.ref_index());
         } else {
