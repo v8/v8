@@ -84,6 +84,8 @@ let kWasmArrayTypeForm = 0x5e;
 let kWasmSubtypeForm = 0x50;
 let kWasmSubtypeFinalForm = 0x4f;
 let kWasmRecursiveTypeGroupForm = 0x4e;
+let kWasmDescriptorTypeForm = 0x4d;
+let kWasmDescribesTypeForm = 0x4c;
 
 let kNoSuperType = 0xFFFFFFFF;
 
@@ -138,7 +140,7 @@ let kWasmExnRef = -0x17;
 let kWasmNullExnRef = -0x0c;
 let kWasmStringRef = -0x19;
 let kWasmStringViewWtf8 = -0x1a;
-let kWasmStringViewWtf16 = -0x1e;
+let kWasmStringViewWtf16 = -0x20;
 let kWasmStringViewIter = -0x1f;
 
 // Use the positive-byte versions inside function bodies.
@@ -163,11 +165,34 @@ let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
 
 let kWasmRefNull = 0x63;
 let kWasmRef = 0x64;
-function wasmRefNullType(heap_type, is_shared = false) {
-  return {opcode: kWasmRefNull, heap_type: heap_type, is_shared: is_shared};
+let kWasmExact = 0x62;
+
+// Implementation detail of `wasmRef[Null]Type`, don't use directly.
+class RefTypeBuilder {
+  constructor(opcode, heap_type) {
+    this.opcode = opcode;
+    this.heap_type = heap_type;
+    this.is_shared = false;
+    this.is_exact = false;
+  }
+  nullable() {
+    this.opcode = kWasmRefNull;
+    return this;
+  }
+  shared() {
+    this.is_shared = true;
+    return this;
+  }
+  exact() {
+    this.is_exact = true;
+    return this;
+  }
 }
-function wasmRefType(heap_type, is_shared = false) {
-  return {opcode: kWasmRef, heap_type: heap_type, is_shared: is_shared};
+function wasmRefNullType(heap_type) {
+  return new RefTypeBuilder(kWasmRefNull, heap_type);
+}
+function wasmRefType(heap_type) {
+  return new RefTypeBuilder(kWasmRef, heap_type);
 }
 
 let kExternalFunction = 0;
@@ -542,6 +567,13 @@ let kExprExternConvertAny = 0x1b;
 let kExprRefI31 = 0x1c;
 let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
+let kExprRefI31Shared = 0x1f;
+// Custom Descriptors proposal:
+let kExprRefGetDesc = 0x22;
+let kExprRefCastDesc = 0x23;
+let kExprRefCastDescNull = 0x24;
+let kExprBrOnCastDesc = 0x25;
+let kExprBrOnCastDescFail = 0x26;
 
 let kExprRefCastNop = 0x4c;
 

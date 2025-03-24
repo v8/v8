@@ -280,6 +280,7 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               HeapType::from_code(code, is_shared).name().c_str());
         }
         return {HeapType::from_code(code, is_shared), length};
+      case kExactCode:
       default:
         DecodeError<ValidationTag>(decoder, pc, "Unknown heap type %" PRId64,
                                    heap_index);
@@ -415,6 +416,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kI8Code:
     case kI16Code:
     case kF16Code:
+    case kExactCode:
       // Fall through to the error reporting below.
       break;
   }
@@ -2468,7 +2470,8 @@ class WasmDecoder : public Decoder {
             decoder->read_prefixed_opcode<ValidationTag>(pc, "gc_index");
         switch (opcode) {
           case kExprStructNew:
-          case kExprStructNewDefault: {
+          case kExprStructNewDefault:
+          case kExprRefGetDesc: {
             StructIndexImmediate imm(decoder, pc + length, validate);
             (ios.TypeIndex(imm), ...);
             return length + imm.length;
@@ -2525,6 +2528,8 @@ class WasmDecoder : public Decoder {
           case kExprRefCast:
           case kExprRefCastNull:
           case kExprRefCastNop:
+          case kExprRefCastDesc:
+          case kExprRefCastDescNull:
           case kExprRefTest:
           case kExprRefTestNull: {
             HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder,
@@ -2533,7 +2538,9 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprBrOnCast:
-          case kExprBrOnCastFail: {
+          case kExprBrOnCastFail:
+          case kExprBrOnCastDesc:
+          case kExprBrOnCastDescFail: {
             BrOnCastImmediate flags_imm(decoder, pc + length, validate);
             BranchDepthImmediate branch(decoder, pc + length + flags_imm.length,
                                         validate);

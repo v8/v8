@@ -44,6 +44,11 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
+  /* Custom Descriptors proposal. */                                           \
+  /* https://github.com/WebAssembly/custom-descriptors */                      \
+  /* V8 side owner: jkummerow */                                               \
+  V(custom_descriptors, "custom descriptors", false)                           \
+                                                                               \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
   /* V8 side owner: manoskouk */                                               \

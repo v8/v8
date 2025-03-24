@@ -48,17 +48,18 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExactCode = 0x62,            // -0x1e
   kExnRefCode = 0x69,           // -0x17
   kContRefCode = 0x68,          // -0x18
   kNoContCode = 0x75,           // -0x0b
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
-  kStringViewWtf16Code = 0x62,  // -0x1e
+  kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
 
   // For decoding, we build an array for all heap types with these bounds:
-  kFirstHeapTypeCode = kStringViewIterCode,  // Lowest assigned code.
-  kLastHeapTypeCode = kNoContCode,           // Highest assigned code.
+  kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
+  kLastHeapTypeCode = kNoContCode,            // Highest assigned code.
 };
 
 // Binary encoding of type definitions.
@@ -70,6 +71,8 @@ constexpr uint8_t kWasmContTypeCode = 0x5d;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
 constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;
+constexpr uint8_t kWasmDescriptorCode = 0x4d;
+constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
