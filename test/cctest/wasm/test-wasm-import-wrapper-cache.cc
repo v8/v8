@@ -21,7 +21,7 @@ namespace test_wasm_import_wrapper_cache {
 
 std::shared_ptr<NativeModule> NewModule(Isolate* isolate) {
   auto module = std::make_shared<WasmModule>(kWasmOrigin);
-  constexpr size_t kCodeSizeEstimate = 16384;
+  size_t kCodeSizeEstimate = 0;
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate, WasmEnabledFeatures::All(), WasmDetectedFeatures{},
       CompileTimeImports{}, std::move(module), kCodeSizeEstimate);

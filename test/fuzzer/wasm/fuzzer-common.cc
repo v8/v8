@@ -99,9 +99,11 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
   WasmError imports_error = ValidateAndSetBuiltinImports(
       module.get(), wire_bytes, compile_imports, &detected_features);
   CHECK(!imports_error.has_error());  // The module was compiled before.
+  const size_t code_size_estimate =
+      WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   native_module = GetWasmEngine()->NewNativeModule(
       isolate, enabled_features, detected_features,
-      CompileTimeImportsForFuzzing(), module, 0);
+      CompileTimeImportsForFuzzing(), module, code_size_estimate);
   native_module->SetWireBytes(base::OwnedCopyOf(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).

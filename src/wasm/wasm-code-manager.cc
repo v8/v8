@@ -635,9 +635,13 @@ WasmCodeAllocator::~WasmCodeAllocator() {
 void WasmCodeAllocator::Init(VirtualMemory code_space) {
   DCHECK(owned_code_space_.empty());
   DCHECK(free_code_space_.IsEmpty());
-  free_code_space_.Merge(code_space.region());
-  owned_code_space_.emplace_back(std::move(code_space));
-  async_counters_->wasm_module_num_code_spaces()->AddSample(1);
+  if (code_space.IsReserved()) {
+    free_code_space_.Merge(code_space.region());
+    owned_code_space_.emplace_back(std::move(code_space));
+    async_counters_->wasm_module_num_code_spaces()->AddSample(1);
+  } else {
+    async_counters_->wasm_module_num_code_spaces()->AddSample(0);
+  }
 }
 
 namespace {
@@ -700,18 +704,25 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
 #endif  // V8_OS_WIN64
 
   // Overhead for the far jump table.
-  overhead +=
-      RoundUp<kCodeAlignment>(JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          BuiltinLookup::BuiltinCount(),
-          NumWasmFunctionsInFarJumpTable(num_declared_functions)));
+  if constexpr (NativeModule::kNeedsFarJumpsBetweenCodeSpaces) {
+    overhead +=
+        RoundUp<kCodeAlignment>(JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+            BuiltinLookup::BuiltinCount(),
+            NumWasmFunctionsInFarJumpTable(num_declared_functions)));
+  }
 
   return overhead;
 }
 
-// Returns an estimate how much code space should be reserved. This can be
-// smaller than the passed-in {code_size_estimate}, see comments in the code.
-size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
-                       size_t total_reserved) {
+// Returns an estimate how much code space should be reserved, taking overhead
+// per code space into account (for jump tables). This can be smaller than the
+// passed-in {needed_size}, see comments in the code.
+size_t ReservationSizeForWasmCode(size_t needed_size,
+                                  int num_declared_functions,
+                                  size_t total_reserved_so_far) {
+  DCHECK_EQ(needed_size == 0, num_declared_functions == 0);
+  if (needed_size == 0) return 0;
+
   size_t overhead = OverheadPerCodeSpace(num_declared_functions);
 
   // Reserve the maximum of
@@ -726,10 +737,9 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
   //    code in the module; this can still be split up into multiple spaces
   //    later.
   size_t minimum_size = 2 * overhead;
-  size_t suggested_size =
-      std::max(std::max(RoundUp<kCodeAlignment>(code_size_estimate) + overhead,
-                        minimum_size),
-               total_reserved / 4);
+  size_t suggested_size = std::max(
+      std::max(RoundUp<kCodeAlignment>(needed_size) + overhead, minimum_size),
+      total_reserved_so_far / 4);
 
   const size_t max_code_space_size =
       size_t{v8_flags.wasm_max_code_space_size_mb} * MB;
@@ -745,9 +755,33 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
   }
 
   // Limit by the maximum code space size.
-  size_t reserve_size = std::min(max_code_space_size, suggested_size);
+  return std::min(max_code_space_size, suggested_size);
+}
 
-  return reserve_size;
+// Same as above, but for wrapper code space which does not have jump tables.
+size_t ReservationSizeForWrappers(size_t needed_size,
+                                  size_t total_reserved_so_far) {
+  needed_size = RoundUp<kCodeAlignment>(needed_size);
+  // Reserve the maximum of
+  //   a) needed size
+  //   c) 1/4 of current total reservation size (to grow exponentially)
+  size_t suggested_size = std::max(needed_size, total_reserved_so_far / 4);
+
+  const size_t max_code_space_size =
+      size_t{v8_flags.wasm_max_code_space_size_mb} * MB;
+  if (V8_UNLIKELY(needed_size > max_code_space_size)) {
+    auto oom_detail = base::FormattedString{}
+                      << "required reservation minimum (" << needed_size
+                      << ") is bigger than supported maximum ("
+                      << max_code_space_size << ")";
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "Exceeding maximum wasm code space size",
+                                oom_detail.PrintToArray().data());
+    UNREACHABLE();
+  }
+
+  // Limit by the maximum code space size.
+  return std::min(max_code_space_size, suggested_size);
 }
 
 // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
@@ -802,9 +836,12 @@ base::Vector<uint8_t> WasmCodeAllocator::AllocateForCodeInRegion(
 
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
-    uint32_t num_functions =
-        native_module ? native_module->module()->num_declared_functions : 0;
-    size_t reserve_size = ReservationSize(size, num_functions, total_reserved);
+    size_t reserve_size =
+        native_module
+            ? ReservationSizeForWasmCode(
+                  size, native_module->module()->num_declared_functions,
+                  total_reserved)
+            : ReservationSizeForWrappers(size, total_reserved);
     if (reserve_size < size) {
       auto oom_detail = base::FormattedString{}
                         << "cannot reserve space for " << size
@@ -963,8 +1000,12 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   base::RecursiveMutexGuard guard{&allocation_mutex_};
   auto initial_region = code_space.region();
   code_allocator_.Init(std::move(code_space));
-  code_allocator_.InitializeCodeRange(this, initial_region);
-  AddCodeSpaceLocked(initial_region);
+  const bool has_code_space = initial_region.size() > 0;
+  DCHECK_EQ(has_code_space, module_->num_declared_functions != 0);
+  if (has_code_space) {
+    code_allocator_.InitializeCodeRange(this, initial_region);
+    AddCodeSpaceLocked(initial_region);
+  }
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate, Tagged<Script> script) {
@@ -1746,6 +1787,10 @@ void NativeModule::PatchJumpTableLocked(WritableJumpTablePair& jump_table_pair,
 void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   allocation_mutex_.AssertHeld();
 
+  // We do not need a code space if the NativeModule does not hold any
+  // functions (wrappers live in the wrapper cache).
+  DCHECK_LT(0, module_->num_declared_functions);
+
   // Each code space must be at least twice as large as the overhead per code
   // space. Otherwise, we are wasting too much memory.
   DCHECK_GE(region.size(),
@@ -2296,6 +2341,10 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
                                                      int code_section_length) {
+  // It can happen that even without any functions we still have a code section
+  // of size 1, defining 0 function bodies. Still report 0 overall in this case.
+  if (num_functions == 0) return 0;
+
   // The size for the jump table and far jump table is added later, per code
   // space (see {OverheadPerCodeSpace}). We still need to add the overhead for
   // the lazy compile table once, though. There are configurations where we do
@@ -2414,8 +2463,9 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         committed + (max_committed_code_space_ - committed) / 2);
   }
 
-  size_t code_vmem_size =
-      ReservationSize(code_size_estimate, module->num_declared_functions, 0);
+  size_t code_vmem_size = ReservationSizeForWasmCode(
+      code_size_estimate, module->num_declared_functions, 0);
+  DCHECK_EQ(code_vmem_size == 0, module->num_declared_functions == 0);
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
   // reduce the maximum size of the initial code space reservation (in MB).
@@ -2431,25 +2481,27 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   // floating garbage.
   static constexpr int kAllocationRetries = 2;
   VirtualMemory code_space;
-  for (int retries = 0;; ++retries) {
-    code_space = TryAllocate(code_vmem_size);
-    if (code_space.IsReserved()) break;
-    if (retries == kAllocationRetries) {
-      auto oom_detail = base::FormattedString{}
-                        << "NewNativeModule cannot allocate code space of "
-                        << code_vmem_size << " bytes";
-      V8::FatalProcessOutOfMemory(isolate, "Allocate initial wasm code space",
-                                  oom_detail.PrintToArray().data());
-      UNREACHABLE();
+  base::AddressRegion code_space_region;
+  if (code_vmem_size != 0) {
+    for (int retries = 0;; ++retries) {
+      code_space = TryAllocate(code_vmem_size);
+      if (code_space.IsReserved()) break;
+      if (retries == kAllocationRetries) {
+        auto oom_detail = base::FormattedString{}
+                          << "NewNativeModule cannot allocate code space of "
+                          << code_vmem_size << " bytes";
+        V8::FatalProcessOutOfMemory(isolate, "Allocate initial wasm code space",
+                                    oom_detail.PrintToArray().data());
+        UNREACHABLE();
+      }
+      // Run one GC, then try the allocation again.
+      isolate->heap()->MemoryPressureNotification(
+          MemoryPressureLevel::kCritical, true);
     }
-    // Run one GC, then try the allocation again.
-    isolate->heap()->MemoryPressureNotification(MemoryPressureLevel::kCritical,
-                                                true);
+    code_space_region = code_space.region();
+    DCHECK_LE(code_vmem_size, code_space.size());
   }
 
-  Address start = code_space.address();
-  size_t size = code_space.size();
-  Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
   new NativeModule(enabled_features, detected_features,
                    std::move(compile_imports),
@@ -2458,10 +2510,12 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),
-             start, size);
+             code_space_region.begin(), code_space_region.size());
 
   base::MutexGuard lock(&native_modules_mutex_);
-  lookup_map_.insert(std::make_pair(start, std::make_pair(end, ret.get())));
+  lookup_map_.insert(
+      std::make_pair(code_space_region.begin(),
+                     std::make_pair(code_space_region.end(), ret.get())));
   return ret;
 }
 
