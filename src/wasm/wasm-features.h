@@ -28,7 +28,6 @@
   V(relaxed_simd)                        \
   V(gc)                                  \
   V(typed_funcref)                       \
-  V(js_inlining)                         \
   V(multi_memory)                        \
   V(memory64)
 

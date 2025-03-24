@@ -1751,8 +1751,7 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
   auto check_use_counter = [](WasmDetectedFeature feat) constexpr -> bool {
     // Some features intentionally do not have a use counter.
     constexpr WasmDetectedFeature kIntentionallyNoUseCounter[] = {
-        WasmDetectedFeature::stringref,    // Deprecated / unlikely to ship.
-        WasmDetectedFeature::js_inlining,  // Not a user-visible feature.
+        WasmDetectedFeature::stringref,  // Deprecated / unlikely to ship.
     };
     for (auto no_use_counter_feature : kIntentionallyNoUseCounter) {
       if (feat == no_use_counter_feature) return true;
