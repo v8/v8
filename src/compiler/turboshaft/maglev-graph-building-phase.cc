@@ -2105,6 +2105,23 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::SetPrototypeHas* node,
+                                const maglev::ProcessingState& state) {
+    V<Object> table = Map(node->table_input());
+    V<Smi> key = Map(node->key_input());
+
+    V<Smi> entry = __ FindOrderedHashSetEntry(table, key);
+    ScopedVar<Object, AssemblerT> result(
+        this, __ HeapConstant(local_factory_->true_value()));
+
+    IF (__ TaggedEqual(entry, __ SmiConstant(Smi::FromInt(-1)))) {
+      result = __ HeapConstant(local_factory_->false_value());
+    }
+    SetMap(node, result);
+
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TestInstanceOf* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->lazy_deopt_info());

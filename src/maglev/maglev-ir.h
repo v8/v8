@@ -151,9 +151,10 @@ class ExceptionHandlerInfo;
   V(BuiltinStringPrototypeCharCodeOrCodePointAt)
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
+  V(CreateFastArrayElements)        \
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
-  V(CreateFastArrayElements)
+  V(SetPrototypeHas)
 
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) V(TransitionAndStoreArrayElement)
 
@@ -7446,17 +7447,19 @@ class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
  public:
   explicit MapPrototypeGet(uint64_t bitfield) : Base(bitfield) {}
 
-  // Note that this node will eventually do a Call in Turbolev, but the `Call`
-  // property is only useful for Maglev codegen and carries no other meaning
-  // that's Turbolev-relevant.
-  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
-                                              OpProperties::CanRead() |
-                                              OpProperties::TaggedValue();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanRead() | OpProperties::TaggedValue();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
   Input& table_input() { return input(0); }
   Input& key_input() { return input(1); }
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
@@ -7478,6 +7481,33 @@ class MapPrototypeGetInt32Key
 
   Input& table_input() { return input(0); }
   Input& key_input() { return input(1); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class SetPrototypeHas : public FixedInputValueNodeT<2, SetPrototypeHas> {
+  using Base = FixedInputValueNodeT<2, SetPrototypeHas>;
+
+ public:
+  explicit SetPrototypeHas(uint64_t bitfield) : Base(bitfield) {}
+
+  // CanAllocate is needed, since finding strings in hash tables does an
+  // equality comparison which flattens strings.
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::CanAllocate() |
+      OpProperties::CanRead() | OpProperties::TaggedValue();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  Input& table_input() { return input(0); }
+  Input& key_input() { return input(1); }
+
+  int MaxCallStackArgs() const {
+    // Only implemented in Turbolev.
+    UNREACHABLE();
+  }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
