@@ -468,7 +468,8 @@ DEFINE_BOOL_READONLY(
 DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
-DEFINE_IMPLICATION(conservative_stack_scanning, minor_ms)
+DEFINE_IMPLICATION(conservative_stack_scanning,
+                   scavenger_conservative_object_pinning)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -487,9 +488,10 @@ DEFINE_EXPERIMENTAL_FEATURE(scavenger_conservative_object_pinning,
                             "scavenge will be pinned and "
                             "won't move.")
 DEFINE_IMPLICATION(scavenger_conservative_object_pinning, separate_gc_phases)
-DEFINE_BOOL(stress_scavenger_conservative_object_pinning, false,
-            "Treat some precise refernces as conservative references to stress "
-            "test object pinning in Scavenger")
+DEFINE_BOOL(
+    stress_scavenger_conservative_object_pinning, false,
+    "Treat some precise references as conservative references to stress "
+    "test object pinning in Scavenger")
 DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning,
                    scavenger_conservative_object_pinning)
 DEFINE_NEG_IMPLICATION(stress_scavenger_conservative_object_pinning,
@@ -698,7 +700,7 @@ DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")
 
 DEFINE_BOOL(maglev_skip_migration_check_for_polymorphic_access, false,
-            "skip generating a migration check when some maps of polymorpic "
+            "skip generating a migration check when some maps of polymorphic "
             "property access are migration targets")
 
 #ifdef V8_ENABLE_SPARKPLUG
@@ -779,7 +781,7 @@ DEFINE_MAYBE_BOOL(efficiency_mode,
 DEFINE_MAYBE_BOOL(
     battery_saver_mode,
     "Forces battery saver mode on or off, disregarding any dynamic signals. "
-    "Battery saver tries to conserve overal cpu cycles spent.")
+    "Battery saver tries to conserve overall cpu cycles spent.")
 
 DEFINE_MAYBE_BOOL(
     memory_saver_mode,
