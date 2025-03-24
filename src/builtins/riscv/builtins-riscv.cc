@@ -3280,13 +3280,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   __ StoreReturnAddressAndCall(s2);
 
-  // Result returned in a0 or a1:a0 - do not destroy these registers!
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // Check result for exception sentinel.
   Label exception_returned;
   // The returned value may be a trusted object, living outside of the main
@@ -3294,6 +3287,12 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ CompareRootAndBranch(a0, RootIndex::kException, eq, &exception_returned,
                           ComparisonMode::kFullPointer);
 
+  // Result returned in a0 or a1:a0 - do not destroy these registers!
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   // Exit C frame and return.
   // a0:a1: result
   // sp: stack pointer
