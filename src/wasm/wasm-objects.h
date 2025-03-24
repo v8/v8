@@ -1390,10 +1390,14 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   // Returns the ObjectSlot for tagged value at given offset.
   inline ObjectSlot RawField(int raw_offset);
 
-  V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
+  // Only for structs whose type describes another type.
+  static DirectHandle<WasmStruct> AllocateDescriptorUninitialized(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+      wasm::ModuleTypeIndex index, DirectHandle<Map> map);
+  inline Tagged<Map> get_described_rtt() const;
+  inline void set_described_rtt(Tagged<Map> rtt);
 
-  static inline void SetField(Isolate* isolate, DirectHandle<WasmStruct> obj,
-                              uint32_t field_index, DirectHandle<Object> value);
+  V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
 
   DECL_PRINTER(WasmStruct)
 

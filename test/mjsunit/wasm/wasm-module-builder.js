@@ -1326,9 +1326,30 @@ function makeField(type, mutability) {
   return {type: type, mutability: mutability};
 }
 
+function MustBeNumber(x, name) {
+  if (typeof x !== 'undefined' && typeof x !== 'number') {
+    throw new Error(`${name} must be a number, was ${x}`);
+  }
+  return x;
+}
+
 class WasmStruct {
   constructor(fields, is_final, is_shared, supertype_idx) {
-    if (!Array.isArray(fields)) {
+    let descriptor = undefined;
+    let describes = undefined;
+    if (Array.isArray(fields)) {
+      // Fall through.
+    } else if (fields.constructor === Object) {
+      // Options bag.
+      is_final = fields.is_final ?? fields.final ?? false;
+      is_shared = fields.is_shared ?? fields.shared ?? false;
+      supertype_idx = MustBeNumber(
+          fields.supertype_idx ?? fields.supertype ?? kNoSuperType,
+          "supertype");
+      descriptor = MustBeNumber(fields.descriptor, "'descriptor'");
+      describes = MustBeNumber(fields.describes, "'describes'");
+      fields = fields.fields ?? [];  // This must happen last.
+    } else {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
@@ -1336,6 +1357,8 @@ class WasmStruct {
     this.is_final = is_final;
     this.is_shared = is_shared;
     this.supertype = supertype_idx;
+    this.descriptor = descriptor;
+    this.describes = describes;
   }
 }
 
@@ -1466,11 +1489,13 @@ class WasmModuleBuilder {
 
   // We use {is_final = true} so that the MVP syntax is generated for
   // signatures.
-  addType(type, supertype_idx = kNoSuperType, is_final = true, is_shared = false) {
+  addType(type, supertype_idx = kNoSuperType, is_final = true,
+          is_shared = false) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
     var type_copy = {params: type.params, results: type.results,
-                     is_final: is_final, is_shared: is_shared, supertype: supertype_idx};
+                     is_final: is_final, is_shared: is_shared,
+                     supertype: supertype_idx};
     this.types.push(type_copy);
     return this.types.length - 1;
   }
@@ -1480,13 +1505,20 @@ class WasmModuleBuilder {
     return this.stringrefs.length - 1;
   }
 
-  addStruct(fields, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
-    this.types.push(new WasmStruct(fields, is_final, is_shared, supertype_idx));
+  // {fields} may be a list of fields, in which case the other parameters are
+  // relevant; or an options bag, which replaces the other parameters.
+  // Example: addStruct({fields: [...], supertype: 3})
+  addStruct(fields, supertype_idx = kNoSuperType, is_final = false,
+            is_shared = false) {
+    this.types.push(
+        new WasmStruct(fields, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
 
-  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
-    this.types.push(new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
+  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false,
+           is_shared = false) {
+    this.types.push(
+        new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1833,6 +1865,14 @@ class WasmModuleBuilder {
             section.emit_u8(0);  // no supertypes
           }
           if (type.is_shared) section.emit_u8(kWasmSharedTypeForm);
+          if (type.describes !== undefined) {
+            section.emit_u8(kWasmDescribesTypeForm);
+            section.emit_u32v(type.describes);
+          }
+          if (type.descriptor !== undefined) {
+            section.emit_u8(kWasmDescriptorTypeForm);
+            section.emit_u32v(type.descriptor);
+          }
           if (type instanceof WasmStruct) {
             section.emit_u8(kWasmStructTypeForm);
             section.emit_u32v(type.fields.length);

@@ -2073,17 +2073,15 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
   return direct_handle(result, isolate());
 }
 
-#if V8_ENABLE_DRUMBRAKE
 Handle<WasmStruct> Factory::NewWasmStructUninitialized(
-    const wasm::StructType* type, DirectHandle<Map> map) {
-  Tagged<HeapObject> raw =
-      AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
+    const wasm::StructType* type, DirectHandle<Map> map,
+    AllocationType allocation) {
+  Tagged<HeapObject> raw = AllocateRaw(WasmStruct::Size(type), allocation);
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   return handle(result, isolate());
 }
-#endif  // V8_ENABLE_DRUMBRAKE
 
 DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                                 wasm::WasmValue* args,

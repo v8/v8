@@ -295,6 +295,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
   mutex_.AssertHeld();  // The caller must hold the mutex.
 
   auto CanonicalizeTypeIndex = [=](ModuleTypeIndex type_index) {
+    if (!type_index.valid()) return CanonicalTypeIndex::Invalid();
     DCHECK(type_index.valid());
     if (type_index < recgroup_start) {
       // This references a type from an earlier recgroup; use the
@@ -320,9 +321,7 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
   };
 
   TypeDefinition type = module->type(module_type_idx);
-  CanonicalTypeIndex supertype = type.supertype.valid()
-                                     ? CanonicalizeTypeIndex(type.supertype)
-                                     : CanonicalTypeIndex::Invalid();
+  CanonicalTypeIndex supertype = CanonicalizeTypeIndex(type.supertype);
   switch (type.kind) {
     case TypeDefinition::kFunction: {
       const FunctionSig* original_sig = type.function_sig;
@@ -339,8 +338,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     }
     case TypeDefinition::kStruct: {
       const StructType* original_type = type.struct_type;
-      CanonicalStructType::Builder builder(&zone_,
-                                           original_type->field_count());
+      CanonicalStructType::Builder builder(&zone_, original_type->field_count(),
+                                           original_type->is_descriptor());
       for (uint32_t i = 0; i < original_type->field_count(); i++) {
         builder.AddField(CanonicalizeValueType(original_type->field(i)),
                          original_type->mutability(i),
@@ -349,7 +348,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
       builder.set_total_fields_size(original_type->total_fields_size());
       return CanonicalType(
           builder.Build(CanonicalStructType::Builder::kUseProvidedOffsets),
-          supertype, type.is_final, type.is_shared);
+          supertype, CanonicalizeTypeIndex(type.descriptor),
+          CanonicalizeTypeIndex(type.describes), type.is_final, type.is_shared);
     }
     case TypeDefinition::kArray: {
       CanonicalValueType element_type =

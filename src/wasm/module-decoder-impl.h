@@ -2472,8 +2472,8 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
-    StructType* result =
-        zone->New<StructType>(field_count, offsets, fields, mutabilities);
+    StructType* result = zone->New<StructType>(field_count, offsets, fields,
+                                               mutabilities, false);
     result->InitializeOffsets();
     return result;
   }

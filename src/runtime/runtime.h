@@ -709,6 +709,7 @@ namespace internal {
   F(TierUpWasmToJSWrapper, 1, 1)              \
   F(WasmTriggerTierUp, 1, 1)                  \
   F(WasmDebugBreak, 0, 1)                     \
+  F(WasmAllocateDescriptorStruct, 3, 1)       \
   F(WasmArrayCopy, 5, 1)                      \
   F(WasmArrayNewSegment, 5, 1)                \
   F(WasmArrayInitSegment, 6, 1)               \

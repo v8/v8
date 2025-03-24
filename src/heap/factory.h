@@ -777,6 +777,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                          wasm::WasmValue* args,
                                          DirectHandle<Map> map);
+  // The resulting struct will be uninitialized, which means GC might fail for
+  // reference structs until initialization. Follow this up with a
+  // {DisallowGarbageCollection} scope until initialization.
+  Handle<WasmStruct> NewWasmStructUninitialized(
+      const wasm::StructType* type, DirectHandle<Map> map,
+      AllocationType allocation = AllocationType::kYoung);
+
   DirectHandle<WasmArray> NewWasmArray(wasm::ValueType element_type,
                                        uint32_t length,
                                        wasm::WasmValue initial_value,
@@ -1391,14 +1398,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                               DirectHandle<Map> map);
 
 #if V8_ENABLE_DRUMBRAKE
-  // The resulting struct will be uninitialized, which means GC might fail for
-  // reference structs until initialization. Follow this up with a
-  // {DisallowGarbageCollection} scope until initialization.
-  Handle<WasmStruct> NewWasmStructUninitialized(const wasm::StructType* type,
-                                                DirectHandle<Map> map);
-
-  // WasmInterpreterRuntime needs to call NewWasmStructUninitialized and
-  // NewWasmArrayUninitialized.
+  // WasmInterpreterRuntime needs to call NewWasmArrayUninitialized.
   friend class wasm::WasmInterpreterRuntime;
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY

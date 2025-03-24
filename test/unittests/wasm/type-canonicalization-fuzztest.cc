@@ -51,9 +51,11 @@ struct StructType {
       reps[i] = field_types[i].value_type;
       mutabilities[i] = field_types[i].mutability;
     }
-    builder->AddStructType(zone->New<wasm::StructType>(field_count, kNoOffsets,
-                                                       reps, mutabilities),
-                           kNotFinal, kNoSupertype);
+    bool is_descriptor = false;  // TODO(403372470): Add support.
+    builder->AddStructType(
+        zone->New<wasm::StructType>(field_count, kNoOffsets, reps, mutabilities,
+                                    is_descriptor),
+        kNotFinal, kNoSupertype);
   }
 
   void Print(std::ostream& os) const {

@@ -48,7 +48,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   bool is_final = false, bool is_shared = false,
                   bool in_singleton_rec_group = true) {
   StructType::Builder builder(&module->signature_zone,
-                              static_cast<uint32_t>(fields.size()));
+                              static_cast<uint32_t>(fields.size()), false);
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }

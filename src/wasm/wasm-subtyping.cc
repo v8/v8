@@ -23,9 +23,10 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
                                   ModuleTypeIndex supertype_index,
                                   const WasmModule* sub_module,
                                   const WasmModule* super_module) {
-  const StructType* sub_struct = sub_module->type(subtype_index).struct_type;
-  const StructType* super_struct =
-      super_module->type(supertype_index).struct_type;
+  const TypeDefinition& sub_def = sub_module->type(subtype_index);
+  const TypeDefinition& super_def = super_module->type(supertype_index);
+  const StructType* sub_struct = sub_def.struct_type;
+  const StructType* super_struct = super_def.struct_type;
 
   if (sub_struct->field_count() < super_struct->field_count()) {
     return false;
@@ -42,6 +43,24 @@ bool ValidStructSubtypeDefinition(ModuleTypeIndex subtype_index,
                                   sub_module, super_module))) {
       return false;
     }
+  }
+  if (sub_def.descriptor.valid()) {
+    // If a type has a descriptor, its supertype must either have no descriptor,
+    // or the supertype's descriptor must be a supertype of the subtype's
+    // descriptor.
+    if (super_def.descriptor.valid() &&
+        !IsHeapSubtypeOf(sub_module->heap_type(sub_def.descriptor),
+                         super_module->heap_type(super_def.descriptor),
+                         sub_module, super_module)) {
+      return false;
+    }
+  } else {
+    // If a type has no descriptor, its supertype must not have one either.
+    if (super_def.descriptor.valid()) return false;
+  }
+  // A type and its supertype must either both be descriptors, or both not.
+  if (sub_def.describes.valid() != super_def.describes.valid()) {
+    return false;
   }
   return true;
 }

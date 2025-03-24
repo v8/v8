@@ -133,8 +133,8 @@ class TestModuleBuilder {
 
   HeapType AddStruct(std::initializer_list<F> fields,
                      ModuleTypeIndex supertype = kNoSuperType) {
-    StructType::Builder type_builder(&mod.signature_zone,
-                                     static_cast<uint32_t>(fields.size()));
+    StructType::Builder type_builder(
+        &mod.signature_zone, static_cast<uint32_t>(fields.size()), false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }

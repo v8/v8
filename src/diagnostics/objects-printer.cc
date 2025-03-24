@@ -2608,6 +2608,9 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
   const wasm::CanonicalStructType* struct_type =
       wasm::GetTypeCanonicalizer()->LookupStruct(
           map()->wasm_type_info()->type_index());
+  if (struct_type->is_descriptor()) {
+    os << "\n - describes RTT: " << Brief(get_described_rtt());
+  }
   os << "\n - fields (" << struct_type->field_count() << "):";
   for (uint32_t i = 0; i < struct_type->field_count(); i++) {
     wasm::CanonicalValueType field = struct_type->field(i);

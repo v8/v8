@@ -138,6 +138,8 @@ class TypeCanonicalizer {
       const CanonicalContType* cont_type;
     };
     CanonicalTypeIndex supertype{kNoSuperType};
+    CanonicalTypeIndex descriptor{kNoType};
+    CanonicalTypeIndex describes{kNoType};
     Kind kind = kFunction;
     bool is_final = false;
     bool is_shared = false;
@@ -153,10 +155,14 @@ class TypeCanonicalizer {
           is_shared(is_shared) {}
 
     constexpr CanonicalType(const CanonicalStructType* type,
-                            CanonicalTypeIndex supertype, bool is_final,
+                            CanonicalTypeIndex supertype,
+                            CanonicalTypeIndex descriptor,
+                            CanonicalTypeIndex describes, bool is_final,
                             bool is_shared)
         : struct_type(type),
           supertype(supertype),
+          descriptor(descriptor),
+          describes(describes),
           kind(kStruct),
           is_final(is_final),
           is_shared(is_shared) {}
@@ -202,26 +208,36 @@ class TypeCanonicalizer {
     explicit CanonicalHashing(RecursionGroupRange recgroup)
         : recgroup{recgroup} {}
 
+    uint32_t MakeGroupRelative(CanonicalTypeIndex index) {
+      uint32_t is_relative = recgroup.Contains(index) ? 1 : 0;
+      uint32_t relative = index.index - is_relative * recgroup.first.index;
+      return (relative << 1) | is_relative;
+    }
+
     void Add(CanonicalType type) {
-      // Add three pieces of information in a single number, for faster hashing:
-      // Whether the type is final, whether the supertype index is relative
-      // within the recgroup, and the supertype index itself.
-      // For relative supertypes add {kMaxCanonicalTypes} to map those to a
-      // separate index space (note that collisions in hashing are OK though).
-      uint32_t is_relative = recgroup.Contains(type.supertype) ? 1 : 0;
-      uint32_t supertype_index =
-          type.supertype.index - is_relative * recgroup.first.index;
+      // Add several pieces of information in a single number, for faster
+      // hashing.
+      uint32_t supertype_index = MakeGroupRelative(type.supertype);
       static_assert(kMaxCanonicalTypes <= kMaxUInt32 >> 3);
-      uint32_t metadata = (supertype_index << 3) | (type.is_shared << 2) |
-                          (is_relative << 1) | (type.is_final << 0);
+      uint32_t metadata =
+          (supertype_index << 2) | (type.is_shared << 1) | (type.is_final << 0);
       hasher.Add(metadata);
       switch (type.kind) {
         case CanonicalType::kFunction:
           Add(*type.function_sig);
           break;
-        case CanonicalType::kStruct:
+        case CanonicalType::kStruct: {
+          uint32_t descriptor_index = MakeGroupRelative(type.descriptor);
+          uint32_t describes_index = MakeGroupRelative(type.describes);
+          // {MakeGroupRelative} returns a value at most 1 bit bigger than
+          // the max canonical index, which currently fits into 20 bits. So
+          // by shifting left by 11, we're not truncating anything. (And even
+          // if we did, it's just a hash, collisions are OK.)
+          uint32_t desc = (descriptor_index << 11) ^ (describes_index);
+          hasher.Add(desc);
           Add(*type.struct_type);
           break;
+        }
         case CanonicalType::kArray:
           Add(*type.array_type);
           break;
@@ -233,12 +249,14 @@ class TypeCanonicalizer {
 
     void Add(CanonicalValueType value_type) {
       if (value_type.has_index() && recgroup.Contains(value_type.ref_index())) {
-        // For relative indexed types add the kind and the relative index to the
-        // hash. Shift the relative index by {kMaxCanonicalTypes} to map it to a
+        // For relative indexed types, add their nullability, exactness, and
+        // the relative index to the hash.
+        // Shift the relative index by {kMaxCanonicalTypes} to map it to a
         // different index space (note that collisions in hashing are OK
         // though).
         static_assert(kMaxCanonicalTypes <= kMaxUInt32 / 2);
-        hasher.Add(value_type.kind());
+        // TODO(403372470): Add the 'exact' bit.
+        hasher.Add((value_type.is_exact() << 1) | value_type.is_nullable());
         hasher.Add((value_type.ref_index().index - recgroup.first.index) +
                    kMaxCanonicalTypes);
       } else {
@@ -314,6 +332,8 @@ class TypeCanonicalizer {
                  EqualSig(*type1.function_sig, *type2.function_sig);
         case CanonicalType::kStruct:
           return type2.kind == CanonicalType::kStruct &&
+                 EqualTypeIndex(type1.descriptor, type2.descriptor) &&
+                 EqualTypeIndex(type1.describes, type2.describes) &&
                  EqualStructType(*type1.struct_type, *type2.struct_type);
         case CanonicalType::kArray:
           return type2.kind == CanonicalType::kArray &&

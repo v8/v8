@@ -754,6 +754,14 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
 }
 
+inline Tagged<Map> WasmStruct::get_described_rtt() const {
+  return TaggedField<Map, kHeaderSize>::load(*this);
+}
+
+void WasmStruct::set_described_rtt(Tagged<Map> rtt) {
+  TaggedField<Object, kHeaderSize>::store(*this, rtt);
+}
+
 wasm::CanonicalTypeIndex WasmArray::type_index(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
   Tagged<WasmTypeInfo> type_info = map->wasm_type_info();

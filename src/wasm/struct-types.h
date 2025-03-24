@@ -20,11 +20,17 @@ namespace v8::internal::wasm {
 class StructTypeBase : public ZoneObject {
  public:
   StructTypeBase(uint32_t field_count, uint32_t* field_offsets,
-                 const ValueTypeBase* reps, const bool* mutabilities)
+                 const ValueTypeBase* reps, const bool* mutabilities,
+                 bool is_descriptor)
       : field_count_(field_count),
+        is_descriptor_(is_descriptor),
         field_offsets_(field_offsets),
         reps_(reps),
-        mutabilities_(mutabilities) {}
+        mutabilities_(mutabilities) {
+    DCHECK_LE(field_count, kV8MaxWasmStructFields);
+  }
+
+  bool is_descriptor() const { return is_descriptor_; }
 
   uint32_t field_count() const { return field_count_; }
 
@@ -51,12 +57,17 @@ class StructTypeBase : public ZoneObject {
   // header).
   uint32_t field_offset(uint32_t index) const {
     DCHECK_LT(index, field_count());
-    if (index == 0) return 0;
+    if (index == 0) {
+      return is_descriptor() ? kTaggedSize : 0;
+    }
     DCHECK(offsets_initialized_);
     return field_offsets_[index - 1];
   }
   uint32_t total_fields_size() const {
-    return field_count() == 0 ? 0 : field_offsets_[field_count() - 1];
+    if (field_count() == 0) {
+      return is_descriptor() ? kTaggedSize : 0;
+    }
+    return field_offsets_[field_count() - 1];
   }
 
   uint32_t Align(uint32_t offset, uint32_t alignment) {
@@ -66,7 +77,8 @@ class StructTypeBase : public ZoneObject {
   void InitializeOffsets() {
     if (field_count() == 0) return;
     DCHECK(!offsets_initialized_);
-    uint32_t offset = field(0).value_kind_size();
+    uint32_t offset = is_descriptor() ? kTaggedSize : 0;
+    offset += field(0).value_kind_size();
     // Optimization: we track the last gap that was introduced by alignment,
     // and place any sufficiently-small fields in it.
     // It's important that the algorithm that assigns offsets to fields is
@@ -119,9 +131,10 @@ class StructTypeBase : public ZoneObject {
       kUseProvidedOffsets = false
     };
 
-    BuilderImpl(Zone* zone, uint32_t field_count)
+    BuilderImpl(Zone* zone, uint32_t field_count, bool is_descriptor)
         : zone_(zone),
           field_count_(field_count),
+          is_descriptor_(is_descriptor),
           cursor_(0),
           field_offsets_(zone_->AllocateArray<uint32_t>(field_count_)),
           buffer_(zone->AllocateArray<ValueTypeSubclass>(
@@ -135,7 +148,10 @@ class StructTypeBase : public ZoneObject {
       if (cursor_ > 0) {
         field_offsets_[cursor_ - 1] = offset;
       } else {
-        DCHECK_EQ(0, offset);  // First field always has offset 0.
+        // offset == 0 could mean that we'll compute the offsets later,
+        // or that this is the first field's offset being copied over from
+        // another struct type.
+        DCHECK(offset == 0 || (is_descriptor_ && offset == kTaggedSize));
       }
       mutabilities_[cursor_] = mutability;
       buffer_[cursor_++] = type;
@@ -143,7 +159,7 @@ class StructTypeBase : public ZoneObject {
 
     void set_total_fields_size(uint32_t size) {
       if (field_count_ == 0) {
-        DCHECK_EQ(0, size);
+        DCHECK_EQ(is_descriptor_ ? kTaggedSize : 0, size);
         return;
       }
       field_offsets_[field_count_ - 1] = size;
@@ -151,8 +167,8 @@ class StructTypeBase : public ZoneObject {
 
     Subclass* Build(ComputeOffsets compute_offsets = kComputeOffsets) {
       DCHECK_EQ(cursor_, field_count_);
-      Subclass* result = zone_->New<Subclass>(field_count_, field_offsets_,
-                                              buffer_, mutabilities_);
+      Subclass* result = zone_->New<Subclass>(
+          field_count_, field_offsets_, buffer_, mutabilities_, is_descriptor_);
       if (compute_offsets == kComputeOffsets) {
         result->InitializeOffsets();
       } else {
@@ -173,6 +189,7 @@ class StructTypeBase : public ZoneObject {
    private:
     Zone* const zone_;
     const uint32_t field_count_;
+    const bool is_descriptor_;
     uint32_t cursor_;
     uint32_t* field_offsets_;
     ValueTypeSubclass* const buffer_;
@@ -186,7 +203,9 @@ class StructTypeBase : public ZoneObject {
   friend class StructType;
   friend class CanonicalStructType;
 
-  const uint32_t field_count_;
+  static_assert(kV8MaxWasmStructFields < std::numeric_limits<uint16_t>::max());
+  const uint16_t field_count_;
+  const bool is_descriptor_;
 #if DEBUG
   bool offsets_initialized_ = false;
 #endif
@@ -201,12 +220,15 @@ class StructType : public StructTypeBase {
   using Builder = StructTypeBase::BuilderImpl<StructType, ValueType>;
 
   StructType(uint32_t field_count, uint32_t* field_offsets,
-             const ValueType* reps, const bool* mutabilities)
-      : StructTypeBase(field_count, field_offsets, reps, mutabilities) {}
+             const ValueType* reps, const bool* mutabilities,
+             bool is_descriptor)
+      : StructTypeBase(field_count, field_offsets, reps, mutabilities,
+                       is_descriptor) {}
 
   bool operator==(const StructType& other) const {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;
+    if (this->is_descriptor() != other.is_descriptor()) return false;
     return std::equal(fields().begin(), fields().end(),
                       other.fields().begin()) &&
            std::equal(mutabilities().begin(), mutabilities().end(),
@@ -230,8 +252,10 @@ class CanonicalStructType : public StructTypeBase {
       StructTypeBase::BuilderImpl<CanonicalStructType, CanonicalValueType>;
 
   CanonicalStructType(uint32_t field_count, uint32_t* field_offsets,
-                      const CanonicalValueType* reps, const bool* mutabilities)
-      : StructTypeBase(field_count, field_offsets, reps, mutabilities) {}
+                      const CanonicalValueType* reps, const bool* mutabilities,
+                      bool is_descriptor)
+      : StructTypeBase(field_count, field_offsets, reps, mutabilities,
+                       is_descriptor) {}
 
   CanonicalValueType field(uint32_t index) const {
     return CanonicalValueType{StructTypeBase::field(index)};
@@ -240,6 +264,7 @@ class CanonicalStructType : public StructTypeBase {
   bool operator==(const CanonicalStructType& other) const {
     if (this == &other) return true;
     if (field_count() != other.field_count()) return false;
+    if (is_descriptor() != other.is_descriptor()) return false;
     return std::equal(fields().begin(), fields().end(),
                       other.fields().begin()) &&
            std::equal(mutabilities().begin(), mutabilities().end(),

@@ -85,8 +85,8 @@ class WasmGCTester {
   HeapType DefineStruct(std::initializer_list<F> fields,
                         ModuleTypeIndex supertype = kNoSuperType,
                         bool is_final = false) {
-    StructType::Builder type_builder(&zone_,
-                                     static_cast<uint32_t>(fields.size()));
+    StructType::Builder type_builder(
+        &zone_, static_cast<uint32_t>(fields.size()), false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }

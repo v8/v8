@@ -2054,6 +2054,62 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
   return wasm::GetTypeCanonicalizer()->LookupStruct(type_info->type_index());
 }
 
+// Allocates a Wasm Struct that is a descriptor for another type, leaving
+// its fields uninitialized.
+// Descriptor structs have a 1:1 relationship with the internal "RTT" (aka
+// v8::internal::Map) of the struct type they are describing, so this RTT
+// is allocated along with the descriptor below, and the links between them
+// are set up. RTTs with custom descriptors always are subtypes of the
+// canonical RTT for the same type, so that canonical RTT is installed as the
+// super-RTT of the customized RTT.
+// The RTT/map of the descriptor itself is provided by the caller as {map}.
+//
+// The eventual on-heap object structure will be something like the following,
+// where (A) is the object returned by this function, and (B) is allocated
+// along with it. There will likely be many instance of (C), and they will be
+// allocated (much) later, by one or more {struct.new} instructions that
+// take (A) as input and retrieve (B) from it.
+//
+//   Wasm struct (C):                    Wasm Descriptor Struct (A):
+//   +-----------+                       +-----------+
+//   | Map       |------\                | Map       |
+//   +-----------+      |                +-----------+
+//   | hash      |      |                | hash      |
+//   +-----------+      |       /--------| RTT       |
+//   | fields... |      v  (B)  v        +-----------+
+//   |           |   +-------------+     | fields... |
+//   +-----------+   | Meta-map    |     |           |
+//                   +-------------+     +-----------+
+//                   | ...         |         ^
+//                   | Descriptor  |---------/
+//                   | ...         |
+//                   +-------------+
+// static
+DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
+    wasm::ModuleTypeIndex index, DirectHandle<Map> map) {
+  const wasm::WasmModule* module = trusted_data->module();
+  const wasm::TypeDefinition& type = module->type(index);
+  DCHECK(type.is_descriptor());
+  // TODO(jkummerow): Figure out support for shared objects.
+  if (type.is_shared) UNIMPLEMENTED();
+  wasm::CanonicalTypeIndex described_index =
+      module->canonical_type_id(type.describes);
+  DirectHandle<Map> rtt_parent{
+      Cast<Map>(trusted_data->managed_object_maps()->get(type.describes.index)),
+      isolate};
+  DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent);
+  DirectHandle<WasmStruct> descriptor =
+      isolate->factory()->NewWasmStructUninitialized(type.struct_type, map,
+                                                     AllocationType::kOld);
+  // The struct's body is uninitialized. As soon as we return, callers will
+  // take care of that. Until then, no allocations are allowed.
+  DisallowGarbageCollection no_gc;
+  descriptor->set_described_rtt(*rtt);
+  rtt->set_custom_descriptor(*descriptor);
+  return descriptor;
+}
+
 wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(
