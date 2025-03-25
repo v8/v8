@@ -2422,7 +2422,7 @@ bool InstanceBuilder::ProcessImportedMemories(
 
     DirectHandle<JSArrayBuffer> buffer{memory_object->array_buffer(), isolate_};
     uint32_t imported_cur_pages =
-        static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
+        static_cast<uint32_t>(buffer->GetByteLength() / kWasmPageSize);
     const WasmMemory* memory = &module_->memories[memory_index];
     if (memory->address_type != memory_object->address_type()) {
       thrower_->LinkError("cannot import %s memory as %s",
@@ -2662,7 +2662,7 @@ void InstanceBuilder::ProcessExports(
                 maybe_shared_trusted_instance_data->imported_mutable_globals()
                     ->get_sandboxed_pointer(global.index);
 
-            size_t buffer_size = untagged_buffer->byte_length();
+            size_t buffer_size = untagged_buffer->GetByteLength();
             Address backing_store =
                 reinterpret_cast<Address>(untagged_buffer->backing_store());
             CHECK(global_addr >= backing_store &&

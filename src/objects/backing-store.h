@@ -111,6 +111,27 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   ResizeOrGrowResult GrowInPlace(Isolate* isolate, size_t new_byte_length);
 
 #if V8_ENABLE_WEBASSEMBLY
+  // The IsResizableByJs flag is set for backing stores for a resizable
+  // ArrayBuffer or a WebAssembly.Memory that exposes its buffer as resizable
+  // ArrayBuffer.
+  //
+  // For backing stores of ArrayBuffers that are not Wasm memories, the flag
+  // never changes. It always matches whether ArrayBuffers backed by it are
+  // resizable.
+  //
+  // For unshared Wasm memories, this flag may change. WebAssembly.Memory
+  // instances are born with their buffers exposed as fixed-length ArrayBuffers
+  // (for backwards compat), but may transition to exposing their buffers as
+  // resizable. It always matches whether the ArrayBuffer it backs is resizable,
+  // since unshared ArrayBuffers never alias the same BackingStore.
+  //
+  // For shared Wasm memories, this field never changes, but may differ from the
+  // value of the is_resizable_by_js field of SharedArrayBuffers it backs.
+  // WebAssembly.Memory can create multiple SharedArrayBuffers backed by the
+  // same BackingStore, some of which are exposed as growable, and some of which
+  // as fixed-length.
+  void MakeWasmMemoryResizableByJS(bool resizable);
+
   // Attempt to grow this backing store in place.
   std::optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
                                               size_t delta_pages,

@@ -61,6 +61,7 @@
                                                                                \
   /* V8 side owner: irezvov */                                                 \
   V(growable_stacks, "growable stacks for jspi", false)                        \
+                                                                               \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
@@ -69,7 +70,12 @@
   /* Core stack switching, main proposal */                                    \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: fgm */                                                     \
-  V(wasmfx, "core stack switching", false)
+  V(wasmfx, "core stack switching", false)                                     \
+                                                                               \
+  /* Resizable buffer integration */                                           \
+  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
+  /* V8 side owner: syg */                                                     \
+  V(rab_integration, "resizable buffers integration", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

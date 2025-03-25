@@ -52,6 +52,14 @@ proposal_flags = [
 ]
 
 
+wpt_flags = [
+    {
+        'name': 'memory',
+        'flags': ['--experimental-wasm-rab-integration', '--wasm-staging']
+    },
+]
+
+
 class TestLoader(testsuite.JSTestLoader):
   @property
   def extensions(self):
@@ -127,6 +135,9 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if get_proposal_identifier(proposal) in self.name:
         return proposal['flags']
+    for wpt_entry in wpt_flags:
+      if f"wpt/{wpt_entry['name']}" in self.name:
+        return wpt_entry['flags']
     return ['--wasm-staging']
 
   def _get_source_path(self):
