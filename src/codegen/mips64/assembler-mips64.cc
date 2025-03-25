@@ -67,7 +67,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
+bool CpuFeatures::SupportsWasmSimd128() {
+  // TODO(mips64): enable wasm simd after turboshaft isel supports simd
+  // instructions.
+  return false;
+}
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
