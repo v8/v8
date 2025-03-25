@@ -673,6 +673,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   }
 
   void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
+  bool IsCommutative(turboshaft::OpIndex node) const;
+  turboshaft::OpIndex block_terminator(const turboshaft::Block* block) const {
+    return schedule_->PreviousIndex(block->end());
+  }
 
  private:
   friend OperandGenerator;

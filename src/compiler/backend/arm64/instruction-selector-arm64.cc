@@ -3526,7 +3526,7 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
                          ArchOpcode opcode, AtomicWidth width,
                          MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   Arm64OperandGeneratorT g(selector);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
@@ -3555,10 +3555,10 @@ void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
                                 MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
   Arm64OperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
-  OpIndex old_value = atomic_op.expected();
+  OpIndex old_value = atomic_op.expected().value();
   OpIndex new_value = atomic_op.value();
   InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
                                  g.UseUniqueRegister(old_value),
@@ -3750,7 +3750,7 @@ void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
                       MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
   Arm64OperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();

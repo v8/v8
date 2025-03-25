@@ -283,45 +283,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     const turboshaft::StoreOp* op_;
   };
 
-  class AtomicRMWView {
-   public:
-    AtomicRMWView(const turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      op_ = &graph->Get(node).Cast<turboshaft::AtomicRMWOp>();
-    }
-
-    turboshaft::OpIndex base() const { return op_->base(); }
-    turboshaft::OpIndex index() const { return op_->index(); }
-    turboshaft::OpIndex value() const { return op_->value(); }
-    turboshaft::OpIndex expected() const {
-      DCHECK_EQ(op_->bin_op, turboshaft::AtomicRMWOp::BinOp::kCompareExchange);
-      return op_->expected().value_or_invalid();
-    }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::AtomicRMWOp* op_;
-  };
-
-  class Word32AtomicPairStoreView {
-   public:
-    explicit Word32AtomicPairStoreView(const turboshaft::Graph* graph,
-                                       turboshaft::OpIndex node)
-        : store_(graph->Get(node).Cast<turboshaft::AtomicWord32PairOp>()) {}
-
-    turboshaft::OpIndex base() const { return store_.base(); }
-    turboshaft::OpIndex index() const { return store_.index().value(); }
-    turboshaft::OpIndex value_low() const { return store_.value_low().value(); }
-    turboshaft::OpIndex value_high() const {
-      return store_.value_high().value();
-    }
-
-   private:
-    const turboshaft::AtomicWord32PairOp& store_;
-  };
-
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(391750831): Inline this.
   class SimdShuffleView {
@@ -387,13 +348,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   StoreView store_view(turboshaft::OpIndex node) {
     return StoreView(graph_, node);
   }
-  AtomicRMWView atomic_rmw_view(turboshaft::OpIndex node) {
-    return AtomicRMWView(graph_, node);
-  }
-  Word32AtomicPairStoreView word32_atomic_pair_store_view(
-      turboshaft::OpIndex node) {
-    return Word32AtomicPairStoreView(graph_, node);
-  }
+
 #if V8_ENABLE_WEBASSEMBLY
   SimdShuffleView simd_shuffle_view(turboshaft::OpIndex node) {
     return SimdShuffleView(graph_, node);
@@ -555,34 +510,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   static turboshaft::OpIndex value(turboshaft::OptionalOpIndex node) {
     DCHECK(node.valid());
     return node.value();
-  }
-
-  turboshaft::OpIndex block_terminator(const turboshaft::Block* block) const {
-    return graph_->PreviousIndex(block->end());
-  }
-  turboshaft::OpIndex parent_frame_state(turboshaft::OpIndex node) const {
-    const turboshaft::FrameStateOp& frame_state =
-        graph_->Get(node).Cast<turboshaft::FrameStateOp>();
-    return frame_state.parent_frame_state();
-  }
-  bool IsRequiredWhenUnused(turboshaft::OpIndex node) const {
-    return graph_->Get(node).IsRequiredWhenUnused();
-  }
-  bool IsCommutative(turboshaft::OpIndex node) const {
-    const turboshaft::Operation& op = graph_->Get(node);
-    if (const auto word_binop = op.TryCast<turboshaft::WordBinopOp>()) {
-      return turboshaft::WordBinopOp::IsCommutative(word_binop->kind);
-    } else if (const auto overflow_binop =
-                   op.TryCast<turboshaft::OverflowCheckedBinopOp>()) {
-      return turboshaft::OverflowCheckedBinopOp::IsCommutative(
-          overflow_binop->kind);
-    } else if (const auto float_binop =
-                   op.TryCast<turboshaft::FloatBinopOp>()) {
-      return turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
-    } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
-      return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
-    }
-    return false;
   }
 
  private:

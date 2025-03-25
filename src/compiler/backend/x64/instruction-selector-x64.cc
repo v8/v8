@@ -1395,7 +1395,7 @@ namespace {
 void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
                          ArchOpcode opcode, AtomicWidth width,
                          MemoryAccessKind access_kind) {
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   X64OperandGeneratorT g(selector);
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
@@ -3611,7 +3611,7 @@ void VisitFloat64Compare(InstructionSelectorT* selector, OpIndex node,
 void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
                       ArchOpcode opcode, AtomicWidth width,
                       MemoryAccessKind access_kind) {
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   X64OperandGeneratorT g(selector);
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
@@ -3633,11 +3633,11 @@ void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
 void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
                                 ArchOpcode opcode, AtomicWidth width,
                                 MemoryAccessKind access_kind) {
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   X64OperandGeneratorT g(selector);
   AddressingMode addressing_mode;
   InstructionOperand inputs[] = {
-      g.UseFixed(atomic_op.expected(), rax),
+      g.UseFixed(atomic_op.expected().value(), rax),
       g.UseUniqueRegister(atomic_op.value()),
       g.UseUniqueRegister(atomic_op.base()),
       g.GetEffectiveIndexOperand(atomic_op.index(), &addressing_mode)};

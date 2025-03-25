@@ -491,7 +491,7 @@ bool InstructionSelectorT::IsUsed(OpIndex node) const {
   if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(this->Get(node))) {
     return false;
   }
-  if (this->IsRequiredWhenUnused(node)) return true;
+  if (Get(node).IsRequiredWhenUnused()) return true;
   return used_.Contains(this->id(node));
 }
 
@@ -1238,13 +1238,13 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
     // all the frames on top of it that are either inlined extra arguments
     // or a tail caller frame.
     if (is_tail_call) {
-      frame_state = this->parent_frame_state(frame_state);
+      frame_state = Cast<FrameStateOp>(frame_state).parent_frame_state();
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
       while (buffer->frame_state_descriptor != nullptr &&
              buffer->frame_state_descriptor->type() ==
                  FrameStateType::kInlinedExtraArguments) {
-        frame_state = this->parent_frame_state(frame_state);
+        frame_state = Cast<FrameStateOp>(frame_state).parent_frame_state();
         buffer->frame_state_descriptor =
             buffer->frame_state_descriptor->outer_state();
       }
@@ -1373,6 +1373,21 @@ bool InstructionSelectorT::IsSourcePositionUsed(OpIndex node) {
     return false;
 }
 
+bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
+  const turboshaft::Operation& op = Get(node);
+  if (const auto word_binop = op.TryCast<turboshaft::WordBinopOp>()) {
+    return turboshaft::WordBinopOp::IsCommutative(word_binop->kind);
+  } else if (const auto overflow_binop =
+                 op.TryCast<turboshaft::OverflowCheckedBinopOp>()) {
+    return turboshaft::OverflowCheckedBinopOp::IsCommutative(
+        overflow_binop->kind);
+  } else if (const auto float_binop = op.TryCast<turboshaft::FloatBinopOp>()) {
+    return turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
+  } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
+    return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
+  }
+  return false;
+}
 namespace {
 bool increment_effect_level_for_node(TurboshaftAdapter* adapter, OpIndex node) {
   // We need to increment the effect level if the operation consumes any of the
