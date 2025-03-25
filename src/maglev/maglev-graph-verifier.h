@@ -25,10 +25,13 @@ class MaglevGraphVerifier {
     }
   }
 
-  void PreProcessGraph(Graph* graph) {}
+  void PreProcessGraph(Graph* graph) { seen_.resize(graph->max_block_id()); }
   void PostProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // Check Ids are unique.
+    CHECK(!seen_[block->id()]);
+    seen_[block->id()] = true;
     return BlockProcessResult::kContinue;
   }
   void PostPhiProcessing() {}
@@ -51,6 +54,7 @@ class MaglevGraphVerifier {
 
  private:
   MaglevGraphLabeller* graph_labeller_ = nullptr;
+  std::vector<bool> seen_;
 };
 
 }  // namespace maglev

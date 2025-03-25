@@ -66,7 +66,15 @@ class Graph final : public ZoneObject {
 
   BasicBlock* last_block() const { return blocks_.back(); }
 
-  void Add(BasicBlock* block) { blocks_.push_back(block); }
+  void Add(BasicBlock* block) {
+    if (block->has_id()) {
+      // The inliner adds blocks multiple times.
+      DCHECK(v8_flags.maglev_non_eager_inlining);
+    } else {
+      block->set_id(max_block_id_++);
+    }
+    blocks_.push_back(block);
+  }
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
@@ -234,6 +242,8 @@ class Graph final : public ZoneObject {
 
   Zone* zone() const { return blocks_.zone(); }
 
+  BasicBlock::Id max_block_id() const { return max_block_id_; }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -267,6 +277,7 @@ class Graph final : public ZoneObject {
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
   ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
+  BasicBlock::Id max_block_id_ = 0;
 };
 
 }  // namespace maglev

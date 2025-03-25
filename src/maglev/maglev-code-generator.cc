@@ -26,7 +26,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-assembler-inl.h"
-#include "src/maglev/maglev-code-gen-state.h"
+#include "src/maglev/maglev-code-gen-state-inl.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -767,7 +767,7 @@ class MaglevCodeGeneratingNodeProcessor {
     size_t current_ix = 0;
     for (size_t i = 0; i < blocks.size(); ++i) {
       BasicBlock* block = blocks[i];
-      if (block->RealJumpTarget() == block) {
+      if (code_gen_state()->RealJumpTarget(block) == block) {
         // This block cannot be replaced.
         blocks[current_ix++] = block;
       }
@@ -785,7 +785,7 @@ class MaglevCodeGeneratingNodeProcessor {
     }
     if (v8_flags.code_comments) {
       std::stringstream ss;
-      ss << "-- Block b" << graph_labeller()->BlockId(block);
+      ss << "-- Block b" << block->id();
       __ RecordComment(ss.str());
     }
     __ BindBlock(block);
@@ -1013,21 +1013,25 @@ class MaglevCodeGeneratingNodeProcessor {
     if constexpr (IsUnconditionalControlNode(Node::opcode_of<NodeT>)) {
       UnconditionalControlNode* control_node =
           node->template Cast<UnconditionalControlNode>();
-      control_node->set_target(control_node->target()->RealJumpTarget());
+      control_node->set_target(
+          code_gen_state()->RealJumpTarget(control_node->target()));
     } else if constexpr (IsBranchControlNode(Node::opcode_of<NodeT>)) {
       BranchControlNode* control_node =
           node->template Cast<BranchControlNode>();
-      control_node->set_if_true(control_node->if_true()->RealJumpTarget());
-      control_node->set_if_false(control_node->if_false()->RealJumpTarget());
+      control_node->set_if_true(
+          code_gen_state()->RealJumpTarget(control_node->if_true()));
+      control_node->set_if_false(
+          code_gen_state()->RealJumpTarget(control_node->if_false()));
     } else if constexpr (Node::opcode_of<NodeT> == Opcode::kSwitch) {
       Switch* switch_node = node->template Cast<Switch>();
       BasicBlockRef* targets = switch_node->targets();
       for (int i = 0; i < switch_node->size(); ++i) {
-        targets[i].set_block_ptr(targets[i].block_ptr()->RealJumpTarget());
+        targets[i].set_block_ptr(
+            code_gen_state()->RealJumpTarget(targets[i].block_ptr()));
       }
       if (switch_node->has_fallthrough()) {
         switch_node->set_fallthrough(
-            switch_node->fallthrough()->RealJumpTarget());
+            code_gen_state()->RealJumpTarget(switch_node->fallthrough()));
       }
     }
   }
@@ -1691,7 +1695,8 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       safepoint_table_builder_(compilation_info->zone(),
                                graph->tagged_stack_slots()),
       frame_translation_builder_(compilation_info->zone()),
-      code_gen_state_(compilation_info, &safepoint_table_builder_),
+      code_gen_state_(compilation_info, &safepoint_table_builder_,
+                      graph->max_block_id()),
       masm_(isolate->GetMainThreadIsolateUnsafe(), compilation_info->zone(),
             &code_gen_state_),
       graph_(graph),

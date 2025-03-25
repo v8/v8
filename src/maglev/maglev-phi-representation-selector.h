@@ -215,6 +215,9 @@ class MaglevPhiRepresentationSelector {
   ZoneVector<Snapshot> predecessors_;
 
   ZoneVector<Node*> new_nodes_at_start_;
+
+  absl::flat_hash_map<BasicBlock::Id, Snapshot> snapshots_;
+
 #ifdef DEBUG
   std::unordered_set<NodeBase*> new_nodes_;
 #endif

@@ -233,24 +233,23 @@ void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 
 void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                   const UnconditionalControlNode* node) {
-  os << " b" << graph_labeller->BlockId(node->target());
+  os << " b" << node->target()->id();
 }
 
 void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                   const BranchControlNode* node) {
-  os << " b" << graph_labeller->BlockId(node->if_true()) << " b"
-     << graph_labeller->BlockId(node->if_false());
+  os << " b" << node->if_true()->id() << " b" << node->if_false()->id();
 }
 
 void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
                   const Switch* node) {
   for (int i = 0; i < node->size(); i++) {
     const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
-    os << " b" << graph_labeller->BlockId(target.block_ptr());
+    os << " b" << target.block_ptr()->id();
   }
   if (node->Cast<Switch>()->has_fallthrough()) {
     BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
-    os << " b" << graph_labeller->BlockId(fallthrough_target);
+    os << " b" << fallthrough_target->id();
   }
 }
 

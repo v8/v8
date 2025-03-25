@@ -200,10 +200,12 @@ void StraightForwardRegisterAllocator::ApplyPatches(BasicBlock* block) {
 }
 
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
-    MaglevCompilationInfo* compilation_info, Graph* graph)
+    MaglevCompilationInfo* compilation_info, Graph* graph,
+    RegallocInfo* regalloc_info)
     : compilation_info_(compilation_info),
       graph_(graph),
-      patches_(compilation_info_->zone()) {
+      patches_(compilation_info_->zone()),
+      regalloc_info_(regalloc_info) {
   ComputePostDominatingHoles();
   AllocateRegisters();
   uint32_t tagged_stack_slots = tagged_.top;
@@ -2165,7 +2167,9 @@ bool StraightForwardRegisterAllocator::IsForwardReachable(
 template <typename RegisterT>
 void StraightForwardRegisterAllocator::HoistLoopReloads(
     BasicBlock* target, RegisterFrameState<RegisterT>& registers) {
-  for (ValueNode* node : target->reload_hints()) {
+  auto info = regalloc_info_->loop_info_.find(target->id());
+  if (info == regalloc_info_->loop_info_.end()) return;
+  for (ValueNode* node : info->second.reload_hints_) {
     DCHECK(general_registers_.blocked().is_empty());
     if (registers.free().is_empty()) break;
     if (node->has_register()) continue;
@@ -2193,7 +2197,9 @@ void StraightForwardRegisterAllocator::HoistLoopReloads(
 // first call and after the last call of the loop, keep it spilled in the merge
 // state to avoid an unnecessary reload + spill on every iteration.
 void StraightForwardRegisterAllocator::HoistLoopSpills(BasicBlock* target) {
-  for (ValueNode* node : target->spill_hints()) {
+  auto info = regalloc_info_->loop_info_.find(target->id());
+  if (info == regalloc_info_->loop_info_.end()) return;
+  for (ValueNode* node : info->second.spill_hints_) {
     if (!node->has_register()) continue;
     // Do not move to a different register, the goal is to keep the value
     // spilled on the back-edge.

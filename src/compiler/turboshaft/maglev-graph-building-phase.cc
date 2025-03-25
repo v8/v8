@@ -568,14 +568,12 @@ class GraphBuildingNodeProcessor {
   }
 
   // The Maglev graph for resumable generator functions always has the main
-  // dispatch Switch in its 3rd block.
+  // dispatch Switch in the same block.
   bool IsMaglevMainGeneratorSwitchBlock(
       const maglev::BasicBlock* maglev_block) {
     if (!generator_analyzer_.has_header_bypasses()) return false;
-    constexpr int kMainSwitchBlockId = 3;
-    bool is_main_switch_block =
-        maglev_compilation_unit_->graph_labeller()->BlockId(maglev_block) ==
-        kMainSwitchBlockId;
+    constexpr int kMainSwitchBlockId = 2;
+    bool is_main_switch_block = maglev_block->id() == kMainSwitchBlockId;
     DCHECK_IMPLIES(is_main_switch_block,
                    maglev_block->control_node()->Is<maglev::Switch>());
     return is_main_switch_block;

@@ -366,8 +366,7 @@ BlockProcessResult MaglevPrintingVisitor::PreProcessBasicBlock(
     if (v8_flags.log_colour) os_ << "\033[0m";
   }
 
-  int block_id = graph_labeller_->BlockId(block);
-  os_ << "Block b" << block_id;
+  os_ << "Block b" << block->id();
   if (block->has_state() && block->state()->is_resumable_loop()) {
     os_ << " (resumable)";
   }

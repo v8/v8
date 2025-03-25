@@ -21,6 +21,18 @@ class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 
+struct RegallocInfo {
+  struct RegallocLoopInfo {
+    // Hints about which nodes should be in registers or spilled when entering
+    // a loop.
+    ZonePtrList<ValueNode> reload_hints_;
+    ZonePtrList<ValueNode> spill_hints_;
+    explicit RegallocLoopInfo(Zone* zone)
+        : reload_hints_(0, zone), spill_hints_(0, zone) {}
+  };
+  absl::flat_hash_map<BasicBlock::Id, RegallocLoopInfo> loop_info_;
+};
+
 // Represents the state of the register frame during register allocation,
 // including current register values, and the state of each register.
 //
@@ -142,7 +154,7 @@ class RegisterFrameState {
 class StraightForwardRegisterAllocator {
  public:
   StraightForwardRegisterAllocator(MaglevCompilationInfo* compilation_info,
-                                   Graph* graph);
+                                   Graph* graph, RegallocInfo* regalloc_info);
   ~StraightForwardRegisterAllocator();
 
  private:
@@ -306,6 +318,7 @@ class StraightForwardRegisterAllocator {
   NodeIterator node_it_;
   // The current node, whether a Node in the body or the ControlNode.
   NodeBase* current_node_;
+  RegallocInfo* regalloc_info_;
 };
 
 }  // namespace maglev

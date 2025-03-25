@@ -13840,12 +13840,6 @@ BasicBlock* MaglevGraphBuilder::FinishInlinedBlockForCaller(
 
   // Add the final block to the graph.
   graph_->Add(result);
-  if (has_graph_labeller()) {
-    // Only need to register the block, since the control node should already
-    // be registered.
-    graph_labeller()->RegisterBasicBlock(result);
-  }
-
   return result;
 }
 

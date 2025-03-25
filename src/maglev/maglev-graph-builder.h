@@ -2007,7 +2007,6 @@ class MaglevGraphBuilder {
       graph_labeller()->RegisterNode(control_node, compilation_unit_,
                                      BytecodeOffset(iterator_.current_offset()),
                                      current_source_position_);
-      graph_labeller()->RegisterBasicBlock(block);
       if (v8_flags.trace_maglev_graph_building) {
         bool kSkipTargets = true;
         std::cout << "  " << control_node << "  "

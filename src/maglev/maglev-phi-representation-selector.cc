@@ -1148,19 +1148,19 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
     phi_taggings_.StartNewSnapshot();
     return;
   }
-  old_block->SetSnapshot(phi_taggings_.Seal());
+  snapshots_.emplace(old_block->id(), phi_taggings_.Seal());
 
   // Setting up new snapshot
   predecessors_.clear();
 
   if (!new_block->is_merge_block()) {
     BasicBlock* pred = new_block->predecessor();
-    predecessors_.push_back(pred->snapshot());
+    predecessors_.push_back(snapshots_.at(pred->id()));
   } else {
     int skip_backedge = new_block->is_loop();
     for (int i = 0; i < new_block->predecessor_count() - skip_backedge; i++) {
       BasicBlock* pred = new_block->predecessor_at(i);
-      predecessors_.push_back(pred->snapshot());
+      predecessors_.push_back(snapshots_.at(pred->id()));
     }
   }
 

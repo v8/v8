@@ -10,6 +10,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc.h"
 
 namespace v8::internal::maglev {
 
@@ -145,8 +146,10 @@ class MaxCallDepthProcessor {
 
 class LiveRangeAndNextUseProcessor {
  public:
-  explicit LiveRangeAndNextUseProcessor(MaglevCompilationInfo* compilation_info)
-      : compilation_info_(compilation_info) {}
+  explicit LiveRangeAndNextUseProcessor(MaglevCompilationInfo* compilation_info,
+                                        Graph* graph,
+                                        RegallocInfo* regalloc_info)
+      : compilation_info_(compilation_info), regalloc_info_(regalloc_info) {}
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) { DCHECK(loop_used_nodes_.empty()); }
@@ -226,10 +229,10 @@ class LiveRangeAndNextUseProcessor {
     if (!loop_used_nodes.used_nodes.empty()) {
       // Try to avoid unnecessary reloads or spills across the back-edge based
       // on use positions and calls inside the loop.
-      ZonePtrList<ValueNode>& reload_hints =
-          loop_used_nodes.header->reload_hints();
-      ZonePtrList<ValueNode>& spill_hints =
-          loop_used_nodes.header->spill_hints();
+      RegallocInfo::RegallocLoopInfo& loop_info =
+          regalloc_info_->loop_info_
+              .emplace(loop_used_nodes.header->id(), compilation_info_->zone())
+              .first->second;
       for (auto p : loop_used_nodes.used_nodes) {
         // If the node is used before the first call and after the last call,
         // keep it in a register across the back-edge.
@@ -237,7 +240,7 @@ class LiveRangeAndNextUseProcessor {
             (loop_used_nodes.first_call == kInvalidNodeId ||
              (p.second.first_register_use <= loop_used_nodes.first_call &&
               p.second.last_register_use > loop_used_nodes.last_call))) {
-          reload_hints.Add(p.first, compilation_info_->zone());
+          loop_info.reload_hints_.Add(p.first, compilation_info_->zone());
         }
         // If the node is not used, or used after the first call and before the
         // last call, keep it spilled across the back-edge.
@@ -245,7 +248,7 @@ class LiveRangeAndNextUseProcessor {
             (loop_used_nodes.first_call != kInvalidNodeId &&
              p.second.first_register_use > loop_used_nodes.first_call &&
              p.second.last_register_use <= loop_used_nodes.last_call)) {
-          spill_hints.Add(p.first, compilation_info_->zone());
+          loop_info.spill_hints_.Add(p.first, compilation_info_->zone());
         }
       }
 
@@ -361,8 +364,9 @@ class LiveRangeAndNextUseProcessor {
   }
 
   MaglevCompilationInfo* compilation_info_;
-  uint32_t next_node_id_ = kFirstValidNodeId;
+  RegallocInfo* regalloc_info_;
   std::vector<LoopUsedNodes> loop_used_nodes_;
+  uint32_t next_node_id_ = kFirstValidNodeId;
 };
 
 }  // namespace v8::internal::maglev
