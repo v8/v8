@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '0abfd4c40e8124de0d14f0d95f5bfe9a4ddd8a8b',
+  'partition_alloc_version': '13a351f4d27353ed972aa4fc37104d872ed576dd',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -471,7 +471,7 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '13e3bb887312ff2cc65bfd33f2799149efa00ac9',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '8046f824c55783835a88f98d1b806ec7b7e81a9c',
   'third_party/protobuf':
     Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '7c4f21608b397fa22375d07dd10ba1bd6e2f0e0b',
   'third_party/re2/src':
@@ -483,7 +483,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + 'f26c92c0db9fe2348a390ae61d45e8d7dcd6228f',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'c317d3babd7ffcddcf62a93afe0bfee2dee330b9',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'acc61534a9cfa8ca4b46d5b3d364c5ca1dee1a19',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
@@ -531,7 +531,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '788cb3c270e8700b425c7bdca1f9ce6b0c1400a9',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e8e9310bb09cb2d3f72b702b78a5b0040715344b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5d9b09742311e059ecdba6d74adcb883e4ebffe5',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
