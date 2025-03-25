@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 
+#include "src/objects/bytecode-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):

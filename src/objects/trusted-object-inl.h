@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_TRUSTED_OBJECT_INL_H_
 #define V8_OBJECTS_TRUSTED_OBJECT_INL_H_
 
+#include "src/objects/trusted-object.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/trusted-object.h"
 #include "src/sandbox/sandbox.h"
 
 // Has to be the last include (doesn't have include guards):

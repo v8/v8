@@ -35,9 +35,11 @@
 #ifndef V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_INL_H_
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_INL_H_
 
+#include "src/codegen/mips64/assembler-mips64.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
-#include "src/codegen/mips64/assembler-mips64.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 

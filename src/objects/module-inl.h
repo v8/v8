@@ -6,6 +6,8 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 #include "src/objects/source-text-module.h"

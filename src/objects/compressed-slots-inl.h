@@ -7,9 +7,11 @@
 
 #ifdef V8_COMPRESS_POINTERS
 
+#include "src/objects/compressed-slots.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/casting.h"
-#include "src/objects/compressed-slots.h"
 #include "src/objects/maybe-object-inl.h"
 
 namespace v8::internal {

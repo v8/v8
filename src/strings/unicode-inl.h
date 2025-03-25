@@ -5,8 +5,10 @@
 #ifndef V8_STRINGS_UNICODE_INL_H_
 #define V8_STRINGS_UNICODE_INL_H_
 
-#include "src/base/logging.h"
 #include "src/strings/unicode.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/logging.h"
 #include "src/utils/utils.h"
 
 namespace unibrow {

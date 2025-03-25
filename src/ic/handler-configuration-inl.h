@@ -5,10 +5,12 @@
 #ifndef V8_IC_HANDLER_CONFIGURATION_INL_H_
 #define V8_IC_HANDLER_CONFIGURATION_INL_H_
 
+#include "src/ic/handler-configuration.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/builtins/builtins.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
-#include "src/ic/handler-configuration.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/objects-inl.h"

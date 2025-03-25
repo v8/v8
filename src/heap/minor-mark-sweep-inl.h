@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_MINOR_MARK_SWEEP_INL_H_
 #define V8_HEAP_MINOR_MARK_SWEEP_INL_H_
 
+#include "src/heap/minor-mark-sweep.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
 #include <optional>
 
 #include "src/base/build_config.h"
 #include "src/common/globals.h"
-#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/heap/young-generation-marking-visitor-inl.h"

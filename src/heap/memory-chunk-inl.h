@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_INL_H_
 #define V8_HEAP_MEMORY_CHUNK_INL_H_
 
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/sandbox/check.h"
 
 namespace v8 {

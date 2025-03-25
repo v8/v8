@@ -6,6 +6,8 @@
 #define V8_OBJECTS_DATA_HANDLER_INL_H_
 
 #include "src/objects/data-handler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):

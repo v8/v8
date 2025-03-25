@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TAGGED_VALUE_INL_H_
 
 #include "src/objects/tagged-value.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr-inl.h"

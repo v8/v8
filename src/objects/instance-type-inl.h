@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_INSTANCE_TYPE_INL_H_
 #define V8_OBJECTS_INSTANCE_TYPE_INL_H_
 
-#include <optional>
-
 #include "src/objects/instance-type.h"
 // Include the non-inl header before the rest of the headers.
+
+#include <optional>
 
 #include "src/base/bounds.h"
 #include "src/execution/isolate-utils-inl.h"

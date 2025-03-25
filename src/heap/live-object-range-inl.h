@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_LIVE_OBJECT_RANGE_INL_H_
 #define V8_HEAP_LIVE_OBJECT_RANGE_INL_H_
 
-#include "src/heap/heap-inl.h"
 #include "src/heap/live-object-range.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-inl.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/objects/instance-type-inl.h"
 

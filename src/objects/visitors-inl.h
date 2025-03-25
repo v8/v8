@@ -5,12 +5,14 @@
 #ifndef V8_OBJECTS_VISITORS_INL_H_
 #define V8_OBJECTS_VISITORS_INL_H_
 
+#include "src/objects/visitors.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/map.h"
-#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {

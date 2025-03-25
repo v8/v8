@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_MARKING_WORKLIST_INL_H_
 #define V8_HEAP_MARKING_WORKLIST_INL_H_
 
+#include "src/heap/marking-worklist.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <unordered_map>
 
 #include "src/heap/cppgc-js/cpp-marking-state-inl.h"
-#include "src/heap/marking-worklist.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 

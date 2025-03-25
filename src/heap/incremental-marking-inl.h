@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_INL_H_
 #define V8_HEAP_INCREMENTAL_MARKING_INL_H_
 
+#include "src/heap/incremental-marking.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/incremental-marking.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/objects/descriptor-array.h"
 

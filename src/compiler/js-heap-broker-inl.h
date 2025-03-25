@@ -6,6 +6,8 @@
 #define V8_COMPILER_JS_HEAP_BROKER_INL_H_
 
 #include "src/compiler/js-heap-broker.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/parked-scope-inl.h"
 
 namespace v8::internal::compiler {

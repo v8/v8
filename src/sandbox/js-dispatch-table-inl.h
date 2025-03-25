@@ -5,11 +5,13 @@
 #ifndef V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_
 #define V8_SANDBOX_JS_DISPATCH_TABLE_INL_H_
 
+#include "src/sandbox/js-dispatch-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
-#include "src/sandbox/js-dispatch-table.h"
 #include "src/snapshot/embedded/embedded-data.h"
 
 #ifdef V8_ENABLE_LEAPTIERING

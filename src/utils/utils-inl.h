@@ -5,12 +5,14 @@
 #ifndef V8_UTILS_UTILS_INL_H_
 #define V8_UTILS_UTILS_INL_H_
 
+#include "src/utils/utils.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/strings.h"
 #include "src/init/v8.h"
 #include "src/strings/char-predicates-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 #define V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 
+#include "src/objects/compilation-cache-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
-#include "src/objects/compilation-cache-table.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"

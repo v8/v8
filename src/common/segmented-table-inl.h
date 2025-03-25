@@ -5,9 +5,11 @@
 #ifndef V8_COMMON_SEGMENTED_TABLE_INL_H_
 #define V8_COMMON_SEGMENTED_TABLE_INL_H_
 
+#include "src/common/segmented-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/common/assert-scope.h"
-#include "src/common/segmented-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_GC_TRACER_INL_H_
 #define V8_HEAP_GC_TRACER_INL_H_
 
+#include "src/heap/gc-tracer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {

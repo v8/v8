@@ -6,6 +6,7 @@
 #define V8_OBJECTS_LOOKUP_INL_H_
 
 #include "src/objects/lookup.h"
+// Include the non-inl header before the rest of the headers.
 
 // Include other inline headers *after* including lookup.h, such that e.g. the
 // definition of LookupIterator is available (and this comment prevents

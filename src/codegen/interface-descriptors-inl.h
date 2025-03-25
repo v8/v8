@@ -5,10 +5,12 @@
 #ifndef V8_CODEGEN_INTERFACE_DESCRIPTORS_INL_H_
 #define V8_CODEGEN_INTERFACE_DESCRIPTORS_INL_H_
 
+#include "src/codegen/interface-descriptors.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <utility>
 
 #include "src/base/logging.h"
-#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"

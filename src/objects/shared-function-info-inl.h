@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
+#include "src/objects/shared-function-info.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/base/macros.h"
@@ -22,7 +25,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
 

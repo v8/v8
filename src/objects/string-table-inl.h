@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_TABLE_INL_H_
 
 #include "src/objects/string-table.h"
+// Include the non-inl header before the rest of the headers.
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -5,9 +5,11 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_INL_H_
 #define V8_MAGLEV_MAGLEV_IR_INL_H_
 
+#include "src/maglev/maglev-ir.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-deopt-frame-visitor.h"
-#include "src/maglev/maglev-ir.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {

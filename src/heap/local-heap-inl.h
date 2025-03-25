@@ -5,13 +5,15 @@
 #ifndef V8_HEAP_LOCAL_HEAP_INL_H_
 #define V8_HEAP_LOCAL_HEAP_INL_H_
 
+#include "src/heap/local-heap.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/zapping.h"

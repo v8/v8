@@ -9,6 +9,9 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/wasm/wasm-objects.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <type_traits>
 
 #include "src/base/memory.h"
@@ -26,7 +29,6 @@
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
 #include "third_party/fp16/src/include/fp16.h"
 
 #if V8_ENABLE_DRUMBRAKE

@@ -5,9 +5,11 @@
 #ifndef V8_WASM_WASM_CODE_POINTER_TABLE_INL_H_
 #define V8_WASM_WASM_CODE_POINTER_TABLE_INL_H_
 
+#include "src/wasm/wasm-code-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/code-memory-access-inl.h"
 #include "src/common/segmented-table-inl.h"
-#include "src/wasm/wasm-code-pointer-table.h"
 
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.

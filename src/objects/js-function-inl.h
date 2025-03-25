@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_INL_H_
 #define V8_OBJECTS_JS_FUNCTION_INL_H_
 
+#include "src/objects/js-function.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
-#include "src/objects/js-function.h"
 
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents

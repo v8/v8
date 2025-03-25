@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_MANAGED_INL_H_
 #define V8_OBJECTS_MANAGED_INL_H_
 
-#include "src/handles/global-handles-inl.h"
 #include "src/objects/managed.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/handles/global-handles-inl.h"
 
 namespace v8::internal {
 

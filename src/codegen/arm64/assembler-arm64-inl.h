@@ -5,10 +5,12 @@
 #ifndef V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 #define V8_CODEGEN_ARM64_ASSEMBLER_ARM64_INL_H_
 
+#include "src/codegen/arm64/assembler-arm64.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <type_traits>
 
 #include "src/base/memory.h"
-#include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"

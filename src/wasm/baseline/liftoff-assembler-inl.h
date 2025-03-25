@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_INL_H_
 
 #include "src/wasm/baseline/liftoff-assembler.h"
+// Include the non-inl header before the rest of the headers.
 
 // Include platform specific implementation.
 #if V8_TARGET_ARCH_IA32

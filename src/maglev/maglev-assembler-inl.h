@@ -5,13 +5,15 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
+#include "src/maglev/maglev-assembler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <algorithm>
 #include <type_traits>
 
 #include "src/base/iterator.h"
 #include "src/base/template-utils.h"
 #include "src/codegen/machine-type.h"
-#include "src/maglev/maglev-assembler.h"
 
 #ifdef V8_TARGET_ARCH_ARM
 #include "src/maglev/arm/maglev-assembler-arm-inl.h"

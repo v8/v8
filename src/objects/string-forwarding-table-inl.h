@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 #define V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 
+#include "src/objects/string-forwarding-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

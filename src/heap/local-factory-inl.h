@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_LOCAL_FACTORY_INL_H_
 #define V8_HEAP_LOCAL_FACTORY_INL_H_
 
-#include "src/heap/factory-base-inl.h"
 #include "src/heap/local-factory.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/factory-base-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {

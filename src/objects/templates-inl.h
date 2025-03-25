@@ -5,12 +5,14 @@
 #ifndef V8_OBJECTS_TEMPLATES_INL_H_
 #define V8_OBJECTS_TEMPLATES_INL_H_
 
+#include "src/objects/templates.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/templates.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

@@ -5,10 +5,12 @@
 #ifndef V8_STRINGS_STRING_BUILDER_INL_H_
 #define V8_STRINGS_STRING_BUILDER_INL_H_
 
+#include "src/strings/string-builder.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/string-inl.h"
-#include "src/strings/string-builder.h"
 
 namespace v8 {
 namespace internal {

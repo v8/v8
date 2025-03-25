@@ -6,6 +6,8 @@
 #define V8_HEAP_EVACUATION_VERIFIER_INL_H_
 
 #include "src/heap/evacuation-verifier.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/mark-compact.h"

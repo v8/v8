@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_HEAP_VISITOR_INL_H_
 #define V8_HEAP_HEAP_VISITOR_INL_H_
 
+#include "src/heap/heap-visitor.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/base/logging.h"
 #include "src/execution/local-isolate.h"
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/heap-visitor.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/object-lock-inl.h"
 #include "src/objects/arguments.h"

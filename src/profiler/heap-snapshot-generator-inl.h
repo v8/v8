@@ -6,6 +6,7 @@
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_INL_H_
 
 #include "src/profiler/heap-snapshot-generator.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-hasher-inl.h"

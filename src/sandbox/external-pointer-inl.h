@@ -5,11 +5,13 @@
 #ifndef V8_SANDBOX_EXTERNAL_POINTER_INL_H_
 #define V8_SANDBOX_EXTERNAL_POINTER_INL_H_
 
+#include "src/sandbox/external-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/objects/slots-inl.h"
 #include "src/sandbox/external-pointer-table-inl.h"
-#include "src/sandbox/external-pointer.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/isolate.h"
 

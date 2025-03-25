@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_JS_WEAK_REFS_INL_H_
 #define V8_OBJECTS_JS_WEAK_REFS_INL_H_
 
+#include "src/objects/js-weak-refs.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/api/api-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/js-weak-refs.h"
 #include "src/objects/smi-inl.h"
 
 // Has to be the last include (doesn't have include guards):

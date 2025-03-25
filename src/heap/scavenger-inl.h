@@ -5,6 +5,9 @@
 #ifndef V8_HEAP_SCAVENGER_INL_H_
 #define V8_HEAP_SCAVENGER_INL_H_
 
+#include "src/heap/scavenger.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/heap-layout-inl.h"
@@ -14,7 +17,6 @@
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/pretenuring-handler-inl.h"
-#include "src/heap/scavenger.h"
 #include "src/objects/casting-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map.h"

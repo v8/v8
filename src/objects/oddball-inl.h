@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_ODDBALL_INL_H_
 #define V8_OBJECTS_ODDBALL_INL_H_
 
+#include "src/objects/oddball.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
 #include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):

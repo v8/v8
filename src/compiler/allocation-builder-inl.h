@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_ALLOCATION_BUILDER_INL_H_
 #define V8_COMPILER_ALLOCATION_BUILDER_INL_H_
 
-#include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/compiler/access-builder.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/arguments-inl.h"
 

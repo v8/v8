@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_INL_H_
 #define V8_OBJECTS_ALLOCATION_SITE_INL_H_
 
+#include "src/objects/allocation-site.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/allocation-site.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/js-objects-inl.h"
 

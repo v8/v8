@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
+#include "src/objects/literal-objects.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
-#include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
+#include "src/objects/contexts.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/casting.h"
-#include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"

@@ -9,8 +9,10 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#include "src/api/api-inl.h"
 #include "src/objects/js-locale.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/api/api-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

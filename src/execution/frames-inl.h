@@ -5,11 +5,13 @@
 #ifndef V8_EXECUTION_FRAMES_INL_H_
 #define V8_EXECUTION_FRAMES_INL_H_
 
+#include "src/execution/frames.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/base/memory.h"
 #include "src/execution/frame-constants.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/objects/objects-inl.h"

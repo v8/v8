@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 #define V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 
+#include "src/objects/instruction-stream.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
-#include "src/objects/instruction-stream.h"
 #include "src/objects/objects-inl.h"  // For HeapObject::IsInstructionStream.
 
 // Has to be the last include (doesn't have include guards):

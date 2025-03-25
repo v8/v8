@@ -5,10 +5,12 @@
 #ifndef V8_HANDLES_LOCAL_HANDLES_INL_H_
 #define V8_HANDLES_LOCAL_HANDLES_INL_H_
 
+#include "src/handles/local-handles.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/sanitizer/msan.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
-#include "src/handles/local-handles.h"
 
 namespace v8 {
 namespace internal {

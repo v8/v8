@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_FIELD_INDEX_INL_H_
 #define V8_OBJECTS_FIELD_INDEX_INL_H_
 
+#include "src/objects/field-index.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/ic/handler-configuration.h"
 #include "src/objects/descriptor-array-inl.h"
-#include "src/objects/field-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/tagged-field.h"

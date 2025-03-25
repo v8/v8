@@ -5,10 +5,12 @@
 #ifndef V8_SANDBOX_COMPACTIBLE_EXTERNAL_ENTITY_TABLE_INL_H_
 #define V8_SANDBOX_COMPACTIBLE_EXTERNAL_ENTITY_TABLE_INL_H_
 
+#include "src/sandbox/compactible-external-entity-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <algorithm>
 
 #include "src/logging/counters.h"
-#include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/external-pointer.h"
 

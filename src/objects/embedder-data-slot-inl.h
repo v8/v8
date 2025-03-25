@@ -5,11 +5,13 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 
+#include "src/objects/embedder-data-slot.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/memory.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
-#include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-pointer-inl.h"

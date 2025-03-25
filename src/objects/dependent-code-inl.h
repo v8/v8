@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_DEPENDENT_CODE_INL_H_
 #define V8_OBJECTS_DEPENDENT_CODE_INL_H_
 
-#include "src/heap/heap-layout-inl.h"
 #include "src/objects/dependent-code.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/tagged.h"
 

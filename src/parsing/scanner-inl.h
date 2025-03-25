@@ -5,8 +5,10 @@
 #ifndef V8_PARSING_SCANNER_INL_H_
 #define V8_PARSING_SCANNER_INL_H_
 
-#include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/parsing/keywords-gen.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils.h"
 

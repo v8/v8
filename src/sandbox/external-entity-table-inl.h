@@ -5,12 +5,14 @@
 #ifndef V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_
 #define V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_
 
+#include "src/sandbox/external-entity-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomicops.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "src/base/iterator.h"
 #include "src/common/assert-scope.h"
 #include "src/common/segmented-table-inl.h"
-#include "src/sandbox/external-entity-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {

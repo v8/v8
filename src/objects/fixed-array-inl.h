@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
-#include <optional>
-
 #include "src/objects/fixed-array.h"
 // Include the non-inl header before the rest of the headers.
+
+#include <optional>
 
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"

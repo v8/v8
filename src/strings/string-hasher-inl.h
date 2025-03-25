@@ -5,8 +5,10 @@
 #ifndef V8_STRINGS_STRING_HASHER_INL_H_
 #define V8_STRINGS_STRING_HASHER_INL_H_
 
-#include "src/common/globals.h"
 #include "src/strings/string-hasher.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/globals.h"
 #include "src/utils/utils.h"
 
 #ifdef __SSE2__

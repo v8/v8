@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_OBJECTS_BODY_DESCRIPTORS_INL_H_
 #define V8_OBJECTS_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
+#include "src/objects/objects-body-descriptors.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <algorithm>
 
 #include "include/v8-internal.h"
@@ -33,7 +36,6 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/megadom-handler-inl.h"
-#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/source-text-module.h"

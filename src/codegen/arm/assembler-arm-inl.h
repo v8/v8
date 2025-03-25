@@ -38,6 +38,8 @@
 #define V8_CODEGEN_ARM_ASSEMBLER_ARM_INL_H_
 
 #include "src/codegen/arm/assembler-arm.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"

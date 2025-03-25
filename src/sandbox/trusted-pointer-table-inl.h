@@ -5,10 +5,12 @@
 #ifndef V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_
 
+#include "src/sandbox/trusted-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/trusted-pointer-scope.h"
-#include "src/sandbox/trusted-pointer-table.h"
 
 #ifdef V8_ENABLE_SANDBOX
 

@@ -5,11 +5,13 @@
 #ifndef V8_CODEGEN_CODE_STUB_ASSEMBLER_INL_H_
 #define V8_CODEGEN_CODE_STUB_ASSEMBLER_INL_H_
 
+#include "src/codegen/code-stub-assembler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <functional>
 
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-inl.h"
-#include "src/codegen/code-stub-assembler.h"
 #include "src/common/globals.h"
 
 namespace v8 {

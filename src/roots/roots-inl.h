@@ -5,6 +5,9 @@
 #ifndef V8_ROOTS_ROOTS_INL_H_
 #define V8_ROOTS_ROOTS_INL_H_
 
+#include "src/roots/roots.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
@@ -27,7 +30,6 @@
 #include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
-#include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
 
 #if V8_ENABLE_WEBASSEMBLY

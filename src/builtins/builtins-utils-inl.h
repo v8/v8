@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_UTILS_INL_H_
 
 #include "src/builtins/builtins-utils.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/execution/arguments-inl.h"
 

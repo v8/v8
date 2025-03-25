@@ -5,8 +5,10 @@
 #ifndef V8_EXECUTION_LOCAL_ISOLATE_INL_H_
 #define V8_EXECUTION_LOCAL_ISOLATE_INL_H_
 
-#include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/isolate.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {

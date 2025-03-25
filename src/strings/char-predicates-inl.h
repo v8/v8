@@ -5,8 +5,10 @@
 #ifndef V8_STRINGS_CHAR_PREDICATES_INL_H_
 #define V8_STRINGS_CHAR_PREDICATES_INL_H_
 
-#include "src/base/bounds.h"
 #include "src/strings/char-predicates.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/bounds.h"
 #include "src/utils/utils.h"
 
 namespace v8 {

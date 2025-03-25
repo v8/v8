@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_ARRAY_INL_H_
 
 #include "src/objects/js-array.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 

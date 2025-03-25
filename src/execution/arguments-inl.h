@@ -6,6 +6,7 @@
 #define V8_EXECUTION_ARGUMENTS_INL_H_
 
 #include "src/execution/arguments.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.

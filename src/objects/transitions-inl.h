@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_TRANSITIONS_INL_H_
 #define V8_OBJECTS_TRANSITIONS_INL_H_
 
+#include "src/objects/transitions.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <ranges>
 #include <type_traits>
 
@@ -12,7 +15,6 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/objects/transitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

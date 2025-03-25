@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_MARKING_INL_H_
 #define V8_HEAP_MARKING_INL_H_
 
+#include "src/heap/marking.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"

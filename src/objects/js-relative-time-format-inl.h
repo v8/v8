@@ -10,6 +10,8 @@
 #endif  // V8_INTL_SUPPORT
 
 #include "src/objects/js-relative-time-format.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_HEAP_NUMBER_INL_H_
 #define V8_OBJECTS_HEAP_NUMBER_INL_H_
 
-#include "src/base/memory.h"
 #include "src/objects/heap-number.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/memory.h"
 #include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):

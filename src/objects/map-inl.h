@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_MAP_INL_H_
 #define V8_OBJECTS_MAP_INL_H_
 
+#include "src/objects/map.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -16,7 +19,6 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map-updater.h"
-#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"

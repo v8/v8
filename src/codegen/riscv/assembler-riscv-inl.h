@@ -35,6 +35,9 @@
 #ifndef V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 #define V8_CODEGEN_RISCV_ASSEMBLER_RISCV_INL_H_
 
+#include "src/codegen/riscv/assembler-riscv.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler-arch.h"
 #include "src/codegen/assembler.h"
 #include "src/debug/debug.h"

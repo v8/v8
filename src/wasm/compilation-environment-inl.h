@@ -10,6 +10,8 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 #include "src/wasm/compilation-environment.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8::internal::wasm {

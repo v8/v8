@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_OBJECT_LOCK_INL_H_
 #define V8_HEAP_OBJECT_LOCK_INL_H_
 
-#include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/object-lock.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/mutable-page-metadata-inl.h"
 
 namespace v8 {
 namespace internal {

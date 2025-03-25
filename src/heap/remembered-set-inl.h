@@ -5,9 +5,11 @@
 #ifndef V8_HEAP_REMEMBERED_SET_INL_H_
 #define V8_HEAP_REMEMBERED_SET_INL_H_
 
+#include "src/heap/remembered-set.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler-inl.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/heap/remembered-set.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {

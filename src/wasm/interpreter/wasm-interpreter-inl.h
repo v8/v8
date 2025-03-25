@@ -9,9 +9,11 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/wasm/interpreter/wasm-interpreter.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
-#include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {

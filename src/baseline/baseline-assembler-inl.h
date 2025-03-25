@@ -6,6 +6,7 @@
 #define V8_BASELINE_BASELINE_ASSEMBLER_INL_H_
 
 #include "src/baseline/baseline-assembler.h"
+// Include the non-inl header before the rest of the headers.
 
 #include <type_traits>
 #include <unordered_map>

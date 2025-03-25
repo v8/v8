@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_INL_H_
 #define V8_OBJECTS_TAGGED_FIELD_INL_H_
 
+#include "src/objects/tagged-field.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/tagged-field.h"
 #include "src/objects/tagged.h"
 
 namespace v8 {

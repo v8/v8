@@ -5,11 +5,13 @@
 #ifndef V8_OBJECTS_DICTIONARY_INL_H_
 #define V8_OBJECTS_DICTIONARY_INL_H_
 
+#include "src/objects/dictionary.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"

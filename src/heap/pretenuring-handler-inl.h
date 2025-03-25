@@ -5,11 +5,13 @@
 #ifndef V8_HEAP_PRETENURING_HANDLER_INL_H_
 #define V8_HEAP_PRETENURING_HANDLER_INL_H_
 
+#include "src/heap/pretenuring-handler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/sanitizer/msan.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/page-metadata.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/allocation-site.h"

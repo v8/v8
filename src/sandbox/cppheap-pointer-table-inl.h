@@ -5,8 +5,10 @@
 #ifndef V8_SANDBOX_CPPHEAP_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_CPPHEAP_POINTER_TABLE_INL_H_
 
-#include "src/sandbox/compactible-external-entity-table-inl.h"
 #include "src/sandbox/cppheap-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/sandbox/compactible-external-entity-table-inl.h"
 
 #ifdef V8_COMPRESS_POINTERS
 

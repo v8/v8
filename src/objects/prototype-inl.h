@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROTOTYPE_INL_H_
 
 #include "src/objects/prototype.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/js-proxy.h"

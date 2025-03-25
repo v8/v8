@@ -5,8 +5,10 @@
 #ifndef V8_API_API_INL_H_
 #define V8_API_API_INL_H_
 
-#include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "include/v8-fast-api-calls.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/flags/flags.h"

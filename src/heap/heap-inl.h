@@ -5,6 +5,9 @@
 #ifndef V8_HEAP_HEAP_INL_H_
 #define V8_HEAP_HEAP_INL_H_
 
+#include "src/heap/heap.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
 #include <optional>
 
@@ -19,7 +22,6 @@
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"

@@ -5,11 +5,12 @@
 #ifndef V8_OBJECTS_STRING_INL_H_
 #define V8_OBJECTS_STRING_INL_H_
 
+#include "src/objects/string.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 #include <type_traits>
 
-#include "src/objects/string.h"
-// Include the non-inl header before the rest of the headers.
 
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"

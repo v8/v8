@@ -5,6 +5,9 @@
 #ifndef V8_HEAP_YOUNG_GENERATION_MARKING_VISITOR_INL_H_
 #define V8_HEAP_YOUNG_GENERATION_MARKING_VISITOR_INL_H_
 
+#include "src/heap/young-generation-marking-visitor.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-visitor-inl.h"
@@ -14,7 +17,6 @@
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
-#include "src/heap/young-generation-marking-visitor.h"
 
 namespace v8 {
 namespace internal {

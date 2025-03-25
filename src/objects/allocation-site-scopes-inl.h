@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ALLOCATION_SITE_SCOPES_INL_H_
 
 #include "src/objects/allocation-site-scopes.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/allocation-site-inl.h"
 

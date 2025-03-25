@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_HEAP_ALLOCATOR_INL_H_
 #define V8_HEAP_HEAP_ALLOCATOR_INL_H_
 
+#include "src/heap/heap-allocator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"

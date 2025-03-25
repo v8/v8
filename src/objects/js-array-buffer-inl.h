@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-array-buffer.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 

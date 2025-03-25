@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_INL_H_
 #define V8_OBJECTS_MAYBE_OBJECT_INL_H_
 
+#include "src/objects/maybe-object.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/casting.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged.h"

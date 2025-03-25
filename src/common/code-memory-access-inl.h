@@ -6,6 +6,8 @@
 #define V8_COMMON_CODE_MEMORY_ACCESS_INL_H_
 
 #include "src/common/code-memory-access.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/flags/flags.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/slots-inl.h"

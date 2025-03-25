@@ -6,6 +6,8 @@
 #define V8_HEAP_HEAP_UTILS_INL_H_
 
 #include "src/heap/heap-utils.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/memory-chunk-inl.h"
 
 namespace v8::internal {

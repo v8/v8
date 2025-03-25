@@ -5,6 +5,9 @@
 #ifndef V8_NUMBERS_CONVERSIONS_INL_H_
 #define V8_NUMBERS_CONVERSIONS_INL_H_
 
+#include "src/numbers/conversions.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <float.h>   // Required for DBL_MAX and on Win32 for finite()
 #include <limits.h>  // Required for INT_MAX etc.
 #include <stdarg.h>
@@ -17,7 +20,6 @@
 #include "src/base/bits.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
-#include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi-inl.h"

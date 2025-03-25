@@ -6,6 +6,7 @@
 #define V8_CODEGEN_ASSEMBLER_INL_H_
 
 #include "src/codegen/assembler.h"
+// Include the non-inl header before the rest of the headers.
 
 #if V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/assembler-ia32-inl.h"

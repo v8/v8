@@ -5,14 +5,13 @@
 #ifndef V8_HEAP_HEAP_WRITE_BARRIER_INL_H_
 #define V8_HEAP_HEAP_WRITE_BARRIER_INL_H_
 
-// Include the non-inl header before the rest of the headers.
 #include "src/heap/heap-write-barrier.h"
+// Include the non-inl header before the rest of the headers.
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
 #include "src/heap/heap-layout-inl.h"
-#include "src/heap/heap-write-barrier.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/compressed-slots-inl.h"

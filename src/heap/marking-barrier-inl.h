@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_MARKING_BARRIER_INL_H_
 #define V8_HEAP_MARKING_BARRIER_INL_H_
 
+#include "src/heap/marking-barrier.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/logging.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/marking-barrier.h"
 #include "src/heap/marking.h"
 
 namespace v8 {

@@ -9,12 +9,14 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/wasm/wasm-opcodes.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <array>
 
 #include "src/base/template-utils.h"
 #include "src/codegen/signature.h"
 #include "src/execution/messages.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {

@@ -5,9 +5,11 @@
 #ifndef V8_HEAP_MARK_COMPACT_INL_H_
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
+#include "src/heap/mark-compact.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-visitor-inl.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-worklist-inl.h"

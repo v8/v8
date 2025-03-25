@@ -5,11 +5,13 @@
 #ifndef V8_OBJECTS_FEEDBACK_CELL_INL_H_
 #define V8_OBJECTS_FEEDBACK_CELL_INL_H_
 
+#include "src/objects/feedback-cell.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/execution/tiering-manager.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"

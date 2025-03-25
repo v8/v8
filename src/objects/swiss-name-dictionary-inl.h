@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_SWISS_NAME_DICTIONARY_INL_H_
 #define V8_OBJECTS_SWISS_NAME_DICTIONARY_INL_H_
 
+#include "src/objects/swiss-name-dictionary.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <algorithm>
 #include <optional>
 
@@ -18,7 +21,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/swiss-name-dictionary.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

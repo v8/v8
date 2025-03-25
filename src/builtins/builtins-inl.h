@@ -6,6 +6,8 @@
 #define V8_BUILTINS_BUILTINS_INL_H_
 
 #include "src/builtins/builtins.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 
 namespace v8 {

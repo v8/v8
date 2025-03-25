@@ -5,6 +5,9 @@
 #ifndef V8_HEAP_MARKING_VISITOR_INL_H_
 #define V8_HEAP_MARKING_VISITOR_INL_H_
 
+#include "src/heap/marking-visitor.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/heap-layout-inl.h"
@@ -12,7 +15,6 @@
 #include "src/heap/heap-visitor.h"
 #include "src/heap/marking-progress-tracker.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
 #include "src/heap/pretenuring-handler-inl.h"

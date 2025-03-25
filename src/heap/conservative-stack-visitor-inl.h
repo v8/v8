@@ -6,6 +6,7 @@
 #define V8_HEAP_CONSERVATIVE_STACK_VISITOR_INL_H_
 
 #include "src/heap/conservative-stack-visitor.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"

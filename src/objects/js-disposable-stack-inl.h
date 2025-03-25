@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_JS_DISPOSABLE_STACK_INL_H_
 #define V8_OBJECTS_JS_DISPOSABLE_STACK_INL_H_
 
+#include "src/objects/js-disposable-stack.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/js-disposable-stack.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 

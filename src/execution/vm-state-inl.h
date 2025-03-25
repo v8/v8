@@ -5,9 +5,11 @@
 #ifndef V8_EXECUTION_VM_STATE_INL_H_
 #define V8_EXECUTION_VM_STATE_INL_H_
 
+#include "src/execution/vm-state.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate-inl.h"
 #include "src/execution/simulator.h"
-#include "src/execution/vm-state.h"
 #include "src/logging/log.h"
 #include "src/tracing/trace-event.h"
 

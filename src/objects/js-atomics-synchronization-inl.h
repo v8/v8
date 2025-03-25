@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_JS_ATOMICS_SYNCHRONIZATION_INL_H_
 #define V8_OBJECTS_JS_ATOMICS_SYNCHRONIZATION_INL_H_
 
+#include "src/objects/js-atomics-synchronization.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/objects-inl.h"
 

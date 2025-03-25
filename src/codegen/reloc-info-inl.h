@@ -5,8 +5,10 @@
 #ifndef V8_CODEGEN_RELOC_INFO_INL_H_
 #define V8_CODEGEN_RELOC_INFO_INL_H_
 
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/reloc-info.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 
 namespace v8 {
