@@ -349,6 +349,7 @@ class MaglevInliner {
         if (node->properties().can_throw()) {
           ExceptionHandlerInfo* handler = node->exception_handler_info();
           if (!handler->HasExceptionHandler()) continue;
+          if (handler->ShouldLazyDeopt()) continue;
           BasicBlock* catch_block = handler->catch_block.block_ptr();
           if (!reachable_blocks.contains(catch_block)) {
             reachable_blocks.insert(catch_block);
