@@ -3610,6 +3610,7 @@ void SwitchStackState(MacroAssembler* masm, Register jmpbuf, Register tmp,
 // simulator's stack limit can cause stack access check failures.
 void SwitchStackPointerAndSimulatorStackLimit(MacroAssembler* masm,
                                               Register jmpbuf) {
+  ASM_CODE_COMMENT(masm);
   if (masm->options().enable_simulator_code) {
     UseScratchRegisterScope temps(masm);
     temps.Exclude(kSimulatorBreakArgument);
@@ -3650,15 +3651,24 @@ void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
 
 // Updates the stack limit and central stack info, and validates the switch.
 void SwitchStacks(MacroAssembler* masm, Register old_continuation,
-                  bool return_switch, Register tmp) {
+                  bool return_switch, Register tmp,
+                  const std::initializer_list<Register> keep) {
   ASM_CODE_COMMENT(masm);
   using ER = ExternalReference;
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ li(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
-  __ mv(kCArgRegs[1], old_continuation);
-  __ PrepareCallCFunction(2, tmp);
-  __ CallCFunction(
-      return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
+  for (auto reg : keep) {
+    __ Push(reg);
+  }
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address(masm->isolate()));
+    __ mv(kCArgRegs[1], old_continuation);
+    __ PrepareCallCFunction(2, tmp);
+    __ CallCFunction(
+        return_switch ? ER::wasm_return_switch() : ER::wasm_switch_stacks(), 2);
+  }
+  for (auto it = std::rbegin(keep); it != std::rend(keep); ++it) {
+    __ Pop(*it);
+  }
 }
 
 void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
@@ -3701,11 +3711,9 @@ void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
   __ AddWord(jmpbuf, jmpbuf, wasm::StackMemory::jmpbuf_offset());
 
   // Switch stack!
+  SwitchStacks(masm, active_continuation, true, tmp3,
+               {return_reg, return_value, context, jmpbuf});
   LoadJumpBuffer(masm, jmpbuf, false, tmp3, wasm::JumpBuffer::Inactive);
-
-  __ Push(return_reg, return_value, context);
-  SwitchStacks(masm, active_continuation, true, tmp3);
-  __ Pop(return_reg, return_value, context);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -3829,10 +3837,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  __ Push(caller, suspender);
-  SwitchStacks(masm, continuation, false, caller);
+  SwitchStacks(masm, continuation, false, caller, {caller, suspender});
   continuation = no_reg;
-  __ Pop(caller, suspender);
   __ LoadExternalPointerField(
       jmpbuf, FieldMemOperand(caller, WasmContinuationObject::kStackOffset),
       kWasmStackMemoryTag);
@@ -3952,7 +3958,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ StoreTaggedField(active_continuation,
                       FieldMemOperand(target_continuation,
                                       WasmContinuationObject::kParentOffset));
-  __ mv(scratch, target_continuation);
+  Register old_continuation = scratch;
+  __ mv(old_continuation, active_continuation);
   __ RecordWriteField(
       target_continuation, WasmContinuationObject::kParentOffset,
       active_continuation, kRAHasBeenSaved, SaveFPRegsMode::kIgnore);
@@ -3961,10 +3968,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
           RootIndex::kActiveContinuation);
   __ StoreWord(target_continuation,
                MemOperand(kRootRegister, active_continuation_offset));
-  __ Push(target_continuation);
-  SwitchStacks(masm, scratch, false, scratch);
+
+  SwitchStacks(masm, old_continuation, false, scratch, {target_continuation});
   FREE_REG(active_continuation);
-  __ Pop(target_continuation);
 
   // -------------------------------------------
   // Load state from target jmpbuf (longjmp).
@@ -4052,9 +4058,8 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
                      FieldMemOperand(target_continuation,
                                      WasmContinuationObject::kParentOffset));
   SaveState(masm, parent_continuation, scratch, suspend);
-  __ Push(wasm_instance, wrapper_buffer);
-  SwitchStacks(masm, parent_continuation, false, scratch);
-  __ Pop(wasm_instance, wrapper_buffer);
+  SwitchStacks(masm, parent_continuation, false, scratch,
+               {wasm_instance, wrapper_buffer});
   FREE_REG(parent_continuation);
   // Save the old stack's fp in x9, and use it to access the parameters in
   // the parent frame.
@@ -4122,6 +4127,7 @@ void GetContextFromImplicitArg(MacroAssembler* masm, Register data,
 
 void SwitchBackAndReturnPromise(MacroAssembler* masm, wasm::Promise mode,
                                 Label* return_promise) {
+  ASM_CODE_COMMENT(masm);
   UseScratchRegisterScope temps(masm);
   // The return value of the wasm function becomes the parameter of the
   // FulfillPromise builtin, and the promise is the return value of this
@@ -4161,6 +4167,7 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, wasm::Promise mode,
 
 void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
                                          Label* return_promise) {
+  ASM_CODE_COMMENT(masm);
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
   Register promise = desc.GetRegisterParameter(0);
   Register reason = desc.GetRegisterParameter(1);

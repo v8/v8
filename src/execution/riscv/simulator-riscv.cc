@@ -3581,6 +3581,9 @@ void Simulator::SoftwareInterrupt() {
         HandleStop(code);
       }
     } else if (IsSwitchStackLimit(code)) {
+      if (v8_flags.trace_sim) {
+        PrintF("Switching stack limit\n");
+      }
       DoSwitchStackLimit(instr_.instr());
     } else {
       // All remaining break_ codes, and all traps are handled here.
