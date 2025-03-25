@@ -1136,7 +1136,9 @@
       'gn_args': 'v8_enable_pointer_compression=true',
     },
     'v8_disable_pointer_compression_shared_cage': {
-      'gn_args': 'v8_enable_pointer_compression_shared_cage=false',
+      'gn_args': 'v8_enable_pointer_compression_shared_cage=false '
+                 'v8_enable_sandbox = true '
+                 'v8_enable_external_code_space = true',
     },
     'v8_enable_single_generation': {
       'gn_args': 'v8_enable_single_generation=true '
