@@ -157,8 +157,12 @@ ExceptionStatus KeyAccumulator::AddKey(DirectHandle<Object> key,
       OrderedHashSet::Add(isolate(), keys(), key);
   Handle<OrderedHashSet> new_set;
   if (!new_set_candidate.ToHandle(&new_set)) {
-    CHECK(isolate_->has_exception());
-    return ExceptionStatus::kException;
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate_->has_exception());
+    isolate_->clear_exception();
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate_, NewRangeError(MessageTemplate::kTooManyProperties),
+        ExceptionStatus::kException);
   }
   if (*new_set != *keys_) {
     // The keys_ Set is converted directly to a FixedArray in GetKeys which can

@@ -25,6 +25,9 @@ RUNTIME_FUNCTION(Runtime_OrderedHashSetGrow) {
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory, method_name));
   }
@@ -39,6 +42,9 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewRangeError(MessageTemplate::kCollectionGrowFailed,
@@ -84,6 +90,9 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewRangeError(MessageTemplate::kCollectionGrowFailed,
@@ -101,6 +110,9 @@ RUNTIME_FUNCTION(Runtime_OrderedHashMapGrow) {
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory, methodName));
   }
