@@ -676,7 +676,7 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       switch_target_(false),
       code_target_alignment_(false),
       loop_header_alignment_(false),
-      needs_frame_(false),
+      needs_frame_(!v8_flags.turbo_elide_frames),
       must_construct_frame_(false),
       must_deconstruct_frame_(false),
       omitted_by_jump_threading_(false) {}

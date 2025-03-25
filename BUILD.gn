@@ -198,6 +198,9 @@ declare_args() {
   # extension function getIgnitionDispatchCounters().
   v8_enable_ignition_dispatch_counting = false
 
+  # Enable frame elision for builtins.
+  v8_enable_builtins_frame_elision = true
+
   # Runs mksnapshot with --turbo-profiling. After building in this
   # configuration, any subsequent run of d8 will output information about usage
   # of basic blocks in builtins.
@@ -2508,6 +2511,10 @@ template("run_mksnapshot") {
         "--turbo-log-builtins-count-input",
         v8_log_builtins_block_count_input,
       ]
+    }
+
+    if (v8_enable_builtins_frame_elision) {
+      args += [ "--turbo-elide-frames" ]
     }
 
     if (v8_enable_builtins_profiling) {
