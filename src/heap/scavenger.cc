@@ -382,7 +382,12 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
       return;
     }
     UpdateHeapObjectReferenceSlot(FullHeapObjectSlot(p), dest);
-    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest), Heap::InToPage(dest));
+    // The destination object should be in the "to" space. However, it could
+    // also be a large string if the original object was a shortcut candidate.
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(dest),
+                   Heap::InToPage(dest) ||
+                       (Heap::IsLargeObject(dest) && Heap::InFromPage(dest) &&
+                        dest->map_word(kRelaxedLoad).IsForwardingAddress()));
   }
 };
 
