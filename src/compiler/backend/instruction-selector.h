@@ -765,7 +765,10 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(turboshaft::OpIndex call, CallBuffer* buffer,
-                            CallBufferFlags flags, int stack_slot_delta = 0);
+                            CallBufferFlags flags, turboshaft::OpIndex callee,
+                            turboshaft::OptionalOpIndex frame_state_opt,
+                            base::Vector<const turboshaft::OpIndex> arguments,
+                            int return_count, int stack_slot_delta = 0);
   bool IsTailCallAddressImmediate();
 
   void UpdateMaxPushedArgumentCount(size_t count);

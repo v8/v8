@@ -19,6 +19,7 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -1097,20 +1098,19 @@ struct CallBufferT {
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
-                                                CallBuffer* buffer,
-                                                CallBufferFlags flags,
-                                                int stack_param_delta) {
+void InstructionSelectorT::InitializeCallBuffer(
+    OpIndex node, CallBuffer* buffer, CallBufferFlags flags, OpIndex callee,
+    OptionalOpIndex frame_state_opt, base::Vector<const OpIndex> arguments,
+    int return_count, int stack_param_delta) {
   OperandGenerator g(this);
   size_t ret_count = buffer->descriptor->ReturnCount();
   bool is_tail_call = (flags & kCallTail) != 0;
-  auto call = this->call_view(node);
-  DCHECK_LE(call.return_count(), ret_count);
+  DCHECK_LE(return_count, ret_count);
 
   if (ret_count > 0) {
     // Collect the projections that represent multiple outputs from this call.
     if (ret_count == 1) {
-      PushParameter result = {call, buffer->descriptor->GetReturnLocation(0)};
+      PushParameter result = {node, buffer->descriptor->GetReturnLocation(0)};
       buffer->output_nodes.push_back(result);
     } else {
       buffer->output_nodes.resize(ret_count);
@@ -1118,7 +1118,7 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
         LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
         buffer->output_nodes[i] = PushParameter({}, location);
       }
-      for (OpIndex call_use : turboshaft_uses(call)) {
+      for (OpIndex call_use : turboshaft_uses(node)) {
         const Operation& use_op = this->Get(call_use);
         if (use_op.Is<DidntThrowOp>()) {
           for (OpIndex use : turboshaft_uses(call_use)) {
@@ -1164,7 +1164,6 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
   }
 
   // The first argument is always the callee code.
-  OpIndex callee = call.callee();
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
@@ -1232,7 +1231,7 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
   size_t frame_state_entries = 0;
   USE(frame_state_entries);  // frame_state_entries is only used for debug.
   if (buffer->frame_state_descriptor != nullptr) {
-    OpIndex frame_state = call.frame_state();
+    OpIndex frame_state = frame_state_opt.value();
 
     // If it was a syntactic tail call we need to drop the current frame and
     // all the frames on top of it that are either inlined extra arguments
@@ -1252,7 +1251,7 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
 
     int const state_id = sequence()->AddDeoptimizationEntry(
         buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, this->id(call), FeedbackSource());
+        DeoptimizeReason::kUnknown, node.id(), FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -1272,7 +1271,6 @@ void InstructionSelectorT::InitializeCallBuffer(OpIndex node,
   // arguments require an explicit push instruction before the call and do
   // not appear as arguments to the call. Everything else ends up
   // as an InstructionOperand argument to the call.
-  auto arguments = call.arguments();
   auto iter(arguments.begin());
   size_t pushed_count = 0;
   for (size_t index = 1; index < input_count; ++iter, ++index) {
@@ -2101,8 +2099,8 @@ void InstructionSelectorT::UpdateMaxPushedArgumentCount(size_t count) {
 
 void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   OperandGenerator g(this);
-  auto call = this->call_view(node);
-  const CallDescriptor* call_descriptor = call.call_descriptor();
+  const CallOp& call_op = Cast<CallOp>(node);
+  const CallDescriptor* call_descriptor = call_op.descriptor->descriptor;
   SaveFPRegsMode mode = call_descriptor->NeedsCallerSavedFPRegisters()
                             ? SaveFPRegsMode::kSave
                             : SaveFPRegsMode::kIgnore;
@@ -2116,7 +2114,8 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   bool needs_frame_state = false;
   if (call_descriptor->NeedsFrameState()) {
     needs_frame_state = true;
-    frame_state_descriptor = GetFrameStateDescriptor(call.frame_state());
+    frame_state_descriptor =
+        GetFrameStateDescriptor(call_op.frame_state().value());
   }
 
   CallBuffer buffer(zone(), call_descriptor, frame_state_descriptor);
@@ -2131,7 +2130,9 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   if (flags & CallDescriptor::kFixedTargetRegister) {
     call_buffer_flags |= kCallFixedTargetRegister;
   }
-  InitializeCallBuffer(node, &buffer, call_buffer_flags);
+  InitializeCallBuffer(node, &buffer, call_buffer_flags, call_op.callee(),
+                       call_op.frame_state(), call_op.arguments(),
+                       static_cast<int>(call_op.results_rep().size()));
 
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
@@ -2162,12 +2163,11 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
     flags |= CallDescriptor::kHasExceptionHandler;
     buffer.instruction_args.push_back(g.Label(handler));
   } else {
-      if (call.ts_call_descriptor()->lazy_deopt_on_throw ==
-          LazyDeoptOnThrow::kYes) {
-        flags |= CallDescriptor::kHasExceptionHandler;
-        buffer.instruction_args.push_back(
-            g.UseImmediate(kLazyDeoptOnThrowSentinel));
-      }
+    if (call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes) {
+      flags |= CallDescriptor::kHasExceptionHandler;
+      buffer.instruction_args.push_back(
+          g.UseImmediate(kLazyDeoptOnThrowSentinel));
+    }
   }
 
   // Select the appropriate opcode based on the call type.
@@ -2202,11 +2202,11 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
     case CallDescriptor::kCallWasmCapiFunction:
     case CallDescriptor::kCallWasmFunction:
     case CallDescriptor::kCallWasmImportWrapper:
-      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
+      DCHECK(this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunction, flags);
       break;
     case CallDescriptor::kCallWasmFunctionIndirect:
-      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      DCHECK(!this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2236,9 +2236,9 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
 void InstructionSelectorT::VisitTailCall(OpIndex node) {
   OperandGenerator g(this);
 
-  auto call = this->call_view(node);
+  const TailCallOp& call_op = Cast<TailCallOp>(node);
   auto caller = linkage()->GetIncomingDescriptor();
-  auto callee = call.call_descriptor();
+  auto callee = call_op.descriptor->descriptor;
   DCHECK(caller->CanTailCall(callee));
   const int stack_param_delta = callee->GetStackParameterDelta(caller);
   CallBuffer buffer(zone(), callee, nullptr);
@@ -2251,7 +2251,10 @@ void InstructionSelectorT::VisitTailCall(OpIndex node) {
   if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
     flags |= kCallFixedTargetRegister;
   }
-  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
+  InitializeCallBuffer(node, &buffer, flags, call_op.callee(),
+                       OptionalOpIndex::Nullopt(), call_op.arguments(),
+                       static_cast<int>(call_op.outputs_rep().size()),
+                       stack_param_delta);
   UpdateMaxPushedArgumentCount(stack_param_delta);
 
   // Select the appropriate opcode based on the call type.
@@ -2268,12 +2271,12 @@ void InstructionSelectorT::VisitTailCall(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallWasmFunction:
       DCHECK(!caller->IsJSFunctionCall());
-      DCHECK(this->IsRelocatableWasmConstant(call.callee()));
+      DCHECK(this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = kArchTailCallWasm;
       break;
     case CallDescriptor::kCallWasmFunctionIndirect:
       DCHECK(!caller->IsJSFunctionCall());
-      DCHECK(!this->IsRelocatableWasmConstant(call.callee()));
+      DCHECK(!this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = kArchTailCallWasmIndirect;
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY

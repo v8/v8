@@ -26,60 +26,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   explicit TurboshaftAdapter(turboshaft::Graph* graph)
       : turboshaft::OperationMatcher(*graph), graph_(graph) {}
 
-  class CallView {
-   public:
-    explicit CallView(turboshaft::Graph* graph, turboshaft::OpIndex node)
-        : node_(node) {
-      call_op_ = graph->Get(node_).TryCast<turboshaft::CallOp>();
-      if (call_op_ != nullptr) return;
-      tail_call_op_ = graph->Get(node_).TryCast<turboshaft::TailCallOp>();
-      if (tail_call_op_ != nullptr) return;
-      UNREACHABLE();
-    }
-
-    int return_count() const {
-      if (call_op_) {
-        return static_cast<int>(call_op_->results_rep().size());
-      }
-      if (tail_call_op_) {
-        return static_cast<int>(tail_call_op_->outputs_rep().size());
-      }
-      UNREACHABLE();
-    }
-    turboshaft::OpIndex callee() const {
-      if (call_op_) return call_op_->callee();
-      if (tail_call_op_) return tail_call_op_->callee();
-      UNREACHABLE();
-    }
-    turboshaft::OpIndex frame_state() const {
-      if (call_op_) return call_op_->frame_state().value();
-      UNREACHABLE();
-    }
-    base::Vector<const turboshaft::OpIndex> arguments() const {
-      if (call_op_) return call_op_->arguments();
-      if (tail_call_op_) return tail_call_op_->arguments();
-      UNREACHABLE();
-    }
-    const CallDescriptor* call_descriptor() const {
-      if (call_op_) return call_op_->descriptor->descriptor;
-      if (tail_call_op_) return tail_call_op_->descriptor->descriptor;
-      UNREACHABLE();
-    }
-
-    const turboshaft::TSCallDescriptor* ts_call_descriptor() const {
-      if (call_op_) return call_op_->descriptor;
-      if (tail_call_op_) return tail_call_op_->descriptor;
-      UNREACHABLE();
-    }
-
-    operator turboshaft::OpIndex() const { return node_; }
-
-   private:
-    turboshaft::OpIndex node_;
-    const turboshaft::CallOp* call_op_;
-    const turboshaft::TailCallOp* tail_call_op_;
-  };
-
   class LoadView {
    public:
     LoadView(turboshaft::Graph* graph, turboshaft::OpIndex node) : node_(node) {
@@ -337,9 +283,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
   }
   bool is_load_root_register(turboshaft::OpIndex node) const {
     return graph_->Get(node).Is<turboshaft::LoadRootRegisterOp>();
-  }
-  CallView call_view(turboshaft::OpIndex node) {
-    return CallView{graph_, node};
   }
   LoadView load_view(turboshaft::OpIndex node) {
     DCHECK(is_load(node));
