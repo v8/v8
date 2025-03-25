@@ -7447,10 +7447,10 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
   // Allocate a regular code object.
   {
-    v8::Isolate::Scope isolate_scope(isolate);
     int size_in_bytes =
         heap->MaxRegularHeapObjectSize(AllocationType::kCode) - kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};
@@ -7474,7 +7474,6 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
 
   // Allocate a large code object.
   {
-    v8::Isolate::Scope isolate_scope(isolate);
     int size_in_bytes =
         heap->MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};

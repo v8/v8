@@ -136,7 +136,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInOldSpaceFromMainThread) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   {
-    v8::Isolate::Scope isolate_scope(isolate);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
     AllocateSomeObjects(i_isolate->main_thread_local_heap());
   }
   isolate->Dispose();
@@ -388,7 +388,7 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
   {
-    v8::Isolate::Scope isolate_scope(isolate);
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
 
     std::vector<Address> objects;
 
