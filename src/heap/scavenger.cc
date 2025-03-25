@@ -301,6 +301,10 @@ void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
   double scavenging_time = 0.0;
   {
     TimedScope scope(&scavenging_time);
+    // Set the current isolate such that trusted pointer tables etc are
+    // available.
+    SetCurrentIsolateScope isolate_scope(collector_->heap_->isolate());
+
     scavenger->VisitPinnedObjects();
     ConcurrentScavengePages(scavenger);
     scavenger->Process(delegate);

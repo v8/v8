@@ -217,6 +217,9 @@ class Sweeper::MinorSweeperJob final : public JobTask {
     // current thread's cage base values are properly initialized.
     PtrComprCageAccessScope ptr_compr_cage_access_scope(
         sweeper_->heap_->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available.
+    SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
 
     if (!concurrent_sweeper.ConcurrentSweepSpace(delegate)) return;
     concurrent_sweeper.ConcurrentSweepPromotedPages(delegate);

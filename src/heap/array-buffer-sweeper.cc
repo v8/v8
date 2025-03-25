@@ -195,6 +195,9 @@ class ArrayBufferSweeper::SweepingState::SweepingJob final : public JobTask {
 
 void ArrayBufferSweeper::SweepingState::SweepingJob::Run(
     JobDelegate* delegate) {
+  // Set the current isolate such that trusted pointer tables etc are
+  // available.
+  SetCurrentIsolateScope isolate_scope(heap_->isolate());
   const ThreadKind thread_kind =
       delegate->IsJoiningThread() ? ThreadKind::kMain : ThreadKind::kBackground;
   if (treat_all_young_as_promoted_ == TreatAllYoungAsPromoted::kNo) {
