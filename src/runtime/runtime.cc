@@ -274,6 +274,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
     case Runtime::kGetAbstractModuleSource:
     case Runtime::kTurbofanStaticAssert:
     case Runtime::kClearFunctionFeedback:
+    case Runtime::kStringIsFlat:
+    case Runtime::kGetInitializerFunction:
 #ifdef V8_ENABLE_WEBASSEMBLY
     case Runtime::kWasmTraceEnter:
     case Runtime::kWasmTraceExit:
