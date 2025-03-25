@@ -71,10 +71,7 @@ class StackMemory {
   static StackMemory* GetCentralStackView(Isolate* isolate);
 
   ~StackMemory();
-  void* jslimit() const {
-    return (active_segment_ ? active_segment_->limit_ : limit_) +
-           kJSLimitOffsetKB * KB;
-  }
+  void* jslimit() const;
   Address base() const {
     Address memory_limit = active_segment_
                                ? active_segment_->base()

@@ -766,6 +766,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
 
   void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 

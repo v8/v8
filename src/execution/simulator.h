@@ -56,10 +56,14 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Includes the safety stack limit gap.
   static inline base::Vector<uint8_t> GetCentralStackView(
       v8::internal::Isolate* isolate) {
     return Simulator::current(isolate)->GetCentralStackView();
   }
+
+  // Size of the safety stack limit gap.
+  static int JSStackLimitMargin() { return Simulator::JSStackLimitMargin(); }
 #endif
 
   // Iterates the simulator registers and stack for conservative stack scanning.
@@ -107,10 +111,13 @@ class SimulatorStack : public v8::internal::AllStatic {
   static inline base::Vector<uint8_t> GetCentralStackView(
       v8::internal::Isolate* isolate) {
     uintptr_t upper_bound = base::Stack::GetStackStart();
-    size_t size =
-        isolate->stack_size() + wasm::StackMemory::kJSLimitOffsetKB * KB;
+    size_t size = isolate->stack_size() + JSStackLimitMargin();
     uintptr_t lower_bound = upper_bound - size;
     return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
+  }
+
+  static constexpr int JSStackLimitMargin() {
+    return wasm::StackMemory::kJSLimitOffsetKB * KB;
   }
 #endif
 

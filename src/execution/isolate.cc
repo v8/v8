@@ -2341,7 +2341,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         RetireWasmStack(old_continuation);
 #if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
         Simulator::current(this)->SetStackLimit(
-            reinterpret_cast<uintptr_t>(parent->jslimit()));
+            reinterpret_cast<uintptr_t>(parent->jmpbuf()->stack_limit));
 #endif
         continue;
       }
@@ -3848,7 +3848,7 @@ void Isolate::SwitchStacks(Tagged<WasmContinuationObject> old_continuation) {
       reinterpret_cast<wasm::StackMemory*>(old_continuation->stack());
   if (v8_flags.trace_wasm_stack_switching) {
     if (stack->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
-      PrintF("Switch from stack %d to #%d (resume/start)\n", old_stack->id(),
+      PrintF("Switch from stack %d to %d (resume/start)\n", old_stack->id(),
              stack->id());
     } else if (stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
       PrintF("Switch from stack %d to %d (suspend/return)\n", old_stack->id(),
