@@ -365,7 +365,6 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
       for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
         current_.incremental_scopes[i] = incremental_scopes_[i];
         current_.scopes[i] = incremental_scopes_[i].duration;
-        new (&incremental_scopes_[i]) IncrementalInfos;
       }
     } else {
       recorded_mark_compacts_.Push(
@@ -389,6 +388,13 @@ void GCTracer::StopObservablePause(GarbageCollector collector,
     PrintNVP();
   } else {
     Print();
+  }
+
+  // Reset here because Print() still uses these scopes.
+  if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
+    for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+      new (&incremental_scopes_[i]) IncrementalInfos;
+    }
   }
 
   if (v8_flags.trace_gc) {
