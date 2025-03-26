@@ -22,6 +22,9 @@ assertEquals(
 assertEquals(
   Object.getPrototypeOf(AbstractModuleSource.prototype),
   Object.prototype);
+assertEquals(
+  Object.getPrototypeOf(WebAssembly.Module),
+  AbstractModuleSource);
 
 var ToStringTag = Object
   .getOwnPropertyDescriptor(

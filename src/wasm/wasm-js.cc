@@ -3511,7 +3511,8 @@ void WasmJs::InstallModule(Isolate* isolate,
             native_context->abstract_module_source_prototype(), isolate);
     ApiNatives::AddDataProperty(
         isolate, intrinsic_abstract_module_source_interface_template,
-        v8_str(isolate, "prototype"), abstract_module_source_prototype, NONE);
+        isolate->factory()->prototype_string(),
+        abstract_module_source_prototype, NONE);
 
     // Check that this is a reinstallation of the Module object.
     DirectHandle<String> name = v8_str(isolate, "Module");
@@ -3522,6 +3523,12 @@ void WasmJs::InstallModule(Isolate* isolate,
         CreateFunc(isolate, name, wasm::WebAssemblyModule, true,
                    SideEffectType::kHasNoSideEffect,
                    intrinsic_abstract_module_source_interface_template);
+    // WebAssembly.Module is a subclass of %AbstractModuleSource%, hence
+    // Object.GetPrototypeOf(WebAssembly.Module) === %AbstractModuleSource%.
+    JSObject::ForceSetPrototype(
+        isolate, module_constructor,
+        direct_handle(native_context->abstract_module_source_function(),
+                      isolate));
     module_constructor->shared()->set_length(1);
     JSObject::SetOwnPropertyIgnoreAttributes(webassembly, name,
                                              module_constructor, DONT_ENUM)
