@@ -4554,6 +4554,12 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
       ValueType type = GetValueTypeHelper(
           options, &module_range, current_type_index, current_type_index,
           kIncludeNumericTypes, kIncludePackedTypes, kExcludeSomeGenerics);
+      // To prevent huge initializer expressions, limit the existence of
+      // non-nullable references to the first 2 struct types (for non-inherited
+      // fields).
+      if (current_type_index >= 2 && type.is_non_nullable()) {
+        type = type.AsNullable();
+      }
 
       bool mutability = module_range.get<bool>();
       struct_builder.AddField(type, mutability);
