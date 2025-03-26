@@ -133,7 +133,7 @@ int32_t CallWasmFunctionForTesting(
   // The result should be a number.
   if (retval.is_null()) {
     DCHECK(isolate->has_exception());
-    if (exception) {
+    if (exception && !isolate->is_execution_terminating()) {
       DirectHandle<String> exception_string = Object::NoSideEffectsToString(
           isolate, direct_handle(isolate->exception(), isolate));
       *exception = exception_string->ToCString();
