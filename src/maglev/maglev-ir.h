@@ -2313,7 +2313,6 @@ class NodeBase : public ZoneObject {
 
   struct OwnerOrTemporaries {
     BasicBlock* owner() const {
-      DCHECK_NE(store_.owner_, nullptr);
       DCHECK_EQ(state_, State::kOwner);
       return store_.owner_;
     }

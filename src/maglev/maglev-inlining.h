@@ -75,8 +75,7 @@ class MaglevInliner {
         &caller_deopt_frame->GetCompilationUnit();
     compiler::SharedFunctionInfoRef shared = call_node->shared_function_info();
 
-    if (std::find(graph_->blocks().begin(), graph_->blocks().end(),
-                  call_block) == graph_->blocks().end()) {
+    if (!call_block || call_block->is_dead()) {
       // The block containing the call is unreachable, and it was previously
       // removed. Do not try to inline the call.
       return ReduceResult::Fail();
@@ -87,20 +86,8 @@ class MaglevInliner {
     }
 
     // Truncate the basic block and remove the generic call node.
-    std::optional<ZoneVector<Node*>> maybe_rem_nodes_in_call_block =
+    ZoneVector<Node*> rem_nodes_in_call_block =
         call_block->Split(call_node, zone());
-    if (!maybe_rem_nodes_in_call_block.has_value()) {
-      // TODO(victorgomes): Remove this once we use identity nodes instead of
-      // patching the result.
-      // We didn't find the node in the call_node->owner(), this can only happen
-      // when we inlined a call before this one in the same basic block and did
-      // not update the call_node owner. This can only be if we soft deopt in
-      // the previous call, since otherwise the call_node owner would be
-      // updated in FinishInlinedBlockForCaller.
-      return ReduceResult::Fail();
-    }
-    ZoneVector<Node*>& rem_nodes_in_call_block =
-        maybe_rem_nodes_in_call_block.value();
 
     // Create a new compilation unit.
     MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
@@ -133,6 +120,11 @@ class MaglevInliner {
         call_node->closure().node(), call_node->new_target().node());
 
     if (result.IsDoneWithAbort()) {
+      // Since the rest of the block is dead, these nodes don't belong
+      // to any basic block anymore.
+      for (auto node : rem_nodes_in_call_block) {
+        node->set_owner(nullptr);
+      }
       // Restore the rest of the graph.
       for (auto bb : saved_bb) {
         graph_->Add(bb);
@@ -268,13 +260,13 @@ class MaglevInliner {
   }
 
   void RemoveUnreachableBlocks() {
-    absl::flat_hash_set<BasicBlock*> reachable_blocks;
+    std::vector<bool> reachable_blocks(graph_->max_block_id(), false);
     std::vector<BasicBlock*> worklist;
 
     DCHECK(!graph_->blocks().empty());
     BasicBlock* initial_bb = graph_->blocks().front();
     worklist.push_back(initial_bb);
-    reachable_blocks.insert(initial_bb);
+    reachable_blocks[initial_bb->id()] = true;
     DCHECK(!initial_bb->is_loop());
 
     while (!worklist.empty()) {
@@ -289,43 +281,40 @@ class MaglevInliner {
           if (!handler->HasExceptionHandler()) continue;
           if (handler->ShouldLazyDeopt()) continue;
           BasicBlock* catch_block = handler->catch_block.block_ptr();
-          if (!reachable_blocks.contains(catch_block)) {
-            reachable_blocks.insert(catch_block);
+          if (!reachable_blocks[catch_block->id()]) {
+            reachable_blocks[catch_block->id()] = true;
             worklist.push_back(catch_block);
           }
         }
       }
 
       current->ForEachSuccessor([&](BasicBlock* succ) {
-        if (!reachable_blocks.contains(succ)) {
-          reachable_blocks.insert(succ);
+        if (!reachable_blocks[succ->id()]) {
+          reachable_blocks[succ->id()] = true;
           worklist.push_back(succ);
         }
       });
     }
 
-    ZoneVector<BasicBlock*> new_blocks(zone());
-    for (BasicBlock* bb : graph_->blocks()) {
-      if (reachable_blocks.contains(bb)) {
-        new_blocks.push_back(bb);
-        // Remove unreachable predecessors.
-        // If block doesn't have a merge state, it has only one predecessor, so
-        // it must be the reachable one.
-        if (!bb->has_state()) continue;
-        if (bb->is_loop() &&
-            !reachable_blocks.contains(bb->backedge_predecessor())) {
-          // If the backedge predecessor is not reachable, we can turn the loop
-          // into a regular block.
-          bb->state()->TurnLoopIntoRegularBlock();
-        }
-        for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
-          if (!reachable_blocks.contains(bb->predecessor_at(i))) {
-            bb->state()->RemovePredecessorAt(i);
-          }
+    // Sweep dead blocks and remove unreachable predecessors.
+    graph_->IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
+      if (!reachable_blocks[bb->id()]) return true;
+      // If block doesn't have a merge state, it has only one predecessor, so
+      // it must be the reachable one.
+      if (!bb->has_state()) return false;
+      if (bb->is_loop() &&
+          !reachable_blocks[bb->backedge_predecessor()->id()]) {
+        // If the backedge predecessor is not reachable, we can turn the loop
+        // into a regular block.
+        bb->state()->TurnLoopIntoRegularBlock();
+      }
+      for (int i = bb->predecessor_count() - 1; i >= 0; i--) {
+        if (!reachable_blocks[bb->predecessor_at(i)->id()]) {
+          bb->state()->RemovePredecessorAt(i);
         }
       }
-    }
-    graph_->set_blocks(new_blocks);
+      return false;
+    });
   }
 };
 

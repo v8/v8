@@ -74,14 +74,12 @@ class BasicBlock {
 
   // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
   // nodes before |node| in the basic block. |node| itself is dropped.
-  std::optional<ZoneVector<Node*>> Split(Node* node, Zone* zone) {
+  ZoneVector<Node*> Split(Node* node, Zone* zone) {
     size_t split = 0;
     for (; split < nodes_.size(); split++) {
       if (nodes_[split] == node) break;
     }
-    if (split == nodes_.size()) {
-      return {};
-    }
+    DCHECK_NE(split, nodes_.size());
     size_t after_split = split + 1;
     ZoneVector<Node*> result(nodes_.size() - after_split, zone);
     for (size_t i = 0; i < result.size(); i++) {
@@ -138,6 +136,10 @@ class BasicBlock {
   void set_start_block_of_switch_case(bool value) {
     is_start_block_of_switch_case_ = value;
   }
+
+  bool is_dead() const { return is_dead_; }
+
+  void mark_dead() { is_dead_ = true; }
 
   Phi::List* phis() const {
     DCHECK(has_phi());
@@ -304,6 +306,7 @@ class BasicBlock {
   enum : uint8_t { kMerge, kEdgeSplit, kOther } type_;
   bool deferred_ : 1 = false;
   bool is_start_block_of_switch_case_ : 1 = false;
+  bool is_dead_ : 1 = false;
 
   Id id_ = kInvalidBlockId;
 

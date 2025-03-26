@@ -78,6 +78,27 @@ class Graph final : public ZoneObject {
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
 
+  template <typename Function>
+  void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
+    auto current = blocks_.begin();
+    auto last_non_dead = current;
+    while (current != blocks_.end()) {
+      if (is_dead(*current)) {
+        (*current)->mark_dead();
+      } else {
+        if (current != last_non_dead) {
+          // Move current to last non dead position.
+          *last_non_dead = *current;
+        }
+        ++last_non_dead;
+      }
+      ++current;
+    }
+    if (current != last_non_dead) {
+      blocks_.resize(blocks_.size() - (current - last_non_dead));
+    }
+  }
+
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
   uint32_t max_call_stack_args() const { return max_call_stack_args_; }
