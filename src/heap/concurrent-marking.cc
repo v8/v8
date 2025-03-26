@@ -246,12 +246,8 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        concurrent_marking_->heap_->isolate());
     // Set the current isolate such that trusted pointer tables etc are
-    // available.
+    // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
 
     if (delegate->IsJoiningThread()) {
@@ -298,12 +294,8 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        concurrent_marking_->heap_->isolate());
     // Set the current isolate such that trusted pointer tables etc are
-    // available.
+    // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(concurrent_marking_->heap_->isolate());
 
     if (delegate->IsJoiningThread()) {

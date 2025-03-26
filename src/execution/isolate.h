@@ -25,6 +25,7 @@
 #include "src/base/platform/platform-posix.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/common/ptr-compr.h"
 #include "src/common/thread-local-storage.h"
 #include "src/debug/interface-types.h"
 #include "src/execution/execution.h"
@@ -3116,16 +3117,20 @@ class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
 
 // Set the current isolate for the thread *without* entering the isolate. Used
 // e.g. by background GC threads to be able to access pointer tables.
-class V8_NODISCARD SetCurrentIsolateScope {
+// This subsumes a `PtrComprCageAccessScope` which is needed in the same
+// contexts in order to be able to access on-heap objects.
+class V8_NODISCARD SetCurrentIsolateScope final {
  public:
   explicit SetCurrentIsolateScope(Isolate* isolate)
-      : previous_isolate_(Isolate::TryGetCurrent()) {
+      : ptr_compr_cage_access_scope_(isolate),
+        previous_isolate_(Isolate::TryGetCurrent()) {
     Isolate::SetCurrent(isolate);
   }
 
   ~SetCurrentIsolateScope() { Isolate::SetCurrent(previous_isolate_); }
 
  private:
+  V8_NO_UNIQUE_ADDRESS PtrComprCageAccessScope ptr_compr_cage_access_scope_;
   Isolate* const previous_isolate_;
 };
 

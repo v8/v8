@@ -196,7 +196,7 @@ class ArrayBufferSweeper::SweepingState::SweepingJob final : public JobTask {
 void ArrayBufferSweeper::SweepingState::SweepingJob::Run(
     JobDelegate* delegate) {
   // Set the current isolate such that trusted pointer tables etc are
-  // available.
+  // available and the cage base is set correctly for multi-cage mode.
   SetCurrentIsolateScope isolate_scope(heap_->isolate());
   const ThreadKind thread_kind =
       delegate->IsJoiningThread() ? ThreadKind::kMain : ThreadKind::kBackground;

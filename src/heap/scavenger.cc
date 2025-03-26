@@ -259,10 +259,9 @@ ScavengerCollector::JobTask::JobTask(
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
-  // In case multi-cage pointer compression mode is enabled ensure that
-  // current thread's cage base values are properly initialized.
-  PtrComprCageAccessScope ptr_compr_cage_access_scope(
-      collector_->heap_->isolate());
+  // Set the current isolate such that trusted pointer tables etc are
+  // available and the cage base is set correctly for multi-cage mode.
+  SetCurrentIsolateScope isolate_scope(collector_->heap_->isolate());
 
   collector_->estimate_concurrency_.fetch_add(1, std::memory_order_relaxed);
 
@@ -301,9 +300,6 @@ void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,
   double scavenging_time = 0.0;
   {
     TimedScope scope(&scavenging_time);
-    // Set the current isolate such that trusted pointer tables etc are
-    // available.
-    SetCurrentIsolateScope isolate_scope(collector_->heap_->isolate());
 
     scavenger->VisitPinnedObjects();
     ConcurrentScavengePages(scavenger);

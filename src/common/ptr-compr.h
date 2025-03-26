@@ -242,6 +242,8 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 // When multi-cage pointer compression mode is enabled this scope object
 // saves current cage's base values and sets them according to given Isolate.
 // For all other configurations this scope object is a no-op.
+// Note: In most cases you want a full `SetCurrentIsolateScope` which also
+// updates TLS to make the isolate the "current" isolate.
 class PtrComprCageAccessScope final {
  public:
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -249,7 +251,6 @@ class PtrComprCageAccessScope final {
   V8_INLINE ~PtrComprCageAccessScope();
 #else
   V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
-  V8_INLINE ~PtrComprCageAccessScope() {}
 #endif
 
  private:

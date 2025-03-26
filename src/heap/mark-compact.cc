@@ -2607,9 +2607,9 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
                       GCTracer::Scope::MC_CLEAR_STRING_TABLE)) {}
 
   void Run(JobDelegate* delegate) final {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(isolate_);
 
     if (isolate_->OwnsStringTables()) {
       TRACE_GC1_WITH_FLOW(isolate_->heap()->tracer(),
@@ -2824,9 +2824,9 @@ class ClearSharedStructTypeRegistryJobItem final
   }
 
   void Run(JobDelegate* delegate) final {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(isolate_);
 
     auto* registry = isolate_->shared_struct_type_registry();
     SharedStructTypeRegistryCleaner cleaner(isolate_->heap());
@@ -2852,9 +2852,9 @@ class MarkCompactCollector::ClearTrivialWeakRefJobItem final
   void Run(JobDelegate* delegate) final {
     Heap* heap = collector_->heap();
 
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(heap->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(heap->isolate());
 
     TRACE_GC1_WITH_FLOW(heap->tracer(),
                         GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL,
@@ -2886,9 +2886,9 @@ class MarkCompactCollector::FilterNonTrivialWeakRefJobItem final
   void Run(JobDelegate* delegate) final {
     Heap* heap = collector_->heap();
 
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(heap->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(heap->isolate());
 
     TRACE_GC1_WITH_FLOW(
         heap->tracer(),
@@ -4690,10 +4690,9 @@ class PageEvacuationJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        collector_->heap()->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(collector_->heap()->isolate());
 
     Evacuator* evacuator = (*evacuators_)[delegate->GetTaskId()].get();
     if (delegate->IsJoiningThread()) {
@@ -5141,10 +5140,9 @@ class PointersUpdatingJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        collector_->heap()->isolate());
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(collector_->heap()->isolate());
 
     if (delegate->IsJoiningThread()) {
       TRACE_GC_WITH_FLOW(tracer_,
