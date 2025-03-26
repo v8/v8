@@ -10,10 +10,12 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-inl.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8::internal {
 
+// TODO(396607238): Replace all callers with `Isolate::Current()->heap()`.
 V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   // Do not use this method on shared objects. This method would always return
@@ -23,9 +25,13 @@ V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   // use Isolate::Current(). From there you can access the shared space isolate
   // with `isolate->shared_space_isolate()` if needed.
   DCHECK(!chunk->InWritableSharedSpace());
-  return chunk->GetHeap();
+  Heap* heap = chunk->GetHeap();
+  // TODO(396607238): Make this a `SBXCHECK`.
+  DCHECK_EQ(heap->isolate(), Isolate::TryGetCurrent());
+  return heap;
 }
 
+// TODO(396607238): Replace all callers with `Isolate::Current()`.
 V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
 }
