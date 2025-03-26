@@ -712,8 +712,9 @@ void CpuProfile::StreamPendingTraceEvents() {
         if (!samples_[i].trace_id.has_value()) {
           continue;
         }
-        value->SetUnsignedInteger(std::to_string(i).c_str(),
-                                  samples_[i].trace_id.value());
+        value->SetUnsignedInteger(
+            std::to_string(samples_[i].trace_id.value()).c_str(),
+            samples_[i].node->id());
       }
       value->EndDictionary();
     }
