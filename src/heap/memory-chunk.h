@@ -137,9 +137,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // A new space page that will be promoted to old space by the end of the GC.
     // This flag should only ever be set during a scavenge cycle.
     WILL_BE_PROMOTED = 1u << 24,
-
-    // Set on pages which were shrunk to the "high water mark".
-    SHRINK_TO_HIGH_WATER_MARK = 1u << 25,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;

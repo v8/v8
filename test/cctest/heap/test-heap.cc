@@ -643,6 +643,10 @@ TEST(BytecodeArray) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
+  // Ensures that the BytecodeArray isn't allocated on a NEVER_EVACUATE page.
+  heap::AbandonCurrentlyFreeMemory(
+      CcTest::i_isolate()->heap()->trusted_space());
+
   heap::SimulateFullSpace(heap->old_space());
   IndirectHandle<TrustedFixedArray> constant_pool =
       factory->NewTrustedFixedArray(5);
