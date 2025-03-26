@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_TURBOSHAFT_MAGLEV_GRAPH_BUILDING_PHASE_H_
-#define V8_COMPILER_TURBOSHAFT_MAGLEV_GRAPH_BUILDING_PHASE_H_
+#ifndef V8_COMPILER_TURBOSHAFT_TURBOLEV_GRAPH_BUILDER_H_
+#define V8_COMPILER_TURBOSHAFT_TURBOLEV_GRAPH_BUILDER_H_
 
 #include <optional>
 
@@ -21,4 +21,4 @@ struct MaglevGraphBuildingPhase {
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_COMPILER_TURBOSHAFT_MAGLEV_GRAPH_BUILDING_PHASE_H_
+#endif  // V8_COMPILER_TURBOSHAFT_TURBOLEV_GRAPH_BUILDER_H_

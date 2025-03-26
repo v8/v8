@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/turboshaft/maglev-graph-building-phase.h"
+#include "src/compiler/turboshaft/turbolev-graph-builder.h"
 
 #include <limits>
 #include <memory>
