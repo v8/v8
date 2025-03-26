@@ -376,9 +376,12 @@ def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
         files_to_check=(file_inclusion_pattern,),
         files_to_skip=files_to_skip)
 
+  to_non_inl = lambda filename: filename[:-len("-inl.h")] + ".h"
   problems = []
   for f in input_api.AffectedSourceFiles(FilterFile):
-    non_inl_header = f.LocalPath()[:-6] + ".h"
+    if not os.path.isfile(to_non_inl(f.AbsoluteLocalPath())):
+      continue
+    non_inl_header = to_non_inl(f.LocalPath())
     first_include = None
     for line in f.NewContents():
       if line.startswith('#include '):
