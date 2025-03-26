@@ -1833,7 +1833,7 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
                          MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
   Loong64OperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
@@ -1863,10 +1863,10 @@ void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
                                 MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
   Loong64OperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
-  OpIndex old_value = atomic_op.expected();
+  OpIndex old_value = atomic_op.expected().value();
   OpIndex new_value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
@@ -1895,7 +1895,7 @@ void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
                       MemoryAccessKind access_kind) {
   using OpIndex = OpIndex;
   Loong64OperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
