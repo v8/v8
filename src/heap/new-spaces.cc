@@ -371,6 +371,7 @@ void SemiSpace::MoveQuarantinedPage(MemoryChunk* chunk) {
   // to is moved to "to space" to keep pinned objects as live.
   DCHECK_EQ(kToSpace, id_);
   DCHECK(chunk->IsQuarantined());
+  DCHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
   DCHECK(chunk->IsFromPage());
   PageMetadata* page = PageMetadata::cast(chunk->Metadata());
   SemiSpace& from_space = heap_->semi_space_new_space()->from_space();
@@ -663,8 +664,7 @@ void SemiSpaceNewSpace::MakeUnusedPagesInToSpaceIterable() {
   }
 }
 
-bool SemiSpaceNewSpace::ShouldPageBePromoted(Address address) const {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+bool SemiSpaceNewSpace::ShouldPageBePromoted(const MemoryChunk* chunk) const {
   if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
     return false;
   }

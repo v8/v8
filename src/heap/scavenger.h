@@ -11,6 +11,7 @@
 #include "src/heap/evacuation-allocator.h"
 #include "src/heap/heap-visitor.h"
 #include "src/heap/index-generator.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/pretenuring-handler.h"
@@ -81,7 +82,8 @@ class Scavenger {
   // Returns true if the object is a large young object, and false otherwise.
   bool PromoteIfLargeObject(Tagged<HeapObject> object);
 
-  void PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map);
+  void PushPinnedObject(MemoryChunk* chunk, Tagged<HeapObject> object,
+                        Tagged<Map> map);
   void VisitPinnedObjects();
 
   size_t bytes_copied() const { return copied_size_; }

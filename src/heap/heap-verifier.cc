@@ -412,6 +412,7 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   CHECK(!current_chunk_.has_value());
   CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
   CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
+  CHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
   CHECK(!chunk->IsQuarantined());
   if (chunk->InReadOnlySpace()) {
     CHECK_NULL(chunk_metadata->owner());
@@ -481,7 +482,9 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
-  Tagged<Map> map = object->map(cage_base_);
+  MapWord map_word = object->map_word(cage_base_, kRelaxedLoad);
+  CHECK(!map_word.IsForwardingAddress());
+  Tagged<Map> map = map_word.ToMap();
   CHECK(IsMap(map, cage_base_));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));

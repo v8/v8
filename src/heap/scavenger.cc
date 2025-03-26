@@ -497,8 +497,12 @@ using PinnedObjects = std::vector<std::pair<Address, MapWord>>;
 template <typename ConcreteVisitor>
 class ObjectPinningVisitorBase : public RootVisitor {
  public:
-  ObjectPinningVisitorBase(Scavenger& scavenger, PinnedObjects& pinned_objects)
-      : RootVisitor(), scavenger_(scavenger), pinned_objects_(pinned_objects) {}
+  ObjectPinningVisitorBase(const Heap* heap, Scavenger& scavenger,
+                           PinnedObjects& pinned_objects)
+      : RootVisitor(),
+        heap_(heap),
+        scavenger_(scavenger),
+        pinned_objects_(pinned_objects) {}
 
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) final {
@@ -545,12 +549,19 @@ class ObjectPinningVisitorBase : public RootVisitor {
     object->set_map_word_forwarded(object, kRelaxedStore);
     DCHECK(object->map_word(kRelaxedLoad).IsForwardingAddress());
     DCHECK(HeapLayout::IsSelfForwarded(object));
-    MemoryChunk::FromHeapObject(object)->SetFlagNonExecutable(
-        MemoryChunk::IS_QUARANTINED);
-    scavenger_.PushPinnedObject(object, map_word.ToMap());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    if (!chunk->IsQuarantined()) {
+      chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      if (v8_flags.scavenger_promote_quarantined_pages &&
+          heap_->semi_space_new_space()->ShouldPageBePromoted(chunk)) {
+        chunk->SetFlagNonExecutable(MemoryChunk::WILL_BE_PROMOTED);
+      }
+    }
+    scavenger_.PushPinnedObject(chunk, object, map_word.ToMap());
   }
 
  private:
+  const Heap* const heap_;
   Scavenger& scavenger_;
   PinnedObjects& pinned_objects_;
 };
@@ -558,10 +569,10 @@ class ObjectPinningVisitorBase : public RootVisitor {
 class ConservativeObjectPinningVisitor final
     : public ObjectPinningVisitorBase<ConservativeObjectPinningVisitor> {
  public:
-  ConservativeObjectPinningVisitor(Scavenger& scavenger,
+  ConservativeObjectPinningVisitor(const Heap* heap, Scavenger& scavenger,
                                    PinnedObjects& pinned_objects)
       : ObjectPinningVisitorBase<ConservativeObjectPinningVisitor>(
-            scavenger, pinned_objects) {}
+            heap, scavenger, pinned_objects) {}
 
  private:
   void HandlePointer(FullObjectSlot p) {
@@ -574,9 +585,9 @@ class ConservativeObjectPinningVisitor final
 class PreciseObjectPinningVisitor final
     : public ObjectPinningVisitorBase<PreciseObjectPinningVisitor> {
  public:
-  PreciseObjectPinningVisitor(Scavenger& scavenger,
+  PreciseObjectPinningVisitor(const Heap* heap, Scavenger& scavenger,
                               PinnedObjects& pinned_objects)
-      : ObjectPinningVisitorBase<PreciseObjectPinningVisitor>(scavenger,
+      : ObjectPinningVisitorBase<PreciseObjectPinningVisitor>(heap, scavenger,
                                                               pinned_objects) {}
 
  private:
@@ -711,8 +722,7 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
     std::vector<std::pair<Address, size_t>>& pinned_objects_and_sizes =
         it.second;
     DCHECK(chunk->IsFromPage());
-    if (v8_flags.scavenger_promote_quarantined_pages &&
-        new_space.ShouldPageBePromoted(chunk->address())) {
+    if (chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED)) {
       new_space.PromotePageToOldSpace(
           static_cast<PageMetadata*>(chunk->Metadata()));
       DCHECK(!chunk->InYoungGeneration());
@@ -720,11 +730,14 @@ void RestoreAndQuarantinePinnedObjects(SemiSpaceNewSpace& new_space,
                            pinned_objects_and_sizes);
     } else {
       new_space.MoveQuarantinedPage(chunk);
-      DCHECK(!chunk->IsFromPage());
       DCHECK(chunk->IsToPage());
       quarantined_objects_size +=
           SweepQuarantinedPage(create_filler, chunk, pinned_objects_and_sizes);
     }
+    DCHECK(PageMetadata::cast(chunk->Metadata())->marking_bitmap()->IsClean());
+    DCHECK(!chunk->IsFromPage());
+    DCHECK(!chunk->IsQuarantined());
+    DCHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
   }
   new_space.SetQuarantinedSize(quarantined_objects_size);
 }
@@ -803,7 +816,7 @@ void ScavengerCollector::CollectGarbage() {
         TRACE_GC(heap_->tracer(),
                  GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
         ConservativeObjectPinningVisitor conservative_pinning_visitor(
-            main_thread_scavenger, pinned_objects);
+            heap_, main_thread_scavenger, pinned_objects);
         // Scavenger reuses the page's marking bitmap as a temporary object
         // start bitmap. Stack scanning will incrementally build the map as it
         // searches through pages.
@@ -819,7 +832,7 @@ void ScavengerCollector::CollectGarbage() {
       }
       if (v8_flags.scavenger_precise_object_pinning) {
         PreciseObjectPinningVisitor precise_pinning_visitor(
-            main_thread_scavenger, pinned_objects);
+            heap_, main_thread_scavenger, pinned_objects);
         ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
             heap_, &precise_pinning_visitor);
         heap_->IterateRootsForPrecisePinning(&left_trim_visitor);
@@ -1289,8 +1302,8 @@ void Scavenger::Finalize() {
         !HeapLayout::InYoungGeneration(it.first) ||
             (HeapLayout::IsSelfForwarded(it.first) &&
              MemoryChunk::FromHeapObject(it.first)->IsQuarantined() &&
-             heap()->semi_space_new_space()->ShouldPageBePromoted(
-                 it.first->address())));
+             MemoryChunk::FromHeapObject(it.first)->IsFlagSet(
+                 MemoryChunk::WILL_BE_PROMOTED)));
     heap()->ephemeron_remembered_set()->RecordEphemeronKeyWrites(
         it.first, std::move(it.second));
   }
@@ -1348,13 +1361,13 @@ bool Scavenger::PromoteIfLargeObject(Tagged<HeapObject> object) {
                            Map::ObjectFieldsFrom(map->visitor_id()));
 }
 
-void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map) {
+void Scavenger::PushPinnedObject(MemoryChunk* chunk, Tagged<HeapObject> object,
+                                 Tagged<Map> map) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
   int object_size = object->SizeFromMap(map);
   PretenuringHandler::UpdateAllocationSite(heap_, map, object, object_size,
                                            &local_pretenuring_feedback_);
-  if (v8_flags.scavenger_promote_quarantined_pages &&
-      heap_->semi_space_new_space()->ShouldPageBePromoted(object->address())) {
+  if (chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED)) {
     local_promoted_list_.Push({object, map, object_size});
     promoted_size_ += object_size;
   } else {

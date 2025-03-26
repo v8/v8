@@ -129,13 +129,17 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     IS_TRUSTED = 1u << 22,
 
     // A quarantined page that contains objects reachable from stack during a
-    // scavenge. The page will be move to "to space", swept, and not used for
-    // further allocations (to make it easier to keep track of the intermediate
-    // generation). This flag should only ever be set during a scavenge cycle.
+    // scavenge. Quarantined pages are not used for further allocations in new
+    // space (to make it easier to keep track of the intermediate generation).
+    // This flag should only ever be set during a scavenge cycle.
     IS_QUARANTINED = 1u << 23,
 
+    // A new space page that will be promoted to old space by the end of the GC.
+    // This flag should only ever be set during a scavenge cycle.
+    WILL_BE_PROMOTED = 1u << 24,
+
     // Set on pages which were shrunk to the "high water mark".
-    SHRINK_TO_HIGH_WATER_MARK = 1u << 24,
+    SHRINK_TO_HIGH_WATER_MARK = 1u << 25,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
