@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a1aef0f6d2bbdafb69c23f353784d7fe4aa6e5f7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '53e119f1f794b0fe2dd41ec16376b9322b996a98',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '244e7cf4453305d0c17d500662a69fba2e46a73e',
   'buildtools/linux64': {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ca135ac1f3c4133bc887a405b013ed24898bb1ae',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5b44c1060a5371ea57689b4337a8b1c046525ba3',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -255,7 +255,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/simdutf':
-    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '5a9a2134b280c1b956ad68a0643797fe26dd1c94',
+    Var('chromium_url') + '/chromium/src/third_party/simdutf' + '@' + '40d1fa26cd5ca221605c974e22c001ca2fb12fde',
   # Exists for rolling the Fuchsia SDK. Check out of the SDK should always
   # rely on the hook running |update_sdk.py| script below.
   'third_party/fuchsia-sdk/sdk': {
@@ -531,11 +531,11 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '788cb3c270e8700b425c7bdca1f9ce6b0c1400a9',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '496a1936d7ea2717c086a744993985e3125ea5aa',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1c3ff5c90c2bb121d943bfcf3fd72b8eae3fb24f',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'cc230bcfdbc1814256376e30b84be7b2f0d1335f',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'f4cca3dc40b277473f828b98501dbed54c3b6095',
     'condition': 'not build_with_chromium',
   },
   'third_party/zoslib': {
