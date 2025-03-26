@@ -167,6 +167,10 @@ void MinorGCJob::Task::RunInternal() {
   DCHECK_EQ(job_->current_task_id_, id());
   job_->current_task_id_ = CancelableTaskManager::kInvalidTaskId;
 
+  // Set the current isolate such that trusted pointer tables etc are
+  // available.
+  SetCurrentIsolateScope isolate_scope(isolate());
+
   Heap* heap = isolate()->heap();
 
   if (v8_flags.separate_gc_phases &&
