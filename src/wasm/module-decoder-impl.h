@@ -555,23 +555,14 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_base_type_definition() {
+  TypeDefinition consume_base_type_definition(bool is_descriptor) {
     const bool is_final = true;
-    bool shared = false;
+    const bool shared = false;
     uint8_t kind = consume_u8(" kind", tracer_);
-    if (tracer_) tracer_->Description(": ");
-    if (kind == kSharedFlagCode) {
-      if (!v8_flags.experimental_wasm_shared) {
-        errorf(pc() - 1,
-               "unknown type form: %d, enable with --experimental-wasm-shared",
-               kind);
-        return {};
-      }
-      shared = true;
-      module_->has_shared_part = true;
-      kind = consume_u8("shared ", tracer_);
+    if (tracer_) {
+      tracer_->Description(": ");
+      tracer_->Description(TypeKindName(kind));
     }
-    if (tracer_) tracer_->Description(TypeKindName(kind));
     switch (kind) {
       case kWasmFunctionTypeCode: {
         const FunctionSig* sig = consume_sig(&module_->signature_zone);
@@ -583,7 +574,8 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
-        const StructType* type = consume_struct(&module_->signature_zone);
+        const StructType* type =
+            consume_struct(&module_->signature_zone, is_descriptor);
         if (type == nullptr) {
           CHECK(!ok());
           return {};
@@ -604,9 +596,10 @@ class ModuleDecoderImpl : public Decoder {
           error(pc() - 1,
                 "core stack switching not enabled (enable with "
                 "--experimental-wasm-wasmfx)");
+          return {};
         }
 
-        auto pos = pc();
+        const uint8_t* pos = pc();
         HeapType hp = consume_heap_type();
 
         if (!hp.is_index()) {
@@ -621,6 +614,83 @@ class ModuleDecoderImpl : public Decoder {
         if (tracer_) tracer_->NextLine();
         errorf(pc() - 1, "unknown type form: %d", kind);
         return {};
+    }
+  }
+
+  TypeDefinition consume_described_type(bool is_descriptor) {
+    uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
+    if (kind == kWasmDescriptorCode) {
+      if (!enabled_features_.has_custom_descriptors()) {
+        error(pc(),
+              "descriptor types need --experimental-wasm-custom-descriptors");
+        return {};
+      }
+      detected_features_->add_custom_descriptors();
+      consume_bytes(1, " described_by", tracer_);
+      const uint8_t* pos = pc();
+      uint32_t descriptor = consume_u32v("descriptor", tracer_);
+      if (descriptor >= module_->types.size()) {
+        errorf(pos, "descriptor type index %u is out of bounds", descriptor);
+        return {};
+      }
+      if (tracer_) tracer_->NextLine();
+      TypeDefinition type = consume_base_type_definition(is_descriptor);
+      if (type.kind != TypeDefinition::kStruct) {
+        error(pos - 1, "'descriptor' may only be used with structs");
+        return {};
+      }
+      type.descriptor = ModuleTypeIndex{descriptor};
+      return type;
+    } else {
+      return consume_base_type_definition(is_descriptor);
+    }
+  }
+
+  TypeDefinition consume_describing_type(size_t current_type_index) {
+    uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
+    if (kind == kWasmDescribesCode) {
+      if (!enabled_features_.has_custom_descriptors()) {
+        error(pc(),
+              "descriptor types need --experimental-wasm-custom-descriptors");
+        return {};
+      }
+      detected_features_->add_custom_descriptors();
+      consume_bytes(1, " describes", tracer_);
+      const uint8_t* pos = pc();
+      uint32_t describes = consume_u32v("describes", tracer_);
+      if (describes >= current_type_index) {
+        error(pos, "types can only describe previously-declared types");
+        return {};
+      }
+      if (tracer_) tracer_->NextLine();
+      TypeDefinition type = consume_described_type(true);
+      if (type.kind != TypeDefinition::kStruct) {
+        error(pos - 1, "'describes' may only be used with structs");
+        return {};
+      }
+      type.describes = ModuleTypeIndex{describes};
+      return type;
+    } else {
+      return consume_described_type(false);
+    }
+  }
+
+  TypeDefinition consume_shared_type(size_t current_type_index) {
+    uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
+    if (kind == kSharedFlagCode) {
+      if (!v8_flags.experimental_wasm_shared) {
+        errorf(pc() - 1,
+               "unknown type form: %d, enable with --experimental-wasm-shared",
+               kind);
+        return {};
+      }
+      module_->has_shared_part = true;
+      consume_bytes(1, " shared", tracer_);
+      TypeDefinition type = consume_describing_type(current_type_index);
+      type.is_shared = true;
+      return type;
+    } else {
+      return consume_describing_type(current_type_index);
     }
   }
 
@@ -649,12 +719,12 @@ class ModuleDecoderImpl : public Decoder {
           tracer_->NextLine();
         }
       }
-      TypeDefinition type = consume_base_type_definition();
+      TypeDefinition type = consume_shared_type(current_type_index);
       type.supertype = ModuleTypeIndex{supertype};
       type.is_final = is_final;
       return type;
     } else {
-      return consume_base_type_definition();
+      return consume_shared_type(current_type_index);
     }
   }
 
@@ -748,6 +818,32 @@ class ModuleDecoderImpl : public Decoder {
                      "Type %u: shared struct must have shared field types, "
                      "actual type for field %d is %s",
                      i, j, type.name().c_str());
+              return;
+            }
+          }
+          if (type_def.descriptor.valid()) {
+            const TypeDefinition& descriptor =
+                module->type(type_def.descriptor);
+            if (descriptor.describes.index != i) {
+              uint32_t d = type_def.descriptor.index;
+              errorf(pc_,
+                     "Type %u has descriptor %u but %u doesn't describe %u", i,
+                     d, d, i);
+              return;
+            }
+            if (descriptor.is_shared != type_def.is_shared) {
+              errorf(pc_,
+                     "Type %u and its descriptor %u must have same sharedness",
+                     i, type_def.descriptor.index);
+              return;
+            }
+          }
+          if (type_def.describes.valid()) {
+            if (module->type(type_def.describes).descriptor.index != i) {
+              uint32_t d = type_def.describes.index;
+              errorf(pc_,
+                     "Type %u describes %u but %u isn't a descriptor for %u", i,
+                     d, d, i);
               return;
             }
           }
@@ -1817,6 +1913,8 @@ class ModuleDecoderImpl : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
 
+    if (module_->has_shared_part) detected_features_->add_shared();
+
     return toResult(std::move(module_));
   }
 
@@ -2459,7 +2557,7 @@ class ModuleDecoderImpl : public Decoder {
     return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
-  const StructType* consume_struct(Zone* zone) {
+  const StructType* consume_struct(Zone* zone, bool is_descriptor) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
@@ -2473,7 +2571,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return nullptr;
     uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
     StructType* result = zone->New<StructType>(field_count, offsets, fields,
-                                               mutabilities, false);
+                                               mutabilities, is_descriptor);
     result->InitializeOffsets();
     return result;
   }
