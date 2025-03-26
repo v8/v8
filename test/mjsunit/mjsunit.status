@@ -1360,6 +1360,12 @@
 
   # Needs FP16 support.
   'wasm/simd-fp16': [SKIP],
+
+  # Flush to zero is not supported yet.
+  'd8/flush-denormals-flag': [SKIP],
+  'd8/flush-denormals-helper': [SKIP],
+  'd8/flush-denormals-worker': [SKIP],
+  'wasm/denormals': [SKIP]
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
