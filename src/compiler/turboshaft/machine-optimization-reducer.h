@@ -2068,11 +2068,12 @@ class MachineOptimizationReducer : public Next {
         break;
     }
 
-    auto MatchShuffle =
+    auto MatchUnaryShuffle =
         [this](V<Simd128> maybe_shuffle) -> const Simd128ShuffleOp* {
       if (const Simd128ShuffleOp* shuffle =
               matcher_.TryCast<Simd128ShuffleOp>(maybe_shuffle)) {
-        if (shuffle->kind == Simd128ShuffleOp::Kind::kI8x16) {
+        if (shuffle->kind == Simd128ShuffleOp::Kind::kI8x16 &&
+            shuffle->left() == shuffle->right()) {
           return shuffle;
         }
       }
@@ -2116,11 +2117,11 @@ class MachineOptimizationReducer : public Next {
       V<Simd128> operands[2] = {binop->left(), binop->right()};
       for (unsigned i = 0; i < 2; ++i) {
         V<Simd128> operand = operands[i];
-        if (const Simd128ShuffleOp* shuffle = MatchShuffle(operand)) {
+        if (const Simd128ShuffleOp* shuffle = MatchUnaryShuffle(operand)) {
           // Ensure that the input to the shuffle is also the other input to
-          // current binop. We take the left input because all of the shuffle
-          // pattern matching is specified, and will test, for it.
+          // current binop.
           V<Simd128> shuffle_in = shuffle->left();
+          DCHECK_EQ(shuffle_in, shuffle->right());
           V<Simd128> other_operand = operands[i ^ 1];
           if (shuffle_in != other_operand) {
             break;
@@ -2138,20 +2139,6 @@ class MachineOptimizationReducer : public Next {
       goto no_change;
     }
 
-    auto EnsureSwizzle = [](const Simd128ShuffleOp& shuffle) {
-#if DEBUG
-      bool is_swizzle = false;
-      bool needs_swap = false;
-      std::array<uint8_t, kSimd128Size> shuffle_bytes = {0};
-      std::copy(shuffle.shuffle, shuffle.shuffle + kSimd128Size,
-                shuffle_bytes.begin());
-      wasm::SimdShuffle::CanonicalizeShuffle(false, shuffle_bytes.data(),
-                                             &needs_swap, &is_swizzle);
-      CHECK(is_swizzle);
-      CHECK(!needs_swap);
-#endif  // DEBUG
-    };
-
     // Reverse so that they're in execution order, just for readability.
     std::reverse(shuffles.begin(), shuffles.end());
     V<Simd128> reduce_input = shuffles.front()->left();
@@ -2167,9 +2154,6 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle4 = shuffles[3]->shuffle;
           if (wasm::SimdShuffle::TryMatch8x16UpperToLowerReduce(
                   shuffle1, shuffle2, shuffle3, shuffle4)) {
-            for (const auto* shuffle : shuffles) {
-              EnsureSwizzle(*shuffle);
-            }
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI8x16AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2184,9 +2168,6 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle3 = shuffles[2]->shuffle;
           if (wasm::SimdShuffle::TryMatch16x8UpperToLowerReduce(
                   shuffle1, shuffle2, shuffle3)) {
-            for (const auto* shuffle : shuffles) {
-              EnsureSwizzle(*shuffle);
-            }
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI16x8AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2200,9 +2181,6 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           if (wasm::SimdShuffle::TryMatch32x4UpperToLowerReduce(shuffle1,
                                                                 shuffle2)) {
-            for (const auto* shuffle : shuffles) {
-              EnsureSwizzle(*shuffle);
-            }
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kI32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2216,9 +2194,6 @@ class MachineOptimizationReducer : public Next {
           const uint8_t* shuffle2 = shuffles[1]->shuffle;
           if (wasm::SimdShuffle::TryMatch32x4PairwiseReduce(shuffle1,
                                                             shuffle2)) {
-            for (const auto* shuffle : shuffles) {
-              EnsureSwizzle(*shuffle);
-            }
             V<Simd128> reduce = __ Simd128Reduce(
                 reduce_input, Simd128ReduceOp::Kind::kF32x4AddReduce);
             return __ Simd128ExtractLane(reduce, kind, 0);
@@ -2233,7 +2208,6 @@ class MachineOptimizationReducer : public Next {
           if (wasm::SimdShuffle::TryMatch64x2Shuffle(shuffles[0]->shuffle,
                                                      shuffle64x2) &&
               wasm::SimdShuffle::TryMatch64x2Reduce(shuffle64x2)) {
-            EnsureSwizzle(*shuffles[0]);
             V<Simd128> reduce =
                 rep == MachineRepresentation::kWord64
                     ? __ Simd128Reduce(reduce_input,
