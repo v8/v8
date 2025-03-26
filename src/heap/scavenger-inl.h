@@ -175,9 +175,9 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
 
 bool Scavenger::HandleLargeObject(Tagged<Map> map, Tagged<HeapObject> object,
                                   int object_size, ObjectFields object_fields) {
-  if (NEW_LO_SPACE ==
-      MutablePageMetadata::FromHeapObject(object)->owner_identity()) {
-    DCHECK(MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace());
+  if (MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace()) {
+    DCHECK_EQ(NEW_LO_SPACE,
+              MutablePageMetadata::FromHeapObject(object)->owner_identity());
     if (object->relaxed_compare_and_swap_map_word_forwarded(
             MapWord::FromMap(map), object)) {
       local_surviving_new_large_objects_.insert({object, map});
@@ -203,7 +203,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
   CopyAndForwardResult result;
 
   if (HandleLargeObject(map, object, object_size, object_fields)) {
-    return KEEP_SLOT;
+    return REMOVE_SLOT;
   }
 
   SLOW_DCHECK(static_cast<size_t>(object_size) <=
@@ -374,6 +374,16 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   // copied.
   if (first_word.IsForwardingAddress()) {
     Tagged<HeapObject> dest = first_word.ToForwardingAddress(object);
+    DCHECK_IMPLIES(HeapLayout::IsSelfForwarded(object, first_word),
+                   dest == object);
+    if (dest == object) {
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+      return chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED) ||
+                     chunk->IsLargePage()
+                 ? REMOVE_SLOT
+                 : KEEP_SLOT;
+    }
+
     UpdateHeapObjectReferenceSlot(p, dest);
     SynchronizePageAccess(dest);
     // A forwarded object in new space is either in the second (to) semi space,
@@ -388,7 +398,9 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
 
     // This load forces us to have memory ordering for the map load above. We
     // need to have the page header properly initialized.
-    return HeapLayout::InYoungGeneration(dest) ? KEEP_SLOT : REMOVE_SLOT;
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(dest);
+    return !chunk->InYoungGeneration() || chunk->IsLargePage() ? REMOVE_SLOT
+                                                               : KEEP_SLOT;
   }
 
   Tagged<Map> map = first_word.ToMap();
@@ -412,7 +424,11 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
     DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()));
+                   !HeapLayout::InYoungGeneration((*slot).GetHeapObject()) ||
+                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                           ->IsLargePage() ||
+                       MemoryChunk::FromHeapObject((*slot).GetHeapObject())
+                           ->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
     return result;
   } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen when processing of the work list
