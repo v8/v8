@@ -530,7 +530,6 @@ namespace internal {
   F(ActiveTierIsSparkplug, 1, 1)              \
   F(ActiveTierIsMaglev, 1, 1)                 \
   F(ActiveTierIsTurbofan, 1, 1)               \
-  F(ArrayBufferDetachForceWasm, 1, 1)         \
   F(ArrayIteratorProtector, 0, 1)             \
   F(ArraySpeciesProtector, 0, 1)              \
   F(BaselineOsr, -1, 1)                       \

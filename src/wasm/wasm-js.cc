@@ -2792,7 +2792,7 @@ void WebAssemblyMemoryGrowImpl(
   i::DirectHandle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(),
                                                i_isolate);
 
-  uint64_t old_pages = old_buffer->GetByteLength() / i::wasm::kWasmPageSize;
+  uint64_t old_pages = old_buffer->byte_length() / i::wasm::kWasmPageSize;
   uint64_t max_pages = receiver->maximum_pages();
 
   if (delta_pages > max_pages - old_pages) {
@@ -2837,64 +2837,6 @@ void WebAssemblyMemoryGetBufferImpl(
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
 }
 
-// WebAssembly.Memory.toFixedLengthBuffer() -> ArrayBuffer
-void WebAssemblyMemoryToFixedLengthBufferImpl(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toFixedLengthBuffer()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(receiver, WasmMemoryObject);
-
-  i::DirectHandle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
-  DCHECK(IsJSArrayBuffer(*buffer_obj));
-  i::DirectHandle<i::JSArrayBuffer> buffer(
-      i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
-  if (buffer->is_resizable_by_js()) {
-    buffer = i::WasmMemoryObject::ToFixedLengthBuffer(i_isolate, receiver);
-  }
-  if (buffer->is_shared()) {
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
-  }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(buffer));
-}
-
-// WebAssembly.Memory.toResizableBuffer() -> ArrayBuffer
-void WebAssemblyMemoryToResizableBufferImpl(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toResizableBuffer()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(receiver, WasmMemoryObject);
-
-  i::DirectHandle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
-  DCHECK(IsJSArrayBuffer(*buffer_obj));
-  i::DirectHandle<i::JSArrayBuffer> buffer(
-      i::Cast<i::JSArrayBuffer>(*buffer_obj), i_isolate);
-  if (!buffer->is_resizable_by_js()) {
-    if (!receiver->has_maximum_pages()) {
-      thrower.TypeError("Memory must have a maximum");
-      return;
-    }
-    buffer = i::WasmMemoryObject::ToResizableBuffer(i_isolate, receiver);
-  }
-  if (buffer->is_shared()) {
-    Maybe<bool> result =
-        buffer->SetIntegrityLevel(i_isolate, buffer, i::FROZEN, i::kDontThrow);
-    if (!result.FromJust()) {
-      thrower.TypeError(
-          "Status of setting SetIntegrityLevel of buffer is false.");
-      return;
-    }
-  }
-  v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  return_value.Set(Utils::ToLocal(buffer));
-}
-
 // WebAssembly.Memory.type() -> MemoryType
 void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.type()"};
@@ -2902,7 +2844,7 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   EXTRACT_THIS(memory, WasmMemoryObject);
 
   i::DirectHandle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
-  size_t curr_size = buffer->GetByteLength() / i::wasm::kWasmPageSize;
+  size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
   uint32_t min_size = static_cast<uint32_t>(curr_size);
   std::optional<uint32_t> max_size;
@@ -3690,10 +3632,6 @@ void WasmJs::Install(Isolate* isolate) {
     // don't install WebAssembly.promising and WebAssembly.Suspending.
     isolate->WasmInitJSPIFeature();
   }
-
-  if (enabled_features.has_rab_integration()) {
-    InstallResizableBufferIntegration(isolate, native_context, webassembly);
-  }
 }
 
 // static
@@ -3870,23 +3808,6 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   // Make all exported functions an instance of {WebAssembly.Function}.
   context->set_wasm_exported_function_map(*function_map);
   return true;
-}
-
-// static
-void WasmJs::InstallResizableBufferIntegration(
-    Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<JSObject> webassembly) {
-  // Extensibility of the `WebAssembly` object should already have been checked
-  // by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-
-  DirectHandle<JSObject> memory_proto = direct_handle(
-      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
-      isolate);
-  InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
-              wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
-  InstallFunc(isolate, memory_proto, "toResizableBuffer",
-              wasm::WebAssemblyMemoryToResizableBuffer, 0);
 }
 
 namespace wasm {

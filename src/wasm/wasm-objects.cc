@@ -881,7 +881,7 @@ void SetInstanceMemory(Tagged<WasmTrustedInstanceData> trusted_instance_data,
   CHECK_IMPLIES(use_trap_handler, backing_store->has_guard_regions());
   // We checked this before, but a malicious worker thread with an in-sandbox
   // corruption primitive could have modified it since then.
-  size_t byte_length = buffer->GetByteLength();
+  size_t byte_length = buffer->byte_length();
   SBXCHECK_GE(byte_length, memory.min_memory_size);
 
   trusted_instance_data->SetRawMemory(
@@ -920,10 +920,6 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
 #endif
   memory_object->set_instances(ReadOnlyRoots{isolate}.empty_weak_array_list());
 
-  if (buffer->is_resizable_by_js()) {
-    memory_object->FixUpResizableArrayBuffer(*buffer);
-  }
-
   std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
   if (buffer->is_shared()) {
     // Only Wasm memory can be shared (in contrast to asm.js memory).
@@ -933,8 +929,8 @@ DirectHandle<WasmMemoryObject> WasmMemoryObject::New(
     CHECK(!backing_store->is_shared());
   }
 
-  // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
-  // instance.
+  // For debugging purposes we memorize a link from the JSArrayBuffer
+  // to its owning WasmMemoryObject instance.
   DirectHandle<Symbol> symbol =
       isolate->factory()->array_buffer_wasm_memory_symbol();
   Object::SetProperty(isolate, buffer, symbol, memory_object).Check();
@@ -1020,39 +1016,11 @@ void WasmMemoryObject::UseInInstance(
   memory->set_instances(*instances);
 }
 
-void WasmMemoryObject::SetNewBuffer(Isolate* isolate,
-                                    Tagged<JSArrayBuffer> new_buffer) {
+void WasmMemoryObject::SetNewBuffer(Tagged<JSArrayBuffer> new_buffer) {
   DisallowGarbageCollection no_gc;
-  const bool new_buffer_is_resizable_by_js = new_buffer->is_resizable_by_js();
-  if (new_buffer_is_resizable_by_js) {
-    FixUpResizableArrayBuffer(*new_buffer);
-  }
-  Tagged<JSArrayBuffer> old_buffer = array_buffer();
   set_array_buffer(new_buffer);
-  // Iterating and updating all instances is a slow operation, and is required
-  // when the pointer to memory or size of memory changes.
-  //
-  // When refreshing the buffer for changing the resizability of the JS-exposed
-  // (S)AB, both the data pointer and size stay the same, only the JS object
-  // changes.
-  //
-  // When refreshing the buffer for growing a memory exposing a fixed-length
-  // (S)AB (i.e. both the old and new buffers are !is_resizable_by_js()), the
-  // size is changing, and updating the instances is needed.
-  //
-  // This function is never called in a way such that both the old and new
-  // (S)ABs are resizable. Once a Wasm memory exposes a resizable (S)AB,
-  // changing the size does not refresh the buffer.
-  DCHECK(!old_buffer->is_resizable_by_js() ||
-         !new_buffer->is_resizable_by_js());
-  if (!old_buffer->is_resizable_by_js() && !new_buffer_is_resizable_by_js) {
-    UpdateInstances(isolate);
-  }
-}
-
-void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
   Tagged<WeakArrayList> instances = this->instances();
+  Isolate* isolate = Isolate::Current();
   for (int i = 0, len = instances->length(); i < len; ++i) {
     Tagged<MaybeObject> elem = instances->Get(i);
     if (elem.IsCleared()) continue;
@@ -1066,107 +1034,10 @@ void WasmMemoryObject::UpdateInstances(Isolate* isolate) {
     int num_memories = memory_objects->length();
     for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
       if (memory_objects->get(mem_idx) == *this) {
-        SetInstanceMemory(trusted_data, array_buffer(), mem_idx);
+        SetInstanceMemory(trusted_data, new_buffer, mem_idx);
       }
     }
   }
-}
-
-void WasmMemoryObject::FixUpResizableArrayBuffer(
-    Tagged<JSArrayBuffer> new_buffer) {
-  DCHECK(has_maximum_pages());
-  DCHECK(new_buffer->is_resizable_by_js());
-  DisallowGarbageCollection no_gc;
-  if (new_buffer->is_shared()) new_buffer->set_byte_length(0);
-  // Unlike JS-created resizable buffers, Wasm memories' backing store maximum
-  // may differ from the exposed maximum.
-  uintptr_t max_byte_length;
-  if constexpr (kSystemPointerSize == 4) {
-    // The spec says the maximum number of pages for 32-bit memories is 65536,
-    // which means the maximum byte size is 65536 * 65536 (= 2^32), which is
-    // UINT32_MAX+1. BackingStores, ArrayBuffers, and TypedArrays represent byte
-    // lengths as uintptr_t, and UINT32_MAX+1 is not representable on 32bit.
-    //
-    // As a willful violation and gross hack, if we're exposing a Wasm memory
-    // with an unrepresentable maximum, subtract one page size.
-    uint64_t max_byte_length64 =
-        static_cast<uint64_t>(maximum_pages()) * wasm::kWasmPageSize;
-    if (max_byte_length64 > std::numeric_limits<uintptr_t>::max()) {
-      max_byte_length64 =
-          std::numeric_limits<uintptr_t>::max() - wasm::kWasmPageSize;
-      CHECK(new_buffer->GetBackingStore()->max_byte_length() <=
-            max_byte_length64);
-    }
-    max_byte_length = static_cast<uintptr_t>(max_byte_length64);
-  } else {
-    max_byte_length = maximum_pages() * wasm::kWasmPageSize;
-  }
-  new_buffer->set_max_byte_length(max_byte_length);
-}
-
-// static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
-    std::shared_ptr<BackingStore> new_backing_store) {
-  // Detach old and create a new one with the new backing store.
-  DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
-                                         isolate);
-#ifdef DEBUG
-  void* old_data_pointer = old_buffer->backing_store();
-  size_t old_byte_length = old_buffer->byte_length();
-#endif
-  JSArrayBuffer::Detach(old_buffer, true).Check();
-  DirectHandle<JSArrayBuffer> new_buffer =
-      isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
-#ifdef DEBUG
-  bool data_pointer_unchanged = new_buffer->backing_store() == old_data_pointer;
-  bool byte_length_unchanged = new_buffer->byte_length() == old_byte_length;
-  bool resizability_changed =
-      old_buffer->is_resizable_by_js() != new_buffer->is_resizable_by_js();
-  // SetNewBuffer only calls UpdateInstances if resizability didn't change,
-  // which depends on resizability changing not changing the data pointer or
-  // byte length. See comment in SetNewBuffer.
-  DCHECK_IMPLIES(resizability_changed,
-                 data_pointer_unchanged && byte_length_unchanged);
-#endif
-  memory_object->SetNewBuffer(isolate, *new_buffer);
-  // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
-  // instance.
-  DirectHandle<Symbol> symbol =
-      isolate->factory()->array_buffer_wasm_memory_symbol();
-  Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
-  return new_buffer;
-}
-
-// static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::RefreshSharedBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object,
-    ResizableFlag resizable_by_js) {
-  DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
-                                         isolate);
-  std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
-  // Wasm memory always has a BackingStore.
-  CHECK_NOT_NULL(backing_store);
-  CHECK(backing_store->is_wasm_memory());
-  CHECK(backing_store->is_shared());
-
-  // Keep a raw pointer to the backing store for a CHECK later one. Make it
-  // {void*} so we do not accidentally try to use it for anything else.
-  void* expected_backing_store = backing_store.get();
-
-  DirectHandle<JSArrayBuffer> new_buffer =
-      isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
-  CHECK_EQ(expected_backing_store, new_buffer->GetBackingStore().get());
-  if (resizable_by_js == ResizableFlag::kResizable) {
-    new_buffer->set_is_resizable_by_js(true);
-  }
-  memory_object->SetNewBuffer(isolate, *new_buffer);
-  // Memorize a link from the JSArrayBuffer to its owning WasmMemoryObject
-  // instance.
-  DirectHandle<Symbol> symbol =
-      isolate->factory()->array_buffer_wasm_memory_symbol();
-  Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
-  return new_buffer;
 }
 
 // static
@@ -1178,7 +1049,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                          isolate);
 
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
-  // Wasm memory can grow, and Wasm memory always has a backing store.
+  // Only Wasm memory can grow, and Wasm memory always has a backing store.
   DCHECK_NOT_NULL(backing_store);
 
   // Check for maximum memory size.
@@ -1186,7 +1057,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // {BackingStore::CopyWasmMemory}, and is irrelevant for
   // {GrowWasmMemoryInPlace} because memory is never allocated with more
   // capacity than that limit.
-  size_t old_size = old_buffer->GetByteLength();
+  size_t old_size = old_buffer->byte_length();
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
   size_t max_pages = memory_object->is_memory64() ? wasm::max_mem64_pages()
@@ -1198,9 +1069,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   DCHECK_GE(max_pages, old_pages);
   if (pages > max_pages - old_pages) return -1;
 
-  const bool must_grow_in_place = old_buffer->is_shared() ||
-                                  backing_store->has_guard_regions() ||
-                                  backing_store->is_resizable_by_js();
+  const bool must_grow_in_place =
+      old_buffer->is_shared() || backing_store->has_guard_regions();
   const bool try_grow_in_place =
       must_grow_in_place || !v8_flags.stress_wasm_memory_moving;
 
@@ -1221,10 +1091,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (old_buffer->is_shared()) {
     DCHECK(result_inplace.has_value());
     backing_store->BroadcastSharedWasmMemoryGrow(isolate);
-    if (!old_buffer->is_resizable_by_js()) {
-      // Broadcasting the update should update this memory object too.
-      CHECK_NE(*old_buffer, memory_object->array_buffer());
-    }
+    // Broadcasting the update should update this memory object too.
+    CHECK_NE(*old_buffer, memory_object->array_buffer());
     size_t new_pages = result_inplace.value() + pages;
     // If the allocation succeeded, then this can't possibly overflow:
     size_t new_byte_length = new_pages * wasm::kWasmPageSize;
@@ -1233,31 +1101,32 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     // grow the same memory object can come in from different workers.
     // It is also possible that a call to Grow was in progress when
     // handling this call.
-    CHECK_LE(new_byte_length, memory_object->array_buffer()->GetByteLength());
+    CHECK_LE(new_byte_length, memory_object->array_buffer()->byte_length());
     // As {old_pages} was read racefully, we return here the synchronized
     // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
     // read-modify-write behavior required by the spec.
     return static_cast<int32_t>(result_inplace.value());  // success
   }
 
-  size_t new_pages = old_pages + pages;
-  // Check for overflow (should be excluded via {max_pages} above).
-  DCHECK_LE(old_pages, new_pages);
-
   // Check if the non-shared memory could grow in-place.
   if (result_inplace.has_value()) {
-    if (memory_object->array_buffer()->is_resizable_by_js()) {
-      memory_object->array_buffer()->set_byte_length(new_pages *
-                                                     wasm::kWasmPageSize);
-      memory_object->UpdateInstances(isolate);
-    } else {
-      RefreshBuffer(isolate, memory_object, std::move(backing_store));
-    }
+    // Detach old and create a new one with the grown backing store.
+    JSArrayBuffer::Detach(old_buffer, true).Check();
+    DirectHandle<JSArrayBuffer> new_buffer =
+        isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
+    memory_object->SetNewBuffer(*new_buffer);
+    // For debugging purposes we memorize a link from the JSArrayBuffer
+    // to its owning WasmMemoryObject instance.
+    DirectHandle<Symbol> symbol =
+        isolate->factory()->array_buffer_wasm_memory_symbol();
+    Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
     DCHECK_EQ(result_inplace.value(), old_pages);
     return static_cast<int32_t>(result_inplace.value());  // success
   }
-  DCHECK(!memory_object->array_buffer()->is_resizable_by_js());
 
+  size_t new_pages = old_pages + pages;
+  // Check for overflow (should be excluded via {max_pages} above).
+  DCHECK_LE(old_pages, new_pages);
   // Trying to grow in-place without actually growing must always succeed.
   DCHECK_IMPLIES(try_grow_in_place, old_pages < new_pages);
 
@@ -1287,44 +1156,17 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     return -1;
   }
 
-  RefreshBuffer(isolate, memory_object, std::move(new_backing_store));
-
+  // Detach old and create a new one with the new backing store.
+  JSArrayBuffer::Detach(old_buffer, true).Check();
+  DirectHandle<JSArrayBuffer> new_buffer =
+      isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
+  memory_object->SetNewBuffer(*new_buffer);
+  // For debugging purposes we memorize a link from the JSArrayBuffer
+  // to its owning WasmMemoryObject instance.
+  DirectHandle<Symbol> symbol =
+      isolate->factory()->array_buffer_wasm_memory_symbol();
+  Object::SetProperty(isolate, new_buffer, symbol, memory_object).Check();
   return static_cast<int32_t>(old_pages);  // success
-}
-
-// static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::ToFixedLengthBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
-  DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
-                                         isolate);
-  DCHECK(old_buffer->is_resizable_by_js());
-  if (old_buffer->is_shared()) {
-    return RefreshSharedBuffer(isolate, memory_object,
-                               ResizableFlag::kNotResizable);
-  }
-  std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
-  DCHECK_NOT_NULL(backing_store);
-  backing_store->MakeWasmMemoryResizableByJS(false);
-  return RefreshBuffer(isolate, memory_object, std::move(backing_store));
-}
-
-// static
-DirectHandle<JSArrayBuffer> WasmMemoryObject::ToResizableBuffer(
-    Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object) {
-  // Resizable ArrayBuffers require a maximum size during creation. Mirror the
-  // requirement when reflecting Wasm memory as a resizable buffer.
-  DCHECK(memory_object->has_maximum_pages());
-  DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
-                                         isolate);
-  DCHECK(!old_buffer->is_resizable_by_js());
-  if (old_buffer->is_shared()) {
-    return RefreshSharedBuffer(isolate, memory_object,
-                               ResizableFlag::kResizable);
-  }
-  std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
-  DCHECK_NOT_NULL(backing_store);
-  backing_store->MakeWasmMemoryResizableByJS(true);
-  return RefreshBuffer(isolate, memory_object, std::move(backing_store));
 }
 
 MaybeDirectHandle<WasmMemoryMapDescriptor>
@@ -1402,7 +1244,7 @@ size_t WasmMemoryMapDescriptor::MapDescriptor(
     // Overflow
     return 0;
   }
-  if (size + offset > memory->array_buffer()->GetByteLength()) {
+  if (size + offset > memory->array_buffer()->byte_length()) {
     return 0;
   }
 
@@ -1499,7 +1341,7 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
     }
 
     // Check that the offset is in bounds.
-    CHECK_LE(offset + type_size, untagged_buffer->GetByteLength());
+    CHECK_LE(offset + type_size, untagged_buffer->byte_length());
 
     global_obj->set_untagged_buffer(*untagged_buffer);
   }

@@ -214,7 +214,6 @@
   'regress/regress-1320641': [PASS, HEAVY],
   'regress/regress-1447343': [PASS, HEAVY],
   'wasm/grow-huge-memory': [PASS, HEAVY],
-  'wasm/grow-huge-memory-resizable-buffer': [PASS, HEAVY],
   'wasm/huge-memory': [PASS, HEAVY],
   'wasm/many-modules': [PASS, HEAVY],
   'wasm/memory64': [PASS, HEAVY],
@@ -931,7 +930,6 @@
 ['arch in (ia32, arm, riscv32)', {
   # Needs >2GB of available contiguous memory.
   'wasm/grow-huge-memory': [SKIP],
-  'wasm/grow-huge-memory-resizable-buffer': [SKIP],
   'wasm/huge-memory': [SKIP],
   'wasm/huge-typedarray': [SKIP],
   'wasm/bigint-opt': [SKIP],

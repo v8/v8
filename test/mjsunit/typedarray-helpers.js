@@ -78,16 +78,6 @@ function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
   return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
 }
 
-function CreateResizableArrayBufferViaWasm(initial, maximum) {
-  let mem = new WebAssembly.Memory({initial, maximum});
-  return mem.toResizableBuffer();
-}
-
-function CreateGrowableSharedArrayBufferViaWasm(initial, maximum) {
-  let mem = new WebAssembly.Memory({initial, maximum, shared: true});
-  return mem.toResizableBuffer();
-}
-
 function IsBigIntTypedArray(ta) {
   return (ta instanceof BigInt64Array) || (ta instanceof BigUint64Array);
 }

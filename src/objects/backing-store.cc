@@ -161,6 +161,8 @@ BackingStore::~BackingStore() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory()) {
+    // TODO(v8:11111): RAB / GSAB - Wasm integration.
+    DCHECK(!is_resizable_by_js());
     size_t reservation_size = GetReservationSize(
         has_guard_regions(), byte_capacity_, is_wasm_memory64());
     TRACE_BS(
@@ -566,16 +568,6 @@ void BackingStore::RemoveSharedWasmMemoryObjects(Isolate* isolate) {
 void BackingStore::UpdateSharedWasmMemoryObjects(Isolate* isolate) {
   GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(isolate);
 }
-
-void BackingStore::MakeWasmMemoryResizableByJS(bool resizable) {
-  DCHECK(is_wasm_memory());
-  DCHECK(!is_shared());
-  if (resizable) {
-    set_flag(kIsResizableByJs);
-  } else {
-    clear_flag(kIsResizableByJs);
-  }
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // Commit already reserved memory (for RAB backing stores (not shared)).
@@ -882,15 +874,22 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     DirectHandle<WasmMemoryObject> memory_object(Cast<WasmMemoryObject>(obj),
                                                  isolate);
-    if (memory_object->array_buffer()->is_resizable_by_js()) {
-      // If the SharedArrayBuffer is exposed as growable already, there's no
-      // need to refresh it, but instances still need to be updated with the new
-      // length.
-      memory_object->UpdateInstances(isolate);
-    } else {
-      WasmMemoryObject::RefreshSharedBuffer(isolate, memory_object,
-                                            ResizableFlag::kNotResizable);
-    }
+    DirectHandle<JSArrayBuffer> old_buffer(memory_object->array_buffer(),
+                                           isolate);
+    std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
+    // Wasm memory always has a BackingStore.
+    CHECK_NOT_NULL(backing_store);
+    CHECK(backing_store->is_wasm_memory());
+    CHECK(backing_store->is_shared());
+
+    // Keep a raw pointer to the backing store for a CHECK later one. Make it
+    // {void*} so we do not accidentally try to use it for anything else.
+    void* expected_backing_store = backing_store.get();
+
+    DirectHandle<JSArrayBuffer> new_buffer =
+        isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+    CHECK_EQ(expected_backing_store, new_buffer->GetBackingStore().get());
+    memory_object->SetNewBuffer(*new_buffer);
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

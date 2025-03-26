@@ -47,8 +47,6 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyMemoryGrow)                 \
   V(WebAssemblyMemoryMapDescriptorMap)     \
   V(WebAssemblyMemoryMapDescriptorUnmap)   \
-  V(WebAssemblyMemoryToFixedLengthBuffer)  \
-  V(WebAssemblyMemoryToResizableBuffer)    \
   V(WebAssemblyModule)                     \
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \
@@ -97,10 +95,6 @@ class WasmJs {
       DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
-
-  V8_EXPORT_PRIVATE static void InstallResizableBufferIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
 };

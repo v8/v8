@@ -2315,23 +2315,5 @@ RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
 #endif
 }
 
-RUNTIME_FUNCTION(Runtime_ArrayBufferDetachForceWasm) {
-  HandleScope scope(isolate);
-  DisallowGarbageCollection no_gc;
-  if (args.length() > 2 || !IsJSArrayBuffer(*args.at(0))) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  auto array_buffer = Cast<JSArrayBuffer>(args.at(0));
-  if (!array_buffer->GetBackingStore()->is_wasm_memory() ||
-      array_buffer->is_shared()) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  constexpr bool kForceForWasmMemory = true;
-  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer, kForceForWasmMemory,
-                                     args.atOrUndefined(isolate, 1)),
-               ReadOnlyRoots(isolate).exception());
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 }  // namespace internal
 }  // namespace v8

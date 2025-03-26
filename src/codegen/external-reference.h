@@ -384,10 +384,6 @@ enum class IsolateFieldId : uint8_t;
           "wasm::WebAssemblyMemoryMapDescriptorMap")                           \
   IF_WASM(V, wasm_WebAssemblyMemoryMapDescriptorUnmap,                         \
           "wasm::WebAssemblyMemoryMapDescriptorUnmap")                         \
-  IF_WASM(V, wasm_WebAssemblyMemoryToFixedLengthBuffer,                        \
-          "wasm::WebAssemblyMemoryToFixedLengthBuffer")                        \
-  IF_WASM(V, wasm_WebAssemblyMemoryToResizableBuffer,                          \
-          "wasm::WebAssemblyMemoryToResizableBuffer")                          \
   IF_WASM(V, wasm_WebAssemblyModule, "wasm::WebAssemblyModule")                \
   IF_WASM(V, wasm_WebAssemblyModuleCustomSections,                             \
           "wasm::WebAssemblyModuleCustomSections")                             \
