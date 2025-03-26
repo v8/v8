@@ -2351,14 +2351,6 @@ class GraphBuildingNodeProcessor {
     SetMap(node, value);
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckFloat64IsNan* node,
-                                const maglev::ProcessingState& state) {
-    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ DeoptimizeIfNot(__ Float64IsNaN(Map(node->target_input())), frame_state,
-                       node->deoptimize_reason(),
-                       node->eager_deopt_info()->feedback_to_update());
-    return maglev::ProcessResult::kContinue;
-  }
   void CheckMaps(V<Object> receiver_input, V<FrameState> frame_state,
                  OptionalV<Map> object_map, const FeedbackSource& feedback,
                  const compiler::ZoneRefSet<Map>& maps, bool check_heap_object,
@@ -2461,14 +2453,13 @@ class GraphBuildingNodeProcessor {
                        node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::CheckValueEqualsFloat64* node,
+  maglev::ProcessResult Process(maglev::CheckFloat64SameValue* node,
                                 const maglev::ProcessingState& state) {
-    DCHECK(!std::isnan(node->value()));
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    __ DeoptimizeIfNot(
-        __ Float64Equal(Map(node->target_input()), node->value()), frame_state,
-        node->deoptimize_reason(),
-        node->eager_deopt_info()->feedback_to_update());
+    __ DeoptimizeIfNot(__ Float64SameValue(Map(node->target_input()),
+                                           node->value().get_scalar()),
+                       frame_state, node->deoptimize_reason(),
+                       node->eager_deopt_info()->feedback_to_update());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::CheckString* node,

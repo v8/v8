@@ -5871,7 +5871,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
             TryFoldLoadConstantDoubleField(constant_value, access_info);
         if (constant.has_value()) {
           if (!constant->is_nan()) {
-            AddNewNode<CheckValueEqualsFloat64>(
+            AddNewNode<CheckFloat64SameValue>(
                 {GetAccumulator()}, constant.value(),
                 DeoptimizeReason::kStoreToConstant);
             return ReduceResult::Done();
@@ -10883,11 +10883,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckNumericalValue(
     if (!NodeTypeIs(NodeType::kNumber, GetType(node))) {
       return EmitUnconditionalDeopt(reason);
     }
-    if (ref_value.is_nan()) {
-      AddNewNode<CheckFloat64IsNan>({node}, reason);
-    } else {
-      AddNewNode<CheckValueEqualsFloat64>({node}, ref_value, reason);
-    }
+    AddNewNode<CheckFloat64SameValue>({node}, ref_value, reason);
   }
 
   SetKnownValue(node, ref, NodeType::kNumber);

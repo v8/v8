@@ -328,7 +328,6 @@ class ExceptionHandlerInfo;
   V(CheckHeapObject)                          \
   V(CheckInt32Condition)                      \
   V(CheckCacheIndicesNotCleared)              \
-  V(CheckFloat64IsNan)                        \
   V(CheckJSDataViewBounds)                    \
   V(CheckTypedArrayBounds)                    \
   V(CheckTypedArrayNotDetached)               \
@@ -347,7 +346,7 @@ class ExceptionHandlerInfo;
   V(CheckSymbol)                              \
   V(CheckValue)                               \
   V(CheckValueEqualsInt32)                    \
-  V(CheckValueEqualsFloat64)                  \
+  V(CheckFloat64SameValue)                    \
   V(CheckValueEqualsString)                   \
   V(CheckInstanceType)                        \
   V(Dead)                                     \
@@ -6663,22 +6662,19 @@ class CheckValueEqualsInt32 : public FixedInputNodeT<1, CheckValueEqualsInt32> {
   const int32_t value_;
 };
 
-class CheckValueEqualsFloat64
-    : public FixedInputNodeT<1, CheckValueEqualsFloat64> {
-  using Base = FixedInputNodeT<1, CheckValueEqualsFloat64>;
+class CheckFloat64SameValue : public FixedInputNodeT<1, CheckFloat64SameValue> {
+  using Base = FixedInputNodeT<1, CheckFloat64SameValue>;
 
  public:
-  explicit CheckValueEqualsFloat64(uint64_t bitfield, Float64 value,
-                                   DeoptimizeReason reason)
-      : Base(bitfield | ReasonField::encode(reason)), value_(value) {
-    DCHECK(!value.is_nan());
-  }
+  explicit CheckFloat64SameValue(uint64_t bitfield, Float64 value,
+                                 DeoptimizeReason reason)
+      : Base(bitfield | ReasonField::encode(reason)), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
 
-  double value() const { return value_.get_scalar(); }
+  Float64 value() const { return value_; }
 
   static constexpr int kTargetIndex = 0;
   Input& target_input() { return input(kTargetIndex); }
@@ -6693,29 +6689,6 @@ class CheckValueEqualsFloat64
 
  private:
   const Float64 value_;
-};
-
-class CheckFloat64IsNan : public FixedInputNodeT<1, CheckFloat64IsNan> {
-  using Base = FixedInputNodeT<1, CheckFloat64IsNan>;
-
- public:
-  explicit CheckFloat64IsNan(uint64_t bitfield, DeoptimizeReason reason)
-      : Base(bitfield | ReasonField::encode(reason)) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
-
-  static constexpr int kTargetIndex = 0;
-  Input& target_input() { return input(kTargetIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  auto options() const { return std::tuple{deoptimize_reason()}; }
-
-  DEOPTIMIZE_REASON_FIELD
 };
 
 class CheckValueEqualsString

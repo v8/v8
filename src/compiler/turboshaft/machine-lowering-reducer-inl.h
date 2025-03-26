@@ -3203,6 +3203,7 @@ class MachineLoweringReducer : public Next {
   V<Word32> REDUCE(Float64SameValue)(V<Float64> left, V<Float64> right) {
     Label<Word32> done(this);
 
+    // TODO(dmercadier): Optimize if one of the sides is a constant.
     IF (__ Float64Equal(left, right)) {
       // Even if the values are float64-equal, we still need to distinguish
       // zero and minus zero.

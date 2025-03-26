@@ -136,6 +136,29 @@ void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotInt32, this);
 }
 
+void CheckFloat64SameValue::SetValueLocationConstraints() {
+  UseRegister(target_input());
+}
+void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister double_scratch = temps.AcquireScratchDouble();
+  DoubleRegister target = ToDoubleRegister(target_input());
+  if (value().is_nan()) {
+    __ JumpIfNotNan(target, fail);
+  } else {
+    __ Move(double_scratch, value());
+    __ CompareFloat64AndJumpIf(double_scratch, target, kNotEqual, fail, fail);
+    if (value().get_scalar() == 0) {  // If value is +0.0 or -0.0.
+      Register scratch = temps.AcquireScratch();
+      __ movq(scratch, target);
+      __ testq(scratch, scratch);
+      __ JumpIf(value().get_bits() == 0 ? kNotEqual : kEqual, fail);
+    }
+  }
+}
+
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }

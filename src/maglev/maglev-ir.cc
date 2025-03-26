@@ -3353,30 +3353,6 @@ void CheckValueEqualsInt32::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(target, value(), kNotEqual, fail);
 }
 
-void CheckValueEqualsFloat64::SetValueLocationConstraints() {
-  UseRegister(target_input());
-  set_double_temporaries_needed(1);
-}
-void CheckValueEqualsFloat64::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  DoubleRegister scratch = temps.AcquireDouble();
-  DoubleRegister target = ToDoubleRegister(target_input());
-  __ Move(scratch, value());
-  __ CompareFloat64AndJumpIf(scratch, target, kNotEqual, fail, fail);
-}
-
-void CheckFloat64IsNan::SetValueLocationConstraints() {
-  UseRegister(target_input());
-}
-void CheckFloat64IsNan::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
-  DoubleRegister target = ToDoubleRegister(target_input());
-  __ JumpIfNotNan(target, fail);
-}
-
 void CheckValueEqualsString::SetValueLocationConstraints() {
   using D = CallInterfaceDescriptorFor<Builtin::kStringEqual>::type;
   UseFixed(target_input(), D::GetRegisterParameter(D::kLeft));
@@ -7654,11 +7630,6 @@ void TransitionElementsKindOrCheckMap::PrintParams(
   os << "]-->" << *transition_target().object() << ")";
 }
 
-void CheckFloat64IsNan::PrintParams(std::ostream& os,
-                                    MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
-}
-
 void CheckDynamicValue::PrintParams(std::ostream& os,
                                     MaglevGraphLabeller* graph_labeller) const {
   os << "(" << DeoptimizeReasonToString(deoptimize_reason()) << ")";
@@ -7676,10 +7647,10 @@ void CheckValueEqualsInt32::PrintParams(
      << ")";
 }
 
-void CheckValueEqualsFloat64::PrintParams(
+void CheckFloat64SameValue::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << value() << ", " << DeoptimizeReasonToString(deoptimize_reason())
-     << ")";
+  os << "(" << value().get_scalar() << ", "
+     << DeoptimizeReasonToString(deoptimize_reason()) << ")";
 }
 
 void CheckValueEqualsString::PrintParams(
