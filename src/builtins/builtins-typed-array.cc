@@ -437,68 +437,6 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
   return Just<simdutf::result>(simd_result);
 }
 
-Maybe<uint8_t> HexToUint8(Isolate* isolate, base::uc16 hex) {
-  if (hex >= '0' && hex <= '9') {
-    return Just<uint8_t>(hex - '0');
-  } else if (hex >= 'a' && hex <= 'f') {
-    return Just<uint8_t>(hex - 'a' + 10);
-  } else if (hex >= 'A' && hex <= 'F') {
-    return Just<uint8_t>(hex - 'A' + 10);
-  }
-
-  isolate->Throw(
-      *isolate->factory()->NewSyntaxError(MessageTemplate::kInvalidHexString));
-  return Nothing<uint8_t>();
-}
-
-template <typename T>
-Maybe<DirectHandle<JSArrayBuffer>> ArrayBufferFromHex(
-    Isolate* isolate, base::Vector<T> input_vector, size_t& output_length) {
-  const char method_name[] = "Uint8Array.fromHex";
-  size_t input_length = input_vector.size();
-  DirectHandle<JSArrayBuffer> buffer;
-  if (input_length % 2 != 0) {
-    isolate->Throw(*isolate->factory()->NewSyntaxError(
-        MessageTemplate::kInvalidHexString));
-    return Nothing<DirectHandle<JSArrayBuffer>>();
-  }
-
-  output_length = (input_length / 2);
-
-  MaybeDirectHandle<JSArrayBuffer> result_buffer =
-      isolate->factory()->NewJSArrayBufferAndBackingStore(
-          output_length, InitializedFlag::kUninitialized);
-  if (!result_buffer.ToHandle(&buffer)) {
-    isolate->Throw(*isolate->factory()->NewRangeError(
-        MessageTemplate::kOutOfMemory,
-        isolate->factory()->NewStringFromAsciiChecked(method_name)));
-    return Nothing<DirectHandle<JSArrayBuffer>>();
-  }
-
-  size_t index = 0;
-  for (uint32_t i = 0; i < input_length; i += 2) {
-    T higher = input_vector[i];
-    T lower = input_vector[i + 1];
-
-    uint8_t result = 0;
-    Maybe<uint8_t> maybe_result = HexToUint8(isolate, higher);
-    if (!maybe_result.To(&result)) {
-      return Nothing<DirectHandle<JSArrayBuffer>>();
-    }
-
-    uint8_t result_low = 0;
-    Maybe<uint8_t> maybe_result_low = HexToUint8(isolate, lower);
-    if (!maybe_result_low.To(&result_low)) {
-      return Nothing<DirectHandle<JSArrayBuffer>>();
-    }
-
-    result <<= 4;
-    result += result_low;
-    reinterpret_cast<uint8_t*>(buffer->backing_store())[index++] = result;
-  }
-  return Just<DirectHandle<JSArrayBuffer>>(buffer);
-}
-
 }  // namespace
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
@@ -751,6 +689,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.fromhex
 BUILTIN(Uint8ArrayFromHex) {
   HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.fromHex";
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -768,32 +707,46 @@ BUILTIN(Uint8ArrayFromHex) {
   //  a. Throw result.[[Error]].
   // 4. Let resultLength be the length of result.[[Bytes]].
   DirectHandle<JSArrayBuffer> buffer;
-  size_t output_length = 0;
 
+  size_t input_length = input_string->length();
+  if (input_length % 2 != 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
+  size_t output_length = (input_length / 2);
+
+  MaybeDirectHandle<JSArrayBuffer> result_buffer =
+      isolate->factory()->NewJSArrayBufferAndBackingStore(
+          output_length, InitializedFlag::kUninitialized);
+
+  if (!result_buffer.ToHandle(&buffer)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kOutOfMemory,
+                               isolate->factory()->NewStringFromAsciiChecked(
+                                   method_name)));
+  }
+
+  bool result;
   {
     DisallowGarbageCollection no_gc;
     String::FlatContent input_content = input_string->GetFlatContent(no_gc);
 
-    {
-      AllowGarbageCollection gc;
       if (input_content.IsOneByte()) {
         base::Vector<const uint8_t> input_vector =
             input_content.ToOneByteVector();
-
-        MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, buffer,
-            ArrayBufferFromHex(isolate, input_vector, output_length));
+        result = ArrayBufferFromHex(input_vector, buffer, output_length);
       } else {
         base::Vector<const base::uc16> input_vector =
             input_content.ToUC16Vector();
-
-        MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, buffer,
-            ArrayBufferFromHex(isolate, input_vector, output_length));
+        result = ArrayBufferFromHex(input_vector, buffer, output_length);
       }
-    }
   }
 
+  if (!result) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
   // 5. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%,
   //  "%Uint8Array.prototype%", resultLength).
   // 6. Set the value at each index of
