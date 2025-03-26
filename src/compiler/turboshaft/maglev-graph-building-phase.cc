@@ -6073,6 +6073,11 @@ void RunMaglevOptimizations(PipelineData* data,
   if (v8_flags.maglev_non_eager_inlining) {
     maglev::MaglevInliner inliner(compilation_info, maglev_graph);
     inliner.Run(data->info()->trace_turbo_graph());
+
+    maglev::GraphProcessor<maglev::SweepIdentityNodes,
+                           /* visit_identity_nodes */ true>
+        sweep;
+    sweep.ProcessGraph(maglev_graph);
   }
 
   // Phi untagging.

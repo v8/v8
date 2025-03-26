@@ -17,6 +17,26 @@
 
 namespace v8::internal::maglev {
 
+class SweepIdentityNodes {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    for (int i = 0; i < node->input_count(); i++) {
+      Input& input = node->input(i);
+      while (input.node() && input.node()->Is<Identity>()) {
+        node->change_input(i, input.node()->input(0).node());
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+};
+
 // Optimizations involving loops which cannot be done at graph building time.
 // Currently mainly loop invariant code motion.
 class LoopOptimizationProcessor {
@@ -204,6 +224,11 @@ class AnyUseMarkingProcessor {
 
 #ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
+    if (!v8_flags.maglev_untagged_phis) {
+      // These nodes are removed in the phi representation selector, if we are
+      // running without it. Just remove it here.
+      return ProcessResult::kRemove;
+    }
     UNREACHABLE();
   }
 #endif  // DEBUG

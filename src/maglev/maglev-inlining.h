@@ -12,58 +12,10 @@
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
-#include "src/maglev/maglev-deopt-frame-visitor.h"
 #include "src/maglev/maglev-graph-builder.h"
-#include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/objects/shared-function-info.h"
 
 namespace v8::internal::maglev {
-
-class UpdateInputsProcessor {
- public:
-  explicit UpdateInputsProcessor(ValueNode* from, ValueNode* to)
-      : from_(from), to_(to) {}
-
-  void PreProcessGraph(Graph* graph) {}
-  void PostProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
-  void PostPhiProcessing() {}
-
-  template <typename NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    for (Input& input : *node) {
-      if (input.node() == from_) {
-        input.set_node(to_);
-        to_->add_use();
-      }
-    }
-    if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      node->eager_deopt_info()->ForEachInput([&](ValueNode*& node) {
-        if (node == from_) {
-          node = to_;
-          to_->add_use();
-        }
-      });
-    }
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      node->lazy_deopt_info()->ForEachInput([&](ValueNode*& node) {
-        if (node == from_) {
-          node = to_;
-          to_->add_use();
-        }
-      });
-    }
-    return ProcessResult::kContinue;
-  }
-
- private:
-  ValueNode* from_;
-  ValueNode* to_;
-};
 
 class MaglevInliner {
  public:
@@ -98,6 +50,7 @@ class MaglevInliner {
         PrintGraph(std::cout, compilation_info_, graph_);
       }
     }
+
     // Otherwise we print just once at the end.
     if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
         !v8_flags.trace_maglev_inlining_verbose) {
@@ -223,22 +176,7 @@ class MaglevInliner {
       alloc->set_is_returned_value_from_inline_call();
 #endif  // DEBUG
     }
-    // TODO(victorgomes): Use identity nodes instead.
-    GraphProcessor<UpdateInputsProcessor> substitute_use(
-        call_site->generic_call_node, returned_value);
-    substitute_use.ProcessGraph(graph_);
-    // TODO(victorgomes): This is ugly, but it should go away after we use
-    // identity nodes. Patch all arguments vectors inside CatchDetails.
-    for (MaglevCallSiteInfo* call_site_info : graph_->inlineable_calls()) {
-      for (ValueNode*& arg : call_site_info->caller_details.arguments) {
-        if (arg == call_node) {
-          // Note: using the result.value(), since we don't currently accept
-          // conversion nodes inside the arguments vector.
-          arg = result.value();
-        }
-      }
-    }
-
+    call_node->OverwriteWithIdentityTo(returned_value);
     return ReduceResult::Done();
   }
 

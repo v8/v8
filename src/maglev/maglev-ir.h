@@ -2133,6 +2133,19 @@ class NodeBase : public ZoneObject {
     set_properties(new_properties);
   }
 
+  void OverwriteWithIdentityTo(ValueNode* node) {
+    // OverwriteWith() checks if the node we're overwriting to has the same
+    // input count and the same properties. Here we don't need to do that, since
+    // overwriting with a node with property pure, we only need to check if
+    // there is at least 1 input. Since the first input is always the one
+    // closest to the input_base().
+    DCHECK_GE(input_count(), 1);
+    set_opcode(NodeBase::opcode_of<Identity>);
+    set_properties(OpProperties::Pure());
+    bitfield_ = InputCountField::update(bitfield_, 1);
+    change_input(0, node);
+  }
+
   auto options() const { return std::tuple{}; }
 
   void ClearUnstableNodeAspects(KnownNodeAspects&);

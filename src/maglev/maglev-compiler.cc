@@ -126,6 +126,13 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
       MaglevInliner inliner(compilation_info, graph);
       inliner.Run(is_tracing_enabled);
+
+      // TODO(victorgomes): We need to remove all identity nodes before
+      // PhiRepresentationSelector. Since Identity has different semantics
+      // there. Check if we can remove the identity nodes during
+      // PhiRepresentationSelector instead.
+      GraphProcessor<SweepIdentityNodes, /* visit_identity_nodes */ true> sweep;
+      sweep.ProcessGraph(graph);
     }
 
 #ifdef DEBUG
