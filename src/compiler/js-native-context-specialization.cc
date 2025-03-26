@@ -3076,6 +3076,18 @@ JSNativeContextSpecialization::BuildPropertyLoad(
               static_cast<int>(MessageTemplate::kIncompatibleMethodReceiver)),
           jsgraph()->HeapConstantNoHole(factory()->TypedArrayLength_string()),
           receiver, context, frame_state, effect, control);
+
+      // Remember to rewire the IfException edge if this is inside a try-block.
+      if (if_exceptions != nullptr) {
+        // Create the appropriate IfException/IfSuccess projections.
+        Node* const if_exception =
+            graph()->NewNode(common()->IfException(), control, effect);
+        Node* const if_success =
+            graph()->NewNode(common()->IfSuccess(), control);
+        if_exceptions->push_back(if_exception);
+        control = if_success;
+      }
+
     } else {
       const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
       DCHECK_EQ(maps.size(), 1);
