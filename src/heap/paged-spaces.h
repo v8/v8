@@ -279,12 +279,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   const_iterator begin() const { return const_iterator(first_page()); }
   const_iterator end() const { return const_iterator(nullptr); }
 
-  // Shrink immortal immovable pages of the space to be exactly the size needed
-  // using the high water mark.
-  void ShrinkImmortalImmovablePages();
-
-  size_t ShrinkPageToHighWaterMark(PageMetadata* page);
-
   std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
   void AddRangeToActiveSystemPages(PageMetadata* page, Address start,
