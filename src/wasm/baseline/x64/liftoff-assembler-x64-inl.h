@@ -307,6 +307,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
              stack_param_slots * kStackSlotSize +
              CommonFrameConstants::kFixedFrameSizeAboveFp)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
     near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
