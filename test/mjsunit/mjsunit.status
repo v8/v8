@@ -2104,9 +2104,6 @@
 
   # Failing under this variant. https://crbug.com/401016020
   'regress/regress-340921322': [SKIP],
-
-  # Incompatible with stress_background_compile.
-  'regress/regress-350779648': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################

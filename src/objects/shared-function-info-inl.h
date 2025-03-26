@@ -1013,7 +1013,9 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
                 UncompiledData::kHeaderSize);
 
   // Fill the remaining space with filler and clear slots in the trimmed area.
-  heap->NotifyObjectSizeChange(data, UncompiledDataWithPreparseData::kSize,
+  int old_size = data->Size();
+  DCHECK_LE(UncompiledDataWithPreparseData::kSize, old_size);
+  heap->NotifyObjectSizeChange(data, old_size,
                                UncompiledDataWithoutPreparseData::kSize,
                                ClearRecordedSlots::kYes);
 
