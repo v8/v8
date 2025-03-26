@@ -32,6 +32,10 @@
 #include "src/tracing/code-trace-context.h"
 #include "src/tracing/perfetto-utils.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 namespace {
@@ -360,11 +364,10 @@ void PerfettoLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   CodeDataSource::Trace(
       [&](v8::internal::CodeDataSource::TraceContext trace_context) {
         CodeTraceContext ctx = NewCodeTraceContext(trace_context);
-
         auto* code_proto = ctx.set_v8_wasm_code();
         code_proto->set_v8_isolate_iid(ctx.InternIsolate(isolate_));
-        code_proto->set_v8_wasm_script_iid(
-            ctx.InternWasmScript(isolate_, script_id, source_url));
+        code_proto->set_v8_wasm_script_iid(ctx.InternWasmScript(
+            isolate_, script_id, source_url, code->native_module()));
         code_proto->set_function_name(name.begin(), name.size());
         // TODO(carlscab): Set tier
         code_proto->set_instruction_start(code->instruction_start());

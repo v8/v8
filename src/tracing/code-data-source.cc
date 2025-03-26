@@ -17,6 +17,10 @@
 #include "src/tracing/perfetto-logger.h"
 #include "src/tracing/perfetto-utils.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(v8::internal::CodeDataSource,
                                            v8::internal::CodeDataSourceTraits);
 
@@ -227,8 +231,10 @@ uint64_t CodeDataSourceIncrementalState::InternJsFunction(
   return iid;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 uint64_t CodeDataSourceIncrementalState::InternWasmScript(
-    Isolate& isolate, int script_id, const std::string& url) {
+    Isolate& isolate, int script_id, const std::string& url,
+    wasm::NativeModule* native_module) {
   auto [it, was_inserted] = scripts_.emplace(
       CodeDataSourceIncrementalState::ScriptUniqueId{isolate.id(), script_id},
       next_script_iid());
@@ -241,11 +247,15 @@ uint64_t CodeDataSourceIncrementalState::InternWasmScript(
   script->set_iid(iid);
   script->set_script_id(script_id);
   script->set_url(url);
-
-  // TODO(carlscab): Log scrip source if needed.
+  if (log_script_sources()) {
+    base::Vector<const uint8_t> bytes_vec = native_module->wire_bytes();
+    script->set_wire_bytes(bytes_vec.begin(), bytes_vec.size());
+    // TODO(carlscab): Log script source if needed.
+  }
 
   return iid;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunctionName(
     Tagged<String> function_name) {

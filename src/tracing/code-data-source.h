@@ -27,6 +27,12 @@ class Isolate;
 class Script;
 class SharedFunctionInfo;
 
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class NativeModule;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 struct CodeDataSourceTraits : public perfetto::DefaultDataSourceTraits {
   using IncrementalStateType = CodeDataSourceIncrementalState;
   using TlsStateType = void;
@@ -67,8 +73,12 @@ class CodeDataSourceIncrementalState {
                             DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num);
+#if V8_ENABLE_WEBASSEMBLY
   uint64_t InternWasmScript(Isolate& isolate, int script_id,
-                            const std::string& url);
+                            const std::string& url,
+                            wasm::NativeModule* native_module);
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_initialized() const { return initialized_; }
   bool log_script_sources() const { return log_script_sources_; }
