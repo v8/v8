@@ -2370,8 +2370,12 @@ void Heap::ResumeConcurrentThreadsInClients(
 
 bool Heap::CollectGarbageShared(LocalHeap* local_heap,
                                 GarbageCollectionReason gc_reason) {
-  CHECK(deserialization_complete());
   DCHECK(isolate()->has_shared_space());
+
+  if (V8_UNLIKELY(!deserialization_complete_)) {
+    CHECK(always_allocate());
+    FatalProcessOutOfMemory("GC during deserialization");
+  }
 
   Isolate* shared_space_isolate = isolate()->shared_space_isolate();
   return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
