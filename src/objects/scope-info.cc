@@ -21,12 +21,13 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
-                       bool is_live_edit_compare) const {
+// TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
+bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
+                       int* out_last_checked_field) const {
   if (length() != other->length()) return false;
   if (Flags() != other->Flags()) return false;
   for (int index = 0; index < length(); ++index) {
+    if (out_last_checked_field) *out_last_checked_field = index;
     if (index == kFlags) continue;
     if (is_live_edit_compare && index >= kPositionInfoStart &&
         index <= kPositionInfoEnd) {
@@ -72,7 +73,6 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other,
   }
   return true;
 }
-#endif
 
 // static
 template <typename IsolateT>

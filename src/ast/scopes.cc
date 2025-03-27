@@ -2808,12 +2808,59 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
           auto it = scope_infos_to_reuse.find(id);
           if (it != scope_infos_to_reuse.end()) {
             if (V8_LIKELY(*it->second == scope_info)) break;
-            if constexpr (std::is_same_v<IsolateT, Isolate>) {
-              isolate->PushStackTraceAndDie(
-                  reinterpret_cast<void*>(it->second->ptr()),
-                  reinterpret_cast<void*>(scope_info->ptr()));
+
+            // TODO(crbug.com/401059828): remove once crashes are gone.
+            int last_checked_field_index = 0;
+            bool equal_scopes =
+                it->second->Equals(scope_info, parse_info_sfi->live_edited(),
+                                   &last_checked_field_index);
+
+            std::vector<Address> data{
+                scope_info->ptr(),
+                it->second->ptr(),
+                static_cast<Address>(equal_scopes),
+                static_cast<Address>(last_checked_field_index),
+                parse_info_sfi.ptr(),
+                outer.ptr(),
+                0xcafe0000,
+                infos.ptr(),
+                static_cast<Address>(
+                    parse_info->literal()->function_literal_id()),
+                static_cast<Address>(parse_info->max_info_id()),
+                static_cast<Address>(i),
+                0xcafe0001,
+                info.ptr(),
+                static_cast<Address>(id),
+                outer_scope.is_null() ? 0
+                                      : outer_scope.ToHandleChecked()->ptr(),
+                0xcafe0002,
+                scope_info->HasOuterScopeInfo()
+                    ? scope_info->OuterScopeInfo().ptr()
+                    : 0,
+                it->second->HasOuterScopeInfo()
+                    ? it->second->OuterScopeInfo().ptr()
+                    : 0,
+                0xcafe00ff,
+            };
+
+            Isolate* main_thread_isolate =
+                isolate->GetMainThreadIsolateUnsafe();
+            StackTraceFailureMessage::StackTraceMode mode =
+                std::is_same_v<IsolateT, Isolate>
+                    ? StackTraceFailureMessage::kIncludeStackTrace
+                    : StackTraceFailureMessage::kDontIncludeStackTrace;
+            StackTraceFailureMessage message(main_thread_isolate, mode,
+                                             &data[0], data.size());
+            message.Print();
+            if (equal_scopes) {
+              // Proceed execution if the scopes are structurally equal.
+              // isolate->PushStackTraceAndContinue(...);
+              V8::GetCurrentPlatform()->DumpWithoutCrashing();
+              break;
             }
-            UNREACHABLE();
+            // The scopes are different, stop here.
+            // isolate->PushStackTraceAndDie(...);
+            base::OS::Abort();
           }
           scope_infos_to_reuse[id] = handle(scope_info, isolate);
           if (!scope_info->HasOuterScopeInfo()) break;

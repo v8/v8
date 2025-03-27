@@ -250,7 +250,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // come from debug evaluate but are different to IsDebugEvaluateScope().
   bool IsReplModeScope() const;
 
-#ifdef DEBUG
   // For LiveEdit we ignore:
   //   - position info: "unchanged" functions are allowed to move in a script
   //   - module info: SourceTextModuleInfo::Equals compares exact FixedArray
@@ -258,8 +257,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   //   - outer scope info: LiveEdit already analyses outer scopes of unchanged
   //     functions. Also checking it here will break in really subtle cases
   //     e.g. changing a let to a const in an outer function, which is fine.
-  bool Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare = false) const;
-#endif
+  bool Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare = false,
+              int* out_last_checked_field = nullptr) const;
 
   template <typename IsolateT>
   static Handle<ScopeInfo> Create(IsolateT* isolate, Zone* zone, Scope* scope,

@@ -81,7 +81,7 @@ Tagged<FixedArray> SourceTextModuleInfo::namespace_imports() const {
   return Cast<FixedArray>(get(kNamespaceImportsIndex));
 }
 
-#ifdef DEBUG
+// TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
 bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
@@ -89,7 +89,6 @@ bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
          namespace_imports() == other->namespace_imports() &&
          module_requests() == other->module_requests();
 }
-#endif
 
 struct ModuleHandleHash {
   V8_INLINE size_t operator()(DirectHandle<Module> module) const {

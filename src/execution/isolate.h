@@ -3100,7 +3100,7 @@ class StackTraceFailureMessage {
 
   uintptr_t start_marker_ = kStartMarker;
   Isolate* isolate_;
-  Address ptrs_[6] = {};
+  Address ptrs_[64] = {};
   uintptr_t middle_marker_ = kMiddleMarker;
   Address code_objects_[4] = {};
   char js_stack_trace_[kStacktraceBufferSize] = {};

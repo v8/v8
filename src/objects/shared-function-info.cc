@@ -766,6 +766,9 @@ int SharedFunctionInfo::EndPosition() const {
 void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
     IsolateForSandbox isolate, FunctionLiteral* lit) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
+  // TODO(crbug.com/401059828): remove once crashes are gone.
+  set_live_edited(true);
+
   if (IsScopeInfo(maybe_scope_info)) {
     // Updating the ScopeInfo is safe since they are identical modulo
     // source positions.
