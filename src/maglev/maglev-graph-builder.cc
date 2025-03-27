@@ -4806,12 +4806,10 @@ bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
   return HasDisjointType(lhs, GetType(rhs));
 }
 
-// Note: this is conservative, ie, returns true if {lhs} cannot be {rhs}.
-// It might return false even if {lhs} is not {rhs}.
 bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
   NodeType meet = CombineType(lhs_type, rhs_type);
-  return NodeTypeCannotHaveInstances(meet);
+  return IsEmptyNodeType(meet);
 }
 
 bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
@@ -5031,7 +5029,7 @@ class KnownMapsMerger {
   bool existing_known_maps_found_ = true;
   bool emit_check_with_migration_ = false;
   bool any_map_is_unstable_ = false;
-  NodeType node_type_ = static_cast<NodeType>(-1);
+  NodeType node_type_ = EmptyNodeType();
 
   Zone* zone() const { return zone_; }
 
