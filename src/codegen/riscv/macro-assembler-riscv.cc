@@ -6192,7 +6192,14 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
   Register right_reg = no_reg;
   Register scratch = temps.Acquire();
   if (!right.is_reg()) {
-    li(scratch, Operand(right));
+    if (!right.IsHeapNumberRequest()) {
+      // emulate sext.w behavior for imm input
+      int64_t imm;
+      imm = static_cast<int32_t>(right.immediate() & 0xFFFFFFFFU);
+      li(scratch, Operand(imm));
+    } else {
+      li(scratch, Operand(right));
+    }
     right_reg = scratch;
   } else {
     right_reg = right.rm();
@@ -6202,22 +6209,17 @@ void MacroAssembler::MulOverflow32(Register dst, Register left,
   DCHECK(overflow != left && overflow != right_reg);
   if (sign_extend_inputs) {
     sext_w(overflow, left);
-    // if right operand wasn't a register then we can overwrite right_reg
-    if (!right.is_reg()) {
-      rs2 = right_reg;
-      sext_w(right_reg, right_reg);
-    } else {
-      rs2 = scratch;
+    if (right.is_reg()) {
       sext_w(scratch, right_reg);
     }
     rs1 = overflow;
+    rs2 = scratch;
   } else {
     // we can skip sext_w on register inputs if not requested
     rs1 = left;
     rs2 = right_reg;
-    if (!right.is_reg()) {
-      sext_w(right_reg, right_reg);
-    } else {
+    // no need in assert if input was imm
+    if (right.is_reg()) {
       AssertSignExtended(rs2);
     }
     AssertSignExtended(rs1);
