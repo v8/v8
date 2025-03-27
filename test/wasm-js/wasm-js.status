@@ -33,8 +33,6 @@
   # TODO(https://crbug.com/42202693): RAB / GSAB integration.
   'wpt/memory/to-fixed-length-buffer': [FAIL],
   'wpt/memory/to-resizable-buffer': [FAIL],
-  'wpt/memory/to-resizable-buffer-shared': [FAIL],
-  'wpt/memory/to-fixed-length-buffer-shared': [FAIL],
 
   # TODO(402340845): This requires the type reflection proposal to be staged or enabled by default.
   'wpt/function/call.tentative': [FAIL],

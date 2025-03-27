@@ -214,6 +214,7 @@
   'regress/regress-1320641': [PASS, HEAVY],
   'regress/regress-1447343': [PASS, HEAVY],
   'wasm/grow-huge-memory': [PASS, HEAVY],
+  'wasm/grow-huge-memory-resizable-buffer': [PASS, HEAVY],
   'wasm/huge-memory': [PASS, HEAVY],
   'wasm/many-modules': [PASS, HEAVY],
   'wasm/memory64': [PASS, HEAVY],
@@ -927,6 +928,7 @@
 ['arch in (ia32, arm, riscv32)', {
   # Needs >2GB of available contiguous memory.
   'wasm/grow-huge-memory': [SKIP],
+  'wasm/grow-huge-memory-resizable-buffer': [SKIP],
   'wasm/huge-memory': [SKIP],
   'wasm/huge-typedarray': [SKIP],
   'wasm/bigint-opt': [SKIP],
@@ -2115,6 +2117,27 @@
   # slow.
   'harmony/array-to-reversed-big': [SKIP],
   'harmony/array-to-spliced-big': [SKIP],
+
+  # These test Array.prototype methods on ArrayBuffers that are multiples of
+  # Wasm page size, which is very slow in the slow path.
+  'wasm/memory-resizable-buffer-array-concat': [SKIP],
+  'wasm/memory-resizable-buffer-array-concat-dictionary-mode': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-flatmap-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-foreach-reduce': [SKIP],
+  'wasm/memory-resizable-buffer-array-from-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-pop-shift': [SKIP],
+  'wasm/memory-resizable-buffer-array-push-unshift-splice': [SKIP],
+  'wasm/memory-resizable-buffer-array-slice': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-concat': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flat-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flatmap-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-from-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-pop-shift': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-push-unshift-splice': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-slice': [SKIP],
 }],  # variant == slow_path
 
 ['(arch == mips64el or arch == mips64) and not simd_mips', {

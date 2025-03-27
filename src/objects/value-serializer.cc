@@ -284,6 +284,12 @@ enum class ErrorTag : uint8_t {
   kEnd = '.',
 };
 
+enum class WasmMemoryArrayBufferTag : uint8_t {
+  kFixedLength = 'f',
+  kResizableNotFollowedByWasmMemory = 'r',
+  kResizableFollowedByWasmMemory = 'w'
+};
+
 }  // namespace
 
 ValueSerializer::ValueSerializer(Isolate* isolate,
@@ -968,6 +974,47 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
 
     WriteTag(SerializationTag::kSharedArrayBuffer);
     WriteVarint(index.FromJust());
+
+#if V8_ENABLE_WEBASSEMBLY
+    // SharedArrayBuffers that are actually WebAssembly memories need special
+    // handling because they have metadata that may diverge from their
+    // BackingStore's.
+    //
+    // These are handled by also serializing/deserializing their corresponding
+    // WebAssembly.Memory object.
+    //
+    // See comment for WasmMemoryObject::FixUpResizableArrayBuffer for details.
+    auto backing_store = array_buffer->GetBackingStore();
+    if (backing_store && backing_store->is_wasm_memory()) {
+      if (array_buffer->is_resizable_by_js()) {
+        DirectHandle<Symbol> symbol =
+            isolate_->factory()->array_buffer_wasm_memory_symbol();
+        Handle<Object> memory =
+            Object::GetProperty(
+                isolate_, array_buffer,
+                isolate_->factory()->array_buffer_wasm_memory_symbol())
+                .ToHandleChecked();
+        CHECK(IsWasmMemoryObject(*memory));
+        // WebAssembly.Memory and its buffer exist in a reference cycle.
+        // Manually break the cycle, otherwise deserialization will attempt to
+        // read the same ArrayBuffer/WebAssembly.Memory recursively and fail.
+        if (!id_map_.Find(memory)) {
+          WriteVarint(static_cast<uint8_t>(
+              WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory));
+          if (!WriteJSReceiver(Cast<JSReceiver>(memory)).FromMaybe(false)) {
+            return Nothing<bool>();
+          }
+        } else {
+          WriteVarint(static_cast<uint8_t>(
+              WasmMemoryArrayBufferTag::kResizableNotFollowedByWasmMemory));
+        }
+      } else {
+        WriteVarint(
+            static_cast<uint8_t>(WasmMemoryArrayBufferTag::kFixedLength));
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     return ThrowIfOutOfMemory();
   }
 
@@ -2060,6 +2107,38 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
         Utils::OpenDirectHandle(*sab_value);
     DCHECK_EQ(is_shared, array_buffer->is_shared());
     AddObjectWithID(id, array_buffer);
+
+#if V8_ENABLE_WEBASSEMBLY
+    auto backing_store = array_buffer->GetBackingStore();
+    if (backing_store && backing_store->is_wasm_memory()) {
+      uint8_t resizable_subtag;
+      if (!ReadVarint<uint8_t>().To(&resizable_subtag)) {
+        return MaybeDirectHandle<JSArrayBuffer>();
+      }
+      switch (static_cast<WasmMemoryArrayBufferTag>(resizable_subtag)) {
+        case WasmMemoryArrayBufferTag::kFixedLength:
+          // Nothing to do.
+          break;
+        case WasmMemoryArrayBufferTag::kResizableNotFollowedByWasmMemory:
+          // In this case we are in the middle of constructing the
+          // WebAssembly.Memory.
+          array_buffer->set_is_resizable_by_js(true);
+          break;
+        case WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory: {
+          array_buffer->set_is_resizable_by_js(true);
+          DirectHandle<Object> wasm_memory_obj;
+          if (!ReadObject().ToHandle(&wasm_memory_obj) ||
+              !IsWasmMemoryObject(*wasm_memory_obj, isolate_)) {
+            return MaybeDirectHandle<JSArrayBuffer>();
+          }
+          break;
+        }
+        default:
+          return MaybeDirectHandle<JSArrayBuffer>();
+      }
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     return array_buffer;
   }
   uint32_t byte_length;
