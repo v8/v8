@@ -2837,8 +2837,6 @@ template <Operation kOperation>
 ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
-  ValueNode* left = LoadRegister(0);
-  ValueNode* right = GetAccumulator();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
       return EmitUnconditionalDeopt(
@@ -2868,6 +2866,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
     }
     case BinaryOperationHint::kString:
       if constexpr (kOperation == Operation::kAdd) {
+        ValueNode* left = LoadRegister(0);
+        ValueNode* right = GetAccumulator();
         return BuildStringConcat(left, right);
       }
       break;
@@ -2876,6 +2876,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
         if (broker()
                 ->dependencies()
                 ->DependOnStringWrapperToPrimitiveProtector()) {
+          ValueNode* left = LoadRegister(0);
+          ValueNode* right = GetAccumulator();
           BuildCheckStringOrStringWrapper(left);
           BuildCheckStringOrStringWrapper(right);
           left = BuildUnwrapStringWrapper(left);
@@ -2889,15 +2891,6 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
     case BinaryOperationHint::kAny:
       // Fallback to generic node.
       break;
-  }
-  if constexpr (kOperation == Operation::kAdd) {
-    if (CheckType(left, NodeType::kString)) {
-      right = BuildToString(right, ToString::kThrowOnSymbol);
-      return BuildStringConcat(left, right);
-    } else if (CheckType(right, NodeType::kString)) {
-      left = BuildToString(left, ToString::kThrowOnSymbol);
-      return BuildStringConcat(left, right);
-    }
   }
   BuildGenericBinaryOperationNode<kOperation>();
   return ReduceResult::Done();
