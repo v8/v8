@@ -1348,6 +1348,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value& length)                                                       \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
+  F(RefGetDesc, const Value& ref, Value* desc)                                 \
   F(RefTest, HeapType target_type, const Value& obj, Value* result,            \
     bool null_succeeds)                                                        \
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
@@ -5324,6 +5325,28 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value* value = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetU, i31, value);
         return opcode_length;
+      }
+      case kExprRefGetDesc: {
+        NON_CONST_ONLY
+        CHECK_PROTOTYPE_OPCODE(custom_descriptors);
+        // We may need to generalize this to any TypeIndex in the future, but
+        // for now only structs can have descriptors.
+        StructIndexImmediate imm(this, this->pc_ + opcode_length, validate);
+        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
+        const TypeDefinition& type = this->module_->type(imm.index);
+        if (!VALIDATE(type.has_descriptor())) {
+          this->DecodeError(
+              this->pc_ + opcode_length,
+              "Invalid type for ref.get_desc: type %s has no custom descriptor",
+              imm.heap_type().name().c_str());
+          return 0;
+        }
+        Value ref = Pop(ValueType::RefNull(imm.heap_type()));
+        Value* desc =
+            Push(ValueType::Ref(this->module_->heap_type(type.descriptor))
+                     .AsExact(ref.type.exactness()));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefGetDesc, ref, desc);
+        return opcode_length + imm.length;
       }
       case kExprRefCast:
       case kExprRefCastNull: {

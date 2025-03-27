@@ -819,6 +819,10 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
+  void RefGetDesc(FullDecoder* decoder, const Value& ref, Value* desc) {
+    Bailout(decoder);
+  }
+
   void RefTest(FullDecoder* decoder, wasm::HeapType target_type,
                const Value& object, Value* result, bool null_succeeds) {
     Bailout(decoder);

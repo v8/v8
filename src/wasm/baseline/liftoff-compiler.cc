@@ -7110,6 +7110,22 @@ class LiftoffCompiler {
     __ PushRegister(kI32, dst);
   }
 
+  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* desc_val) {
+    LiftoffRegList pinned;
+    LiftoffRegister ref = pinned.set(__ PopToRegister());
+
+    // Implicit null checks don't cover the map load.
+    MaybeEmitNullCheck(decoder, ref.gp(), pinned, ref_val.type);
+
+    LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
+    __ LoadMap(value.gp(), ref.gp());
+    LoadObjectField(
+        decoder, value, value.gp(), no_reg,
+        wasm::ObjectAccess::ToTagged(Map::kInstanceDescriptorsOffset), kRef,
+        false, false, pinned);
+    __ PushRegister(kRef, value);
+  }
+
   LiftoffRegister RttCanon(ModuleTypeIndex type_index, LiftoffRegList pinned) {
     LiftoffRegister rtt = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps, pinned);

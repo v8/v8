@@ -4758,6 +4758,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     }
   }
 
+  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* result) {
+    // Implicit null checks don't cover the map load.
+    V<Object> ref = NullCheck(ref_val);
+    V<Map> map = __ LoadMapField(ref);
+    result->op = __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                         MemoryRepresentation::TaggedPointer(),
+                         Map::kInstanceDescriptorsOffset);
+  }
+
   compiler::ExactOrSubtype GetExactness(FullDecoder* decoder, HeapType target) {
     // For exact target types, an exact match is needed for correctness;
     // for final target types, it's a performance optimization.
