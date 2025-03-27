@@ -4452,24 +4452,24 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
+                 const Value& descriptor, const Value args[], Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
     SmallZoneVector<OpIndex, 16> args_vector(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
-    result->op = StructNewImpl(decoder, imm, args_vector.data());
+    result->op = StructNewImpl(decoder, imm, descriptor, args_vector.data());
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
+                        const Value& descriptor, Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
     SmallZoneVector<OpIndex, 16> args(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; i++) {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
     }
-    result->op = StructNewImpl(decoder, imm, args.data());
+    result->op = StructNewImpl(decoder, imm, descriptor, args.data());
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -8035,12 +8035,51 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     return array;
   }
 
-  V<WasmStruct> StructNewImpl(FullDecoder* decoder,
-                              const StructIndexImmediate& imm, OpIndex args[]) {
-    bool shared = decoder->module_->type(imm.index).is_shared;
-    V<Map> rtt = __ RttCanon(managed_object_maps(shared), imm.index);
+  V<Map> GetRttFromDescriptor(const Value& descriptor) {
+    V<WasmStructNullable> descriptor_struct =
+        V<WasmStructNullable>::Cast(descriptor.op);
+    // TODO(jkummerow): Refactor this to share the logic with
+    // wasm-lowering-reducer.h.
+    bool force_explicit_null_check =
+        !trap_handler::IsTrapHandlerEnabled() || !V8_STATIC_ROOTS_BOOL;
+    bool explicit_null_check =
+        descriptor.type.is_nullable() && force_explicit_null_check;
+    bool implicit_null_check =
+        descriptor.type.is_nullable() && !force_explicit_null_check;
 
-    V<WasmStruct> struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(descriptor_struct, wasm::kWasmAnyRef),
+                TrapId::kTrapNullDereference);
+    }
+    LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
+                                                 : LoadOp::Kind::TaggedBase();
+    load_kind = load_kind.Immutable();
+    return __ Load(descriptor_struct, load_kind,
+                   MemoryRepresentation::TaggedPointer(),
+                   WasmStruct::kHeaderSize);
+  }
+
+  V<WasmStruct> StructNewImpl(FullDecoder* decoder,
+                              const StructIndexImmediate& imm,
+                              const Value& descriptor, OpIndex args[]) {
+    const TypeDefinition& type = decoder->module_->type(imm.index);
+    DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
+    V<Map> rtt;
+    if (type.has_descriptor()) {
+      rtt = GetRttFromDescriptor(descriptor);
+    } else {
+      rtt = __ RttCanon(managed_object_maps(type.is_shared), imm.index);
+    }
+
+    V<WasmStruct> struct_value;
+    if (type.is_descriptor()) {
+      struct_value = CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
+          decoder, {rtt, __ Word32Constant(imm.index.index)});
+    } else {
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
+    }
+
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
       __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
                    compiler::kWithoutNullCheck);

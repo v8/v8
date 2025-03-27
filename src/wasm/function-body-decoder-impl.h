@@ -1222,9 +1222,10 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     Value* result)                                                             \
   F(RefNull, ValueType type, Value* result)                                    \
   F(RefFunc, uint32_t function_index, Value* result)                           \
-  F(StructNew, const StructIndexImmediate& imm, const Value args[],            \
-    Value* result)                                                             \
-  F(StructNewDefault, const StructIndexImmediate& imm, Value* result)          \
+  F(StructNew, const StructIndexImmediate& imm, const Value& descriptor,       \
+    const Value args[], Value* result)                                         \
+  F(StructNewDefault, const StructIndexImmediate& imm,                         \
+    const Value& descriptor, Value* result)                                    \
   F(ArrayNew, const ArrayIndexImmediate& imm, const Value& length,             \
     const Value& initial_value, Value* result)                                 \
   F(ArrayNewDefault, const ArrayIndexImmediate& imm, const Value& length,      \
@@ -4888,6 +4889,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 0;                                                             \
   }
 
+  Value PopDescriptor(ModuleTypeIndex described_index) {
+    const TypeDefinition& type = this->module_->type(described_index);
+    if (!type.has_descriptor()) return Value{nullptr, kWasmVoid};
+    DCHECK(this->enabled_.has_custom_descriptors());
+    ValueType desc_type =
+        ValueType::RefNull(this->module_->heap_type(type.descriptor)).AsExact();
+    return Pop(desc_type);
+  }
+
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     // Bigger GC opcodes are handled via {DecodeStringRefOpcode}, so we can
     // assume here that opcodes are within [0xfb00, 0xfbff].
@@ -4897,9 +4907,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStructNew: {
         StructIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
+        Value descriptor = PopDescriptor(imm.index);
         PoppedArgVector args = PopArgs(imm.struct_type);
-        Value* value = Push(ValueType::Ref(imm.heap_type()));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, args.data(), value);
+        Value* value =
+            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, descriptor,
+                                           args.data(), value);
         return opcode_length + imm.length;
       }
       case kExprStructNewDefault: {
@@ -4917,8 +4930,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             }
           }
         }
-        Value* value = Push(ValueType::Ref(imm.heap_type()));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewDefault, imm, value);
+        Value descriptor = PopDescriptor(imm.index);
+        Value* value =
+            Push(ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled());
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewDefault, imm, descriptor,
+                                           value);
         return opcode_length + imm.length;
       }
       case kExprStructGet: {

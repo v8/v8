@@ -154,22 +154,65 @@ void ConstantExpressionInterface::GlobalGet(FullDecoder* decoder, Value* result,
                 type);
 }
 
+DirectHandle<Map> ConstantExpressionInterface::GetRtt(
+    DirectHandle<WasmTrustedInstanceData> data, ModuleTypeIndex index,
+    const TypeDefinition& type, const Value& descriptor) {
+  if (!type.has_descriptor()) {
+    return direct_handle(
+        Cast<Map>(data->managed_object_maps()->get(index.index)), isolate_);
+  }
+
+  DCHECK(type.has_descriptor());
+  WasmValue desc = descriptor.runtime_value;
+  DCHECK_EQ(desc.type().ref_index(),
+            module_->canonical_type_id(type.descriptor));
+  DirectHandle<Object> maybe_obj = desc.to_ref();
+  if (!IsWasmStruct(*maybe_obj)) {
+    DCHECK(IsNull(*maybe_obj));
+    error_ = MessageTemplate::kWasmTrapNullDereference;
+    return {};
+  }
+  return direct_handle(Cast<WasmStruct>(*maybe_obj)->get_described_rtt(),
+                       isolate_);
+}
+
 void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                             const StructIndexImmediate& imm,
+                                            const Value& descriptor,
                                             const Value args[], Value* result) {
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  DirectHandle<Map> rtt{
-      Cast<Map>(data->managed_object_maps()->get(imm.index.index)), isolate_};
-  WasmValue* field_values =
-      decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
-  for (size_t i = 0; i < imm.struct_type->field_count(); i++) {
-    field_values[i] = args[i].runtime_value;
+  const TypeDefinition& type = module_->type(imm.index);
+  const StructType* struct_type = type.struct_type;
+  DCHECK_EQ(struct_type, imm.struct_type);
+
+  DirectHandle<Map> rtt = GetRtt(data, imm.index, type, descriptor);
+  if (rtt.is_null()) return;  // Trap (descriptor was null).
+
+  DirectHandle<WasmStruct> obj;
+  if (type.is_descriptor()) {
+    obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
+                                                      rtt);
+  } else {
+    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+  }
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
+
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    int offset = struct_type->field_offset(i);
+    if (struct_type->field(i).is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
+    } else {
+      TaggedField<Object, WasmStruct::kHeaderSize>::store(
+          *obj, offset, *args[i].runtime_value.to_ref());
+    }
   }
   result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmStruct(imm.struct_type, field_values, rtt),
-      decoder->module_->canonical_type(ValueType::Ref(imm.heap_type())));
+      obj, decoder->module_->canonical_type(
+               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
 }
 
 void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
@@ -225,21 +268,46 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
 }  // namespace
 
 void ConstantExpressionInterface::StructNewDefault(
-    FullDecoder* decoder, const StructIndexImmediate& imm, Value* result) {
+    FullDecoder* decoder, const StructIndexImmediate& imm,
+    const Value& descriptor, Value* result) {
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
-  DirectHandle<Map> rtt{
-      Cast<Map>(data->managed_object_maps()->get(imm.index.index)), isolate_};
-  WasmValue* field_values =
-      decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
-  for (uint32_t i = 0; i < imm.struct_type->field_count(); i++) {
-    field_values[i] = DefaultValueForType(imm.struct_type->field(i), isolate_,
-                                          decoder->module_);
+  const TypeDefinition& type = module_->type(imm.index);
+  const StructType* struct_type = type.struct_type;
+  DCHECK_EQ(struct_type, imm.struct_type);
+
+  DirectHandle<Map> rtt = GetRtt(data, imm.index, type, descriptor);
+  if (rtt.is_null()) return;  // Trap (descriptor was null).
+
+  DirectHandle<WasmStruct> obj;
+  if (type.is_descriptor()) {
+    obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
+                                                      rtt);
+  } else {
+    obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
   }
+  DisallowGarbageCollection no_gc;  // Must initialize fields first.
+
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    int offset = struct_type->field_offset(i);
+    ValueType ftype = struct_type->field(i);
+    if (ftype.is_numeric()) {
+      uint8_t* address =
+          reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
+      DefaultValueForType(ftype, isolate_, module_)
+          .Packed(ftype)
+          .CopyTo(address);
+    } else {
+      TaggedField<Object, WasmStruct::kHeaderSize>::store(
+          *obj, offset,
+          *DefaultValueForType(ftype, isolate_, module_).to_ref());
+    }
+  }
+
   result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmStruct(imm.struct_type, field_values, rtt),
-      decoder->module_->canonical_type(ValueType::Ref(imm.heap_type())));
+      obj, decoder->module_->canonical_type(
+               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
 }
 
 void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,

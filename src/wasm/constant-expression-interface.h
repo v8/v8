@@ -95,6 +95,10 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
   DirectHandle<WasmTrustedInstanceData> GetTrustedInstanceDataForTypeIndex(
       ModuleTypeIndex index);
 
+  DirectHandle<Map> GetRtt(DirectHandle<WasmTrustedInstanceData> data,
+                           ModuleTypeIndex index, const TypeDefinition& type,
+                           const Value& descriptor);
+
   bool end_found_ = false;
   WasmValue computed_value_;
   MessageTemplate error_ = MessageTemplate::kNone;

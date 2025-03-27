@@ -612,6 +612,18 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct WasmAllocateDescriptorStruct
+      : public Descriptor<WasmAllocateDescriptorStruct> {
+    static constexpr auto kFunction = Builtin::kWasmAllocateDescriptorStruct;
+    using arguments_t = std::tuple<V<Map>, V<Word32>>;
+    using results_t = std::tuple<V<WasmStruct>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects = base_effects.CanAllocate();
+  };
+
   struct WasmGetOwnProperty : public Descriptor<WasmGetOwnProperty> {
     static constexpr auto kFunction = Builtin::kWasmGetOwnProperty;
     using arguments_t = std::tuple<V<Object>, V<Symbol>>;

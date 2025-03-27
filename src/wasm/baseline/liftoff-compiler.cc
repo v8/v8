@@ -6621,15 +6621,48 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
-  void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 bool initial_values_on_stack) {
-    LiftoffRegister rtt = RttCanon(imm.index, {});
+  LiftoffRegister GetRtt(FullDecoder* decoder, ModuleTypeIndex index,
+                         const TypeDefinition& type,
+                         const Value& descriptor_value) {
+    if (!type.has_descriptor()) return RttCanon(index, {});
+    return GetRttFromDescriptorOnStack(decoder, descriptor_value);
+  }
 
-    CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
-                MakeSig::Returns(kRef).Params(kRef, kI32),
-                {VarState{kRef, rtt, 0},
-                 VarState{kI32, WasmStruct::Size(imm.struct_type), 0}},
-                decoder->position());
+  LiftoffRegister GetRttFromDescriptorOnStack(FullDecoder* decoder,
+                                              const Value& descriptor_value) {
+    LiftoffRegList pinned;
+    LiftoffRegister descriptor = pinned.set(__ PopToRegister({}));
+    auto [explicit_check, implicit_check] =
+        null_checks_for_struct_op(descriptor_value.type, 0);
+    if (explicit_check) {
+      MaybeEmitNullCheck(decoder, descriptor.gp(), pinned,
+                         descriptor_value.type);
+    }
+    LiftoffRegister rtt = __ GetUnusedRegister(kGpReg, pinned);
+    LoadObjectField(decoder, rtt, descriptor.gp(), no_reg,
+                    ObjectAccess::ToTagged(WasmStruct::kHeaderSize), kRef,
+                    false, implicit_check, pinned);
+    return rtt;
+  }
+
+  void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
+                 const Value& descriptor, bool initial_values_on_stack) {
+    const TypeDefinition& type = decoder->module_->type(imm.index);
+    LiftoffRegister rtt = GetRtt(decoder, imm.index, type, descriptor);
+
+    if (type.is_descriptor()) {
+      CallBuiltin(Builtin::kWasmAllocateDescriptorStruct,
+                  MakeSig::Returns(kRef).Params(kRef, kI32),
+                  {VarState{kRef, rtt, 0},
+                   VarState{kI32, static_cast<int32_t>(imm.index.index), 0}},
+                  decoder->position());
+    } else {
+      CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
+                  MakeSig::Returns(kRef).Params(kRef, kI32),
+                  {VarState{kRef, rtt, 0},
+                   VarState{kI32, WasmStruct::Size(imm.struct_type), 0}},
+                  decoder->position());
+    }
 
     LiftoffRegister obj(kReturnRegister0);
     LiftoffRegList pinned{obj};
@@ -6664,13 +6697,13 @@ class LiftoffCompiler {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
-    StructNew(decoder, imm, true);
+                 const Value& descriptor, const Value args[], Value* result) {
+    StructNew(decoder, imm, descriptor, true);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
-    StructNew(decoder, imm, false);
+                        const Value& descriptor, Value* result) {
+    StructNew(decoder, imm, descriptor, false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_obj,

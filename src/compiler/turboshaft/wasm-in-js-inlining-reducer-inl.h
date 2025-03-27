@@ -738,11 +738,11 @@ class WasmInJsInliningInterface {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
+                 const Value& descriptor, const Value args[], Value* result) {
     Bailout(decoder);
   }
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
+                        const Value& descriptor, Value* result) {
     Bailout(decoder);
   }
   void StructGet(FullDecoder* decoder, const Value& struct_object,

@@ -43,6 +43,8 @@ extern runtime WasmI64AtomicWait(
     Context, WasmTrustedInstanceData, Smi, Number, BigInt, BigInt): Smi;
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
+extern runtime WasmAllocateDescriptorStruct(
+    Context, WasmTrustedInstanceData, Map, Smi): WasmStruct;
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
@@ -497,6 +499,15 @@ builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
+  return result;
+}
+
+builtin WasmAllocateDescriptorStruct(map: Map, typeIndex: int32): WasmStruct {
+  // TODO(42204563): Figure out support for shared objects.
+  const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
+  const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
+      LoadContextFromInstanceData(trustedData), trustedData, map,
+      SmiTag(Convert<intptr>(typeIndex)));
   return result;
 }
 
