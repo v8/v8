@@ -19,13 +19,17 @@ for (const __v_3 = 0; 1e5 >= __v_3; __v_3--) {
 }
 for (const __v_4 = -10000; __v_4 < 0; __v_4++) {
   console.log();
+  /* VariableOrObjectMutator: Random mutation */
+  __v_4[__getRandomProperty(__v_4, 758323)] = __v_4;
+  if (__v_4 != null && typeof __v_4 == "object") Object.defineProperty(__v_4, __getRandomProperty(__v_4, 947075), {
+    value: -9007199254740990
+  });
 }
 for (const __v_5 = 0n; __v_5 < 10000n; __v_5++) {
   console.log();
+  /* VariableOrObjectMutator: Random mutation */
+  delete __v_5[__getRandomProperty(__v_5, 81149)];
 }
 for (const __v_6 = -0.3; __v_6 < 1000.1; __v_6 += 0.5) {
-  /* VariableOrObjectMutator: Random mutation */
-  __v_6[__getRandomProperty(__v_6, 512187)] = __v_6;
-  __v_6[__getRandomProperty(__v_6, 563500)] = __getRandomObject(118972);
   console.log();
 }

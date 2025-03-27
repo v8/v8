@@ -17,12 +17,12 @@ print("v8-foozzie source: fuzzilli_source");
 // Original: fuzzilli/fuzzdir-2/corpus/program_3.js
 try {
   boom;
-} catch (__v_0) {
-  __prettyPrintExtra(__v_0);
-}
+} catch (__v_0) {}
 try {
   boom;
-} catch (__v_1) {}
+} catch (__v_1) {
+  __caught++;
+}
 try {
   boom;
 } catch (__v_2) {

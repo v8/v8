@@ -93,6 +93,13 @@ const INTERESTING_NON_NUMBER_VALUES = [
 const LARGE_NODE_SIZE = 100;
 const MAX_ARGUMENT_COUNT = 10;
 
+// If chosen, a strict execution order is used for finding available
+// variables, which however limits the choices. The probability is
+// rather low than high, as violations can only occur if calls of
+// enclosing functions are also moved up. Most of these rare violations
+// would be wrapped by the try-catch mutator.
+const STRICT_EXECUTION_ORDER_PROB = 0.3;
+
 function _identifier(identifier) {
   return babelTypes.identifier(identifier);
 }
@@ -141,6 +148,57 @@ function isInfiniteLoop(node) {
           node.test.value === true);
 }
 
+/**
+ * Return if `currentPath` might execute before `otherPath`.
+ *
+ * This is more permissive for function expressions, whose lexical location
+ * has more available identifiers without leading to wrong code when those
+ * are used within the body.
+ *
+ * Behind a probabiliy, this is also more permissive for function declarations.
+ * There, however, depending on where the function call might happen,
+ * the resulting code can cause reference errors.
+ *
+ * The permissive logic for functions and function expressions is only
+ * implemented for one level. It could also be implemented for further nested
+ * levels.
+ *
+ * Example 1:
+ * foo();
+ * let a;
+ * function foo() { using `a` here might cause a reference error}
+ *
+ * Example 2:
+ * let a;
+ * (function () { using `a` here probably can't cause a reference error})();
+ */
+function executesBefore(currentPath, otherPath) {
+  if (!currentPath.willIMaybeExecuteBefore(otherPath)) {
+    return false;
+  }
+
+  // TODO(machenbach): The enclosing function info could be cached across
+  // several calls to executesBefore in the loop below.
+  const enclosingFunExpr = currentPath.findParent(
+      x => x.isFunctionExpression() || x.isArrowFunctionExpression());
+  if (enclosingFunExpr &&
+      !enclosingFunExpr.willIMaybeExecuteBefore(otherPath)) {
+    return false;
+  }
+
+  if (random.choose(module.exports.STRICT_EXECUTION_ORDER_PROB)) {
+    return true;
+  }
+
+  const enclosingFunDecl = currentPath.findParent(
+      x => x.isFunctionDeclaration());
+  if (enclosingFunDecl &&
+      !enclosingFunDecl.willIMaybeExecuteBefore(otherPath)) {
+    return false;
+  }
+  return true;
+}
+
 function* _availableIdentifierNamesGen(path, filter) {
   // TODO(ochang): Consider globals that aren't declared with let/var etc.
   const allBindings = path.scope.getAllBindings();
@@ -150,7 +208,7 @@ function* _availableIdentifierNamesGen(path, filter) {
     }
 
     if (filter === isVariableIdentifier &&
-        path.willIMaybeExecuteBefore(allBindings[key].path)) {
+        executesBefore(path, allBindings[key].path)) {
       continue;
     }
 
@@ -395,6 +453,7 @@ function isLargeNode(node) {
 }
 
 module.exports = {
+  STRICT_EXECUTION_ORDER_PROB: STRICT_EXECUTION_ORDER_PROB,
   callRandomFunction: callRandomFunction,
   concatFlags: concatFlags,
   concatPrograms: concatPrograms,

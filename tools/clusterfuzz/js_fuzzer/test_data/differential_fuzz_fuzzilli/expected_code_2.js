@@ -19,28 +19,29 @@ let __v_0 = {
   a: 1,
   b: 2
 };
+/* DifferentialFuzzMutator: Extra variable printing */
+__prettyPrintExtra(__v_0);
 const __v_1 = 29234234234234;
 function __f_0(__v_2) {
   let __v_3 = __v_2 + 5;
   let __v_4 = dummy;
-  /* DifferentialFuzzMutator: Extra variable printing */
-  __prettyPrintExtra(__v_4);
   let __v_5 = dummy;
   try {
     __v_2++;
     __v_4 = __v_5;
-    __v_5.prop = {};
+    /* DifferentialFuzzMutator: Extra variable printing */
+    __prettyPrintExtra(__v_4);
     __v_5.prop = {};
     __v_5.prop = {};
     /* DifferentialFuzzMutator: Extra variable printing */
     __prettyPrintExtra(__v_5);
     __v_5.prop = {};
     __v_5.prop = {};
-    /* DifferentialFuzzMutator: Extra variable printing */
-    __prettyPrintExtra(__v_5);
+    __v_5.prop = {};
   } catch (__v_6) {
-    __caught++;
     __v_2 = __v_3;
+    /* DifferentialFuzzMutator: Extra variable printing */
+    __prettyPrintExtra(__v_2);
   }
   return {
     a: __v_2,
