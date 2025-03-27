@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_INLINING_H_
 #define V8_MAGLEV_MAGLEV_INLINING_H_
 
+#include <algorithm>
+
 #include "src/base/logging.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
@@ -23,21 +25,17 @@ class MaglevInliner {
       : compilation_info_(compilation_info), graph_(graph) {}
 
   void Run(bool is_tracing_maglev_graphs_enabled) {
-    // TODO(victorgomes): Improve heuristics.
-    // TODO(victorgomes): Reverse the current vector for now, so that we have
-    // the same heuristics as eager inlining. At least for the top-level
-    // function, this is still wrong for the inlining calls inside an inline
-    // function.
-    std::reverse(graph_->inlineable_calls().begin(),
-                 graph_->inlineable_calls().end());
-    while (!graph_->inlineable_calls().empty()) {
+    if (graph_->inlined_functions().empty()) return;
+
+    while (true) {
       if (graph_->total_inlined_bytecode_size() >
           v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
         // No more inlining.
         break;
       }
-      MaglevCallSiteInfo* call_site = graph_->inlineable_calls().back();
-      graph_->inlineable_calls().pop_back();
+      MaglevCallSiteInfo* call_site = ChooseNextCallSite();
+      if (!call_site) break;
+
       MaybeReduceResult result = BuildInlineFunction(call_site);
       if (result.IsFail()) continue;
       // If --trace-maglev-inlining-verbose, we print the graph after each
@@ -65,6 +63,26 @@ class MaglevInliner {
 
   compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   Zone* zone() const { return compilation_info_->zone(); }
+
+  MaglevCallSiteInfo* ChooseNextCallSite() {
+    auto it =
+        v8_flags.maglev_inlining_following_eager_order
+            ? std::ranges::find_if(graph_->inlineable_calls(),
+                                   [](auto* site) { return site != nullptr; })
+            : std::ranges::max_element(
+                  graph_->inlineable_calls(),
+                  [](const MaglevCallSiteInfo* info1,
+                     const MaglevCallSiteInfo* info2) {
+                    if (info1 == nullptr || info2 == nullptr) {
+                      return info2 != nullptr;
+                    }
+                    return info1->score < info2->score;
+                  });
+    if (it == graph_->inlineable_calls().end()) return nullptr;
+    MaglevCallSiteInfo* call_site = *it;
+    *it = nullptr;  // Erase call site.
+    return call_site;
+  }
 
   MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site) {
     CallKnownJSFunction* call_node = call_site->generic_call_node;

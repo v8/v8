@@ -198,6 +198,7 @@ struct MaglevCallSiteInfo {
   MaglevCallerDetails caller_details;
   CallKnownJSFunction* generic_call_node;
   compiler::FeedbackCellRef feedback_cell;
+  float score;
 };
 
 class MaglevGraphBuilder {
@@ -410,7 +411,8 @@ class MaglevGraphBuilder {
   bool is_eager_inline() const {
     DCHECK(is_inline());
     DCHECK_IMPLIES(!caller_details_->is_eager_inline,
-                   v8_flags.maglev_non_eager_inlining);
+                   v8_flags.maglev_non_eager_inlining ||
+                       v8_flags.turbolev_non_eager_inlining);
     return caller_details_->is_eager_inline;
   }
 
@@ -444,6 +446,13 @@ class MaglevGraphBuilder {
   uint32_t NewObjectId() { return graph_->NewObjectId(); }
 
   bool is_turbolev() const { return is_turbolev_; }
+
+  bool is_non_eager_inlining_enabled() const {
+    if (is_turbolev()) {
+      return v8_flags.turbolev_non_eager_inlining;
+    }
+    return v8_flags.maglev_non_eager_inlining;
+  }
 
   // Inlining configuration. For Maglev, we use the Maglev flags, and for
   // Turbolev, we use the Turbofan flags.
@@ -1200,7 +1209,7 @@ class MaglevGraphBuilder {
           DCHECK(node->exception_handler_info()->HasExceptionHandler());
           DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
           if constexpr (std ::is_same_v<NodeT, CallKnownJSFunction>) {
-            if (v8_flags.maglev_non_eager_inlining) {
+            if (is_non_eager_inlining_enabled()) {
               // Ensure that we always have the handler of inline call
               // candidates.
               current_block_->AddExceptionHandler(
@@ -1244,7 +1253,7 @@ class MaglevGraphBuilder {
         new (node->exception_handler_info()) ExceptionHandlerInfo();
         DCHECK(!node->exception_handler_info()->HasExceptionHandler());
         if constexpr (std ::is_same_v<NodeT, CallKnownJSFunction>) {
-          if (v8_flags.maglev_non_eager_inlining) {
+          if (is_non_eager_inlining_enabled()) {
             // Ensure that we always have the handler of inline call candidates.
             current_block_->AddExceptionHandler(node->exception_handler_info());
           }

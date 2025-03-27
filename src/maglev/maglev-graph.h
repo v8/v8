@@ -69,7 +69,8 @@ class Graph final : public ZoneObject {
   void Add(BasicBlock* block) {
     if (block->has_id()) {
       // The inliner adds blocks multiple times.
-      DCHECK(v8_flags.maglev_non_eager_inlining);
+      DCHECK(v8_flags.maglev_non_eager_inlining ||
+             v8_flags.turbolev_non_eager_inlining);
     } else {
       block->set_id(max_block_id_++);
     }

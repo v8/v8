@@ -6061,7 +6061,7 @@ void RunMaglevOptimizations(PipelineData* data,
                             maglev::MaglevGraphBuilder& maglev_graph_builder,
                             maglev::Graph* maglev_graph) {
   // Non-eager inlining.
-  if (v8_flags.maglev_non_eager_inlining) {
+  if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(compilation_info, maglev_graph);
     inliner.Run(data->info()->trace_turbo_graph());
 

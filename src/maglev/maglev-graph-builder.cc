@@ -8399,8 +8399,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
     return {};
   }
 
-  if (!v8_flags.maglev_non_eager_inlining) {
-    compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
+  if (!is_non_eager_inlining_enabled()) {
     graph()->add_inlined_bytecode_size(bytecode.length());
     return BuildEagerInlineCall(context, function, new_target, shared,
                                 feedback_cell, args, call_frequency);
@@ -8423,13 +8423,14 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildInlineCall(
   CatchBlockDetails catch_details =
       GetTryCatchBlockFromInfo(generic_call->exception_handler_info());
   catch_details.deopt_frame_distance++;
+  float score = call_frequency / bytecode.length();
   MaglevCallSiteInfo* call_site = zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           arguments, &generic_call->lazy_deopt_info()->top_frame(),
           known_node_aspects().Clone(zone()), loop_effects_,
           unobserved_context_slot_stores_, catch_details, IsInsideLoop(),
           /* is_eager_inline */ false, call_frequency},
-      generic_call, feedback_cell);
+      generic_call, feedback_cell, score);
   graph()->inlineable_calls().push_back(call_site);
   return generic_call;
 }
