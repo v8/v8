@@ -39,8 +39,9 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Stack Switching proposal. */                                              \
-  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* Old flag for JavaScript Promise Integration proposal. */                  \
+  /* Use --experimental-wasm-jspi instead. */                                  \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
