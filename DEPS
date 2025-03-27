@@ -86,7 +86,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:27.20250315.3.1',
+  'fuchsia_version': 'version:27.20250326.5.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '53e119f1f794b0fe2dd41ec16376b9322b996a98',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c78c56ad7e8a1b6068f4896f3d25a09164a10a28',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '244e7cf4453305d0c17d500662a69fba2e46a73e',
   'buildtools/linux64': {
@@ -471,9 +471,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'cdff1d17a0fbd29683b682fb8e3af7cda31e7ed7',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'b3fc262d1f1294a2653e98b909cebc836eb88f97',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '3dc91fddacac936bb2c67821ecab67d8a68d69c7',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'b370f51abd8b5f78fcca15434fda9cd812592046',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'c84a140c93352cdabbfb547c531be34515b12228',
   'third_party/requests': {
