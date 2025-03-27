@@ -2219,8 +2219,9 @@ void MacroAssembler::AlignedStoreHelper(Reg_T value, const MemOperand& rs,
   if (NeedAdjustBaseAndOffset(source)) {
     Register scratch = temps.Acquire();
     // make sure scratch does not overwrite value
-    if (std::is_same<Reg_T, Register>::value)
+    if (std::is_same<Reg_T, Register>::value) {
       DCHECK(scratch.code() != value.code());
+    }
     DCHECK(scratch != rs.rm());
     AdjustBaseAndOffset(&source, scratch);
   }
