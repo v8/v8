@@ -2327,7 +2327,7 @@
 
 ##############################################################################
 ['arch == mips64el', {
-  # Stack switching is not supported on all platforms.
+  # Stack switching is not supported on MIPS64 platform.
   'wasm/stack-switching': [SKIP],
   'wasm/stack-switching-conditional': [SKIP],
   'wasm/stack-switching-export': [SKIP],
@@ -2345,7 +2345,8 @@
   'regress/wasm/regress-361717714': [SKIP],
   'regress/wasm/regress-365376497': [SKIP],
   'regress/wasm/regress-381917890': [SKIP],
-  'regress/wasm/regress-392928805': [SKIP]
+  'regress/wasm/regress-392928805': [SKIP],
+  'regress/wasm/regress-394091686': [SKIP]
 }],  # (arch == mips64el)
 
 ##############################################################################
