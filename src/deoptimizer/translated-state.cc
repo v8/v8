@@ -63,11 +63,11 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int return_value_offset = 0;
       int return_value_count = 0;
       if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 6);
         return_value_offset = iterator.NextOperand();
         return_value_count = iterator.NextOperand();
       } else {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
       }
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
       Tagged<Object> bytecode_array =
