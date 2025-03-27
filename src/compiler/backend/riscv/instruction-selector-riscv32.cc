@@ -791,7 +791,7 @@ void VisitAtomicBinop(InstructionSelectorT* selector, OpIndex node,
                       ArchOpcode opcode) {
   RiscvOperandGeneratorT g(selector);
   using OpIndex = OpIndex;
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
@@ -1066,7 +1066,7 @@ void VisitAtomicExchange(InstructionSelectorT* selector, OpIndex node,
                          ArchOpcode opcode, AtomicWidth width) {
   RiscvOperandGeneratorT g(selector);
   using OpIndex = OpIndex;
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
@@ -1092,10 +1092,10 @@ void VisitAtomicCompareExchange(InstructionSelectorT* selector, OpIndex node,
                                 ArchOpcode opcode, AtomicWidth width) {
   using OpIndex = OpIndex;
   RiscvOperandGeneratorT g(selector);
-  auto atomic_op = selector->atomic_rmw_view(node);
+  const AtomicRMWOp& atomic_op = selector->Cast<AtomicRMWOp>(node);
   OpIndex base = atomic_op.base();
   OpIndex index = atomic_op.index();
-  OpIndex old_value = atomic_op.expected();
+  OpIndex old_value = atomic_op.expected().value();
   OpIndex new_value = atomic_op.value();
 
   AddressingMode addressing_mode = kMode_MRI;
@@ -1356,12 +1356,12 @@ void InstructionSelectorT::VisitWord32AtomicPairLoad(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32AtomicPairStore(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  auto store = this->word32_atomic_pair_store_view(node);
+  const AtomicWord32PairOp& store = Cast<AtomicWord32PairOp>(node);
 
   OpIndex base = store.base();
-  OpIndex index = store.index();
-  OpIndex value_low = store.value_low();
-  OpIndex value_high = store.value_high();
+  OpIndex index = store.index().value();
+  OpIndex value_low = store.value_low().value();
+  OpIndex value_high = store.value_high().value();
 
   InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
                                  g.UseFixed(value_low, a1),
