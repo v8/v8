@@ -1000,7 +1000,7 @@ inline void MaglevAssembler::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
 inline void MaglevAssembler::DefineExceptionHandlerPoint(NodeBase* node) {
   ExceptionHandlerInfo* info = node->exception_handler_info();
   if (!info->HasExceptionHandler()) return;
-  info->pc_offset = pc_offset_for_safepoint();
+  info->set_pc_offset(pc_offset_for_safepoint());
   code_gen_state()->PushHandlerInfo(node);
 }
 

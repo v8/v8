@@ -150,6 +150,14 @@ class BasicBlock {
     state_->phis()->Add(phi);
   }
 
+  ExceptionHandlerInfo::List& exception_handlers() {
+    return exception_handlers_;
+  }
+
+  void AddExceptionHandler(ExceptionHandlerInfo* handler) {
+    exception_handlers_.Add(handler);
+  }
+
   int predecessor_count() const {
     DCHECK(has_state());
     return state()->predecessor_count();
@@ -312,6 +320,7 @@ class BasicBlock {
 
   ZoneVector<Node*> nodes_;
   ControlNode* control_node_;
+  ExceptionHandlerInfo::List exception_handlers_;
 
   union {
     MergePointInterpreterFrameState* state_;

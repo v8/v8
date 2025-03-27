@@ -1199,6 +1199,14 @@ class MaglevGraphBuilder {
               ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
           DCHECK(node->exception_handler_info()->HasExceptionHandler());
           DCHECK(node->exception_handler_info()->ShouldLazyDeopt());
+          if constexpr (std ::is_same_v<NodeT, CallKnownJSFunction>) {
+            if (v8_flags.maglev_non_eager_inlining) {
+              // Ensure that we always have the handler of inline call
+              // candidates.
+              current_block_->AddExceptionHandler(
+                  node->exception_handler_info());
+            }
+          }
           return;
         }
 
@@ -1219,6 +1227,8 @@ class MaglevGraphBuilder {
         DCHECK(node->exception_handler_info()->HasExceptionHandler());
         DCHECK(!node->exception_handler_info()->ShouldLazyDeopt());
 
+        current_block_->AddExceptionHandler(node->exception_handler_info());
+
         if (IsInsideTryBlock()) {
           // Merge the current state into the handler state.
           auto state = GetCatchBlockFrameState();
@@ -1233,6 +1243,12 @@ class MaglevGraphBuilder {
         // case.
         new (node->exception_handler_info()) ExceptionHandlerInfo();
         DCHECK(!node->exception_handler_info()->HasExceptionHandler());
+        if constexpr (std ::is_same_v<NodeT, CallKnownJSFunction>) {
+          if (v8_flags.maglev_non_eager_inlining) {
+            // Ensure that we always have the handler of inline call candidates.
+            current_block_->AddExceptionHandler(node->exception_handler_info());
+          }
+        }
       }
     }
   }
@@ -1261,7 +1277,7 @@ class MaglevGraphBuilder {
 
   CatchBlockDetails GetTryCatchBlockFromInfo(ExceptionHandlerInfo* info) {
     if (IsInsideTryBlock()) {
-      return {&info->catch_block, !info->ShouldLazyDeopt(), 0};
+      return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), 0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};

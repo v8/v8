@@ -648,7 +648,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   ExceptionHandlerInfo* info = node->exception_handler_info();
   if (!info->HasExceptionHandler() || info->ShouldLazyDeopt()) return;
 
-  BasicBlock* block = info->catch_block.block_ptr();
+  BasicBlock* block = info->catch_block();
   DCHECK(block->is_exception_handler_block());
 
   if (!block->has_phi()) {

@@ -760,7 +760,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
       ExceptionHandlerInfo* info = node->exception_handler_info();
       if (info->HasExceptionHandler() && !info->ShouldLazyDeopt() &&
           !node->properties().is_call()) {
-        BasicBlock* block = info->catch_block.block_ptr();
+        BasicBlock* block = info->catch_block();
         auto spill = [&](auto reg, ValueNode* node) {
           if (node->live_range().end < block->first_id()) return;
           Spill(node);

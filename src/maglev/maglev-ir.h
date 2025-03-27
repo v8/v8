@@ -1781,31 +1781,58 @@ class LazyDeoptInfo : public DeoptInfo {
 
 class ExceptionHandlerInfo {
  public:
+  using List = base::ThreadedList<ExceptionHandlerInfo>;
   enum Mode {
     kNoExceptionHandler = -1,
     kLazyDeopt = -2,
   };
 
   explicit ExceptionHandlerInfo(Mode mode = kNoExceptionHandler)
-      : catch_block(), depth(static_cast<int>(mode)), pc_offset(-1) {}
+      : catch_block_(), depth_(static_cast<int>(mode)), pc_offset_(-1) {}
 
   ExceptionHandlerInfo(BasicBlockRef* catch_block_ref, int depth)
-      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {
+      : catch_block_(catch_block_ref), depth_(depth), pc_offset_(-1) {
     DCHECK_NE(depth, kNoExceptionHandler);
     DCHECK_NE(depth, kLazyDeopt);
   }
 
   ExceptionHandlerInfo(BasicBlock* catch_block_ref, int depth)
-      : catch_block(catch_block_ref), depth(depth), pc_offset(-1) {}
+      : catch_block_(catch_block_ref), depth_(depth), pc_offset_(-1) {}
 
-  bool HasExceptionHandler() const { return depth != kNoExceptionHandler; }
+  bool HasExceptionHandler() const { return depth_ != kNoExceptionHandler; }
 
-  bool ShouldLazyDeopt() const { return depth == kLazyDeopt; }
+  bool ShouldLazyDeopt() const { return depth_ == kLazyDeopt; }
 
-  BasicBlockRef catch_block;
-  Label trampoline_entry;
-  int depth;
-  int pc_offset;
+  Label& trampoline_entry() { return trampoline_entry_; }
+
+  BasicBlockRef* catch_block_ref_address() { return &catch_block_; }
+
+  BasicBlock* catch_block() const { return catch_block_.block_ptr(); }
+
+  int depth() const {
+    DCHECK_NE(depth_, kNoExceptionHandler);
+    DCHECK_NE(depth_, kLazyDeopt);
+    return depth_;
+  }
+
+  int pc_offset() const { return pc_offset_; }
+  void set_pc_offset(int offset) {
+    DCHECK_EQ(pc_offset_, -1);
+    DCHECK_NE(offset, -1);
+    pc_offset_ = offset;
+  }
+
+ private:
+  BasicBlockRef catch_block_;
+  Label trampoline_entry_;
+  int depth_;
+  int pc_offset_;
+
+  ExceptionHandlerInfo* next_ = nullptr;
+  ExceptionHandlerInfo** next() { return &next_; }
+
+  friend List;
+  friend base::ThreadedListTraits<ExceptionHandlerInfo>;
 };
 
 // Dummy type for the initial raw allocation.
@@ -2369,8 +2396,6 @@ void CheckValueInputIs(const NodeBase* node, int i,
 // The Node class hierarchy contains all non-control nodes.
 class Node : public NodeBase {
  public:
-  using List = base::ThreadedListWithUnsafeInsertions<Node>;
-
   inline ValueLocation& result();
 
   static constexpr bool participate_in_cse(Opcode op) {

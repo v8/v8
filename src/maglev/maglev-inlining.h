@@ -86,6 +86,9 @@ class MaglevInliner {
     }
 
     // Truncate the basic block and remove the generic call node.
+    ExceptionHandlerInfo::List rem_handlers_in_call_block;
+    call_block->exception_handlers().TruncateAt(
+        &rem_handlers_in_call_block, call_node->exception_handler_info());
     ZoneVector<Node*> rem_nodes_in_call_block =
         call_block->Split(call_node, zone());
 
@@ -148,6 +151,8 @@ class MaglevInliner {
     BasicBlock* final_block = inner_graph_builder.FinishInlinedBlockForCaller(
         control_node, rem_nodes_in_call_block);
     DCHECK_NOT_NULL(final_block);
+    final_block->exception_handlers().Append(
+        std::move(rem_handlers_in_call_block));
 
     // Update the predecessor of the successors of the {final_block}, that were
     // previously pointing to {call_block}.
@@ -273,18 +278,13 @@ class MaglevInliner {
       BasicBlock* current = worklist.back();
       worklist.pop_back();
 
-      // TODO(victorgomes): This is expensive, maybe cache the blocks that can
-      // be reached via a throw in the block.
-      for (Node* node : current->nodes()) {
-        if (node->properties().can_throw()) {
-          ExceptionHandlerInfo* handler = node->exception_handler_info();
-          if (!handler->HasExceptionHandler()) continue;
-          if (handler->ShouldLazyDeopt()) continue;
-          BasicBlock* catch_block = handler->catch_block.block_ptr();
-          if (!reachable_blocks[catch_block->id()]) {
-            reachable_blocks[catch_block->id()] = true;
-            worklist.push_back(catch_block);
-          }
+      for (auto handler : current->exception_handlers()) {
+        if (!handler->HasExceptionHandler()) continue;
+        if (handler->ShouldLazyDeopt()) continue;
+        BasicBlock* catch_block = handler->catch_block();
+        if (!reachable_blocks[catch_block->id()]) {
+          reachable_blocks[catch_block->id()] = true;
+          worklist.push_back(catch_block);
         }
       }
 

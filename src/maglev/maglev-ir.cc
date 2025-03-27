@@ -439,7 +439,7 @@ const InterpretedDeoptFrame& LazyDeoptInfo::GetFrameForExceptionHandler(
     while (target_frame->type() != DeoptFrame::FrameType::kInterpretedFrame) {
       target_frame = target_frame->parent();
     }
-    if (i == handler_info->depth) break;
+    if (i == handler_info->depth()) break;
     target_frame = target_frame->parent();
   }
   return target_frame->as_interpreted();

@@ -541,7 +541,7 @@ class ExceptionHandlerTrampolineBuilder {
     ExceptionHandlerInfo* const handler_info = node->exception_handler_info();
     if (handler_info->ShouldLazyDeopt()) return;
     DCHECK(handler_info->HasExceptionHandler());
-    BasicBlock* const catch_block = handler_info->catch_block.block_ptr();
+    BasicBlock* const catch_block = handler_info->catch_block();
     LazyDeoptInfo* const deopt_info = node->lazy_deopt_info();
 
     // The exception handler trampoline resolves moves for exception phis and
@@ -572,7 +572,7 @@ class ExceptionHandlerTrampolineBuilder {
     bool save_accumulator = false;
     RecordMoves(lazy_frame.unit(), catch_block, lazy_frame.frame_state(),
                 &direct_moves, &materialising_moves, &save_accumulator);
-    __ BindJumpTarget(&handler_info->trampoline_entry);
+    __ BindJumpTarget(&handler_info->trampoline_entry());
     __ RecordComment("-- Exception handler trampoline START");
     EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
 
@@ -1907,10 +1907,11 @@ void MaglevCodeGenerator::EmitMetadata() {
   handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
   for (NodeBase* node : code_gen_state_.handlers()) {
     ExceptionHandlerInfo* info = node->exception_handler_info();
-    DCHECK_IMPLIES(info->ShouldLazyDeopt(), !info->trampoline_entry.is_bound());
+    DCHECK_IMPLIES(info->ShouldLazyDeopt(),
+                   !info->trampoline_entry().is_bound());
     int pos = info->ShouldLazyDeopt() ? HandlerTable::kLazyDeopt
-                                      : info->trampoline_entry.pos();
-    HandlerTable::EmitReturnEntry(masm(), info->pc_offset, pos);
+                                      : info->trampoline_entry().pos();
+    HandlerTable::EmitReturnEntry(masm(), info->pc_offset(), pos);
   }
 }
 

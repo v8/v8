@@ -5666,7 +5666,7 @@ class GraphBuildingNodeProcessor {
         return;
       }
 
-      catch_block_ = handler_info->catch_block.block_ptr();
+      catch_block_ = handler_info->catch_block();
 
       __ set_current_catch_block(builder_.Map(catch_block_));
 
