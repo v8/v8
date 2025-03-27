@@ -8726,7 +8726,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayMap(
     return DeoptFrameScope(
         this, Builtin::kArrayMapLoopEagerDeoptContinuation, target,
         base::VectorOf<ValueNode*>({receiver, callback, this_arg, result_array,
-                                    index_int32, original_length}));
+                                    next_index_int32, original_length}));
   };
 
   MaybeReduceResult builtin_result = TryReduceArrayIteratingBuiltin(
