@@ -13,6 +13,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"

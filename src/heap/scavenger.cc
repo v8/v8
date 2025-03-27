@@ -11,6 +11,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"

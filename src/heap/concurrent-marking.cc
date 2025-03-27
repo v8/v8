@@ -12,7 +12,7 @@
 #include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/cached-unordered-map.h"
 #include "src/heap/ephemeron-remembered-set.h"

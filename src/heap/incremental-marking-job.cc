@@ -8,7 +8,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/incremental-marking-schedule.h"

@@ -244,17 +244,13 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 // For all other configurations this scope object is a no-op.
 // Note: In most cases you want a full `SetCurrentIsolateScope` which also
 // updates TLS to make the isolate the "current" isolate.
-class PtrComprCageAccessScope final {
- public:
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+class V8_NODISCARD PtrComprCageAccessScope final {
+ public:
   V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate);
   V8_INLINE ~PtrComprCageAccessScope();
-#else
-  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
-#endif
 
  private:
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   const Address cage_base_;
 #ifdef V8_EXTERNAL_CODE_SPACE
   const Address code_cage_base_;
@@ -262,9 +258,14 @@ class PtrComprCageAccessScope final {
   IsolateGroup* saved_current_isolate_group_;
 #ifdef V8_ENABLE_SANDBOX
   Sandbox* saved_current_sandbox_;
-#endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
+#else   // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+class V8_NODISCARD PtrComprCageAccessScope final {
+ public:
+  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
+};
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 V8_INLINE PtrComprCageBase GetPtrComprCageBase();
 

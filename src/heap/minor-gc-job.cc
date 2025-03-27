@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"

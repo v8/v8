@@ -3126,13 +3126,9 @@ class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
 // contexts in order to be able to access on-heap objects.
 class V8_NODISCARD SetCurrentIsolateScope final {
  public:
-  explicit SetCurrentIsolateScope(Isolate* isolate)
-      : ptr_compr_cage_access_scope_(isolate),
-        previous_isolate_(Isolate::TryGetCurrent()) {
-    Isolate::SetCurrent(isolate);
-  }
+  explicit inline SetCurrentIsolateScope(Isolate* isolate);
 
-  ~SetCurrentIsolateScope() { Isolate::SetCurrent(previous_isolate_); }
+  inline ~SetCurrentIsolateScope();
 
  private:
   V8_NO_UNIQUE_ADDRESS PtrComprCageAccessScope ptr_compr_cage_access_scope_;

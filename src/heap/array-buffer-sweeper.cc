@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
