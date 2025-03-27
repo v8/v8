@@ -3079,26 +3079,31 @@ class StackTraceFailureMessage {
   enum StackTraceMode { kIncludeStackTrace, kDontIncludeStackTrace };
 
   explicit StackTraceFailureMessage(Isolate* isolate, StackTraceMode mode,
-                                    void* ptr1 = nullptr, void* ptr2 = nullptr,
-                                    void* ptr3 = nullptr, void* ptr4 = nullptr,
-                                    void* ptr5 = nullptr, void* ptr6 = nullptr);
+                                    const Address* ptrs, size_t ptrs_count);
+
+  explicit StackTraceFailureMessage(Isolate* isolate, StackTraceMode mode,
+                                    std::initializer_list<Address> ptrs)
+      : StackTraceFailureMessage(isolate, mode, ptrs.begin(), ptrs.size()) {}
+
+  explicit StackTraceFailureMessage(Isolate* isolate, StackTraceMode mode,
+                                    std::initializer_list<void*> ptrs)
+      : StackTraceFailureMessage(isolate, mode,
+                                 reinterpret_cast<const Address*>(ptrs.begin()),
+                                 ptrs.size()) {}
 
   V8_NOINLINE void Print() volatile;
 
   static const uintptr_t kStartMarker = 0xdecade30;
-  static const uintptr_t kEndMarker = 0xdecade31;
+  static const uintptr_t kMiddleMarker = 0xdecade33;
+  static const uintptr_t kEndMarker = 0xdecade36;
   static const int kStacktraceBufferSize = 32 * KB;
 
   uintptr_t start_marker_ = kStartMarker;
-  void* isolate_;
-  void* ptr1_;
-  void* ptr2_;
-  void* ptr3_;
-  void* ptr4_;
-  void* ptr5_;
-  void* ptr6_;
-  void* code_objects_[4];
-  char js_stack_trace_[kStacktraceBufferSize];
+  Isolate* isolate_;
+  Address ptrs_[6] = {};
+  uintptr_t middle_marker_ = kMiddleMarker;
+  Address code_objects_[4] = {};
+  char js_stack_trace_[kStacktraceBufferSize] = {};
   uintptr_t end_marker_ = kEndMarker;
 };
 

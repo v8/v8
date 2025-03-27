@@ -691,7 +691,7 @@ void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
                                    void* ptr4, void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(this,
                                    StackTraceFailureMessage::kIncludeStackTrace,
-                                   ptr1, ptr2, ptr3, ptr4, ptr5, ptr6);
+                                   {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
   base::OS::Abort();
 }
@@ -699,8 +699,8 @@ void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
 void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4,
                                void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(
-      this, StackTraceFailureMessage::kDontIncludeStackTrace, ptr1, ptr2, ptr3,
-      ptr4, ptr5, ptr6);
+      this, StackTraceFailureMessage::kDontIncludeStackTrace,
+      {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
   base::OS::Abort();
 }
@@ -709,7 +709,7 @@ void Isolate::PushStackTraceAndContinue(void* ptr1, void* ptr2, void* ptr3,
                                         void* ptr4, void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(this,
                                    StackTraceFailureMessage::kIncludeStackTrace,
-                                   ptr1, ptr2, ptr3, ptr4, ptr5, ptr6);
+                                   {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
   V8::GetCurrentPlatform()->DumpWithoutCrashing();
 }
@@ -717,8 +717,8 @@ void Isolate::PushStackTraceAndContinue(void* ptr1, void* ptr2, void* ptr3,
 void Isolate::PushParamsAndContinue(void* ptr1, void* ptr2, void* ptr3,
                                     void* ptr4, void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(
-      this, StackTraceFailureMessage::kDontIncludeStackTrace, ptr1, ptr2, ptr3,
-      ptr4, ptr5, ptr6);
+      this, StackTraceFailureMessage::kDontIncludeStackTrace,
+      {ptr1, ptr2, ptr3, ptr4, ptr5, ptr6});
   message.Print();
   V8::GetCurrentPlatform()->DumpWithoutCrashing();
 }
@@ -726,38 +726,36 @@ void Isolate::PushParamsAndContinue(void* ptr1, void* ptr2, void* ptr3,
 void StackTraceFailureMessage::Print() volatile {
   // Print the details of this failure message object, including its own address
   // to force stack allocation.
+  static_assert(arraysize(ptrs_) >= 6);
   base::OS::PrintError(
-      "Stacktrace:\n    ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    ptr4=%p\n    "
-      "ptr5=%p\n    ptr6=%p\n    failure_message_object=%p\n%s",
-      ptr1_, ptr2_, ptr3_, ptr4_, ptr5_, ptr6_, this, &js_stack_trace_[0]);
+      "Stacktrace:\n    ptr0=%p\n    ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    "
+      "ptr4=%p\n    ptr5=%p\n    failure_message_object=%p\n%s",
+      reinterpret_cast<void*>(ptrs_[0]), reinterpret_cast<void*>(ptrs_[1]),
+      reinterpret_cast<void*>(ptrs_[2]), reinterpret_cast<void*>(ptrs_[3]),
+      reinterpret_cast<void*>(ptrs_[4]), reinterpret_cast<void*>(ptrs_[5]),
+      this, &js_stack_trace_[0]);
 }
 
 StackTraceFailureMessage::StackTraceFailureMessage(
-    Isolate* isolate, StackTraceFailureMessage::StackTraceMode mode, void* ptr1,
-    void* ptr2, void* ptr3, void* ptr4, void* ptr5, void* ptr6) {
-  isolate_ = isolate;
-  ptr1_ = ptr1;
-  ptr2_ = ptr2;
-  ptr3_ = ptr3;
-  ptr4_ = ptr4;
-  ptr5_ = ptr5;
-  ptr6_ = ptr6;
-  // Write a stracktrace into the {js_stack_trace_} buffer.
-  const size_t buffer_length = arraysize(js_stack_trace_);
-  memset(&js_stack_trace_, 0, buffer_length);
-  memset(&code_objects_, 0, sizeof(code_objects_));
+    Isolate* isolate, StackTraceFailureMessage::StackTraceMode mode,
+    const Address* ptrs, size_t ptrs_count)
+    : isolate_(isolate) {
+  size_t ptrs_size = std::min(arraysize(ptrs_), ptrs_count);
+  std::copy(ptrs, ptrs + ptrs_size, &ptrs_[0]);
+
   if (mode == kIncludeStackTrace) {
+    // Write a stracktrace into the {js_stack_trace_} buffer.
+    const size_t buffer_length = arraysize(js_stack_trace_);
     FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
     StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
-    isolate->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+    isolate_->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
     // Keeping a reference to the last code objects to increase likelihood that
     // they get included in the minidump.
     const size_t code_objects_length = arraysize(code_objects_);
     size_t i = 0;
-    StackFrameIterator it(isolate);
+    StackFrameIterator it(isolate_);
     for (; !it.done() && i < code_objects_length; it.Advance()) {
-      code_objects_[i++] =
-          reinterpret_cast<void*>(it.frame()->unchecked_code().ptr());
+      code_objects_[i++] = it.frame()->unchecked_code().ptr();
     }
   }
 }
