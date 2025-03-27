@@ -834,6 +834,10 @@ class WasmInJsInliningInterface {
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
     Bailout(decoder);
   }
+  void RefCastDesc(FullDecoder* decoder, const Value& object,
+                   const Value& descriptor, Value* result) {
+    Bailout(decoder);
+  }
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     Bailout(decoder);

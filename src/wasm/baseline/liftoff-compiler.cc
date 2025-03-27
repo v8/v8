@@ -7283,10 +7283,24 @@ class LiftoffCompiler {
 
   void RefCast(FullDecoder* decoder, const Value& obj, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
+    LiftoffRegister rtt = RttCanon(result->type.ref_index(), {});
+    return RefCastImpl(decoder, result->type, obj, rtt);
+  }
 
-    LiftoffRegList pinned;
-    LiftoffRegister rtt =
-        pinned.set(RttCanon(result->type.ref_index(), pinned));
+  void RefCastDesc(FullDecoder* decoder, const Value& obj, const Value& desc,
+                   Value* result) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      __ DropValues(1);  // Drop the descriptor, pretend it was consumed.
+      return;
+    }
+    LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, desc);
+    // Pretending that the target type is exact skips the supertype check.
+    return RefCastImpl(decoder, result->type.AsExact(), obj, rtt);
+  }
+
+  void RefCastImpl(FullDecoder* decoder, ValueType target_type,
+                   const Value& obj, LiftoffRegister rtt) {
+    LiftoffRegList pinned{rtt};
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7297,11 +7311,11 @@ class LiftoffCompiler {
 
     {
       NullSucceeds on_null =
-          result->type.is_nullable() ? kNullSucceeds : kNullFails;
+          target_type.is_nullable() ? kNullSucceeds : kNullFails;
       OolTrapLabel trap =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapIllegalCast);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
-                   result->type.heap_type(), scratch_null, scratch2,
+                   target_type.heap_type(), scratch_null, scratch2,
                    trap.label(), on_null, trap.frozen());
     }
     __ PushRegister(obj.type.kind(), obj_reg);

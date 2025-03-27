@@ -4812,6 +4812,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
+  void RefCastDesc(FullDecoder* decoder, const Value& object, const Value& desc,
+                   Value* result) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    V<Map> rtt = GetRttFromDescriptor(desc);
+    compiler::WasmTypeCheckConfig config{object.type, result->type,
+                                         compiler::kExactMatchOnly};
+    result->op = __ WasmTypeCast(object.op, rtt, config);
+  }
+
   void RefCastAbstract(FullDecoder* decoder, const Value& object, HeapType type,
                        Value* result, bool null_succeeds) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {

@@ -1354,6 +1354,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(RefTestAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
   F(RefCast, const Value& obj, Value* result)                                  \
+  F(RefCastDesc, const Value& obj, const Value& desc, Value* result)           \
   F(RefCastAbstract, const Value& obj, HeapType type, Value* result,           \
     bool null_succeeds)                                                        \
   F(AssertNullTypecheck, const Value& obj, Value* result)                      \
@@ -5346,6 +5347,53 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             Push(ValueType::Ref(this->module_->heap_type(type.descriptor))
                      .AsExact(ref.type.exactness()));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RefGetDesc, ref, desc);
+        return opcode_length + imm.length;
+      }
+      case kExprRefCastDesc:
+      case kExprRefCastDescNull: {
+        NON_CONST_ONLY
+        CHECK_PROTOTYPE_OPCODE(custom_descriptors);
+        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
+                              validate);
+        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
+        if (!VALIDATE(imm.type.has_index())) {
+          this->DecodeError(
+              this->pc_ + opcode_length,
+              "ref.cast_desc: immediate type must have an index, but was %s",
+              imm.type.name().c_str());
+          return 0;
+        }
+        ModuleTypeIndex expected_desc_index =
+            this->module_->type(imm.type.ref_index()).descriptor;
+        if (!VALIDATE(expected_desc_index.valid())) {
+          this->DecodeError(
+              this->pc_ + opcode_length,
+              "ref.cast_desc: immediate type %s must have a descriptor",
+              imm.type.name().c_str());
+          return 0;
+        }
+        ValueType expected_desc_type =
+            ValueType::RefNull(this->module_->heap_type(expected_desc_index))
+                .AsExact(imm.type.exactness());
+        Value desc = Pop(expected_desc_type);
+        // We will have to generalize the object's expected type to "top type of
+        // imm.type" if/when values outside the anyref hierarchy can have custom
+        // descriptors. This DCHECK should point that out when the time comes:
+        DCHECK_EQ(imm.type.ref_type_kind(), RefTypeKind::kStruct);
+        ValueType expected_obj_type = ValueType::Generic(
+            GenericKind::kAny, kNullable, imm.type.is_shared());
+        Value obj = Pop(expected_obj_type);
+
+        bool null_succeeds = (opcode == kExprRefCastDescNull);
+        ValueType target_type = ValueType::RefMaybeNull(
+            imm.type, null_succeeds ? kNullable : kNonNullable);
+        Value* value = Push(target_type);
+
+        // TODO(403372470): Do we need to special-case casts that always fail
+        // or always succeed?
+
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RefCastDesc, obj, desc, value);
+
         return opcode_length + imm.length;
       }
       case kExprRefCast:
