@@ -4,7 +4,6 @@
 
 // Flags: --wasm-deopt --allow-natives-syntax
 // Flags: --wasm-inlining --liftoff --expose-gc
-// Flags: --turboshaft-wasm-instruction-selection-staged
 // Flags: --wasm-inlining-ignore-call-counts --wasm-inlining-factor=30
 // Flags: --wasm-inlining-budget=100000 --no-jit-fuzzing
 

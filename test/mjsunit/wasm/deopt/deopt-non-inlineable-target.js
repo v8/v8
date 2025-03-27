@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-deopt --allow-natives-syntax --liftoff
-// Flags: --wasm-inlining
-// Flags: --turboshaft-wasm-instruction-selection-staged --no-jit-fuzzing
+// Flags: --wasm-inlining --no-jit-fuzzing
 // Flags: --wasm-inlining-call-indirect
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
