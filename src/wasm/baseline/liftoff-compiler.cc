@@ -7356,15 +7356,30 @@ class LiftoffCompiler {
   void BrOnCast(FullDecoder* decoder, HeapType target_type, const Value& obj,
                 Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
+    LiftoffRegister rtt = RttCanon(target_type.ref_index(), {});
+    return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds);
+  }
+
+  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
+                    const Value& obj, const Value& descriptor,
+                    Value* /* result_on_branch */, uint32_t depth,
+                    bool null_succeeds) {
+    LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
+    // Pretending that the target type is exact skips the supertype check.
+    return BrOnCastImpl(decoder, target_type.AsExact(), obj, rtt, depth,
+                        null_succeeds);
+  }
+  void BrOnCastImpl(FullDecoder* decoder, HeapType target_type,
+                    const Value& obj, LiftoffRegister rtt, uint32_t depth,
+                    bool null_succeeds) {
+    LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity,
+                          pinned);
     }
 
     Label cont_false;
-    LiftoffRegList pinned;
-    LiftoffRegister rtt_reg =
-        pinned.set(RttCanon(target_type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7375,7 +7390,7 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
+    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
                  target_type, scratch_null, scratch2, &cont_false,
                  null_handling, frozen);
 
@@ -7387,15 +7402,33 @@ class LiftoffCompiler {
   void BrOnCastFail(FullDecoder* decoder, HeapType target_type,
                     const Value& obj, Value* /* result_on_fallthrough */,
                     uint32_t depth, bool null_succeeds) {
+    LiftoffRegister rtt = RttCanon(target_type.ref_index(), {});
+    return BrOnCastFailImpl(decoder, target_type, obj, rtt, depth,
+                            null_succeeds);
+  }
+
+  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
+                        const Value& obj, const Value& descriptor,
+                        Value* /* result_on_fallthrough */, uint32_t depth,
+                        bool null_succeeds) {
+    LiftoffRegister rtt = GetRttFromDescriptorOnStack(decoder, descriptor);
+    // Pretending that the target type is exact skips the supertype check.
+    return BrOnCastFailImpl(decoder, target_type.AsExact(), obj, rtt, depth,
+                            null_succeeds);
+  }
+
+  void BrOnCastFailImpl(FullDecoder* decoder, HeapType target_type,
+                        const Value& obj, LiftoffRegister rtt, uint32_t depth,
+                        bool null_succeeds) {
+    LiftoffRegList pinned{rtt};
     // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity,
+                          pinned);
     }
 
     Label cont_branch, fallthrough;
-    LiftoffRegList pinned;
-    LiftoffRegister rtt_reg =
-        pinned.set(RttCanon(target_type.ref_index(), pinned));
+
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7406,7 +7439,7 @@ class LiftoffCompiler {
     FREEZE_STATE(frozen);
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
-    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
+    SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt.gp(),
                  target_type, scratch_null, scratch2, &cont_branch,
                  null_handling, frozen);
     __ emit_jump(&fallthrough);

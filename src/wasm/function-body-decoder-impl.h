@@ -1363,6 +1363,11 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     uint32_t depth, bool null_succeeds)                                        \
   F(BrOnCastFail, HeapType target_type, const Value& obj,                      \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
+  F(BrOnCastDesc, HeapType target_type, const Value& obj, const Value& desc,   \
+    Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
+  F(BrOnCastDescFail, HeapType target_type, const Value& obj,                  \
+    const Value& desc, Value* result_on_fallthrough, uint32_t depth,           \
+    bool null_succeeds)                                                        \
   F(BrOnCastAbstract, const Value& obj, HeapType type,                         \
     Value* result_on_branch, uint32_t depth, bool null_succeeds)               \
   F(BrOnCastFailAbstract, const Value& obj, HeapType type,                     \
@@ -5571,6 +5576,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         return ParseBrOnCast(opcode, opcode_length);
       }
+      case kExprBrOnCastDesc:
+      case kExprBrOnCastDescFail: {
+        NON_CONST_ONLY
+        CHECK_PROTOTYPE_OPCODE(custom_descriptors);
+        return ParseBrOnCast(opcode, opcode_length);
+      }
       case kExprAnyConvertExtern: {
         Value extern_val = Pop(kWasmExternRef);
         ValueType intern_type = ValueType::RefMaybeNull(
@@ -5630,6 +5641,28 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
 
+    Value descriptor{nullptr, kWasmVoid};
+    if (opcode == kExprBrOnCastDesc || opcode == kExprBrOnCastDescFail) {
+      if (!VALIDATE(target_imm.type.has_index())) {
+        this->DecodeError(
+            target_imm_pc, "%s: target type must have an index, but was %s",
+            WasmOpcodes::OpcodeName(opcode), target_imm.type.name().c_str());
+        return 0;
+      }
+      ModuleTypeIndex target_desc_index =
+          this->module_->type(target_imm.type.ref_index()).descriptor;
+      if (!VALIDATE(target_desc_index.valid())) {
+        this->DecodeError(
+            target_imm_pc, "%s: target type %s must have a descriptor",
+            WasmOpcodes::OpcodeName(opcode), target_imm.type.name().c_str());
+        return 0;
+      }
+      ValueType desc_type =
+          ValueType::RefNull(this->module_->heap_type(target_desc_index))
+              .AsExact(target_type.exactness());
+      descriptor = Pop(desc_type);
+    }
+
     Value obj = Pop(src_type);
 
     if (!VALIDATE(
@@ -5653,7 +5686,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
 
-    if (opcode == kExprBrOnCast) {
+    if (opcode == kExprBrOnCast || opcode == kExprBrOnCastDesc) {
       Value* value_on_branch = Push(target_type);
       if (!VALIDATE(
               (TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kYes>(
@@ -5680,7 +5713,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           c->br_merge()->reached = true;
         } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, target_type.heap_type(),
                                                    null_succeeds))) {
-          if (target_imm.type.is_index()) {
+          if (opcode == kExprBrOnCastDesc) {
+            CALL_INTERFACE(BrOnCastDesc, target_imm.type, obj, descriptor,
+                           value_on_branch, branch_depth.depth, null_succeeds);
+          } else if (target_imm.type.is_index()) {
             CALL_INTERFACE(BrOnCast, target_imm.type, obj, value_on_branch,
                            branch_depth.depth, null_succeeds);
           } else {
@@ -5706,7 +5742,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return pc_offset;
 
     } else {
-      DCHECK_EQ(opcode, kExprBrOnCastFail);
+      DCHECK(opcode == kExprBrOnCastFail || opcode == kExprBrOnCastDescFail);
       // The branch type is set based on the source type immediate (independent
       // of the actual stack value). If the target type is nullable, the branch
       // type is non-nullable.
@@ -5746,7 +5782,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             result_on_fallthrough = obj;
           }
         } else {
-          if (target_imm.type.is_index()) {
+          if (opcode == kExprBrOnCastDescFail) {
+            CALL_INTERFACE(BrOnCastDescFail, target_imm.type, obj, descriptor,
+                           &result_on_fallthrough, branch_depth.depth,
+                           null_succeeds);
+          } else if (target_imm.type.is_index()) {
             CALL_INTERFACE(BrOnCastFail, target_imm.type, obj,
                            &result_on_fallthrough, branch_depth.depth,
                            null_succeeds);

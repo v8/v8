@@ -4959,6 +4959,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         null_succeeds);
   }
 
+  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
+                    const Value& object, const Value& descriptor,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
+    return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
+                        null_succeeds);
+  }
+
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         HeapType type, Value* value_on_branch,
                         uint32_t br_depth, bool null_succeeds) {
@@ -4979,6 +4992,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                              target_type.ref_index());
     compiler::WasmTypeCheckConfig config{object.type, target,
                                          GetExactness(decoder, target_type)};
+    return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
+                            br_depth, null_succeeds);
+  }
+
+  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
+                        const Value& object, const Value& descriptor,
+                        Value* value_on_fallthrough, uint32_t br_depth,
+                        bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }

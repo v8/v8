@@ -928,6 +928,12 @@ class WasmInJsInliningInterface {
                 bool null_succeeds) {
     Bailout(decoder);
   }
+  void BrOnCastDesc(FullDecoder* decoder, wasm::HeapType target_type,
+                    const Value& object, const Value& descriptor,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    Bailout(decoder);
+  }
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         wasm::HeapType type, Value* value_on_branch,
                         uint32_t br_depth, bool null_succeeds) {
@@ -936,6 +942,12 @@ class WasmInJsInliningInterface {
   void BrOnCastFail(FullDecoder* decoder, wasm::HeapType target_type,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
+    Bailout(decoder);
+  }
+  void BrOnCastDescFail(FullDecoder* decoder, wasm::HeapType target_type,
+                        const Value& object, const Value& descriptor,
+                        Value* value_on_fallthrough, uint32_t br_depth,
+                        bool null_succeeds) {
     Bailout(decoder);
   }
   void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,
