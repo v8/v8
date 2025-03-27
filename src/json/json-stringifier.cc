@@ -1903,7 +1903,6 @@ enum FastJsonStringifierResult {
   JS_ARRAY,
   UNDEFINED,
   CHANGE_ENCODING,
-  CHANGE_ENCODING_KEY,
   SLOW_PATH,
   EXCEPTION
 };
@@ -1955,8 +1954,8 @@ class ContinuationRecord {
   }
   static constexpr ContinuationRecord ForJSObjectResume(
       Tagged<JSAny> obj, uint16_t descriptor_idx, uint16_t nof_descriptors,
-      uint8_t in_object_properties = 0, uint8_t in_object_properties_start = 0,
-      Tagged<DescriptorArray> descriptors = Tagged<DescriptorArray>()) {
+      uint8_t in_object_properties, uint8_t in_object_properties_start,
+      Tagged<DescriptorArray> descriptors) {
     DCHECK(Is<JSObject>(obj));
     return ContinuationRecord(Type::kObjectResume, obj, descriptor_idx,
                               nof_descriptors, in_object_properties,
@@ -2129,20 +2128,16 @@ class FastJsonStringifier {
   template <typename StringT>
   V8_INLINE FastJsonStringifierResult SerializeObjectKey(
       Tagged<String> key, bool comma, const DisallowGarbageCollection& no_gc);
-  template <typename StringT, bool deferred_key>
-  V8_INLINE FastJsonStringifierResult
-  SerializeString(Tagged<HeapObject> str, bool comma, Tagged<String> key,
-                  const DisallowGarbageCollection& no_gc);
+  template <typename StringT>
+  V8_INLINE FastJsonStringifierResult SerializeString(
+      Tagged<HeapObject> str, const DisallowGarbageCollection& no_gc);
 
-  template <bool deferred_key>
-  V8_INLINE FastJsonStringifierResult TrySerializeSimpleObject(
-      Tagged<JSAny> object, bool comma = false, Tagged<String> key = {});
+  V8_INLINE FastJsonStringifierResult
+  TrySerializeSimpleObject(Tagged<JSAny> object);
   FastJsonStringifierResult SerializeObject(
       ContinuationRecord cont, const DisallowGarbageCollection& no_gc);
-  template <bool deferred_key>
   V8_NOINLINE FastJsonStringifierResult SerializeJSPrimitiveWrapper(
-      Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
-      const DisallowGarbageCollection& no_gc);
+      Tagged<JSPrimitiveWrapper> obj, const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult SerializeJSObject(
       Tagged<JSObject> obj, const DisallowGarbageCollection& no_gc);
   V8_INLINE FastJsonStringifierResult ResumeJSObject(
@@ -2335,7 +2330,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
   } else {
     if constexpr (is_one_byte) {
       DCHECK(InstanceTypeChecker::IsTwoByteString(map));
-      return CHANGE_ENCODING_KEY;
+      return CHANGE_ENCODING;
     } else {
       if (map == roots.internalized_two_byte_string_map()) {
         return SerializeObjectKey<SeqTwoByteString>(key, comma, no_gc);
@@ -2380,7 +2375,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
     Tagged<String> obj, bool comma, const DisallowGarbageCollection& no_gc) {
   using StringChar = StringT::Char;
   if constexpr (is_one_byte && sizeof(StringChar) == 2) {
-    return CHANGE_ENCODING_KEY;
+    return CHANGE_ENCODING;
   } else {
     Tagged<StringT> string = Cast<StringT>(obj);
     const StringChar* chars;
@@ -2402,15 +2397,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObjectKey(
 }
 
 template <typename Char>
-template <typename StringT, bool deferred_key>
+template <typename StringT>
 FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
-    Tagged<HeapObject> obj, bool comma, Tagged<String> key,
-    const DisallowGarbageCollection& no_gc) {
+    Tagged<HeapObject> obj, const DisallowGarbageCollection& no_gc) {
   using StringChar = StringT::Char;
-  if constexpr (deferred_key) {
-    FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-    if (V8_UNLIKELY(result != SUCCESS)) return result;
-  }
   if constexpr (is_one_byte && sizeof(StringChar) == 2) {
     return CHANGE_ENCODING;
   } else {
@@ -2431,18 +2421,13 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeString(
 }
 
 template <typename Char>
-template <bool deferred_key>
 FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
-    Tagged<JSAny> object, bool comma, Tagged<String> key) {
+    Tagged<JSAny> object) {
   DisallowGarbageCollection no_gc;
   // GCMole doesn't handle kNoGC interrupts correctly.
   DisableGCMole no_gc_mole;
 
   if (IsSmi(object)) {
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
     SerializeSmi(Cast<Smi>(object));
     return SUCCESS;
   }
@@ -2452,76 +2437,52 @@ FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
   switch (instance_type) {
     case INTERNALIZED_ONE_BYTE_STRING_TYPE:
     case SEQ_ONE_BYTE_STRING_TYPE:
-      return SerializeString<SeqOneByteString, deferred_key>(obj, comma, key,
-                                                             no_gc);
+      return SerializeString<SeqOneByteString>(obj, no_gc);
     case EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return SerializeString<ExternalOneByteString, deferred_key>(obj, comma,
-                                                                  key, no_gc);
+      return SerializeString<ExternalOneByteString>(obj, no_gc);
     case THIN_ONE_BYTE_STRING_TYPE: {
       Tagged<String> actual = Cast<ThinString>(obj)->actual();
       if (IsExternalString(actual)) {
-        return SerializeString<ExternalOneByteString, deferred_key>(
-            actual, comma, key, no_gc);
+        return SerializeString<ExternalOneByteString>(actual, no_gc);
       } else {
-        return SerializeString<SeqOneByteString, deferred_key>(actual, comma,
-                                                               key, no_gc);
+        return SerializeString<SeqOneByteString>(actual, no_gc);
       }
     }
     case INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case SEQ_TWO_BYTE_STRING_TYPE:
-      return SerializeString<SeqTwoByteString, deferred_key>(obj, comma, key,
-                                                             no_gc);
+      return SerializeString<SeqTwoByteString>(obj, no_gc);
     case EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_TWO_BYTE_STRING_TYPE:
     case UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
-      return SerializeString<ExternalTwoByteString, deferred_key>(obj, comma,
-                                                                  key, no_gc);
+      return SerializeString<ExternalTwoByteString>(obj, no_gc);
     case THIN_TWO_BYTE_STRING_TYPE: {
-      Tagged<String> actual = Cast<ThinString>(obj)->actual();
-      if (IsExternalString(actual)) {
-        return SerializeString<ExternalTwoByteString, deferred_key>(
-            actual, comma, key, no_gc);
+      if constexpr (is_one_byte) {
+        return CHANGE_ENCODING;
       } else {
-        return SerializeString<SeqTwoByteString, deferred_key>(actual, comma,
-                                                               key, no_gc);
+        Tagged<String> actual = Cast<ThinString>(obj)->actual();
+        if (IsExternalString(actual)) {
+          return SerializeString<ExternalTwoByteString>(actual, no_gc);
+        } else {
+          return SerializeString<SeqTwoByteString>(actual, no_gc);
+        }
       }
     }
     case HEAP_NUMBER_TYPE:
-      if constexpr (deferred_key) {
-        FastJsonStringifierResult result =
-            SerializeObjectKey(key, comma, no_gc);
-        if (V8_UNLIKELY(result != SUCCESS)) return result;
-      }
       SerializeDouble(Cast<HeapNumber>(obj)->value());
       return SUCCESS;
     case ODDBALL_TYPE:
       switch (Cast<Oddball>(obj)->kind()) {
         case Oddball::kFalse:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
           AppendCStringLiteral("false");
           return SUCCESS;
         case Oddball::kTrue:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
           AppendCStringLiteral("true");
           return SUCCESS;
         case Oddball::kNull:
-          if constexpr (deferred_key) {
-            FastJsonStringifierResult result =
-                SerializeObjectKey(key, comma, no_gc);
-            if (V8_UNLIKELY(result != SUCCESS)) return result;
-          }
           AppendCStringLiteral("null");
           return SUCCESS;
         default:
@@ -2530,8 +2491,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::TrySerializeSimpleObject(
     case SYMBOL_TYPE:
       return UNDEFINED;
     case JS_PRIMITIVE_WRAPPER_TYPE:
-      return SerializeJSPrimitiveWrapper<deferred_key>(
-          Cast<JSPrimitiveWrapper>(obj), comma, key, no_gc);
+      return SerializeJSPrimitiveWrapper(Cast<JSPrimitiveWrapper>(obj), no_gc);
     case JS_OBJECT_TYPE:
       return JS_OBJECT;
     case JS_ARRAY_TYPE:
@@ -2567,11 +2527,9 @@ Builtin GetBuiltin(Isolate* isolate, Tagged<JSObject> obj,
 }  // namespace
 
 template <typename Char>
-template <bool deferred_key>
 FastJsonStringifierResult
 FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
-    Tagged<JSPrimitiveWrapper> obj, bool comma, Tagged<String> key,
-    const DisallowGarbageCollection& no_gc) {
+    Tagged<JSPrimitiveWrapper> obj, const DisallowGarbageCollection& no_gc) {
   // TODO(pthier): Consider extending IsStringWrapperToPrimitive to also cover
   // toString() and all JSPrimitiveWrappers to avoid some of the checks here.
   if (V8_UNLIKELY(MayHaveInterestingProperties(isolate_, obj))) {
@@ -2593,10 +2551,6 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
       return SLOW_PATH;
     }
 
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
     AppendCStringLiteral("{}");
     return SUCCESS;
   } else if (IsString(raw)) {
@@ -2618,20 +2572,16 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
       FastJsonStringifierResult result =
           string->DispatchToSpecificType(base::overloaded{
               [&](Tagged<SeqOneByteString> str) {
-                return SerializeString<SeqOneByteString, deferred_key>(
-                    str, comma, key, no_gc);
+                return SerializeString<SeqOneByteString>(str, no_gc);
               },
               [&](Tagged<SeqTwoByteString> str) {
-                return SerializeString<SeqTwoByteString, deferred_key>(
-                    str, comma, key, no_gc);
+                return SerializeString<SeqTwoByteString>(str, no_gc);
               },
               [&](Tagged<ExternalOneByteString> str) {
-                return SerializeString<ExternalOneByteString, deferred_key>(
-                    str, comma, key, no_gc);
+                return SerializeString<ExternalOneByteString>(str, no_gc);
               },
               [&](Tagged<ExternalTwoByteString> str) {
-                return SerializeString<ExternalTwoByteString, deferred_key>(
-                    str, comma, key, no_gc);
+                return SerializeString<ExternalTwoByteString>(str, no_gc);
               },
               [&](Tagged<ThinString> str) {
                 string = str->actual();
@@ -2654,10 +2604,6 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
             Builtin::kNumberPrototypeValueOf)) {
       return SLOW_PATH;
     }
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
     if (IsSmi(raw)) {
       SerializeSmi(Cast<Smi>(raw));
       return SUCCESS;
@@ -2666,10 +2612,6 @@ FastJsonStringifier<Char>::SerializeJSPrimitiveWrapper(
     SerializeDouble(Cast<HeapNumber>(raw)->value());
     return SUCCESS;
   } else if (IsBoolean(raw)) {
-    if constexpr (deferred_key) {
-      FastJsonStringifierResult result = SerializeObjectKey(key, comma, no_gc);
-      if (V8_UNLIKELY(result != SUCCESS)) return result;
-    }
     if (IsTrue(raw, isolate_)) {
       AppendCStringLiteral("true");
     } else {
@@ -2730,6 +2672,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       return SLOW_PATH;
     }
     DCHECK_EQ(PropertyKind::kData, details.kind());
+
     int property_index = details.field_index();
     const bool is_inobject = property_index < in_object_properties;
     Tagged<JSAny> property;
@@ -2741,9 +2684,32 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       property = obj->property_array(cage_base)->get(cage_base, property_index);
     }
 
+    if (V8_UNLIKELY(IsUndefined(property) || IsSymbol(property))) {
+      continue;
+    }
     Tagged<String> key_name = Cast<String>(name);
     FastJsonStringifierResult result =
-        TrySerializeSimpleObject<true>(property, comma, key_name);
+        SerializeObjectKey(key_name, comma, no_gc);
+    if constexpr (is_one_byte) {
+      if (V8_UNLIKELY(result != SUCCESS)) {
+        stack_.emplace_back(ContinuationRecord::ForJSObjectResume(
+            obj, descriptor_idx + 1, nof_descriptors, in_object_properties,
+            in_object_properties_start, descriptors));
+        if (IsJSObject(property)) {
+          stack_.emplace_back(ContinuationRecord::ForJSObject(property));
+        } else if (IsJSArray(property)) {
+          stack_.emplace_back(ContinuationRecord::ForJSArray(property));
+        } else {
+          stack_.emplace_back(ContinuationRecord::ForSimpleObject(property));
+        }
+        stack_.emplace_back(ContinuationRecord::ForObjectKey(key_name, comma));
+        return result;
+      }
+    }
+    // TrySerializeSimpleObject won't trigger GCs. See DisableGCMole scopes in
+    // SerializeJSPrimitiveWrapper for explanation.
+    DisableGCMole no_gc_mole;
+    result = TrySerializeSimpleObject(property);
     switch (result) {
       case SUCCESS:
         comma = true;
@@ -2756,25 +2722,13 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
             obj, descriptor_idx + 1, nof_descriptors, in_object_properties,
             in_object_properties_start, descriptors));
         stack_.push_back(ContinuationRecord::ForJSAny(property, result));
-        result = SerializeObjectKey(key_name, comma, no_gc);
-        if constexpr (is_one_byte) {
-          if (V8_UNLIKELY(result != SUCCESS)) {
-            DCHECK_EQ(result, CHANGE_ENCODING_KEY);
-            stack_.push_back(ContinuationRecord::ForObjectKey(key_name, comma));
-            return result;
-          }
-        }
         return result;
       case CHANGE_ENCODING:
-      case CHANGE_ENCODING_KEY:
         if constexpr (is_one_byte) {
           stack_.push_back(ContinuationRecord::ForJSObjectResume(
               obj, descriptor_idx + 1, nof_descriptors, in_object_properties,
               in_object_properties_start, descriptors));
           stack_.push_back(ContinuationRecord::ForSimpleObject(property));
-          if (result == CHANGE_ENCODING_KEY) {
-            stack_.push_back(ContinuationRecord::ForObjectKey(key_name, comma));
-          }
           return result;
         } else {
           UNREACHABLE();
@@ -2906,7 +2860,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
     SerializeDouble(elements->get_scalar(i));
   } else {
     Tagged<JSAny> obj = Cast<JSAny>(elements->get(i));
-    FastJsonStringifierResult result = TrySerializeSimpleObject<false>(obj);
+    // TrySerializeSimpleObject won't trigger GCs. See DisableGCMole scopes in
+    // SerializeJSPrimitiveWrapper for explanation.
+    DisableGCMole no_gc_mole;
+    FastJsonStringifierResult result = TrySerializeSimpleObject(obj);
     switch (result) {
       case UNDEFINED:
         AppendCStringLiteral("null");
@@ -2933,8 +2890,6 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeFixedArrayElement(
       case SLOW_PATH:
       case EXCEPTION:
         return result;
-      case CHANGE_ENCODING_KEY:
-        UNREACHABLE();
     }
     UNREACHABLE();
   }
@@ -2972,8 +2927,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     DCHECK_EQ(stack_.back().type(), ContinuationRecord::kObjectResume);
   }
   if (cont.type() == ContinuationRecord::kSimpleObject) {
+    // TrySerializeSimpleObject won't trigger GCs. See DisableGCMole scopes in
+    // SerializeJSPrimitiveWrapper for explanation.
+    DisableGCMole no_gc_mole;
     FastJsonStringifierResult result =
-        TrySerializeSimpleObject<false>(cont.simple_object());
+        TrySerializeSimpleObject(cont.simple_object());
     DCHECK_EQ(result, SUCCESS);
 
     // Early return if a top-level string triggered the encoding change.
@@ -3019,9 +2977,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::SerializeObject(
     }
   }
 
+  // TrySerializeSimpleObject won't trigger GCs. See DisableGCMole scopes in
+  // SerializeJSPrimitiveWrapper for explanation.
+  DisableGCMole no_gc_mole;
   // Serialize object.
-  FastJsonStringifierResult result = TrySerializeSimpleObject<false>(object);
-  DCHECK_NE(result, CHANGE_ENCODING_KEY);
+  FastJsonStringifierResult result = TrySerializeSimpleObject(object);
   if constexpr (is_one_byte) {
     if (V8_UNLIKELY(result == CHANGE_ENCODING)) {
       DCHECK(IsString(object) || IsStringWrapper(object));
@@ -3332,11 +3292,10 @@ MaybeDirectHandle<Object> FastJsonStringify(Isolate* isolate,
       one_byte_stringifier.SerializeObject(*object, no_gc);
   bool result_is_one_byte = true;
 
-  if (result == CHANGE_ENCODING || result == CHANGE_ENCODING_KEY) {
+  if (result == CHANGE_ENCODING) {
     two_byte_stringifier.emplace(isolate);
     result = two_byte_stringifier->ResumeFrom(one_byte_stringifier, no_gc);
     DCHECK_NE(result, CHANGE_ENCODING);
-    DCHECK_NE(result, CHANGE_ENCODING_KEY);
     result_is_one_byte = false;
   }
 
