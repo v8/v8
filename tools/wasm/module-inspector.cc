@@ -1153,7 +1153,8 @@ class FormatConverter {
           state = kDecimal;
           // Fall through to handling kDecimal below.
         } else if (c == ']') {
-          return ParseLiteralResult::kSuccess;
+          return output_bytes.size() > 8 ? ParseLiteralResult::kSuccess
+                                         : ParseLiteralResult::kTryNext;
         } else {
           return c == EOF ? ParseLiteralResult::kEOF
                           : ParseLiteralResult::kTryNext;
@@ -1170,7 +1171,8 @@ class FormatConverter {
       if (c == ']') {
         DCHECK_LT(value, 256);
         output_bytes.push_back(static_cast<uint8_t>(value));
-        return ParseLiteralResult::kSuccess;
+        return output_bytes.size() > 8 ? ParseLiteralResult::kSuccess
+                                       : ParseLiteralResult::kTryNext;
       }
       if (state == kAfterValue) {
         // Didn't take the ',' or ']' paths above, anything else is invalid.
