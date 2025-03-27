@@ -104,7 +104,7 @@ class SmiCompressionScheme : public AllStatic {
   }
 
   static Tagged_t CompressObject(Address tagged) {
-    V8_ASSUME(HAS_SMI_TAG(tagged));
+    DCHECK(HAS_SMI_TAG(tagged));
     return static_cast<Tagged_t>(tagged);
   }
 };

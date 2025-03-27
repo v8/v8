@@ -21,7 +21,7 @@ Address TaggedMember<T, CompressionScheme>::tagged_to_full(
     Tagged_t tagged_value) {
 #ifdef V8_COMPRESS_POINTERS
   if constexpr (std::is_same_v<Smi, T>) {
-    V8_ASSUME(HAS_SMI_TAG(tagged_value));
+    DCHECK(HAS_SMI_TAG(tagged_value));
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
   } else {
     return CompressionScheme::DecompressTagged(CompressionScheme::base(),
@@ -186,7 +186,7 @@ Address TaggedField<T, kFieldOffset, CompressionScheme>::tagged_to_full(
     TOnHeapAddress on_heap_addr, Tagged_t tagged_value) {
 #ifdef V8_COMPRESS_POINTERS
   if constexpr (kIsSmi) {
-    V8_ASSUME(HAS_SMI_TAG(tagged_value));
+    DCHECK(HAS_SMI_TAG(tagged_value));
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
   } else {
     return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
@@ -201,7 +201,7 @@ template <typename T, int kFieldOffset, typename CompressionScheme>
 Tagged_t TaggedField<T, kFieldOffset, CompressionScheme>::full_to_tagged(
     Address value) {
 #ifdef V8_COMPRESS_POINTERS
-  if constexpr (kIsSmi) V8_ASSUME(HAS_SMI_TAG(value));
+  if constexpr (kIsSmi) DCHECK(HAS_SMI_TAG(value));
   return CompressionScheme::CompressObject(value);
 #else
   return value;
