@@ -89,12 +89,6 @@
 // Consider adding a chromium-side use counter if you want to track usage in the
 // wild (also see {V8::UseCounterFeature}).
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Branch Hinting proposal. */                                               \
-  /* https://github.com/WebAssembly/branch-hinting */                          \
-  /* V8 side owner: jkummerow */                                               \
-  /* Staged in v13.6. */                                                       \
-  V(branch_hinting, "branch hinting", false)                                   \
-                                                                               \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
@@ -125,6 +119,13 @@
   /* Staged in v8.9 */                                                         \
   /* Shipped in v9.5 */                                                        \
   V(legacy_eh, "legacy exception handling opcodes", true)                      \
+                                                                               \
+  /* Branch Hinting proposal. */                                               \
+  /* https://github.com/WebAssembly/branch-hinting */                          \
+  /* V8 side owner: jkummerow */                                               \
+  /* Staged in v13.6. */                                                       \
+  /* Shipped in v13.7. */                                                      \
+  V(branch_hinting, "branch hinting", true)                                    \
                                                                                \
   /* Imported Strings Proposal. */                                             \
   /* https://github.com/WebAssembly/js-string-builtins */                      \
