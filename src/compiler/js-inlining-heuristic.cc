@@ -811,8 +811,8 @@ bool JSInliningHeuristic::CandidateCompare::operator()(
     return kInlineRightFirst;
   }
 
-  int left_score = FastD2IChecked(left.frequency.value() / left.total_size);
-  int right_score = FastD2IChecked(right.frequency.value() / right.total_size);
+  float left_score = left.frequency.value() / left.total_size;
+  float right_score = right.frequency.value() / right.total_size;
 
   if (left_score > right_score) {
     return kInlineLeftFirst;
