@@ -2093,6 +2093,7 @@ Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
   DCHECK(!has_exception());
   DCHECK_IMPLIES(IsHole(raw_exception),
                  raw_exception == ReadOnlyRoots{this}.termination_exception());
+  CHECK(IsOnCentralStack());
 #if V8_ENABLE_WEBASSEMBLY
   trap_handler::AssertThreadNotInWasm();
 #endif

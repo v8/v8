@@ -356,6 +356,105 @@ OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
                  ts_call_descriptor);
 }
 
+void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
+                                                 V<WordPtr> new_limit) {
+  // Set the new interrupt limit and real limit. Use a compare-and-swap for
+  // the interrupt limit to avoid overwriting a pending interrupt.
+  __ AtomicCompareExchange(
+      __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
+      old_limit, new_limit, RegisterRepresentation::WordPtr(),
+      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal);
+  __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           IsolateData::real_jslimit_offset());
+}
+
+V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
+    V<WordPtr> old_limit) {
+  // Set the is_on_central_stack flag.
+  OpIndex isolate_root = __ LoadRootRegister();
+  __ Store(isolate_root, __ Word32Constant(1), LoadOp::Kind::RawAligned(),
+           MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+           IsolateData::is_on_central_stack_flag_offset());
+
+  // Save the old fp and the target sp in the StackMemory's stack switch info.
+  // We are not on the main stack, so the ActiveContinuation root must exist
+  // and be of type WasmContinuationObject.
+  V<WasmContinuationObject> active_continuation =
+      V<WasmContinuationObject>::Cast(LOAD_ROOT(ActiveContinuation));
+  V<WordPtr> stack_data = __ LoadExternalPointerFromObject(
+      active_continuation, WasmContinuationObject::kStackOffset,
+      kWasmStackMemoryTag);
+  __ Store(stack_data, __ FramePointer(), StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_source_fp_offset());
+  V<WordPtr> central_stack_sp = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_sp_offset());
+  __ Store(stack_data, central_stack_sp, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_target_sp_offset());
+
+  // Switch the stack limit and the stack pointer.
+  V<WordPtr> central_stack_limit = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_limit_offset());
+  BuildSetNewStackLimit(old_limit, central_stack_limit);
+  OpIndex old_sp = __ LoadStackPointer();
+  __ SetStackPointer(central_stack_sp);
+  return old_sp;
+}
+
+// Returns the old (secondary stack's) sp and stack limit.
+std::pair<V<WordPtr>, V<WordPtr>>
+WasmGraphBuilderBase::BuildSwitchToTheCentralStackIfNeeded() {
+  V<WordPtr> isolate_root = __ LoadRootRegister();
+  V<Word32> is_on_central_stack_flag = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+      IsolateData::is_on_central_stack_flag_offset());
+  ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+  ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
+  IF_NOT (LIKELY(is_on_central_stack_flag)) {
+    V<WordPtr> old_limit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                   MemoryRepresentation::UintPtr(),
+                                   IsolateData::real_jslimit_offset());
+    V<WordPtr> old_sp = BuildSwitchToTheCentralStack(old_limit);
+    old_sp_var = old_sp;
+    old_limit_var = old_limit;
+  }
+  return {old_sp_var, old_limit_var};
+}
+
+void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
+    V<WordPtr> old_sp, V<WordPtr> old_limit) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+    // Reset is_on_central_stack flag.
+    V<WordPtr> isolate_root = __ LoadRootRegister();
+    __ Store(isolate_root, __ Word32Constant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+             IsolateData::is_on_central_stack_flag_offset());
+
+    // Clear stack switch info.
+    // We are not on the main stack, so the ActiveContinuation root must exist
+    // and be of type WasmContinuationObject.
+    auto active_continuation =
+        V<WasmContinuationObject>::Cast(LOAD_ROOT(ActiveContinuation));
+    V<WordPtr> stack_data = __ LoadExternalPointerFromObject(
+        active_continuation, WasmContinuationObject::kStackOffset,
+        kWasmStackMemoryTag);
+    __ Store(stack_data, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+             StackMemory::stack_switch_source_fp_offset());
+
+    // Restore the old stack limit and stack pointer.
+    V<WordPtr> real_jslimit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::real_jslimit_offset());
+    BuildSetNewStackLimit(real_jslimit, old_limit);
+    __ SetStackPointer(old_sp);
+  }
+}
+
 class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
  private:
   class BlockPhis;
@@ -2163,8 +2262,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
              compiler::kNoWriteBarrier, Isolate::context_offset());
     BuildModifyThreadInWasmFlag(__ graph_zone(), false);
+    auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
+    BuildSwitchBackFromCentralStack(old_sp, old_limit);
 
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
