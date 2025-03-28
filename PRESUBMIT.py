@@ -370,7 +370,11 @@ def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
   )
 
   def FilterFile(affected_file):
-    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP + (
+        # Exclude macro-assembler-<ARCH>-inl.h headers because they have special
+        # include rules (arch-specific macro assembler headers must be included
+        # via the general macro-assembler.h).
+        r'src[\\\/]codegen[\\\/].*[\\\/]macro-assembler-.*-inl\.h',)
     return input_api.FilterSourceFile(
         affected_file,
         files_to_check=(file_inclusion_pattern,),
