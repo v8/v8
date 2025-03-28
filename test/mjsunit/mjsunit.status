@@ -339,6 +339,27 @@
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
   'es6/big-weakmap': [SKIP],
+
+  # These test Array.prototype methods on ArrayBuffers that are multiples of
+  # Wasm page size, which is very slow in the slow path.
+  'wasm/memory-resizable-buffer-array-concat': [SKIP],
+  'wasm/memory-resizable-buffer-array-concat-dictionary-mode': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-flatmap-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-foreach-reduce': [SKIP],
+  'wasm/memory-resizable-buffer-array-from-grows-detaches': [SKIP],
+  'wasm/memory-resizable-buffer-array-pop-shift': [SKIP],
+  'wasm/memory-resizable-buffer-array-push-unshift-splice': [SKIP],
+  'wasm/memory-resizable-buffer-array-slice': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-concat': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flat-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flatmap-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-from-grows': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-pop-shift': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-push-unshift-splice': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-slice': [SKIP],
 }],  # simulator_run
 
 ##############################################################################
