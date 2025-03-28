@@ -2268,6 +2268,32 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         num_frames_above_handler;
 
 #if V8_ENABLE_WEBASSEMBLY
+    // If the exception was caught in a different stack, process all
+    // intermediate stack switches.
+    // This cannot be done during unwinding because the stack switching state
+    // must stay consistent with the thread local top (see crbug.com/406053619).
+    Tagged<Object> maybe_continuation = root(RootIndex::kActiveContinuation);
+    if (!IsUndefined(maybe_continuation)) {
+      auto continuation = Cast<WasmContinuationObject>(maybe_continuation);
+      wasm::StackMemory* stack = nullptr;
+      while (continuation != iter.continuation()) {
+        auto parent = Cast<WasmContinuationObject>(continuation->parent());
+        stack = reinterpret_cast<wasm::StackMemory*>(parent->stack());
+        SBXCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+        SwitchStacks(continuation, parent);
+        stack->jmpbuf()->state = wasm::JumpBuffer::Active;
+        RetireWasmStack(continuation);
+        continuation = parent;
+      }
+      if (stack) {
+        // We switched at least once, update the active continuation.
+        roots_table().slot(RootIndex::kActiveContinuation).store(continuation);
+#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
+        Simulator::current(this)->SetStackLimit(
+            reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit));
+#endif
+      }
+    }
     // The unwinder is running on the central stack. If the target frame is in a
     // secondary stack, update the central stack flags and the stack limit.
     Address stack_address =
@@ -2328,23 +2354,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
                             kNullAddress, iter.frame()->sp(),
                             iter.frame()->fp(), visited_frames);
       } else {
-        // We reached the base of the wasm stack. Follow the chain of
-        // continuations to find the parent stack and reset the iterator.
-        Tagged<WasmContinuationObject> old_continuation = iter.continuation();
-        iter.Advance();
-        wasm::StackMemory* parent =
-            reinterpret_cast<wasm::StackMemory*>(iter.continuation()->stack());
-        SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
-        roots_table()
-            .slot(RootIndex::kActiveContinuation)
-            .store(iter.continuation());
-        SwitchStacks(old_continuation);
-        parent->jmpbuf()->state = wasm::JumpBuffer::Active;
-        RetireWasmStack(old_continuation);
-#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
-        Simulator::current(this)->SetStackLimit(
-            reinterpret_cast<uintptr_t>(parent->jmpbuf()->stack_limit));
-#endif
+        // Just walk across the stack switch here. We only process it once we
+        // have reached the handler.
         continue;
       }
     }
@@ -3832,7 +3843,8 @@ void Isolate::AddSharedWasmMemory(
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
-void Isolate::SwitchStacks(Tagged<WasmContinuationObject> old_continuation) {
+void Isolate::SwitchStacks(Tagged<WasmContinuationObject> source_continuation,
+                           Tagged<WasmContinuationObject> target_continuation) {
   // Synchronize the stack limit with the active continuation for
   // stack-switching. This can be done before or after changing the stack
   // pointer itself, as long as we update both before the next stack check.
@@ -3842,19 +3854,17 @@ void Isolate::SwitchStacks(Tagged<WasmContinuationObject> old_continuation) {
   // preserved and handled at the next stack check.
 
   DisallowGarbageCollection no_gc;
-  auto continuation =
-      Cast<WasmContinuationObject>(root(RootIndex::kActiveContinuation));
-  wasm::StackMemory* stack =
-      reinterpret_cast<wasm::StackMemory*>(continuation->stack());
-  wasm::StackMemory* old_stack =
-      reinterpret_cast<wasm::StackMemory*>(old_continuation->stack());
+  wasm::StackMemory* target_stack =
+      reinterpret_cast<wasm::StackMemory*>(target_continuation->stack());
+  wasm::StackMemory* source_stack =
+      reinterpret_cast<wasm::StackMemory*>(source_continuation->stack());
   if (v8_flags.trace_wasm_stack_switching) {
-    if (stack->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
-      PrintF("Switch from stack %d to %d (resume/start)\n", old_stack->id(),
-             stack->id());
-    } else if (stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
-      PrintF("Switch from stack %d to %d (suspend/return)\n", old_stack->id(),
-             stack->id());
+    if (source_stack->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
+      PrintF("Switch from stack %d to %d (resume/start)\n", source_stack->id(),
+             target_stack->id());
+    } else if (target_stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
+      PrintF("Switch from stack %d to %d (suspend/return)\n",
+             source_stack->id(), target_stack->id());
     } else {
       UNREACHABLE();
     }
@@ -3871,32 +3881,33 @@ void Isolate::SwitchStacks(Tagged<WasmContinuationObject> old_continuation) {
   // should still return to the immediate parent, but suspension can target an
   // arbitrary ancestor. We need to validate each link from the source to
   // the target, and check that we are not skipping central stack frames.
-  if (stack->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
-    stack->jmpbuf()->caller = old_stack->jmpbuf();
+  if (target_stack->jmpbuf()->state == wasm::JumpBuffer::Suspended) {
+    target_stack->jmpbuf()->caller = source_stack->jmpbuf();
   } else {
-    DCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Inactive);
-    SBXCHECK_EQ(old_stack->jmpbuf()->caller, stack->jmpbuf());
+    DCHECK_EQ(target_stack->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+    SBXCHECK_EQ(source_stack->jmpbuf()->caller, target_stack->jmpbuf());
   }
 #endif
-  uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
+  uintptr_t limit =
+      reinterpret_cast<uintptr_t>(target_stack->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);
   // Update the central stack info.
-  if (stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
+  if (target_stack->jmpbuf()->state == wasm::JumpBuffer::Inactive) {
     // When returning/suspending from a stack, the parent must be on
     // the central stack.
     // TODO(388533754): This assumption will not hold anymore with core
     // stack-switching, so we will need to revisit this.
-    DCHECK(IsOnCentralStack(stack->jmpbuf()->sp));
+    DCHECK(IsOnCentralStack(target_stack->jmpbuf()->sp));
     thread_local_top()->is_on_central_stack_flag_ = true;
-    thread_local_top()->central_stack_sp_ = stack->jmpbuf()->sp;
+    thread_local_top()->central_stack_sp_ = target_stack->jmpbuf()->sp;
     thread_local_top()->central_stack_limit_ =
-        reinterpret_cast<Address>(stack->jmpbuf()->stack_limit);
+        reinterpret_cast<Address>(target_stack->jmpbuf()->stack_limit);
   } else {
     // A suspended stack cannot hold central stack frames.
     thread_local_top()->is_on_central_stack_flag_ = false;
-    thread_local_top()->central_stack_sp_ = old_stack->jmpbuf()->sp;
+    thread_local_top()->central_stack_sp_ = source_stack->jmpbuf()->sp;
     thread_local_top()->central_stack_limit_ =
-        reinterpret_cast<Address>(old_stack->jmpbuf()->stack_limit);
+        reinterpret_cast<Address>(source_stack->jmpbuf()->stack_limit);
   }
 }
 

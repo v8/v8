@@ -985,8 +985,11 @@ double flat_string_to_f64(Address string_address) {
 
 void switch_stacks(Isolate* isolate, Address old_continuation) {
   DisallowGarbageCollection no_gc;
+  Tagged<Object> active_continuation =
+      isolate->root(RootIndex::kActiveContinuation);
   isolate->SwitchStacks(
-      Cast<WasmContinuationObject>(Tagged<Object>{old_continuation}));
+      Cast<WasmContinuationObject>(Tagged<Object>{old_continuation}),
+      Cast<WasmContinuationObject>(active_continuation));
 }
 
 void return_switch(Isolate* isolate, Address raw_old_continuation) {
@@ -994,7 +997,10 @@ void return_switch(Isolate* isolate, Address raw_old_continuation) {
 
   Tagged<WasmContinuationObject> old_continuation =
       Cast<WasmContinuationObject>(Tagged<Object>{raw_old_continuation});
-  isolate->SwitchStacks(old_continuation);
+  Tagged<Object> active_continuation =
+      isolate->root(RootIndex::kActiveContinuation);
+  isolate->SwitchStacks(old_continuation,
+                        Cast<WasmContinuationObject>(active_continuation));
   isolate->RetireWasmStack(old_continuation);
 }
 
