@@ -92,6 +92,8 @@ class PageMetadata : public MutablePageMetadata {
     return categories_[type];
   }
 
+  V8_EXPORT_PRIVATE size_t ShrinkToHighWaterMark();
+
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
 

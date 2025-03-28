@@ -96,7 +96,9 @@ void PagedSpaceBase::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MutablePageMetadata* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE)
+    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE) &&
+                        !chunk->Chunk()->IsFlagSet(
+                            MemoryChunk::SHRINK_TO_HIGH_WATER_MARK)
                     ? MemoryAllocator::FreeMode::kPool
                     : MemoryAllocator::FreeMode::kImmediately;
     heap()->memory_allocator()->Free(mode, chunk);
@@ -274,12 +276,28 @@ void PagedSpaceBase::RemovePage(PageMetadata* page) {
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
+size_t PagedSpaceBase::ShrinkPageToHighWaterMark(PageMetadata* page) {
+  size_t unused = page->ShrinkToHighWaterMark();
+  accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
+  AccountUncommitted(unused);
+  return unused;
+}
+
 void PagedSpaceBase::ResetFreeList() {
   for (PageMetadata* page : *this) {
     free_list_->EvictFreeListItems(page);
   }
   DCHECK(free_list_->IsEmpty());
   DCHECK_EQ(0, free_list_->Available());
+}
+
+void PagedSpaceBase::ShrinkImmortalImmovablePages() {
+  DCHECK(!heap()->deserialization_complete());
+  ResetFreeList();
+  for (PageMetadata* page : *this) {
+    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    ShrinkPageToHighWaterMark(page);
+  }
 }
 
 bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
