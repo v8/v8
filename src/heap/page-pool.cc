@@ -67,8 +67,8 @@ void PagePool::ReleaseOnTearDown(Isolate* isolate) {
     if (!isolate->isolate_group()->FindAnotherIsolateLocked(isolate,
                                                             schedule_task)) {
       // No other isolate could be found. Release pooled pages right away.
-      for (auto entry : shared_pool_) {
-        for (auto page : entry.first) {
+      for (const auto& entry : shared_pool_) {
+        for (auto* page : entry.first) {
           MemoryAllocator::DeleteMemoryChunk(page);
         }
       }
@@ -99,8 +99,8 @@ void PagePool::ReleaseImmediately(Isolate* isolate) {
 void PagePool::TearDown() {
   DCHECK(local_pools.empty());
 
-  for (auto entry : shared_pool_) {
-    for (auto page : entry.first) {
+  for (const auto& entry : shared_pool_) {
+    for (auto* page : entry.first) {
       MemoryAllocator::DeleteMemoryChunk(page);
     }
   }
@@ -124,8 +124,8 @@ size_t PagePool::ReleaseUpTo(size_t id) {
 
   size_t freed = 0;
 
-  for (auto group : groups_to_free) {
-    for (auto page : group) {
+  for (const auto& group : groups_to_free) {
+    for (auto* page : group) {
       MemoryAllocator::DeleteMemoryChunk(page);
       ++freed;
     }

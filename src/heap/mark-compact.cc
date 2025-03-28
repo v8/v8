@@ -3743,7 +3743,7 @@ void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
 void MarkCompactCollector::WeakenStrongDescriptorArrays() {
   Tagged<Map> descriptor_array_map =
       ReadOnlyRoots(heap_->isolate()).descriptor_array_map();
-  for (auto vec : strong_descriptor_arrays_) {
+  for (auto& vec : strong_descriptor_arrays_) {
     for (auto it = vec.begin(); it != vec.end(); ++it) {
       Tagged<DescriptorArray> raw = it.raw();
       DCHECK(IsStrongDescriptorArray(raw));

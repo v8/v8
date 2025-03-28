@@ -905,7 +905,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
 
   ElementAccessFeedback* result =
       zone()->New<ElementAccessFeedback>(zone(), keyed_mode, slot_kind);
-  for (auto entry : transition_groups) {
+  for (auto& entry : transition_groups) {
     result->AddGroup(std::move(entry.second));
   }
 

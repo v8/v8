@@ -400,7 +400,8 @@ Response isValidPosition(protocol::Debugger::ScriptPosition* position) {
   return Response::Success();
 }
 
-Response isValidRangeOfPositions(std::vector<std::pair<int, int>>& positions) {
+Response isValidRangeOfPositions(
+    const std::vector<std::pair<int, int>>& positions) {
   for (size_t i = 1; i < positions.size(); ++i) {
     if (positions[i - 1].first < positions[i].first) continue;
     if (positions[i - 1].first == positions[i].first &&
@@ -2400,7 +2401,7 @@ Response V8DebuggerAgentImpl::processSkipList(
 
   // Verify that the skipList is sorted, and that all ranges
   // are properly defined (start comes before end).
-  for (auto skipListPair : skipListInit) {
+  for (const auto& skipListPair : skipListInit) {
     Response res = isValidRangeOfPositions(skipListPair.second);
     if (res.IsError()) return res;
   }
