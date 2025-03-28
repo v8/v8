@@ -79,7 +79,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     }
     task->Run(data_.get());
     if (catch_exceptions_ == kFailOnUncaughtExceptions &&
-        try_catch.HasCaught()) {
+        try_catch.HasCaught() && !try_catch.HasTerminated()) {
       ReportUncaughtException(isolate(), try_catch);
       base::OS::ExitProcess(0);
     }

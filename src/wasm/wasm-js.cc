@@ -675,16 +675,7 @@ class WasmJSApiScope {
   WasmJSApiScope(const WasmJSApiScope&) = delete;
   WasmJSApiScope& operator=(const WasmJSApiScope&) = delete;
 
-#if DEBUG
-  ~WasmJSApiScope() {
-    // If there was an exception we should not have a return value set.
-    DCHECK_IMPLIES(i_isolate()->has_exception() || thrower_.error(),
-                   callback_info_.GetReturnValue().Get()->IsUndefined());
-  }
-#endif
-
   void AssertException() const {
-    DCHECK(callback_info_.GetReturnValue().Get()->IsUndefined());
     DCHECK(i_isolate()->has_exception() || thrower_.error());
   }
 
@@ -795,8 +786,7 @@ void WasmStreamingPromiseFailedCallback(
 void StartAsyncCompilationWithResolver(
     WasmJSApiScope& js_api_scope, Local<Value> response_or_promise,
     Local<Value> options_arg_value,
-    std::shared_ptr<i::wasm::CompilationResultResolver> resolver,
-    ReturnValue<Value> return_value) {
+    std::shared_ptr<i::wasm::CompilationResultResolver> resolver) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
 
   Local<Context> context = isolate->GetCurrentContext();
@@ -864,7 +854,6 @@ void StartAsyncCompilationWithResolver(
           ->Then(context, compile_callback, reject_callback)
           .IsEmpty()) {
     streaming->Abort(MaybeLocal<Value>{});
-    return_value.SetUndefined();
     return js_api_scope.AssertException();
   }
 }
@@ -890,8 +879,7 @@ void WebAssemblyCompileStreaming(
   auto resolver = std::make_shared<AsyncCompilationResolver>(isolate, context,
                                                              promise_resolver);
 
-  StartAsyncCompilationWithResolver(js_api_scope, info[0], info[1], resolver,
-                                    info.GetReturnValue());
+  StartAsyncCompilationWithResolver(js_api_scope, info[0], info[1], resolver);
 }
 
 // WebAssembly.validate(bytes, options) -> bool
@@ -1165,8 +1153,7 @@ void WebAssemblyInstantiateStreaming(
       std::make_shared<AsyncInstantiateCompileResultResolver>(
           isolate, context, result_resolver, ffi);
   StartAsyncCompilationWithResolver(js_api_scope, info[0], info[2],
-                                    std::move(compilation_resolver),
-                                    info.GetReturnValue());
+                                    std::move(compilation_resolver));
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
