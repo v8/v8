@@ -987,8 +987,6 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     auto backing_store = array_buffer->GetBackingStore();
     if (backing_store && backing_store->is_wasm_memory()) {
       if (array_buffer->is_resizable_by_js()) {
-        DirectHandle<Symbol> symbol =
-            isolate_->factory()->array_buffer_wasm_memory_symbol();
         Handle<Object> memory =
             Object::GetProperty(
                 isolate_, array_buffer,
