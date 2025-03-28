@@ -1629,6 +1629,7 @@ void LiftoffAssembler::LoadSpillAddress(Register dst, int offset,
 
 #define SIGN_EXT(r) lgfr(r, r)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
+#define INT32_AND_WITH_3F(x) Operand(x & 0x3f)
 #define REGISTER_AND_WITH_1F    \
   ([&](Register rhs) {          \
     AndP(r1, rhs, Operand(31)); \
@@ -1766,11 +1767,11 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i64_xori, XorP, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,     \
     LFR_TO_REG, Operand, USE, , void)                                          \
   V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,         \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                              \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
   V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,        \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                              \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
   V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,        \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
                             scast2, rcast, ret, return_type)                   \
@@ -2491,24 +2492,24 @@ SIMD_SHIFT_RR_LIST(EMIT_SIMD_SHIFT_RR)
 #undef EMIT_SIMD_SHIFT_RR
 #undef SIMD_SHIFT_RR_LIST
 
-#define SIMD_SHIFT_RI_LIST(V) \
-  V(i64x2_shli, I64x2Shl)     \
-  V(i64x2_shri_s, I64x2ShrS)  \
-  V(i64x2_shri_u, I64x2ShrU)  \
-  V(i32x4_shli, I32x4Shl)     \
-  V(i32x4_shri_s, I32x4ShrS)  \
-  V(i32x4_shri_u, I32x4ShrU)  \
-  V(i16x8_shli, I16x8Shl)     \
-  V(i16x8_shri_s, I16x8ShrS)  \
-  V(i16x8_shri_u, I16x8ShrU)  \
-  V(i8x16_shli, I8x16Shl)     \
-  V(i8x16_shri_s, I8x16ShrS)  \
-  V(i8x16_shri_u, I8x16ShrU)
+#define SIMD_SHIFT_RI_LIST(V)    \
+  V(i64x2_shli, I64x2Shl, 63)    \
+  V(i64x2_shri_s, I64x2ShrS, 63) \
+  V(i64x2_shri_u, I64x2ShrU, 63) \
+  V(i32x4_shli, I32x4Shl, 31)    \
+  V(i32x4_shri_s, I32x4ShrS, 31) \
+  V(i32x4_shri_u, I32x4ShrU, 31) \
+  V(i16x8_shli, I16x8Shl, 15)    \
+  V(i16x8_shri_s, I16x8ShrS, 15) \
+  V(i16x8_shri_u, I16x8ShrU, 15) \
+  V(i8x16_shli, I8x16Shl, 7)     \
+  V(i8x16_shri_s, I8x16ShrS, 7)  \
+  V(i8x16_shri_u, I8x16ShrU, 7)
 
-#define EMIT_SIMD_SHIFT_RI(name, op)                                           \
+#define EMIT_SIMD_SHIFT_RI(name, op, mask)                                     \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
                                      int32_t rhs) {                            \
-    op(dst.fp(), lhs.fp(), Operand(rhs), r0, kScratchDoubleReg);               \
+    op(dst.fp(), lhs.fp(), Operand(rhs & mask), r0, kScratchDoubleReg);        \
   }
 SIMD_SHIFT_RI_LIST(EMIT_SIMD_SHIFT_RI)
 #undef EMIT_SIMD_SHIFT_RI
