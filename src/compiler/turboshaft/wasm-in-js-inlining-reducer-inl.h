@@ -658,6 +658,10 @@ class WasmInJsInliningInterface {
   }
   void ThrowRef(FullDecoder* decoder, Value* value) { Bailout(decoder); }
 
+  void EffectHandlerTable(FullDecoder* decoder, Control* block) {
+    Bailout(decoder);
+  }
+
   // TODO(dlehmann,353475584): Support traps in the inlinee.
 
   void Trap(FullDecoder* decoder, wasm::TrapReason reason) { Bailout(decoder); }

@@ -690,6 +690,18 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_SEQ(...) __VA_ARGS__
 
 //------------------------------------------------------------------------------
+// Stack switching opcodes.
+//------------------------------------------------------------------------------
+
+#define WASM_CONT_NEW(index) kExprContNew, static_cast<uint8_t>(index)
+#define WASM_RESUME(index, count, ...) \
+  kExprResume, static_cast<uint8_t>(index), U32V_1(count), ##__VA_ARGS__
+#define WASM_SUSPEND(index) kExprSuspend, static_cast<uint8_t>(index)
+
+#define WASM_ON_TAG(tag, label) kOnSuspend, ToByte(tag), label
+#define WASM_SWITCH_TAG(tag) kSwitch, ToByte(tag)
+
+//------------------------------------------------------------------------------
 // Constructs that are composed of multiple bytecodes.
 //------------------------------------------------------------------------------
 #define WASM_WHILE(x, y)                                                      \

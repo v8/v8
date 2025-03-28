@@ -639,6 +639,20 @@ struct SigIndexImmediate : public TypeIndexImmediate {
   }
 };
 
+struct ContIndexImmediate : public TypeIndexImmediate {
+  const ContType* cont_type = nullptr;
+  bool shared = false;
+
+  template <typename ValidationTag>
+  ContIndexImmediate(Decoder* decoder, const uint8_t* pc,
+                     ValidationTag validate = {})
+      : TypeIndexImmediate(decoder, pc, "cont index", validate) {}
+
+  HeapType heap_type() const {
+    return HeapType::Index(index, shared, RefTypeKind::kCont);
+  }
+};
+
 struct StructIndexImmediate : public TypeIndexImmediate {
   const StructType* struct_type = nullptr;
   bool shared = false;
@@ -905,6 +919,68 @@ class TryTableIterator {
   const uint8_t* pc_;
   uint32_t index_ = 0;          // the current index.
   const uint32_t table_count_;  // the count of entries, not including default.
+};
+
+using EffectHandlerTableImmediate = BranchTableImmediate;
+
+struct HandlerCase {
+  SwitchKind kind;        // Regular handler or a switch site.
+  TagIndexImmediate tag;  // Tag defining this handler site.
+  union MaybeHandlerDepth {
+    uint8_t empty;
+    BranchDepthImmediate br;
+  } maybe_depth;
+};
+
+// A helper to iterate over a handler table.
+template <typename ValidationTag>
+class EffectHandlerTableIterator {
+ public:
+  uint32_t cur_index() const { return index_; }
+  bool has_next() const {
+    return VALIDATE(decoder_->ok()) && index_ < table_count_;
+  }
+
+  HandlerCase next() {
+    uint8_t kind =
+        static_cast<CatchKind>(decoder_->read_u8<ValidationTag>(pc_));
+    pc_ += 1;
+    TagIndexImmediate tag = TagIndexImmediate(decoder_, pc_, ValidationTag{});
+    pc_ += tag.length;
+
+    HandlerCase::MaybeHandlerDepth maybe_depth{0};
+
+    if (kind == kOnSuspend) {
+      maybe_depth.br = BranchDepthImmediate(decoder_, pc_, ValidationTag{});
+      pc_ += maybe_depth.br.length;
+    }
+    index_++;
+
+    return HandlerCase{static_cast<SwitchKind>(kind), tag, maybe_depth};
+  }
+
+  // length, including the length of the {EffectHandlerTableImmediate}, but not
+  // the opcode. This consumes the table entries, so it is invalid to call
+  // next() before or after this method.
+  uint32_t length() {
+    while (has_next()) next();
+    return static_cast<uint32_t>(pc_ - start_);
+  }
+  const uint8_t* pc() const { return pc_; }
+
+  EffectHandlerTableIterator(Decoder* decoder,
+                             const EffectHandlerTableImmediate& imm)
+      : decoder_(decoder),
+        start_(imm.start),
+        pc_(imm.table),
+        table_count_(imm.table_count) {}
+
+ private:
+  Decoder* const decoder_;
+  const uint8_t* const start_;
+  const uint8_t* pc_;
+  uint32_t index_ = 0;  // the current index.
+  const uint32_t table_count_;
 };
 
 struct MemoryAccessImmediate {
@@ -1308,6 +1384,12 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     base::Vector<Value> caught_values)                                         \
   F(Delegate, uint32_t depth, Control* block)                                  \
   F(CatchAll, Control* block)                                                  \
+  F(ContNew, const Value& func_ref, const ContIndexImmediate* imm,             \
+    Value* result)                                                             \
+  F(Resume, const ContIndexImmediate* imm, base::Vector<HandlerCase> handlers, \
+    const Value args[], const Value returns[])                                 \
+  F(Suspend, const TagIndexImmediate& imm, const Value args[],                 \
+    const Value returns[])                                                     \
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence)                                                               \
@@ -2119,6 +2201,17 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  bool ValidateCont(const uint8_t* pc, ContIndexImmediate& imm) {
+    if (!VALIDATE(module_->has_cont_type(imm.index))) {
+      DecodeError(pc, "invalid cont index: %u", imm.index.index);
+      return false;
+    }
+    imm.cont_type = module_->cont_type(imm.index);
+    imm.shared = module_->type(imm.index).is_shared;
+
+    return true;
+  }
+
   bool ValidateDataSegment(const uint8_t* pc, IndexImmediate& imm) {
     if (!VALIDATE(imm.index < module_->num_declared_data_segments)) {
       DecodeError(pc, "invalid data segment index: %u", imm.index);
@@ -2214,6 +2307,54 @@ class WasmDecoder : public Decoder {
       }
       case kExprThrowRef:
         return 1;
+
+      /********** Core stack switching ********/
+      case kExprContNew: {
+        ContIndexImmediate imm(decoder, pc + 1, validate);
+        (ios.TypeIndex(imm), ...);
+        return 1 + imm.length;
+      }
+      case kExprContBind: {
+        ContIndexImmediate src(decoder, pc + 1, validate);
+        (ios.TypeIndex(src), ...);
+        ContIndexImmediate dst(decoder, pc + 1 + src.length, validate);
+        (ios.TypeIndex(dst), ...);
+        return 1 + src.length + dst.length;
+      }
+      case kExprSuspend: {
+        TagIndexImmediate imm(decoder, pc + 1, validate);
+        (ios.TagIndex(imm), ...);
+        return 1 + imm.length;
+      }
+      case kExprResume: {
+        ContIndexImmediate src(decoder, pc + 1, validate);
+        (ios.TypeIndex(src), ...);
+        EffectHandlerTableImmediate handler_table(decoder, pc + 1 + src.length,
+                                                  validate);
+        (ios.EffectHandlerTable(handler_table), ...);
+        EffectHandlerTableIterator<ValidationTag> iterator(decoder,
+                                                           handler_table);
+        return 1 + src.length + iterator.length();
+      }
+      case kExprResumeThrow: {
+        ContIndexImmediate src(decoder, pc + 1, validate);
+        (ios.TypeIndex(src), ...);
+        TagIndexImmediate event(decoder, pc + src.length + 1, validate);
+        (ios.TagIndex(event), ...);
+        EffectHandlerTableImmediate handler_table(
+            decoder, pc + 1 + src.length + event.length, validate);
+        (ios.EffectHandlerTable(handler_table), ...);
+        EffectHandlerTableIterator<ValidationTag> iterator(decoder,
+                                                           handler_table);
+        return 1 + src.length + event.length + iterator.length();
+      }
+      case kExprSwitch: {
+        ContIndexImmediate src(decoder, pc + 1, validate);
+        (ios.TypeIndex(src), ...);
+        TagIndexImmediate tag(decoder, pc + src.length + 1, validate);
+        (ios.TagIndex(tag), ...);
+        return 1 + src.length + tag.length;
+      }
 
       /********** Misc opcodes **********/
       case kExprCallFunction:
@@ -4162,6 +4303,125 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1;
   }
 
+  DECODE(ContNew) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    this->detected_->add_wasmfx();
+    ContIndexImmediate imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
+
+    // Pop a function type.
+    // Value func_ref =
+    Pop(ValueType::RefNull(imm.cont_type->contfun_typeindex(), imm.shared,
+                           RefTypeKind::kFunction));
+
+    // Push a continuation type.
+    // Value* value =
+    Push(ValueType::Ref(imm.heap_type()));
+    // TODO(fgm): uncomment when implementing Cont.new
+    //    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, func_ref, imm.index,
+    //    value);
+    return 1 + imm.length;
+  }
+
+  DECODE(Resume) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    this->detected_->add_wasmfx();
+
+    ContIndexImmediate imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
+
+    Pop(ValueType::RefNull(imm.heap_type()));
+
+    EffectHandlerTableImmediate handler_table_imm(
+        this, this->pc_ + 1 + imm.length, validate);
+
+    if (!this->Validate(this->pc_ + imm.length + 1, handler_table_imm))
+      return 0;
+    EffectHandlerTableIterator<ValidationTag> handle_iterator(
+        this, handler_table_imm);
+    base::Vector<HandlerCase> handlers =
+        this->zone_->template AllocateVector<HandlerCase>(
+            handler_table_imm.table_count);
+    int i = 0;
+    while (handle_iterator.has_next()) {
+      HandlerCase handler = handle_iterator.next();
+
+      if (!this->Validate(this->pc_, handler.tag)) {
+        return 0;
+      }
+      handlers[i] = handler;
+
+      uint32_t stack_size = stack_.size();
+      uint32_t push_count = 0;
+      if (handler.kind == kOnSuspend) {
+        const WasmTagSig* sig = handler.tag.tag->sig;
+        stack_.EnsureMoreCapacity(static_cast<int>(sig->parameter_count()),
+                                  this->zone_);
+        for (ValueType type : sig->parameters()) Push(type);
+        push_count += sig->parameter_count();
+
+        if (!VALIDATE((this->Validate(this->pc_, handler.maybe_depth.br,
+                                      control_depth())))) {
+          return 0;
+        }
+
+        Control* target = control_at(handler.maybe_depth.br.depth);
+        if (!VALIDATE(push_count == target->br_merge()->arity)) {
+          this->DecodeError(
+              "handler generates %d operand%s, target block returns %d",
+              push_count, push_count != 1 ? "s" : "",
+              target->br_merge()->arity);
+          return 0;
+        }
+
+        if (!VALIDATE((
+                TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
+                    target)))) {
+          return 0;
+        }
+        stack_.shrink_to(stack_size);
+        DCHECK_LT(i, handler_table_imm.table_count);
+      } else if (handler.kind != kSwitch) {
+        this->DecodeError("invalid handler kind %d", handler.kind);
+        return 0;
+      }
+      i++;
+    }
+    // The continuation might return, treat Resume like a function call.
+    const FunctionSig* contFunSig =
+        this->module_->signature(imm.cont_type->contfun_typeindex());
+
+    // TODO(fgm): uncomment when implementing resume
+    // PoppedArgVector args =
+    PopArgs(contFunSig);
+    // Value* returns =
+    PushReturns(contFunSig);
+    //    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContResume, imm.index, handlers,
+    //    args, returns);
+    return 1 + imm.length + handle_iterator.length();
+  }
+
+  DECODE(Suspend) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    this->detected_->add_wasmfx();
+
+    TagIndexImmediate imm(this, this->pc_ + 1, validate);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
+
+    const FunctionSig* sig = imm.tag->ToFunctionSig();
+
+    // TODO(fgm): uncomment when implementing suspend
+    //  PoppedArgVector args =
+    PopArgs(sig);
+
+    // Value* returns =
+    PushReturns(sig);
+
+    // CALL_INTERFACE_IF_OK_AND_REACHABLE(Suspend, imm, args.data());
+
+    return 1 + imm.length;
+  }
+
   DECODE(Numeric) {
     auto [full_opcode, opcode_length] =
         this->template read_prefixed_opcode<ValidationTag>(this->pc_,
@@ -4287,6 +4547,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(Catch);
     DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);
+    DECODE_IMPL(ContNew);
+    DECODE_IMPL(Resume);
+    DECODE_IMPL(Suspend);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(BrOnNonNull);
     DECODE_IMPL(Loop);

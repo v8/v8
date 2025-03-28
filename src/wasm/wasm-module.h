@@ -872,9 +872,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
     return types[index.index].function_sig;
   }
 
-  bool has_conttype(ModuleTypeIndex index) const {
+  bool has_cont_type(ModuleTypeIndex index) const {
     return index.index < types.size() &&
            types[index.index].kind == TypeDefinition::kCont;
+  }
+
+  const ContType* cont_type(ModuleTypeIndex index) const {
+    DCHECK(has_cont_type(index));
+    size_t num_types = types.size();
+    V8_ASSUME(index.index < num_types);
+    return types[index.index].cont_type;
   }
 
   CanonicalTypeIndex canonical_sig_id(ModuleTypeIndex index) const {
