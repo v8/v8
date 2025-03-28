@@ -769,6 +769,35 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
   EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
 }
 
+TEST_F(InnerPointerResolutionHeapTest, RegularPageAfterEnd) {
+  auto allocator = heap()->memory_allocator();
+
+  // Allocate a regular page.
+  OldSpace* old_space = heap()->old_space();
+  DCHECK_NE(nullptr, old_space);
+  auto* page = allocator->AllocatePage(
+      MemoryAllocator::AllocationMode::kRegular, old_space, NOT_EXECUTABLE);
+  EXPECT_NE(nullptr, page);
+
+  // The end of the page area is expected not to coincide with the beginning of
+  // the next page.
+  const int size = (1 << kPageSizeBits) / 2;
+  const Address mark = page->area_start() + size;
+  heap()->CreateFillerObjectAt(page->area_start(), size);
+  heap()->CreateFillerObjectAt(mark, static_cast<int>(page->area_end() - mark));
+  PageMetadata::UpdateHighWaterMark(mark);
+  page->ShrinkToHighWaterMark();
+  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(page->area_end()));
+
+  // Inner pointer resolution after the end of the page area should work.
+  Address inner_ptr = page->area_end() + kTaggedSize;
+  EXPECT_FALSE(PageMetadata::IsAlignedToPageSize(inner_ptr));
+  EXPECT_EQ(kNullAddress, ResolveInnerPointer(inner_ptr));
+
+  // Deallocate the page.
+  allocator->Free(MemoryAllocator::FreeMode::kImmediately, page);
+}
+
 TEST_F(InnerPointerResolutionHeapTest, LargePageAfterEnd) {
   auto allocator = heap()->memory_allocator();
 
