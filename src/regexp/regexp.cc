@@ -627,6 +627,9 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate,
   // compilation) here in advance.
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
+    if (v8_flags.correctness_fuzzer_suppressions) {
+      FATAL("Aborting on stack overflow");
+    }
     RegExp::ThrowRegExpException(isolate, re_data,
                                  RegExpError::kAnalysisStackOverflow);
     return false;
