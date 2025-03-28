@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': '01d2444accdc1f985d3cfd0c512222de507eb3a4',
+  'partition_alloc_version': 'ab56923a27b2793f21994589b0c39bc3324ff49f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '69a0df111000be90dba44de2f69069e30ef8ee86',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bc165f0a14f89bc5e27a362211cc9c63fdd74879',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '244e7cf4453305d0c17d500662a69fba2e46a73e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c5f8bd5dcbb50e8866a240a11bae5008316602fa',
   'buildtools/linux64': {
     'packages': [
       {
@@ -305,7 +305,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e2e6f2a67e9420e770b014ce9bba476fa2ab9874',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '225cbadd34448e99d4fe6f2a75f20ec59bcdab83',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + 'ffdeea1ab212d6349484afb9ba9532e252fde09d',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
