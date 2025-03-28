@@ -2766,6 +2766,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
     const uint16_t descriptor_idx = static_cast<uint16_t>(i.as_uint32());
 
     Tagged<Name> name = descriptors->GetKey(i);
+    int property_index;
     if constexpr (mode != ResumeJSObjectMode::kWithMapCache) {
       if (V8_UNLIKELY(IsSymbol(name))) {
         if constexpr (mode == ResumeJSObjectMode::kBuildingMapCache) {
@@ -2784,9 +2785,11 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
         return SLOW_PATH;
       }
       DCHECK_EQ(PropertyKind::kData, details.kind());
-      DCHECK_EQ(descriptor_idx, details.field_index());
+      property_index = details.field_index();
+    } else {
+      DCHECK_EQ(descriptor_idx, descriptors->GetDetails(i).field_index());
+      property_index = descriptor_idx;
     }
-    int property_index = descriptor_idx;
     const bool is_inobject = property_index < in_object_properties;
     Tagged<JSAny> property;
     if (is_inobject) {
