@@ -647,8 +647,9 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     backing_store = buffer->backing_store();
     // We cannot store byte_length or max_byte_length larger than uint32 range
     // in the snapshot.
-    CHECK_LE(buffer->byte_length(), std::numeric_limits<uint32_t>::max());
-    uint32_t byte_length = static_cast<uint32_t>(buffer->byte_length());
+    size_t byte_length_size = buffer->GetByteLength();
+    CHECK_LE(byte_length_size, std::numeric_limits<uint32_t>::max());
+    uint32_t byte_length = static_cast<uint32_t>(byte_length_size);
     Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
     if (buffer->is_resizable_by_js()) {
       CHECK_LE(buffer->max_byte_length(), std::numeric_limits<uint32_t>::max());
