@@ -272,7 +272,14 @@ V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D;
 }
 
-#ifndef V8_INTL_SUPPORT
+#ifdef V8_INTL_SUPPORT
+struct V8_EXPORT_PRIVATE ToLowercase {
+  static const bool kIsToLower = true;
+};
+struct V8_EXPORT_PRIVATE ToUppercase {
+  static const bool kIsToLower = false;
+};
+#else
 struct V8_EXPORT_PRIVATE ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;

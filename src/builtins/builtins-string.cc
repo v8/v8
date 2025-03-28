@@ -345,22 +345,32 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   if (String::IsOneByteRepresentationUnderneath(*s)) {
+    uint32_t prefix;
+    {
+      DisallowGarbageCollection no_gc;
+      String::FlatContent flat = s->GetFlatContent(no_gc);
+      prefix = FastAsciiCasePrefixLength<Converter>(
+          reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
+          length);
+      if (prefix == length) return *s;
+    }
     // Same length as input.
     DirectHandle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
     DisallowGarbageCollection no_gc;
-    String::FlatContent flat_content = s->GetFlatContent(no_gc);
-    DCHECK(flat_content.IsFlat());
-    bool has_changed_character = false;
+    String::FlatContent flat = s->GetFlatContent(no_gc);
+    DCHECK(flat.IsFlat());
+    uint8_t* dest = result->GetChars(no_gc);
+    base::Vector<const uint8_t> src = flat.ToOneByteVector();
+    std::memcpy(dest, src.begin(), prefix);
     uint32_t index_to_first_unprocessed =
-        FastAsciiConvert<Converter::kIsToLower>(
-            reinterpret_cast<char*>(result->GetChars(no_gc)),
-            reinterpret_cast<const char*>(
-                flat_content.ToOneByteVector().begin()),
-            length, &has_changed_character);
+        FastAsciiConvert<Converter>(
+            reinterpret_cast<char*>(dest + prefix),
+            reinterpret_cast<const char*>(src.begin() + prefix),
+            length - prefix) +
+        prefix;
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (index_to_first_unprocessed == length)
-      return has_changed_character ? *result : *s;
+    if (index_to_first_unprocessed == length) return *result;
   }
 
   DirectHandle<SeqString> result;  // Same length as input.

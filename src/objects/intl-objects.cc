@@ -324,19 +324,15 @@ Tagged<String> Intl::ConvertOneByteToLower(Tagged<String> src,
   if (src_flat.IsOneByte()) {
     const uint8_t* src_data = src_flat.ToOneByteVector().begin();
 
-    bool has_changed_character = false;
-    int index_to_first_unprocessed =
-        FastAsciiConvert<true>(reinterpret_cast<char*>(dst_data),
-                               reinterpret_cast<const char*>(src_data), length,
-                               &has_changed_character);
+    int ascii_prefix_length = FastAsciiConvert<unibrow::ToLowercase>(
+        reinterpret_cast<char*>(dst_data),
+        reinterpret_cast<const char*>(src_data), length);
 
-    if (index_to_first_unprocessed == length) {
-      return has_changed_character ? dst : src;
-    }
+    if (ascii_prefix_length == length) return dst;
 
     // If not ASCII, we keep the result up to index_to_first_unprocessed and
     // process the rest.
-    for (int index = index_to_first_unprocessed; index < length; ++index) {
+    for (int index = ascii_prefix_length; index < length; ++index) {
       dst_data[index] = ToLatin1Lower(src_data[index]);
     }
   } else {
@@ -392,8 +388,19 @@ MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate,
 
 MaybeDirectHandle<String> Intl::ConvertToUpper(Isolate* isolate,
                                                DirectHandle<String> s) {
-  int32_t length = s->length();
+  uint32_t length = s->length();
   if (s->IsOneByteRepresentation() && length > 0) {
+    uint32_t prefix;
+    {
+      DisallowGarbageCollection no_gc;
+      String::FlatContent flat = s->GetFlatContent(no_gc);
+      prefix = FastAsciiCasePrefixLength<unibrow::ToUppercase>(
+          reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
+          length);
+      if (prefix == length) {
+        return indirect_handle(s, isolate);
+      }
+    }
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
@@ -406,19 +413,19 @@ MaybeDirectHandle<String> Intl::ConvertToUpper(Isolate* isolate,
       uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
         base::Vector<const uint8_t> src = flat.ToOneByteVector();
-        bool has_changed_character = false;
-        int index_to_first_unprocessed = FastAsciiConvert<false>(
-            reinterpret_cast<char*>(result->GetChars(no_gc)),
-            reinterpret_cast<const char*>(src.begin()), length,
-            &has_changed_character);
-        if (index_to_first_unprocessed == length) {
-          return has_changed_character ? result : indirect_handle(s, isolate);
-        }
+        std::memcpy(result->GetChars(no_gc), src.begin(), prefix);
+        uint32_t ascii_prefix_length =
+            FastAsciiConvert<unibrow::ToUppercase>(
+                reinterpret_cast<char*>(result->GetChars(no_gc)) + prefix,
+                reinterpret_cast<const char*>(src.begin()) + prefix,
+                length - prefix) +
+            prefix;
+        if (ascii_prefix_length == length) return result;
         // If not ASCII, we keep the result up to index_to_first_unprocessed and
         // process the rest.
         is_result_single_byte =
-            ToUpperOneByte(src.SubVector(index_to_first_unprocessed, length),
-                           dest + index_to_first_unprocessed, &sharp_s_count);
+            ToUpperOneByte(src.SubVector(ascii_prefix_length, length),
+                           dest + ascii_prefix_length, &sharp_s_count);
       } else {
         DCHECK(flat.IsTwoByte());
         base::Vector<const uint16_t> src = flat.ToUC16Vector();

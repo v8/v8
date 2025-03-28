@@ -10,9 +10,15 @@
 namespace v8 {
 namespace internal {
 
-template <bool is_lower>
-uint32_t FastAsciiConvert(char* dst, const char* src, uint32_t length,
-                          bool* changed_out);
+// Computes the prefix length of src that's ascii and matches the case.
+template <class CaseMapping>
+uint32_t FastAsciiCasePrefixLength(const char* src, uint32_t length);
+
+// Converts ascii chars from src to dst to the expected case in a latin1 string.
+// In case non-ascii chars appears it may bail out early. Returns the length of
+// the already processed ascii prefix.
+template <class CaseMapping>
+uint32_t FastAsciiConvert(char* dst, const char* src, uint32_t length);
 
 }  // namespace internal
 }  // namespace v8
