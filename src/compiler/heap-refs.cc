@@ -1163,14 +1163,7 @@ bool MapRef::IsBooleanMap(JSHeapBroker* broker) const {
 }
 
 bool MapRef::IsThinStringMap() const {
-  // The check below only works for string maps.
-  DCHECK(IsStringMap());
   return InstanceTypeChecker::IsThinString(instance_type());
-}
-
-bool MapRef::IsStringWrapperMap() const {
-  return IsJSPrimitiveWrapperMap() &&
-         IsStringWrapperElementsKind(elements_kind());
 }
 
 bool MapRef::IsTwoByteStringMap() const {
