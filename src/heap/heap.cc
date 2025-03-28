@@ -1882,6 +1882,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   DCHECK(incremental_marking()->IsStopped());
   CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
                 !isolate()->InFastCCall());
+  DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
   if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
     // Do not start incremental marking while invoking GC callbacks.
