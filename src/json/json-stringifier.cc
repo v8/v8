@@ -3086,7 +3086,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
     DisableGCMole no_gc_mole;
     FastJsonStringifierResult result =
         TrySerializeSimpleObject(cont.simple_object());
-    DCHECK_EQ(result, SUCCESS);
+    if (V8_UNLIKELY(result != SUCCESS)) {
+      DCHECK_EQ(result, SLOW_PATH);
+      return result;
+    }
 
     // Early return if a top-level string triggered the encoding change.
     if (stack_.empty()) return result;
