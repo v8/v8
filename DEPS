@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c78c56ad7e8a1b6068f4896f3d25a09164a10a28',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '69a0df111000be90dba44de2f69069e30ef8ee86',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '244e7cf4453305d0c17d500662a69fba2e46a73e',
   'buildtools/linux64': {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'aec920c93d0ebfb84bad983ff5cf4841e2e9ca5b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5b409767f0b2a05044d7139c3c000773da013775',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -471,9 +471,9 @@ deps = {
     'condition': 'not build_with_chromium',
   },
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'b3fc262d1f1294a2653e98b909cebc836eb88f97',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '40b529923598b739b2892a536a7692eedbed5685',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'b370f51abd8b5f78fcca15434fda9cd812592046',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'b714f7890b8b6ad3ff3471d3148b28c2c7bbff90',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'c84a140c93352cdabbfb547c531be34515b12228',
   'third_party/requests': {
@@ -483,7 +483,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7cdd3d9540f3ab428dbcc9ab83c2896c100bcdc5',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '64b6cce20596dcf0abdfaef56efb80767478c4b4',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ed577320339cd175171e9c96d3d73452ddbcbd98',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
