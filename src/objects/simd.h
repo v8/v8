@@ -23,7 +23,7 @@ uintptr_t ArrayIndexOfIncludesDouble(Address array_start, uintptr_t array_len,
 Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
                                DirectHandle<SeqOneByteString> string_output);
 template <typename T>
-bool ArrayBufferFromHex(base::Vector<T> input_vector,
+bool ArrayBufferFromHex(base::Vector<T>& input_vector,
                         DirectHandle<JSArrayBuffer> buffer,
                         size_t output_length);
 
