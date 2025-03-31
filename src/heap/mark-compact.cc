@@ -1210,7 +1210,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
                                             heap_object)) {
       return object;
-    } else if (IsAllocationSite(object) &&
+    } else if (IsAllocationSite(heap_object) &&
                !Cast<AllocationSite>(object)->IsZombie()) {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.

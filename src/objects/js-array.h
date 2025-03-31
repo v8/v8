@@ -143,7 +143,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
 
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - sizeof(FixedArray) - kHeaderSize -
-       AllocationMemento::kSize) >>
+       sizeof(AllocationMemento)) >>
       kDoubleSizeLog2;
 
   TQ_OBJECT_CONSTRUCTORS(JSArray)

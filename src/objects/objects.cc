@@ -1915,6 +1915,8 @@ void Smi::SmiPrint(Tagged<Smi> smi, std::ostream& os) { os << smi.value(); }
 
 void Struct::BriefPrintDetails(std::ostream& os) {}
 
+void StructLayout::BriefPrintDetails(std::ostream& os) {}
+
 void Tuple2::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
@@ -4912,8 +4914,9 @@ bool AllocationSite::IsNested() {
   DCHECK(v8_flags.trace_track_allocation_sites);
   Tagged<Object> current = boilerplate()->GetHeap()->allocation_sites_list();
   while (IsAllocationSite(current)) {
-    Tagged<AllocationSite> current_site = Cast<AllocationSite>(current);
-    if (current_site->nested_site() == *this) {
+    Tagged<AllocationSiteWithWeakNext> current_site =
+        Cast<AllocationSiteWithWeakNext>(current);
+    if (current_site->nested_site() == this) {
       return true;
     }
     current = current_site->weak_next();

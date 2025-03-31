@@ -1465,7 +1465,7 @@ bool LookupIterator::LookupCachedProperty(
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(IsAccessorPair(*GetAccessors(), isolate_));
 
-  Tagged<Object> getter = accessor_pair->getter(isolate_);
+  Tagged<Object> getter = accessor_pair->getter();
   std::optional<Tagged<Name>> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
@@ -1657,8 +1657,8 @@ ConcurrentLookupIterator::TryGetPropertyCell(
 
     std::optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
-            isolate, Cast<AccessorPair>(maybe_accessor_pair)
-                         ->getter(isolate, kAcquireLoad));
+            isolate,
+            Cast<AccessorPair>(maybe_accessor_pair)->getter(kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 
     maybe_cell = dict->TryFindPropertyCellForConcurrentLookupIterator(

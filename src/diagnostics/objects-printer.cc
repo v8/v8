@@ -22,10 +22,12 @@
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/all-objects-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/struct.h"
 #include "src/regexp/regexp.h"
 #include "src/sandbox/isolate.h"
 #include "src/sandbox/js-dispatch-table.h"
@@ -2974,6 +2976,27 @@ void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void Tuple2::Tuple2Print(std::ostream& os) {
+  this->PrintHeader(os, "Tuple2");
+  os << "\n - value1: " << Brief(this->value1());
+  os << "\n - value2: " << Brief(this->value2());
+  os << '\n';
+}
+
+void AccessorPair::AccessorPairPrint(std::ostream& os) {
+  this->PrintHeader(os, "AccessorPair");
+  os << "\n - getter: " << Brief(this->getter());
+  os << "\n - setter: " << Brief(this->setter());
+  os << '\n';
+}
+
+void ClassPositions::ClassPositionsPrint(std::ostream& os) {
+  this->PrintHeader(os, "ClassPositions");
+  os << "\n - start: " << this->start();
+  os << "\n - end: " << this->end();
+  os << '\n';
+}
+
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   PrintHeader(os, "LoadHandler");
   // TODO(ishell): implement printing based on handler kind
@@ -3012,7 +3035,9 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {
   PrintHeader(os, "AllocationSite");
-  if (this->HasWeakNext()) os << "\n - weak_next: " << Brief(weak_next());
+  if (this->HasWeakNext())
+    os << "\n - weak_next: "
+       << Brief(Cast<AllocationSiteWithWeakNext>(this)->weak_next());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
   os << "\n - memento found count: "
@@ -3609,9 +3634,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
     case ALLOCATION_SITE_TYPE: {
-      os << "<AllocationSite";
-      Cast<AllocationSite>(*this)->BriefPrintDetails(os);
-      os << ">";
+      os << "<AllocationSite>";
       break;
     }
     case SCOPE_INFO_TYPE: {

@@ -307,7 +307,7 @@ Tagged<HeapObject> Factory::AllocateRawWithAllocationSite(
   const int allocation_size =
       should_allocate_memento
           ? instance_size +
-                ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize)
+                ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento))
           : instance_size;
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(allocation_size,
@@ -2277,8 +2277,11 @@ Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
 
   if (with_weak_next) {
     // Link the site
-    site->set_weak_next(isolate()->heap()->allocation_sites_list());
-    isolate()->heap()->set_allocation_sites_list(*site);
+    Cast<AllocationSiteWithWeakNext>(site)->set_weak_next(
+        Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
+            isolate()->heap()->allocation_sites_list()));
+    isolate()->heap()->set_allocation_sites_list(
+        *Cast<AllocationSiteWithWeakNext>(site));
   }
   return site;
 }
@@ -2504,7 +2507,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   if (!site.is_null()) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     adjusted_object_size +=
-        ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize);
+        ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento));
   }
   Tagged<HeapObject> raw_clone =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(

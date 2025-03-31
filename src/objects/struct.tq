@@ -5,16 +5,19 @@
 @abstract
 extern class Struct extends HeapObject {}
 
+@cppObjectLayoutDefinition
 extern class Tuple2 extends Struct {
   value1: Object;
   value2: Object;
 }
 
+@cppObjectLayoutDefinition
 extern class ClassPositions extends Struct {
   start: Smi;
   end: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class AccessorPair extends Struct {
   getter: Object;
   setter: Object;

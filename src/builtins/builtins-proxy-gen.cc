@@ -262,7 +262,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         // 10.b. If IsAccessorDescriptor(targetDesc) is true and
         // targetDesc.[[Get]] is undefined, then:
         TNode<Object> getter =
-            LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+            LoadObjectField(accessor_pair, offsetof(AccessorPair, getter_));
         // Here we check for null as well because if the getter was never
         // defined it's set as null.
         GotoIf(IsUndefined(getter), &continue_check);
@@ -276,7 +276,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         // 11.b.i. If targetDesc.[[Set]] is undefined, throw a TypeError
         // exception.
         TNode<Object> setter =
-            LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+            LoadObjectField(accessor_pair, offsetof(AccessorPair, setter_));
         GotoIf(IsUndefined(setter), &throw_non_configurable_accessor);
         GotoIf(IsNull(setter), &throw_non_configurable_accessor);
       }

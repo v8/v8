@@ -7,6 +7,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/js-weak-refs.h"
 
 namespace v8 {
@@ -139,20 +140,26 @@ struct WeakListVisitor<Context> {
 };
 
 template <>
-struct WeakListVisitor<AllocationSite> {
-  static void SetWeakNext(Tagged<AllocationSite> obj, Tagged<HeapObject> next) {
-    obj->set_weak_next(next, UPDATE_WRITE_BARRIER);
+struct WeakListVisitor<AllocationSiteWithWeakNext> {
+  static void SetWeakNext(Tagged<AllocationSiteWithWeakNext> obj,
+                          Tagged<HeapObject> next) {
+    obj->set_weak_next(
+        Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(next),
+        UPDATE_WRITE_BARRIER);
   }
 
-  static Tagged<Object> WeakNext(Tagged<AllocationSite> obj) {
+  static Tagged<Object> WeakNext(Tagged<AllocationSiteWithWeakNext> obj) {
     return obj->weak_next();
   }
 
-  static Tagged<HeapObject> WeakNextHolder(Tagged<AllocationSite> obj) {
+  static Tagged<HeapObject> WeakNextHolder(
+      Tagged<AllocationSiteWithWeakNext> obj) {
     return obj;
   }
 
-  static int WeakNextOffset() { return AllocationSite::kWeakNextOffset; }
+  static int WeakNextOffset() {
+    return offsetof(AllocationSiteWithWeakNext, weak_next_);
+  }
 
   static void VisitLiveObject(Heap*, Tagged<AllocationSite>,
                               WeakObjectRetainer*) {}
@@ -191,7 +198,7 @@ struct WeakListVisitor<JSFinalizationRegistry> {
 template Tagged<Object> VisitWeakList<Context>(Heap* heap, Tagged<Object> list,
                                                WeakObjectRetainer* retainer);
 
-template Tagged<Object> VisitWeakList<AllocationSite>(
+template Tagged<Object> VisitWeakList<AllocationSiteWithWeakNext>(
     Heap* heap, Tagged<Object> list, WeakObjectRetainer* retainer);
 
 template Tagged<Object> VisitWeakList<JSFinalizationRegistry>(

@@ -37,6 +37,8 @@ V8_OBJECT class HeapObjectLayout {
   inline Tagged<Map> map() const;
   inline Tagged<Map> map(AcquireLoadTag) const;
 
+  inline MapWord map_word(RelaxedLoadTag) const;
+
   inline void set_map(Isolate* isolate, Tagged<Map> value);
   template <typename IsolateT>
   inline void set_map(IsolateT* isolate, Tagged<Map> value, ReleaseStoreTag);

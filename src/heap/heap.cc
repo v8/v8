@@ -104,6 +104,7 @@
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -2932,8 +2933,11 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
 
 void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
   Tagged<Object> allocation_site_obj =
-      VisitWeakList<AllocationSite>(this, allocation_sites_list(), retainer);
-  set_allocation_sites_list(allocation_site_obj);
+      VisitWeakList<AllocationSiteWithWeakNext>(this, allocation_sites_list(),
+                                                retainer);
+  set_allocation_sites_list(
+      Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
+          allocation_site_obj));
 }
 
 void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
@@ -2949,7 +2953,9 @@ void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
 
 void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
   set_native_contexts_list(retainer->RetainAs(native_contexts_list()));
-  set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
+  set_allocation_sites_list(
+      Cast<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>(
+          retainer->RetainAs(allocation_sites_list())));
   set_dirty_js_finalization_registries_list(
       retainer->RetainAs(dirty_js_finalization_registries_list()));
   set_dirty_js_finalization_registries_list_tail(
@@ -2962,7 +2968,8 @@ void Heap::ForeachAllocationSite(
   DisallowGarbageCollection no_gc;
   Tagged<Object> current = list;
   while (IsAllocationSite(current)) {
-    Tagged<AllocationSite> site = Cast<AllocationSite>(current);
+    Tagged<AllocationSiteWithWeakNext> site =
+        Cast<AllocationSiteWithWeakNext>(current);
     visitor(site);
     Tagged<Object> current_nested = site->nested_site();
     while (IsAllocationSite(current_nested)) {
@@ -5113,7 +5120,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
   DCHECK(kMaxRegularHeapObjectSize >=
          (JSArray::kHeaderSize +
           FixedArray::SizeFor(JSArray::kInitialMaxFastElementArray) +
-          ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize)));
+          ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento))));
 
   code_range_size_ = constraints.code_range_size_in_bytes();
 

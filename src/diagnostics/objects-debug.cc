@@ -177,7 +177,7 @@ void Object::VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p) {
 
 // static
 void Smi::SmiVerify(Tagged<Smi> obj, Isolate* isolate) {
-  CHECK(IsSmi(obj));
+  CHECK(IsSmi(Tagged<Object>(obj)));
   CHECK(!IsCallable(obj));
   CHECK(!IsConstructor(obj));
 }
@@ -2524,6 +2524,31 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void StructLayout::StructVerify(Isolate* isolate) {
+  Cast<Struct>(this)->StructVerify(isolate);
+}
+
+void Tuple2::Tuple2Verify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsTuple2(this));
+  Object::VerifyPointer(isolate, value1_.load());
+  Object::VerifyPointer(isolate, value2_.load());
+}
+
+void AccessorPair::AccessorPairVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAccessorPair(this));
+  Object::VerifyPointer(isolate, getter_.load());
+  Object::VerifyPointer(isolate, setter_.load());
+}
+
+void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsClassPositions(this));
+  CHECK(IsSmi(Tagged<Object>(start_.load())));
+  CHECK(IsSmi(Tagged<Object>(end_.load())));
+}
+
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
   // Torque definition of this class includes all of the optional fields.
@@ -2562,11 +2587,20 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
 }
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
-  CHECK(IsAllocationSite(*this));
+  CHECK(IsAllocationSite(this));
   CHECK(IsDependentCode(dependent_code()));
-  CHECK(IsSmi(transition_info_or_boilerplate()) ||
-        IsJSObject(transition_info_or_boilerplate()));
+  if (PointsToLiteral()) {
+    CHECK(IsJSObject(transition_info_or_boilerplate_.load()));
+  } else {
+    CHECK(IsSmi(transition_info_or_boilerplate_.load()));
+  }
   CHECK(IsAllocationSite(nested_site()) || nested_site() == Smi::zero());
+}
+
+void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAllocationMemento(this));
+  CHECK(IsAllocationSite(allocation_site_.load()));
 }
 
 void Script::ScriptVerify(Isolate* isolate) {

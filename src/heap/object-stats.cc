@@ -858,8 +858,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
 void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Iterate boilerplates first to disambiguate them from regular JS objects.
   Tagged<Object> list = heap_->allocation_sites_list();
-  while (IsAllocationSite(list, cage_base())) {
-    Tagged<AllocationSite> site = Cast<AllocationSite>(list);
+  Tagged<AllocationSiteWithWeakNext> site;
+  while (TryCast(list, &site)) {
     RecordVirtualAllocationSiteDetails(site);
     list = site->weak_next();
   }

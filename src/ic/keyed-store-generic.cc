@@ -1108,7 +1108,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsAccessorInfo(accessor_pair), slow);
       CSA_DCHECK(this, IsAccessorPair(accessor_pair));
       TNode<HeapObject> setter =
-          CAST(LoadObjectField(accessor_pair, AccessorPair::kSetterOffset));
+          CAST(LoadObjectField(accessor_pair, offsetof(AccessorPair, setter_)));
       TNode<Map> setter_map = LoadMap(setter);
       // FunctionTemplateInfo setters are not supported yet.
       GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
