@@ -2813,20 +2813,20 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
                                                    ValueNode* right) {
   if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
     if (root_constant->index() == RootIndex::kempty_string) {
-      BuildCheckString(right);
+      RETURN_IF_ABORT(BuildCheckString(right));
       SetAccumulator(right);
       return ReduceResult::Done();
     }
   }
   if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
     if (root_constant->index() == RootIndex::kempty_string) {
-      BuildCheckString(left);
+      RETURN_IF_ABORT(BuildCheckString(left));
       SetAccumulator(left);
       return ReduceResult::Done();
     }
   }
-  BuildCheckString(left);
-  BuildCheckString(right);
+  RETURN_IF_ABORT(BuildCheckString(left));
+  RETURN_IF_ABORT(BuildCheckString(right));
   PROCESS_AND_RETURN_IF_DONE(TryBuildNewConsString(left, right),
                              SetAccumulator);
   SetAccumulator(AddNewNode<StringConcat>({left, right}));
@@ -2878,8 +2878,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
                 ->DependOnStringWrapperToPrimitiveProtector()) {
           ValueNode* left = LoadRegister(0);
           ValueNode* right = GetAccumulator();
-          BuildCheckStringOrStringWrapper(left);
-          BuildCheckStringOrStringWrapper(right);
+          RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(left));
+          RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(right));
           left = BuildUnwrapStringWrapper(left);
           right = BuildUnwrapStringWrapper(right);
           return BuildStringConcat(left, right);
@@ -3237,8 +3237,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckSymbol(left);
-      BuildCheckSymbol(right);
+      RETURN_IF_ABORT(BuildCheckSymbol(left));
+      RETURN_IF_ABORT(BuildCheckSymbol(right));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
@@ -3246,8 +3246,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kString: {
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckString(left);
-      BuildCheckString(right);
+      RETURN_IF_ABORT(BuildCheckString(left));
+      RETURN_IF_ABORT(BuildCheckString(right));
 
       ValueNode* result;
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
@@ -3291,8 +3291,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckJSReceiverOrNullOrUndefined(left);
-      BuildCheckJSReceiverOrNullOrUndefined(right);
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(left));
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(right));
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
     }
@@ -3302,8 +3302,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckJSReceiver(left);
-      BuildCheckJSReceiver(right);
+      RETURN_IF_ABORT(BuildCheckJSReceiver(left));
+      RETURN_IF_ABORT(BuildCheckJSReceiver(right));
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
     }
@@ -3581,7 +3581,7 @@ MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
           context_ref, index, property, broker());
       break;
     case ContextSidePropertyCell::kMutableHeapNumber:
-      BuildCheckNumber(value);
+      RETURN_IF_ABORT(BuildCheckNumber(value));
       if (auto mutable_heap_number = context_ref.get(broker(), index)) {
         if (!mutable_heap_number->IsHeapNumber()) {
           // TODO(victorgomes): In case the tag is out of date by now we could
@@ -4079,7 +4079,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
         compiler::MapRef property_cell_value_map =
             property_cell_value.AsHeapObject().map(broker());
         broker()->dependencies()->DependOnStableMap(property_cell_value_map);
-        BuildCheckHeapObject(value);
+        RETURN_IF_ABORT(BuildCheckHeapObject(value));
         RETURN_IF_ABORT(
             BuildCheckMaps(value, base::VectorOf({property_cell_value_map})));
       } else {
@@ -4881,49 +4881,90 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
   return object;
 }
 
-void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
-  if (EnsureType(object, NodeType::kAnyHeapObject)) return;
+ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
+  if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kAnyHeapObject))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
+  }
   AddNewNode<CheckHeapObject>({object});
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kString, &known_type)) return;
+  if (EnsureType(object, NodeType::kString, &known_type))
+    return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kString))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
+  }
   AddNewNode<CheckString>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckStringOrStringWrapper(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
+    ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type)) return;
+  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
+    return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kStringOrStringWrapper))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrStringWrapper);
+  }
   AddNewNode<CheckStringOrStringWrapper>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
-  if (EnsureType(object, NodeType::kNumber)) return;
+ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
+  if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kNumber))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
+  }
   AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kSymbol, &known_type)) return;
+  if (EnsureType(object, NodeType::kSymbol, &known_type))
+    return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kSymbol))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASymbol);
+  }
   AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kJSReceiver, &known_type)) return;
+  if (EnsureType(object, NodeType::kJSReceiver, &known_type))
+    return ReduceResult::Done();
+  if (NodeTypeCannotHaveInstances(
+          CombineType(GetType(object), NodeType::kJSReceiver))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
+  }
   AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
                                 FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
+ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
     ValueNode* object) {
   NodeType known_type;
   if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
-    return;
+    return ReduceResult::Done();
+  }
+  if (NodeTypeCannotHaveInstances(CombineType(
+          GetType(object), NodeType::kJSReceiverOrNullOrUndefined))) {
+    return EmitUnconditionalDeopt(
+        DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
   }
   AddNewNode<CheckJSReceiverOrNullOrUndefined>({object},
                                                GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
 namespace {
@@ -5906,7 +5947,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
         RETURN_IF_ABORT(BuildCheckMaps(
             value, base::VectorOf({access_info.field_map().value()})));
       } else {
-        BuildCheckHeapObject(value);
+        RETURN_IF_ABORT(BuildCheckHeapObject(value));
       }
     }
   }
@@ -6185,9 +6226,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       // Check for string maps before checking if we need to do an access
       // check. Primitive strings always get the prototype from the native
       // context they're operated on, so they don't need the access check.
-      BuildCheckString(lookup_start_object);
+      RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
     } else if (HasOnlyNumberMaps(maps)) {
-      BuildCheckNumber(lookup_start_object);
+      RETURN_IF_ABORT(BuildCheckNumber(lookup_start_object));
     } else {
       RETURN_IF_ABORT(
           BuildCheckMaps(lookup_start_object, maps, {},
@@ -6294,7 +6335,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   }
 
   // Ensure that {object} is actually a String.
-  BuildCheckString(object);
+  RETURN_IF_ABORT(BuildCheckString(object));
 
   ValueNode* length = BuildLoadStringLength(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
@@ -6895,7 +6936,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
       }
 #endif  // DEBUG
 
-      BuildCheckHeapObject(object);
+      RETURN_IF_ABORT(BuildCheckHeapObject(object));
       ValueNode* object_map =
           BuildLoadTaggedField(object, HeapObject::kMapOffset);
 
@@ -6937,7 +6978,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   std::optional<MaglevSubGraphBuilder::Label> done;
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
-  BuildCheckHeapObject(object);
+  RETURN_IF_ABORT(BuildCheckHeapObject(object));
   ValueNode* object_map = BuildLoadTaggedField(object, HeapObject::kMapOffset);
 
   // TODO(pthier): We could do better here than just emitting code for each map,
@@ -7099,7 +7140,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     is_number.emplace(&sub_graph, 2);
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
-    BuildCheckHeapObject(lookup_start_object);
+    RETURN_IF_ABORT(BuildCheckHeapObject(lookup_start_object));
   }
   ValueNode* lookup_start_object_map =
       BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
@@ -7490,7 +7531,9 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
           compiler::ProcessedFeedback::kInsufficient) {
         return false;
       }
-      BuildCheckHeapObject(object);
+      if (BuildCheckHeapObject(object).IsDoneWithAbort()) {
+        return false;
+      }
       speculating_receiver_map_matches = true;
     }
 
@@ -8008,11 +8051,11 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf);
     case TypeOfFeedback::kNumber:
-      BuildCheckNumber(value);
+      RETURN_IF_ABORT(BuildCheckNumber(value));
       SetAccumulator(GetRootConstant(RootIndex::knumber_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kString:
-      BuildCheckString(value);
+      RETURN_IF_ABORT(BuildCheckString(value));
       SetAccumulator(GetRootConstant(RootIndex::kstring_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kFunction:
@@ -9247,7 +9290,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   }
 
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -9271,7 +9314,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   }
   // Any other argument is ignored.
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -9287,7 +9330,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   if (!CanSpeculateCall()) return {};
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
   VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);

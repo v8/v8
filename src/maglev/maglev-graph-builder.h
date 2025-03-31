@@ -2343,13 +2343,13 @@ class MaglevGraphBuilder {
       TaggedToFloat64ConversionType conversion_type);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
-  void BuildCheckNumber(ValueNode* object);
-  void BuildCheckHeapObject(ValueNode* object);
-  void BuildCheckJSReceiver(ValueNode* object);
-  void BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
-  void BuildCheckString(ValueNode* object);
-  void BuildCheckStringOrStringWrapper(ValueNode* object);
-  void BuildCheckSymbol(ValueNode* object);
+  ReduceResult BuildCheckNumber(ValueNode* object);
+  ReduceResult BuildCheckHeapObject(ValueNode* object);
+  ReduceResult BuildCheckJSReceiver(ValueNode* object);
+  ReduceResult BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
+  ReduceResult BuildCheckString(ValueNode* object);
+  ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
+  ReduceResult BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
       std::optional<ValueNode*> map = {},
