@@ -403,11 +403,6 @@ void MinorMarkSweepCollector::Finish() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH_ENSURE_CAPACITY);
     heap_->ResizeNewSpace();
-
-    if (!v8_flags.sticky_mark_bits &&
-        !heap_->new_space()->EnsureCurrentCapacity()) {
-      heap_->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
-    }
   }
 
   if (!v8_flags.sticky_mark_bits) {

@@ -351,9 +351,7 @@ TEST(PagedNewSpace) {
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
-  CHECK(new_space->MaximumCapacity());
-  CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->TotalCapacity());
+  GrowNewSpaceToMaximumCapacity(heap);
 
   size_t successful_allocations = 0;
   while (true) {
@@ -571,7 +569,7 @@ HEAP_TEST(Regress791582) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   MainAllocator* new_space_allocator = heap->allocator()->new_space_allocator();
-  GrowNewSpace(heap);
+  GrowNewSpaceToMaximumCapacity(heap);
 
   int until_page_end =
       static_cast<int>(heap->NewSpaceLimit() - heap->NewSpaceTop());

@@ -841,7 +841,7 @@ void ScavengerCollector::CollectGarbage() {
 
   SemiSpaceNewSpace* new_space = SemiSpaceNewSpace::From(heap_->new_space());
   new_space->GarbageCollectionPrologue();
-  new_space->EvacuatePrologue();
+  new_space->SwapSemiSpaces();
 
   // We also flip the young generation large object space. All large objects
   // will be in the from space.

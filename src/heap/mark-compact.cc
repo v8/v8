@@ -873,17 +873,9 @@ void MarkCompactCollector::Finish() {
 #endif  // DEBUG
   }
 
-  if (auto* new_space = heap_->new_space()) {
+  if (heap_->new_space()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE);
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-    // We rebalance first to be able to assume that from- and to-space have the
-    // same size.
-    //
-    // TODO(365027679): Make growing/shrinking more flexible to avoid ensuring
-    // the same capacity.
-    if (!new_space->EnsureCurrentCapacity()) {
-      heap_->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
-    }
     heap_->ResizeNewSpace();
   }
 
@@ -4423,7 +4415,7 @@ void MarkCompactCollector::EvacuatePrologue() {
                  std::back_inserter(new_space_evacuation_pages_),
                  [](PageMetadata* p) { return p->live_bytes() > 0; });
     if (!v8_flags.minor_ms) {
-      SemiSpaceNewSpace::From(new_space)->EvacuatePrologue();
+      SemiSpaceNewSpace::From(new_space)->SwapSemiSpaces();
     }
   }
 

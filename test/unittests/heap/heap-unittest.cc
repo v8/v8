@@ -314,9 +314,8 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
+  GrowNewSpaceToMaximumCapacity();
   new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
 
   old_capacity = new_space->TotalCapacity();
   {
@@ -345,7 +344,7 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
     // objects.
     CHECK_GE(old_capacity, new_capacity);
   } else {
-    CHECK_EQ(old_capacity, 2 * new_capacity);
+    CHECK_EQ(new_capacity, new_space->MinimumCapacity());
   }
 
   // Consecutive shrinking should not affect space capacity.
@@ -367,18 +366,13 @@ TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
   v8::HandleScope scope(iso);
   NewSpace* new_space = heap()->new_space();
-  size_t old_capacity, new_capacity;
-  old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
+  GrowNewSpaceToMaximumCapacity();
   {
     v8::HandleScope temporary_scope(iso);
     SimulateFullSpace(new_space);
   }
   InvokeMemoryReducingMajorGCs();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK_EQ(new_space->TotalCapacity(), new_space->MinimumCapacity());
 }
 
 // Test that HAllocateObject will always return an object in new-space.
@@ -457,8 +451,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
-    heap->ExpandNewSpaceSizeForTesting();
-    CHECK(new_space->EnsureCurrentCapacity());
+    GrowNewSpaceToMaximumCapacity();
   }
   InvokeMinorGC();
   CHECK(HeapLayout::InYoungGeneration(*arr));
