@@ -99,6 +99,7 @@ namespace v8::internal::wasm {
   V(WasmArrayNewSegment)                                                       \
   V(WasmArrayInitSegment)                                                      \
   V(WasmAllocateStructWithRtt)                                                 \
+  V(WasmAllocateDescriptorStruct)                                              \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
