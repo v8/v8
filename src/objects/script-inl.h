@@ -91,7 +91,7 @@ Tagged<FixedArray> Script::wrapped_arguments() const {
 DEF_GETTER(Script, infos, Tagged<WeakFixedArray>) {
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Type::kWasm) {
-    return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
+    return GetReadOnlyRoots().empty_weak_fixed_array();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return TaggedField<WeakFixedArray, kInfosOffset>::load(*this);

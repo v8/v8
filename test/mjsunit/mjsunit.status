@@ -512,6 +512,7 @@
 
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
+  'shared-memory/wasm/*': [SKIP],
 
   'maglev/regress-355256380': [SKIP],
 
@@ -548,6 +549,7 @@
 ['not has_wasm_interpreter and variant == jitless', {
   'wasm/*': [SKIP],
   'regress/wasm/*': [SKIP],
+  'shared-memory/wasm/*': [SKIP],
 }],  # not has_wasm_interpreter and variant == jitless
 
 ['has_wasm_interpreter and variant == jitless', {
@@ -2086,6 +2088,7 @@
   'regress/regress-1469634': [SKIP],
   'regress/regress-crbug-935800': [SKIP],
   'regress/wasm/*': [SKIP],
+  'shared-memory/wasm/*': [SKIP],
   'wasm/*': [SKIP],
   # Contain Wasm functions, which are not supported in snapshots.
   'maglev/regress-355256380': [SKIP],
