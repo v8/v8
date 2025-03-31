@@ -2726,22 +2726,26 @@ std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
     RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
   size_t removed_codesize = 0;
   size_t removed_metadatasize = 0;
-  for (uint32_t i = 0; i < num_functions; i++) {
-    WasmCode* code = code_table_[i];
-    if (code && ShouldRemoveCode(code, filter)) {
-      removed_codesize += code->instructions_size();
-      removed_metadatasize += code->EstimateCurrentMemoryConsumption();
-      code_table_[i] = nullptr;
-      // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop to
-      // zero here. It might in the {WasmCodeRefScope} destructor, though.
-      WasmCodeRefScope::AddRef(code);
-      code->DecRefOnLiveCode();
-      uint32_t func_index = i + num_imports;
-      UseLazyStubLocked(func_index);
+  {
+    base::RecursiveMutexGuard guard(&allocation_mutex_);
+    for (uint32_t i = 0; i < num_functions; i++) {
+      WasmCode* code = code_table_[i];
+      if (code && ShouldRemoveCode(code, filter)) {
+        removed_codesize += code->instructions_size();
+        removed_metadatasize += code->EstimateCurrentMemoryConsumption();
+        code_table_[i] = nullptr;
+        // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop
+        // to zero here. It might in the {WasmCodeRefScope} destructor, though.
+        WasmCodeRefScope::AddRef(code);
+        code->DecRefOnLiveCode();
+        uint32_t func_index = i + num_imports;
+        UseLazyStubLocked(func_index);
+      }
     }
+    // To avoid lock order inversion, release the {allocation_mutex_} before
+    // acquiring the {type_feedback.mutex} inside {AllowAnother...} below.
   }
   // When resuming optimized execution after a debugging session ends, or when
   // discarding optimized code that made outdated assumptions, allow another
