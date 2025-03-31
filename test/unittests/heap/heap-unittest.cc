@@ -287,7 +287,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     stats_collector->NotifySweepingCompleted(
         cppgc::Heap::SweepingType::kAtomic);
   }
-  tracer->NotifyFullSweepingCompleted();
+  tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 }
 }  // namespace
 

@@ -959,7 +959,10 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
 
     if (ShouldMovePage(p, live_bytes_on_page, p->wasted_memory())) {
       EvacuateExternalPointerReferences(p);
-      heap_->new_space()->PromotePageToOldSpace(p);
+      // free list categories will be relinked by the sweeper after sweeping is
+      // done.
+      heap_->new_space()->PromotePageToOldSpace(p,
+                                                FreeMode::kDoNotLinkCategory);
       has_promoted_pages = true;
       sweeper()->AddPromotedPage(p);
     } else {

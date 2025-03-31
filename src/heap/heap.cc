@@ -1710,9 +1710,9 @@ void Heap::CollectGarbage(AllocationSpace space,
     // order; the latter may replace the current event with that of an
     // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {
-      tracer()->StopYoungCycleIfNeeded();
+      tracer()->StopYoungCycleIfFinished();
     } else {
-      tracer()->StopFullCycleIfNeeded();
+      tracer()->StopFullCycleIfFinished();
     }
     RecomputeLimits(collector, base::TimeTicks::Now());
   });
@@ -2411,16 +2411,13 @@ bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
 
 void Heap::CompleteSweepingYoung() {
   DCHECK(!v8_flags.sticky_mark_bits);
-  CompleteArrayBufferSweeping(this);
 
   // If sweeping is in progress and there are no sweeper tasks running, finish
   // the sweeping here, to avoid having to pause and resume during the young
   // generation GC.
   FinishSweepingIfOutOfWork();
 
-  if (v8_flags.minor_ms) {
-    EnsureYoungSweepingCompleted();
-  }
+  EnsureYoungSweepingCompleted();
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Always complete sweeping if young generation is enabled.
@@ -3134,6 +3131,7 @@ void* Heap::AllocateExternalBackingStore(
 void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
   if (using_initial_limit() && !initial_size_overwritten_ &&
       tracer()->SurvivalEventsRecorded()) {
+    base::MutexGuard guard(old_space()->mutex());
     const size_t minimum_growing_step =
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
@@ -7305,6 +7303,9 @@ void Heap::FinishSweepingIfOutOfWork() {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   CompleteArrayBufferSweeping(this);
+  if (!v8_flags.minor_ms) {
+    scavenger_collector_->CompleteSweepingQuarantinedPagesIfNeeded();
+  }
 
   if (sweeper()->sweeping_in_progress()) {
     bool was_minor_sweeping_in_progress = minor_sweeping_in_progress();
@@ -7343,7 +7344,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       paged_new_space()->paged_space()->RefillFreeList();
     }
 
-    tracer()->NotifyFullSweepingCompleted();
+    tracer()->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 
 #ifdef VERIFY_HEAP
     if (v8_flags.verify_heap) {
@@ -7375,6 +7376,13 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 }
 
 void Heap::EnsureYoungSweepingCompleted() {
+  CompleteArrayBufferSweeping(this);
+
+  if (!v8_flags.minor_ms) {
+    scavenger_collector_->CompleteSweepingQuarantinedPagesIfNeeded();
+    return;
+  }
+
   if (!sweeper()->minor_sweeping_in_progress()) return;
   DCHECK(!v8_flags.sticky_mark_bits);
 
@@ -7387,7 +7395,7 @@ void Heap::EnsureYoungSweepingCompleted() {
   sweeper()->EnsureMinorCompleted();
   paged_new_space()->paged_space()->RefillFreeList();
 
-  tracer()->NotifyYoungSweepingCompleted();
+  tracer()->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
 }
 
 void Heap::NotifyLoadingStarted() {

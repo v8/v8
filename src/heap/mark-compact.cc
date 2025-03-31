@@ -1754,7 +1754,9 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   static void Move(PageMetadata* page) {
-    page->heap()->new_space()->PromotePageToOldSpace(page);
+    page->heap()->new_space()->PromotePageToOldSpace(
+        page, v8_flags.minor_ms ? FreeMode::kDoNotLinkCategory
+                                : FreeMode::kLinkCategory);
   }
 
   inline bool Visit(Tagged<HeapObject> object, int size) override {

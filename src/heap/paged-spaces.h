@@ -455,7 +455,7 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    CompactionSpaceKind::kNone) {}
 
-  void AddPromotedPage(PageMetadata* page);
+  void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
   void ReleasePage(PageMetadata* page) override;
 
@@ -464,6 +464,9 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
       return heap()->OldArrayBufferBytes();
     return external_backing_store_bytes_[static_cast<int>(type)];
   }
+
+  void RelinkQuarantinedPageFreeList(PageMetadata* page,
+                                     size_t filler_size_on_page);
 };
 
 // -----------------------------------------------------------------------------

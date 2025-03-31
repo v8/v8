@@ -58,7 +58,8 @@ class PageMetadata : public MutablePageMetadata {
     return MemoryChunk::IsAligned(addr);
   }
 
-  static PageMetadata* ConvertNewToOld(PageMetadata* old_page);
+  static PageMetadata* ConvertNewToOld(PageMetadata* old_page,
+                                       FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
   inline void MarkEvacuationCandidate();

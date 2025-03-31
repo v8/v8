@@ -212,7 +212,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
     return result;
   }
 
-  void PromotePageToOldSpace(PageMetadata* page);
+  void PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode);
 
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;

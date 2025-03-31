@@ -503,7 +503,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   }
 }
 
-void GCTracer::StopFullCycleIfNeeded() {
+void GCTracer::StopFullCycleIfFinished() {
   if (current_.state != Event::State::SWEEPING) return;
   if (!notified_full_sweeping_completed_) return;
   if (heap_->cpp_heap() && !notified_full_cppgc_completed_) return;
@@ -513,13 +513,10 @@ void GCTracer::StopFullCycleIfNeeded() {
   full_cppgc_completed_during_minor_gc_ = false;
 }
 
-void GCTracer::StopYoungCycleIfNeeded() {
+void GCTracer::StopYoungCycleIfFinished() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
   if (current_.state != Event::State::SWEEPING) return;
-  if ((current_.type == Event::Type::MINOR_MARK_SWEEPER ||
-       current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER) &&
-      !notified_young_sweeping_completed_)
-    return;
+  if (!notified_young_sweeping_completed_) return;
   // Check if young cppgc was scheduled but hasn't completed yet.
   if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
       !notified_young_cppgc_completed_)
@@ -533,11 +530,11 @@ void GCTracer::StopYoungCycleIfNeeded() {
   notified_young_cppgc_completed_ = false;
   if (was_young_gc_while_full_gc_) {
     // Check if the full gc cycle is ready to be stopped.
-    StopFullCycleIfNeeded();
+    StopFullCycleIfFinished();
   }
 }
 
-void GCTracer::NotifyFullSweepingCompleted() {
+void GCTracer::NotifyFullSweepingCompletedAndStopCycleIfFinished() {
   // Notifying twice that V8 sweeping is finished for the same cycle is possible
   // only if Oilpan sweeping is still in progress.
   DCHECK_IMPLIES(
@@ -547,10 +544,10 @@ void GCTracer::NotifyFullSweepingCompleted() {
   if (Event::IsYoungGenerationEvent(current_.type)) {
     bool was_young_gc_while_full_gc = young_gc_while_full_gc_;
     bool was_full_sweeping_notified = notified_full_sweeping_completed_;
-    NotifyYoungSweepingCompleted();
-    // NotifyYoungSweepingCompleted checks if the full cycle needs to be stopped
-    // as well. If full sweeping was already notified, nothing more needs to be
-    // done here.
+    NotifyYoungSweepingCompletedAndStopCycleIfFinished();
+    // NotifyYoungSweepingCompletedAndStopCycleIfFinished checks if the full
+    // cycle needs to be stopped as well. If full sweeping was already notified,
+    // nothing more needs to be done here.
     if (!was_young_gc_while_full_gc || was_full_sweeping_notified) return;
   }
 
@@ -568,25 +565,31 @@ void GCTracer::NotifyFullSweepingCompleted() {
     heap_->PrintFreeListsStats();
   }
   notified_full_sweeping_completed_ = true;
-  StopFullCycleIfNeeded();
+  StopFullCycleIfFinished();
 }
 
 void GCTracer::NotifyYoungSweepingCompleted() {
-  if (!Event::IsYoungGenerationEvent(current_.type)) return;
+  DCHECK(Event::IsYoungGenerationEvent(current_.type));
   if (v8_flags.verify_heap) {
     // If heap verification is enabled, sweeping finalization can also be
     // triggered from inside a full GC cycle's atomic pause.
     DCHECK(current_.type == Event::Type::MINOR_MARK_SWEEPER ||
-           current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER);
+           current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER ||
+           current_.type == Event::Type::SCAVENGER);
     DCHECK(current_.state == Event::State::SWEEPING ||
            current_.state == Event::State::ATOMIC);
   } else {
-    DCHECK(IsSweepingInProgress());
+    DCHECK(IsSweepingInProgress() || (current_.type == Event::Type::SCAVENGER));
   }
 
   DCHECK(!notified_young_sweeping_completed_);
   notified_young_sweeping_completed_ = true;
-  StopYoungCycleIfNeeded();
+}
+
+void GCTracer::NotifyYoungSweepingCompletedAndStopCycleIfFinished() {
+  if (!Event::IsYoungGenerationEvent(current_.type)) return;
+  NotifyYoungSweepingCompleted();
+  StopYoungCycleIfFinished();
 }
 
 void GCTracer::NotifyFullCppGCCompleted() {
@@ -606,7 +609,7 @@ void GCTracer::NotifyFullCppGCCompleted() {
     full_cppgc_completed_during_minor_gc_ = true;
     return;
   }
-  StopFullCycleIfNeeded();
+  StopFullCycleIfFinished();
 }
 
 void GCTracer::NotifyYoungCppGCCompleted() {
@@ -620,7 +623,7 @@ void GCTracer::NotifyYoungCppGCCompleted() {
   DCHECK(metric_recorder->YoungGCMetricsReportPending());
   DCHECK(!notified_young_cppgc_completed_);
   notified_young_cppgc_completed_ = true;
-  StopYoungCycleIfNeeded();
+  StopYoungCycleIfFinished();
 }
 
 void GCTracer::NotifyYoungCppGCRunning() {
@@ -854,6 +857,8 @@ void GCTracer::PrintNVP() const {
           "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
           "scavenge.update_refs=%.2f "
+          "scavenge.pin_objects=%.2f "
+          "scavenge.restore_pinned=%.2f "
           "scavenge.sweep_array_buffers=%.2f "
           "scavenge.resize_new_space=%.2f "
           "background.scavenge.parallel=%.2f "
@@ -904,6 +909,9 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS),
           current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL),
           current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS),
+          current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS),
+          current_scope(
+              Scope::SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED),
           current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::SCAVENGER_RESIZE_NEW_SPACE),
           current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),

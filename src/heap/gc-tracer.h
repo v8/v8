@@ -303,8 +303,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start and stop a GC cycle (collecting data and reporting results).
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
                   const char* collector_reason, MarkingType marking);
-  void StopYoungCycleIfNeeded();
-  void StopFullCycleIfNeeded();
+  void StopYoungCycleIfFinished();
+  void StopFullCycleIfFinished();
 
   void UpdateMemoryBalancerGCSpeed();
 
@@ -315,7 +315,15 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StartInSafepoint(base::TimeTicks time);
   void StopInSafepoint(base::TimeTicks time);
 
-  void NotifyFullSweepingCompleted();
+  // Notify the GC tracer that full/young sweeping is completed. A cycle cannot
+  // be stopped until sweeping is completed and `StopCycle` would bail out if
+  // `Notify*SweepingCompleted` is not called before. These methods also call
+  // `StopCycle` if all other conditions are also met (e.g. Oilpan sweeping is
+  // also completed).
+  void NotifyFullSweepingCompletedAndStopCycleIfFinished();
+  void NotifyYoungSweepingCompletedAndStopCycleIfFinished();
+  // Marks young sweeping as complete but doesn't try to call `StopCycle` even
+  // if possible.
   void NotifyYoungSweepingCompleted();
 
   void NotifyFullCppGCCompleted();

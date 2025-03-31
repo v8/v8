@@ -646,21 +646,33 @@ CompactionSpaceCollection::CompactionSpaceCollection(
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-void OldSpace::AddPromotedPage(PageMetadata* page) {
+void OldSpace::AddPromotedPage(PageMetadata* page, FreeMode free_mode) {
+  DCHECK_EQ(page->area_size(), page->allocated_bytes());
   if (v8_flags.minor_ms) {
     // Reset the page's allocated bytes. The page will be swept and the
     // allocated bytes will be updated to match the live bytes.
-    DCHECK_EQ(page->area_size(), page->allocated_bytes());
     page->DecreaseAllocatedBytes(page->area_size());
   }
   AddPageImpl(page);
-  if (!v8_flags.minor_ms) {
+  if (free_mode == FreeMode::kLinkCategory) {
     RelinkFreeListCategories(page);
   }
 }
 
 void OldSpace::ReleasePage(PageMetadata* page) {
   ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
+}
+
+void OldSpace::RelinkQuarantinedPageFreeList(PageMetadata* page,
+                                             size_t filler_size_on_page) {
+  base::MutexGuard guard(mutex());
+  DCHECK_EQ(this, page->owner());
+  DCHECK(page->SweepingDone());
+  DCHECK_EQ(page->live_bytes(), 0);
+  DCHECK_EQ(accounting_stats_.AllocatedOnPage(page),
+            MemoryChunkLayout::AllocatableMemoryInMemoryChunk(OLD_SPACE));
+  DecreaseAllocatedBytes(filler_size_on_page, page);
+  RelinkFreeListCategories(page);
 }
 
 // -----------------------------------------------------------------------------

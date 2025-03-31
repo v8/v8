@@ -6739,7 +6739,7 @@ HEAP_TEST(Regress670675) {
 
   heap->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
-  heap->tracer()->StopFullCycleIfNeeded();
+  heap->tracer()->StopFullCycleIfFinished();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
     IsolateSafepointScope safepoint_scope(heap);

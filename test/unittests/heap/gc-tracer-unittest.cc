@@ -73,10 +73,8 @@ void StopTracing(Heap* heap, GarbageCollector collector,
   tracer->StopObservablePause(collector, time.value_or(base::TimeTicks::Now()));
   switch (collector) {
     case GarbageCollector::SCAVENGER:
-      tracer->StopYoungCycleIfNeeded();
-      break;
     case GarbageCollector::MINOR_MARK_SWEEPER:
-      tracer->NotifyYoungSweepingCompleted();
+      tracer->NotifyYoungSweepingCompletedAndStopCycleIfFinished();
       break;
     case GarbageCollector::MARK_COMPACTOR:
       if (heap->cpp_heap()) {
@@ -90,7 +88,7 @@ void StopTracing(Heap* heap, GarbageCollector collector,
         stats_collector->NotifySweepingCompleted(
             cppgc::Heap::SweepingType::kAtomic);
       }
-      tracer->NotifyFullSweepingCompleted();
+      tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
       break;
   }
 }

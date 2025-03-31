@@ -51,7 +51,8 @@ void PageMetadata::ReleaseFreeListCategories() {
   }
 }
 
-PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
+PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
+                                            FreeMode free_mode) {
   DCHECK(old_page);
   MemoryChunk* chunk = old_page->Chunk();
   DCHECK(chunk->InNewSpace());
@@ -63,7 +64,7 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   chunk->SetOldGenerationPageFlags(
       old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
   PageMetadata* new_page = old_space->InitializePage(old_page);
-  old_space->AddPromotedPage(new_page);
+  old_space->AddPromotedPage(new_page, free_mode);
   return new_page;
 }
 
