@@ -3627,20 +3627,6 @@ class TurboshaftAssemblerOpInterface
     return CallBuiltin<typename BuiltinCallDescriptor::ToString>(
         isolate, frame_state, context, {input}, lazy_deopt_on_throw);
   }
-  V<String> CallBuiltin_ToStringConvertSymbol(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Object> input,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToStringConvertSymbol>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-  V<String> CallBuiltin_ToStringForAdd(Isolate* isolate,
-                                       V<turboshaft::FrameState> frame_state,
-                                       V<Context> context, V<Object> input,
-                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToStringForAdd>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
   V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
                                                V<PlainPrimitive> input) {
     return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
