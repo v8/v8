@@ -2833,24 +2833,21 @@ class GraphBuildingNodeProcessor {
 
     GOTO_IF(__ ObjectIsString(value), done, V<String>::Cast(value));
 
-    switch (node->mode()) {
-      case maglev::ToString::kConvertSymbol:
-        GOTO(done, __ CallBuiltin_ToStringConvertSymbol(
-                       isolate_, frame_state, Map(node->context()), value,
-                       ShouldLazyDeoptOnThrow(node)));
-        break;
-      case maglev::ToString::kForAdd:
-        GOTO(done, __ CallBuiltin_ToStringForAdd(isolate_, frame_state,
-                                                 Map(node->context()), value,
-                                                 ShouldLazyDeoptOnThrow(node)));
-        break;
-      case maglev::ToString::kThrowOnSymbol:
-        GOTO(done, __ CallBuiltin_ToString(isolate_, frame_state,
-                                           Map(node->context()), value,
-                                           ShouldLazyDeoptOnThrow(node)));
-
-        break;
+    IF_NOT (__ IsSmi(value)) {
+      if (node->mode() == maglev::ToString::ConversionMode::kConvertSymbol) {
+        V<i::Map> map = __ LoadMapField(value);
+        V<Word32> instance_type = __ LoadInstanceTypeField(map);
+        IF (__ Word32Equal(instance_type, SYMBOL_TYPE)) {
+          GOTO(done, __ CallRuntime_SymbolDescriptiveString(
+                         isolate_, frame_state, Map(node->context()),
+                         V<Symbol>::Cast(value), ShouldLazyDeoptOnThrow(node)));
+        }
+      }
     }
+
+    GOTO(done,
+         __ CallBuiltin_ToString(isolate_, frame_state, Map(node->context()),
+                                 value, ShouldLazyDeoptOnThrow(node)));
 
     BIND(done, result);
     SetMap(node, result);

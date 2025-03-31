@@ -39,10 +39,6 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   unreachable;
 }
 
-transitioning builtin ToStringForAdd(context: Context, o: JSAny): String {
-  return ToStringImpl(context, ToPrimitiveDefault(o));
-}
-
 transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }

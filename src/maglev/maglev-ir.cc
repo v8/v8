@@ -5529,19 +5529,12 @@ void ToString::GenerateCode(MaglevAssembler* masm,
   __ JumpIfSmi(value, &call_builtin, Label::Distance::kNear);
   __ JumpIfString(value, &done, Label::Distance::kNear);
   __ bind(&call_builtin);
-  switch (mode()) {
-    case kConvertSymbol:
-      __ CallBuiltin<Builtin::kToStringConvertSymbol>(context(),  // context
-                                                      value_input());  // input
-      break;
-    case kForAdd:
-      __ CallBuiltin<Builtin::kToStringForAdd>(context(),       // context
-                                               value_input());  // input
-      break;
-    case kThrowOnSymbol:
-      __ CallBuiltin<Builtin::kToString>(context(),       // context
-                                         value_input());  // input
-      break;
+  if (mode() == kConvertSymbol) {
+    __ CallBuiltin<Builtin::kToStringConvertSymbol>(context(),       // context
+                                                    value_input());  // input
+  } else {
+    __ CallBuiltin<Builtin::kToString>(context(),       // context
+                                       value_input());  // input
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
