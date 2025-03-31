@@ -563,6 +563,11 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_struct = InstanceTypeChecker::IsWasmStruct(instance_type());
+#else
+  constexpr bool is_wasm_struct = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (IsContextMap(*this)) {
     // The map for the NativeContext is allocated before the NativeContext
     // itself, so it may happen that during a GC the native_context() is still
@@ -573,10 +578,12 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(native_context_or_null(), map()->native_context_or_null());
   } else {
     if (IsUndefined(GetBackPointer(), isolate)) {
-      // Root maps must not have descriptors in the descriptor array that do not
-      // belong to the map.
-      CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors(isolate)->number_of_descriptors());
+      if (!is_wasm_struct) {
+        // Root maps must not have descriptors in the descriptor array that do
+        // not belong to the map.
+        CHECK_EQ(NumberOfOwnDescriptors(),
+                 instance_descriptors(isolate)->number_of_descriptors());
+      }
     } else {
       // If there is a parent map it must be non-stable.
       Tagged<Map> parent = Cast<Map>(GetBackPointer());
@@ -604,7 +611,9 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  if (!is_wasm_struct) {
+    SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  }
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
