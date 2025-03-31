@@ -712,6 +712,9 @@ ScavengerCollector::QuarantinedPageSweeper::JobTask::JobTask(
 
 void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
     JobDelegate* delegate) {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(),
       GCTracer::Scope::SCAVENGER_BACKGROUND_QUARANTINED_PAGE_SWEEPING,
@@ -722,8 +725,8 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
   if (pinned_object_per_page_.empty()) {
     // Populate the per page map.
     for (const PinnedObjectEntry& entry : pinned_objects_) {
-      DCHECK(
-          !HeapLayout::IsSelfForwarded(HeapObject::FromAddress(entry.address)));
+      DCHECK(!HeapLayout::IsSelfForwarded(
+          HeapObject::FromAddress(entry.address), heap_->isolate()));
       MemoryChunk* chunk = MemoryChunk::FromAddress(entry.address);
       DCHECK(!chunk->IsQuarantined());
       ObjectsAndSizes& objects_for_page = pinned_object_per_page_[chunk];
