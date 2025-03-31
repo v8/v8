@@ -293,6 +293,28 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };
 
+  struct ToStringConvertSymbol : public Descriptor<ToString> {
+    static constexpr auto kFunction = Builtin::kToStringConvertSymbol;
+    using arguments_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<String>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct ToStringForAdd : public Descriptor<ToString> {
+    static constexpr auto kFunction = Builtin::kToStringForAdd;
+    using arguments_t = std::tuple<V<Object>>;
+    using results_t = std::tuple<V<String>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
   struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
     static constexpr auto kFunction = Builtin::kPlainPrimitiveToNumber;
     using arguments_t = std::tuple<V<PlainPrimitive>>;

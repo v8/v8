@@ -5123,7 +5123,7 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   using Base = FixedInputValueNodeT<2, ToString>;
 
  public:
-  enum ConversionMode { kConvertSymbol, kThrowOnSymbol };
+  enum ConversionMode { kConvertSymbol, kThrowOnSymbol, kForAdd };
   explicit ToString(uint64_t bitfield, ConversionMode mode)
       : Base(ConversionModeBitField::update(bitfield, mode)) {}
 
@@ -5144,7 +5144,7 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  using ConversionModeBitField = NextBitField<ConversionMode, 1>;
+  using ConversionModeBitField = NextBitField<ConversionMode, 2>;
 };
 
 class NumberToString : public FixedInputValueNodeT<1, NumberToString> {
