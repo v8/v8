@@ -1495,7 +1495,13 @@ MaybeDirectHandle<WasmGlobalObject> WasmGlobalObject::New(
           isolate->factory()->NewJSArrayBufferAndBackingStore(
               offset + type_size, InitializedFlag::kZeroInitialized);
 
-      if (!result.ToHandle(&untagged_buffer)) return {};
+      if (!result.ToHandle(&untagged_buffer)) {
+        isolate->Throw(*isolate->factory()->NewRangeError(
+            MessageTemplate::kOutOfMemory,
+            isolate->factory()->NewStringFromAsciiChecked(
+                "WebAssembly.Global")));
+        return {};
+      }
     }
 
     // Check that the offset is in bounds.
