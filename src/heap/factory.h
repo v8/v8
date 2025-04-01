@@ -450,6 +450,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<AccessorInfo> NewAccessorInfo();
 
+  DirectHandle<InterceptorInfo> NewInterceptorInfo(
+      AllocationType allocation = AllocationType::kOld);
+
   DirectHandle<ErrorStackData> NewErrorStackData(
       DirectHandle<UnionOf<JSAny, FixedArray>>
           call_site_infos_or_formatted_stack,

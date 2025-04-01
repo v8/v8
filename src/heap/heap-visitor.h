@@ -65,6 +65,7 @@ class MaybeObjectSize final {
   V(Foreign)                          \
   V(FunctionTemplateInfo)             \
   V(HeapNumber)                       \
+  V(InterceptorInfo)                  \
   V(Hole)                             \
   V(Map)                              \
   V(NativeContext)                    \
@@ -152,6 +153,7 @@ class MaybeObjectSize final {
   V(FunctionTemplateInfo)                                 \
   V(FreeSpace)                                            \
   V(HeapNumber)                                           \
+  V(InterceptorInfo)                                      \
   V(PreparseData)                                         \
   V(PropertyArray)                                        \
   V(PropertyCell)                                         \

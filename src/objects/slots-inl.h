@@ -194,6 +194,14 @@ void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
   *location() = value.ptr();
 }
 
+void ExternalPointerSlot::init_lazily_initialized() {
+#ifdef V8_ENABLE_SANDBOX
+  Relaxed_StoreHandle(kNullExternalPointerHandle);
+#else
+  WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 void ExternalPointerSlot::init(IsolateForSandbox isolate,
                                Tagged<HeapObject> host, Address value,
                                ExternalPointerTag tag) {

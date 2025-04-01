@@ -1190,7 +1190,7 @@ MaybeHandle<JSAny> GetPropertyWithInterceptorInternal(
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  if (IsUndefined(interceptor->getter(), isolate)) {
+  if (!interceptor->has_getter()) {
     return isolate->factory()->undefined_value();
   }
 
@@ -1237,7 +1237,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(kDontThrow));
-  if (!IsUndefined(interceptor->query(), isolate)) {
+  if (interceptor->has_query()) {
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
       result = args.CallIndexedQuery(interceptor, it->array_index());
@@ -1261,7 +1261,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
       }
       return Just(static_cast<PropertyAttributes>(value));
     }
-  } else if (!IsUndefined(interceptor->getter(), isolate)) {
+  } else if (interceptor->has_getter()) {
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     DirectHandle<Object> result;
     if (it->IsElement(*holder)) {
@@ -1289,7 +1289,7 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  if (IsUndefined(interceptor->setter(), isolate)) {
+  if (!interceptor->has_setter()) {
     return Just(InterceptorResult::kNotIntercepted);
   }
 
@@ -1319,7 +1319,7 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  if (IsUndefined(interceptor->definer(), isolate)) {
+  if (!interceptor->has_definer()) {
     return Just(InterceptorResult::kNotIntercepted);
   }
 
@@ -1854,7 +1854,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   }
   if (interceptor.is_null()) return Just(false);
   Isolate* isolate = it->isolate();
-  if (IsUndefined(interceptor->descriptor(), isolate)) return Just(false);
+  if (!interceptor->has_descriptor()) return Just(false);
 
   Handle<JSAny> result;
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
@@ -4126,7 +4126,7 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
 
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   DirectHandle<InterceptorInfo> interceptor(it->GetInterceptor());
-  if (IsUndefined(interceptor->deleter(), isolate)) {
+  if (!interceptor->has_deleter()) {
     return Just(InterceptorResult::kNotIntercepted);
   }
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();

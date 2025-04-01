@@ -357,6 +357,8 @@ class ExternalPointerSlot
   {
   }
 
+  inline void init_lazily_initialized();
+
   inline void init(IsolateForSandbox isolate, Tagged<HeapObject> host,
                    Address value, ExternalPointerTag tag);
 

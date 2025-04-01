@@ -60,6 +60,7 @@ enum InstanceType : uint16_t;
   V(FreeSpace)                        \
   V(FunctionTemplateInfo)             \
   V(Hole)                             \
+  V(InterceptorInfo)                  \
   V(JSApiObject)                      \
   V(JSArrayBuffer)                    \
   V(JSDataViewOrRabGsabDataView)      \

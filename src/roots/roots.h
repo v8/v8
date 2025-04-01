@@ -127,6 +127,7 @@ class RootVisitor;
   V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, accessor_info_map, AccessorInfoMap)                                   \
+  V(Map, interceptor_info_map, InterceptorInfoMap)                             \
   V(Map, regexp_match_info_map, RegExpMatchInfoMap)                            \
   V(Map, regexp_data_map, RegExpDataMap)                                       \
   V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \

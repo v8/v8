@@ -132,6 +132,7 @@ namespace internal {
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
   V(HeapNumber)                                 \
+  V(InterceptorInfo)                            \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \
   V(JSArray)                                    \

@@ -1023,6 +1023,19 @@ void HeapObject::SetupLazilyInitializedExternalPointerField(size_t offset) {
 #endif  // V8_ENABLE_SANDBOX
 }
 
+bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
+    size_t offset) const {
+#ifdef V8_ENABLE_SANDBOX
+  auto location =
+      reinterpret_cast<ExternalPointerHandle*>(field_address(offset));
+  ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+  return handle != kNullExternalPointerHandle;
+#else
+  return ReadMaybeUnalignedValue<Address>(field_address(offset)) !=
+         kNullAddress;
+#endif  // V8_ENABLE_SANDBOX
+}
+
 template <ExternalPointerTag tag>
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value) {

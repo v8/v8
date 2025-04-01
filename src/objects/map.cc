@@ -177,6 +177,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case ACCESSOR_INFO_TYPE:
       return kVisitAccessorInfo;
 
+    case INTERCEPTOR_INFO_TYPE:
+      return kVisitInterceptorInfo;
+
     case FUNCTION_TEMPLATE_INFO_TYPE:
       return kVisitFunctionTemplateInfo;
 
@@ -384,7 +387,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case ENUM_CACHE_TYPE:
     case ERROR_STACK_DATA_TYPE:
     case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
-    case INTERCEPTOR_INFO_TYPE:
     case MODULE_REQUEST_TYPE:
     case PROMISE_CAPABILITY_TYPE:
     case PROMISE_REACTION_TYPE:

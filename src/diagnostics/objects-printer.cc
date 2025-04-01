@@ -1175,6 +1175,8 @@ const char* SideEffectType2String(SideEffectType type) {
 }
 }  // namespace
 
+#define AS_PTR(x) reinterpret_cast<void*>(x)
+
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject>::AccessorInfoPrint(os);
   os << " - is_sloppy: " << is_sloppy();
@@ -1186,12 +1188,12 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   os << "\n - initial_attributes: " << initial_property_attributes();
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
-    os << "\n - getter: " << reinterpret_cast<void*>(getter(isolate));
+    os << "\n - getter: " << AS_PTR(getter(isolate));
     if (USE_SIMULATOR_BOOL) {
       os << "\n - maybe_redirected_getter: "
-         << reinterpret_cast<void*>(maybe_redirected_getter(isolate));
+         << AS_PTR(maybe_redirected_getter(isolate));
     }
-    os << "\n - setter: " << reinterpret_cast<void*>(setter(isolate));
+    os << "\n - setter: " << AS_PTR(setter(isolate));
   } else {
     os << "\n - getter: " << kUnavailableString;
     os << "\n - maybe_redirected_getter: " << kUnavailableString;
@@ -1199,6 +1201,38 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   }
   os << '\n';
 }
+
+void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {
+  TorqueGeneratedInterceptorInfo<InterceptorInfo,
+                                 HeapObject>::InterceptorInfoPrint(os);
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  if (is_named()) {
+    os << " - getter: " << AS_PTR(named_getter(isolate));
+    os << "\n - setter: " << AS_PTR(named_setter(isolate));
+    os << "\n - query: " << AS_PTR(named_query(isolate));
+    os << "\n - descriptor: " << AS_PTR(named_descriptor(isolate));
+    os << "\n - deleter: " << AS_PTR(named_deleter(isolate));
+    os << "\n - enumerator: " << AS_PTR(named_enumerator(isolate));
+    os << "\n - definer: " << AS_PTR(named_definer(isolate));
+  } else {
+    os << " - getter: " << AS_PTR(indexed_getter(isolate));
+    os << "\n - setter: " << AS_PTR(indexed_setter(isolate));
+    os << "\n - query: " << AS_PTR(indexed_query(isolate));
+    os << "\n - descriptor: " << AS_PTR(indexed_descriptor(isolate));
+    os << "\n - deleter: " << AS_PTR(indexed_deleter(isolate));
+    os << "\n - enumerator: " << AS_PTR(indexed_enumerator(isolate));
+    os << "\n - definer: " << AS_PTR(indexed_definer(isolate));
+  }
+
+  os << "\n --- flags: ";
+  if (can_intercept_symbols()) os << "\n - can_intercept_symbols";
+  if (non_masking()) os << "\n - non_masking";
+  if (is_named()) os << "\n - is_named";
+  if (has_no_side_effect()) os << "\n - has_no_side_effect";
+  os << '\n';
+}
+
+#undef AS_PTR
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
   TorqueGeneratedFunctionTemplateInfo<

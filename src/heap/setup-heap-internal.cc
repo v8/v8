@@ -208,7 +208,6 @@ bool Heap::CreateReadOnlyHeapObjects() {
 #endif
 
   if (!CreateLateReadOnlyNonJSReceiverMaps()) return false;
-  CreateReadOnlyApiObjects();
   if (!CreateReadOnlyObjects()) return false;
 
   // Order is important. JSReceiver maps must come after all non-JSReceiver maps
@@ -217,6 +216,8 @@ bool Heap::CreateReadOnlyHeapObjects() {
   //
   // See InstanceTypeChecker::kNonJsReceiverMapLimit.
   if (!CreateLateReadOnlyJSReceiverMaps()) return false;
+
+  CreateReadOnlyApiObjects();
 
 #ifdef DEBUG
   ReadOnlyRoots roots(isolate());
@@ -695,6 +696,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_VARSIZE_MAP(ARRAY_LIST_TYPE, array_list)
 
     ALLOCATE_MAP(ACCESSOR_INFO_TYPE, AccessorInfo::kSize, accessor_info)
+    ALLOCATE_MAP(INTERCEPTOR_INFO_TYPE, InterceptorInfo::kSize,
+                 interceptor_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize,
@@ -1340,10 +1343,13 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info = Cast<InterceptorInfo>(isolate()->factory()->NewStruct(
-      INTERCEPTOR_INFO_TYPE, AllocationType::kReadOnly));
-  info->set_flags(0);
+  auto info =
+      isolate()->factory()->NewInterceptorInfo(AllocationType::kReadOnly);
   set_noop_interceptor_info(*info);
+  // Make sure read only heap layout does not depend on the size of
+  // ExternalPointer fields.
+  StaticRootsEnsureAllocatedSize(info,
+                                 3 * kTaggedSize + 7 * kSystemPointerSize);
 }
 
 void Heap::CreateInitialMutableObjects() {

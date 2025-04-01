@@ -203,14 +203,14 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
       case LookupIterator::INTERCEPTOR: {
         // If there is a getter, return; otherwise loop to perform the lookup.
         DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
-        if (!IsUndefined(holder->GetNamedInterceptor()->getter(),
-                         it->isolate())) {
-          return;
-        }
-        if (is_has_property &&
-            !IsUndefined(holder->GetNamedInterceptor()->query(),
-                         it->isolate())) {
-          return;
+        {
+          Tagged<InterceptorInfo> interceptor = holder->GetNamedInterceptor();
+          if (interceptor->has_getter()) {
+            return;
+          }
+          if (is_has_property && interceptor->has_query()) {
+            return;
+          }
         }
         continue;
       }
@@ -1367,11 +1367,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
     DirectHandle<Map> receiver_map, KeyedAccessLoadMode new_load_mode) {
   // Has a getter interceptor, or is any has and has a query interceptor.
   if (receiver_map->has_indexed_interceptor() &&
-      (!IsUndefined(receiver_map->GetIndexedInterceptor()->getter(),
-                    isolate()) ||
-       (IsAnyHas() &&
-        !IsUndefined(receiver_map->GetIndexedInterceptor()->query(),
-                     isolate()))) &&
+      (receiver_map->GetIndexedInterceptor()->has_getter() ||
+       (IsAnyHas() && receiver_map->GetIndexedInterceptor()->has_query())) &&
       !receiver_map->GetIndexedInterceptor()->non_masking()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
@@ -1618,9 +1615,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
       case LookupIterator::INTERCEPTOR: {
         DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
         Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
-        if (it->HolderIsReceiverOrHiddenPrototype() ||
-            !IsUndefined(info->getter(), isolate()) ||
-            !IsUndefined(info->query(), isolate())) {
+        if (it->HolderIsReceiverOrHiddenPrototype() || info->has_getter() ||
+            info->has_query()) {
           return true;
         }
         continue;
@@ -2024,7 +2020,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         // ...return a store interceptor Smi handler if there is a setter
         // interceptor and it's not DefineNamedOwnIC or DefineKeyedOwnIC
         // (which should call the definer)...
-        if (!IsUndefined(info->setter(), isolate()) && !IsAnyDefineOwn()) {
+        if (info->has_setter() && !IsAnyDefineOwn()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
         // ...otherwise return a slow-case Smi handler, which invokes the
@@ -2035,8 +2031,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // If the interceptor is a getter/query interceptor on the prototype
       // chain, return an invalidatable slow handler so it can turn fast if the
       // interceptor is masked by a regular property later.
-      DCHECK(!IsUndefined(info->getter(), isolate()) ||
-             !IsUndefined(info->query(), isolate()));
+      DCHECK(info->has_getter() || info->has_query());
       Handle<Object> handler = StoreHandler::StoreThroughPrototype(
           isolate(), lookup_start_object_map(), holder,
           *StoreHandler::StoreSlow(isolate()));
@@ -4138,7 +4133,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
     PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                         *receiver, Just(kDontThrow));
 
-    if (!IsUndefined(interceptor->query(), isolate)) {
+    if (interceptor->has_query()) {
       DirectHandle<Object> result =
           arguments.CallIndexedQuery(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.
@@ -4152,7 +4147,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
         arguments.AcceptSideEffects();
         return ReadOnlyRoots(isolate).true_value();
       }
-    } else if (!IsUndefined(interceptor->getter(), isolate)) {
+    } else if (interceptor->has_getter()) {
       DirectHandle<Object> result =
           arguments.CallIndexedGetter(interceptor, index);
       // An exception was thrown in the interceptor. Propagate.

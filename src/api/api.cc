@@ -1470,52 +1470,26 @@ template <PropertyType property_type, typename Getter, typename Setter,
           typename Enumerator, typename Definer>
 i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
-    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Descriptor descriptor, Deleter deleter, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
   // TODO(saelo): instead of an in-sandbox struct with a lot of external
   // pointers (with different tags), consider creating an object in trusted
   // space instead. That way, only a single reference going out of the sandbox
   // would be required.
-  auto obj = i::Cast<i::InterceptorInfo>(i_isolate->factory()->NewStruct(
-      i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
-  obj->set_flags(0);
+  auto obj = i_isolate->factory()->NewInterceptorInfo();
+  obj->set_is_named(property_type == PropertyType::kNamed);
 
-#define CALLBACK_TAG(NAME)                             \
-  property_type == PropertyType::kNamed                \
-      ? internal::kApiNamedProperty##NAME##CallbackTag \
-      : internal::kApiIndexedProperty##NAME##CallbackTag;
-
-  if (getter != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Getter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter, tag);
+#define SET_CALLBACK_FIELD(Name, name)                                        \
+  if (name != nullptr) {                                                      \
+    if constexpr (property_type == PropertyType::kNamed) {                    \
+      obj->set_named_##name(i_isolate, reinterpret_cast<i::Address>(name));   \
+    } else {                                                                  \
+      obj->set_indexed_##name(i_isolate, reinterpret_cast<i::Address>(name)); \
+    }                                                                         \
   }
-  if (setter != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Setter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter, tag);
-  }
-  if (query != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Query);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_query, query, tag);
-  }
-  if (descriptor != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Descriptor);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_descriptor, descriptor, tag);
-  }
-  if (remover != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Deleter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_deleter, remover, tag);
-  }
-  if (enumerator != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_enumerator, enumerator,
-                      internal::kApiIndexedPropertyEnumeratorCallbackTag);
-  }
-  if (definer != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Definer);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer, tag);
-  }
-
-#undef CALLBACK_TAG
+  INTERCEPTOR_INFO_CALLBACK_LIST(SET_CALLBACK_FIELD)
+#undef SET_CALLBACK_FIELD
 
   obj->set_can_intercept_symbols(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
@@ -1539,7 +1513,6 @@ i::DirectHandle<i::InterceptorInfo> CreateNamedInterceptorInfo(
   auto interceptor = CreateInterceptorInfo<PropertyType::kNamed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
-  interceptor->set_is_named(true);
   return interceptor;
 }
 
@@ -1553,7 +1526,6 @@ i::DirectHandle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
   auto interceptor = CreateInterceptorInfo<PropertyType::kIndexed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
-  interceptor->set_is_named(false);
   return interceptor;
 }
 
