@@ -598,6 +598,14 @@ void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end) {
 }
 
 void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
+  if (!heap::ShouldZapGarbage() && !v8_flags.track_gc_object_stats) {
+    // We need to zap and create fillers on promoted pages when
+    // --track-gc-object-stats is enabled because it expects all dead objects to
+    // still be valid objects. Dead object on promoted pages may otherwise
+    // contain invalid old-to-new references to pages that are gone or were
+    // already reallocated.
+    return;
+  }
   Address dead_start = p->area_start();
   // Iterate over the page using the live objects.
   for (auto [object, size] : LiveObjectRange(p)) {
@@ -635,8 +643,6 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
            LiveObjectRange(static_cast<PageMetadata*>(page))) {
         record_visitor.Process(object);
       }
-    }
-    if (heap::ShouldZapGarbage() && !is_large_page) {
       ZapDeadObjectsOnPage(sweeper_->heap_, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
@@ -746,7 +752,7 @@ void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());
-    if (heap::ShouldZapGarbage() && !page->Chunk()->IsLargePage()) {
+    if (!page->Chunk()->IsLargePage()) {
       ZapDeadObjectsOnPage(heap, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
