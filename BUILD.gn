@@ -3773,7 +3773,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/heap-write-barrier-inl.h",
     "src/heap/heap-write-barrier.h",
     "src/heap/heap.h",
-    "src/heap/incremental-marking-inl.h",
     "src/heap/incremental-marking-job.h",
     "src/heap/incremental-marking.h",
     "src/heap/index-generator.h",

@@ -714,16 +714,11 @@ void SemiSpaceNewSpace::SwapSemiSpaces() {
   allocation_top_ = kNullAddress;
   DCHECK_EQ(0u, Size());
 
-  // Clear all mark-bits in the to-space.
+#if DEBUG
   for (PageMetadata* p : to_space_) {
-    if (!v8_flags.separate_gc_phases) {
-      p->ClearLiveness();
-    } else {
-      DCHECK(p->IsLivenessClear());
-    }
-    // Concurrent marking may have local live bytes for this page.
-    heap()->concurrent_marking()->ClearMemoryChunkData(p);
+    DCHECK(p->IsLivenessClear());
   }
+#endif  // DEBUG
 }
 
 void SemiSpaceNewSpace::GarbageCollectionEpilogue() {

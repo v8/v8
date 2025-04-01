@@ -378,8 +378,7 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
                                               SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 
-  // The Scavenger may add already swept pages back.
-  if (page->SweepingDone()) return;
+  DCHECK(!page->SweepingDone());
 
   {
     base::MutexGuard guard(page->mutex());

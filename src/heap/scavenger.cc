@@ -55,28 +55,14 @@ namespace internal {
 class IterateAndScavengePromotedObjectsVisitor final
     : public HeapVisitor<IterateAndScavengePromotedObjectsVisitor> {
  public:
-  IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger,
-                                           bool record_slots)
-      : HeapVisitor(scavenger->heap()->isolate()),
-        scavenger_(scavenger),
-        record_slots_(record_slots) {}
+  IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger)
+      : HeapVisitor(scavenger->heap()->isolate()), scavenger_(scavenger) {}
 
   V8_INLINE static constexpr bool ShouldUseUncheckedCast() { return true; }
 
   V8_INLINE static constexpr bool UsePrecomputedObjectSize() { return true; }
 
-  V8_INLINE void VisitMapPointer(Tagged<HeapObject> host) final {
-    if (!record_slots_) return;
-    MapWord map_word = host->map_word(kRelaxedLoad);
-    if (map_word.IsForwardingAddress()) {
-      // Surviving new large objects and pinned objects have forwarding pointers
-      // in the map word.
-      DCHECK(MemoryChunk::FromHeapObject(host)->InNewLargeObjectSpace() ||
-             v8_flags.scavenger_conservative_object_pinning);
-      return;
-    }
-    HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
-  }
+  V8_INLINE void VisitMapPointer(Tagged<HeapObject> host) final {}
 
   V8_INLINE void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                                ObjectSlot end) final {
@@ -116,15 +102,13 @@ class IterateAndScavengePromotedObjectsVisitor final
 
     // For survivor objects, the scavenger marks their EPT entries when they are
     // copied and then sweeps the young EPT space at the end of collection,
-    // reclaiming unmarked EPT entries.  (Exception: if an incremental mark is
-    // in progress, the scavenger neither marks nor sweeps, as it will be the
-    // major GC's responsibility.)
+    // reclaiming unmarked EPT entries.
     //
     // However when promoting, we just evacuate the entry from new to old space.
-    // Usually the entry will be unmarked, unless an incremental mark is in
-    // progress, or the slot was initialized since the last GC (external pointer
-    // tags have the mark bit set), in which case it may be marked already.  In
-    // any case, transfer the color from new to old EPT space.
+    // Usually the entry will be unmarked, unless the slot was initialized since
+    // the last GC (external pointer tags have the mark bit set), in which case
+    // it may be marked already.  In any case, transfer the color from new to
+    // old EPT space.
     table.Evacuate(heap->young_external_pointer_space(),
                    heap->old_external_pointer_space(), handle, slot.address(),
                    ExternalPointerTable::EvacuateMarkMode::kTransferMark);
@@ -187,24 +171,6 @@ class IterateAndScavengePromotedObjectsVisitor final
             page, chunk->Offset(slot.address()));
       }
       DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
-    } else if (record_slots_ &&
-               MarkCompactCollector::IsOnEvacuationCandidate(target)) {
-      // We should never try to record off-heap slots.
-      DCHECK((std::is_same<THeapObjectSlot, HeapObjectSlot>::value));
-      // InstructionStream slots never appear in new space because
-      // Code objects, the only object that can contain code pointers, are
-      // always allocated in the old space.
-      DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                     !MemoryChunk::FromHeapObject(target)->IsFlagSet(
-                         MemoryChunk::IS_EXECUTABLE));
-
-      // We cannot call MarkCompactCollector::RecordSlot because that checks
-      // that the host page is not in young generation, which does not hold
-      // for pending large pages.
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
-      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
-      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          page, chunk->Offset(slot.address()));
     }
 
     if (HeapLayout::InWritableSharedSpace(target)) {
@@ -216,7 +182,6 @@ class IterateAndScavengePromotedObjectsVisitor final
   }
 
   Scavenger* const scavenger_;
-  const bool record_slots_;
 };
 
 namespace {
@@ -988,15 +953,11 @@ void ScavengerCollector::CollectGarbage() {
     scavengers.clear();
 
 #ifdef V8_COMPRESS_POINTERS
-    // Sweep the external pointer table, unless an incremental mark is in
-    // progress, in which case leave sweeping to the end of the
-    // already-scheduled major GC cycle.  (If we swept here we'd clear EPT
-    // marks that the major marker was using, which would be an error.)
+    // Sweep the external pointer table.
     DCHECK(heap_->concurrent_marking()->IsStopped());
-    if (!heap_->incremental_marking()->IsMajorMarking()) {
-      heap_->isolate()->external_pointer_table().Sweep(
-          heap_->young_external_pointer_space(), heap_->isolate()->counters());
-    }
+    DCHECK(!heap_->incremental_marking()->IsMajorMarking());
+    heap_->isolate()->external_pointer_table().Sweep(
+        heap_->young_external_pointer_space(), heap_->isolate()->counters());
 #endif  // V8_COMPRESS_POINTERS
 
     HandleSurvivingNewLargeObjects();
@@ -1011,20 +972,8 @@ void ScavengerCollector::CollectGarbage() {
     heap_->UpdateYoungReferencesInExternalStringTable(
         &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
-    heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
-    heap_->incremental_marking()->UpdateExternalPointerTableAfterScavenge();
-
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
       isolate_->string_forwarding_table()->UpdateAfterYoungEvacuation();
-    }
-  }
-
-  if (v8_flags.concurrent_marking) {
-    // Ensure that concurrent marker does not track pages that are
-    // going to be unmapped.
-    for (PageMetadata* p :
-         PageRange(new_space->from_space().first_page(), nullptr)) {
-      heap_->concurrent_marking()->ClearMemoryChunkData(p);
     }
   }
 
@@ -1103,8 +1052,7 @@ void ScavengerCollector::SweepArrayBufferExtensions() {
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
-  const bool is_compacting = heap_->incremental_marking()->IsCompacting();
-  MarkingState* marking_state = heap_->marking_state();
+  DCHECK(!heap_->incremental_marking()->IsMarking());
 
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
@@ -1114,13 +1062,6 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     // to meta-data like size during page promotion.
     object->set_map_word(map, kRelaxedStore);
 
-    if (is_compacting && marking_state->IsMarked(object) &&
-        MarkCompactCollector::IsOnEvacuationCandidate(map)) {
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-      MutablePageMetadata* page = MutablePageMetadata::cast(chunk->Metadata());
-      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          page, chunk->Offset(object->map_slot().address()));
-    }
     LargePageMetadata* page = LargePageMetadata::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
@@ -1179,15 +1120,12 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
-      is_incremental_marking_(heap->incremental_marking()->IsMarking()),
-      is_compacting_(heap->incremental_marking()->IsCompacting()),
       shared_string_table_(v8_flags.shared_string_table &&
                            heap->isolate()->has_shared_space()),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
-  DCHECK_IMPLIES(is_incremental_marking_,
-                 heap->incremental_marking()->IsMajorMarking());
+  DCHECK(!heap->incremental_marking()->IsMarking());
 }
 
 void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
@@ -1198,11 +1136,7 @@ void Scavenger::IterateAndScavengePromotedObject(Tagged<HeapObject> target,
   // object's slots would be rescanned. White object might not survive until
   // the end of collection it would be a violation of the invariant to record
   // its slots.
-  const bool record_slots =
-      is_compacting_ && heap()->marking_state()->IsMarked(target);
-  DCHECK_IMPLIES(v8_flags.separate_gc_phases, !record_slots);
-
-  IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
+  IterateAndScavengePromotedObjectsVisitor visitor(this);
 
   // Iterate all outgoing pointers including map word.
   visitor.Visit(map, target, size);

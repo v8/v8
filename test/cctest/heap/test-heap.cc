@@ -1913,7 +1913,7 @@ TEST(TestInternalWeakLists) {
   // and hence are incompatible with this test case.
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.separate_gc_phases || v8_flags.stress_concurrent_allocation)
+      v8_flags.stress_concurrent_allocation)
     return;
   v8_flags.retain_maps_for_n_gc = 0;
 
@@ -2738,12 +2738,6 @@ HEAP_TEST(GCFlags) {
   heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
                                 GarbageCollectionReason::kTesting);
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
-
-  if (!v8_flags.separate_gc_phases) {
-    heap::InvokeMinorGC(heap);
-    // NewSpace scavenges should not overwrite the flags.
-    CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
-  }
 
   heap::InvokeMajorGC(heap, GCFlag::kNoFlags);
   CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
@@ -6168,7 +6162,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 };
 
 TEST(Regress631969) {
-  if (!v8_flags.incremental_marking || v8_flags.separate_gc_phases) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
@@ -7309,7 +7303,7 @@ TEST(CodeObjectRegistry) {
 
 TEST(Regress9701) {
   ManualGCScope manual_gc_scope;
-  if (!v8_flags.incremental_marking || v8_flags.separate_gc_phases) return;
+  if (!v8_flags.incremental_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   // Start with an empty new space.

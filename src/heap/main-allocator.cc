@@ -462,8 +462,7 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
   std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
   if (!allocation_result) {
-    if (!v8_flags.separate_gc_phases ||
-        !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+    if (!space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
             PageMetadata::kPageSize)) {
       return false;
     }

@@ -204,8 +204,6 @@ class Scavenger {
   EvacuationAllocator allocator_;
 
   const bool is_logging_;
-  const bool is_incremental_marking_;
-  const bool is_compacting_;
   const bool shared_string_table_;
   const bool mark_shared_heap_;
   const bool shortcut_strings_;

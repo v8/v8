@@ -281,10 +281,6 @@ class Heap final {
     std::atomic<uint64_t> low_since_mark_compact_{0};
   };
 
-  // Taking this mutex prevents the GC from entering a phase that relocates
-  // object references.
-  base::Mutex* relocation_mutex() { return &relocation_mutex_; }
-
   // Support for context snapshots.  After calling this we have a linear
   // space to write objects in each space.
   struct Chunk {
@@ -2368,8 +2364,6 @@ class Heap final {
   ExternalStringTable external_string_table_;
 
   const AllocationType allocation_type_for_in_place_internalizable_strings_;
-
-  base::Mutex relocation_mutex_;
 
   std::unique_ptr<CollectionBarrier> collection_barrier_;
 

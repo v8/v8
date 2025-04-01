@@ -38,7 +38,7 @@
 #include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/incremental-marking-inl.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/live-object-range-inl.h"
@@ -5037,7 +5037,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE);
-  base::MutexGuard guard(heap_->relocation_mutex());
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);

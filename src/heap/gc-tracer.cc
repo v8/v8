@@ -235,7 +235,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK(!young_gc_while_full_gc_);
 
   young_gc_while_full_gc_ = current_.state != Event::State::NOT_RUNNING;
-  CHECK_IMPLIES(v8_flags.separate_gc_phases && young_gc_while_full_gc_,
+  CHECK_IMPLIES(young_gc_while_full_gc_,
                 current_.state == Event::State::SWEEPING);
   if (young_gc_while_full_gc_) {
     // The cases for interruption are: Scavenger, MinorMS interrupting sweeping.
@@ -804,7 +804,7 @@ void GCTracer::Print() const {
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(),
       ToString(current_.type, false), current_.reduce_memory ? " (reduce)" : "",
-      young_gc_while_full_gc_ ? " (interleaved)" : "",
+      young_gc_while_full_gc_ ? " (during sweeping)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
@@ -841,7 +841,7 @@ void GCTracer::PrintNVP() const {
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "interleaved=%d "
+          "during_sweeping=%d "
           "time_to_safepoint=%.2f "
           "heap.prologue=%.2f "
           "heap.epilogue=%.2f "

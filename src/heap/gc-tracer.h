@@ -520,8 +520,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The starting time of the observable pause if set.
   std::optional<base::TimeTicks> start_of_observable_pause_;
 
-  // We need two epochs, since there can be scavenges during incremental
-  // marking.
+  // We need two epochs, since there can be scavenges during sweeping.
   CollectionEpoch epoch_young_ = 0;
   CollectionEpoch epoch_full_ = 0;
 

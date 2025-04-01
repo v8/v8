@@ -97,15 +97,6 @@ class V8_EXPORT_PRIVATE CppHeap final
         last_incremental_mark_event_;
   };
 
-  class PauseConcurrentMarkingScope final {
-   public:
-    explicit PauseConcurrentMarkingScope(CppHeap*);
-
-   private:
-    std::optional<cppgc::internal::MarkerBase::PauseConcurrentMarkingScope>
-        pause_scope_;
-  };
-
   static void InitializeOncePerProcess();
 
   static CppHeap* From(v8::CppHeap* heap) {

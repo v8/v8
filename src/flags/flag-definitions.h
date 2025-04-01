@@ -487,7 +487,6 @@ DEFINE_EXPERIMENTAL_FEATURE(scavenger_conservative_object_pinning,
                             "Objects reachable from the native stack during "
                             "scavenge will be pinned and "
                             "won't move.")
-DEFINE_IMPLICATION(scavenger_conservative_object_pinning, separate_gc_phases)
 DEFINE_BOOL(
     stress_scavenger_conservative_object_pinning, false,
     "Treat some precise references as conservative references to stress "
@@ -508,7 +507,6 @@ DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning_random,
 DEFINE_BOOL(scavenger_precise_object_pinning, false,
             "Objects reachable from handles during scavenge "
             "will be pinned and won't move.")
-DEFINE_IMPLICATION(scavenger_precise_object_pinning, separate_gc_phases)
 
 DEFINE_BOOL(
     precise_object_pinning, false,
@@ -2066,8 +2064,6 @@ DEFINE_SIZE_T(
     "All three flags cannot be specified at the same time.")
 DEFINE_SIZE_T(initial_heap_size, 0, "initial size of the heap (in Mbytes)")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
-DEFINE_BOOL(separate_gc_phases, true,
-            "young and full garbage collection phases are not overlapping")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 
 // TODO(12950): The next three flags only have an effect if
@@ -3042,7 +3038,6 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 DEFINE_BOOL(trace_minor_ms_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
-DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
 DEFINE_BOOL(concurrent_minor_ms_marking, true,

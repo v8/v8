@@ -64,7 +64,6 @@
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap-visitor.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/local-heap-inl.h"
@@ -496,18 +495,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (v8_flags.separate_gc_phases && incremental_marking()->IsMajorMarking()) {
-    // TODO(v8:12503): Remove next condition (allocation limit overshot) when
-    // separate_gc_phases flag is enabled and removed.
+  if (incremental_marking()->IsMajorMarking()) {
     *reason = "Incremental marking forced finalization";
-    return GarbageCollector::MARK_COMPACTOR;
-  }
-
-  if (incremental_marking()->IsMajorMarking() &&
-      incremental_marking()->IsMajorMarkingComplete() &&
-      AllocationLimitOvershotByLargeMargin()) {
-    DCHECK(!v8_flags.minor_ms);
-    *reason = "Incremental marking needs finalization";
     return GarbageCollector::MARK_COMPACTOR;
   }
 
@@ -556,7 +545,7 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
       break;
     case GarbageCollector::SCAVENGER:
       // Scavenger cannot short cut strings during incremental marking.
-      if (incremental_marking()->IsMajorMarking()) return false;
+      DCHECK(!incremental_marking()->IsMajorMarking());
 
       if (isolate()->has_shared_space() &&
           !isolate()->is_shared_space_isolate() &&
@@ -1133,9 +1122,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   // Young generation GCs only run with  memory reducing flags during
   // interleaved GCs.
-  DCHECK_IMPLIES(
-      v8_flags.separate_gc_phases && IsYoungGenerationCollector(collector),
-      !ShouldReduceMemory());
+  DCHECK_IMPLIES(IsYoungGenerationCollector(collector), !ShouldReduceMemory());
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     memory_pressure_level_.store(MemoryPressureLevel::kNone,
                                  std::memory_order_relaxed);
@@ -1890,7 +1877,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
                 !isolate()->InFastCCall());
   DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
-  if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
+  if (gc_callbacks_depth_ > 0) {
     // Do not start incremental marking while invoking GC callbacks.
     // Heap::CollectGarbage already decided which GC is going to be
     // invoked. In case it chose a young-gen GC, starting an incremental
@@ -2270,13 +2257,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ShrinkOldGenerationAllocationLimitIfNotConfigured();
-
-  if (collector == GarbageCollector::SCAVENGER) {
-    // Objects that died in the new space might have been accounted
-    // as bytes marked ahead of schedule by the incremental marker.
-    incremental_marking()->UpdateMarkedBytesAfterScavenge(
-        start_young_generation_size - SurvivedYoungObjectSize());
-  }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
@@ -2682,31 +2662,9 @@ void Heap::MarkCompactPrologue() {
 
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
-  DCHECK_IMPLIES(v8_flags.separate_gc_phases,
-                 !incremental_marking()->IsMarking());
-
-  if (v8_flags.trace_incremental_marking &&
-      !incremental_marking()->IsStopped()) {
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Scavenge during marking.\n");
-  }
+  DCHECK(!incremental_marking()->IsMarking());
 
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
-  base::MutexGuard guard(relocation_mutex());
-  // Young generation garbage collection is orthogonal from full GC marking. It
-  // is possible that objects that are currently being processed for marking are
-  // reclaimed in the young generation GC that interleaves concurrent marking.
-  // Pause concurrent markers to allow processing them using
-  // `UpdateMarkingWorklistAfterYoungGenGC()`.
-  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
-  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
-      CppHeap::From(cpp_heap_));
-
-  // Bump-pointer allocations done during scavenge are not real allocations.
-  // Pause the inline allocation steps.
-  IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
-      incremental_marking());
-
   SetGCState(SCAVENGE);
 
   // Implements Cheney's copying algorithm
@@ -3100,8 +3058,7 @@ void* Heap::AllocateExternalBackingStore(
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
         new_space()->ExternalBackingStoreOverallBytes();
-    if ((!v8_flags.separate_gc_phases ||
-         !incremental_marking()->IsMajorMarking()) &&
+    if ((!incremental_marking()->IsMajorMarking()) &&
         new_space_backing_store_bytes >= 2 * DefaultMaxSemiSpaceSize() &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
@@ -5292,7 +5249,7 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
   if (!v8_flags.external_memory_accounted_in_global_limit) {
     size_now += AllocatedExternalMemorySinceMarkCompact();
   }
-  if (v8_flags.separate_gc_phases && incremental_marking()->IsMajorMarking()) {
+  if (incremental_marking()->IsMajorMarking()) {
     // No interleaved GCs, so we count young gen as part of old gen.
     size_now += YoungGenerationConsumedBytes();
   }
