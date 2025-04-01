@@ -863,150 +863,146 @@ void ScavengerCollector::CollectGarbage() {
 
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   std::vector<std::unique_ptr<Scavenger>> scavengers;
+
+  const bool is_logging = isolate_->log_object_relocation();
+  for (int i = 0; i < num_scavenge_tasks; ++i) {
+    scavengers.emplace_back(
+        new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
+                      &pinned_list, &promoted_list, &ephemeron_table_list));
+  }
+  Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
+
   {
-    const bool is_logging = isolate_->log_object_relocation();
-    for (int i = 0; i < num_scavenge_tasks; ++i) {
-      scavengers.emplace_back(
-          new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
-                        &pinned_list, &promoted_list, &ephemeron_table_list));
-    }
-    Scavenger& main_thread_scavenger = *scavengers[kMainThreadId].get();
+    // Identify weak unmodified handles. Requires an unmodified graph.
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
+    isolate_->traced_handles()->ComputeWeaknessForYoungObjects();
+  }
 
-    {
-      // Identify weak unmodified handles. Requires an unmodified graph.
-      TRACE_GC(
-          heap_->tracer(),
-          GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->traced_handles()->ComputeWeaknessForYoungObjects();
-    }
+  std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
+      old_to_new_chunks;
+  {
+    // Copy roots.
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
 
-    std::vector<std::pair<ParallelWorkItem, MutablePageMetadata*>>
-        old_to_new_chunks;
-    {
-      // Copy roots.
-      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
+    // We must collect old-to-new pages before starting Scavenge because
+    // pages could be removed from the old generation for allocation which
+    // hides them from the iteration.
+    OldGenerationMemoryChunkIterator::ForAll(
+        heap_, [&old_to_new_chunks](MutablePageMetadata* chunk) {
+          if (chunk->slot_set<OLD_TO_NEW>() ||
+              chunk->typed_slot_set<OLD_TO_NEW>() ||
+              chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
+            old_to_new_chunks.emplace_back(ParallelWorkItem{}, chunk);
+          }
+        });
 
-      // We must collect old-to-new pages before starting Scavenge because
-      // pages could be removed from the old generation for allocation which
-      // hides them from the iteration.
-      OldGenerationMemoryChunkIterator::ForAll(
-          heap_, [&old_to_new_chunks](MutablePageMetadata* chunk) {
-            if (chunk->slot_set<OLD_TO_NEW>() ||
-                chunk->typed_slot_set<OLD_TO_NEW>() ||
-                chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
-              old_to_new_chunks.emplace_back(ParallelWorkItem{}, chunk);
-            }
-          });
-
-      if (v8_flags.scavenger_conservative_object_pinning &&
-          heap_->IsGCWithStack()) {
-        // Pinning objects must be the first step and must happen before
-        // scavenging any objects. Specifically we must all pin all objects
-        // before visiting other pinned objects. If we scavenge some object X
-        // and move it before all stack-reachable objects are pinned, and we
-        // later find that we need to pin X, it will be too late to undo the
-        // moving.
-        TRACE_GC(heap_->tracer(),
-                 GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
-        ConservativeObjectPinningVisitor conservative_pinning_visitor(
-            heap_, main_thread_scavenger, pinned_objects);
-        // Scavenger reuses the page's marking bitmap as a temporary object
-        // start bitmap. Stack scanning will incrementally build the map as it
-        // searches through pages.
-        YoungGenerationConservativeStackVisitor stack_visitor(
-            isolate_, &conservative_pinning_visitor);
-        // Marker was already set by Heap::CollectGarbage.
-        heap_->IterateConservativeStackRoots(&stack_visitor);
-        if (V8_UNLIKELY(
-                v8_flags.stress_scavenger_conservative_object_pinning)) {
-          TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
-          heap_->IterateRootsForPrecisePinning(&handles_visitor);
-        }
-      }
-      if (v8_flags.scavenger_precise_object_pinning) {
-        PreciseObjectPinningVisitor precise_pinning_visitor(
-            heap_, main_thread_scavenger, pinned_objects);
-        ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
-            heap_, &precise_pinning_visitor);
-        heap_->IterateRootsForPrecisePinning(&left_trim_visitor);
-      }
-
-      // Scavenger treats all weak roots except for global handles as strong.
-      // That is why we don't set skip_weak = true here and instead visit
-      // global handles separately.
-      base::EnumSet<SkipRoot> options(
-          {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
-           SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
-           SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
-      if (v8_flags.scavenger_precise_object_pinning) {
-        options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
-      }
-      RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
-
-      heap_->IterateRoots(&root_scavenge_visitor, options);
-      isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
-          &root_scavenge_visitor);
-      isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
-    }
-    {
-      // Parallel phase scavenging all copied and promoted objects.
-      TRACE_GC_ARG1(
-          heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
-          "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
-
-      auto job = std::make_unique<JobTask>(
-          this, &scavengers, std::move(old_to_new_chunks), copied_list,
-          pinned_list, promoted_list);
-      TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
-                              TRACE_EVENT_FLAG_FLOW_OUT);
-      V8::GetCurrentPlatform()
-          ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
-          ->Join();
-      DCHECK(copied_list.IsEmpty());
-      DCHECK(pinned_list.IsEmpty());
-      DCHECK(promoted_list.IsEmpty());
-    }
-
-    {
-      // Scavenge weak global handles.
+    if (v8_flags.scavenger_conservative_object_pinning &&
+        heap_->IsGCWithStack()) {
+      // Pinning objects must be the first step and must happen before
+      // scavenging any objects. Specifically we must all pin all objects
+      // before visiting other pinned objects. If we scavenge some object X
+      // and move it before all stack-reachable objects are pinned, and we
+      // later find that we need to pin X, it will be too late to undo the
+      // moving.
       TRACE_GC(heap_->tracer(),
-               GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      GlobalHandlesWeakRootsUpdatingVisitor visitor;
-      isolate_->global_handles()->ProcessWeakYoungObjects(
-          &visitor, &IsUnscavengedHeapObjectSlot);
-      isolate_->traced_handles()->ProcessWeakYoungObjects(
-          &visitor, &IsUnscavengedHeapObjectSlot);
+               GCTracer::Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS);
+      ConservativeObjectPinningVisitor conservative_pinning_visitor(
+          heap_, main_thread_scavenger, pinned_objects);
+      // Scavenger reuses the page's marking bitmap as a temporary object
+      // start bitmap. Stack scanning will incrementally build the map as it
+      // searches through pages.
+      YoungGenerationConservativeStackVisitor stack_visitor(
+          isolate_, &conservative_pinning_visitor);
+      // Marker was already set by Heap::CollectGarbage.
+      heap_->IterateConservativeStackRoots(&stack_visitor);
+      if (V8_UNLIKELY(v8_flags.stress_scavenger_conservative_object_pinning)) {
+        TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
+        heap_->IterateRootsForPrecisePinning(&handles_visitor);
+      }
+    }
+    if (v8_flags.scavenger_precise_object_pinning) {
+      PreciseObjectPinningVisitor precise_pinning_visitor(
+          heap_, main_thread_scavenger, pinned_objects);
+      ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
+          heap_, &precise_pinning_visitor);
+      heap_->IterateRootsForPrecisePinning(&left_trim_visitor);
     }
 
-    {
-      // Finalize parallel scavenging.
-      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
+    // Scavenger treats all weak roots except for global handles as strong.
+    // That is why we don't set skip_weak = true here and instead visit
+    // global handles separately.
+    base::EnumSet<SkipRoot> options(
+        {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
+         SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
+         SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
+    if (v8_flags.scavenger_precise_object_pinning) {
+      options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
+    }
+    RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
 
-      DCHECK(surviving_new_large_objects_.empty());
+    heap_->IterateRoots(&root_scavenge_visitor, options);
+    isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
+        &root_scavenge_visitor);
+    isolate_->traced_handles()->IterateYoungRoots(&root_scavenge_visitor);
+  }
+  {
+    // Parallel phase scavenging all copied and promoted objects.
+    TRACE_GC_ARG1(heap_->tracer(),
+                  GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL_PHASE,
+                  "UseBackgroundThreads", heap_->ShouldUseBackgroundThreads());
 
-      for (auto& scavenger : scavengers) {
-        scavenger->Finalize();
-      }
-      scavengers.clear();
+    auto job = std::make_unique<JobTask>(
+        this, &scavengers, std::move(old_to_new_chunks), copied_list,
+        pinned_list, promoted_list);
+    TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
+    V8::GetCurrentPlatform()
+        ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
+        ->Join();
+    DCHECK(copied_list.IsEmpty());
+    DCHECK(pinned_list.IsEmpty());
+    DCHECK(promoted_list.IsEmpty());
+  }
+
+  {
+    // Scavenge weak global handles.
+    TRACE_GC(heap_->tracer(),
+             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
+    GlobalHandlesWeakRootsUpdatingVisitor visitor;
+    isolate_->global_handles()->ProcessWeakYoungObjects(
+        &visitor, &IsUnscavengedHeapObjectSlot);
+    isolate_->traced_handles()->ProcessWeakYoungObjects(
+        &visitor, &IsUnscavengedHeapObjectSlot);
+  }
+
+  {
+    // Finalize parallel scavenging.
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
+
+    DCHECK(surviving_new_large_objects_.empty());
+
+    for (auto& scavenger : scavengers) {
+      scavenger->Finalize();
+    }
+    scavengers.clear();
 
 #ifdef V8_COMPRESS_POINTERS
-      // Sweep the external pointer table, unless an incremental mark is in
-      // progress, in which case leave sweeping to the end of the
-      // already-scheduled major GC cycle.  (If we swept here we'd clear EPT
-      // marks that the major marker was using, which would be an error.)
-      DCHECK(heap_->concurrent_marking()->IsStopped());
-      if (!heap_->incremental_marking()->IsMajorMarking()) {
-        heap_->isolate()->external_pointer_table().Sweep(
-            heap_->young_external_pointer_space(),
-            heap_->isolate()->counters());
-      }
+    // Sweep the external pointer table, unless an incremental mark is in
+    // progress, in which case leave sweeping to the end of the
+    // already-scheduled major GC cycle.  (If we swept here we'd clear EPT
+    // marks that the major marker was using, which would be an error.)
+    DCHECK(heap_->concurrent_marking()->IsStopped());
+    if (!heap_->incremental_marking()->IsMajorMarking()) {
+      heap_->isolate()->external_pointer_table().Sweep(
+          heap_->young_external_pointer_space(), heap_->isolate()->counters());
+    }
 #endif  // V8_COMPRESS_POINTERS
 
-      HandleSurvivingNewLargeObjects();
+    HandleSurvivingNewLargeObjects();
 
-      heap_->tracer()->SampleConcurrencyEsimate(
-          FetchAndResetConcurrencyEstimate());
-    }
+    heap_->tracer()->SampleConcurrencyEsimate(
+        FetchAndResetConcurrencyEstimate());
   }
 
   {
@@ -1494,6 +1490,7 @@ void Scavenger::PinAndPushObject(MemoryChunk* chunk, Tagged<HeapObject> object,
     PushPinnedObject(object, map, object_size);
   }
 }
+
 void Scavenger::PushPinnedObject(Tagged<HeapObject> object, Tagged<Map> map,
                                  int object_size) {
   DCHECK(HeapLayout::IsSelfForwarded(object));
