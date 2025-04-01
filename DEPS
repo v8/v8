@@ -81,7 +81,7 @@ vars = {
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:68bdc49e4e23aef066fc652cbdb1b4973aab1a31',
+  'siso_version': 'git_revision:9e4e007a51fdfd51e809d2817a3d6bbd3ec3b648',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -91,7 +91,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
   # and whatever else without interference from each other.
-  'partition_alloc_version': 'ab56923a27b2793f21994589b0c39bc3324ff49f',
+  'partition_alloc_version': 'a9e3cecf8ea5c8da254d98bab323142e17229b0c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -129,7 +129,7 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '52d62707eaec02b88722a99e335315d166ceda77',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '010f34f1645e6e1831fdea9ff615ff5710ee407e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6f359296daa889aa726f3d05046b9f37be241169',
   'buildtools/linux64': {
@@ -483,7 +483,7 @@ deps = {
   'tools/rust':
     Var('chromium_url') + '/chromium/src/tools/rust' + '@' + '7cdd3d9540f3ab428dbcc9ab83c2896c100bcdc5',
   'third_party/rust':
-    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + 'ed577320339cd175171e9c96d3d73452ddbcbd98',
+    Var('chromium_url') + '/chromium/src/third_party/rust' + '@' + '0f7aa4a0bcca3bbb2bf56071a6063752439c7259',
   'third_party/rust-toolchain': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
