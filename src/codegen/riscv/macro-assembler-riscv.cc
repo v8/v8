@@ -1873,14 +1873,10 @@ void MacroAssembler::ByteSwap(Register rd, Register rs, int operand_size,
     return;
   }
   UseScratchRegisterScope temps(this);
-  temps.Include(t2, t4);
+  temps.Include(t4, t6);
   Register x0 = temps.Acquire();
   Register x1 = temps.Acquire();
-  DCHECK_NE(scratch, rs);
-  DCHECK_NE(scratch, rd);
-  DCHECK(x0 != x1);
-  DCHECK((rs != x0) && (rs != x1));
-  DCHECK((rd != x0) && (rd != x1));
+  DCHECK(!AreAliased(rs, rd, x0, x1, scratch));
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (operand_size == 4) {
     DCHECK((rd != t6) && (rs != t6));
@@ -2066,7 +2062,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t2, t4);
+  temps.Include(t4, t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2092,7 +2088,7 @@ void MacroAssembler::UnalignedFLoadHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
-  temps.Include(t2, t4);
+  temps.Include(t4, t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -2113,7 +2109,7 @@ void MacroAssembler::UnalignedDoubleHelper(FPURegister frd,
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         8 - 1);
   }
-  temps.Include(t2, t4);
+  temps.Include(t4, t6);
   Register scratch = temps.Acquire();
   Register scratch_other = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
