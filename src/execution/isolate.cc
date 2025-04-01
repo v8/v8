@@ -2301,6 +2301,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         handler_sp != kNullAddress ? handler_sp : handler_fp;
     if (!IsOnCentralStack(stack_address)) {
       thread_local_top()->is_on_central_stack_flag_ = false;
+      iter.wasm_stack()->ShrinkTo(stack_address);
       uintptr_t limit =
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);

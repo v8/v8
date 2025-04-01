@@ -127,6 +127,7 @@ class StackMemory {
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp);
   Address Shrink();
+  void ShrinkTo(Address stack_address);
   void Reset();
 
   class StackSegment {
