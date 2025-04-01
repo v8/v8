@@ -151,8 +151,8 @@ OpIndex WasmGraphBuilderBase::CallRuntime(
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   OpIndex isolate_root = __ LoadRootRegister();
   DCHECK_EQ(1, fun->result_size);
-  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(
-      Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
+  int builtin_slot_offset =
+      IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
   OpIndex centry_stub =
       __ Load(isolate_root, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::UintPtr(), builtin_slot_offset);
