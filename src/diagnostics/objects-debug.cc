@@ -2571,29 +2571,15 @@ void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
 }
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
-  // Torque definition of this class includes all of the optional fields.
-
-  // This assertion exists to encourage updating this verification function if
-  // new fields are added in the Torque class layout definition.
-  static_assert(DataHandler::kHeaderSize == 6 * kTaggedSize);
-
   StructVerify(isolate);
-  CHECK(IsDataHandler(*this));
-  Object::VerifyPointer(isolate, smi_handler(isolate));
+  CHECK(IsDataHandler(this));
+  Object::VerifyPointer(isolate, smi_handler());
   CHECK_IMPLIES(!IsSmi(smi_handler()),
-                IsStoreHandler(*this) && IsCode(smi_handler()));
-  Object::VerifyPointer(isolate, validity_cell(isolate));
+                IsStoreHandler(this) && IsCode(smi_handler()));
+  Object::VerifyPointer(isolate, validity_cell());
   CHECK(IsSmi(validity_cell()) || IsCell(validity_cell()));
-  int data_count = data_field_count();
-  if (data_count >= 1) {
-    VerifyMaybeObjectField(isolate, kData1Offset);
-  }
-  if (data_count >= 2) {
-    VerifyMaybeObjectField(isolate, kData2Offset);
-  }
-  if (data_count >= 3) {
-    VerifyMaybeObjectField(isolate, kData3Offset);
+  for (int i = 0; i < data_field_count(); ++i) {
+    Object::VerifyMaybeObjectPointer(isolate, data()[i].load());
   }
 }
 

@@ -18,6 +18,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/foreign.h"
@@ -50,28 +51,15 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
   CSA_DCHECK(this,
              Word32Or(InstanceTypeEqual(instance_type, LOAD_HANDLER_TYPE),
                       InstanceTypeEqual(instance_type, STORE_HANDLER_TYPE)));
-  int offset = 0;
-  int minimum_size = 0;
-  switch (data_index) {
-    case 1:
-      offset = DataHandler::kData1Offset;
-      minimum_size = DataHandler::kSizeWithData1;
-      break;
-    case 2:
-      offset = DataHandler::kData2Offset;
-      minimum_size = DataHandler::kSizeWithData2;
-      break;
-    case 3:
-      offset = DataHandler::kData3Offset;
-      minimum_size = DataHandler::kSizeWithData3;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  USE(minimum_size);
+  // data_index is 1-indexed, so subtract one to make it 0-indexed.
+  data_index -= 1;
+  CHECK_GE(data_index, 0);
+  CHECK_LT(data_index, 3);
+  int offset = DataHandler::OffsetOf(data_index);
   CSA_DCHECK(this, UintPtrGreaterThanOrEqual(
                        LoadMapInstanceSizeInWords(handler_map),
-                       IntPtrConstant(minimum_size / kTaggedSize)));
+                       IntPtrConstant(DataHandler::SizeFor(data_index + 1) /
+                                      kTaggedSize)));
   return LoadMaybeWeakObjectField(handler, offset);
 }
 
@@ -1116,7 +1104,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
   //
   {
     TNode<Object> maybe_validity_cell =
-        LoadObjectField(handler, ICHandler::kValidityCellOffset);
+        LoadObjectField(handler, offsetof(ICHandler, validity_cell_));
     CheckPrototypeValidityCell(maybe_validity_cell, miss);
   }
 
@@ -1125,7 +1113,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
   //
   {
     TNode<Object> smi_or_code_handler =
-        LoadObjectField(handler, ICHandler::kSmiHandlerOffset);
+        LoadObjectField(handler, offsetof(ICHandler, smi_handler_));
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
@@ -4275,8 +4263,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        TNode<Code> code =
-            CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset));
+        TNode<Code> code = CAST(
+            LoadObjectField(handler, offsetof(StoreHandler, smi_handler_)));
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());

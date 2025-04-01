@@ -20,7 +20,7 @@
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/contexts.h"
-#include "src/objects/data-handler.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
@@ -169,7 +169,7 @@ constexpr std::initializer_list<StructInit> kStructTable{
         ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
 #undef ALLOCATION_SITE_ELEMENT
 #define DATA_HANDLER_ELEMENT(_, TYPE, Name, Size, name) \
-  {TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
+  {TYPE, Name::SizeFor(Size), RootIndex::k##Name##Size##Map},
             DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };

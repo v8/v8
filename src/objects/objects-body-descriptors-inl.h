@@ -1317,12 +1317,13 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    static_assert(kSmiHandlerOffset < kData1Offset,
-                  "Field order must be in sync with this iteration code");
-    static_assert(kData1Offset < kSizeWithData1,
-                  "Field order must be in sync with this iteration code");
-    IteratePointers(obj, kSmiHandlerOffset, kData1Offset, v);
-    IterateMaybeWeakPointers(obj, kData1Offset, object_size, v);
+    static_assert(
+        offsetof(DataHandler, smi_handler_) < OFFSET_OF_DATA_START(DataHandler),
+        "Field order must be in sync with this iteration code");
+    IteratePointers(obj, offsetof(DataHandler, smi_handler_),
+                    OFFSET_OF_DATA_START(DataHandler), v);
+    IterateMaybeWeakPointers(obj, OFFSET_OF_DATA_START(DataHandler),
+                             object_size, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
