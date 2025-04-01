@@ -12083,37 +12083,6 @@ void FastApiCallback_TrivialSignature(
       info[0]->Int32Value(isolate->GetCurrentContext()).FromJust() + 1);
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
-void FastApiCallback_SimpleSignature(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info, FUNCTION_ADDR(FastApiCallback_SimpleSignature));
-  v8::Isolate* isolate = CcTest::isolate();
-  CHECK_EQ(isolate, info.GetIsolate());
-  CHECK(info.This()
-            ->GetPrototype()
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
-  CHECK(info.Data()
-            ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
-            .FromJust());
-  // Note, we're using HasRealNamedProperty instead of Has to avoid
-  // invoking the interceptor again.
-  CHECK(info.This()
-            ->HasRealNamedProperty(isolate->GetCurrentContext(), v8_str("foo"))
-            .FromJust());
-  info.GetReturnValue().Set(
-      info[0]->Int32Value(isolate->GetCurrentContext()).FromJust() + 1);
-}
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
-
 // Helper to maximize the odds of object moving.
 void GenerateSomeGarbage() {
   CompileRun(
