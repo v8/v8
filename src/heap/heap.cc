@@ -1719,8 +1719,7 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   if ((collector == GarbageCollector::MARK_COMPACTOR) &&
       is_full_gc_during_loading_) {
-    if (ShouldOptimizeForLoadTime() &&
-        v8_flags.update_allocation_limits_after_loading) {
+    if (ShouldOptimizeForLoadTime()) {
       update_allocation_limits_after_loading_ = true;
     }
     is_full_gc_during_loading_ = false;
@@ -2537,11 +2536,6 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
 }
 
 void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
-  if (!v8_flags.update_allocation_limits_after_loading) {
-    DCHECK(!update_allocation_limits_after_loading_);
-    return;
-  }
-
   if (!update_allocation_limits_after_loading_) {
     return;
   }
@@ -7396,9 +7390,7 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::NotifyLoadingStarted() {
-  if (v8_flags.update_allocation_limits_after_loading) {
-    update_allocation_limits_after_loading_ = true;
-  }
+  update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
   load_start_time_ms_.store(now_ms, std::memory_order_relaxed);
