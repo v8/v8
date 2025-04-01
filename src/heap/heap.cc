@@ -7313,6 +7313,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
       code_space()->RefillFreeList();
       if (shared_space()) {
         shared_space()->RefillFreeList();
+        shared_trusted_space()->RefillFreeList();
       }
 
       trusted_space()->RefillFreeList();
