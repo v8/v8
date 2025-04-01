@@ -583,90 +583,96 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
 void Heap::PrintShortHeapStatistics() {
   if (!v8_flags.trace_gc_verbose) return;
   PrintIsolate(isolate_,
-               "Memory allocator,       used: %6zu KB,"
-               " available: %6zu KB\n",
+               "Memory allocator,           used: %6zu KB"
+               ", available:  %7zu KB\n",
                memory_allocator()->Size() / KB,
                memory_allocator()->Available() / KB);
   PrintIsolate(isolate_,
-               "Read-only space,        used: %6zu KB"
-               ", available: %6zu KB"
+               "Read-only space,            used: %6zu KB"
+               ", available:  %7zu KB"
                ", committed: %6zu KB\n",
                read_only_space_->Size() / KB, size_t{0},
                read_only_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "New space,              used: %6zu KB"
-               ", available: %6zu KB%s"
+               "New space,                  used: %6zu KB"
+               ", available:%c %7zu KB"
                ", committed: %6zu KB\n",
-               NewSpaceSize() / KB, new_space_->Available() / KB,
-               (v8_flags.minor_ms && minor_sweeping_in_progress()) ? "*" : "",
+               NewSpaceSize() / KB,
+               (v8_flags.minor_ms && minor_sweeping_in_progress()) ? '*' : ' ',
+               new_space_->Available() / KB,
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "New large object space, used: %6zu KB"
-               ", available: %6zu KB"
+               "New large object space,     used: %6zu KB"
+               ", available:  %7zu KB"
                ", committed: %6zu KB\n",
                new_lo_space_->SizeOfObjects() / KB,
                new_lo_space_->Available() / KB,
                new_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Old space,              used: %6zu KB"
-               ", available: %6zu KB%s"
+               "Old space,                  used: %6zu KB"
+               ", available:%c %7zu KB"
                ", committed: %6zu KB\n",
-               old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
-               major_sweeping_in_progress() ? "*" : "",
+               old_space_->SizeOfObjects() / KB,
+               major_sweeping_in_progress() ? '*' : ' ',
+               old_space_->Available() / KB,
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Code space,             used: %6zu KB"
-               ", available: %6zu KB%s"
+               "Code space,                 used: %6zu KB"
+               ", available:%c %7zu KB"
                ", committed: %6zu KB\n",
-               code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
-               major_sweeping_in_progress() ? "*" : "",
+               code_space_->SizeOfObjects() / KB,
+               major_sweeping_in_progress() ? '*' : ' ',
+               code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Large object space,     used: %6zu KB"
-               ", available: %6zu KB"
+               "Large object space,         used: %6zu KB"
+               ", available:  %7zu KB"
                ", committed: %6zu KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Code large object space,     used: %6zu KB"
-               ", available: %6zu KB"
+               "Code large object space,    used: %6zu KB"
+               ", available:  %7zu KB"
                ", committed: %6zu KB\n",
                code_lo_space_->SizeOfObjects() / KB,
                code_lo_space_->Available() / KB,
                code_lo_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Trusted space,              used: %6zu KB"
-               ", available: %6zu KB%s"
+               ", available:%c %7zu KB"
                ", committed: %6zu KB\n",
                trusted_space_->SizeOfObjects() / KB,
+               major_sweeping_in_progress() ? '*' : ' ',
                trusted_space_->Available() / KB,
-               major_sweeping_in_progress() ? "*" : "",
                trusted_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
-               "Trusted large object space,     used: %6zu KB"
-               ", available: %6zu KB"
+               "Trusted large object space, used: %6zu KB"
+               ", available:  %7zu KB"
                ", committed: %6zu KB\n",
                trusted_lo_space_->SizeOfObjects() / KB,
                trusted_lo_space_->Available() / KB,
                trusted_lo_space_->CommittedMemory() / KB);
   ReadOnlySpace* const ro_space = read_only_space_;
   PrintIsolate(isolate_,
-               "All spaces,             used: %6zu KB"
-               ", available: %6zu KB%s"
+               "All spaces,                 used: %6zu KB"
+               ", available:%c %7zu KB"
                ", committed: %6zu KB\n",
                (this->SizeOfObjects() + ro_space->Size()) / KB,
-               (this->Available()) / KB, sweeping_in_progress() ? "*" : "",
+               sweeping_in_progress() ? '*' : ' ', (this->Available()) / KB,
                (this->CommittedMemory() + ro_space->CommittedMemory()) / KB);
   const size_t chunks = memory_allocator()->GetPooledChunksCount();
-  PrintIsolate(isolate_, "Pool buffering %zu chunks of committed: %6zu KB\n",
+  PrintIsolate(isolate_, "Pool buffering %4zu chunk(s) of committed: %7zu KB\n",
                chunks, (chunks * PageMetadata::kPageSize) / KB);
-  PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
+  PrintIsolate(isolate_,
+               "External memory reported:                  %7" PRId64 " KB\n",
                external_memory() / KB);
-  PrintIsolate(isolate_, "Backing store memory: %6" PRIu64 " KB\n",
+  PrintIsolate(isolate_,
+               "Backing store memory:                      %7" PRIu64 " KB\n",
                backing_store_bytes() / KB);
-  PrintIsolate(isolate_, "External memory global %zu KB\n",
+  PrintIsolate(isolate_, "External memory global:                    %7zu KB\n",
                external_memory_callback_() / KB);
-  PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
+  PrintIsolate(isolate_,
+               "Total time spent in GC:                    %7.1f ms\n",
                total_gc_time_ms_.InMillisecondsF());
   if (sweeping_in_progress()) {
     PrintIsolate(isolate_,

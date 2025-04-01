@@ -798,8 +798,8 @@ void GCTracer::Print() const {
       "[%d:%p] "
       "%8.0f ms: "
       "%s%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
-      "pooled: %1.f MB, "
-      "%.2f / %.2f ms %s (average mu = %.3f, current mu = %.3f) %s; %s\n",
+      "pooled: %.1f MB, "
+      "%.2f / %.2f ms%s (average mu = %.3f, current mu = %.3f) %s; %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(),
