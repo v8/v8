@@ -7515,7 +7515,7 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   return ReduceResult::Done();
 }
 
-bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
+MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
     ValueNode* object, const compiler::FeedbackSource& feedback_source,
     const compiler::ProcessedFeedback& processed_feedback) {
   if (current_for_in_state.index != nullptr &&
@@ -7529,10 +7529,10 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
       // the enum cache if the map match the {cache_type}.
       if (processed_feedback.kind() !=
           compiler::ProcessedFeedback::kInsufficient) {
-        return false;
+        return MaybeReduceResult::Fail();
       }
       if (BuildCheckHeapObject(object).IsDoneWithAbort()) {
-        return false;
+        return ReduceResult::DoneWithAbort();
       }
       speculating_receiver_map_matches = true;
     }
@@ -7552,18 +7552,16 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
         current_for_in_state.enum_cache_indices, current_for_in_state.index);
     SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
-    return true;
+    return ReduceResult::Done();
   }
-  return false;
+  return MaybeReduceResult::Fail();
 }
 
 ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
     ValueNode* object, const compiler::FeedbackSource& feedback_source,
     const compiler::ProcessedFeedback& processed_feedback) {
-  if (TryBuildGetKeyedPropertyWithEnumeratedKey(object, feedback_source,
-                                                processed_feedback)) {
-    return ReduceResult::Done();
-  }
+  RETURN_IF_DONE(TryBuildGetKeyedPropertyWithEnumeratedKey(
+      object, feedback_source, processed_feedback));
 
   auto build_generic_access = [this, object, &feedback_source]() {
     ValueNode* context = GetContext();
