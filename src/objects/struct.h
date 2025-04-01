@@ -108,9 +108,6 @@ V8_OBJECT class AccessorPair : public StructLayout {
 
  private:
   friend class CodeStubAssembler;
-  friend class KeyedStoreGenericAssembler;
-  friend class ObjectBuiltinsAssembler;
-  friend class ProxiesCodeStubAssembler;
   friend class V8HeapExplorer;
   friend class TorqueGeneratedAccessorPairAsserts;
 

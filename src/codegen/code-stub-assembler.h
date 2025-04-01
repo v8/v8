@@ -3821,6 +3821,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> LoadElementsKind(TNode<AllocationSite> allocation_site);
   TNode<Object> LoadNestedAllocationSite(TNode<AllocationSite> allocation_site);
 
+  TNode<Object> LoadAccessorPairGetter(TNode<AccessorPair> accessor_pair) {
+    return LoadObjectField<Object>(accessor_pair,
+                                   offsetof(AccessorPair, getter_));
+  }
+  TNode<Object> LoadAccessorPairSetter(TNode<AccessorPair> accessor_pair) {
+    return LoadObjectField<Object>(accessor_pair,
+                                   offsetof(AccessorPair, setter_));
+  }
+
   enum class IndexAdvanceMode { kPre, kPost };
   enum class IndexAdvanceDirection { kUp, kDown };
   enum class LoopUnrollingMode { kNo, kYes };

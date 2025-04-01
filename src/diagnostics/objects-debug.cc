@@ -314,6 +314,18 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
+    case TUPLE2_TYPE:
+      Cast<Tuple2>(*this)->Tuple2Verify(isolate);
+      break;
+
+    case CLASS_POSITIONS_TYPE:
+      Cast<ClassPositions>(*this)->ClassPositionsVerify(isolate);
+      break;
+
+    case ACCESSOR_PAIR_TYPE:
+      Cast<AccessorPair>(*this)->AccessorPairVerify(isolate);
+      break;
+
     case ALLOCATION_SITE_TYPE:
       Cast<AllocationSite>(*this)->AllocationSiteVerify(isolate);
       break;

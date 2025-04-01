@@ -1701,10 +1701,10 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDetails(
   BIND(&if_accessor_desc);
   {
     TNode<AccessorPair> accessor_pair_value = CAST(raw_value);
-    TNode<HeapObject> getter = LoadObjectField<HeapObject>(
-        accessor_pair_value, offsetof(AccessorPair, getter_));
-    TNode<HeapObject> setter = LoadObjectField<HeapObject>(
-        accessor_pair_value, offsetof(AccessorPair, setter_));
+    TNode<HeapObject> getter =
+        CAST(LoadAccessorPairGetter(accessor_pair_value));
+    TNode<HeapObject> setter =
+        CAST(LoadAccessorPairSetter(accessor_pair_value));
     js_descriptor = ConstructAccessorDescriptor(
         context, GetAccessorOrUndefined(getter, if_bailout),
         GetAccessorOrUndefined(setter, if_bailout),

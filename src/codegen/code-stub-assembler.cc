@@ -11650,8 +11650,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
         mode == kCallJSGetterDontUseCachedName) {
       Label if_callable(this), if_function_template_info(this);
       TNode<AccessorPair> accessor_pair = CAST(value);
-      TNode<HeapObject> getter =
-          CAST(LoadObjectField(accessor_pair, offsetof(AccessorPair, getter_)));
+      TNode<HeapObject> getter = CAST(LoadAccessorPairGetter(accessor_pair));
       TNode<Map> getter_map = LoadMap(getter);
 
       GotoIf(IsCallableMap(getter_map), &if_callable);
@@ -11920,10 +11919,8 @@ void CodeStubAssembler::InitializePropertyDescriptorObject(
       return result.value();
     };
 
-    TNode<HeapObject> getter = LoadObjectField<HeapObject>(
-        accessor_pair, offsetof(AccessorPair, getter_));
-    TNode<HeapObject> setter = LoadObjectField<HeapObject>(
-        accessor_pair, offsetof(AccessorPair, setter_));
+    TNode<HeapObject> getter = CAST(LoadAccessorPairGetter(accessor_pair));
+    TNode<HeapObject> setter = CAST(LoadAccessorPairSetter(accessor_pair));
     getter = BailoutIfTemplateInfo(getter);
     setter = BailoutIfTemplateInfo(setter);
 
