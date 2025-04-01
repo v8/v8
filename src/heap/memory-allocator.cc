@@ -359,22 +359,25 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
                            MutablePageMetadata* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   RecordMemoryChunkDestroyed(chunk);
+  PreFreeMemory(chunk_metadata);
 
   switch (mode) {
     case FreeMode::kImmediately:
-      PreFreeMemory(chunk_metadata);
       PerformFreeMemory(chunk_metadata);
       break;
     case FreeMode::kPostpone:
-      PreFreeMemory(chunk_metadata);
       // Record page to be freed later.
       queued_pages_to_be_freed_.push_back(chunk_metadata);
       break;
     case FreeMode::kPool:
+      // Ensure that we only ever put pages with their markbits cleared into the
+      // pool. This is necessary because `PreFreeMemory` doesn't clear the
+      // marking bitmap and the marking bitmap is reused when this page is taken
+      // out of the pool again.
+      DCHECK(chunk_metadata->IsLivenessClear());
       DCHECK_EQ(chunk_metadata->size(),
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
-      PreFreeMemory(chunk_metadata);
       // The chunks added to this queue will be cached until memory reducing GC.
       pool()->Add(isolate_, chunk_metadata);
       break;
@@ -436,6 +439,7 @@ PageMetadata* MemoryAllocator::AllocatePage(
   if (chunk->executable()) RegisterExecutableMemoryChunk(metadata);
 #endif  // DEBUG
 
+  DCHECK(metadata->IsLivenessClear());
   space->InitializePage(metadata);
   RecordMemoryChunkCreated(chunk);
   return metadata;

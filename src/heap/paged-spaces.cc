@@ -93,12 +93,17 @@ PageMetadata* PagedSpaceBase::InitializePage(
 }
 
 void PagedSpaceBase::TearDown() {
+  const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
   while (!memory_chunk_list_.Empty()) {
     MutablePageMetadata* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE)
-                    ? MemoryAllocator::FreeMode::kPool
-                    : MemoryAllocator::FreeMode::kImmediately;
+    const auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE)
+                          ? MemoryAllocator::FreeMode::kPool
+                          : MemoryAllocator::FreeMode::kImmediately;
+    if (mode == MemoryAllocator::FreeMode::kPool &&
+        (is_marking || V8_ENABLE_STICKY_MARK_BITS_BOOL)) {
+      chunk->ClearLiveness();
+    }
     heap()->memory_allocator()->Free(mode, chunk);
   }
   accounting_stats_.Clear();

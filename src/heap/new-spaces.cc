@@ -55,9 +55,14 @@ SemiSpace::SemiSpace(Heap* heap, SemiSpaceId semispace)
     : Space(heap, NEW_SPACE, nullptr), id_(semispace) {}
 
 SemiSpace::~SemiSpace() {
-  // Properly uncommit memory to keep the allocator counters in sync.
-  if (IsCommitted()) {
-    Uncommit();
+  const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
+  while (!memory_chunk_list_.Empty()) {
+    MutablePageMetadata* page = memory_chunk_list_.front();
+    memory_chunk_list_.Remove(page);
+    if (is_marking) {
+      page->ClearLiveness();
+    }
+    heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
   }
 }
 
