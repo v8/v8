@@ -12,7 +12,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/crc32.h"
 #include "src/inspector/injected-script.h"

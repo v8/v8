@@ -10,7 +10,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/numbers/conversions.h"

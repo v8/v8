@@ -8,8 +8,8 @@
 #include <iterator>
 
 #include "src/base/logging.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"

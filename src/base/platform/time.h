@@ -14,7 +14,7 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif

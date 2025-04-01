@@ -5,7 +5,7 @@
 #include "src/objects/elements.h"
 
 #include "src/base/atomicops.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
