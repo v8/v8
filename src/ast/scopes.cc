@@ -2817,9 +2817,18 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
 
             std::unique_ptr<char[]> script_source;
             size_t script_source_length = 0;
+            std::unique_ptr<char[]> function_source;
+            size_t function_source_length = 0;
             if (IsString(script->source())) {
               script_source = Cast<String>(script->source())
                                   ->ToCString(&script_source_length);
+
+              function_source =
+                  Cast<String>(script->source())
+                      ->ToCString(parse_info_sfi->StartPosition(),
+                                  parse_info_sfi->EndPosition() -
+                                      parse_info_sfi->StartPosition(),
+                                  &function_source_length);
             }
 
             std::vector<Address> data{
@@ -2856,12 +2865,17 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 script->source().ptr(),
                 reinterpret_cast<Address>(script_source.get()),
                 script_source_length,
-                0xcafe0005,
-                parse_info_sfi->Name().ptr(),
                 reinterpret_cast<Address>(script_source.get() +
                                           parse_info_sfi->StartPosition()),
                 reinterpret_cast<Address>(script_source.get() +
                                           parse_info_sfi->EndPosition()),
+                0xcafe0005,
+                parse_info_sfi->Name().ptr(),
+                reinterpret_cast<Address>(function_source.get()),
+                function_source_length,
+                reinterpret_cast<Address>(function_source.get() +
+                                          function_source_length),
+
                 0xcafeffff,
             };
 
