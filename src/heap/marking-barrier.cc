@@ -178,13 +178,6 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
     worklist = current_worklists_.get();
   }
 
-  // The DescriptorArray needs to be marked black here to ensure that slots
-  // are recorded by the Scavenger in case the DescriptorArray is promoted
-  // while incremental marking is running. This is needed as the regular
-  // marking visitor does not re-process any already marked descriptors. If we
-  // don't mark it black here, the Scavenger may promote a DescriptorArray and
-  // any already marked descriptors will not have any slots recorded.
-  // TODO(365694581): The comment above no longer applies. Try to remove this.
   if (v8_flags.black_allocated_pages) {
     // Make sure to only mark the descriptor array for non black allocated
     // pages. The atomic pause will fix it afterwards.
