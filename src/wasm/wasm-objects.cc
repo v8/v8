@@ -2262,7 +2262,10 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
   DirectHandle<Map> rtt_parent{
       Cast<Map>(trusted_data->managed_object_maps()->get(type.describes.index)),
       isolate};
-  DirectHandle<Map> rtt = CreateStructMap(isolate, described_index, rtt_parent);
+  DirectHandle<NativeContext> context(
+      Cast<NativeContext>(trusted_data->native_context()), isolate);
+  DirectHandle<Map> rtt =
+      CreateStructMap(isolate, described_index, rtt_parent, context);
   DirectHandle<WasmStruct> descriptor =
       isolate->factory()->NewWasmStructUninitialized(type.struct_type, map,
                                                      AllocationType::kOld);
@@ -3135,9 +3138,10 @@ bool WasmJSFunction::IsWasmJSFunction(Tagged<Object> object) {
   return js_function->shared()->HasWasmJSFunctionData();
 }
 
-DirectHandle<Map> CreateStructMap(Isolate* isolate,
-                                  wasm::CanonicalTypeIndex struct_index,
-                                  DirectHandle<Map> opt_rtt_parent) {
+DirectHandle<Map> CreateStructMap(
+    Isolate* isolate, wasm::CanonicalTypeIndex struct_index,
+    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<NativeContext> opt_native_context) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
   const int inobject_properties = 0;
@@ -3154,12 +3158,16 @@ DirectHandle<Map> CreateStructMap(Isolate* isolate,
       struct_index, shared, wasm::RefTypeKind::kStruct);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       heaptype, no_array_element, opt_rtt_parent);
-  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
-      instance_type, map_instance_size, elements_kind, inobject_properties);
+  DirectHandle<Map> map;
+  if (opt_native_context.is_null()) {
+    map = isolate->factory()->NewContextlessMap(
+        instance_type, map_instance_size, elements_kind, inobject_properties);
+  } else {
+    map = isolate->factory()->NewContextfulMap(
+        opt_native_context, instance_type, map_instance_size, elements_kind,
+        inobject_properties);
+  }
   map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate,
-                              *isolate->factory()->empty_descriptor_array(), 0,
-                              SKIP_WRITE_BARRIER);
   map->set_is_extensible(false);
   const int real_instance_size = WasmStruct::Size(type);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);

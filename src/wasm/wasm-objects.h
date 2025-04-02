@@ -1588,9 +1588,13 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 #undef DECL_OPTIONAL_ACCESSORS
 
-DirectHandle<Map> CreateStructMap(Isolate* isolate,
-                                  wasm::CanonicalTypeIndex type,
-                                  DirectHandle<Map> opt_rtt_parent);
+// If {opt_native_context} is not null, creates a contextful map bound to
+// that context; otherwise creates a context-independent map (which must then
+// not point to any context-specific objects!).
+DirectHandle<Map> CreateStructMap(
+    Isolate* isolate, wasm::CanonicalTypeIndex type,
+    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<NativeContext> opt_native_context);
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,

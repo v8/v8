@@ -1323,10 +1323,10 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:
+    case WASM_OBJECT:
       return NOT_FOUND;
     case TYPED_ARRAY_INDEX_NOT_FOUND:
     case JSPROXY:
-    case WASM_OBJECT:
     case TRANSITION:
       UNREACHABLE();
   }

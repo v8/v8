@@ -2429,6 +2429,7 @@ DirectHandle<Map> Factory::NewContextfulMap(
     DirectHandle<JSReceiver> creation_context_holder, InstanceType type,
     int instance_size, ElementsKind elements_kind, int inobject_properties,
     AllocationType allocation_type) {
+  // TODO(ishell): There should probably be a DCHECK(IsNCSpecific(type)) here.
   auto meta_map_provider = [creation_context_holder] {
     // Tie new map to the creation context of given |creation_context_holder|
     // object.
@@ -2447,6 +2448,9 @@ DirectHandle<Map> Factory::NewContextfulMap(
     int instance_size, ElementsKind elements_kind, int inobject_properties,
     AllocationType allocation_type) {
   DCHECK(InstanceTypeChecker::IsNativeContextSpecific(type) ||
+#if V8_ENABLE_WEBASSEMBLY
+         InstanceTypeChecker::IsWasmStruct(type) ||
+#endif  // V8_ENABLE_WEBASSEMBLY
          InstanceTypeChecker::IsMap(type));
   auto meta_map_provider = [native_context] {
     // Tie new map to given native context.

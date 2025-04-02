@@ -92,9 +92,12 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
   DirectHandle<Map> map;
   switch (module->type(type_index).kind) {
-    case TypeDefinition::kStruct:
-      map = CreateStructMap(isolate, canonical_type_index, rtt_parent);
+    case TypeDefinition::kStruct: {
+      DirectHandle<NativeContext> context_independent;
+      map = CreateStructMap(isolate, canonical_type_index, rtt_parent,
+                            context_independent);
       break;
+    }
     case TypeDefinition::kArray:
       map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
       break;

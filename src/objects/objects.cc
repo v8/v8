@@ -1277,7 +1277,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return result;
       }
       case LookupIterator::WASM_OBJECT:
-        return it->isolate()->factory()->undefined_value();
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<JSAny> result;
