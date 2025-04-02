@@ -459,6 +459,19 @@ describe('Regression tests', () => {
           `verify_db/expected_code_${i}.js`, mutated.code);
     }
   });
+
+  it('does not assign to const variables', () => {
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+    this.settings['MUTATE_VARIABLES'] = 1.0;
+
+    const source = helpers.loadTestData('regress/const_var/input.js');
+    const mutator = new scriptMutator.ScriptMutator(
+        this.settings, 'test_data/regress/empty_db');
+    const mutated = mutator.mutateMultiple([source]).code;
+    helpers.assertExpectedResult('regress/const_var/expected.js', mutated);
+  });
 });
 
 describe('DB tests', () => {
