@@ -1909,6 +1909,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   PtrComprCageBase cage_base(client);
   Heap* client_heap = client->heap();
 
+  // Finish sweeping quarantined pages for Scavenger's new space in order to
+  // iterate objects in it.
+  client_heap->EnsureQuarantinedPagesSweepingCompleted();
   // Finish sweeping for new space in order to iterate objects in it.
   client_heap->sweeper()->FinishMinorJobs();
   // Finish sweeping for old generation in order to iterate OLD_TO_SHARED.

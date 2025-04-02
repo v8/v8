@@ -7294,9 +7294,8 @@ void Heap::FinishSweepingIfOutOfWork() {
 
 void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   CompleteArrayBufferSweeping(this);
-  if (!v8_flags.minor_ms) {
-    scavenger_collector_->CompleteSweepingQuarantinedPagesIfNeeded();
-  }
+
+  EnsureQuarantinedPagesSweepingCompleted();
 
   if (sweeper()->sweeping_in_progress()) {
     bool was_minor_sweeping_in_progress = minor_sweeping_in_progress();
@@ -7367,13 +7366,17 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   }
 }
 
+void Heap::EnsureQuarantinedPagesSweepingCompleted() {
+  if (v8_flags.minor_ms) {
+    return;
+  }
+  scavenger_collector_->CompleteSweepingQuarantinedPagesIfNeeded();
+}
+
 void Heap::EnsureYoungSweepingCompleted() {
   CompleteArrayBufferSweeping(this);
 
-  if (!v8_flags.minor_ms) {
-    scavenger_collector_->CompleteSweepingQuarantinedPagesIfNeeded();
-    return;
-  }
+  EnsureQuarantinedPagesSweepingCompleted();
 
   if (!sweeper()->minor_sweeping_in_progress()) return;
   DCHECK(!v8_flags.sticky_mark_bits);

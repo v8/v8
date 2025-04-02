@@ -1554,6 +1554,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
       SweepingForcedFinalizationMode mode);
   void EnsureYoungSweepingCompleted();
+  void EnsureQuarantinedPagesSweepingCompleted();
 
   // =============================================================================
 
