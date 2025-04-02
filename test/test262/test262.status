@@ -991,7 +991,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/with/non-iso-calendar-fields': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/with/non-iso-calendar-fields': [FAIL],
 
-  'staging/Intl402/Temporal/old/islamic-calendars': [FAIL],
   'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
 
   'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
@@ -2650,6 +2649,20 @@
  'intl402/DurationFormat/prototype/formatToParts/temporal-duration-string-arg': [SKIP],
  'intl402/Locale/getters': [SKIP],
  'intl402/Temporal/Duration/prototype/toLocaleString/returns-same-results-as-DurationFormat': [SKIP],
+}],
+# end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+###
+
+####
+# import test262@4ba104a21c5f8ede20ee5105bc89fa9693c2bfe1
+[ALWAYS, {
+  'intl402/DateTimeFormat/canonicalize-timezone': [FAIL],
+  'intl402/Intl/supportedValuesOf/timeZones-include-non-continental': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
 }],
 # end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
 ###
