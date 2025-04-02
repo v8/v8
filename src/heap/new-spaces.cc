@@ -895,7 +895,9 @@ void PagedSpaceForNewSpace::FinishShrinking() {
       DCHECK_NE(0, page->live_bytes());
     }
 #endif  // DEBUG
-    target_capacity_ = current_capacity_;
+    // After a minor GC current_capacity_ could be still above max_capacity_
+    // when not enough pages got promoted or died.
+    target_capacity_ = std::min(current_capacity_, max_capacity_);
   }
 }
 
