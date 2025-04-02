@@ -7580,6 +7580,13 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   return reinterpret_cast<Address>(&map[name].second);
 }
 
+void Isolate::LocalsBlockListCacheRehash() {
+  if (IsEphemeronHashTable(heap()->locals_block_list_cache())) {
+    Tagged<EphemeronHashTable> cache =
+        Cast<EphemeronHashTable>(heap()->locals_block_list_cache());
+    cache->Rehash(this);
+  }
+}
 void Isolate::LocalsBlockListCacheSet(
     DirectHandle<ScopeInfo> scope_info,
     DirectHandle<ScopeInfo> outer_scope_info,

@@ -2351,6 +2351,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // allocated variables per ScopeInfo for debug-evaluate.
   // We also store a strong reference to the outer ScopeInfo to keep all
   // blocklists along a scope chain alive.
+  void LocalsBlockListCacheRehash();
   void LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
                                DirectHandle<ScopeInfo> outer_scope_info,
                                DirectHandle<StringSet> locals_blocklist);
