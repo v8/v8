@@ -892,4 +892,38 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
 }
 #endif  // DEBUG
 
+std::ostream& operator<<(std::ostream& os,
+                         SharedFunctionInfo::Inlineability i) {
+  switch (i) {
+    case SharedFunctionInfo::Inlineability::kHasNoScript:
+      os << "has no script";
+      break;
+    case SharedFunctionInfo::Inlineability::kNeedsBinaryCoverage:
+      os << "needs binary coverage";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsBuiltin:
+      os << "is builtin";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsNotUserCode:
+      os << "is not user code";
+      break;
+    case SharedFunctionInfo::Inlineability::kHasNoBytecode:
+      os << "has no bytecode";
+      break;
+    case SharedFunctionInfo::Inlineability::kExceedsBytecodeLimit:
+      os << "exceeds bytecode limit";
+      break;
+    case SharedFunctionInfo::Inlineability::kMayContainBreakPoints:
+      os << "may contain breakpoints";
+      break;
+    case SharedFunctionInfo::Inlineability::kHasOptimizationDisabled:
+      os << "has optimization disabled";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsInlineable:
+      os << "is inlineable (!)";
+      break;
+  }
+  return os;
+}
+
 }  // namespace v8::internal

@@ -830,6 +830,8 @@ class SharedFunctionInfo
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
 
+std::ostream& operator<<(std::ostream& os, SharedFunctionInfo::Inlineability i);
+
 // A SharedFunctionInfoWrapper wraps a SharedFunctionInfo from trusted space.
 // It can be useful when a protected pointer reference to a SharedFunctionInfo
 // is needed, for example for a ProtectedFixedArray.
