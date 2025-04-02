@@ -4806,12 +4806,10 @@ bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
   return HasDisjointType(lhs, GetType(rhs));
 }
 
-// Note: this is conservative, ie, returns true if {lhs} cannot be {rhs}.
-// It might return false even if {lhs} is not {rhs}.
 bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
   NodeType meet = CombineType(lhs_type, rhs_type);
-  return NodeTypeCannotHaveInstances(meet);
+  return IsEmptyNodeType(meet);
 }
 
 bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
@@ -4883,8 +4881,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
 
 ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
   if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
-          CombineType(GetType(object), NodeType::kAnyHeapObject))) {
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   AddNewNode<CheckHeapObject>({object});
@@ -4895,8 +4892,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
   if (EnsureType(object, NodeType::kString, &known_type))
     return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
-          CombineType(GetType(object), NodeType::kString))) {
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kString))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
   }
   AddNewNode<CheckString>({object}, GetCheckType(known_type));
@@ -4908,7 +4904,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
   NodeType known_type;
   if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
     return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
+  if (IsEmptyNodeType(
           CombineType(GetType(object), NodeType::kStringOrStringWrapper))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrStringWrapper);
   }
@@ -4918,8 +4914,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
   if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
-          CombineType(GetType(object), NodeType::kNumber))) {
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
   AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
@@ -4930,8 +4925,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeType known_type;
   if (EnsureType(object, NodeType::kSymbol, &known_type))
     return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
-          CombineType(GetType(object), NodeType::kSymbol))) {
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSymbol))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASymbol);
   }
   AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
@@ -4942,8 +4936,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   NodeType known_type;
   if (EnsureType(object, NodeType::kJSReceiver, &known_type))
     return ReduceResult::Done();
-  if (NodeTypeCannotHaveInstances(
-          CombineType(GetType(object), NodeType::kJSReceiver))) {
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kJSReceiver))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
   }
   AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
@@ -4957,8 +4950,8 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
   if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
     return ReduceResult::Done();
   }
-  if (NodeTypeCannotHaveInstances(CombineType(
-          GetType(object), NodeType::kJSReceiverOrNullOrUndefined))) {
+  if (IsEmptyNodeType(CombineType(GetType(object),
+                                  NodeType::kJSReceiverOrNullOrUndefined))) {
     return EmitUnconditionalDeopt(
         DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
   }
@@ -5072,7 +5065,7 @@ class KnownMapsMerger {
   bool existing_known_maps_found_ = true;
   bool emit_check_with_migration_ = false;
   bool any_map_is_unstable_ = false;
-  NodeType node_type_ = static_cast<NodeType>(-1);
+  NodeType node_type_ = EmptyNodeType();
 
   Zone* zone() const { return zone_; }
 
