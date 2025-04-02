@@ -299,6 +299,9 @@
   'test-heap/TestInternalWeakLists': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # https://issues.chromium.org/issues/407932138
+  'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################
