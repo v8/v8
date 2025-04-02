@@ -645,7 +645,7 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
                                                  AllocationOrigin origin) {
   if (allocator_->identity() == NEW_SPACE) {
     DCHECK(allocator_->is_main_thread());
-    space_heap()->StartMinorMSIncrementalMarkingIfNeeded();
+    space_heap()->StartMinorMSConcurrentMarkingIfNeeded();
   }
   if ((allocator_->identity() != NEW_SPACE) && !allocator_->in_gc()) {
     // Start incremental marking before the actual allocation, this allows the

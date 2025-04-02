@@ -475,6 +475,14 @@ bool Heap::ShouldOptimizeForBattery() const {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
                                               const char** reason) const {
+  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMSForMajorGC) {
+    DCHECK_NE(static_cast<bool>(new_space()),
+              v8_flags.sticky_mark_bits.value());
+    DCHECK(!ShouldReduceMemory());
+    *reason = "MinorMS finalization for starting major GC";
+    return GarbageCollector::MINOR_MARK_SWEEPER;
+  }
+
   if (gc_reason == GarbageCollectionReason::kFinalizeConcurrentMinorMS) {
     DCHECK_NE(static_cast<bool>(new_space()),
               v8_flags.sticky_mark_bits.value());
@@ -482,7 +490,6 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     *reason = "Concurrent MinorMS needs finalization";
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
-
   // Is global GC requested?
   if (space != NEW_SPACE && space != NEW_LO_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
@@ -1225,7 +1232,7 @@ size_t MinorMSConcurrentMarkingTrigger(Heap* heap) {
 }
 }  // namespace
 
-void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
+void Heap::StartMinorMSConcurrentMarkingIfNeeded() {
   if (incremental_marking()->IsMarking()) return;
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
       incremental_marking()->CanAndShouldBeStarted() &&
@@ -1601,7 +1608,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     // Minor GCs should not be memory reducing.
     current_gc_flags_ &= ~GCFlag::kReduceMemoryFootprint;
     CollectGarbage(NEW_SPACE,
-                   GarbageCollectionReason::kFinalizeConcurrentMinorMS);
+                   GarbageCollectionReason::kFinalizeMinorMSForMajorGC);
     current_gc_flags_ = gc_flags;
   }
 
@@ -1746,6 +1753,10 @@ void Heap::CollectGarbage(AllocationSpace space,
     StartIncrementalMarkingIfAllocationLimitIsReached(
         main_thread_local_heap(), GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
+    if (v8_flags.minor_ms &&
+        (gc_reason != GarbageCollectionReason::kFinalizeMinorMSForMajorGC)) {
+      StartMinorMSConcurrentMarkingIfNeeded();
+    }
   }
 
   if (!CanExpandOldGeneration(0)) {

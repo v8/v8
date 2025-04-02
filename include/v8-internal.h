@@ -1357,7 +1357,7 @@ class BackingStoreBase {};
 
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
-constexpr int kGarbageCollectionReasonMaxValue = 29;
+constexpr int kGarbageCollectionReasonMaxValue = 30;
 
 // Base class for the address block allocator compatible with standard
 // containers, which registers its allocated range as strong roots.
