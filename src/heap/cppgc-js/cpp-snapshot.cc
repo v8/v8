@@ -69,11 +69,11 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
 
   // Edge names are passed to V8 but are required to be held alive from the
   // embedder until the snapshot is compiled.
-  const char* InternalizeEdgeName(std::string edge_name) {
+  const char* InternalizeEdgeName(std::string_view edge_name) {
     const size_t edge_name_len = edge_name.length();
     named_edges_.emplace_back(std::make_unique<char[]>(edge_name_len + 1));
     char* named_edge_str = named_edges_.back().get();
-    snprintf(named_edge_str, edge_name_len + 1, "%s", edge_name.c_str());
+    snprintf(named_edge_str, edge_name_len + 1, "%s", edge_name.data());
     return named_edge_str;
   }
 
@@ -478,7 +478,7 @@ class CppGraphBuilderImpl final {
   }
 
   void AddEdge(State& parent, const HeapObjectHeader& header,
-               const std::string& edge_name) {
+               std::string_view edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
     auto& current = states_.GetExistingState(header);
     if (!current.IsVisibleNotDependent()) return;
@@ -501,7 +501,7 @@ class CppGraphBuilderImpl final {
   }
 
   void AddEdge(State& parent, const TracedReferenceBase& ref,
-               const std::string& edge_name) {
+               std::string_view edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
     v8::Local<v8::Data> v8_data =
         ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
@@ -777,9 +777,7 @@ class GraphBuildingVisitor final : public JSVisitor {
                            edge_name_);
   }
 
-  void set_edge_name(std::string edge_name) {
-    edge_name_ = std::move(edge_name);
-  }
+  void set_edge_name(std::string_view edge_name) { edge_name_ = edge_name; }
 
  private:
   CppGraphBuilderImpl& graph_builder_;
@@ -990,6 +988,9 @@ class GraphBuildingStackVisitor
   GraphBuildingRootVisitor& root_visitor_;
 };
 
+constexpr std::string_view kEphemeronEdgeName =
+    "part of key -> value pair in ephemeron table";
+
 }  // namespace
 
 void CppGraphBuilderImpl::Run() {
@@ -1024,10 +1025,9 @@ void CppGraphBuilderImpl::Run() {
       state.header()->TraceImpl(&object_visitor);
     }
     state.ForAllEphemeronEdges([this, &state](const HeapObjectHeader& value) {
-      AddEdge(state, value, "part of key -> value pair in ephemeron table");
+      AddEdge(state, value, kEphemeronEdgeName);
     });
-    object_visitor.set_edge_name(
-        "part of key -> value pair in ephemeron table");
+    object_visitor.set_edge_name(kEphemeronEdgeName);
     state.ForAllEagerEphemeronEdges(
         [&object_visitor](const void* value, cppgc::TraceCallback callback) {
           callback(&object_visitor, value);
