@@ -2447,7 +2447,10 @@ void BackgroundMergeTask::BeginMergeInBackground(
           // Also push the old_sfi to make sure it stays alive / isn't replaced.
           new_compiled_data_for_cached_sfis_.push_back(
               {old_sfi_handle, local_heap->NewPersistentHandle(new_sfi)});
-          if (old_sfi->HasOuterScopeInfo()) {
+          Tagged<ScopeInfo> info = old_sfi->scope_info();
+          if (!info->IsEmpty()) {
+            new_sfi->SetScopeInfo(info);
+          } else if (old_sfi->HasOuterScopeInfo()) {
             new_sfi->scope_info()->set_outer_scope_info(
                 old_sfi->GetOuterScopeInfo());
           }
