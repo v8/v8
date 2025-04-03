@@ -83,6 +83,7 @@
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/isolate.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/module-decoder-impl.h"
@@ -1888,7 +1889,7 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
           map->instance_size(), AllocationType::kOld, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
-  suspender->set_continuation(*undefined_value());
+  suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
   suspender->set_parent(*undefined_value());
   suspender->set_promise(*promise);
   suspender->set_resume(*undefined_value());
@@ -2122,17 +2123,6 @@ DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
       TaggedField<Object>::store(result, offset, *args[i].to_ref());
     }
   }
-  return direct_handle(result, isolate());
-}
-
-DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
-    wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
-    AllocationType allocation) {
-  Tagged<Map> map = *wasm_continuation_object_map();
-  auto result = Cast<WasmContinuationObject>(
-      AllocateRawWithImmortalMap(map->instance_size(), allocation, map));
-  result->init_stack(isolate(), reinterpret_cast<Address>(stack));
-  result->set_parent(Cast<UnionOf<Undefined, WasmContinuationObject>>(*parent));
   return direct_handle(result, isolate());
 }
 

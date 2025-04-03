@@ -378,20 +378,17 @@ V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
            IsolateData::is_on_central_stack_flag_offset());
 
   // Save the old fp and the target sp in the StackMemory's stack switch info.
-  // We are not on the main stack, so the ActiveContinuation root must exist
-  // and be of type WasmContinuationObject.
-  V<WasmContinuationObject> active_continuation =
-      V<WasmContinuationObject>::Cast(LOAD_ROOT(ActiveContinuation));
-  V<WordPtr> stack_data = __ LoadExternalPointerFromObject(
-      active_continuation, WasmContinuationObject::kStackOffset,
-      kWasmStackMemoryTag);
-  __ Store(stack_data, __ FramePointer(), StoreOp::Kind::RawAligned(),
+  // We are not on the main stack, so the active stack must be set.
+  V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    IsolateData::active_stack_offset());
+  __ Store(active_stack, __ FramePointer(), StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            StackMemory::stack_switch_source_fp_offset());
   V<WordPtr> central_stack_sp = __ Load(
       isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
       Isolate::central_stack_sp_offset());
-  __ Store(stack_data, central_stack_sp, StoreOp::Kind::RawAligned(),
+  __ Store(active_stack, central_stack_sp, StoreOp::Kind::RawAligned(),
            MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
            StackMemory::stack_switch_target_sp_offset());
 
@@ -435,14 +432,11 @@ void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
              IsolateData::is_on_central_stack_flag_offset());
 
     // Clear stack switch info.
-    // We are not on the main stack, so the ActiveContinuation root must exist
-    // and be of type WasmContinuationObject.
-    auto active_continuation =
-        V<WasmContinuationObject>::Cast(LOAD_ROOT(ActiveContinuation));
-    V<WordPtr> stack_data = __ LoadExternalPointerFromObject(
-        active_continuation, WasmContinuationObject::kStackOffset,
-        kWasmStackMemoryTag);
-    __ Store(stack_data, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
+    // We are not on the main stack, so the active stack must be set.
+    V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::active_stack_offset());
+    __ Store(active_stack, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
              MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              StackMemory::stack_switch_source_fp_offset());
 

@@ -804,9 +804,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
       uint32_t segment_index, uint32_t start_offset, uint32_t length,
       DirectHandle<Map> map, wasm::CanonicalValueType element_type);
-  DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
-      wasm::StackMemory* stack, DirectHandle<HeapObject> parent,
-      AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       DirectHandle<String> name, DirectHandle<WasmExportedFunctionData> data,

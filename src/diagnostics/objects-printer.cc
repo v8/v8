@@ -2797,16 +2797,9 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
-  PrintHeader(os, "WasmContinuationObject");
-  os << "\n - parent: " << parent();
-  os << "\n - stack: " << stack();
-  os << "\n";
-}
-
 void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmSuspenderObject");
-  os << "\n - continuation: " << continuation();
+  os << "\n - stack: " << (stack() == nullptr ? -1 : stack()->id());
   os << "\n - parent: " << parent();
   os << "\n - promise: " << promise();
   os << "\n - resume: " << resume();

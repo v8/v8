@@ -342,8 +342,7 @@ class ActivationsFinder : public ThreadVisitor {
   // for the trampoline to the deoptimizer call respective to each code, and use
   // it to replace the current pc on the stack.
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-    for (StackFrameIterator it(isolate, top, StackFrameIterator::NoHandles{});
-         !it.done(); it.Advance()) {
+    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->is_optimized_js()) {
         Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
         if (CodeKindCanDeoptimize(code->kind()) &&
@@ -403,9 +402,8 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   // Make sure all activations of optimized code can deopt at their current PC.
   // The topmost optimized code has special handling because it cannot be
   // deoptimized due to weak object dependency.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top(),
-                             StackFrameIterator::NoHandles{});
-       !it.done(); it.Advance()) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
     if (it.frame()->is_optimized_js()) {
       Tagged<GcSafeCode> code = it.frame()->GcSafeLookupCode();
       Tagged<JSFunction> function =

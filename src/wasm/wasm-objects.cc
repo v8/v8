@@ -2858,21 +2858,6 @@ void DecodeI64ExceptionValue(DirectHandle<FixedArray> encoded_values,
   *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
 }
 
-// static
-DirectHandle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, wasm::StackMemory* stack,
-    wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
-    AllocationType allocation_type) {
-  stack->jmpbuf()->stack_limit = stack->jslimit();
-  stack->jmpbuf()->sp = stack->base();
-  stack->jmpbuf()->fp = kNullAddress;
-  stack->jmpbuf()->state = state;
-  DirectHandle<WasmContinuationObject> result =
-      isolate->factory()->NewWasmContinuationObject(stack, parent,
-                                                    allocation_type);
-  return result;
-}
-
 bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
                                const wasm::CanonicalSig* sig,
                                wasm::Suspend suspend) {
@@ -2893,14 +2878,6 @@ bool UseGenericWasmToJSWrapper(wasm::ImportCallKind kind,
 #endif
 }
 
-// static
-DirectHandle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, wasm::StackMemory* stack,
-    wasm::JumpBuffer::StackState state, AllocationType allocation_type) {
-  auto parent = ReadOnlyRoots(isolate).undefined_value();
-  return New(isolate, stack, state, direct_handle(parent, isolate),
-             allocation_type);
-}
 #ifdef DEBUG
 
 namespace {

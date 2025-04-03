@@ -165,13 +165,8 @@ extern class WasmResumeData extends HeapObject {
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmContinuationObject extends HeapObject {
-  parent: WasmContinuationObject|Undefined;
-  stack: ExternalPointer;
-}
-
 extern class WasmSuspenderObject extends HeapObject {
-  continuation: WasmContinuationObject|Undefined;
+  stack: ExternalPointer;
   parent: WasmSuspenderObject|Undefined;
   promise: JSPromise;
   resume: JSObject|Undefined;

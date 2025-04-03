@@ -1512,40 +1512,17 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
 };
 
-// A wasm delimited continuation.
-class WasmContinuationObject
-    : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
-                                                   HeapObject> {
- public:
-  static DirectHandle<WasmContinuationObject> New(
-      Isolate* isolate, wasm::StackMemory* stack,
-      wasm::JumpBuffer::StackState state,
-      AllocationType allocation_type = AllocationType::kYoung);
-  static DirectHandle<WasmContinuationObject> New(
-      Isolate* isolate, wasm::StackMemory* stack,
-      wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
-      AllocationType allocation_type = AllocationType::kYoung);
-
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, Address)
-
-  DECL_PRINTER(WasmContinuationObject)
-
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmContinuationObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
-
- private:
-  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
-};
-
 // The suspender object provides an API to suspend and resume wasm code using
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject
     : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject,
                                                 HeapObject> {
  public:
-  using BodyDescriptor = FixedBodyDescriptorFor<WasmSuspenderObject>;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmSuspenderObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
   enum State : int { kInactive = 0, kActive, kSuspended };
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
   DECL_PRINTER(WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };

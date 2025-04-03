@@ -92,7 +92,6 @@ class MaybeObjectSize final {
   V(TransitionArray)                  \
   V(WeakCell)                         \
   IF_WASM(V, WasmArray)               \
-  IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmFuncRef)             \
   IF_WASM(V, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmNull)                \

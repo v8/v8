@@ -268,7 +268,6 @@ namespace internal {
   V(TurboshaftWord64SetType)                    \
   V(TurboshaftWord64Type)                       \
   IF_WASM(V, WasmArray)                         \
-  IF_WASM(V, WasmContinuationObject)            \
   IF_WASM(V, WasmExceptionPackage)              \
   IF_WASM(V, WasmFuncRef)                       \
   IF_WASM(V, WasmGlobalObject)                  \
