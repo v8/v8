@@ -1002,7 +1002,6 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
-        node = InsertChangeFloat32ToFloat64(node);
         op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
             output_type.Maybe(Type::MinusZero())
                 ? use_info.minus_zero_check()
