@@ -564,13 +564,11 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
                     OpIndex left_node, OpIndex right_node,
                     RegisterRepresentation rep, InstructionCode opcode,
                     ImmediateMode operand_mode, FlagsContinuationT* cont) {
+  DCHECK(!cont->IsConditionalSet() && !cont->IsConditionalBranch());
   Arm64OperandGeneratorT g(selector);
   constexpr uint32_t kMaxFlagSetInputs = 3;
-  constexpr uint32_t kMaxCcmpOperands =
-      FlagsContinuationT::kMaxCompareChainSize * kNumCcmpOperands;
-  constexpr uint32_t kExtraCcmpInputs = 2;
-  constexpr uint32_t kMaxInputs =
-      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  constexpr uint32_t kMaxSelectInputs = 2;
+  constexpr uint32_t kMaxInputs = kMaxFlagSetInputs + kMaxSelectInputs;
   InstructionOperand inputs[kMaxInputs];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -581,10 +579,6 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
   bool must_commute_cond = MustCommuteCondField::decode(properties);
   bool is_add_sub = IsAddSubField::decode(properties);
 
-  // We've already commuted the flags while searching for the pattern.
-  if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
-    can_commute = false;
-  }
   if (g.CanBeImmediate(right_node, operand_mode)) {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseImmediate(right_node);
@@ -635,30 +629,7 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
     // overwriting the inputs.
     inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
     inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
-  } else if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
-    DCHECK_LE(input_count, kMaxInputs);
-    auto& compares = cont->compares();
-    for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
-      auto compare = compares[i];
-      inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
-      inputs[input_count + kCcmpOffsetOfLhs] = g.UseRegisterAtEnd(compare.lhs);
-      if (g.CanBeImmediate(compare.rhs, kConditionalCompareImm)) {
-        inputs[input_count + kCcmpOffsetOfRhs] = g.UseImmediate(compare.rhs);
-      } else {
-        inputs[input_count + kCcmpOffsetOfRhs] =
-            g.UseRegisterAtEnd(compare.rhs);
-      }
-      inputs[input_count + kCcmpOffsetOfDefaultFlags] =
-          g.TempImmediate(compare.default_flags);
-      inputs[input_count + kCcmpOffsetOfCompareCondition] =
-          g.TempImmediate(compare.compare_condition);
-      input_count += kNumCcmpOperands;
-    }
-    inputs[input_count++] = g.TempImmediate(cont->final_condition());
-    inputs[input_count++] =
-        g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
   }
-
   DCHECK_NE(0u, input_count);
   DCHECK((output_count != 0) || IsComparisonField::decode(properties));
   DCHECK_GE(arraysize(inputs), input_count);
@@ -1468,6 +1439,9 @@ class CompareSequence {
         code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs};
     ++num_ccmps_;
   }
+  bool IsFloatCmp() const {
+    return opcode() == kArm64Float32Cmp || opcode() == kArm64Float64Cmp;
+  }
 
  private:
   InstructionCode GetOpcode(RegisterRepresentation rep) const {
@@ -1476,6 +1450,10 @@ class CompareSequence {
         return kArm64Cmp32;
       case RegisterRepresentation::Word64():
         return kArm64Cmp;
+      case RegisterRepresentation::Float32():
+        return kArm64Float32Cmp;
+      case RegisterRepresentation::Float64():
+        return kArm64Float64Cmp;
       default:
         UNREACHABLE();
     }
@@ -1570,6 +1548,18 @@ static std::optional<FlagsCondition> GetFlagsCondition(
           return FlagsCondition::kUnsignedLessThan;
         case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
           return FlagsCondition::kUnsignedLessThanOrEqual;
+        default:
+          UNREACHABLE();
+      }
+    } else if (comparison->rep == RegisterRepresentation::Float32() ||
+               comparison->rep == RegisterRepresentation::Float64()) {
+      switch (comparison->kind) {
+        case ComparisonOp::Kind::kEqual:
+          return FlagsCondition::kEqual;
+        case ComparisonOp::Kind::kSignedLessThan:
+          return FlagsCondition::kFloatLessThan;
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
+          return FlagsCondition::kFloatLessThanOrEqual;
         default:
           UNREACHABLE();
       }
@@ -1831,6 +1821,56 @@ static std::optional<FlagsCondition> TryMatchConditionalCompareChainShared(
   return logic_nodes.back()->user_condition();
 }
 
+static void VisitCompareChain(InstructionSelectorT* selector, OpIndex left_node,
+                              OpIndex right_node, RegisterRepresentation rep,
+                              InstructionCode opcode,
+                              ImmediateMode operand_mode,
+                              FlagsContinuationT* cont) {
+  DCHECK(cont->IsConditionalSet() || cont->IsConditionalBranch());
+  Arm64OperandGeneratorT g(selector);
+  constexpr uint32_t kMaxFlagSetInputs = 2;
+  constexpr uint32_t kMaxCcmpOperands =
+      FlagsContinuationT::kMaxCompareChainSize * kNumCcmpOperands;
+  constexpr uint32_t kExtraCcmpInputs = 2;
+  constexpr uint32_t kMaxInputs =
+      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  InstructionOperand inputs[kMaxInputs];
+  size_t input_count = 0;
+
+  if (g.CanBeImmediate(right_node, operand_mode)) {
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseImmediate(right_node);
+  } else {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegister(right_node);
+  }
+
+  auto& compares = cont->compares();
+  for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
+    auto compare = compares[i];
+    inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
+    inputs[input_count + kCcmpOffsetOfLhs] = g.UseRegisterAtEnd(compare.lhs);
+    if ((compare.code == kArm64Cmp32 || compare.code == kArm64Cmp) &&
+        g.CanBeImmediate(compare.rhs, kConditionalCompareImm)) {
+      inputs[input_count + kCcmpOffsetOfRhs] = g.UseImmediate(compare.rhs);
+    } else {
+      inputs[input_count + kCcmpOffsetOfRhs] = g.UseRegisterAtEnd(compare.rhs);
+    }
+    inputs[input_count + kCcmpOffsetOfDefaultFlags] =
+        g.TempImmediate(compare.default_flags);
+    inputs[input_count + kCcmpOffsetOfCompareCondition] =
+        g.TempImmediate(compare.compare_condition);
+    input_count += kNumCcmpOperands;
+  }
+  inputs[input_count++] = g.TempImmediate(cont->final_condition());
+  inputs[input_count++] =
+      g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
+
+  DCHECK_GE(arraysize(inputs), input_count);
+
+  selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
+}
+
 static bool TryMatchConditionalCompareChainBranch(
     InstructionSelectorT* selector, Zone* zone, OpIndex node,
     FlagsContinuationT* cont) {
@@ -1848,9 +1888,11 @@ static bool TryMatchConditionalCompareChainBranch(
         sequence.ccmps(), sequence.num_ccmps(), condition, cont->true_block(),
         cont->false_block());
 
-    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
-                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
-                   sequence.opcode(), kArithmeticImm, &new_cont);
+    ImmediateMode imm_mode =
+        sequence.IsFloatCmp() ? kNoImmediate : kArithmeticImm;
+    VisitCompareChain(selector, sequence.left(), sequence.right(),
+                      selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                      sequence.opcode(), imm_mode, &new_cont);
 
     return true;
   }
@@ -1868,9 +1910,11 @@ static bool TryMatchConditionalCompareChainSet(InstructionSelectorT* selector,
     FlagsContinuationT cont = FlagsContinuationT::ForConditionalSet(
         sequence.ccmps(), sequence.num_ccmps(), final_cond.value(), node);
 
-    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
-                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
-                   sequence.opcode(), kArithmeticImm, &cont);
+    ImmediateMode imm_mode =
+        sequence.IsFloatCmp() ? kNoImmediate : kArithmeticImm;
+    VisitCompareChain(selector, sequence.left(), sequence.right(),
+                      selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                      sequence.opcode(), imm_mode, &cont);
     return true;
   }
   return false;

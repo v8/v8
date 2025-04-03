@@ -1758,6 +1758,40 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
     EXPECT_EQ(0x2d, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
   }
+  {
+    // Test float32 support
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Float32(),
+                    MachineType::Float32(), MachineType::Float32());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.Float32Equal(m.Float32Constant(0.0), m.Parameter(0));
+    OpIndex cond_b = m.Float32LessThan(m.Parameter(1), m.Parameter(2));
+    m.Branch(m.Word32BitwiseOr(cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Float32Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
+  {
+    // Test float64 support
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Float64(),
+                    MachineType::Float64(), MachineType::Float64());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex cond_a = m.Float64Equal(m.Parameter(1), m.Parameter(0));
+    OpIndex not_cond_a = m.Word32Equal(cond_a, m.Int32Constant(0));
+    OpIndex cond_b =
+        m.Float64LessThanOrEqual(m.Parameter(2), m.Float64Constant(9.9));
+    m.Branch(m.Word32BitwiseAnd(not_cond_a, cond_b), a, b);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Float64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_conditional_branch, s[0]->flags_mode());
+  }
 }
 
 // -----------------------------------------------------------------------------

@@ -1927,7 +1927,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Float32Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ Fcmp(i.InputFloat32Register(0), i.InputFloat32Register(1));
+        __ Fcmp(i.InputFloat32OrFPZeroRegister(0), i.InputFloat32Register(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by fcmp instructions.
@@ -1971,12 +1971,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64Float64Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ Fcmp(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Fcmp(i.InputFloat64OrFPZeroRegister(0), i.InputDoubleRegister(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by fcmp instructions.
         DCHECK_EQ(0.0, i.InputDouble(1));
-        __ Fcmp(i.InputDoubleRegister(0), i.InputDouble(1));
+        __ Fcmp(i.InputFloat64Register(0), i.InputDouble(1));
       }
       break;
     case kArm64Float64Add:
@@ -3512,6 +3512,24 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ Cset(reg, cc);
 }
 
+// Mnemonic  Meaning (INT)           Meaning (FP)            Condition flags
+// EQ        Equal                   Equal                   Z == 1
+// NE        Not equal               Not equal or unordered  Z == 0
+// CS or HS  Carry set               >= or unordered         C == 1
+// CC or LO  Carry clear             <                       C == 0
+// MI        Minus, negative         <                       N == 1
+// PL        Plus, positive or zero  >= or unordered         N == 0
+// VS        Overflow                Unordered               V == 1
+// VC        No overflow             Ordered                 V == 0
+// HI        Unsigned >              > or unordered          C ==1 && Z == 0
+// LS        Unsigned <=             < or equal              !(C ==1 && Z ==0)
+// GE        Signed >=               > or equal              N == V
+// LT        Signed <                < or unordered          N! = V
+// GT        Signed >=               >                       Z == 0 && N == V
+// LE        Signed <=               <= or unordered         !(Z == 0 && N == V)
+// AL        Always                  Always                  Any
+// NV        Always                  Always                  Any
+
 // Given condition, return a value for nzcv which represents it. This is used
 // for the default condition for ccmp.
 inline StatusFlags ConditionToDefaultFlags(Condition condition) {
@@ -3589,11 +3607,21 @@ void AssembleConditionalCompareChain(Instruction* instr, int64_t num_ccmps,
       gen->masm()->Ccmp(i.InputRegister64(compare_lhs_index),
                         i.InputOperand64(compare_rhs_index), default_flags,
                         FlagsConditionToCondition(compare_condition));
-    } else {
-      DCHECK_EQ(code, kArm64Cmp32);
+    } else if (code == kArm64Cmp32) {
       gen->masm()->Ccmp(i.InputRegister32(compare_lhs_index),
                         i.InputOperand32(compare_rhs_index), default_flags,
                         FlagsConditionToCondition(compare_condition));
+    } else if (code == kArm64Float64Cmp) {
+      gen->masm()->Fccmp(i.InputFloat64OrFPZeroRegister(compare_lhs_index),
+                         i.InputFloat64OrFPZeroRegister(compare_rhs_index),
+                         default_flags,
+                         FlagsConditionToCondition(compare_condition));
+    } else {
+      DCHECK_EQ(code, kArm64Float32Cmp);
+      gen->masm()->Fccmp(i.InputFloat32OrFPZeroRegister(compare_lhs_index),
+                         i.InputFloat32OrFPZeroRegister(compare_rhs_index),
+                         default_flags,
+                         FlagsConditionToCondition(compare_condition));
     }
   }
 }
