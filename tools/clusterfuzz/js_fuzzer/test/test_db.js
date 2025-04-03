@@ -30,7 +30,7 @@ describe('DB tests', () => {
     const indexFile = path.join(outPath, 'index.json');
     const indexJSON = JSON.parse(fs.readFileSync(indexFile), 'utf-8');
     assert.deepEqual(
-        indexJSON, {"statements": [], "superStatements": [], "all": []});
+        indexJSON, []);
   });
 
   // End to end test with various extracted and not extracted examples.

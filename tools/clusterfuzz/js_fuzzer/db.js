@@ -271,11 +271,7 @@ class MutateDbWriter {
   constructor(outputDir) {
     this.seen = new Set();
     this.outputDir = fsPath.resolve(outputDir);
-    this.index = {
-      statements: [],
-      superStatements: [],
-      all: [],
-    };
+    this.index = [];
   }
 
   process(source) {
@@ -451,42 +447,45 @@ class MutateDbWriter {
 
         // Update index.
         self.seen.add(key);
-        self.index.all.push(relPath);
-
-        if (expression.needsSuper) {
-          self.index.superStatements.push(relPath);
-        } else {
-          self.index.statements.push(relPath);
-        }
+        self.index.push({path: relPath, super: expression.needsSuper});
       }
     });
   }
 
   writeIndex() {
-    this.index.all.sort();
-    this.index.statements.sort();
-    this.index.superStatements.sort();
+    this.index.sort((a, b) => a.path.localeCompare(b.path));
 
     fs.writeFileSync(
         fsPath.join(this.outputDir, 'index.json'),
-        JSON.stringify(this.index));
+        JSON.stringify(this.index, null, 2));
   }
 }
 
 class MutateDb {
   constructor(outputDir) {
     this.outputDir = fsPath.resolve(outputDir);
-    this.index = JSON.parse(
+    const index = JSON.parse(
         fs.readFileSync(fsPath.join(outputDir, 'index.json'), 'utf-8'));
+    this.statements = [];
+    this.superStatements = [];
+    this.all = [];
+    for (const expression of index) {
+      if (expression.super) {
+        this.superStatements.push(expression.path);
+      } else {
+        this.statements.push(expression.path);
+      }
+      this.all.push(expression.path);
+    }
   }
 
   getRandomStatement({canHaveSuper=false} = {}) {
     let choices;
     if (canHaveSuper) {
       choices = random.choose(CHOOSE_SUPER_PROB) ?
-          this.index.superStatements : this.index.all;
+          this.superStatements : this.all;
     } else {
-      choices = this.index.statements;
+      choices = this.statements;
     }
 
     let path = fsPath.join(
@@ -495,7 +494,7 @@ class MutateDb {
   }
 
   *iterateStatements() {
-    for (const exp of this.index.all) {
+    for (const exp of this.all) {
       const path = fsPath.join(this.outputDir, exp);
       yield JSON.parse(fs.readFileSync(path), 'utf-8');
     }
