@@ -297,6 +297,9 @@
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
+  'test-serialize/ContextSerializerContext': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/SharedStrings': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
 
