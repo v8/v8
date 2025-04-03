@@ -719,6 +719,9 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 DEFINE_BOOL(additive_safe_int_feedback, false,
             "Enable the use of AdditiveSafeInteger feedback")
 DEFINE_WEAK_IMPLICATION(future, additive_safe_int_feedback)
+// Additive safe ints are only used by TurboFan.
+DEFINE_NEG_IMPLICATION(jitless, additive_safe_int_feedback)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, additive_safe_int_feedback)
 #else
 DEFINE_BOOL_READONLY(additive_safe_int_feedback, false,
                      "Enable the use of AdditiveSafeInteger feedback")

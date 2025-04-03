@@ -142,6 +142,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
             "--regexp-tier-up",
             "--no-regexp-interpret-all",
             "--interpreted-frames-native-stack",
+            "--additive-safe-int-feedback",
             "--script-context-mutable-heap-number",
         ],
     "nooptimization": [
@@ -156,6 +157,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--validate-asm",
         "--track-field-types",
         "--stress-concurrent-inlining",
+        "--additive-safe-int-feedback",
         "--script-context-mutable-heap-number",
         "--experimental-wasm-shared",
     ],
