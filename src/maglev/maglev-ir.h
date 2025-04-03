@@ -4642,8 +4642,9 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
 
  public:
   explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::LazyDeopt() |
+                                              OpProperties::CanAllocate();
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
