@@ -106,9 +106,7 @@ class ScriptMutator {
    * different corpora.
    */
   get runnerClass() {
-    // Choose a setup with the Fuzzilli corpus with a 50% chance.
-    return random.single(
-        [runner.RandomCorpusRunner, runner.RandomCorpusRunnerWithFuzzilli]);
+    return runner.RandomCorpusRunnerWithFuzzilli;
   }
 
   _addMjsunitIfNeeded(dependencies, input) {
