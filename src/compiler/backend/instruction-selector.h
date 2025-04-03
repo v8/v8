@@ -662,14 +662,14 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // though it has a required_when_unused effect.
   void SetProtectedLoadToRemove(turboshaft::OpIndex node) {
     DCHECK(this->IsProtectedLoad(node));
-    protected_loads_to_remove_->Add(this->id(node));
+    protected_loads_to_remove_->Add(node.id());
   }
 
   // Records that this node embeds a ProtectedLoad as operand, and so it is
   // itself a "protected" instruction, for which we'll need to record the source
   // position.
   void MarkAsProtected(turboshaft::OpIndex node) {
-    additional_protected_instructions_->Add(this->id(node));
+    additional_protected_instructions_->Add(node.id());
   }
 
   void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
@@ -1053,8 +1053,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
-  void VisitTrapIf(turboshaft::OpIndex node, TrapId trap_id);
-  void VisitTrapUnless(turboshaft::OpIndex node, TrapId trap_id);
+  void VisitTrapIf(turboshaft::OpIndex node);
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,
