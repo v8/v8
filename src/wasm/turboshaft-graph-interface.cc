@@ -1664,12 +1664,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       wasm::kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
@@ -1712,12 +1714,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
