@@ -542,6 +542,8 @@ CompilationJob::Status TurbofanCompilationJob::AbortOptimization(
   return UpdateState(FAILED, State::kFailed);
 }
 
+void TurbofanCompilationJob::Cancel() { compilation_info_->mark_cancelled(); }
+
 void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
                                                     Isolate* isolate) const {
   DCHECK(compilation_info()->IsOptimizing());

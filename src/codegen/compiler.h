@@ -491,6 +491,8 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
 
   Isolate* isolate() const { return isolate_; }
 
+  void Cancel();
+
  private:
   Isolate* const isolate_;
   OptimizedCompilationInfo* const compilation_info_;
