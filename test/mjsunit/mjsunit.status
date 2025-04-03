@@ -1613,7 +1613,9 @@
   'compiler/array-slice-clone': [SKIP],
 
   # Times out with asan.
+  'regress/regress-524': [PASS, ['asan', SKIP]],
   'wasm/max-wasm-functions': [PASS, ['asan', SKIP]],
+  'wasm/user-properties-module': [PASS, ['asan', SKIP]],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
