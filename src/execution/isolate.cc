@@ -3671,6 +3671,8 @@ bool Isolate::IsWasmStringRefEnabled(DirectHandle<NativeContext> context) {
 
 bool Isolate::IsWasmJSPIRequested(DirectHandle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
+  if (v8_flags.wasm_jitless) return false;
+
   v8::WasmJSPIEnabledCallback jspi_callback = wasm_jspi_enabled_callback();
   if (jspi_callback) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
@@ -6442,6 +6444,8 @@ void Isolate::FireCallCompletedCallbackInternal(
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 void Isolate::WasmInitJSPIFeature() {
+  if (v8_flags.wasm_jitless) return;
+
   if (isolate_data_.active_stack() == nullptr) {
     wasm::StackMemory* stack(wasm::StackMemory::GetCentralStackView(this));
     stack->jmpbuf()->state = wasm::JumpBuffer::Active;
