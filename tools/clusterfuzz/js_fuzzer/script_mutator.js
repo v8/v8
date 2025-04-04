@@ -371,53 +371,9 @@ class WasmScriptMutator extends ScriptMutator {
   }
 }
 
-/**
- * Script mutator that only inserts one cross-over expression from the DB to
- * validate.
- */
-class CrossScriptMutator extends ScriptMutator {
-
-  // We don't do any mutations except a deterministic insertion of one
-  // snippet into a predefined place in a template.
-  mutate(source, context) {
-    // The __expression was pinned to the expression in the FixtureRunner.
-    assert(source.__expression);
-    const crossover = this.crossover;
-    let done = false;
-    babelTraverse(source.ast, {
-      ExpressionStatement(path) {
-        if (done || !path.node.expression ||
-            !babelTypes.isCallExpression(path.node.expression)) {
-          return;
-        }
-        // Avoid infinite loops if there's an expression statement in the
-        // inserted expression.
-        done = true;
-        path.insertAfter(crossover.createInsertion(path, source.__expression));
-      }
-    });
-  }
-
-  // This mutator has only one input to which the __expression was pinned.
-  concatInputs(inputs) {
-    assert(inputs.length == 1);
-    return inputs[0];
-  }
-
-  // No dependencies needed for simple snippet evaluation.
-  resolveDependencies() {
-    return [];
-  }
-
-  get runnerClass() {
-    return runner.FixtureRunner;
-  }
-}
-
 module.exports = {
   analyzeContext: analyzeContext,
   defaultSettings: defaultSettings,
-  CrossScriptMutator: CrossScriptMutator,
   ScriptMutator: ScriptMutator,
   WasmScriptMutator: WasmScriptMutator,
 };

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Original: resources/cross_over_template_3.js
-let __v_0 = 0;
-let __v_1 = 0;
-class __c_0 {
+let __v_0 = {};
+let __v_1 = {};
+
+class A {
   foo() {}
 }
-class __c_1 extends __c_0 {
+
+class B extends A {
   foo() {
     console.log(42);
   }

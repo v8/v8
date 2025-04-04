@@ -1,0 +1,26 @@
+[
+  {
+    "path": "CallExpression/0a096256b46221450c328e00e14e0a7083ecd7e4.json",
+    "super": false
+  },
+  {
+    "path": "CallExpression/8eee3ad09817d507bd2293eab67e023cf91b41c3.json",
+    "super": true
+  },
+  {
+    "path": "CallExpression/9a863bdec092babc502181f10470c11643c66aa9.json",
+    "super": true
+  },
+  {
+    "path": "CallExpression/d4095491fddf24bc52753c70910c5b7a04f98846.json",
+    "super": false
+  },
+  {
+    "path": "CallExpression/d453f081332f3b4e8f5b72db6b6a10b2c3d44e80.json",
+    "super": false
+  },
+  {
+    "path": "UnaryExpression/b5a902091f46fb7b04b54ce56c6ac57d0a8a1f84.json",
+    "super": false
+  }
+]

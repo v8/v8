@@ -82,9 +82,10 @@ function needsTryCatch(source) {
 }
 
 class CrossOverMutator extends mutator.Mutator {
-  constructor(settings, db) {
+  constructor(settings, db, wrap_try_catch_prob=WRAP_TC_IF_NEEDED_PROB) {
     super(settings);
     this._db = db;
+    this.wrap_try_catch_prob = wrap_try_catch_prob;
   }
 
   // For testing.
@@ -129,7 +130,7 @@ class CrossOverMutator extends mutator.Mutator {
       return undefined;
     }
 
-    if (random.choose(WRAP_TC_IF_NEEDED_PROB) &&
+    if (random.choose(this.wrap_try_catch_prob) &&
         needsTryCatch(expression.source)) {
       toInsert = tryCatch.wrapTryCatch(toInsert);
     }

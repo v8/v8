@@ -267,6 +267,11 @@ function isValid(expression) {
   return true;
 }
 
+function writeIndexFile(path, index) {
+  index.sort((a, b) => a.path.localeCompare(b.path));
+  fs.writeFileSync(path, JSON.stringify(index, null, 2));
+}
+
 class MutateDbWriter {
   constructor(outputDir) {
     this.seen = new Set();
@@ -453,11 +458,7 @@ class MutateDbWriter {
   }
 
   writeIndex() {
-    this.index.sort((a, b) => a.path.localeCompare(b.path));
-
-    fs.writeFileSync(
-        fsPath.join(this.outputDir, 'index.json'),
-        JSON.stringify(this.index, null, 2));
+    writeIndexFile(fsPath.join(this.outputDir, 'index.json'), this.index);
   }
 }
 
@@ -471,11 +472,11 @@ class MutateDb {
     this.all = [];
     for (const expression of index) {
       if (expression.super) {
-        this.superStatements.push(expression.path);
+        this.superStatements.push(expression);
       } else {
-        this.statements.push(expression.path);
+        this.statements.push(expression);
       }
-      this.all.push(expression.path);
+      this.all.push(expression);
     }
   }
 
@@ -488,14 +489,14 @@ class MutateDb {
       choices = this.statements;
     }
 
-    let path = fsPath.join(
-        this.outputDir, choices[random.randInt(0, choices.length - 1)]);
+    const record = choices[random.randInt(0, choices.length - 1)];
+    const path = fsPath.join(this.outputDir, record.path);
     return JSON.parse(fs.readFileSync(path), 'utf-8');
   }
 
   *iterateStatements() {
     for (const exp of this.all) {
-      const path = fsPath.join(this.outputDir, exp);
+      const path = fsPath.join(this.outputDir, exp.path);
       yield JSON.parse(fs.readFileSync(path), 'utf-8');
     }
   }
@@ -504,4 +505,5 @@ class MutateDb {
 module.exports = {
   MutateDb: MutateDb,
   MutateDbWriter: MutateDbWriter,
+  writeIndexFile: writeIndexFile,
 }

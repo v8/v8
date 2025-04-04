@@ -448,18 +448,6 @@ describe('Regression tests', () => {
     helpers.assertExpectedResult('regress/yield/expected.js', mutated);
   });
 
-  it('iterates snippets', () => {
-    const mutator = new scriptMutator.CrossScriptMutator(
-        this.settings, 'test_data/regress/empty_db');
-    const testRunner = new mutator.runnerClass();
-    testRunner.dbPath = 'test_data/regress/super/super_call_db';
-    for (const [i, inputs] of testRunner.enumerateInputs()) {
-      const mutated = mutator.mutateMultiple(inputs);
-      helpers.assertExpectedResult(
-          `verify_db/expected_code_${i}.js`, mutated.code);
-    }
-  });
-
   it('does not assign to const variables', () => {
     sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
       return helpers.loadTestData('differential_fuzz/fake_resource.js');
