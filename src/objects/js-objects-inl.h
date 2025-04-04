@@ -13,6 +13,8 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/cpp-heap-external-object.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -643,50 +645,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
-
-JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
-  DCHECK(IsJSApiWrapperObject(object));
-}
-
-template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-void* JSApiWrapper::GetCppHeapWrappable(
-    IsolateForPointerCompression isolate) const {
-  return reinterpret_cast<void*>(
-      object_->ReadCppHeapPointerField<lower_bound, upper_bound>(
-          kCppHeapWrappableOffset, isolate));
-}
-
-void* JSApiWrapper::GetCppHeapWrappable(
-    IsolateForPointerCompression isolate,
-    CppHeapPointerTagRange tag_range) const {
-  return reinterpret_cast<void*>(object_->ReadCppHeapPointerField(
-      kCppHeapWrappableOffset, isolate, tag_range));
-}
-
-template <CppHeapPointerTag tag>
-void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                       void* instance) {
-  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
-      reinterpret_cast<Address>(instance));
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
-}
-
-void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                       void* instance, CppHeapPointerTag tag) {
-  object_->WriteLazilyInitializedCppHeapPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
-      reinterpret_cast<Address>(instance), tag);
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
-}
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();

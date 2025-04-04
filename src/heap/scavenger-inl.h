@@ -450,6 +450,8 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
                                       MaybeObjectSize);
   V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object,
                                     MaybeObjectSize);
+  V8_INLINE size_t VisitCppHeapExternalObject(
+      Tagged<Map> map, Tagged<CppHeapExternalObject> object, MaybeObjectSize);
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
                                       ExternalPointerSlot slot);
 
@@ -527,6 +529,13 @@ size_t ScavengeVisitor::VisitJSApiObject(Tagged<Map> map,
   int size = JSAPIObjectWithEmbedderSlots::BodyDescriptor::SizeOf(map, object);
   JSAPIObjectWithEmbedderSlots::BodyDescriptor::IterateBody(map, object, size,
                                                             this);
+  return size;
+}
+
+size_t ScavengeVisitor::VisitCppHeapExternalObject(
+    Tagged<Map> map, Tagged<CppHeapExternalObject> object, MaybeObjectSize) {
+  int size = CppHeapExternalObject::BodyDescriptor::SizeOf(map, object);
+  CppHeapExternalObject::BodyDescriptor::IterateBody(map, object, size, this);
   return size;
 }
 

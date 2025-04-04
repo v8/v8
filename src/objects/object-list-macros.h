@@ -111,6 +111,7 @@ namespace internal {
   V(ContextSidePropertyCell)                    \
   V(Context)                                    \
   V(CoverageInfo)                               \
+  V(CppHeapExternalObject)                      \
   V(DataHandler)                                \
   V(DeoptimizationData)                         \
   V(DependentCode)                              \
@@ -410,11 +411,13 @@ namespace internal {
   V(CallableJSFunction)                      \
   V(CallableJSProxy)                         \
   V(CatchContext)                            \
+  V(CppHeapPointerWrapperObject)             \
   V(DebugEvaluateContext)                    \
   V(EvalContext)                             \
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSApiWrapperObject)                      \
   V(JSClassConstructor)                      \
   V(JSLastDummyApiObject)                    \
   V(JSPromiseConstructor)                    \

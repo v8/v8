@@ -21,6 +21,7 @@
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/mark-compact.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
@@ -394,7 +395,7 @@ void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
     return nullptr;
   }
   // Wrapper using cpp_heap_wrappable field.
-  return JSApiWrapper(*js_object)
+  return CppHeapObjectWrapper(*js_object)
       .GetCppHeapWrappable(isolate, kAnyCppHeapPointer);
 }
 

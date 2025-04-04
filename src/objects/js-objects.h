@@ -1082,31 +1082,6 @@ class JSSpecialObject
   TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
 };
 
-// Helper union that doesn't actually exist as type. Use by value.
-class JSApiWrapper {
- public:
-  V8_INLINE explicit JSApiWrapper(Tagged<JSObject> object);
-
-  template <CppHeapPointerTag tag>
-  V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                     void*);
-  V8_INLINE void SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                     void*, CppHeapPointerTag tag);
-  template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-  V8_INLINE void* GetCppHeapWrappable(
-      IsolateForPointerCompression isolate) const;
-  V8_INLINE void* GetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                      CppHeapPointerTagRange tag_range) const;
-
- private:
-  static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==
-                JSSpecialObject::kCppHeapWrappableOffset);
-  static constexpr int kCppHeapWrappableOffset =
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset;
-
-  Tagged<JSObject> object_;
-};
-
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
 // map. This initial map adds in-object properties for "get", "set",
 // "enumerable" and "configurable" properties, as assigned by the
