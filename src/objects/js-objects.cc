@@ -2927,9 +2927,6 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_EXTERNAL_OBJECT_TYPE:
       accumulator->Add("<JSExternalObject>");
       break;
-    case CPP_HEAP_EXTERNAL_OBJECT_TYPE:
-      accumulator->Add("<CppHeapExternalObject>");
-      break;
 
     default: {
       Tagged<Map> map_of_this = map();

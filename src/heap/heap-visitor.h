@@ -266,9 +266,6 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
                                      MaybeObjectSize maybe_object_size);
   V8_INLINE size_t VisitJSApiObject(Tagged<Map> map, Tagged<JSObject> object,
                                     MaybeObjectSize maybe_object_size);
-  V8_INLINE size_t VisitCppHeapExternalObject(
-      Tagged<Map> map, Tagged<CppHeapExternalObject> object,
-      MaybeObjectSize maybe_object_size);
   V8_INLINE size_t VisitStruct(Tagged<Map> map, Tagged<HeapObject> object,
                                MaybeObjectSize maybe_object_size);
   V8_INLINE size_t VisitFiller(Tagged<Map> map, Tagged<HeapObject> object,

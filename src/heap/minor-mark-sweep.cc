@@ -48,7 +48,6 @@
 #include "src/heap/traced-handles-marking-visitor.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
-#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-forwarding-table-inl.h"
@@ -604,15 +603,18 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
 }
 
 namespace {
-void VisitObjectWithCppHeapPointerField(
-    Isolate* isolate, Tagged<CppHeapPointerWrapperObjectT> object,
-    MarkingWorklists::Local& worklist) {
-  DCHECK(IsCppHeapPointerWrapperObject(object));
-  DCHECK(!HeapLayout::InYoungGeneration(object));
+void VisitObjectWithEmbedderFields(Isolate* isolate, Tagged<JSObject> js_object,
+                                   MarkingWorklists::Local& worklist) {
+  DCHECK(js_object->MayHaveEmbedderFields());
+  DCHECK(!HeapLayout::InYoungGeneration(js_object));
+  // Not every object that can have embedder fields is actually a JSApiWrapper.
+  if (!IsJSApiWrapperObject(js_object)) {
+    return;
+  }
 
   // Wrapper using cpp_heap_wrappable field.
-  void* wrappable = CppHeapObjectWrapper::From(object).GetCppHeapWrappable(
-      isolate, kAnyCppHeapPointer);
+  void* wrappable =
+      JSApiWrapper(js_object).GetCppHeapWrappable(isolate, kAnyCppHeapPointer);
   if (wrappable) {
     worklist.cpp_marking_state()->MarkAndPush(wrappable);
   }
@@ -628,11 +630,10 @@ void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
     heap_->isolate()->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
         &root_visitor);
     // Visit the V8-to-Oilpan remembered set.
-    cpp_heap->VisitCrossHeapRememberedSetIfNeeded(
-        [this](Tagged<CppHeapPointerWrapperObjectT> obj) {
-          VisitObjectWithCppHeapPointerField(heap_->isolate(), obj,
-                                             *local_marking_worklists());
-        });
+    cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](Tagged<JSObject> obj) {
+      VisitObjectWithEmbedderFields(heap_->isolate(), obj,
+                                    *local_marking_worklists());
+    });
   } else {
     // Otherwise, visit all young roots.
     heap_->isolate()->traced_handles()->IterateYoungRoots(&root_visitor);

@@ -19,8 +19,6 @@
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/contexts-inl.h"
-#include "src/objects/cpp-heap-external-object-inl.h"
-#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/descriptor-array-inl.h"

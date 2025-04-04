@@ -835,9 +835,6 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
                  external)
     roots.external_map()->SetEnumLength(0);
     roots.external_map()->set_is_extensible(false);
-
-    ALLOCATE_MAP(CPP_HEAP_EXTERNAL_OBJECT_TYPE,
-                 CppHeapExternalObject::kHeaderSize, cpp_heap_external)
   }
 
   // Shared space object maps are immutable and can be in RO space.

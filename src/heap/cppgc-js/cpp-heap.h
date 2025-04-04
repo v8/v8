@@ -23,7 +23,6 @@ static_assert(
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
-#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/js-objects.h"
 
 namespace v8 {
@@ -192,8 +191,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
-      v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
-      void* value);
+      v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
   template <typename F>
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
@@ -279,8 +277,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 };
 
 void CppHeap::RememberCrossHeapReferenceIfNeeded(
-    v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
-    void* value) {
+    v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value) {
   if (!generational_gc_supported()) return;
   DCHECK(isolate_);
   cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,

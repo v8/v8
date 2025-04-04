@@ -86,7 +86,6 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/contexts.h"
-#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -814,10 +813,6 @@ bool Data::IsFunctionTemplate() const {
 
 bool Data::IsContext() const {
   return i::IsContext(*Utils::OpenDirectHandle(this));
-}
-
-bool Data::IsCppHeapExternal() const {
-  return IsCppHeapExternalObject(*Utils::OpenDirectHandle(this));
 }
 
 void Context::Enter() {
@@ -3999,11 +3994,6 @@ void v8::WasmModuleObject::CheckCast(Value* that) {
                   "Value is not a WasmModuleObject");
 }
 
-void v8::CppHeapExternal::CheckCast(v8::Data* that) {
-  Utils::ApiCheck(that->IsCppHeapExternal(), "v8::CppHeapExternal::Cast",
-                  "Value is not a CppHeapExternal");
-}
-
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -6376,7 +6366,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
   DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
-  return i::CppHeapObjectWrapper(
+  return i::JSApiWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
@@ -6384,7 +6374,7 @@ void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
 // static
 void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                       CppHeapPointerTag tag, void* wrappable) {
-  return i::CppHeapObjectWrapper(
+  return i::JSApiWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
                            tag);
@@ -6886,8 +6876,7 @@ bool RequiresEmbedderSupportToFreeze(i::InstanceType obj_type) {
 
   return (i::InstanceTypeChecker::IsJSApiObject(obj_type) ||
           i::InstanceTypeChecker::IsJSExternalObject(obj_type) ||
-          i::InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(obj_type) ||
-          i::InstanceTypeChecker::IsCppHeapExternalObject(obj_type));
+          i::InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(obj_type));
 }
 
 bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
@@ -7510,26 +7499,6 @@ void* External::Value() const {
   i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
   return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))
       ->value(isolate);
-}
-
-Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,
-                                                    void* value,
-                                                    CppHeapPointerTag tag) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  API_RCS_SCOPE(i_isolate, CppHeapExternal, New);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::DirectHandle<i::CppHeapExternalObject> external =
-      i_isolate->factory()->NewCppHeapExternal();
-  i::CppHeapObjectWrapper(*external).SetCppHeapWrappable(i_isolate, value, tag);
-  return Utils::CppHeapExternalToLocal(external);
-}
-
-void* CppHeapExternal::ValueImpl(v8::Isolate* isolate,
-                                 CppHeapPointerTagRange tag_range) const {
-  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
-  auto self = Utils::OpenDirectHandle(this);
-  return i::CppHeapObjectWrapper(*self).GetCppHeapWrappable(
-      reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
 
 // anonymous namespace for string creation helper functions

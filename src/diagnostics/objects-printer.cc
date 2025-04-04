@@ -24,7 +24,6 @@
 #include "src/objects/all-objects-inl.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
@@ -824,16 +823,6 @@ void JSExternalObject::JSExternalObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, nullptr);
   os << "\n - external value: " << value();
   JSObjectPrintBody(os, *this);
-}
-
-void CppHeapExternalObject::CppHeapExternalObjectPrint(std::ostream& os) {
-  if (i::Isolate* isolate = i::Isolate::TryGetCurrent()) {
-    os << "\n - cpp_heap_wrappable: "
-       << CppHeapObjectWrapper(*this).GetCppHeapWrappable(isolate,
-                                                          kAnyCppHeapPointer);
-  } else {
-    os << "\n - cpp_heap_wrappable: <object>";
-  }
 }
 
 void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {

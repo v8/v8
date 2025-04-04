@@ -8,7 +8,6 @@
 #include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
-#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
@@ -259,7 +258,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_);
   serializer.Serialize(slot_type);
-  if (InstanceTypeChecker::IsJSApiWrapperObject(instance_type)) {
+  if (IsJSApiWrapperObject(obj->map())) {
     SerializeApiWrapperFields(Cast<JSObject>(obj));
   }
 }
@@ -289,7 +288,7 @@ void ContextSerializer::SerializeApiWrapperFields(
     DirectHandle<JSObject> js_object) {
   DCHECK(IsJSApiWrapperObject(*js_object));
   auto* cpp_heap_pointer =
-      CppHeapObjectWrapper(*js_object)
+      JSApiWrapper(*js_object)
           .GetCppHeapWrappable(isolate(), kAnyCppHeapPointer);
   const auto& callback_data = serialize_embedder_fields_.api_wrapper_callback;
   if (callback_data.callback == nullptr && cpp_heap_pointer == nullptr) {

@@ -41,9 +41,6 @@
 #include <unistd.h>
 #endif
 
-#include "include/cppgc/allocation.h"
-#include "include/cppgc/persistent.h"
-#include "include/v8-cpp-heap-external.h"
 #include "include/v8-date.h"
 #include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
@@ -67,9 +64,7 @@
 #include "src/execution/protectors-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
-#include "src/init/v8.h"
 #include "src/logging/metrics.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -101,7 +96,6 @@ using ::v8::Array;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
-using ::v8::CppHeapExternal;
 using ::v8::Extension;
 using ::v8::External;
 using ::v8::FixedArray;
@@ -31320,66 +31314,4 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String>::Cast(no_str);
     v8::MaybeLocal<v8::String>::Cast(no_data);
   }
-}
-
-class TestGarbagedCollectedData
-    : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
- public:
-  void Trace(cppgc::Visitor*) const {}
-};
-
-TEST(CppHeapExternal) {
-  v8::Isolate::CreateParams create_params = CreateTestParams();
-  create_params.cpp_heap =
-      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
-                          v8::CppHeapCreateParams({}))
-          .release();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
-  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-
-  cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
-      cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
-          cpp_heap->GetAllocationHandle()));
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::CppHeapExternal> external =
-        v8::CppHeapExternal::New<TestGarbagedCollectedData>(
-            isolate, cpp_object, v8::CppHeapPointerTag::kDefaultTag);
-    CHECK_EQ(cpp_object.Get(),
-             external->Value<TestGarbagedCollectedData>(
-                 isolate, v8::CppHeapPointerTagRange(
-                              v8::CppHeapPointerTag::kDefaultTag,
-                              v8::CppHeapPointerTag::kDefaultTag)));
-    // Check casting.
-    {
-      v8::Local<v8::Data> as_data = external;
-      CHECK(as_data->IsCppHeapExternal());
-      v8::Local<v8::CppHeapExternal>::Cast(as_data);
-    }
-
-    // The `cpp_object` should still exist and match the `external` after GC.
-    i::EmbedderStackStateScope stack_scope(
-        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
-        v8::StackState::kNoHeapPointers);
-    i::heap::InvokeMajorGC(heap);
-    CHECK(cpp_object.Get());
-    CHECK_EQ(cpp_object.Get(),
-             external->Value<TestGarbagedCollectedData>(
-                 isolate, v8::CppHeapPointerTagRange(
-                              v8::CppHeapPointerTag::kDefaultTag,
-                              v8::CppHeapPointerTag::kDefaultTag)));
-  }
-
-  {
-    i::EmbedderStackStateScope stack_scope(
-        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
-        v8::StackState::kNoHeapPointers);
-    i::heap::InvokeMajorGC(heap);
-    CHECK(!cpp_object.Get());
-  }
-
-  isolate->Exit();
-  isolate->Dispose();
 }

@@ -889,10 +889,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewExternal(
       void* value, AllocationType allocation = AllocationType::kYoung);
 
-  // Create a CppHeapExternal object for V8's external API.
-  Handle<CppHeapExternalObject> NewCppHeapExternal(
-      AllocationType allocation = AllocationType::kYoung);
-
   // Allocates a new code object and initializes it to point to the given
   // off-heap entry point.
   //
@@ -1389,6 +1385,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Initializes JSObject body starting at given offset.
   void InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
                               int start_offset);
+  void InitializeCppHeapWrapper(Tagged<JSObject> obj);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);

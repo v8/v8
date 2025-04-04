@@ -465,21 +465,20 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
-#define READ_ONLY_ROOT_LIST(V)                   \
-  STRONG_READ_ONLY_ROOT_LIST(V)                  \
-  INTERNALIZED_STRING_ROOT_LIST(V)               \
-  PRIVATE_SYMBOL_ROOT_LIST(V)                    \
-  PUBLIC_SYMBOL_ROOT_LIST(V)                     \
-  WELL_KNOWN_SYMBOL_ROOT_LIST(V)                 \
-  STRUCT_MAPS_LIST(V)                            \
-  TORQUE_DEFINED_MAP_ROOT_LIST(V)                \
-  ALLOCATION_SITE_MAPS_LIST(V)                   \
-  NAME_FOR_PROTECTOR_ROOT_LIST(V)                \
-  DATA_HANDLER_MAPS_LIST(V)                      \
-  /* Maps */                                     \
-  V(Map, external_map, ExternalMap)              \
-  V(Map, message_object_map, JSMessageObjectMap) \
-  V(Map, cpp_heap_external_map, CppHeapExternalMap)
+#define READ_ONLY_ROOT_LIST(V)      \
+  STRONG_READ_ONLY_ROOT_LIST(V)     \
+  INTERNALIZED_STRING_ROOT_LIST(V)  \
+  PRIVATE_SYMBOL_ROOT_LIST(V)       \
+  PUBLIC_SYMBOL_ROOT_LIST(V)        \
+  WELL_KNOWN_SYMBOL_ROOT_LIST(V)    \
+  STRUCT_MAPS_LIST(V)               \
+  TORQUE_DEFINED_MAP_ROOT_LIST(V)   \
+  ALLOCATION_SITE_MAPS_LIST(V)      \
+  NAME_FOR_PROTECTOR_ROOT_LIST(V)   \
+  DATA_HANDLER_MAPS_LIST(V)         \
+  /* Maps */                        \
+  V(Map, external_map, ExternalMap) \
+  V(Map, message_object_map, JSMessageObjectMap)
 
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \

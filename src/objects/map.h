@@ -50,7 +50,6 @@ enum InstanceType : uint16_t;
   V(CodeWrapper)                      \
   V(ConsString)                       \
   V(ContextSidePropertyCell)          \
-  V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \
   V(EmbedderDataArray)                \
