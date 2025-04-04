@@ -931,7 +931,8 @@ void InstructionSequence::ComputeAssemblyOrder() {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);
-        if (loop_end->SuccessorCount() == 1 && /* ends with goto */
+        if (!loop_end->IsDeferred() &&         /* Ignore deferred loop ends */
+            loop_end->SuccessorCount() == 1 && /* ends with goto */
             loop_end != block /* not a degenerate infinite loop */) {
           // If the last block has an unconditional jump back to the header,
           // then move it to be in front of the header in the assembly order.
