@@ -2407,6 +2407,14 @@ constexpr NEONTableOp NEON_TBX_2v = NEON_TBL_2v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_3v = NEON_TBL_3v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_4v = NEON_TBL_4v | NEONTableExt;
 
+// NEON SHA3
+using NEONSHA3Op = uint32_t;
+constexpr NEONSHA3Op NEONSHA3Fixed = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3FMask = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3Mask = 0xcee00000;
+constexpr NEONSHA3Op NEON_BCAX = NEONSHA3Fixed | 0x00200000;
+constexpr NEONSHA3Op NEON_EOR3 = NEONSHA3Fixed;
+
 // NEON perm.
 using NEONPermOp = uint32_t;
 constexpr NEONPermOp NEONPermFixed = 0x0E000800;

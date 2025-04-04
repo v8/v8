@@ -2710,6 +2710,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Emit an address in the instruction stream.
   void dcptr(Label* label);
 
+  // SHA3 instructions
+  // Bit Clear and exclusive-OR.
+  void bcax(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
+  // Three-way Exclusive-OR.
+  void eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.

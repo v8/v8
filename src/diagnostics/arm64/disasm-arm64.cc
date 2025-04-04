@@ -3039,6 +3039,24 @@ void DisassemblingDecoder::VisitNEONModifiedImmediate(Instruction* instr) {
   Format(instr, mnemonic, nfd.Substitute(form));
 }
 
+void DisassemblingDecoder::VisitNEONSHA3(Instruction* instr) {
+  const char* mnemonic = "unimplemented";
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s, 'Va.%s";
+  NEONFormatDecoder nfd(instr);
+
+  switch (instr->Mask(NEONSHA3Mask)) {
+    case NEON_BCAX:
+      mnemonic = "bcax";
+      break;
+    case NEON_EOR3:
+      mnemonic = "eor3";
+      break;
+    default:
+      form = "(NEONSHA3)";
+  }
+  Format(instr, mnemonic, nfd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitNEONPerm(Instruction* instr) {
   const char* mnemonic = "unimplemented";
   const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";

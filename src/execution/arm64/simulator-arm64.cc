@@ -6542,6 +6542,29 @@ void Simulator::VisitNEONTable(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEONSHA3(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  VectorFormat vf = nfd.GetVectorFormat();
+
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rn = vreg(instr->Rn());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& ra = vreg(instr->Ra());
+  SimVRegister temp;
+
+  switch (instr->Mask(NEONSHA3Mask)) {
+    case NEON_BCAX:
+      bic(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    case NEON_EOR3:
+      eor(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
 void Simulator::VisitNEONPerm(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();

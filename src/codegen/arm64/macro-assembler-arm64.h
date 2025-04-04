@@ -548,6 +548,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   NEON_3VREG_MACRO_LIST(DEFINE_MACRO_ASM_FUNC)
 #undef DEFINE_MACRO_ASM_FUNC
 
+  void Bcax(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va) {
+    DCHECK(allow_macro_instructions());
+    bcax(vd, vn, vm, va);
+  }
+
+  void Eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va) {
+    DCHECK(allow_macro_instructions());
+    eor3(vd, vn, vm, va);
+  }
+
   void Bic(const VRegister& vd, const int imm8, const int left_shift = 0) {
     DCHECK(allow_macro_instructions());
     bic(vd, imm8, left_shift);

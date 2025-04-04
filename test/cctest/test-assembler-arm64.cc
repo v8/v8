@@ -16073,6 +16073,32 @@ TEST(neon_3extension_dot_product) {
   }
 }
 
+TEST(neon_sha3) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(SHA3);
+  START();
+
+  __ Movi(v0.V2D(), 0xccaaffee00000000, 0xccaaffee00000000);
+  __ Movi(v1.V2D(), 0x6666666666666666, 0x6666666666666666);
+  __ Movi(v2.V2D(), 0x00000000ccaaffee, 0x00000000ccaaffee);
+
+  __ Movi(v10.V16B(), 0);
+  __ Movi(v11.V16B(), 0);
+
+  __ Bcax(v10.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+  __ Eor3(v11.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0xaacc998822440000, 0xaacc998822440000, v10);
+    CHECK_EQUAL_128(0xaacc9988aacc9988, 0xaacc9988aacc9988, v11);
+  }
+}
+
 #define FP16_OP_LIST(V) \
   V(fadd)               \
   V(fsub)               \

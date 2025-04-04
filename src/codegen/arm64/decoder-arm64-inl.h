@@ -757,7 +757,11 @@ void Decoder<V>::DecodeNEONVectorDataProcessing(Instruction* instr) {
       }
     }
   } else {
-    V::VisitUnallocated(instr);
+    if (instr->Bit(30) == 1) {
+      V::VisitNEONSHA3(instr);
+    } else {
+      V::VisitUnallocated(instr);
+    }
   }
 }
 

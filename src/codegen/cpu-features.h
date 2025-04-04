@@ -55,6 +55,7 @@ enum CpuFeature {
   PMULL1Q,
   // Half-precision NEON ops support.
   FP16,
+  SHA3,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

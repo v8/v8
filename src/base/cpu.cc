@@ -445,6 +445,7 @@ CPU::CPU()
       has_dot_prod_(false),
       has_lse_(false),
       has_mte_(false),
+      has_sha3_(false),
       has_pmull1q_(false),
       has_fp16_(false),
       is_fp64_mode_(false),
@@ -840,6 +841,7 @@ CPU::CPU()
     has_lse_ = (hwcaps & HWCAP_ATOMICS) != 0;
     has_pmull1q_ = (hwcaps & HWCAP_PMULL) != 0;
     has_fp16_ = (hwcaps & HWCAP_FPHP) != 0;
+    has_sha3_ = (hwcaps & HWCAP_SHA3) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
@@ -849,6 +851,7 @@ CPU::CPU()
     has_lse_ = HasListItem(features, "atomics");
     has_pmull1q_ = HasListItem(features, "pmull");
     has_fp16_ = HasListItem(features, "half");
+    has_sha3_ = HasListItem(features, "sha3");
     delete[] features;
   }
 #elif V8_OS_DARWIN
@@ -893,6 +896,14 @@ CPU::CPU()
   } else {
     has_fp16_ = fp16;
   }
+  int64_t feat_sha3 = 0;
+  size_t feat_sha3_size = sizeof(feat_sha3);
+  if (sysctlbyname("hw.optional.arm.FEAT_SHA3", &feat_sha3, &feat_sha3_size,
+                   nullptr, 0) == -1) {
+    has_sha3_ = false;
+  } else {
+    has_sha3_ = feat_sha3;
+  }
 #else
   // ARM64 Macs always have JSCVT, ASIMDDP, FP16 and LSE.
   has_jscvt_ = true;
@@ -900,6 +911,7 @@ CPU::CPU()
   has_lse_ = true;
   has_pmull1q_ = true;
   has_fp16_ = true;
+  has_sha3_ = true;
 #endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 

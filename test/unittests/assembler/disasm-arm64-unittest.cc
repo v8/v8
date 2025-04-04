@@ -4718,6 +4718,19 @@ TEST_F(DisasmArm64Test, neon_2regmisc) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, neon_sha3) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SHA3,
+                                CpuFeatureScope::kDontCheckSupported);
+  COMPARE(Bcax(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B()),
+          "bcax v0.16b, v1.16b, v2.16b, v3.16b");
+  COMPARE(Eor3(v10.V16B(), v11.V16B(), v12.V16B(), v13.V16B()),
+          "eor3 v10.16b, v11.16b, v12.16b, v13.16b");
+
+  CLEANUP();
+}
+
 TEST_F(DisasmArm64Test, neon_acrosslanes) {
   SET_UP_MASM();
 

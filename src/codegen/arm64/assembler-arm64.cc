@@ -70,6 +70,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_DOTPROD)
   features |= 1u << DOTPROD;
 #endif
+#if defined(__ARM_FEATURE_SHA3)
+  features |= 1u << SHA3;
+#endif
 #if defined(__ARM_FEATURE_ATOMICS)
   features |= 1u << LSE;
 #endif
@@ -123,6 +126,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_dot_prod()) {
     runtime |= 1u << DOTPROD;
+  }
+  if (cpu.has_sha3()) {
+    runtime |= 1u << SHA3;
   }
   if (cpu.has_lse()) {
     runtime |= 1u << LSE;
@@ -3400,6 +3406,20 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
   }
 NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
+
+void Assembler::bcax(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B());
+  Emit(NEON_BCAX | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
+void Assembler::eor3(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B() && va.Is16B());
+  Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
 
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));

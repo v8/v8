@@ -3681,6 +3681,97 @@ TEST_F(TurboshaftInstructionSelectorTest, LoadTwoMultiple) {
 
 #endif  // V8_ENABLE_INTERLEAVE_MEM_OPS
 
+TEST_F(TurboshaftInstructionSelectorTest, Sha3Test) {
+  const MachineType type = MachineType::Simd128();
+  {
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.S128Xor(m.Parameter(0),
+                       m.S128AndNot(m.Parameter(1), m.Parameter(2))));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Bcax, s[0]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(2)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64S128AndNot, s[0]->arch_opcode());
+      EXPECT_EQ(kArm64S128Xor, s[1]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(m.S128Xor(m.S128AndNot(m.Parameter(0), m.Parameter(1)),
+                       m.Parameter(2)));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      EXPECT_EQ(kArm64Bcax, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(2)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64S128AndNot, s[0]->arch_opcode());
+      EXPECT_EQ(kArm64S128Xor, s[1]->arch_opcode());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[1]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(
+        m.S128Xor(m.Parameter(0), m.S128Xor(m.Parameter(1), m.Parameter(2))));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      EXPECT_EQ(kArm64Eor3, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(2)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    } else {
+      EXPECT_EQ(kArm64S128Xor, s[0]->arch_opcode());
+      EXPECT_EQ(kArm64S128Xor, s[1]->arch_opcode());
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+  {
+    StreamBuilder m(this, type, type, type, type);
+    m.Return(
+        m.S128Xor(m.S128Xor(m.Parameter(0), m.Parameter(1)), m.Parameter(2)));
+    Stream s = m.Build();
+    if (CpuFeatures::IsSupported(SHA3)) {
+      EXPECT_EQ(kArm64Eor3, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(2)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    } else {
+      EXPECT_EQ(kArm64S128Xor, s[0]->arch_opcode());
+      EXPECT_EQ(kArm64S128Xor, s[1]->arch_opcode());
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+      EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[1]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(TurboshaftInstructionSelectorTest, Word32MulWithImmediate) {

@@ -720,7 +720,7 @@ int32_t LeftShiftForReducedMultiply(InstructionSelectorT* selector,
 
 // Try to match Add(Mul(x, y), z) and emit Madd(x, y, z) for it.
 template <typename MultiplyOpmaskT>
-bool TryEmitMulitplyAdd(InstructionSelectorT* selector, OpIndex add,
+bool TryEmitMultiplyAdd(InstructionSelectorT* selector, OpIndex add,
                         OpIndex lhs, OpIndex rhs, InstructionCode madd_opcode) {
   const Operation& add_lhs = selector->Get(lhs);
   if (!add_lhs.Is<MultiplyOpmaskT>() || !selector->CanCover(add, lhs)) {
@@ -739,13 +739,13 @@ bool TryEmitMulitplyAdd(InstructionSelectorT* selector, OpIndex add,
 
 bool TryEmitMultiplyAddInt32(InstructionSelectorT* selector, OpIndex add,
                              OpIndex lhs, OpIndex rhs) {
-  return TryEmitMulitplyAdd<Opmask::kWord32Mul>(selector, add, lhs, rhs,
+  return TryEmitMultiplyAdd<Opmask::kWord32Mul>(selector, add, lhs, rhs,
                                                 kArm64Madd32);
 }
 
 bool TryEmitMultiplyAddInt64(InstructionSelectorT* selector, OpIndex add,
                              OpIndex lhs, OpIndex rhs) {
-  return TryEmitMulitplyAdd<Opmask::kWord64Mul>(selector, add, lhs, rhs,
+  return TryEmitMultiplyAdd<Opmask::kWord64Mul>(selector, add, lhs, rhs,
                                                 kArm64Madd);
 }
 
@@ -4656,8 +4656,7 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS) \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8) \
-  V(S128Or, kArm64S128Or)                         \
-  V(S128Xor, kArm64S128Xor)
+  V(S128Or, kArm64S128Or)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
   V(F64x2Min, kArm64FMin, 64)                          \
@@ -5142,7 +5141,37 @@ bool SmlalHelper(InstructionSelectorT* selector, OpIndex node, int lane_size,
   return true;
 }
 
+template <typename OpmaskT>
+bool sha3helper(InstructionSelectorT* selector, OpIndex node,
+                InstructionCode sha3_code) {
+  Arm64OperandGeneratorT g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input())) {
+    return false;
+  }
+  const Operation& matched = selector->Get(m.matched_input());
+  selector->Emit(
+      sha3_code, g.DefineSameAsFirst(node), g.UseRegister(m.other_input()),
+      g.UseRegister(matched.input(0)), g.UseRegister(matched.input(1)));
+  return true;
+}
+
 }  // namespace
+
+void InstructionSelectorT::VisitS128Xor(OpIndex node) {
+  Arm64OperandGeneratorT g(this);
+
+  if (!CpuFeatures::IsSupported(SHA3)) {
+    return VisitRRR(this, kArm64S128Xor, node);
+  }
+
+  if (sha3helper<Opmask::kSimd128AndNot>(this, node, kArm64Bcax) ||
+      sha3helper<Opmask::kSimd128Xor>(this, node, kArm64Eor3))
+    return;
+
+  return VisitRRR(this, kArm64S128Xor, node);
+}
 
 void InstructionSelectorT::VisitI64x2Add(OpIndex node) {
   if (ShraHelper<Opmask::kSimd128I64x2ShrS>(
