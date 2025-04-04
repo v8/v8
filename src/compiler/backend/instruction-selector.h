@@ -729,6 +729,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void EmitBinarySearchSwitch(const SwitchInfo& sw,
                               InstructionOperand const& value_operand);
 
+  void MarkAsTableSwitchTarget(const turboshaft::Block* block);
+
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
   void SetRename(turboshaft::OpIndex node, turboshaft::OpIndex rename);

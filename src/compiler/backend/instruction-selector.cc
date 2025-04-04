@@ -1690,6 +1690,13 @@ void InstructionSelectorT::VisitFloat64Tanh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
+void InstructionSelectorT::MarkAsTableSwitchTarget(
+    const turboshaft::Block* block) {
+  sequence()
+      ->InstructionBlockAt(this->rpo_number(block))
+      ->set_table_switch_target(true);
+}
+
 void InstructionSelectorT::EmitTableSwitch(
     const SwitchInfo& sw, InstructionOperand const& index_operand) {
   OperandGenerator g(this);
@@ -1705,6 +1712,13 @@ void InstructionSelectorT::EmitTableSwitch(
     DCHECK_LE(0u, value);
     DCHECK_LT(value + 2, input_count);
     inputs[value + 2] = g.Label(c.branch);
+    MarkAsTableSwitchTarget(c.branch);
+  }
+  // If the default operand still exists in the cases, to fill gaps, then we
+  // need to mark the default block as table switch target.
+  if (std::find(&inputs[2], &inputs[input_count], default_operand) !=
+      &inputs[input_count]) {
+    MarkAsTableSwitchTarget(sw.default_branch());
   }
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }

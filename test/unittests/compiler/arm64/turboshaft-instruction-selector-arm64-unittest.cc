@@ -2240,6 +2240,168 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn(kOverflowBinaryOperationsForBranchFusion));
 
 // -----------------------------------------------------------------------------
+// Switches.
+
+namespace {
+template <typename StreamBuilder>
+void GenerateTestSwitch(OpIndex param, StreamBuilder& m, int n,
+                        SwitchOp::Case* cases) {
+  Block *default_case = m.NewBlock(), *end = m.NewBlock();
+  m.Switch(param, base::VectorOf(cases, n), default_case);
+  for (int i = 0; i < n; i++) {
+    auto c = cases[i];
+    m.Bind(c.destination);
+    m.Goto(end);
+  }
+  m.Bind(default_case);
+  m.Goto(end);
+
+  m.Bind(end);
+  m.Return(param);
+}
+}  // namespace
+
+TEST_F(TurboshaftInstructionSelectorTest, BinarySwitch) {
+  StreamBuilder m(this, MachineType::TaggedSigned(),
+                  MachineType::TaggedSigned());
+  OpIndex param = m.Parameter(0);
+  // We need more than 4 cases to generate a table switch.
+  SwitchOp::Case cases[] = {
+      {0, m.NewBlock(), BranchHint::kNone},
+      {1, m.NewBlock(), BranchHint::kNone},
+      {2, m.NewBlock(), BranchHint::kNone},
+  };
+  GenerateTestSwitch<StreamBuilder>(param, m, 3, cases);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+  EXPECT_EQ(kArchBinarySearchSwitch, s[0]->arch_opcode());
+  EXPECT_FALSE(s.BlockAt(1)->IsTableSwitchTarget());
+  EXPECT_FALSE(s.BlockAt(2)->IsTableSwitchTarget());
+  EXPECT_FALSE(s.BlockAt(3)->IsTableSwitchTarget());
+  EXPECT_FALSE(s.BlockAt(4)->IsTableSwitchTarget());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, TableSwitch) {
+  StreamBuilder m(this, MachineType::TaggedSigned(),
+                  MachineType::TaggedSigned());
+  OpIndex param = m.Parameter(0);
+  // We need more than 4 cases to generate a table switch.
+  SwitchOp::Case cases[] = {
+      {0, m.NewBlock(), BranchHint::kNone},
+      {1, m.NewBlock(), BranchHint::kNone},
+      {2, m.NewBlock(), BranchHint::kNone},
+      {3, m.NewBlock(), BranchHint::kNone},
+      {4, m.NewBlock(), BranchHint::kNone},
+  };
+  GenerateTestSwitch<StreamBuilder>(param, m, 5, cases);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
+
+  EXPECT_EQ(kArchTableSwitch, s[1]->arch_opcode());
+  // With no gaps in the switch, the default block is not reached via an
+  // indirect jump.
+  EXPECT_FALSE(s.BlockAt(1)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(2)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(3)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(4)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(5)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(6)->IsTableSwitchTarget());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, TableSwitchWithGaps) {
+  StreamBuilder m(this, MachineType::TaggedSigned(),
+                  MachineType::TaggedSigned());
+  OpIndex param = m.Parameter(0);
+  // We need more than 4 cases to generate a table switch.
+  SwitchOp::Case cases[] = {
+      {0, m.NewBlock(), BranchHint::kNone},
+      {1, m.NewBlock(), BranchHint::kNone},
+      // 2: Gap
+      {3, m.NewBlock(), BranchHint::kNone},
+      {4, m.NewBlock(), BranchHint::kNone},
+      // 5: Gap
+      {6, m.NewBlock(), BranchHint::kNone},
+  };
+  GenerateTestSwitch<StreamBuilder>(param, m, 5, cases);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
+
+  EXPECT_EQ(kArchTableSwitch, s[1]->arch_opcode());
+  // The gaps mean that the default block may be reached via an indirect jump.
+  EXPECT_TRUE(s.BlockAt(1)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(2)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(3)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(4)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(5)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(6)->IsTableSwitchTarget());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, TableSwitchImplicitZeroExtend) {
+  StreamBuilder m(this, MachineType::TaggedSigned(),
+                  MachineType::TaggedSigned());
+  OpIndex param = m.Parameter(0);
+  // We need more than 4 cases to generate a table switch.
+  SwitchOp::Case cases[] = {
+      {0, m.NewBlock(), BranchHint::kNone},
+      {1, m.NewBlock(), BranchHint::kNone},
+      {2, m.NewBlock(), BranchHint::kNone},
+      {3, m.NewBlock(), BranchHint::kNone},
+      {4, m.NewBlock(), BranchHint::kNone},
+  };
+  GenerateTestSwitch<StreamBuilder>(
+      m.Word32BitwiseAnd(param, m.Int32Constant(0xff)), m, 5, cases);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  EXPECT_EQ(kArm64And32, s[0]->arch_opcode());
+
+  EXPECT_EQ(kArchTableSwitch, s[1]->arch_opcode());
+  // With no gaps in the switch, the default block is not reached via an
+  // indirect jump.
+  EXPECT_FALSE(s.BlockAt(1)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(2)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(3)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(4)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(5)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(6)->IsTableSwitchTarget());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, TableSwitchNonZeroMinimum) {
+  StreamBuilder m(this, MachineType::TaggedSigned(),
+                  MachineType::TaggedSigned());
+  OpIndex param = m.Parameter(0);
+  // We need more than 4 cases to generate a table switch.
+  SwitchOp::Case cases[] = {
+      {42, m.NewBlock(), BranchHint::kNone},
+      {43, m.NewBlock(), BranchHint::kNone},
+      {44, m.NewBlock(), BranchHint::kNone},
+      {45, m.NewBlock(), BranchHint::kNone},
+      {46, m.NewBlock(), BranchHint::kNone},
+  };
+  GenerateTestSwitch<StreamBuilder>(param, m, 5, cases);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  EXPECT_EQ(kArm64Sub32, s[0]->arch_opcode());
+  EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+  EXPECT_EQ(42, s.ToInt32(s[0]->InputAt(1)));
+
+  EXPECT_EQ(kArchTableSwitch, s[1]->arch_opcode());
+  // With no gaps in the switch, the default block is not reached via an
+  // indirect jump.
+  EXPECT_FALSE(s.BlockAt(1)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(2)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(3)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(4)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(5)->IsTableSwitchTarget());
+  EXPECT_TRUE(s.BlockAt(6)->IsTableSwitchTarget());
+}
+
+// -----------------------------------------------------------------------------
 // Shift instructions.
 
 using TurboshaftInstructionSelectorShiftTest =

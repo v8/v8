@@ -321,7 +321,7 @@ void CodeGenerator::AssembleCode() {
     masm()->bind(GetLabel(current_block_));
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-    if (block->IsSwitchTarget()) {
+    if (block->IsTableSwitchTarget()) {
       masm()->JumpTarget();
     }
 #endif
