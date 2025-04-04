@@ -101,8 +101,7 @@ function main() {
 
   result = [];
   for (const record of mutateDb.all) {
-    const path = fsPath.join(program.input_dir, record.path);
-    const expression = JSON.parse(fs.readFileSync(path), 'utf-8');
+    const expression = db.loadExpression(program.input_dir, record);
 
     let errors = false;
     let syntaxErrors = false;
