@@ -5823,10 +5823,95 @@ TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
                 "suspend[0] expected type i32, found f64.const of type f64");
 }
 
+TEST_F(FunctionBodyDecoderTest, WasmSwitch) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
+  TestModuleBuilder builder;
+  uint8_t tag_d_v = builder.AddTag(sigs.d_v());
+  ModuleTypeIndex ct2_index = builder.AddCont(sigs.d_ii());
+
+  FunctionSig* ct1_sig = FunctionSig::Build(
+      zone(), {kWasmF64},
+      {kWasmI32, ValueType::RefNull(ct2_index, false, RefTypeKind::kCont)});
+
+  ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
+
+  uint8_t func_index = builder.AddFunction(ct1_sig);
+
+  module = builder.module();
+
+  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(ct1_index)),
+                               WASM_SWITCH(ToByte(ct1_index), tag_d_v),
+                               WASM_DROP, WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmSwitchNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
+  TestModuleBuilder builder;
+  uint8_t tag_d_v = builder.AddTag(sigs.d_v());
+  uint8_t tag_i_v = builder.AddTag(sigs.i_v());
+  uint8_t tag_f_v = builder.AddTag(sigs.f_v());
+  ModuleTypeIndex ct2_index = builder.AddCont(sigs.d_ii());
+
+  FunctionSig* ct1_sig = FunctionSig::Build(
+      zone(), {kWasmF64},
+      {kWasmI32, ValueType::RefNull(ct2_index, false, RefTypeKind::kCont)});
+
+  ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
+  ModuleTypeIndex ct3_index = builder.AddCont(FunctionSig::Build(
+      zone(), {kWasmI32},
+      {kWasmI32, ValueType::RefNull(ct1_index, false, RefTypeKind::kCont)}));
+  uint8_t func_index = builder.AddFunction(ct1_sig);
+
+  module = builder.module();
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_F64(42.0), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct1_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "switch[0] expected type i32, found f64.const");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct2_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd,
+                "expecting a (ref null? cont) as last parameter of type 4");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct1_index), tag_i_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 6 do not match tag 1");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 8 do not match tag 0");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_f_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 8 do not match tag 2");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_i_v), WASM_DROP, WASM_DROP},
+                kAppendEnd,
+                "tag 1's return types should be a subtype of return "
+                "continuation 6's return types");
+}
+
 TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
   ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
   uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
 
   ExpectFailure(sigs.v_v(),
                 {WASM_I32V(42), WASM_REF_FUNC(func_index),
@@ -5838,6 +5923,12 @@ TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
   ExpectFailure(sigs.v_v(), {WASM_RESUME(ToByte(cont_index), 0), WASM_DROP},
                 kAppendEnd,
                 "Invalid opcode 0xe3 (enable with --experimental-wasm-wasmfx)");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_SWITCH(ToByte(cont_index), tag_i_i), WASM_DROP, WASM_DROP},
+      kAppendEnd,
+      "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
 }
 
 #undef B1

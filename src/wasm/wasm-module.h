@@ -104,7 +104,7 @@ struct WasmGlobal {
 };
 
 // Note: An exception tag signature only uses the params portion of a function
-// signature.
+// signature. However, tags used for suspend/resume use both params and results.
 using WasmTagSig = FunctionSig;
 
 // Static representation of a wasm tag type.

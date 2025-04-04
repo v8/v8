@@ -4361,7 +4361,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(ContNew) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
-    this->detected_->add_wasmfx();
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
 
@@ -4381,8 +4380,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Resume) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
-    this->detected_->add_wasmfx();
-
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
 
@@ -4420,7 +4417,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                                       control_depth())))) {
           return 0;
         }
-
         Control* target = control_at(handler.maybe_depth.br.depth);
         if (!VALIDATE(push_count == target->br_merge()->arity)) {
           this->DecodeError(
@@ -4429,7 +4425,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               target->br_merge()->arity);
           return 0;
         }
-
         if (!VALIDATE((
                 TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
                     target)))) {
@@ -4459,8 +4454,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Suspend) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
-    this->detected_->add_wasmfx();
-
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
 
@@ -4476,6 +4469,79 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // CALL_INTERFACE_IF_OK_AND_REACHABLE(Suspend, imm, args.data());
 
     return 1 + imm.length;
+  }
+
+  bool IsSubtypeVec(base::Vector<const ValueType> subtypes,
+                    base::Vector<const ValueType> supertypes) {
+    if (subtypes.size() != supertypes.size()) return false;
+
+    auto super_it = supertypes.begin();
+    for (ValueType subtype : subtypes) {
+      if (!IsSubtypeOf(subtype, *super_it++, this->module_)) return false;
+    }
+    return true;
+  }
+
+  DECODE(Switch) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    ContIndexImmediate contimm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, contimm)) return 0;
+
+    TagIndexImmediate tagimm(this, this->pc_ + contimm.length + 1, validate);
+    if (!this->Validate(this->pc_ + contimm.length + 1, tagimm)) return 0;
+
+    const FunctionSig* tag_sig = tagimm.tag->ToFunctionSig();
+    const FunctionSig* cont_sig =
+        this->module_->signature(contimm.cont_type->contfun_typeindex());
+
+    if (!VALIDATE(IsSubtypeVec(cont_sig->returns(), tag_sig->returns()))) {
+      this->DecodeError("return(s) from continuation %d do not match tag %d",
+                        contimm.index, tagimm.index);
+      return 0;
+    }
+
+    const base::Vector<const ValueType> cont_args = cont_sig->parameters();
+
+    if (!VALIDATE(cont_args.size() >= 1 &&
+                  IsSubtypeOf(cont_args.last(), kWasmContRef, this->module_))) {
+      this->DecodeError(
+          "expecting a (ref null? cont) as last parameter of type %d",
+          contimm.index);
+      return 0;
+    }
+
+    const ValueType return_type = cont_args.last();
+
+    if (!VALIDATE(return_type.has_index() &&
+                  this->module_->has_cont_type(return_type.ref_index()))) {
+      this->DecodeError(
+          "expecting a defined cont type as last parameter of type %d",
+          contimm.index);
+      return 0;
+    }
+    const ContType* return_cont =
+        this->module_->cont_type(return_type.ref_index());
+    const FunctionSig* return_sig =
+        this->module_->signature(return_cont->contfun_typeindex());
+
+    if (!VALIDATE(IsSubtypeVec(tag_sig->returns(), return_sig->returns()))) {
+      this->DecodeError(
+          "tag %d's return types should be a subtype of return continuation "
+          "%d's return types",
+          tagimm.index, cont_args.last().ref_index());
+      return 0;
+    }
+
+    // TODO(fgm): uncomment when implementing switch
+    // Value cont_ref =
+    Pop(ValueType::RefNull(contimm.heap_type()));
+    //  PoppedArgVector args =
+    PopSomeArgs(cont_sig, static_cast<int>(cont_args.size()) - 1);
+
+    // Value* returns =
+    PushParameters(return_sig);
+
+    return 1 + contimm.length + tagimm.length;
   }
 
   DECODE(Numeric) {
@@ -4606,6 +4672,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(ContNew);
     DECODE_IMPL(Resume);
     DECODE_IMPL(Suspend);
+    DECODE_IMPL(Switch);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(BrOnNonNull);
     DECODE_IMPL(Loop);
@@ -4772,10 +4839,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Drop(static_cast<int>(type->field_count()));
   }
 
-  // Pops arguments as required by signature, returning them by copy as a
-  // vector.
-  V8_INLINE PoppedArgVector PopArgs(const FunctionSig* sig) {
-    int count = static_cast<int>(sig->parameter_count());
+  // Pops some of the arguments as required by signature and count.
+  V8_INLINE PoppedArgVector PopSomeArgs(const FunctionSig* sig, int count) {
+    DCHECK_LE(count, static_cast<int>(sig->parameter_count()));
+
     EnsureStackArguments(count);
     DCHECK_LE(control_.back().stack_depth, stack_size());
     DCHECK_GE(stack_size() - control_.back().stack_depth, count);
@@ -4787,6 +4854,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     // out-of-range) elements.
     stack_.pop(count);
     return PoppedArgVector{base::VectorOf(args_base, count)};
+  }
+
+  // Pops all the arguments as required by signature.
+  V8_INLINE PoppedArgVector PopArgs(const FunctionSig* sig) {
+    return PopSomeArgs(sig, static_cast<int>(sig->parameter_count()));
   }
 
   Control* PushControl(ControlKind kind, const BlockTypeImmediate& imm) {
@@ -6756,13 +6828,21 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     for (Value& value : values) Push(value);
   }
 
-  Value* PushReturns(const FunctionSig* sig) {
-    size_t return_count = sig->return_count();
-    stack_.EnsureMoreCapacity(static_cast<int>(return_count), this->zone_);
-    for (size_t i = 0; i < return_count; ++i) {
-      Push(sig->GetReturn(i));
+  Value* PushValueTypes(const base::Vector<const ValueType> types) {
+    size_t count = types.size();
+    stack_.EnsureMoreCapacity(static_cast<int>(count), this->zone_);
+    for (size_t i = 0; i < count; ++i) {
+      Push(types[i]);
     }
-    return stack_.end() - return_count;
+    return stack_.end() - count;
+  }
+
+  Value* PushParameters(const FunctionSig* sig) {
+    return PushValueTypes(sig->parameters());
+  }
+
+  Value* PushReturns(const FunctionSig* sig) {
+    return PushValueTypes(sig->returns());
   }
 
   // We do not inline these functions because doing so causes a large binary
