@@ -72,7 +72,6 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (data_->sequence()->HasSimd128VirtualRegisters() &&
       (kFPAliasing == AliasingKind::kIndependent)) {
     RUN_MAYBE_ABORT(AllocateSimd128RegistersPhase<LinearScanAllocator>);
-    return false;
   }
 
   RUN_MAYBE_ABORT(DecideSpillingModePhase);
