@@ -462,6 +462,12 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
   std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
   if (!allocation_result) {
+    if (!space_->ReachedTargetCapacity()) {
+      // If allocation failed even though we have not even grown the space to
+      // its target capacity yet, we can bail out early.
+      return false;
+    }
+
     if (!space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
             PageMetadata::kPageSize)) {
       return false;

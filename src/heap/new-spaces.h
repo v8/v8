@@ -317,6 +317,10 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Return the available bytes without growing.
   size_t Available() const final;
 
+  bool ReachedTargetCapacity() const {
+    return to_space_.current_capacity_ >= target_capacity_;
+  }
+
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->YoungArrayBufferBytes();
