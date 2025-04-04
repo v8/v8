@@ -491,7 +491,9 @@ class MutateDb {
 
     const record = choices[random.randInt(0, choices.length - 1)];
     const path = fsPath.join(this.outputDir, record.path);
-    return JSON.parse(fs.readFileSync(path), 'utf-8');
+    const expression = JSON.parse(fs.readFileSync(path), 'utf-8');
+    expression.needsTryCatch = record.tc;
+    return expression;
   }
 
   *iterateStatements() {

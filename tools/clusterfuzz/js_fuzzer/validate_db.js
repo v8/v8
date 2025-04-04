@@ -63,19 +63,24 @@ function execute(code) {
 function validate(crossover, tmplName, expression) {
   const tmpl = sourceHelpers.loadSource(
     sourceHelpers.BASE_CORPUS, fsPath.join('resources', tmplName));
-  let done = false;
-  babelTraverse(tmpl.ast, {
-    ExpressionStatement(path) {
-      if (done || !path.node.expression ||
-          !babelTypes.isCallExpression(path.node.expression)) {
-        return;
+  try {
+    let done = false;
+    babelTraverse(tmpl.ast, {
+      ExpressionStatement(path) {
+        if (done || !path.node.expression ||
+            !babelTypes.isCallExpression(path.node.expression)) {
+          return;
+        }
+        // Avoid infinite loops if there's an expression statement in the
+        // inserted expression.
+        done = true;
+        path.insertAfter(crossover.createInsertion(path, expression));
       }
-      // Avoid infinite loops if there's an expression statement in the
-      // inserted expression.
-      done = true;
-      path.insertAfter(crossover.createInsertion(path, expression));
-    }
-  });
+    });
+  } catch (e) {
+    console.log(`Could not validate expression: ${expression.source}`);
+    return 'SyntaxError';
+  }
   return execute(sourceHelpers.generateCode(tmpl, []));
 }
 
@@ -92,7 +97,7 @@ function main() {
   }
 
   const mutateDb = new db.MutateDb(program.input_dir);
-  const crossover = new CrossOverMutator(undefined, mutateDb, 0.0);
+  const crossover = new CrossOverMutator(undefined, mutateDb);
 
   result = [];
   for (const record of mutateDb.all) {
