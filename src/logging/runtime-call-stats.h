@@ -173,6 +173,7 @@ class RuntimeCallTimer final {
   V(FunctionTemplate_NewRemoteInstance)                    \
   V(FunctionTemplate_NewWithCache)                         \
   V(FunctionTemplate_NewWithFastHandler)                   \
+  V(CppHeapExternal_New)                                   \
   V(Int16Array_New)                                        \
   V(Int32Array_New)                                        \
   V(Int8Array_New)                                         \

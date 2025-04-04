@@ -487,8 +487,7 @@ V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
 
   // Most of the JSReceivers are tied to some native context modulo the
   // following exceptions.
-  if (instance_type == JS_MESSAGE_OBJECT_TYPE ||
-      instance_type == JS_EXTERNAL_OBJECT_TYPE) {
+  if (IsMaybeReadOnlyJSObject(instance_type)) {
     // These JSObject types are wrappers around a set of primitive values
     // and exist only for the purpose of passing the data across V8 Api.
     // Thus they are not tied to any native context.
@@ -509,6 +508,25 @@ V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {
 
 V8_INLINE bool IsNativeContextSpecificMap(Tagged<Map> map_object) {
   return IsNativeContextSpecific(map_object->instance_type());
+}
+
+V8_INLINE constexpr bool IsJSApiWrapperObject(InstanceType instance_type) {
+  return IsJSAPIObjectWithEmbedderSlots(instance_type) ||
+         IsJSSpecialObject(instance_type);
+}
+
+V8_INLINE bool IsJSApiWrapperObject(Tagged<Map> map_object) {
+  return IsJSApiWrapperObject(map_object->instance_type());
+}
+
+V8_INLINE constexpr bool IsCppHeapPointerWrapperObject(
+    InstanceType instance_type) {
+  return IsJSApiWrapperObject(instance_type) ||
+         IsCppHeapExternalObject(instance_type);
+}
+
+V8_INLINE bool IsCppHeapPointerWrapperObject(Tagged<Map> map_object) {
+  return IsCppHeapPointerWrapperObject(map_object->instance_type());
 }
 
 }  // namespace InstanceTypeChecker

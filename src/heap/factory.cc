@@ -45,6 +45,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -2907,6 +2908,15 @@ Handle<JSObject> Factory::NewExternal(void* value,
   return external;
 }
 
+Handle<CppHeapExternalObject> Factory::NewCppHeapExternal(
+    AllocationType allocation_type) {
+  Tagged<CppHeapExternalObject> external = Cast<CppHeapExternalObject>(
+      AllocateRawWithAllocationSite(cpp_heap_external_map(), allocation_type,
+                                    DirectHandle<AllocationSite>::null()));
+  CppHeapObjectWrapper(external).InitializeCppHeapWrapper();
+  return handle(external, isolate());
+}
+
 DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
     DirectHandle<Code> code, Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
@@ -3074,15 +3084,6 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   return global;
 }
 
-void Factory::InitializeCppHeapWrapper(Tagged<JSObject> obj) {
-  DCHECK(IsJSApiWrapperObject(obj));
-  DCHECK(IsJSAPIObjectWithEmbedderSlots(obj) || IsJSSpecialObject(obj));
-  static_assert(JSSpecialObject::kCppHeapWrappableOffset ==
-                JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
-  obj->SetupLazilyInitializedCppHeapPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
-}
-
 void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
                                         Tagged<Object> properties,
                                         Tagged<Map> map,
@@ -3097,14 +3098,14 @@ void Factory::InitializeJSObjectFromMap(Tagged<JSObject> obj,
   // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
-  DCHECK_EQ(IsJSApiWrapperObject(map),
+  DCHECK_EQ(IsJSApiWrapperObjectMap(map),
             new_js_object_type == NewJSObjectType::kAPIWrapper);
   InitializeJSObjectBody(obj, map,
                          new_js_object_type == NewJSObjectType::kNoAPIWrapper
                              ? JSObject::kHeaderSize
                              : JSAPIObjectWithEmbedderSlots::kHeaderSize);
   if (new_js_object_type == NewJSObjectType::kAPIWrapper) {
-    InitializeCppHeapWrapper(obj);
+    CppHeapObjectWrapper(obj).InitializeCppHeapWrapper();
   }
 }
 
