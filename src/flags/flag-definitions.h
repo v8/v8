@@ -2268,12 +2268,10 @@ DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
-            "Stress GC compaction to flush out bugs (implies "
-            "--force_marking_deque_overflows)")
+            "Stress GC compaction to flush out bugs with moving objects")
 DEFINE_BOOL(stress_compaction_random, false,
             "Stress GC compaction by selecting random percent of pages as "
             "evacuation candidates. Overrides stress_compaction.")
-DEFINE_IMPLICATION(stress_compaction, force_marking_deque_overflows)
 DEFINE_IMPLICATION(stress_compaction, gc_global)
 DEFINE_VALUE_IMPLICATION(stress_compaction, max_semi_space_size, (size_t)1)
 DEFINE_BOOL(flush_baseline_code, false,
@@ -2293,9 +2291,6 @@ DEFINE_BOOL(use_marking_progress_bar, true,
             "incremental marking is active.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
-DEFINE_BOOL(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 

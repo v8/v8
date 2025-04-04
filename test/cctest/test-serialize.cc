@@ -416,9 +416,15 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     env.Reset();
 
-    IsolateSafepointScope safepoint(heap);
+    SafepointScope safepoint(isolate, SafepointKind::kIsolate);
+    DisallowGarbageCollection no_gc;
 
     if (!isolate->initialized_from_snapshot()) {
+      // Promote objects from mutable heap spaces to read-only space prior to
+      // serialization. Objects can be promoted if a) they are themselves
+      // immutable-after-deserialization and b) all objects in the transitive
+      // object graph also satisfy condition a).
+      ReadOnlyPromotion::Promote(isolate, safepoint, no_gc);
       // When creating the snapshot from scratch, we are responsible for sealing
       // the RO heap here. Note we cannot delegate the responsibility e.g. to
       // Isolate::Init since it should still be possible to allocate into RO
@@ -427,7 +433,6 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
       isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
     }
 
-    DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);

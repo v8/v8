@@ -2662,7 +2662,6 @@ TEST(InstanceOfStubWriteBarrier) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   if (!isolate->use_optimizer()) return;
-  if (v8_flags.force_marking_deque_overflows) return;
   v8::HandleScope outer_scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
 

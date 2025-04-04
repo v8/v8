@@ -6066,10 +6066,18 @@ const ::heap::base::Stack& Heap::stack() const {
 
 void Heap::StartTearDown() {
   if (cpp_heap_) {
+    // This may invoke a GC in case marking is running to get us into a
+    // well-defined state for tear down.
     CppHeap::From(cpp_heap_)->StartDetachingIsolate();
   }
 
-  // Finish any ongoing sweeping to avoid stray background tasks still accessing
+  // Stressing incremental marking should make it likely to force a GC here with
+  // a CppHeap present. Stress compaction serves as a more deterministic way to
+  // trigger such a GC.
+  if (v8_flags.stress_compaction) {
+    CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+  }
+
   // the heap during teardown.
   CompleteSweepingFull();
 
