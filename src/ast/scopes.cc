@@ -2815,6 +2815,13 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 it->second->Equals(scope_info, parse_info_sfi->live_edited(),
                                    &last_checked_field_index);
 
+            std::unique_ptr<char[]> script_name_or_url;
+            size_t script_name_or_url_length = 0;
+            if (IsString(script->GetNameOrSourceURL())) {
+              script_name_or_url = Cast<String>(script->GetNameOrSourceURL())
+                                       ->ToCString(&script_name_or_url_length);
+            }
+
             std::unique_ptr<char[]> script_source;
             size_t script_source_length = 0;
             std::unique_ptr<char[]> function_source;
@@ -2875,7 +2882,11 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 function_source_length,
                 reinterpret_cast<Address>(function_source.get() +
                                           function_source_length),
-
+                0xcafe0006,
+                script_name_or_url_length,
+                reinterpret_cast<Address>(script_name_or_url.get()),
+                reinterpret_cast<Address>(script_name_or_url.get() +
+                                          script_name_or_url_length),
                 0xcafeffff,
             };
 
