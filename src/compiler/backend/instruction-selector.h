@@ -648,6 +648,12 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   auto InputsImpl(const Op& op, std::index_sequence<Is...>) {
     return std::make_tuple(op.input(Is)...);
   }
+  template <size_t InputCount>
+  auto Inputs(turboshaft::OpIndex node) {
+    const turboshaft::Operation& op = Get(node);
+    DCHECK_EQ(InputCount, op.input_count);
+    return InputsImpl(op, std::make_index_sequence<InputCount>());
+  }
 
   // When we want to do branch-if-overflow fusion, we need to be mindful of the
   // 1st projection of the OverflowBinop:
