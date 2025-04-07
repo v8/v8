@@ -3639,6 +3639,13 @@ void CompilationStateImpl::ApplyCompilationHintToInitialProgress(
       break;
   }
 
+  if (new_top_tier == ExecutionTier::kLiftoff &&
+      new_baseline_tier == ExecutionTier::kTurbofan) {
+    // The top tier shouldn't be lower than the baseline tier (or it should be
+    // ::None).
+    new_top_tier = ExecutionTier::kTurbofan;
+  }
+
   progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
   progress = RequiredTopTierField::update(progress, new_top_tier);
 
