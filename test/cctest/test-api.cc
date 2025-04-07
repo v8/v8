@@ -13541,8 +13541,10 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
   v8::Isolate::CreateParams create_params_2;
   create_params_2.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator(groups[1]);
+#ifdef V8_ENABLE_SANDBOX
   CHECK_NE(create_params_1.array_buffer_allocator->GetPageAllocator(),
            create_params_2.array_buffer_allocator->GetPageAllocator());
+#endif
 
   TestAllocateAndNewForTwoIsolateGroups(create_params_1, create_params_2,
                                         groups[0], groups[1]);
