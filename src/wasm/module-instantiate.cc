@@ -2860,9 +2860,11 @@ ValueOrError ConsumeElementSegmentEntry(
       break;
     }
     case kExprRefNull: {
+      WasmDetectedFeatures detected;
       auto [heap_type, length] =
           value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-              &decoder, decoder.pc() + 1, WasmEnabledFeatures::All());
+              &decoder, decoder.pc() + 1, WasmEnabledFeatures::All(),
+              &detected);
       value_type_reader::Populate(&heap_type, module);
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);

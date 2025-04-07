@@ -2383,7 +2383,7 @@ class ModuleDecoderImpl : public Decoder {
       case kExprRefNull: {
         auto [type, length] =
             value_type_reader::read_heap_type<FullValidationTag>(
-                this, pc() + 1, enabled_features_);
+                this, pc() + 1, enabled_features_, detected_features_);
         value_type_reader::ValidateHeapType<FullValidationTag>(this, pc_,
                                                                module, type);
         if (V8_UNLIKELY(failed())) return {};
@@ -2480,7 +2480,8 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::read_value_type<FullValidationTag>(
             this, pc_,
             module_->origin == kWasmOrigin ? enabled_features_
-                                           : WasmEnabledFeatures::None());
+                                           : WasmEnabledFeatures::None(),
+            detected_features_);
     value_type_reader::ValidateValueType<FullValidationTag>(
         this, pc_, module_.get(), result);
     if (ok() && module) value_type_reader::Populate(&result, module);
@@ -2497,7 +2498,8 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::read_heap_type<FullValidationTag>(
             this, pc_,
             module_->origin == kWasmOrigin ? enabled_features_
-                                           : WasmEnabledFeatures::None());
+                                           : WasmEnabledFeatures::None(),
+            detected_features_);
 
     value_type_reader::ValidateHeapType<FullValidationTag>(
         this, pc_, module_.get(), heap_type);

@@ -212,7 +212,8 @@ namespace value_type_reader {
 template <typename ValidationTag>
 std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
                                              const uint8_t* pc,
-                                             WasmEnabledFeatures enabled) {
+                                             WasmEnabledFeatures enabled,
+                                             WasmDetectedFeatures* detected) {
   auto [heap_index, length] =
       decoder->read_i33v<ValidationTag>(pc, "heap type");
   Exactness exactness = Exactness::kAnySubtype;
@@ -260,6 +261,15 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
               HeapType::from_code(code, is_shared).name().c_str());
           return {kWasmBottom, 0};
         }
+        if (!VALIDATE(!detected->has_legacy_eh() ||
+                      v8_flags.wasm_allow_mixed_eh_for_testing)) {
+          DecodeError<ValidationTag>(
+              decoder, pc,
+              "module uses a mix of legacy and new exception handling "
+              "instructions");
+          return {kWasmBottom, 0};
+        }
+        detected->add_exnref();
         return {HeapType::from_code(code, is_shared), length};
       case kStringRefCode:
       case kStringViewWtf8Code:
@@ -329,7 +339,8 @@ std::pair<HeapType, uint32_t> read_heap_type(Decoder* decoder,
 template <typename ValidationTag>
 std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
                                                const uint8_t* pc,
-                                               WasmEnabledFeatures enabled) {
+                                               WasmEnabledFeatures enabled,
+                                               WasmDetectedFeatures* detected) {
   uint8_t val = decoder->read_u8<ValidationTag>(pc, "value type opcode");
   if (!VALIDATE(decoder->ok())) {
     return {kWasmBottom, 0};
@@ -356,6 +367,15 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
             HeapType::from_code(code, false).name().c_str());
         return {kWasmBottom, 0};
       }
+      if (!VALIDATE(!detected->has_legacy_eh() ||
+                    v8_flags.wasm_allow_mixed_eh_for_testing)) {
+        DecodeError<ValidationTag>(
+            decoder, pc,
+            "module uses a mix of legacy and new exception handling "
+            "instructions");
+        return {kWasmBottom, 0};
+      }
+      detected->add_exnref();
       return {code == kExnRefCode ? kWasmExnRef : kWasmNullExnRef, 1};
     case kStringRefCode:
     case kStringViewWtf8Code:
@@ -397,7 +417,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
     case kRefNullCode: {
       Nullability nullability = code == kRefNullCode ? kNullable : kNonNullable;
       auto [heap_type, length] =
-          read_heap_type<ValidationTag>(decoder, pc + 1, enabled);
+          read_heap_type<ValidationTag>(decoder, pc + 1, enabled, detected);
       if (!VALIDATE(!heap_type.is_string_view() ||
                     nullability == kNonNullable)) {
         DecodeError<ValidationTag>(decoder, pc,
@@ -695,7 +715,8 @@ struct SelectTypeImmediate {
   ValueType type;
 
   template <typename ValidationTag>
-  SelectTypeImmediate(WasmEnabledFeatures enabled, Decoder* decoder,
+  SelectTypeImmediate(WasmEnabledFeatures enabled,
+                      WasmDetectedFeatures* detected, Decoder* decoder,
                       const uint8_t* pc, ValidationTag = {}) {
     uint8_t num_types;
     std::tie(num_types, length) =
@@ -709,7 +730,7 @@ struct SelectTypeImmediate {
     uint32_t type_length;
     std::tie(type, type_length) =
         value_type_reader::read_value_type<ValidationTag>(decoder, pc + length,
-                                                          enabled);
+                                                          enabled, detected);
     length += type_length;
   }
 };
@@ -731,7 +752,8 @@ struct BlockTypeImmediate {
   BlockTypeImmediate& operator=(BlockTypeImmediate&&) = delete;
 
   template <typename ValidationTag>
-  BlockTypeImmediate(WasmEnabledFeatures enabled, Decoder* decoder,
+  BlockTypeImmediate(WasmEnabledFeatures enabled,
+                     WasmDetectedFeatures* detected, Decoder* decoder,
                      const uint8_t* pc, ValidationTag = {}) {
     int64_t block_type;
     std::tie(block_type, length) =
@@ -748,8 +770,8 @@ struct BlockTypeImmediate {
       if (static_cast<ValueTypeCode>(block_type & 0x7F) != kVoidCode) {
         sig = FunctionSig{1, 0, single_return_sig_storage};
         std::tie(single_return_sig_storage[0], length) =
-            value_type_reader::read_value_type<ValidationTag>(decoder, pc,
-                                                              enabled);
+            value_type_reader::read_value_type<ValidationTag>(
+                decoder, pc, enabled, detected);
       }
     } else {
       sig = FunctionSig{0, 0, nullptr};
@@ -1119,10 +1141,10 @@ struct HeapTypeImmediate {
   HeapType type = kWasmBottom;
 
   template <typename ValidationTag>
-  HeapTypeImmediate(WasmEnabledFeatures enabled, Decoder* decoder,
-                    const uint8_t* pc, ValidationTag = {}) {
-    std::tie(type, length) =
-        value_type_reader::read_heap_type<ValidationTag>(decoder, pc, enabled);
+  HeapTypeImmediate(WasmEnabledFeatures enabled, WasmDetectedFeatures* detected,
+                    Decoder* decoder, const uint8_t* pc, ValidationTag = {}) {
+    std::tie(type, length) = value_type_reader::read_heap_type<ValidationTag>(
+        decoder, pc, enabled, detected);
   }
 };
 
@@ -1723,7 +1745,7 @@ class WasmDecoder : public Decoder {
 
       auto [type, type_length] =
           value_type_reader::read_value_type<ValidationTag>(
-              this, pc + total_length, enabled_);
+              this, pc + total_length, enabled_, detected_);
       ValidateValueType(pc + total_length, type);
       if (!VALIDATE(ok())) return 0;
       if (module_) {
@@ -2268,8 +2290,8 @@ class WasmDecoder : public Decoder {
       case kExprIf:
       case kExprLoop:
       case kExprBlock: {
-        BlockTypeImmediate imm(WasmEnabledFeatures::All(), decoder, pc + 1,
-                               validate);
+        BlockTypeImmediate imm(WasmEnabledFeatures::All(), decoder->detected_,
+                               decoder, pc + 1, validate);
         (ios.BlockType(imm), ...);
         return 1 + imm.length;
       }
@@ -2290,8 +2312,9 @@ class WasmDecoder : public Decoder {
         return 1 + iterator.length();
       }
       case kExprTryTable: {
-        BlockTypeImmediate block_type_imm(WasmEnabledFeatures::All(), decoder,
-                                          pc + 1, validate);
+        BlockTypeImmediate block_type_imm(WasmEnabledFeatures::All(),
+                                          decoder->detected_, decoder, pc + 1,
+                                          validate);
         (ios.BlockType(block_type_imm), ...);
         TryTableImmediate try_table_imm(decoder, pc + 1 + block_type_imm.length,
                                         validate);
@@ -2381,8 +2404,8 @@ class WasmDecoder : public Decoder {
       case kExprRefEq:
         return 1;
       case kExprSelectWithType: {
-        SelectTypeImmediate imm(WasmEnabledFeatures::All(), decoder, pc + 1,
-                                validate);
+        SelectTypeImmediate imm(WasmEnabledFeatures::All(), decoder->detected_,
+                                decoder, pc + 1, validate);
         (ios.SelectType(imm), ...);
         return 1 + imm.length;
       }
@@ -2429,8 +2452,8 @@ class WasmDecoder : public Decoder {
         }
         return 9;
       case kExprRefNull: {
-        HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder, pc + 1,
-                              validate);
+        HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder->detected_,
+                              decoder, pc + 1, validate);
         (ios.HeapType(imm), ...);
         return 1 + imm.length;
       }
@@ -2690,8 +2713,9 @@ class WasmDecoder : public Decoder {
           case kExprRefCastDescNull:
           case kExprRefTest:
           case kExprRefTestNull: {
-            HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder,
-                                  pc + length, validate);
+            HeapTypeImmediate imm(WasmEnabledFeatures::All(),
+                                  decoder->detected_, decoder, pc + length,
+                                  validate);
             (ios.HeapType(imm), ...);
             return length + imm.length;
           }
@@ -2703,9 +2727,10 @@ class WasmDecoder : public Decoder {
             BranchDepthImmediate branch(decoder, pc + length + flags_imm.length,
                                         validate);
             HeapTypeImmediate source_imm(
-                WasmEnabledFeatures::All(), decoder,
+                WasmEnabledFeatures::All(), decoder->detected_, decoder,
                 pc + length + flags_imm.length + branch.length, validate);
-            HeapTypeImmediate target_imm(WasmEnabledFeatures::All(), decoder,
+            HeapTypeImmediate target_imm(WasmEnabledFeatures::All(),
+                                         decoder->detected_, decoder,
                                          pc + length + flags_imm.length +
                                              branch.length + source_imm.length,
                                          validate);
@@ -3357,7 +3382,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 #undef BUILD_SIMPLE_OPCODE
 
   DECODE(Block) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    BlockTypeImmediate imm(this->enabled_, this->detected_, this, this->pc_ + 1,
+                           validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Control* block = PushControl(kControlBlock, imm);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, block);
@@ -3380,12 +3406,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Throw) {
-    // This instruction is the same for legacy EH and exnref.
-    // Count it as exnref if exnref is enabled so that we have an accurate eh
-    // count for the deprecation plans.
-    this->detected_->Add(this->enabled_.has_exnref()
-                             ? WasmDetectedFeature::exnref
-                             : WasmDetectedFeature::legacy_eh);
+    // Do not update the detected feature set. This instruction is used by both
+    // the legacy and new EH proposals, so there is no way to know which
+    // one the module is using from this instruction alone.
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (imm.tag->sig->return_count() != 0) {
@@ -3401,7 +3424,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Try) {
     CHECK_PROTOTYPE_OPCODE(legacy_eh);
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    if (!VALIDATE(!this->detected_->has_exnref() ||
+                  v8_flags.wasm_allow_mixed_eh_for_testing)) {
+      this->DecodeError(
+          "module uses a mix of legacy and new exception handling "
+          "instructions");
+      return 0;
+    }
+    BlockTypeImmediate imm(this->enabled_, this->detected_, this, this->pc_ + 1,
+                           validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Control* try_block = PushControl(kControlTry, imm);
     try_block->previous_catch = current_catch_;
@@ -3412,6 +3443,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Catch) {
     CHECK_PROTOTYPE_OPCODE(legacy_eh);
+    // We must have already seen a "try" opcode, so we don't need to check for
+    // mixed legacy / new EH instructions again.
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     DCHECK(!control_.empty());
@@ -3456,6 +3489,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(Delegate) {
     CHECK_PROTOTYPE_OPCODE(legacy_eh);
+    // We must have already seen a "try" opcode, so we don't need to check for
+    // mixed legacy / new EH instructions again.
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
     // -1 because the current try block is not included in the count.
     if (!this->Validate(this->pc_ + 1, imm, control_depth() - 1)) return 0;
@@ -3488,6 +3523,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(CatchAll) {
     CHECK_PROTOTYPE_OPCODE(legacy_eh);
+    // We must have already seen a "try" opcode, so we don't need to check for
+    // mixed legacy / new EH instructions again.
     DCHECK(!control_.empty());
     Control* c = &control_.back();
     if (!VALIDATE(c->is_try())) {
@@ -3517,7 +3554,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(TryTable) {
     CHECK_PROTOTYPE_OPCODE(exnref);
-    BlockTypeImmediate block_imm(this->enabled_, this, this->pc_ + 1, validate);
+    if (!VALIDATE(!this->detected_->has_legacy_eh() ||
+                  v8_flags.wasm_allow_mixed_eh_for_testing)) {
+      this->DecodeError(
+          "module uses a mix of legacy and new exception handling "
+          "instructions");
+      return 0;
+    }
+    BlockTypeImmediate block_imm(this->enabled_, this->detected_, this,
+                                 this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, block_imm)) return 0;
     Control* try_block = PushControl(kControlTryTable, block_imm);
     TryTableImmediate try_table_imm(this, this->pc_ + 1 + block_imm.length,
@@ -3591,6 +3636,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(ThrowRef) {
     CHECK_PROTOTYPE_OPCODE(exnref);
+    if (!VALIDATE(!this->detected_->has_legacy_eh() ||
+                  v8_flags.wasm_allow_mixed_eh_for_testing)) {
+      this->DecodeError(
+          "module uses a mix of legacy and new exception handling "
+          "instructions");
+      return 0;
+    }
     Value value = Pop(kWasmExnRef);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ThrowRef, &value);
     MarkMightThrow();
@@ -3690,7 +3742,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(Loop) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    BlockTypeImmediate imm(this->enabled_, this->detected_, this, this->pc_ + 1,
+                           validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Control* block = PushControl(kControlLoop, imm);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Loop, block);
@@ -3703,7 +3756,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(If) {
-    BlockTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    BlockTypeImmediate imm(this->enabled_, this->detected_, this, this->pc_ + 1,
+                           validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     Value cond = Pop(kWasmI32);
     Control* if_block = PushControl(kControlIf, imm);
@@ -3866,7 +3920,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(SelectWithType) {
     this->detected_->add_reftypes();
-    SelectTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    SelectTypeImmediate imm(this->enabled_, this->detected_, this,
+                            this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     auto [tval, fval, cond] = Pop(imm.type, imm.type, kWasmI32);
     Value* result = Push(imm.type);
@@ -4002,7 +4057,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
   DECODE(RefNull) {
     this->detected_->add_reftypes();
-    HeapTypeImmediate imm(this->enabled_, this, this->pc_ + 1, validate);
+    HeapTypeImmediate imm(this->enabled_, this->detected_, this, this->pc_ + 1,
+                          validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(!this->enabled_.has_stringref() ||
                   !imm.type.is_string_view())) {
@@ -5627,8 +5683,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefCastDescNull: {
         NON_CONST_ONLY
         CHECK_PROTOTYPE_OPCODE(custom_descriptors);
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              validate);
+        HeapTypeImmediate imm(this->enabled_, this->detected_, this,
+                              this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.type.has_index())) {
           this->DecodeError(
@@ -5673,8 +5729,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefCast:
       case kExprRefCastNull: {
         NON_CONST_ONLY
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              validate);
+        HeapTypeImmediate imm(this->enabled_, this->detected_, this,
+                              this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         opcode_length += imm.length;
 
@@ -5746,8 +5802,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprRefTestNull:
       case kExprRefTest: {
         NON_CONST_ONLY
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              validate);
+        HeapTypeImmediate imm(this->enabled_, this->detected_, this,
+                              this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         opcode_length += imm.length;
 
@@ -5818,8 +5874,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "--experimental-wasm-ref-cast-nop)");
           return 0;
         }
-        HeapTypeImmediate imm(this->enabled_, this, this->pc_ + opcode_length,
-                              validate);
+        HeapTypeImmediate imm(this->enabled_, this->detected_, this,
+                              this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         opcode_length += imm.length;
         HeapType target_type = imm.type;
@@ -5888,15 +5944,16 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     }
     pc_offset += branch_depth.length;
 
-    HeapTypeImmediate src_imm(this->enabled_, this, this->pc_ + pc_offset,
-                              validate);
+    HeapTypeImmediate src_imm(this->enabled_, this->detected_, this,
+                              this->pc_ + pc_offset, validate);
     if (!this->Validate(this->pc_ + pc_offset, src_imm)) return 0;
     pc_offset += src_imm.length;
     ValueType src_type = ValueType::RefMaybeNull(
         src_imm.type, flags.src_is_null ? kNullable : kNonNullable);
 
     const uint8_t* target_imm_pc = this->pc_ + pc_offset;
-    HeapTypeImmediate target_imm(this->enabled_, this, target_imm_pc, validate);
+    HeapTypeImmediate target_imm(this->enabled_, this->detected_, this,
+                                 target_imm_pc, validate);
     if (!this->Validate(target_imm_pc, target_imm)) return 0;
     pc_offset += target_imm.length;
     bool null_succeeds = flags.res_is_null;

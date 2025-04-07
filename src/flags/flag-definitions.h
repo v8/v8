@@ -2039,6 +2039,9 @@ DEFINE_BOOL_READONLY(wasm_jitless, false,
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
 #endif  // V8_ENABLE_DRUMBRAKE
 
+DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, true,
+            "Allow mixed legacy and new exception handling instructions in the "
+            "same wasm module")
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,

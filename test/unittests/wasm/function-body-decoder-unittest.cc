@@ -5054,12 +5054,13 @@ class TypeReaderTest : public TestWithZone {
     Decoder decoder(start, end);
     auto [heap_type, length] =
         value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-            &decoder, start, enabled_features_);
+            &decoder, start, enabled_features_, &detected_features_);
     return heap_type;
   }
 
   // This variable is modified by WASM_FEATURE_SCOPE.
   WasmEnabledFeatures enabled_features_;
+  WasmDetectedFeatures detected_features_;
 };
 
 TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
