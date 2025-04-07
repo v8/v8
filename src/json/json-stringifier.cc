@@ -3062,6 +3062,7 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeFrom(
 
   initial_jsobject_proto_ = old_stringifier.initial_jsobject_proto_;
   initial_jsarray_proto_ = old_stringifier.initial_jsarray_proto_;
+  map_cache_ = old_stringifier.map_cache_;
   stack_ = old_stringifier.stack_;
   ContinuationRecord cont = stack_.back();
   stack_.pop_back();
