@@ -131,7 +131,7 @@ deps = {
   'build':
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '38290a4010e18000210b5e6e9d32fcbb97c1a581',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '12130e5ca8b6d419db09ecc6ae5801edfdd08d49',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5ed32accdeecb1ad52136619b491527ffa598cfc',
   'buildtools/linux64': {
     'packages': [
       {
@@ -299,7 +299,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'c66de5889c47f408b81d69659c5f19e87073c35d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '4e8b01e3c1c22a50f8eb5290f6a65859d5886205',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '94c5d7a8edc09f0680aee57548c0b5d400c2840d',
   'third_party/libunwind/src':
@@ -531,7 +531,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'ce5a169f50174a2be18c38cd7b2a1bf858649e58',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'eda5b50d9f0af91694d27361cbdd9f3357878f04',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '951584ca078e136b5a0a31a8a5f27c5ebafcb216',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
