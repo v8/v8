@@ -2365,22 +2365,30 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         // perform the possibly effectful ToNumber (or ToBigInt) operation
         // anyways.
         DirectHandle<JSTypedArray> holder = it->GetHolder<JSTypedArray>();
-        DirectHandle<Object> converted_value;
-        if (holder->type() == kExternalBigInt64Array ||
-            holder->type() == kExternalBigUint64Array) {
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), converted_value,
-              BigInt::FromObject(it->isolate(), value), Nothing<bool>());
-        } else {
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), converted_value,
-              Object::ToNumber(it->isolate(), value), Nothing<bool>());
-        }
 
-        // For RAB/GSABs, the above conversion might grow the buffer so that the
-        // index is no longer out of bounds. Redo the bounds check and try
-        // again.
-        it->RecheckTypedArrayBounds();
+        // The index found case uses HolderIsReceiverOrHiddenPrototype()
+        // in below "case LookupIterator::DATA" to check
+        // "i. If SameValue(O, Receiver) is true..." of the spec.
+        // https://tc39.es/ecma262/#sec-typedarray-set
+        if (it->HolderIsReceiver()) {
+          DirectHandle<Object> converted_value;
+
+          if (holder->type() == kExternalBigInt64Array ||
+              holder->type() == kExternalBigUint64Array) {
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                it->isolate(), converted_value,
+                BigInt::FromObject(it->isolate(), value), Nothing<bool>());
+          } else {
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                it->isolate(), converted_value,
+                Object::ToNumber(it->isolate(), value), Nothing<bool>());
+          }
+          // For RAB/GSABs, the above conversion might grow the buffer so that
+          // the index is no longer out of bounds. Redo the bounds check and try
+          // again.
+          it->RecheckTypedArrayBounds();
+          value = converted_value;
+        }
         if (it->state() != LookupIterator::DATA) {
           // Still out of bounds.
           DCHECK_EQ(it->state(), LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND);
@@ -2395,7 +2403,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           // (v8:4901)
           return Just(true);
         }
-        value = converted_value;
         [[fallthrough]];
       }
 
