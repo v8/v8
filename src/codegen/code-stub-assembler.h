@@ -283,7 +283,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   intptr_t ConstexprWordNot(intptr_t a) { return ~a; }
   uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
-  TNode<BoolT> TaggedEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
+#if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
+  void CheckObjectComparisonAllowed(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b,
+                                    SourceLocation loc);
+#endif
+
+  TNode<BoolT> TaggedEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b,
+                           SourceLocation loc = SourceLocation::Current()) {
+#if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
+    if (v8_flags.enable_slow_asserts) {
+      CheckObjectComparisonAllowed(a, b, loc);
+    }
+#endif
     if (COMPRESS_POINTERS_BOOL) {
       return Word32Equal(ReinterpretCast<Word32T>(a),
                          ReinterpretCast<Word32T>(b));
@@ -292,8 +303,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
   }
 
-  TNode<BoolT> TaggedNotEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
-    return Word32BinaryNot(TaggedEqual(a, b));
+  TNode<BoolT> TaggedNotEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b,
+                              SourceLocation loc = SourceLocation::Current()) {
+    return Word32BinaryNot(TaggedEqual(a, b, loc));
+  }
+
+  // A variant of TaggedEqual which allows comparing objects in different
+  // pointer compression cages. In particular, this should be used when
+  // comparing objects in trusted- or code space with objects in the main
+  // pointer compression cage. Currently only defined for HeapObject, this
+  // type can be expanded if needed.
+  TNode<BoolT> SafeEqual(TNode<HeapObject> a, TNode<HeapObject> b) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL || V8_ENABLE_SANDBOX_BOOL) {
+      return WordEqual(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
+    }
+    return TaggedEqual(a, b);
+  }
+
+  TNode<BoolT> SafeNotEqual(TNode<HeapObject> a, TNode<HeapObject> b) {
+    return Word32BinaryNot(SafeEqual(a, b));
   }
 
   TNode<Smi> NoContextConstant();
@@ -322,9 +350,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name) \
-  TNode<BoolT> Is##name(TNode<Object> value);                     \
-  TNode<BoolT> IsNot##name(TNode<Object> value);
+#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)        \
+  TNode<BoolT> Is##name(TNode<Object> value,                             \
+                        SourceLocation loc = SourceLocation::Current()); \
+  TNode<BoolT> IsNot##name(TNode<Object> value,                          \
+                           SourceLocation loc = SourceLocation::Current());
   HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
@@ -609,33 +639,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   using ExtraNode = std::pair<TNode<Object>, const char*>;
 
   void Dcheck(const BranchGenerator& branch, const char* message,
-              const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {},
               const SourceLocation& loc = SourceLocation::Current());
   void Dcheck(const NodeGenerator<BoolT>& condition_body, const char* message,
-              const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {},
               const SourceLocation& loc = SourceLocation::Current());
   void Dcheck(TNode<Word32T> condition_node, const char* message,
-              const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {},
               const SourceLocation& loc = SourceLocation::Current());
   void Check(const BranchGenerator& branch, const char* message,
-             const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {},
              const SourceLocation& loc = SourceLocation::Current());
   void Check(const NodeGenerator<BoolT>& condition_body, const char* message,
-             const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {},
              const SourceLocation& loc = SourceLocation::Current());
   void Check(TNode<Word32T> condition_node, const char* message,
-             const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {},
              const SourceLocation& loc = SourceLocation::Current());
   void FailAssert(const char* message,
                   const std::vector<FileAndLine>& files_and_lines,
-                  std::initializer_list<ExtraNode> extra_nodes = {},
-                  const SourceLocation& loc = SourceLocation::Current());
+                  std::initializer_list<ExtraNode> extra_nodes = {});
 
   void FastCheck(TNode<BoolT> condition);
 
@@ -773,6 +796,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
   TNode<BoolT> TaggedIsNotSmi(TNode<MaybeObject> a);
+
+  // Check a value for HeapObject-ness (for a heap object tag bit).
+  TNode<BoolT> TaggedIsStrongHeapObject(TNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsNotStrongHeapObject(TNode<MaybeObject> a);
 
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(TNode<Object> a);

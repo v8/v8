@@ -47,7 +47,7 @@ namespace internal {
 
 #ifdef DEBUG
 #define CSA_DCHECK_BRANCH(csa, gen, ...) \
-  (csa)->Dcheck(gen, #gen, __FILE__, __LINE__, CSA_DCHECK_ARGS(__VA_ARGS__))
+  (csa)->Dcheck(gen, #gen, CSA_DCHECK_ARGS(__VA_ARGS__))
 #else
 #define CSA_DCHECK_BRANCH(csa, ...) ((void)0)
 #endif
@@ -105,40 +105,40 @@ void CodeStubAssembler::HandleBreakOnNode() {
 }
 
 void CodeStubAssembler::Dcheck(const BranchGenerator& branch,
-                               const char* message, const char* file, int line,
+                               const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
                                const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(branch, message, file, line, extra_nodes, loc);
+    Check(branch, message, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Dcheck(const NodeGenerator<BoolT>& condition_body,
-                               const char* message, const char* file, int line,
+                               const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
                                const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(condition_body, message, file, line, extra_nodes, loc);
+    Check(condition_body, message, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Dcheck(TNode<Word32T> condition_node,
-                               const char* message, const char* file, int line,
+                               const char* message,
                                std::initializer_list<ExtraNode> extra_nodes,
                                const SourceLocation& loc) {
 #if defined(DEBUG)
   if (v8_flags.debug_code) {
-    Check(condition_node, message, file, line, extra_nodes, loc);
+    Check(condition_node, message, extra_nodes, loc);
   }
 #endif
 }
 
 void CodeStubAssembler::Check(const BranchGenerator& branch,
-                              const char* message, const char* file, int line,
+                              const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
                               const SourceLocation& loc) {
   Label ok(this);
@@ -152,17 +152,17 @@ void CodeStubAssembler::Check(const BranchGenerator& branch,
 
   BIND(&not_ok);
   std::vector<FileAndLine> file_and_line;
-  if (file != nullptr) {
-    file_and_line.push_back({file, line});
+  if (loc.FileName()) {
+    file_and_line.push_back({loc.FileName(), static_cast<size_t>(loc.Line())});
   }
-  FailAssert(message, file_and_line, extra_nodes, loc);
+  FailAssert(message, file_and_line, extra_nodes);
 
   BIND(&ok);
   Comment({"] Assert", SourceLocation()});
 }
 
 void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
-                              const char* message, const char* file, int line,
+                              const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
                               const SourceLocation& loc) {
   BranchGenerator branch = [=, this](Label* ok, Label* not_ok) {
@@ -170,18 +170,18 @@ void CodeStubAssembler::Check(const NodeGenerator<BoolT>& condition_body,
     Branch(condition, ok, not_ok);
   };
 
-  Check(branch, message, file, line, extra_nodes, loc);
+  Check(branch, message, extra_nodes, loc);
 }
 
 void CodeStubAssembler::Check(TNode<Word32T> condition_node,
-                              const char* message, const char* file, int line,
+                              const char* message,
                               std::initializer_list<ExtraNode> extra_nodes,
                               const SourceLocation& loc) {
   BranchGenerator branch = [=, this](Label* ok, Label* not_ok) {
     Branch(condition_node, ok, not_ok);
   };
 
-  Check(branch, message, file, line, extra_nodes, loc);
+  Check(branch, message, extra_nodes, loc);
 }
 
 void CodeStubAssembler::IncrementCallCount(
@@ -209,7 +209,7 @@ void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
 
 void CodeStubAssembler::FailAssert(
     const char* message, const std::vector<FileAndLine>& files_and_lines,
-    std::initializer_list<ExtraNode> extra_nodes, const SourceLocation& loc) {
+    std::initializer_list<ExtraNode> extra_nodes) {
   DCHECK_NOT_NULL(message);
   base::EmbeddedVector<char, 1024> chars;
   std::stringstream stream;
@@ -299,12 +299,14 @@ HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)    \
-  TNode<BoolT> CodeStubAssembler::Is##name(TNode<Object> value) {    \
-    return TaggedEqual(value, name##Constant());                     \
-  }                                                                  \
-  TNode<BoolT> CodeStubAssembler::IsNot##name(TNode<Object> value) { \
-    return TaggedNotEqual(value, name##Constant());                  \
+#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)   \
+  TNode<BoolT> CodeStubAssembler::Is##name(TNode<Object> value,     \
+                                           SourceLocation loc) {    \
+    return TaggedEqual(value, name##Constant(), loc);               \
+  }                                                                 \
+  TNode<BoolT> CodeStubAssembler::IsNot##name(TNode<Object> value,  \
+                                              SourceLocation loc) { \
+    return TaggedNotEqual(value, name##Constant(), loc);            \
   }
 HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
@@ -1348,6 +1350,19 @@ TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(TNode<MaybeObject> a) {
   return Word32BinaryNot(TaggedIsSmi(a));
 }
 
+TNode<BoolT> CodeStubAssembler::TaggedIsStrongHeapObject(TNode<MaybeObject> a) {
+  static_assert(kHeapObjectTagMask < kMaxUInt32);
+  return Word32Equal(
+      Word32And(TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+                Int32Constant(kHeapObjectTagMask)),
+      Int32Constant(kHeapObjectTag));
+}
+
+TNode<BoolT> CodeStubAssembler::TaggedIsNotStrongHeapObject(
+    TNode<MaybeObject> a) {
+  return Word32BinaryNot(TaggedIsStrongHeapObject(a));
+}
+
 TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
 #if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   return Word32Equal(
@@ -1361,6 +1376,35 @@ TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(TNode<Object> a) {
                    IntPtrConstant(0));
 #endif
 }
+
+#if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
+void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
+                                                     TNode<AnyTaggedT> b,
+                                                     SourceLocation loc) {
+  // LINT.IfChange(CheckObjectComparisonAllowed)
+  Label done(this);
+  GotoIf(TaggedIsNotStrongHeapObject(a), &done);
+  GotoIf(TaggedIsNotStrongHeapObject(b), &done);
+  TNode<HeapObject> obj_a = UncheckedCast<HeapObject>(a);
+  TNode<HeapObject> obj_b = UncheckedCast<HeapObject>(b);
+
+  // This check might fail when we try to compare objects in different pointer
+  // compression cages (e.g. the one used by code space or trusted space) with
+  // each other. The main legitimate case when such "mixed" comparison could
+  // happen is comparing two AbstractCode objects. If that's the case one must
+  // use SafeEqual().
+  CSA_CHECK_AT(this, loc,
+               WordEqual(WordAnd(LoadMemoryChunkFlags(obj_a),
+                                 IntPtrConstant(MemoryChunk::IS_EXECUTABLE |
+                                                MemoryChunk::IS_TRUSTED)),
+                         WordAnd(LoadMemoryChunkFlags(obj_b),
+                                 IntPtrConstant(MemoryChunk::IS_EXECUTABLE |
+                                                MemoryChunk::IS_TRUSTED))));
+  Goto(&done);
+  Bind(&done);
+  // LINT.ThenChange(src/objects/tagged-impl.cc:CheckObjectComparisonAllowed)
+}
+#endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 
 TNode<BoolT> CodeStubAssembler::WordIsAligned(TNode<WordT> word,
                                               size_t alignment) {
