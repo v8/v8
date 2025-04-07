@@ -21,6 +21,28 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+bool NameToIndexHashTableEquals(Tagged<NameToIndexHashTable> a,
+                                Tagged<NameToIndexHashTable> b) {
+  if (a->Capacity() != b->Capacity()) return false;
+  if (a->NumberOfElements() != b->NumberOfElements()) return false;
+
+  InternalIndex max(a->Capacity());
+  InternalIndex entry(0);
+
+  while (entry < max) {
+    Tagged<Object> key_a = a->KeyAt(entry);
+    Tagged<Object> key_b = b->KeyAt(entry);
+    if (key_a != key_b) return false;
+
+    Tagged<Object> value_a = a->ValueAt(entry);
+    Tagged<Object> value_b = b->ValueAt(entry);
+    if (value_a != value_b) return false;
+  }
+  return true;
+}
+}  // namespace
+
 // TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
 bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
                        int* out_last_checked_field) const {
@@ -66,6 +88,13 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
         DCHECK(IsDependentCode(other_entry));
         // Ignore the dependent code field since all the code have to be
         // deoptimized anyway in case of a live-edit.
+
+      } else if (IsNameToIndexHashTable(entry)) {
+        if (!NameToIndexHashTableEquals(
+                Cast<NameToIndexHashTable>(entry),
+                Cast<NameToIndexHashTable>(other_entry))) {
+          return false;
+        }
       } else {
         UNREACHABLE();
       }
