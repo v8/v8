@@ -673,12 +673,14 @@ void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
 
 void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
-  OpIndex value = this->input_at(node, 2);
-  UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+  auto store_view = this->store_view(node);
+  OpIndex base = store_view.base();
+  OpIndex index = this->value(store_view.index());
+  OpIndex value = store_view.value();
+  UnalignedStoreRepresentation store_rep =
+      store_view.stored_rep().representation();
   ArchOpcode opcode;
-  switch (rep) {
+  switch (store_rep) {
     case MachineRepresentation::kFloat32:
       opcode = kRiscvUStoreFloat;
       break;
