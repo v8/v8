@@ -141,6 +141,7 @@ class ExceptionHandlerInfo;
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
+  V(IntPtrConstant)                 \
   V(RootConstant)                   \
   V(SmiConstant)                    \
   V(TaggedIndexConstant)            \
@@ -3737,6 +3738,32 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
 
  private:
   const uint32_t value_;
+};
+
+class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
+  using Base = FixedInputValueNodeT<0, IntPtrConstant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit IntPtrConstant(uint64_t bitfield, intptr_t value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::IntPtr();
+
+  intptr_t value() const { return value_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
+
+ private:
+  const intptr_t value_;
 };
 
 class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
@@ -8302,37 +8329,51 @@ class LoadDoubleDataViewElement
   auto options() const { return std::tuple{type_}; }
 };
 
-#define LOAD_TYPED_ARRAY(name, properties, ...)                        \
-  class name : public FixedInputValueNodeT<2, name> {                  \
-    using Base = FixedInputValueNodeT<2, name>;                        \
-                                                                       \
-   public:                                                             \
-    explicit name(uint64_t bitfield, ElementsKind elements_kind)       \
-        : Base(bitfield), elements_kind_(elements_kind) {              \
-      DCHECK(elements_kind ==                                          \
-             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__)); \
-    }                                                                  \
-                                                                       \
-    static constexpr OpProperties kProperties =                        \
-        OpProperties::CanRead() | properties;                          \
-    static constexpr typename Base::InputTypes kInputTypes{            \
-        ValueRepresentation::kTagged, ValueRepresentation::kUint32};   \
-                                                                       \
-    static constexpr int kObjectIndex = 0;                             \
-    static constexpr int kIndexIndex = 1;                              \
-    Input& object_input() { return input(kObjectIndex); }              \
-    Input& index_input() { return input(kIndexIndex); }                \
-                                                                       \
-    void SetValueLocationConstraints();                                \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);       \
-    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}     \
-                                                                       \
-    auto options() const { return std::tuple{elements_kind_}; }        \
-                                                                       \
-    ElementsKind elements_kind() const { return elements_kind_; }      \
-                                                                       \
-   private:                                                            \
-    ElementsKind elements_kind_;                                       \
+#define LOAD_TYPED_ARRAY(name, properties, ...)                         \
+  class name : public FixedInputValueNodeT<2, name> {                   \
+    using Base = FixedInputValueNodeT<2, name>;                         \
+                                                                        \
+   public:                                                              \
+    explicit name(uint64_t bitfield, ElementsKind elements_kind)        \
+        : Base(bitfield), elements_kind_(elements_kind) {               \
+      DCHECK(elements_kind ==                                           \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));  \
+    }                                                                   \
+                                                                        \
+    static constexpr OpProperties kProperties =                         \
+        OpProperties::CanRead() | properties;                           \
+    static constexpr typename Base::InputTypes kInputTypes{             \
+        ValueRepresentation::kTagged, ValueRepresentation::kUint32};    \
+                                                                        \
+    static constexpr int kObjectIndex = 0;                              \
+    static constexpr int kIndexIndex = 1;                               \
+    Input& object_input() { return input(kObjectIndex); }               \
+    Input& index_input() { return input(kIndexIndex); }                 \
+                                                                        \
+    void SetValueLocationConstraints();                                 \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}      \
+                                                                        \
+    auto options() const { return std::tuple{elements_kind_}; }         \
+                                                                        \
+    ElementsKind elements_kind() const { return elements_kind_; }       \
+    bool has_off_heap_constant_typed_array() {                          \
+      if (auto constant = object_input().node()->TryCast<Constant>()) { \
+        return !constant->object().AsJSTypedArray().is_on_heap();       \
+      }                                                                 \
+      return false;                                                     \
+    }                                                                   \
+    compiler::JSTypedArrayRef constant_typed_array() {                  \
+      DCHECK(has_off_heap_constant_typed_array());                      \
+      return object_input()                                             \
+          .node()                                                       \
+          ->Cast<Constant>()                                            \
+          ->object()                                                    \
+          .AsJSTypedArray();                                            \
+    }                                                                   \
+                                                                        \
+   private:                                                             \
+    ElementsKind elements_kind_;                                        \
   };
 
 LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement, OpProperties::Int32(),
@@ -8374,6 +8415,20 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
                                                                            \
     ElementsKind elements_kind() const { return elements_kind_; }          \
+    bool has_off_heap_constant_typed_array() {                             \
+      if (auto constant = object_input().node()->TryCast<Constant>()) {    \
+        return !constant->object().AsJSTypedArray().is_on_heap();          \
+      }                                                                    \
+      return false;                                                        \
+    }                                                                      \
+    compiler::JSTypedArrayRef constant_typed_array() {                     \
+      DCHECK(has_off_heap_constant_typed_array());                         \
+      return object_input()                                                \
+          .node()                                                          \
+          ->Cast<Constant>()                                               \
+          ->object()                                                       \
+          .AsJSTypedArray();                                               \
+    }                                                                      \
                                                                            \
    private:                                                                \
     ElementsKind elements_kind_;                                           \

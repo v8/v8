@@ -1072,6 +1072,13 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Word32SignHintUnsigned(__ Word32Constant(node->value())));
     return maglev::ProcessResult::kContinue;
   }
+
+  maglev::ProcessResult Process(maglev::IntPtrConstant* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ WordPtrConstant(node->value()));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::Float64Constant* node,
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Float64Constant(node->value()));
@@ -3164,25 +3171,44 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::LoadUnsignedIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
-                                     Map<Word32>(node->index_input()),
-                                     node->elements_kind()));
+    if (node->has_off_heap_constant_typed_array()) {
+      SetMap(node, BuildConstantTypedArrayLoad(node->constant_typed_array(),
+                                               Map<Word32>(node->index_input()),
+                                               node->elements_kind()));
+    } else {
+      SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                       Map<Word32>(node->index_input()),
+                                       node->elements_kind()));
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadSignedIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
-                                     Map<Word32>(node->index_input()),
-                                     node->elements_kind()));
+    if (node->has_off_heap_constant_typed_array()) {
+      SetMap(node, BuildConstantTypedArrayLoad(node->constant_typed_array(),
+                                               Map<Word32>(node->index_input()),
+                                               node->elements_kind()));
+    } else {
+      SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                       Map<Word32>(node->index_input()),
+                                       node->elements_kind()));
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
               any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value = V<Float>::Cast(BuildTypedArrayLoad(
-        Map<JSTypedArray>(node->object_input()),
-        Map<Word32>(node->index_input()), node->elements_kind()));
+    V<Float> value;
+    if (node->has_off_heap_constant_typed_array()) {
+      value = V<Float>::Cast(BuildConstantTypedArrayLoad(
+          node->constant_typed_array(), Map<Word32>(node->index_input()),
+          node->elements_kind()));
+    } else {
+      value = V<Float>::Cast(BuildTypedArrayLoad(
+          Map<JSTypedArray>(node->object_input()),
+          Map<Word32>(node->index_input()), node->elements_kind()));
+    }
     if (node->elements_kind() == FLOAT32_ELEMENTS) {
       value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
     }
@@ -3192,10 +3218,16 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::StoreIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
-                         Map<Word32>(node->index_input()),
-                         Map<Untagged>(node->value_input()),
-                         node->elements_kind());
+    if (node->has_off_heap_constant_typed_array()) {
+      BuildConstantTypedArrayStore(
+          node->constant_typed_array(), Map<Word32>(node->index_input()),
+          Map<Untagged>(node->value_input()), node->elements_kind());
+    } else {
+      BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                           Map<Word32>(node->index_input()),
+                           Map<Untagged>(node->value_input()),
+                           node->elements_kind());
+    }
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleTypedArrayElement* node,
@@ -3206,9 +3238,15 @@ class GraphBuildingNodeProcessor {
     if (node->elements_kind() == FLOAT32_ELEMENTS) {
       value = __ TruncateFloat64ToFloat32(Map(node->value_input()));
     }
-    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
-                         Map<Word32>(node->index_input()), value,
-                         node->elements_kind());
+    if (node->has_off_heap_constant_typed_array()) {
+      BuildConstantTypedArrayStore(node->constant_typed_array(),
+                                   Map<Word32>(node->index_input()), value,
+                                   node->elements_kind());
+    } else {
+      BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                           Map<Word32>(node->index_input()), value,
+                           node->elements_kind());
+    }
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5476,6 +5514,18 @@ class GraphBuildingNodeProcessor {
                                __ ChangeUint32ToUintPtr(index),
                                GetArrayTypeFromElementsKind(kind));
   }
+
+  V<Untagged> BuildConstantTypedArrayLoad(compiler::JSTypedArrayRef typed_array,
+                                          V<Word32> index, ElementsKind kind) {
+    // Using the 0 as the base pointer is fine, since the typed array is not on
+    // the heap.
+    DCHECK(!typed_array.is_on_heap());
+    return __ LoadTypedElement(
+        __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
+        __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
+        __ ChangeUint32ToUintPtr(index), GetArrayTypeFromElementsKind(kind));
+  }
+
   void BuildTypedArrayStore(V<JSTypedArray> typed_array, V<Word32> index,
                             V<Untagged> value, ElementsKind kind) {
     auto [data_pointer, base_pointer] =
@@ -5483,6 +5533,19 @@ class GraphBuildingNodeProcessor {
     __ StoreTypedElement(typed_array, base_pointer, data_pointer,
                          __ ChangeUint32ToUintPtr(index), value,
                          GetArrayTypeFromElementsKind(kind));
+  }
+
+  void BuildConstantTypedArrayStore(compiler::JSTypedArrayRef typed_array,
+                                    V<Word32> index, V<Untagged> value,
+                                    ElementsKind kind) {
+    // Using the 0 as the base pointer is fine, since the typed array is not on
+    // the heap.
+    DCHECK(!typed_array.is_on_heap());
+    __ StoreTypedElement(
+        __ HeapConstant(typed_array.object()), __ SmiConstant(Smi::zero()),
+        __ WordPtrConstant(reinterpret_cast<uintptr_t>(typed_array.data_ptr())),
+        __ ChangeUint32ToUintPtr(index), value,
+        GetArrayTypeFromElementsKind(kind));
   }
 
   V<Number> Float64ToTagged(

@@ -1826,8 +1826,7 @@ bool JSTypedArrayRef::is_on_heap() const {
 }
 
 size_t JSTypedArrayRef::length() const {
-  CHECK(!is_on_heap());
-  // Immutable after initialization.
+  // Immutable after initialization (since this is not used for RAB/GSAB).
   return object()->length();
 }
 

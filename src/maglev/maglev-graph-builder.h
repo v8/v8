@@ -352,6 +352,16 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
+    auto it = graph_->intptr().find(constant);
+    if (it == graph_->intptr().end()) {
+      IntPtrConstant* node = CreateNewConstantNode<IntPtrConstant>(0, constant);
+      graph_->intptr().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   Uint32Constant* GetUint32Constant(int constant) {
     auto it = graph_->uint32().find(constant);
     if (it == graph_->uint32().end()) {

@@ -4653,6 +4653,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kFloat64Constant:
     case Opcode::kInt32Constant:
     case Opcode::kUint32Constant:
+    case Opcode::kIntPtrConstant:
     case Opcode::kTaggedIndexConstant:
     case Opcode::kTrustedConstant:
     case Opcode::kInt32AbsWithOverflow:
@@ -6048,6 +6049,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
         // instead of implementing special handling for it.
         return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
       }
+      if (auto const_object =
+              TryGetConstant(broker(), local_isolate(), lookup_start_object)) {
+        if (const_object->IsJSTypedArray()) {
+          auto const_typed_array = const_object->AsJSTypedArray();
+          size_t length = const_typed_array.length();
+          static_assert(ArrayBuffer::kMaxByteLength <=
+                        std::numeric_limits<intptr_t>::max());
+          return GetIntPtrConstant(static_cast<intptr_t>(length));
+        }
+      }
       return BuildLoadTypedArrayLength(lookup_start_object,
                                        access_info.elements_kind());
     }
@@ -6478,6 +6489,14 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
 
   if (!is_variable_length) {
+    if (auto const_object = TryGetConstant(broker(), local_isolate(), object)) {
+      auto const_typed_array = const_object->AsJSTypedArray();
+      size_t length = const_typed_array.length();
+      static_assert(ArrayBuffer::kMaxByteLength <=
+                    std::numeric_limits<intptr_t>::max());
+      return GetIntPtrConstant(static_cast<intptr_t>(length));
+    }
+
     // Note: We can't use broker()->length_string() here, because it could
     // conflict with redefinitions of the TypedArray length property.
     RETURN_IF_DONE(TryFindLoadedProperty(

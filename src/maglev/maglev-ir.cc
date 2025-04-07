@@ -889,6 +889,10 @@ DirectHandle<Object> Uint32Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumberFromUint<AllocationType::kOld>(value());
 }
 
+DirectHandle<Object> IntPtrConstant::DoReify(LocalIsolate* isolate) const {
+  return isolate->factory()->NewNumberFromInt64<AllocationType::kOld>(value());
+}
+
 DirectHandle<Object> Float64Constant::DoReify(LocalIsolate* isolate) const {
   return isolate->factory()->NewNumber<AllocationType::kOld>(
       value_.get_scalar());
@@ -1000,6 +1004,10 @@ void Uint32Constant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
   __ Move(reg, value());
 }
 
+void IntPtrConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) {
+  __ Move(reg, value());
+}
+
 void Float64Constant::DoLoadToRegister(MaglevAssembler* masm,
                                        DoubleRegister reg) {
   __ Move(reg, value());
@@ -1051,6 +1059,10 @@ void Int32Constant::GenerateCode(MaglevAssembler* masm,
 
 void Uint32Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void Uint32Constant::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {}
+
+void IntPtrConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
+void IntPtrConstant::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {}
 
 void Float64Constant::SetValueLocationConstraints() { DefineAsConstant(this); }
@@ -3495,12 +3507,24 @@ void CheckCacheIndicesNotCleared::GenerateCode(MaglevAssembler* masm,
 
 void CheckTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(index_input());
-  UseRegister(length_input());
+  if (length_input().node()->Is<IntPtrConstant>()) {
+    UseAny(length_input());
+    set_temporaries_needed(1);
+  } else {
+    UseRegister(length_input());
+  }
 }
 void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register index = ToRegister(index_input());
-  Register length = ToRegister(length_input());
+  Register length = Register::no_reg();
+  if (auto length_constant = length_input().node()->TryCast<IntPtrConstant>()) {
+    length = temps.Acquire();
+    __ Move(length, length_constant->value());
+  } else {
+    length = ToRegister(length_input());
+  }
   // The index must be a zero-extended Uint32 for this to work.
 #ifdef V8_TARGET_ARCH_RISCV64
   // All Word32 values are been signed-extended in Register in RISCV.
@@ -6827,23 +6851,11 @@ void SetContinuationPreservedEmbedderData::GenerateCode(
 
 namespace {
 
-template <typename ResultReg, typename NodeT>
-void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
-                            Register index, ResultReg result_reg,
-                            ElementsKind kind) {
-  __ AssertNotSmi(object);
-  if (v8_flags.debug_code) {
-    MaglevAssembler::TemporaryRegisterScope temps(masm);
-    __ AssertObjectType(object, JS_TYPED_ARRAY_TYPE,
-                        AbortReason::kUnexpectedValue);
-  }
-
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-
-  Register data_pointer = scratch;
-  __ BuildTypedArrayDataPointer(data_pointer, object);
-
+template <typename ResultReg>
+void GenerateTypedArrayLoadFromDataPointer(MaglevAssembler* masm,
+                                           Register data_pointer,
+                                           Register index, ResultReg result_reg,
+                                           ElementsKind kind) {
   int element_size = ElementsKindToByteSize(kind);
   MemOperand operand =
       __ TypedArrayElementOperand(data_pointer, index, element_size);
@@ -6873,10 +6885,10 @@ void GenerateTypedArrayLoad(MaglevAssembler* masm, NodeT* node, Register object,
   }
 }
 
-template <typename ValueReg, typename NodeT>
-void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
-                             Register object, Register index, ValueReg value,
-                             ElementsKind kind) {
+template <typename ResultReg>
+void GenerateTypedArrayLoad(MaglevAssembler* masm, Register object,
+                            Register index, ResultReg result_reg,
+                            ElementsKind kind) {
   __ AssertNotSmi(object);
   if (v8_flags.debug_code) {
     MaglevAssembler::TemporaryRegisterScope temps(masm);
@@ -6888,8 +6900,30 @@ void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
   Register scratch = temps.Acquire();
 
   Register data_pointer = scratch;
+  // TODO(victorgomes): Consider hoisting array data pointer.
   __ BuildTypedArrayDataPointer(data_pointer, object);
 
+  GenerateTypedArrayLoadFromDataPointer(masm, data_pointer, index, result_reg,
+                                        kind);
+}
+
+template <typename ResultReg>
+void GenerateConstantTypedArrayLoad(MaglevAssembler* masm,
+                                    compiler::JSTypedArrayRef typed_array,
+                                    Register index, ResultReg result_reg,
+                                    ElementsKind kind) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
+  __ Move(data_pointer, reinterpret_cast<intptr_t>(typed_array.data_ptr()));
+
+  GenerateTypedArrayLoadFromDataPointer(masm, data_pointer, index, result_reg,
+                                        kind);
+}
+
+template <typename ValueReg>
+void GenerateTypedArrayStoreToDataPointer(MaglevAssembler* masm,
+                                          Register data_pointer, Register index,
+                                          ValueReg value, ElementsKind kind) {
   int element_size = ElementsKindToByteSize(kind);
   MemOperand operand =
       __ TypedArrayElementOperand(data_pointer, index, element_size);
@@ -6914,23 +6948,64 @@ void GenerateTypedArrayStore(MaglevAssembler* masm, NodeT* node,
   }
 }
 
+template <typename ValueReg>
+void GenerateTypedArrayStore(MaglevAssembler* masm, Register object,
+                             Register index, ValueReg value,
+                             ElementsKind kind) {
+  __ AssertNotSmi(object);
+  if (v8_flags.debug_code) {
+    MaglevAssembler::TemporaryRegisterScope temps(masm);
+    __ AssertObjectType(object, JS_TYPED_ARRAY_TYPE,
+                        AbortReason::kUnexpectedValue);
+  }
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+
+  Register data_pointer = scratch;
+  __ BuildTypedArrayDataPointer(data_pointer, object);
+
+  GenerateTypedArrayStoreToDataPointer(masm, data_pointer, index, value, kind);
+}
+
+template <typename ValueReg>
+void GenerateConstantTypedArrayStore(MaglevAssembler* masm,
+                                     compiler::JSTypedArrayRef typed_array,
+                                     Register index, ValueReg value,
+                                     ElementsKind elements_kind) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
+
+  __ Move(data_pointer, reinterpret_cast<intptr_t>(typed_array.data_ptr()));
+  GenerateTypedArrayStoreToDataPointer(masm, data_pointer, index, value,
+                                       elements_kind);
+}
+
 }  // namespace
 
-#define DEF_LOAD_TYPED_ARRAY(Name, ResultReg, ToResultReg)        \
-  void Name::SetValueLocationConstraints() {                      \
-    UseRegister(object_input());                                  \
-    UseRegister(index_input());                                   \
-    DefineAsRegister(this);                                       \
-    set_temporaries_needed(1);                                    \
-  }                                                               \
-  void Name::GenerateCode(MaglevAssembler* masm,                  \
-                          const ProcessingState& state) {         \
-    Register object = ToRegister(object_input());                 \
-    Register index = ToRegister(index_input());                   \
-    ResultReg result_reg = ToResultReg(result());                 \
-                                                                  \
-    GenerateTypedArrayLoad(masm, this, object, index, result_reg, \
-                           elements_kind_);                       \
+#define DEF_LOAD_TYPED_ARRAY(Name, ResultReg, ToResultReg)                     \
+  void Name::SetValueLocationConstraints() {                                   \
+    if (has_off_heap_constant_typed_array()) {                                 \
+      UseAny(object_input());                                                  \
+    } else {                                                                   \
+      UseRegister(object_input());                                             \
+    }                                                                          \
+    UseRegister(index_input());                                                \
+    DefineAsRegister(this);                                                    \
+    set_temporaries_needed(1);                                                 \
+  }                                                                            \
+  void Name::GenerateCode(MaglevAssembler* masm,                               \
+                          const ProcessingState& state) {                      \
+    Register index = ToRegister(index_input());                                \
+    ResultReg result_reg = ToResultReg(result());                              \
+                                                                               \
+    if (has_off_heap_constant_typed_array()) {                                 \
+      GenerateConstantTypedArrayLoad(masm, constant_typed_array(), index,      \
+                                     result_reg, elements_kind_);              \
+    } else {                                                                   \
+      Register object = ToRegister(object_input());                            \
+      GenerateTypedArrayLoad(masm, object, index, result_reg, elements_kind_); \
+    }                                                                          \
   }
 
 DEF_LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement, Register, ToRegister)
@@ -6941,20 +7016,28 @@ DEF_LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, DoubleRegister,
                      ToDoubleRegister)
 #undef DEF_LOAD_TYPED_ARRAY
 
-#define DEF_STORE_TYPED_ARRAY(Name, ValueReg, ToValueReg)                      \
-  void Name::SetValueLocationConstraints() {                                   \
-    UseRegister(object_input());                                               \
-    UseRegister(index_input());                                                \
-    UseRegister(value_input());                                                \
-    set_temporaries_needed(1);                                                 \
-  }                                                                            \
-  void Name::GenerateCode(MaglevAssembler* masm,                               \
-                          const ProcessingState& state) {                      \
-    Register object = ToRegister(object_input());                              \
-    Register index = ToRegister(index_input());                                \
-    ValueReg value = ToValueReg(value_input());                                \
-                                                                               \
-    GenerateTypedArrayStore(masm, this, object, index, value, elements_kind_); \
+#define DEF_STORE_TYPED_ARRAY(Name, ValueReg, ToValueReg)                  \
+  void Name::SetValueLocationConstraints() {                               \
+    if (has_off_heap_constant_typed_array()) {                             \
+      UseAny(object_input());                                              \
+    } else {                                                               \
+      UseRegister(object_input());                                         \
+    }                                                                      \
+    UseRegister(index_input());                                            \
+    UseRegister(value_input());                                            \
+    set_temporaries_needed(1);                                             \
+  }                                                                        \
+  void Name::GenerateCode(MaglevAssembler* masm,                           \
+                          const ProcessingState& state) {                  \
+    Register index = ToRegister(index_input());                            \
+    ValueReg value = ToValueReg(value_input());                            \
+    if (has_off_heap_constant_typed_array()) {                             \
+      GenerateConstantTypedArrayStore(masm, constant_typed_array(), index, \
+                                      value, elements_kind_);              \
+    } else {                                                               \
+      Register object = ToRegister(object_input());                        \
+      GenerateTypedArrayStore(masm, object, index, value, elements_kind_); \
+    }                                                                      \
   }
 
 DEF_STORE_TYPED_ARRAY(StoreIntTypedArrayElement, Register, ToRegister)
@@ -7451,6 +7534,11 @@ void Int32Constant::PrintParams(std::ostream& os,
 }
 
 void Uint32Constant::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void IntPtrConstant::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
 }

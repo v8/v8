@@ -661,6 +661,10 @@ void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #endif
 }
 
+inline void MaglevAssembler::Move(Register dst, intptr_t p) {
+  MacroAssembler::Move(dst, p);
+}
+
 inline void MaglevAssembler::LoadInt32(Register dst, MemOperand src) {
   movl(dst, src);
 }

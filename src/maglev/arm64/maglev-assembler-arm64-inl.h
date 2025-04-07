@@ -765,6 +765,9 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   Mov(dst.W(), Immediate(i));
 }
+inline void MaglevAssembler::Move(Register dst, intptr_t p) {
+  Mov(dst, Immediate(p));
+}
 inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
   Mov(dst, Immediate(i));
 }

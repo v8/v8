@@ -450,6 +450,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Tagged<TaggedIndex> i);
   inline void Move(Register dst, int32_t i);
   inline void Move(Register dst, uint32_t i);
+#ifdef V8_TARGET_ARCH_64_BIT
+  inline void Move(Register dst, intptr_t p);
+#endif
   inline void Move(Register dst, IndirectPointerTag i);
   inline void Move(DoubleRegister dst, double n);
   inline void Move(DoubleRegister dst, Float64 n);
