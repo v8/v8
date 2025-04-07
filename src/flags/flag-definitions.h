@@ -1787,7 +1787,7 @@ DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 
 // Note that this limit doesn't guarantee an upper bound, as e.g. with multiple
 // frames of the same function on the stack, many more deopts can happen.
-DEFINE_SIZE_T(wasm_deopts_per_function_limit, 50,
+DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
               "limit of wasm deopts for a single function after which no "
               "further deopt points are emitted in Turbofan")
 
