@@ -564,8 +564,9 @@ class Simulator : public SimulatorBase {
       type_ = FP_ARG;
     }
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      auto arg = box_float(argument);
+      memcpy(&bits_, &arg, sizeof(arg));
+      type_ = FP_ARG;
     }
     // This indicates the end of the arguments list, so that CallArgument
     // objects can be passed into varargs functions.
