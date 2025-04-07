@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CODEGEN_X64_BUILTIN_JUMP_TABLE_INFO_X64_H_
-#define V8_CODEGEN_X64_BUILTIN_JUMP_TABLE_INFO_X64_H_
+#ifndef V8_CODEGEN_JUMP_TABLE_INFO_H_
+#define V8_CODEGEN_JUMP_TABLE_INFO_H_
 
 #include <vector>
 
@@ -16,17 +16,17 @@ namespace internal {
 
 class Assembler;
 
-// The builtin jump table info is a part of code metadata, used by the
-// disassembler. The layout is:
+// The jump table info is a part of code metadata, used by the disassembler. The
+// layout is:
 //
 // byte count       content
 // ----------------------------------------------------------------
-// [Inline array of BuiltinJumpTableInfoEntry in increasing pc_offset order]
+// [Inline array of JumpTableInfoEntry in increasing pc_offset order]
 // ┌ 4              pc_offset of entry as uint32_t
 // └ 4              target of entry as int32_t
 
-struct BuiltinJumpTableInfoEntry {
-  constexpr BuiltinJumpTableInfoEntry(uint32_t pc_offset, int32_t target)
+struct JumpTableInfoEntry {
+  constexpr JumpTableInfoEntry(uint32_t pc_offset, int32_t target)
       : pc_offset(pc_offset), target(target) {}
   uint32_t pc_offset;
   int32_t target;
@@ -35,11 +35,10 @@ struct BuiltinJumpTableInfoEntry {
   static constexpr int kTargetSize = kInt32Size;
   static constexpr int kSize = kPCOffsetSize + kTargetSize;
 };
-static_assert(sizeof(BuiltinJumpTableInfoEntry) ==
-              BuiltinJumpTableInfoEntry::kSize);
+static_assert(sizeof(JumpTableInfoEntry) == JumpTableInfoEntry::kSize);
 
 // Used during codegen.
-class BuiltinJumpTableInfoWriter {
+class JumpTableInfoWriter {
  public:
   V8_EXPORT_PRIVATE void Add(uint32_t pc_offset, int32_t target);
   void Emit(Assembler* assm);
@@ -48,13 +47,13 @@ class BuiltinJumpTableInfoWriter {
   uint32_t size_in_bytes() const;
 
  private:
-  std::vector<BuiltinJumpTableInfoEntry> entries_;
+  std::vector<JumpTableInfoEntry> entries_;
 };
 
 // Used during disassembly.
-class V8_EXPORT_PRIVATE BuiltinJumpTableInfoIterator {
+class V8_EXPORT_PRIVATE JumpTableInfoIterator {
  public:
-  BuiltinJumpTableInfoIterator(Address start, uint32_t size);
+  JumpTableInfoIterator(Address start, uint32_t size);
   uint32_t GetPCOffset() const;
   int32_t GetTarget() const;
   void Next();
@@ -69,4 +68,4 @@ class V8_EXPORT_PRIVATE BuiltinJumpTableInfoIterator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CODEGEN_X64_BUILTIN_JUMP_TABLE_INFO_X64_H_
+#endif  // V8_CODEGEN_JUMP_TABLE_INFO_H_

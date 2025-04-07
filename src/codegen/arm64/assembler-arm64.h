@@ -16,6 +16,7 @@
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/jump-table-info.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
@@ -2739,6 +2740,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // for subsequent instructions.
   void EmitStringData(const char* string);
 
+  void WriteJumpTableEntry(Label* label, int table_pos);
+
   // Pseudo-instructions ------------------------------------------------------
 
   // Parameters are described in arm64/instructions-arm64.h.
@@ -3446,6 +3449,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // veneer margin (or kMaxInt if there are no unresolved branches).
   int next_veneer_pool_check_;
 
+  // Record jump table locations, this is only used when the disassembler is
+  // enabled.
+  JumpTableInfoWriter jump_table_info_writer_;
+
 #if defined(V8_OS_WIN)
   std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
 #endif
@@ -3468,6 +3475,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
+  int WriteJumpTableInfos();
 
   // The pending constant pool.
   ConstantPool constpool_;

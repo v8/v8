@@ -203,10 +203,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int handler_table_size() const;
   Address code_comments() const;
   int code_comments_size() const;
+  Address jump_table_info() const;
+  int jump_table_info_size() const;
+  bool has_jump_table_info() const { return jump_table_info_size() > 0; }
   int constant_pool_offset() const { return constant_pool_offset_; }
   int safepoint_table_offset() const { return safepoint_table_offset_; }
   int handler_table_offset() const { return handler_table_offset_; }
   int code_comments_offset() const { return code_comments_offset_; }
+  int jump_table_info_offset() const { return jump_table_info_offset_; }
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
   int ool_spills() const { return ool_spills_; }
@@ -386,7 +390,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<uint8_t> instructions, int stack_slots, int ool_spills,
            uint32_t tagged_parameter_slots, int safepoint_table_offset,
            int handler_table_offset, int constant_pool_offset,
-           int code_comments_offset, int unpadded_binary_size,
+           int code_comments_offset, int jump_table_info_offset,
+           int unpadded_binary_size,
            base::Vector<const uint8_t> protected_instructions_data,
            base::Vector<const uint8_t> reloc_info,
            base::Vector<const uint8_t> source_position_table,
@@ -414,6 +419,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         code_comments_offset_(code_comments_offset),
+        jump_table_info_offset_(jump_table_info_offset),
         unpadded_binary_size_(unpadded_binary_size),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
                ForDebuggingField::encode(for_debugging) |
@@ -422,6 +428,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(handler_table_offset, unpadded_binary_size);
     DCHECK_LE(code_comments_offset, unpadded_binary_size);
     DCHECK_LE(constant_pool_offset, unpadded_binary_size);
+    DCHECK_LE(jump_table_info_offset, unpadded_binary_size);
   }
 
   std::unique_ptr<const uint8_t[]> ConcatenateBytes(
@@ -477,6 +484,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int safepoint_table_offset_;
   const int handler_table_offset_;
   const int code_comments_offset_;
+  const int jump_table_info_offset_;
   const int unpadded_binary_size_;
   int trap_handler_index_ = -1;
 
@@ -653,7 +661,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       int ool_spills, uint32_t tagged_parameter_slots,
       int safepoint_table_offset, int handler_table_offset,
       int constant_pool_offset, int code_comments_offset,
-      int unpadded_binary_size,
+      int jump_table_info_offset, int unpadded_binary_size,
       base::Vector<const uint8_t> protected_instructions_data,
       base::Vector<const uint8_t> reloc_info,
       base::Vector<const uint8_t> source_position_table,

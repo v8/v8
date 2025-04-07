@@ -255,11 +255,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
 #endif
 
-// Support for builtin jump table disassembly.
-#if defined(V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH) && defined(ENABLE_DISASSEMBLER)
-#define V8_BUILTIN_JUMP_TABLE_INFO_BOOL true
+// Support for jump table disassembly.
+#if defined(ENABLE_DISASSEMBLER) && \
+    (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_X64))
+#define V8_JUMP_TABLE_INFO_BOOL true
 #else
-#define V8_BUILTIN_JUMP_TABLE_INFO_BOOL false
+#define V8_JUMP_TABLE_INFO_BOOL false
 #endif
 
 // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT controls how V8 sets permissions for

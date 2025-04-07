@@ -75,6 +75,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   const int handler_table_offset = desc.handler_table_offset;
   const int constant_pool_offset = desc.constant_pool_offset;
   const int code_comments_offset = desc.code_comments_offset;
+  const int jump_table_info_offset = desc.jump_table_info_offset;
   const int instr_size = desc.instr_size;
   {
     WritableJitAllocation jit_allocation =
@@ -110,6 +111,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 handler_table_offset,
                                 constant_pool_offset,
                                 code_comments_offset,
+                                jump_table_info_offset,
                                 instr_size,
                                 result.protected_instructions_data.as_vector(),
                                 reloc_info,

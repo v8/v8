@@ -3793,9 +3793,9 @@ void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
   const size_t jump_table_size = targets.size() * kInt32Size;
   MacroAssembler::BlockPoolsScope no_pool_inbetween(masm(), jump_table_size);
   int table_pos = __ pc_offset();
-  // Store 32-bit pc-relative offsets.
   for (auto* target : targets) {
-    __ dc32(target->pos() - table_pos);
+    // Store 32-bit pc-relative offsets.
+    __ WriteJumpTableEntry(target, table_pos);
   }
 }
 

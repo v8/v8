@@ -462,7 +462,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   ForceConstantPoolEmissionWithoutJump();
   DCHECK(constpool_.IsEmpty());
 
-  int code_comments_size = WriteCodeComments();
+  const int code_comments_size = WriteCodeComments();
+  const int jump_table_info_size = WriteJumpTableInfos();
 
   AllocateAndInstallRequestedHeapNumbers(isolate);
 
@@ -471,12 +472,9 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
-  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int builtin_jump_table_info_offset =
-      instruction_size - kBuiltinJumpTableInfoSize;
-  const int code_comments_offset =
-      builtin_jump_table_info_offset - code_comments_size;
+  const int jump_table_info_offset = instruction_size - jump_table_info_size;
+  const int code_comments_offset = jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -489,7 +487,7 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, builtin_jump_table_info_offset,
+                       code_comments_offset, jump_table_info_offset,
                        reloc_info_offset);
 }
 
@@ -3990,6 +3988,23 @@ void Assembler::EmitStringData(const char* string) {
   static_assert(sizeof(pad) == kInstrSize,
                 "Size of padding must match instruction size.");
   EmitData(pad, RoundUp(pc_offset(), kInstrSize) - pc_offset());
+}
+
+void Assembler::WriteJumpTableEntry(Label* label, int table_pos) {
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
+    jump_table_info_writer_.Add(pc_offset(), label->pos());
+  }
+  dc32(label->pos() - table_pos);
+}
+
+int Assembler::WriteJumpTableInfos() {
+  if constexpr (!V8_JUMP_TABLE_INFO_BOOL) return 0;
+  if (jump_table_info_writer_.entry_count() == 0) return 0;
+  int offset = pc_offset();
+  jump_table_info_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, jump_table_info_writer_.size_in_bytes());
+  return size;
 }
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
