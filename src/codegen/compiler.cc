@@ -3283,6 +3283,11 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
   IsCompiledScope is_compiled_scope;
   bool allow_eval_cache;
   if (eval_result.has_shared()) {
+    // Make sure that the scope_info of the context we're eval-ing in matches
+    // the scope_info we compiled the code for.
+    CHECK_IMPLIES(
+        !IsNativeContext(*context),
+        eval_result.shared()->GetOuterScopeInfo() == context->scope_info());
     shared_info =
         DirectHandle<SharedFunctionInfo>(eval_result.shared(), isolate);
     script = Handle<Script>(Cast<Script>(shared_info->script()), isolate);
