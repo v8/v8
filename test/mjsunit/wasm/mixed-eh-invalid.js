@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --experimental-wasm-exnref --no-wasm-allow-mixed-eh-for-testing
+// Flags: --experimental-wasm-exnref
 
 // Test that using a mix of legacy and new exception handling instructions in
 // the same module is invalid without --wasm-allow-mixed-eh-for-testing.
