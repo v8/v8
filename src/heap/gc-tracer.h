@@ -595,7 +595,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event
   // that corresponded to the full GC cycle, and this field is set to true.
-  bool young_gc_while_full_gc_ = false;
+  bool young_gc_during_full_gc_sweeping_ = false;
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;

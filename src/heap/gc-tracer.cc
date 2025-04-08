@@ -232,21 +232,22 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK_NE(Event::State::ATOMIC, current_.state);
   // We cannot start a new cycle while a young generation GC cycle has
   // already interrupted a full GC cycle.
-  DCHECK(!young_gc_while_full_gc_);
+  DCHECK(!young_gc_during_full_gc_sweeping_);
 
-  young_gc_while_full_gc_ = current_.state != Event::State::NOT_RUNNING;
-  CHECK_IMPLIES(young_gc_while_full_gc_,
+  young_gc_during_full_gc_sweeping_ =
+      current_.state != Event::State::NOT_RUNNING;
+  CHECK_IMPLIES(young_gc_during_full_gc_sweeping_,
                 current_.state == Event::State::SWEEPING);
-  if (young_gc_while_full_gc_) {
+  if (young_gc_during_full_gc_sweeping_) {
     // The cases for interruption are: Scavenger, MinorMS interrupting sweeping.
     // In both cases we are fine with fetching background counters now and
     // fixing them up later in StopAtomicPause().
     FetchBackgroundCounters();
   }
 
-  DCHECK_IMPLIES(young_gc_while_full_gc_,
+  DCHECK_IMPLIES(young_gc_during_full_gc_sweeping_,
                  Heap::IsYoungGenerationCollector(collector));
-  DCHECK_IMPLIES(young_gc_while_full_gc_,
+  DCHECK_IMPLIES(young_gc_during_full_gc_sweeping_,
                  !Event::IsYoungGenerationEvent(current_.type));
 
   Event::Type type;
@@ -266,7 +267,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
       break;
   }
 
-  DCHECK_IMPLIES(!young_gc_while_full_gc_,
+  DCHECK_IMPLIES(!young_gc_during_full_gc_sweeping_,
                  current_.state == Event::State::NOT_RUNNING);
   DCHECK_EQ(Event::State::NOT_RUNNING, previous_.state);
 
@@ -479,7 +480,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
-    if (young_gc_while_full_gc_) {
+    if (young_gc_during_full_gc_sweeping_) {
       // Sweeping for full GC could have occured during the young GC. Copy over
       // any sweeping scope values to the previous_ event. The full GC sweeping
       // scopes are never reported by young cycles.
@@ -487,7 +488,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
       previous_.scopes[Scope::MC_BACKGROUND_SWEEPING] +=
           current_.scopes[Scope::MC_BACKGROUND_SWEEPING];
       std::swap(current_, previous_);
-      young_gc_while_full_gc_ = false;
+      young_gc_during_full_gc_sweeping_ = false;
     }
   } else {
     ReportFullCycleToRecorder();
@@ -521,14 +522,15 @@ void GCTracer::StopYoungCycleIfFinished() {
   if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
       !notified_young_cppgc_completed_)
     return;
-  bool was_young_gc_while_full_gc_ = young_gc_while_full_gc_;
+  bool was_young_gc_during_full_gc_sweeping_ =
+      young_gc_during_full_gc_sweeping_;
   StopCycle(current_.type == Event::Type::SCAVENGER
                 ? GarbageCollector::SCAVENGER
                 : GarbageCollector::MINOR_MARK_SWEEPER);
   notified_young_sweeping_completed_ = false;
   notified_young_cppgc_running_ = false;
   notified_young_cppgc_completed_ = false;
-  if (was_young_gc_while_full_gc_) {
+  if (was_young_gc_during_full_gc_sweeping_) {
     // Check if the full gc cycle is ready to be stopped.
     StopFullCycleIfFinished();
   }
@@ -542,13 +544,15 @@ void GCTracer::NotifyFullSweepingCompletedAndStopCycleIfFinished() {
       !notified_full_cppgc_completed_ || full_cppgc_completed_during_minor_gc_);
 
   if (Event::IsYoungGenerationEvent(current_.type)) {
-    bool was_young_gc_while_full_gc = young_gc_while_full_gc_;
+    bool was_young_gc_during_full_gc_sweeping =
+        young_gc_during_full_gc_sweeping_;
     bool was_full_sweeping_notified = notified_full_sweeping_completed_;
     NotifyYoungSweepingCompletedAndStopCycleIfFinished();
     // NotifyYoungSweepingCompletedAndStopCycleIfFinished checks if the full
     // cycle needs to be stopped as well. If full sweeping was already notified,
     // nothing more needs to be done here.
-    if (!was_young_gc_while_full_gc || was_full_sweeping_notified) return;
+    if (!was_young_gc_during_full_gc_sweeping || was_full_sweeping_notified)
+      return;
   }
 
   DCHECK(!Event::IsYoungGenerationEvent(current_.type));
@@ -605,7 +609,7 @@ void GCTracer::NotifyFullCppGCCompleted() {
   // Cppgc sweeping may finalize during MinorMS sweeping. In that case, delay
   // stopping the cycle until the nested MinorMS cycle is stopped.
   if (Event::IsYoungGenerationEvent(current_.type)) {
-    DCHECK(young_gc_while_full_gc_);
+    DCHECK(young_gc_during_full_gc_sweeping_);
     full_cppgc_completed_during_minor_gc_ = true;
     return;
   }
@@ -792,7 +796,7 @@ void GCTracer::Print() const {
 
   // Avoid PrintF as Output also appends the string to the tracing ring buffer
   // that gets printed on OOM failures.
-  DCHECK_IMPLIES(young_gc_while_full_gc_,
+  DCHECK_IMPLIES(young_gc_during_full_gc_sweeping_,
                  Event::IsYoungGenerationEvent(current_.type));
   Output(
       "[%d:%p] "
@@ -804,7 +808,7 @@ void GCTracer::Print() const {
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(),
       ToString(current_.type, false), current_.reduce_memory ? " (reduce)" : "",
-      young_gc_while_full_gc_ ? " (during sweeping)" : "",
+      young_gc_during_full_gc_sweeping_ ? " (during sweeping)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
@@ -893,7 +897,7 @@ void GCTracer::PrintNVP() const {
           "pool_total_chunks=%zu\n",
           duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
           ToString(current_.type, true), current_.reduce_memory,
-          young_gc_while_full_gc_,
+          young_gc_during_full_gc_sweeping_,
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EPILOGUE),

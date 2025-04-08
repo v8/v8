@@ -709,9 +709,9 @@ TEST_F(HeapTest, ContainsSlow) {
   CHECK(!heap->lo_space()->ContainsSlow(0));
 }
 
-
-TEST_F(HeapTest,
-       PinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
+TEST_F(
+    HeapTest,
+    ConservativePinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;
@@ -745,7 +745,8 @@ TEST_F(HeapTest,
   CHECK_NE(number_address, number->address());
 }
 
-TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
+TEST_F(HeapTest,
+       ConservativePinningScavengerDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;
@@ -773,7 +774,7 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   CHECK_EQ(number_address, number->address());
 }
 
-TEST_F(HeapTest, PinningScavengerObjectWithSelfReference) {
+TEST_F(HeapTest, ConservativePinningScavengerObjectWithSelfReference) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;
