@@ -645,6 +645,10 @@ inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   LoadU32(dst, dst);
 }
 
+inline void MaglevAssembler::Move(Register dst, intptr_t p) {
+  mov(dst, Operand(p));
+}
+
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
 #ifdef V8_COMPRESS_POINTERS
   MacroAssembler::Move(dst, obj, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
