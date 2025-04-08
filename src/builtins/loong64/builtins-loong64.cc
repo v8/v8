@@ -4238,20 +4238,19 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   __ StoreReturnAddressAndCall(target_fun);
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // Result returned in a0 or a1:a0 - do not destroy these registers!
-
   // Check result for exception sentinel.
   Label exception_returned;
   // The returned value may be a trusted object, living outside of the main
   // pointer compression cage, so we need to use full pointer comparison here.
   __ CompareRootAndBranch(a0, RootIndex::kException, eq, &exception_returned,
                           ComparisonMode::kFullPointer);
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (switch_to_central_stack) {
+    SwitchFromTheCentralStackIfNeeded(masm);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check that there is no exception, otherwise we
   // should have returned the exception sentinel.
