@@ -442,14 +442,14 @@ class RuntimeCallTimer final {
   V(BoundFunctionNameGetter)                   \
   V(CodeGenerationFromStringsCallbacks)        \
   V(CompileBackgroundBaseline)                 \
+  V(CompileBackgroundBaselineBuild)            \
   V(CompileBackgroundBaselinePreVisit)         \
   V(CompileBackgroundBaselineVisit)            \
-  V(CompileBackgroundBaselineBuild)            \
   V(CompileBaseline)                           \
+  V(CompileBaselineBuild)                      \
   V(CompileBaselineFinalization)               \
   V(CompileBaselinePreVisit)                   \
   V(CompileBaselineVisit)                      \
-  V(CompileBaselineBuild)                      \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
@@ -516,11 +516,11 @@ class RuntimeCallTimer final {
   V(OptimizeConcurrentPrepare)                 \
   V(OptimizeFinalizePipelineJob)               \
   V(OptimizeHeapBrokerInitialization)          \
-  V(OptimizeNonConcurrent)                     \
-  V(OptimizeNonConcurrentMaglev)               \
   V(OptimizeRevectorizer)                      \
   V(OptimizeSerialization)                     \
   V(OptimizeSerializeMetadata)                 \
+  V(OptimizeSynchronous)                       \
+  V(OptimizeSynchronousMaglev)                 \
   V(ParseEval)                                 \
   V(ParseFunction)                             \
   V(PropertyCallback)                          \

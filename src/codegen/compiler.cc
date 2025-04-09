@@ -1090,7 +1090,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   DCHECK_EQ(compilation_info->code_kind(), CodeKind::TURBOFAN_JS);
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeSynchronous);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeNonConcurrent");
 
