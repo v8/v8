@@ -6983,29 +6983,20 @@ void GenerateConstantTypedArrayStore(MaglevAssembler* masm,
 
 }  // namespace
 
-#define DEF_LOAD_TYPED_ARRAY(Name, ResultReg, ToResultReg)                     \
-  void Name::SetValueLocationConstraints() {                                   \
-    if (has_off_heap_constant_typed_array()) {                                 \
-      UseAny(object_input());                                                  \
-    } else {                                                                   \
-      UseRegister(object_input());                                             \
-    }                                                                          \
-    UseRegister(index_input());                                                \
-    DefineAsRegister(this);                                                    \
-    set_temporaries_needed(1);                                                 \
-  }                                                                            \
-  void Name::GenerateCode(MaglevAssembler* masm,                               \
-                          const ProcessingState& state) {                      \
-    Register index = ToRegister(index_input());                                \
-    ResultReg result_reg = ToResultReg(result());                              \
-                                                                               \
-    if (has_off_heap_constant_typed_array()) {                                 \
-      GenerateConstantTypedArrayLoad(masm, constant_typed_array(), index,      \
-                                     result_reg, elements_kind_);              \
-    } else {                                                                   \
-      Register object = ToRegister(object_input());                            \
-      GenerateTypedArrayLoad(masm, object, index, result_reg, elements_kind_); \
-    }                                                                          \
+#define DEF_LOAD_TYPED_ARRAY(Name, ResultReg, ToResultReg)                   \
+  void Name::SetValueLocationConstraints() {                                 \
+    UseRegister(object_input());                                             \
+    UseRegister(index_input());                                              \
+    DefineAsRegister(this);                                                  \
+    set_temporaries_needed(1);                                               \
+  }                                                                          \
+  void Name::GenerateCode(MaglevAssembler* masm,                             \
+                          const ProcessingState& state) {                    \
+    Register index = ToRegister(index_input());                              \
+    ResultReg result_reg = ToResultReg(result());                            \
+                                                                             \
+    Register object = ToRegister(object_input());                            \
+    GenerateTypedArrayLoad(masm, object, index, result_reg, elements_kind_); \
   }
 
 DEF_LOAD_TYPED_ARRAY(LoadSignedIntTypedArrayElement, Register, ToRegister)
@@ -7016,28 +7007,43 @@ DEF_LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, DoubleRegister,
                      ToDoubleRegister)
 #undef DEF_LOAD_TYPED_ARRAY
 
-#define DEF_STORE_TYPED_ARRAY(Name, ValueReg, ToValueReg)                  \
+#define DEF_LOAD_CONSTANT_TYPED_ARRAY(Name, ResultReg, ToResultReg)        \
   void Name::SetValueLocationConstraints() {                               \
-    if (has_off_heap_constant_typed_array()) {                             \
-      UseAny(object_input());                                              \
-    } else {                                                               \
-      UseRegister(object_input());                                         \
-    }                                                                      \
     UseRegister(index_input());                                            \
-    UseRegister(value_input());                                            \
+    DefineAsRegister(this);                                                \
     set_temporaries_needed(1);                                             \
   }                                                                        \
   void Name::GenerateCode(MaglevAssembler* masm,                           \
                           const ProcessingState& state) {                  \
     Register index = ToRegister(index_input());                            \
-    ValueReg value = ToValueReg(value_input());                            \
-    if (has_off_heap_constant_typed_array()) {                             \
-      GenerateConstantTypedArrayStore(masm, constant_typed_array(), index, \
-                                      value, elements_kind_);              \
-    } else {                                                               \
-      Register object = ToRegister(object_input());                        \
-      GenerateTypedArrayStore(masm, object, index, value, elements_kind_); \
-    }                                                                      \
+    ResultReg result_reg = ToResultReg(result());                          \
+    GenerateConstantTypedArrayLoad(masm, typed_array(), index, result_reg, \
+                                   elements_kind_);                        \
+  }
+
+DEF_LOAD_CONSTANT_TYPED_ARRAY(LoadSignedIntConstantTypedArrayElement, Register,
+                              ToRegister)
+
+DEF_LOAD_CONSTANT_TYPED_ARRAY(LoadUnsignedIntConstantTypedArrayElement,
+                              Register, ToRegister)
+
+DEF_LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
+                              DoubleRegister, ToDoubleRegister)
+#undef DEF_LOAD_CONSTANT_TYPED_ARRAY
+
+#define DEF_STORE_TYPED_ARRAY(Name, ValueReg, ToValueReg)                \
+  void Name::SetValueLocationConstraints() {                             \
+    UseRegister(object_input());                                         \
+    UseRegister(index_input());                                          \
+    UseRegister(value_input());                                          \
+    set_temporaries_needed(1);                                           \
+  }                                                                      \
+  void Name::GenerateCode(MaglevAssembler* masm,                         \
+                          const ProcessingState& state) {                \
+    Register index = ToRegister(index_input());                          \
+    ValueReg value = ToValueReg(value_input());                          \
+    Register object = ToRegister(object_input());                        \
+    GenerateTypedArrayStore(masm, object, index, value, elements_kind_); \
   }
 
 DEF_STORE_TYPED_ARRAY(StoreIntTypedArrayElement, Register, ToRegister)
@@ -7045,6 +7051,27 @@ DEF_STORE_TYPED_ARRAY(StoreIntTypedArrayElement, Register, ToRegister)
 DEF_STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, DoubleRegister,
                       ToDoubleRegister)
 #undef DEF_STORE_TYPED_ARRAY
+
+#define DEF_STORE_CONSTANT_TYPED_ARRAY(Name, ValueReg, ToValueReg)     \
+  void Name::SetValueLocationConstraints() {                           \
+    UseRegister(index_input());                                        \
+    UseRegister(value_input());                                        \
+    set_temporaries_needed(1);                                         \
+  }                                                                    \
+  void Name::GenerateCode(MaglevAssembler* masm,                       \
+                          const ProcessingState& state) {              \
+    Register index = ToRegister(index_input());                        \
+    ValueReg value = ToValueReg(value_input());                        \
+    GenerateConstantTypedArrayStore(masm, typed_array(), index, value, \
+                                    elements_kind_);                   \
+  }
+
+DEF_STORE_CONSTANT_TYPED_ARRAY(StoreIntConstantTypedArrayElement, Register,
+                               ToRegister)
+
+DEF_STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
+                               DoubleRegister, ToDoubleRegister)
+#undef DEF_STORE_CONSTANT_TYPED_ARRAY
 
 // ---
 // Arch agnostic control nodes
