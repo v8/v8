@@ -9234,7 +9234,7 @@ v8::MemorySpan<uint8_t> v8::ArrayBufferView::GetContents(
     v8::MemorySpan<uint8_t> storage) {
   internal::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
-  if (self->WasDetached()) {
+  if (self->IsDetachedOrOutOfBounds()) {
     return {};
   }
   if (internal::IsJSTypedArray(*self)) {
@@ -9275,13 +9275,13 @@ bool v8::ArrayBufferView::HasBuffer() const {
 
 size_t v8::ArrayBufferView::ByteOffset() {
   auto obj = Utils::OpenDirectHandle(this);
-  return obj->WasDetached() ? 0 : obj->byte_offset();
+  return obj->IsDetachedOrOutOfBounds() ? 0 : obj->byte_offset();
 }
 
 size_t v8::ArrayBufferView::ByteLength() {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::JSArrayBufferView> obj = *Utils::OpenDirectHandle(this);
-  if (obj->WasDetached()) {
+  if (obj->IsDetachedOrOutOfBounds()) {
     return 0;
   }
   if (i::IsJSTypedArray(obj)) {
@@ -9296,7 +9296,7 @@ size_t v8::ArrayBufferView::ByteLength() {
 size_t v8::TypedArray::Length() {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::JSTypedArray> obj = *Utils::OpenDirectHandle(this);
-  return obj->WasDetached() ? 0 : obj->GetLength();
+  return obj->IsDetachedOrOutOfBounds() ? 0 : obj->GetLength();
 }
 
 static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
