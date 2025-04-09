@@ -315,6 +315,7 @@ enum ContextLookupFlags {
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, EphemeronHashTable,              \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
+  V(SET_UINT8_ARRAY_RESULT_MAP, Map, set_unit8_array_result_map)               \
   V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \

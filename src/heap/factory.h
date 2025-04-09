@@ -852,6 +852,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<JSArrayBuffer> buffer, size_t byte_offset,
       size_t byte_length, bool is_length_tracking = false);
 
+  DirectHandle<JSUint8ArraySetFromResult> NewJSUint8ArraySetFromResult(
+      DirectHandle<Number> read, DirectHandle<Number> written);
+
   DirectHandle<JSIteratorResult> NewJSIteratorResult(DirectHandle<Object> value,
                                                      bool done);
   DirectHandle<JSAsyncFromSyncIterator> NewJSAsyncFromSyncIterator(

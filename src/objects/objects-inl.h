@@ -302,6 +302,8 @@ template <>
 struct CastTraits<FreshlyAllocatedBigInt> : public CastTraits<BigInt> {};
 template <>
 struct CastTraits<JSIteratorResult> : public CastTraits<JSObject> {};
+template <>
+struct CastTraits<JSUint8ArraySetFromResult> : public CastTraits<JSObject> {};
 
 template <>
 struct CastTraits<DeoptimizationFrameTranslation>

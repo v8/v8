@@ -1446,6 +1446,32 @@ class JSPromiseWithResolversResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
 };
 
+// JSUint8ArraySetFromResult is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "read" and "written",
+class JSUint8ArraySetFromResult : public JSObject {
+ public:
+  DECL_ACCESSORS(read, Tagged<Object>)
+
+  DECL_ACCESSORS(written, Tagged<Object>)
+
+  // Layout description.
+#define JS_UINT8_ARRAY_SET_FROM_RESULT_FIELDS(V) \
+  V(kReadOffset, kTaggedSize)                    \
+  V(kWrittenOffset, kTaggedSize)                 \
+  /* Total size. */                              \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_UINT8_ARRAY_SET_FROM_RESULT_FIELDS)
+#undef JS_UINT8_ARRAY_SET_FROM_RESULT_FIELDS
+
+  // Indices of in-object properties.
+  static const int kReadIndex = 0;
+  static const int kWrittenIndex = 1;
+
+  OBJECT_CONSTRUCTORS(JSUint8ArraySetFromResult, JSObject);
+};
+
 }  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"

@@ -3725,6 +3725,20 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
   return obj;
 }
 
+DirectHandle<JSUint8ArraySetFromResult> Factory::NewJSUint8ArraySetFromResult(
+    DirectHandle<Number> read, DirectHandle<Number> written) {
+  DirectHandle<Map> map(
+      isolate()->native_context()->set_unit8_array_result_map(), isolate());
+  DirectHandle<JSUint8ArraySetFromResult> js_uint8_array_set_from_result =
+      Cast<JSUint8ArraySetFromResult>(
+          NewJSObjectFromMap(map, AllocationType::kYoung));
+  DisallowGarbageCollection no_gc;
+  Tagged<JSUint8ArraySetFromResult> raw = *js_uint8_array_set_from_result;
+  raw->set_read(*read, SKIP_WRITE_BARRIER);
+  raw->set_written(*written, SKIP_WRITE_BARRIER);
+  return js_uint8_array_set_from_result;
+}
+
 MaybeDirectHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     DirectHandle<JSReceiver> target_function, DirectHandle<JSAny> bound_this,
     base::Vector<DirectHandle<Object>> bound_args,

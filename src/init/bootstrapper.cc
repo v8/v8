@@ -5999,6 +5999,12 @@ void Genesis::InitializeGlobal_js_source_phase_imports() {
 void Genesis::InitializeGlobal_js_base_64() {
   if (!v8_flags.js_base_64) return;
 
+  std::array<DirectHandle<Name>, 2> fields{
+      isolate()->factory()->read_string(),
+      isolate()->factory()->written_string()};
+  DirectHandle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
+  native_context()->set_set_unit8_array_result_map(*map);
+
   DirectHandle<JSGlobalObject> global(native_context()->global_object(),
                                       isolate());
   DirectHandle<JSObject> uint8_array_function =
@@ -6015,6 +6021,9 @@ void Genesis::InitializeGlobal_js_base_64() {
       isolate());
   SimpleInstallFunction(isolate(), uint8_array_prototype, "toBase64",
                         Builtin::kUint8ArrayPrototypeToBase64, 0, kDontAdapt);
+  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromBase64",
+                        Builtin::kUint8ArrayPrototypeSetFromBase64, 1,
+                        kDontAdapt);
   SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
                         Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
 }

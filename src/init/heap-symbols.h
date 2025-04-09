@@ -786,6 +786,7 @@
   V(_, RangeError_string, "RangeError")                                       \
   V(_, raw_json_string, "rawJSON")                                            \
   V(_, raw_string, "raw")                                                     \
+  V(_, read_string, "read")                                                   \
   V(_, ReferenceError_string, "ReferenceError")                               \
   V(_, ReflectGet_string, "Reflect.get")                                      \
   V(_, ReflectHas_string, "Reflect.has")                                      \
@@ -871,6 +872,7 @@
   V(_, weekOfYear_string, "weekOfYear")                                       \
   V(_, with_string, "with")                                                   \
   V(_, word_string, "word")                                                   \
+  V(_, written_string, "written")                                             \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")                     \
   V(_, year_string, "year")                                                   \
   V(_, years_string, "years")
