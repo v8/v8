@@ -4596,6 +4596,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kLoadSignedIntTypedArrayElement:
     case Opcode::kLoadUnsignedIntTypedArrayElement:
     case Opcode::kLoadDoubleTypedArrayElement:
+    case Opcode::kLoadSignedIntConstantTypedArrayElement:
+    case Opcode::kLoadUnsignedIntConstantTypedArrayElement:
+    case Opcode::kLoadDoubleConstantTypedArrayElement:
     case Opcode::kLoadEnumCacheLength:
     case Opcode::kLoadGlobal:
     case Opcode::kLoadNamedGeneric:
@@ -6049,16 +6052,6 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
         // instead of implementing special handling for it.
         return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
       }
-      if (auto const_object =
-              TryGetConstant(broker(), local_isolate(), lookup_start_object)) {
-        if (const_object->IsJSTypedArray()) {
-          auto const_typed_array = const_object->AsJSTypedArray();
-          size_t length = const_typed_array.length();
-          static_assert(ArrayBuffer::kMaxByteLength <=
-                        std::numeric_limits<intptr_t>::max());
-          return GetIntPtrConstant(static_cast<intptr_t>(length));
-        }
-      }
       return BuildLoadTypedArrayLength(lookup_start_object,
                                        access_info.elements_kind());
     }
@@ -6490,11 +6483,18 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
 
   if (!is_variable_length) {
     if (auto const_object = TryGetConstant(broker(), local_isolate(), object)) {
-      auto const_typed_array = const_object->AsJSTypedArray();
-      size_t length = const_typed_array.length();
-      static_assert(ArrayBuffer::kMaxByteLength <=
-                    std::numeric_limits<intptr_t>::max());
-      return GetIntPtrConstant(static_cast<intptr_t>(length));
+      // TODO(marja): Add TryGetConstant<JSTypedArray>().
+      if (const_object->IsJSTypedArray()) {
+        auto const_typed_array = const_object->AsJSTypedArray();
+        if (!const_typed_array.is_on_heap() &&
+            !IsRabGsabTypedArrayElementsKind(
+                const_typed_array.elements_kind(broker()))) {
+          size_t length = const_typed_array.length();
+          static_assert(ArrayBuffer::kMaxByteLength <=
+                        std::numeric_limits<intptr_t>::max());
+          return GetIntPtrConstant(static_cast<intptr_t>(length));
+        }
+      }
     }
 
     // Note: We can't use broker()->length_string() here, because it could
@@ -6538,6 +6538,32 @@ ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
 #undef BUILD_AND_RETURN_LOAD_TYPED_ARRAY
 }
 
+ValueNode* MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
+    compiler::JSTypedArrayRef typed_array, ValueNode* index,
+    ElementsKind elements_kind) {
+#define BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Type)    \
+  return AddNewNode<Load##Type##ConstantTypedArrayElement>( \
+      {index}, typed_array, elements_kind);
+
+  switch (elements_kind) {
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(SignedInt);
+    case UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(UnsignedInt);
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Double);
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_AND_RETURN_LOAD_CONSTANTTYPED_ARRAY
+}
+
 void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
 #define BUILD_STORE_TYPED_ARRAY(Type, value)                           \
@@ -6574,6 +6600,46 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
       UNREACHABLE();
   }
 #undef BUILD_STORE_TYPED_ARRAY
+}
+
+void MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
+    compiler::JSTypedArrayRef typed_array, ValueNode* index,
+    ElementsKind elements_kind) {
+#define BUILD_STORE_CONSTANT_TYPED_ARRAY(Type, value) \
+  AddNewNode<Store##Type##ConstantTypedArrayElement>( \
+      {index, (value)}, typed_array, elements_kind);
+
+  // TODO(leszeks): These operations have a deopt loop when the ToNumber
+  // conversion sees a type other than number or oddball. Turbofan has the same
+  // deopt loop, but ideally we'd avoid it.
+  switch (elements_kind) {
+    case UINT8_CLAMPED_ELEMENTS: {
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(Int,
+                                       GetAccumulatorUint8ClampedForToNumber())
+      break;
+    }
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(
+          Int, GetAccumulatorTruncatedInt32ForToNumber(
+                   NodeType::kNumberOrOddball,
+                   TaggedToFloat64ConversionType::kNumberOrOddball))
+      break;
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(
+          Double, GetAccumulatorHoleyFloat64ForToNumber(
+                      NodeType::kNumberOrOddball,
+                      TaggedToFloat64ConversionType::kNumberOrOddball))
+      break;
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_STORE_CONSTANT_TYPED_ARRAY
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
@@ -6618,9 +6684,28 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
+      if (auto constant = object->TryCast<Constant>()) {
+        compiler::HeapObjectRef constant_object = constant->object();
+        if (constant_object.IsJSTypedArray() &&
+            constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
+                broker())) {
+          return BuildLoadConstantTypedArrayElement(
+              constant_object.AsJSTypedArray(), index, elements_kind);
+        }
+      }
       return BuildLoadTypedArrayElement(object, index, elements_kind);
     case compiler::AccessMode::kStore:
       DCHECK(StoreModeIsInBounds(keyed_mode.store_mode()));
+      if (auto constant = object->TryCast<Constant>()) {
+        compiler::HeapObjectRef constant_object = constant->object();
+        if (constant_object.IsJSTypedArray() &&
+            constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
+                broker())) {
+          BuildStoreConstantTypedArrayElement(constant_object.AsJSTypedArray(),
+                                              index, elements_kind);
+          return ReduceResult::Done();
+        }
+      }
       BuildStoreTypedArrayElement(object, index, elements_kind);
       return ReduceResult::Done();
     case compiler::AccessMode::kHas:

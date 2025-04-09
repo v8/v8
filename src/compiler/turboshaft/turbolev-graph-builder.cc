@@ -3171,44 +3171,55 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::LoadUnsignedIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    if (node->has_off_heap_constant_typed_array()) {
-      SetMap(node, BuildConstantTypedArrayLoad(node->constant_typed_array(),
-                                               Map<Word32>(node->index_input()),
-                                               node->elements_kind()));
-    } else {
-      SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
-                                       Map<Word32>(node->index_input()),
-                                       node->elements_kind()));
-    }
+    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                     Map<Word32>(node->index_input()),
+                                     node->elements_kind()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadSignedIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    if (node->has_off_heap_constant_typed_array()) {
-      SetMap(node, BuildConstantTypedArrayLoad(node->constant_typed_array(),
-                                               Map<Word32>(node->index_input()),
-                                               node->elements_kind()));
-    } else {
-      SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
-                                       Map<Word32>(node->index_input()),
-                                       node->elements_kind()));
-    }
+    SetMap(node, BuildTypedArrayLoad(Map<JSTypedArray>(node->object_input()),
+                                     Map<Word32>(node->index_input()),
+                                     node->elements_kind()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadDoubleTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
     DCHECK_EQ(node->elements_kind(),
               any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
-    V<Float> value;
-    if (node->has_off_heap_constant_typed_array()) {
-      value = V<Float>::Cast(BuildConstantTypedArrayLoad(
-          node->constant_typed_array(), Map<Word32>(node->index_input()),
-          node->elements_kind()));
-    } else {
-      value = V<Float>::Cast(BuildTypedArrayLoad(
-          Map<JSTypedArray>(node->object_input()),
-          Map<Word32>(node->index_input()), node->elements_kind()));
+    V<Float> value = V<Float>::Cast(BuildTypedArrayLoad(
+        Map<JSTypedArray>(node->object_input()),
+        Map<Word32>(node->index_input()), node->elements_kind()));
+    if (node->elements_kind() == FLOAT32_ELEMENTS) {
+      value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
     }
+    SetMap(node, value);
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::LoadUnsignedIntConstantTypedArrayElement* node,
+      const maglev::ProcessingState& state) {
+    SetMap(node, BuildConstantTypedArrayLoad(node->typed_array(),
+                                             Map<Word32>(node->index_input()),
+                                             node->elements_kind()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::LoadSignedIntConstantTypedArrayElement* node,
+      const maglev::ProcessingState& state) {
+    SetMap(node, BuildConstantTypedArrayLoad(node->typed_array(),
+                                             Map<Word32>(node->index_input()),
+                                             node->elements_kind()));
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::LoadDoubleConstantTypedArrayElement* node,
+      const maglev::ProcessingState& state) {
+    DCHECK_EQ(node->elements_kind(),
+              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Float> value = V<Float>::Cast(BuildConstantTypedArrayLoad(
+        node->typed_array(), Map<Word32>(node->index_input()),
+        node->elements_kind()));
     if (node->elements_kind() == FLOAT32_ELEMENTS) {
       value = __ ChangeFloat32ToFloat64(V<Float32>::Cast(value));
     }
@@ -3218,16 +3229,10 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::StoreIntTypedArrayElement* node,
                                 const maglev::ProcessingState& state) {
-    if (node->has_off_heap_constant_typed_array()) {
-      BuildConstantTypedArrayStore(
-          node->constant_typed_array(), Map<Word32>(node->index_input()),
-          Map<Untagged>(node->value_input()), node->elements_kind());
-    } else {
-      BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
-                           Map<Word32>(node->index_input()),
-                           Map<Untagged>(node->value_input()),
-                           node->elements_kind());
-    }
+    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                         Map<Word32>(node->index_input()),
+                         Map<Untagged>(node->value_input()),
+                         node->elements_kind());
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleTypedArrayElement* node,
@@ -3238,15 +3243,31 @@ class GraphBuildingNodeProcessor {
     if (node->elements_kind() == FLOAT32_ELEMENTS) {
       value = __ TruncateFloat64ToFloat32(Map(node->value_input()));
     }
-    if (node->has_off_heap_constant_typed_array()) {
-      BuildConstantTypedArrayStore(node->constant_typed_array(),
-                                   Map<Word32>(node->index_input()), value,
-                                   node->elements_kind());
-    } else {
-      BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
-                           Map<Word32>(node->index_input()), value,
-                           node->elements_kind());
+    BuildTypedArrayStore(Map<JSTypedArray>(node->object_input()),
+                         Map<Word32>(node->index_input()), value,
+                         node->elements_kind());
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::StoreIntConstantTypedArrayElement* node,
+                                const maglev::ProcessingState& state) {
+    BuildConstantTypedArrayStore(
+        node->typed_array(), Map<Word32>(node->index_input()),
+        Map<Untagged>(node->value_input()), node->elements_kind());
+    return maglev::ProcessResult::kContinue;
+  }
+  maglev::ProcessResult Process(
+      maglev::StoreDoubleConstantTypedArrayElement* node,
+      const maglev::ProcessingState& state) {
+    DCHECK_EQ(node->elements_kind(),
+              any_of(FLOAT32_ELEMENTS, FLOAT64_ELEMENTS));
+    V<Float> value = Map<Float>(node->value_input());
+    if (node->elements_kind() == FLOAT32_ELEMENTS) {
+      value = __ TruncateFloat64ToFloat32(Map(node->value_input()));
     }
+    BuildConstantTypedArrayStore(node->typed_array(),
+                                 Map<Word32>(node->index_input()), value,
+                                 node->elements_kind());
     return maglev::ProcessResult::kContinue;
   }
 
