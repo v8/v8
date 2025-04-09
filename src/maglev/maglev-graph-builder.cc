@@ -4853,8 +4853,10 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
                                                bool elidable) {
   if (CheckStaticType(object, NodeType::kSmi)) return object;
-  if (CheckType(object, NodeType::kAnyHeapObject)) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSmi))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
   switch (object->value_representation()) {
@@ -4881,20 +4883,25 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
-  if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kAnyHeapObject))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
+  if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
   AddNewNode<CheckHeapObject>({object});
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kString, &known_type))
-    return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kString))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
+  }
+  if (EnsureType(object, NodeType::kString, &known_type)) {
+    return ReduceResult::Done();
   }
   AddNewNode<CheckString>({object}, GetCheckType(known_type));
   return ReduceResult::Done();
@@ -4903,43 +4910,51 @@ ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
     ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
-    return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(
           CombineType(GetType(object), NodeType::kStringOrStringWrapper))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrStringWrapper);
   }
+  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
+    return ReduceResult::Done();
   AddNewNode<CheckStringOrStringWrapper>({object}, GetCheckType(known_type));
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
-  if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kNumber))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
   }
+  if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
   AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kSymbol, &known_type))
-    return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSymbol))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASymbol);
   }
+  if (EnsureType(object, NodeType::kSymbol, &known_type))
+    return ReduceResult::Done();
   AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
   return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kJSReceiver, &known_type))
-    return ReduceResult::Done();
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kJSReceiver))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
   }
+  if (EnsureType(object, NodeType::kJSReceiver, &known_type))
+    return ReduceResult::Done();
   AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
                                 FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
   return ReduceResult::Done();
@@ -4948,13 +4963,15 @@ ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
 ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
     ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
-    return ReduceResult::Done();
-  }
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
   if (IsEmptyNodeType(CombineType(GetType(object),
                                   NodeType::kJSReceiverOrNullOrUndefined))) {
     return EmitUnconditionalDeopt(
         DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
+  }
+  if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
+    return ReduceResult::Done();
   }
   AddNewNode<CheckJSReceiverOrNullOrUndefined>({object},
                                                GetCheckType(known_type));

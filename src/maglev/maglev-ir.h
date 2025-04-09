@@ -776,6 +776,10 @@ inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
 }
 
 inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
+  if (IsEmptyNodeType(type)) {
+    out << "Empty";
+    return out;
+  }
   switch (type) {
 #define CASE(Name, _)     \
   case NodeType::k##Name: \
