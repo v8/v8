@@ -882,11 +882,15 @@ BUILTIN(Uint8ArrayFromHex) {
       if (input_content.IsOneByte()) {
         base::Vector<const uint8_t> input_vector =
             input_content.ToOneByteVector();
-        result = ArrayBufferFromHex(input_vector, buffer, output_length);
+        result = ArrayBufferFromHex(
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       } else {
         base::Vector<const base::uc16> input_vector =
             input_content.ToUC16Vector();
-        result = ArrayBufferFromHex(input_vector, buffer, output_length);
+        result = ArrayBufferFromHex(
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       }
   }
 
@@ -904,6 +908,105 @@ BUILTIN(Uint8ArrayFromHex) {
       isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                           output_length);
   return *result_typed_array;
+}
+
+// https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
+BUILTIN(Uint8ArrayPrototypeSetFromHex) {
+  HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.prototypr.setFromHex";
+
+  // 1. Let into be the this value.
+  // 2. Perform ? ValidateUint8Array(into).
+  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  // 3. If string is not a String, throw a TypeError exception.
+  DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
+  if (!IsString(*input)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kArgumentIsNonString,
+                              isolate->factory()->input_string()));
+  }
+
+  DirectHandle<String> input_string =
+      String::Flatten(isolate, Cast<String>(input));
+
+  // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
+  // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError
+  // exception.
+  // 6. Let byteLength be TypedArrayLength(taRecord).
+  bool out_of_bounds = false;
+  size_t array_length = uint8array->GetLengthOrOutOfBounds(out_of_bounds);
+
+  if (out_of_bounds || uint8array->WasDetached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  size_t input_length = input_string->length();
+  if (input_length % 2 != 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
+  size_t output_length = (input_length / 2);
+  output_length = std::min(output_length, array_length);
+
+  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
+  if (uint8array->buffer()->is_shared()) {
+    UNIMPLEMENTED();
+  }
+
+  // 7. Let result be FromHex(string, byteLength).
+  // 8. Let bytes be result.[[Bytes]].
+  // 9. Let written be the length of bytes.
+  // 10. NOTE: FromHex does not invoke any user code, so the ArrayBuffer backing
+  // into cannot have been detached or shrunk.
+  // 11. Assert: written ≤ byteLength.
+  // 12. Perform SetUint8ArrayBytes(into, bytes).
+  bool result;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent input_content = input_string->GetFlatContent(no_gc);
+
+    if (input_content.IsOneByte()) {
+      base::Vector<const uint8_t> input_vector =
+          input_content.ToOneByteVector();
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
+    } else {
+      base::Vector<const base::uc16> input_vector =
+          input_content.ToUC16Vector();
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
+    }
+  }
+
+  // 13. If result.[[Error]] is not none, then
+  //     a. Throw result.[[Error]].
+  if (!result) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
+  // 14. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+  // 15. Perform ! CreateDataPropertyOrThrow(resultObject, "read",
+  // 𝔽(result.[[Read]])).
+  // 16. Perform ! CreateDataPropertyOrThrow(resultObject, "written",
+  // 𝔽(written)).
+  // 17. Return resultObject.
+  return *isolate->factory()->NewJSUint8ArraySetFromResult(
+      isolate->factory()->NewNumberFromSize(output_length * 2),
+      isolate->factory()->NewNumberFromSize(output_length));
 }
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tohex

@@ -1111,6 +1111,8 @@ namespace internal {
   CPP(Uint8ArrayPrototypeSetFromBase64, kDontAdaptArgumentsSentinel)           \
   /* proposal-arraybuffer-base64 #sec-uint8array.fromhex */                    \
   CPP(Uint8ArrayFromHex, kDontAdaptArgumentsSentinel)                          \
+  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.setfromhex */       \
+  CPP(Uint8ArrayPrototypeSetFromHex, kDontAdaptArgumentsSentinel)              \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
   CPP(Uint8ArrayPrototypeToBase64, kDontAdaptArgumentsSentinel)                \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tohex */            \

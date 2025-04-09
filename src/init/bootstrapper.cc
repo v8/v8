@@ -6026,6 +6026,8 @@ void Genesis::InitializeGlobal_js_base_64() {
                         kDontAdapt);
   SimpleInstallFunction(isolate(), uint8_array_prototype, "toHex",
                         Builtin::kUint8ArrayPrototypeToHex, 0, kDontAdapt);
+  SimpleInstallFunction(isolate(), uint8_array_prototype, "setFromHex",
+                        Builtin::kUint8ArrayPrototypeSetFromHex, 1, kDontAdapt);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {

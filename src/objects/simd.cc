@@ -639,8 +639,8 @@ Maybe<uint8_t> HexToUint8(base::uc16 hex) {
 }
 
 template <typename T>
-std::optional<uint8_t> HandleRemainingHexValues(base::Vector<T>& input_vector,
-                                                size_t i) {
+std::optional<uint8_t> HandleRemainingHexValues(
+    const base::Vector<T>& input_vector, size_t i) {
   T higher = input_vector[i];
   T lower = input_vector[i + 1];
 
@@ -723,12 +723,10 @@ inline std::optional<__m128i> HexToUint8FastWithSSE(__m128i nibbles) {
 }
 
 template <typename T>
-bool Uint8ArrayFromHexWithSSE(base::Vector<T>& input_vector,
-                              DirectHandle<JSArrayBuffer> buffer,
-                              size_t output_length) {
-  CHECK_EQ(buffer->GetByteLength(), output_length);
-  // Example:
-  // input_vector: 666f6f6261726172666f6f62617261ff
+bool Uint8ArrayFromHexWithSSE(const base::Vector<T>& input_vector,
+                              uint8_t* buffer, size_t output_length) {
+  //  Example:
+  //  input_vector: 666f6f6261726172666f6f62617261ff
   size_t i;
 
   for (i = 0; i + 32 <= output_length * 2; i += 32) {
@@ -832,8 +830,7 @@ bool Uint8ArrayFromHexWithSSE(base::Vector<T>& input_vector,
 
     // store result in a buffer and it is equivalent to
     // [102,111,111,98,97,114,97,114,102,111,111,98,97,114,97,255]
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(&(static_cast<uint8_t*>(
-                         buffer->backing_store())[i / 2])),
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(&(buffer[i / 2])),
                      final_result);
   }
 
@@ -842,7 +839,7 @@ bool Uint8ArrayFromHexWithSSE(base::Vector<T>& input_vector,
   for (size_t j = i; j < output_length * 2; j += 2) {
     result = HandleRemainingHexValues(input_vector, j);
     if (result.has_value()) {
-      static_cast<uint8_t*>(buffer->backing_store())[j / 2] = result.value();
+      buffer[j / 2] = result.value();
     } else {
       return false;
     }
@@ -910,11 +907,9 @@ inline std::optional<uint8x16_t> HexToUint8FastWithNeon(uint8x16_t nibbles) {
 }
 
 template <typename T>
-bool Uint8ArrayFromHexWithNeon(base::Vector<T>& input_vector,
-                               DirectHandle<JSArrayBuffer> buffer,
-                               size_t output_length) {
+bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
+                               uint8_t* buffer, size_t output_length) {
   // Example: 666f6F6261726172666f6f62617261ff
-  CHECK_EQ(buffer->GetByteLength(), output_length);
 
   size_t i;
   for (i = 0; i + 32 <= output_length * 2; i += 32) {
@@ -1010,8 +1005,7 @@ bool Uint8ArrayFromHexWithNeon(base::Vector<T>& input_vector,
 
     // store result in a buffer and it is equivalent to
     // [102,111,111,98,97,114,97,114,102,111,111,98,97,114,97,255]
-    vst1q_u8(reinterpret_cast<uint8_t*>(buffer->backing_store()) + i / 2,
-             final_result);
+    vst1q_u8(buffer + i / 2, final_result);
   }
 
   // Handle remaining values
@@ -1019,7 +1013,7 @@ bool Uint8ArrayFromHexWithNeon(base::Vector<T>& input_vector,
   for (size_t j = i; j < output_length * 2; j += 2) {
     result = HandleRemainingHexValues(input_vector, j);
     if (result.has_value()) {
-      static_cast<uint8_t*>(buffer->backing_store())[j / 2] = result.value();
+      buffer[j / 2] = result.value();
     } else {
       return false;
     }
@@ -1032,11 +1026,10 @@ bool Uint8ArrayFromHexWithNeon(base::Vector<T>& input_vector,
 }  // namespace
 
 template <typename T>
-bool ArrayBufferFromHex(base::Vector<T>& input_vector,
-                        DirectHandle<JSArrayBuffer> buffer,
+bool ArrayBufferFromHex(const base::Vector<T>& input_vector, uint8_t* buffer,
                         size_t output_length) {
   size_t input_length = input_vector.size();
-  DCHECK_EQ(output_length, input_length / 2);
+  DCHECK_LE(output_length, input_length / 2);
 
 #ifdef __SSE3__
   if (get_vectorization_kind() == SimdKinds::kAVX2 ||
@@ -1056,8 +1049,7 @@ bool ArrayBufferFromHex(base::Vector<T>& input_vector,
   for (uint32_t i = 0; i < input_length; i += 2) {
     result = HandleRemainingHexValues(input_vector, i);
     if (result.has_value()) {
-      reinterpret_cast<uint8_t*>(buffer->backing_store())[index++] =
-          result.value();
+      buffer[index++] = result.value();
     } else {
       return false;
     }
@@ -1065,12 +1057,12 @@ bool ArrayBufferFromHex(base::Vector<T>& input_vector,
   return true;
 }
 
-template bool ArrayBufferFromHex(base::Vector<const uint8_t>& input_vector,
-                                 DirectHandle<JSArrayBuffer> buffer,
-                                 size_t output_length);
-template bool ArrayBufferFromHex(base::Vector<const base::uc16>& input_vector,
-                                 DirectHandle<JSArrayBuffer> buffer,
-                                 size_t output_length);
+template bool ArrayBufferFromHex(
+    const base::Vector<const uint8_t>& input_vector, uint8_t* buffer,
+    size_t output_length);
+template bool ArrayBufferFromHex(
+    const base::Vector<const base::uc16>& input_vector, uint8_t* buffer,
+    size_t output_length);
 
 #ifdef NEON64
 #undef NEON64
