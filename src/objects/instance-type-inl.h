@@ -358,7 +358,8 @@ V8_INLINE bool IsUncachedExternalString(Tagged<Map> map_object) {
 }
 
 V8_INLINE constexpr bool IsConsString(InstanceType instance_type) {
-  return (instance_type & kStringRepresentationMask) == kConsStringTag;
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kConsStringTag;
 }
 
 V8_INLINE bool IsConsString(Tagged<Map> map_object) {
@@ -371,7 +372,8 @@ V8_INLINE bool IsConsString(Tagged<Map> map_object) {
 }
 
 V8_INLINE constexpr bool IsSlicedString(InstanceType instance_type) {
-  return (instance_type & kStringRepresentationMask) == kSlicedStringTag;
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kSlicedStringTag;
 }
 
 V8_INLINE bool IsSlicedString(Tagged<Map> map_object) {
@@ -384,7 +386,8 @@ V8_INLINE bool IsSlicedString(Tagged<Map> map_object) {
 }
 
 V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
-  return (instance_type & kStringRepresentationMask) == kThinStringTag;
+  return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         kThinStringTag;
 }
 
 V8_INLINE bool IsThinString(Tagged<Map> map_object) {
