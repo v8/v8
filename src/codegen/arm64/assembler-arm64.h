@@ -818,6 +818,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
 
+  // Absolute value.
+  void abs(const Register& rd, const Register& rn);
+
+  // Count bits.
+  void cnt(const Register& rd, const Register& rn);
+
+  // Count Trailing Zeros.
+  void ctz(const Register& rd, const Register& rn);
+
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in x17 and modifier in x16 [Armv8.3].
   void pacib1716();

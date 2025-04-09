@@ -3096,6 +3096,24 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
       set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSizeInBits));
       break;
     }
+    case CTZ_w:
+      set_wreg(dst, CountTrailingZeros(wreg(src), kWRegSizeInBits));
+      break;
+    case CTZ_x:
+      set_xreg(dst, CountTrailingZeros(xreg(src), kXRegSizeInBits));
+      break;
+    case CNT_w:
+      set_wreg(dst, CountSetBits(wreg(src), kWRegSizeInBits));
+      break;
+    case CNT_x:
+      set_xreg(dst, CountSetBits(xreg(src), kXRegSizeInBits));
+      break;
+    case ABS_w:
+      set_wreg(dst, Abs(wreg(src)));
+      break;
+    case ABS_x:
+      set_xreg(dst, Abs(xreg(src)));
+      break;
     default:
       UNIMPLEMENTED();
   }

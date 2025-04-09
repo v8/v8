@@ -5140,6 +5140,23 @@ TEST_F(DisasmArm64Test, neon_shift_immediate) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, cssc) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, CSSC,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Abs(w0, w22), "abs w0, w22");
+  COMPARE(Abs(x0, x23), "abs x0, x23");
+  COMPARE(Cnt(w21, w30), "cnt w21, w30");
+  COMPARE(Cnt(x19, x9), "cnt x19, x9");
+  COMPARE(Ctz(w3, w5), "ctz w3, w5");
+  COMPARE(Ctz(x3, x28), "ctz x3, x28");
+  COMPARE(Ctz(w0, wzr), "ctz w0, wzr");
+
+  CLEANUP();
+}
+
 #undef TEST_
 #undef EXP_SIZE
 #undef INSTR_SIZE

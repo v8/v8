@@ -2524,9 +2524,17 @@ RRR_OP_T_LIST(RRR_VISITOR)
 #undef RRR_VISITOR
 #undef RRR_OP_T_LIST
 
-void InstructionSelectorT::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(CSSC));
 
-void InstructionSelectorT::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+  VisitRR(this, kArm64Ctz32, node);
+}
+
+void InstructionSelectorT::VisitWord64Ctz(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(CSSC));
+
+  VisitRR(this, kArm64Ctz, node);
+}
 
 void InstructionSelectorT::VisitInt32Add(OpIndex node) {
   const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
@@ -5794,6 +5802,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(FP16)) {
     flags |= MachineOperatorBuilder::kFloat16 |
              MachineOperatorBuilder::kFloat16RawBitsConversion;
+  }
+  if (CpuFeatures::IsSupported(CSSC)) {
+    flags |=
+        MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz;
   }
   return flags;
 }

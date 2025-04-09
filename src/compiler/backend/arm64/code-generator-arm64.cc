@@ -1897,6 +1897,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Clz32:
       __ Clz(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Ctz: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Ctz(i.OutputRegister64(), i.InputRegister64(0));
+      break;
+    }
+    case kArm64Ctz32: {
+      DCHECK(CpuFeatures::IsSupported(CSSC));
+
+      CpuFeatureScope scope(masm(), CSSC);
+
+      __ Ctz(i.OutputRegister32(), i.InputRegister32(0));
+      break;
+    }
     case kArm64Rbit:
       __ Rbit(i.OutputRegister64(), i.InputRegister64(0));
       break;

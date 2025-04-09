@@ -145,6 +145,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_hbc()) {
     runtime |= 1u << HBC;
   }
+  if (cpu.has_cssc()) {
+    runtime |= 1u << CSSC;
+  }
 
   // Use the best of the features found by CPU detection and those inferred from
   // the build system.
@@ -1317,6 +1320,27 @@ void Assembler::clz(const Register& rd, const Register& rn) {
 
 void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
+}
+
+void Assembler::abs(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac02000 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::cnt(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01c00 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::ctz(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01800 | SF(rd) | Rd(rd) | Rn(rn));
 }
 
 void Assembler::pacib1716() { Emit(PACIB1716); }

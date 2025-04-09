@@ -463,10 +463,8 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
                 V::VisitDataProcessing2Source(instr);
               }
             } else {
-              if ((instr->Bit(13) == 1) || (instr->Bits(20, 16) != 0) ||
-                  (instr->Bits(15, 14) != 0) ||
-                  (instr->Mask(0xA01FFC00) == 0x00000C00) ||
-                  (instr->Mask(0x201FF800) == 0x00001800)) {
+              if ((instr->Bits(20, 16) != 0) || (instr->Bits(15, 10) > 8) ||
+                  (instr->Mask(0xFFFFFC00) == 0x5AC00C00)) {
                 V::VisitUnallocated(instr);
               } else {
                 V::VisitDataProcessing1Source(instr);

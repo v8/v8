@@ -1198,6 +1198,15 @@ constexpr DataProcessing1SourceOp CLZ_x = CLZ | SixtyFourBits;
 constexpr DataProcessing1SourceOp CLS = DataProcessing1SourceFixed | 0x00001400;
 constexpr DataProcessing1SourceOp CLS_w = CLS;
 constexpr DataProcessing1SourceOp CLS_x = CLS | SixtyFourBits;
+constexpr DataProcessing1SourceOp CTZ = DataProcessing1SourceFixed | 0x00001800;
+constexpr DataProcessing1SourceOp CTZ_w = CTZ;
+constexpr DataProcessing1SourceOp CTZ_x = CTZ | SixtyFourBits;
+constexpr DataProcessing1SourceOp CNT = DataProcessing1SourceFixed | 0x00001C00;
+constexpr DataProcessing1SourceOp CNT_w = CNT;
+constexpr DataProcessing1SourceOp CNT_x = CNT | SixtyFourBits;
+constexpr DataProcessing1SourceOp ABS = DataProcessing1SourceFixed | 0x00002000;
+constexpr DataProcessing1SourceOp ABS_w = ABS;
+constexpr DataProcessing1SourceOp ABS_x = ABS | SixtyFourBits;
 
 // Data processing 2 source.
 using DataProcessing2SourceOp = uint32_t;

@@ -1179,13 +1179,21 @@ void MacroAssembler::Cbz(const Register& rt, Label* label) {
 
 // Pseudo-instructions.
 
-void MacroAssembler::Abs(const Register& rd, const Register& rm,
-                         Label* is_not_representable, Label* is_representable) {
+void MacroAssembler::AbsWithOverflow(const Register& rd, const Register& rm,
+                                     Label* is_not_representable,
+                                     Label* is_representable) {
   DCHECK(allow_macro_instructions());
   DCHECK(AreSameSizeAndType(rd, rm));
 
   Cmp(rm, 1);
-  Cneg(rd, rm, lt);
+
+  if (CpuFeatures::IsSupported(CSSC)) {
+    CpuFeatureScope scope(this, CSSC);
+
+    Abs(rd, rm);
+  } else {
+    Cneg(rd, rm, lt);
+  }
 
   // If the comparison sets the v flag, the input was the smallest value
   // representable by rm, and the mathematical result of abs(rm) is not
@@ -4805,13 +4813,19 @@ void MacroAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void MacroAssembler::PopcntHelper(Register dst, Register src) {
-  UseScratchRegisterScope temps(this);
-  VRegister scratch = temps.AcquireV(kFormat8B);
-  VRegister tmp = src.Is32Bits() ? scratch.S() : scratch.D();
-  Fmov(tmp, src);
-  Cnt(scratch, scratch);
-  Addv(scratch.B(), scratch);
-  Fmov(dst, tmp);
+  if (CpuFeatures::IsSupported(CSSC)) {
+    CpuFeatureScope scope(this, CSSC);
+
+    Cnt(dst, src);
+  } else {
+    UseScratchRegisterScope temps(this);
+    VRegister scratch = temps.AcquireV(kFormat8B);
+    VRegister tmp = src.Is32Bits() ? scratch.S() : scratch.D();
+    Fmov(tmp, src);
+    Cnt(scratch, scratch);
+    Addv(scratch.B(), scratch);
+    Fmov(dst, tmp);
+  }
 }
 
 void MacroAssembler::I8x16BitMask(Register dst, VRegister src, VRegister temp) {

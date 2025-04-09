@@ -190,16 +190,17 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
  */
 #define HWCAP2_MTE (1 << 18)
+#define HWCAP2_CSSC (1UL << 34)
 #define HWCAP2_HBC (1UL << 44)
 #endif  // V8_HOST_ARCH_ARM64
 
 #if V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
 
-static std::tuple<uint32_t, uint64_t> ReadELFHWCaps() {
-  uint32_t hwcap = 0;
+static std::tuple<uint64_t, uint64_t> ReadELFHWCaps() {
+  uint64_t hwcap = 0;
   uint64_t hwcap2 = 0;
 #if (V8_GLIBC_PREREQ(2, 16) || V8_OS_ANDROID) && defined(AT_HWCAP)
-  hwcap = static_cast<uint32_t>(getauxval(AT_HWCAP));
+  hwcap = static_cast<uint64_t>(getauxval(AT_HWCAP));
 #if defined(AT_HWCAP2)
   hwcap2 = static_cast<uint64_t>(getauxval(AT_HWCAP2));
 #endif  // AT_HWCAP2
@@ -450,6 +451,7 @@ CPU::CPU()
       has_pmull1q_(false),
       has_fp16_(false),
       has_hbc_(false),
+      has_cssc_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
@@ -711,7 +713,7 @@ CPU::CPU()
   }
 
   // Try to extract the list of CPU features from ELF hwcaps.
-  uint32_t hwcaps = 0;
+  uint64_t hwcaps = 0;
   uint64_t hwcaps2 = 0;
   std::tie(hwcaps, hwcaps2) = ReadELFHWCaps();
   if (hwcaps != 0) {
@@ -835,8 +837,9 @@ CPU::CPU()
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
-  uint32_t hwcaps, hwcaps2;
+  uint64_t hwcaps, hwcaps2;
   std::tie(hwcaps, hwcaps2) = ReadELFHWCaps();
+  has_cssc_ = (hwcaps2 & HWCAP2_CSSC) != 0;
   has_mte_ = (hwcaps2 & HWCAP2_MTE) != 0;
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   if (hwcaps != 0) {

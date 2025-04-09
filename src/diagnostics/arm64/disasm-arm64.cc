@@ -631,6 +631,9 @@ void DisassemblingDecoder::VisitDataProcessing1Source(Instruction* instr) {
     FORMAT(REV, "rev");
     FORMAT(CLZ, "clz");
     FORMAT(CLS, "cls");
+    FORMAT(CTZ, "ctz");
+    FORMAT(CNT, "cnt");
+    FORMAT(ABS, "abs");
 #undef FORMAT
     case REV32_x:
       mnemonic = "rev32";

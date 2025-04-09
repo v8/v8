@@ -15847,111 +15847,138 @@ TEST(near_call_no_relocation) {
   CHECK_EQUAL_64(1, x0);
 }
 
-static void AbsHelperX(int64_t value) {
-  int64_t expected;
-
-  SETUP();
-  START();
-
-  Label fail;
-  Label done;
-
-  __ Mov(x0, 0);
-  __ Mov(x1, value);
-
-  if (value != kXMinInt) {
-    expected = std::abs(value);
-
-    Label next;
-    // The result is representable.
-    __ Abs(x10, x1);
-    __ Abs(x11, x1, &fail);
-    __ Abs(x12, x1, &fail, &next);
-    __ Bind(&next);
-    __ Abs(x13, x1, nullptr, &done);
-  } else {
-    // std::abs is undefined for kXMinInt but our implementation in the
-    // MacroAssembler will return kXMinInt in such a case.
-    expected = kXMinInt;
-
-    Label next;
-    // The result is not representable.
-    __ Abs(x10, x1);
-    __ Abs(x11, x1, nullptr, &fail);
-    __ Abs(x12, x1, &next, &fail);
-    __ Bind(&next);
-    __ Abs(x13, x1, &done);
+#define ABS_HELPER_X(can_run, value)                                    \
+  int64_t expected;                                                     \
+                                                                        \
+  START();                                                              \
+                                                                        \
+  Label fail;                                                           \
+  Label done;                                                           \
+                                                                        \
+  __ Mov(x0, 0);                                                        \
+  __ Mov(x1, (value));                                                  \
+                                                                        \
+  if ((value) != kXMinInt) {                                            \
+    expected = std::abs(value);                                         \
+                                                                        \
+    Label next;                                                         \
+    /* The result is representable. */                                  \
+    __ AbsWithOverflow(x10, x1);                                        \
+    __ AbsWithOverflow(x11, x1, &fail);                                 \
+    __ AbsWithOverflow(x12, x1, &fail, &next);                          \
+    __ Bind(&next);                                                     \
+    __ AbsWithOverflow(x13, x1, nullptr, &done);                        \
+  } else {                                                              \
+    /* std::abs is undefined for kXMinInt but our implementation in the \
+       MacroAssembler will return kXMinInt in such a case. */           \
+    expected = kXMinInt;                                                \
+                                                                        \
+    Label next;                                                         \
+    /* The result is not representable. */                              \
+    __ AbsWithOverflow(x10, x1);                                        \
+    __ AbsWithOverflow(x11, x1, nullptr, &fail);                        \
+    __ AbsWithOverflow(x12, x1, &next, &fail);                          \
+    __ Bind(&next);                                                     \
+    __ AbsWithOverflow(x13, x1, &done);                                 \
+  }                                                                     \
+                                                                        \
+  __ Bind(&fail);                                                       \
+  __ Mov(x0, -1);                                                       \
+                                                                        \
+  __ Bind(&done);                                                       \
+                                                                        \
+  END();                                                                \
+                                                                        \
+  if (can_run) {                                                        \
+    RUN();                                                              \
+                                                                        \
+    CHECK_EQUAL_64(0, x0);                                              \
+    CHECK_EQUAL_64((value), x1);                                        \
+    CHECK_EQUAL_64(expected, x10);                                      \
+    CHECK_EQUAL_64(expected, x11);                                      \
+    CHECK_EQUAL_64(expected, x12);                                      \
+    CHECK_EQUAL_64(expected, x13);                                      \
   }
 
-  __ Bind(&fail);
-  __ Mov(x0, -1);
+static void AbsHelperX(int64_t value) {
+  {
+    SETUP();
+    ABS_HELPER_X(true, value);
+  }
 
-  __ Bind(&done);
-
-  END();
-  RUN();
-
-  CHECK_EQUAL_64(0, x0);
-  CHECK_EQUAL_64(value, x1);
-  CHECK_EQUAL_64(expected, x10);
-  CHECK_EQUAL_64(expected, x11);
-  CHECK_EQUAL_64(expected, x12);
-  CHECK_EQUAL_64(expected, x13);
+  {
+    SETUP();
+    SETUP_FEATURE(CSSC);
+    ABS_HELPER_X(CAN_RUN(), value);
+  }
 }
 
-
-static void AbsHelperW(int32_t value) {
-  int32_t expected;
-
-  SETUP();
-  START();
-
-  Label fail;
-  Label done;
-
-  __ Mov(w0, 0);
-  // TODO(jbramley): The cast is needed to avoid a sign-extension bug in VIXL.
-  // Once it is fixed, we should remove the cast.
-  __ Mov(w1, static_cast<uint32_t>(value));
-
-  if (value != kWMinInt) {
-    expected = abs(value);
-
-    Label next;
-    // The result is representable.
-    __ Abs(w10, w1);
-    __ Abs(w11, w1, &fail);
-    __ Abs(w12, w1, &fail, &next);
-    __ Bind(&next);
-    __ Abs(w13, w1, nullptr, &done);
-  } else {
-    // abs is undefined for kWMinInt but our implementation in the
-    // MacroAssembler will return kWMinInt in such a case.
-    expected = kWMinInt;
-
-    Label next;
-    // The result is not representable.
-    __ Abs(w10, w1);
-    __ Abs(w11, w1, nullptr, &fail);
-    __ Abs(w12, w1, &next, &fail);
-    __ Bind(&next);
-    __ Abs(w13, w1, &done);
+#define ABS_HELPER_W(can_run, value)                                           \
+  int32_t expected;                                                            \
+                                                                               \
+  START();                                                                     \
+                                                                               \
+  Label fail;                                                                  \
+  Label done;                                                                  \
+                                                                               \
+  __ Mov(w0, 0);                                                               \
+  /* TODO(jbramley): The cast is needed to avoid a sign-extension bug in VIXL. \
+     Once it is fixed, we should remove the cast. */                           \
+  __ Mov(w1, static_cast<uint32_t>(value));                                    \
+                                                                               \
+  if ((value) != kWMinInt) {                                                   \
+    expected = abs(value);                                                     \
+                                                                               \
+    Label next;                                                                \
+    /* The result is representable. */                                         \
+    __ AbsWithOverflow(w10, w1);                                               \
+    __ AbsWithOverflow(w11, w1, &fail);                                        \
+    __ AbsWithOverflow(w12, w1, &fail, &next);                                 \
+    __ Bind(&next);                                                            \
+    __ AbsWithOverflow(w13, w1, nullptr, &done);                               \
+  } else {                                                                     \
+    /* abs is undefined for kWMinInt but our implementation in the             \
+       MacroAssembler will return kWMinInt in such a case. */                  \
+    expected = kWMinInt;                                                       \
+                                                                               \
+    Label next;                                                                \
+    /* The result is not representable. */                                     \
+    __ AbsWithOverflow(w10, w1);                                               \
+    __ AbsWithOverflow(w11, w1, nullptr, &fail);                               \
+    __ AbsWithOverflow(w12, w1, &next, &fail);                                 \
+    __ Bind(&next);                                                            \
+    __ AbsWithOverflow(w13, w1, &done);                                        \
+  }                                                                            \
+                                                                               \
+  __ Bind(&fail);                                                              \
+  __ Mov(w0, -1);                                                              \
+                                                                               \
+  __ Bind(&done);                                                              \
+                                                                               \
+  END();                                                                       \
+                                                                               \
+  if (can_run) {                                                               \
+    RUN();                                                                     \
+                                                                               \
+    CHECK_EQUAL_32(0, w0);                                                     \
+    CHECK_EQUAL_32((value), w1);                                               \
+    CHECK_EQUAL_32(expected, w10);                                             \
+    CHECK_EQUAL_32(expected, w11);                                             \
+    CHECK_EQUAL_32(expected, w12);                                             \
+    CHECK_EQUAL_32(expected, w13);                                             \
   }
 
-  __ Bind(&fail);
-  __ Mov(w0, -1);
+static void AbsHelperW(int32_t value) {
+  {
+    SETUP();
+    ABS_HELPER_W(true, value);
+  }
 
-  __ Bind(&done);
-
-  END();
-  RUN();
-
-  CHECK_EQUAL_32(0, w0);
-  CHECK_EQUAL_32(value, w1);
-  CHECK_EQUAL_32(expected, w10);
-  CHECK_EQUAL_32(expected, w11);
-  CHECK_EQUAL_32(expected, w12);
-  CHECK_EQUAL_32(expected, w13);
+  {
+    SETUP();
+    SETUP_FEATURE(CSSC);
+    ABS_HELPER_W(CAN_RUN(), value);
+  }
 }
 
 TEST(abs) {
@@ -16365,6 +16392,180 @@ FP16_OP_LIST(TEST_FP16_OP)
 
 #undef TEST_FP16_OP
 #undef FP16_OP_LIST
+
+TEST(cssc_abs) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 0);
+  __ Mov(x3, 0x7fff'ffff);
+  __ Mov(x4, 0x8000'0000);
+  __ Mov(x5, 0x8000'0001);
+  __ Mov(x6, 0x7fff'ffff'ffff'ffff);
+  __ Mov(x7, 0x8000'0000'0000'0000);
+  __ Mov(x8, 0x8000'0000'0000'0001);
+
+  __ Abs(w10, w0);
+  __ Abs(x11, x0);
+  __ Abs(w12, w1);
+  __ Abs(x13, x1);
+  __ Abs(w14, w2);
+  __ Abs(x15, x2);
+
+  __ Abs(w19, w3);
+  __ Abs(x20, x3);
+  __ Abs(w21, w4);
+  __ Abs(x22, x4);
+  __ Abs(w23, w5);
+  __ Abs(x24, x5);
+  __ Abs(w25, w6);
+  __ Abs(x26, x6);
+  __ Abs(w27, w7);
+  __ Abs(x28, x7);
+  __ Abs(w29, w8);
+  __ Abs(x30, x8);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(1, x10);
+    CHECK_EQUAL_64(1, x11);
+    CHECK_EQUAL_64(1, x12);
+    CHECK_EQUAL_64(1, x13);
+    CHECK_EQUAL_64(0, x14);
+    CHECK_EQUAL_64(0, x15);
+    CHECK_EQUAL_64(0x7fff'ffff, x19);
+    CHECK_EQUAL_64(0x7fff'ffff, x20);
+    CHECK_EQUAL_64(0x8000'0000, x21);
+    CHECK_EQUAL_64(0x8000'0000, x22);
+    CHECK_EQUAL_64(0x7fff'ffff, x23);
+    CHECK_EQUAL_64(0x8000'0001, x24);
+    CHECK_EQUAL_64(1, x25);
+    CHECK_EQUAL_64(0x7fff'ffff'ffff'ffff, x26);
+    CHECK_EQUAL_64(0, x27);
+    CHECK_EQUAL_64(0x8000'0000'0000'0000, x28);
+    CHECK_EQUAL_64(1, x29);
+    CHECK_EQUAL_64(0x7fff'ffff'ffff'ffff, x30);
+  }
+}
+
+TEST(cssc_cnt) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 0);
+  __ Mov(x3, 0x7fff'ffff);
+  __ Mov(x4, 0x8000'0000);
+  __ Mov(x5, 0x8000'0001);
+  __ Mov(x6, 0x7fff'ffff'ffff'ffff);
+  __ Mov(x7, 0x4242'4242'aaaa'aaaa);
+
+  __ Cnt(w10, w0);
+  __ Cnt(x11, x0);
+  __ Cnt(w12, w1);
+  __ Cnt(x13, x1);
+  __ Cnt(w14, w2);
+  __ Cnt(x15, x2);
+  __ Cnt(w19, w3);
+  __ Cnt(x20, x3);
+  __ Cnt(w21, w4);
+  __ Cnt(x22, x4);
+  __ Cnt(w23, w5);
+  __ Cnt(x24, x5);
+  __ Cnt(w25, w6);
+  __ Cnt(x26, x6);
+  __ Cnt(w27, w7);
+  __ Cnt(x28, x7);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(32, x10);
+    CHECK_EQUAL_64(64, x11);
+    CHECK_EQUAL_64(1, x12);
+    CHECK_EQUAL_64(1, x13);
+    CHECK_EQUAL_64(0, x14);
+    CHECK_EQUAL_64(0, x15);
+    CHECK_EQUAL_64(31, x19);
+    CHECK_EQUAL_64(31, x20);
+    CHECK_EQUAL_64(1, x21);
+    CHECK_EQUAL_64(1, x22);
+    CHECK_EQUAL_64(2, x23);
+    CHECK_EQUAL_64(2, x24);
+    CHECK_EQUAL_64(32, x25);
+    CHECK_EQUAL_64(63, x26);
+    CHECK_EQUAL_64(16, x27);
+    CHECK_EQUAL_64(24, x28);
+  }
+}
+
+TEST(cssc_ctz) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 2);
+  __ Mov(x3, 0x7fff'ff00);
+  __ Mov(x4, 0x8000'4000);
+  __ Mov(x5, 0x4000'0001);
+  __ Mov(x6, 0x0000'0001'0000'0000);
+  __ Mov(x7, 0x4200'0000'0000'0000);
+
+  __ Ctz(w10, w0);
+  __ Ctz(x11, x0);
+  __ Ctz(w12, w1);
+  __ Ctz(x13, x1);
+  __ Ctz(w14, w2);
+  __ Ctz(x15, x2);
+  __ Ctz(w19, w3);
+  __ Ctz(x20, x3);
+  __ Ctz(w21, w4);
+  __ Ctz(x22, x4);
+  __ Ctz(w23, w5);
+  __ Ctz(x24, x5);
+  __ Ctz(w25, w6);
+  __ Ctz(x26, x6);
+  __ Ctz(w27, w7);
+  __ Ctz(x28, x7);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0, x10);
+    CHECK_EQUAL_64(0, x11);
+    CHECK_EQUAL_64(0, x12);
+    CHECK_EQUAL_64(0, x13);
+    CHECK_EQUAL_64(1, x14);
+    CHECK_EQUAL_64(1, x15);
+    CHECK_EQUAL_64(8, x19);
+    CHECK_EQUAL_64(8, x20);
+    CHECK_EQUAL_64(14, x21);
+    CHECK_EQUAL_64(14, x22);
+    CHECK_EQUAL_64(0, x23);
+    CHECK_EQUAL_64(0, x24);
+    CHECK_EQUAL_64(32, x25);
+    CHECK_EQUAL_64(32, x26);
+    CHECK_EQUAL_64(32, x27);
+    CHECK_EQUAL_64(57, x28);
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

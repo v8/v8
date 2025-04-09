@@ -1253,6 +1253,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   inline void Clz(const Register& rd, const Register& rn);
 
+  inline void Abs(const Register& rd, const Register& rn);
+  inline void Cnt(const Register& rd, const Register& rn);
+  inline void Ctz(const Register& rd, const Register& rn);
+
   // Poke 'src' onto the stack. The offset is in bytes. The stack pointer must
   // be 16 byte aligned.
   // When the optional template argument is kSignLR and control flow integrity
@@ -1536,9 +1540,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   //
   // If rm is the minimum representable value, the result is not representable.
   // Handlers for each case can be specified using the relevant labels.
-  void Abs(const Register& rd, const Register& rm,
-           Label* is_not_representable = nullptr,
-           Label* is_representable = nullptr);
+  void AbsWithOverflow(const Register& rd, const Register& rm,
+                       Label* is_not_representable = nullptr,
+                       Label* is_representable = nullptr);
 
   inline void Cls(const Register& rd, const Register& rn);
   inline void Cneg(const Register& rd, const Register& rn, Condition cond);

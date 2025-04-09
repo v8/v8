@@ -58,6 +58,8 @@ enum CpuFeature {
   SHA3,
   // Hinted Conditional Branches
   HBC,
+  // Common short sequence compression instructions
+  CSSC,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,
