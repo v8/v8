@@ -1194,6 +1194,11 @@ class JSTypedArrayRef : public JSObjectRef {
   ElementsKind elements_kind(JSHeapBroker* broker) const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
+
+  bool is_off_heap_non_rab_gsab(JSHeapBroker* broker) const {
+    return !is_on_heap() &&
+           !IsRabGsabTypedArrayElementsKind(elements_kind(broker));
+  }
 };
 
 class JSPrimitiveWrapperRef : public JSObjectRef {
