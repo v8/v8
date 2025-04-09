@@ -566,6 +566,9 @@ void DisassemblingDecoder::VisitConditionalBranch(Instruction* instr) {
     case B_cond:
       Format(instr, "b.'CBrn", "'TImmCond");
       break;
+    case BC_cond:
+      Format(instr, "bc.'CBrn", "'TImmCond");
+      break;
     default:
       UNREACHABLE();
   }

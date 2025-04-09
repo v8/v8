@@ -1648,6 +1648,58 @@ TEST_F(TurboshaftInstructionSelectorTest, EqualZeroAndBranch) {
   }
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, BranchHints) {
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex p0 = m.Parameter(0);
+    m.Branch(m.Word64NotEqual(p0, m.Int64Constant(0)), a, b, BranchHint::kTrue);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
+    EXPECT_TRUE(s[0]->branch_hinted());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32(),
+                    MachineType::Int32());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex p0 = m.Parameter(0);
+    OpIndex p1 = m.Parameter(1);
+    m.Branch(m.Int32LessThan(p0, p1), a, b, BranchHint::kFalse);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_TRUE(s[0]->branch_hinted());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  }
+
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    Block *a = m.NewBlock(), *b = m.NewBlock();
+    OpIndex p0 = m.Parameter(0);
+    m.Branch(m.Uint64LessThanOrEqual(p0, m.Int64Constant(42)), a, b,
+             BranchHint::kNone);
+    m.Bind(a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    EXPECT_EQ(kArm64Cmp, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_FALSE(s[0]->branch_hinted());
+  }
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, ConditionalCompares) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),

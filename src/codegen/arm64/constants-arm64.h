@@ -760,6 +760,11 @@ constexpr ConditionalBranchOp ConditionalBranchFMask = 0xFE000000;
 constexpr ConditionalBranchOp ConditionalBranchMask = 0xFF000010;
 constexpr ConditionalBranchOp B_cond = ConditionalBranchFixed | 0x00000000;
 
+// Consistent Conditional branch.
+constexpr ConditionalBranchOp ConditionalBranchConsistentFixed = 0x54000010;
+constexpr ConditionalBranchOp BC_cond =
+    ConditionalBranchConsistentFixed | 0x00000000;
+
 // System.
 // System instruction encoding is complicated because some instructions use op
 // and CR fields to encode parameters. To handle this cleanly, the system

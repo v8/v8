@@ -789,6 +789,8 @@ TEST_F(DisasmArm64Test, branch) {
   COMPARE_PREFIX(b(INST_OFF(-0x8000000)), "b #-0x8000000");
   COMPARE_PREFIX(b(INST_OFF(0xffffc), eq), "b.eq #+0xffffc");
   COMPARE_PREFIX(b(INST_OFF(-0x100000), mi), "b.mi #-0x100000");
+  COMPARE_PREFIX(bc(INST_OFF(0xffffc), ge), "bc.ge #+0xffffc");
+  COMPARE_PREFIX(bc(INST_OFF(-0x100000), lt), "bc.lt #-0x100000");
   COMPARE_PREFIX(bl(INST_OFF(0x4)), "bl #+0x4");
   COMPARE_PREFIX(bl(INST_OFF(-0x4)), "bl #-0x4");
   COMPARE_PREFIX(bl(INST_OFF(0xffffc)), "bl #+0xffffc");

@@ -3490,7 +3490,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     }
   } else {
     Condition cc = FlagsConditionToCondition(condition);
-    __ B(cc, tlabel);
+    if (CpuFeatures::IsSupported(HBC) && branch->hinted) {
+      CpuFeatureScope scope(masm(), HBC);
+      __ Bc(cc, tlabel);
+    } else {
+      __ B(cc, tlabel);
+    }
   }
   if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
 }
@@ -3511,7 +3516,13 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
   auto ool = zone()->New<WasmOutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   Condition cc = FlagsConditionToCondition(condition);
-  __ B(cc, tlabel);
+  // Assume traps aren't taken, so they're consistent.
+  if (CpuFeatures::IsSupported(HBC)) {
+    CpuFeatureScope scope(masm(), HBC);
+    __ Bc(cc, tlabel);
+  } else {
+    __ B(cc, tlabel);
+  }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

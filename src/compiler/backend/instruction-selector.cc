@@ -2368,8 +2368,13 @@ void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
   const BranchOp& branch = Cast<BranchOp>(branch_node);
   TryPrepareScheduleFirstProjection(branch.condition());
 
+#if V8_ENABLE_WEBASSEMBLY
+  FlagsContinuation cont = FlagsContinuation::ForHintedBranch(
+      kNotEqual, tbranch, fbranch, branch.hint);
+#else
   FlagsContinuation cont =
       FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch);
+#endif  // V8_ENABLE_WEBASSEMBLY
   VisitWordCompareZero(branch_node, branch.condition(), &cont);
 }
 

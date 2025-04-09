@@ -629,6 +629,8 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
     // overwriting the inputs.
     inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
     inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
+  } else if (cont->IsBranch() && cont->hint() != BranchHint::kNone) {
+    opcode |= BranchHintField::encode(true);
   }
   DCHECK_NE(0u, input_count);
   DCHECK((output_count != 0) || IsComparisonField::decode(properties));
@@ -2190,7 +2192,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   Arm64OperandGeneratorT g(this);
 
@@ -3277,6 +3280,10 @@ void EmitBranchOrDeoptimize(InstructionSelectorT* selector,
                             InstructionCode opcode, InstructionOperand value,
                             FlagsContinuationT* cont) {
   DCHECK(cont->IsBranch() || cont->IsDeoptimize());
+  if ((cont->IsBranch() && cont->hint() != BranchHint::kNone) ||
+      cont->IsDeoptimize()) {
+    opcode |= BranchHintField::encode(true);
+  }
   selector->EmitWithContinuation(opcode, value, cont);
 }
 

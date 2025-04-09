@@ -1070,7 +1070,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   S390OperandGeneratorT g(this);
 

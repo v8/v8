@@ -416,6 +416,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional branch to PC offset.
   void b(int imm19, Condition cond);
 
+  // Conditional branch consistent to label.
+  void bc(Label* label, Condition cond);
+
+  // Conditional branch consistent to PC offset.
+  void bc(int imm19, Condition cond);
+
   // Branch-link to label / pc offset.
   void bl(Label* label);
   void bl(int imm26);

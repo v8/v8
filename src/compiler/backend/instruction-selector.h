@@ -140,6 +140,14 @@ class FlagsContinuationT final {
                               false_block);
   }
 
+  static FlagsContinuationT ForHintedBranch(FlagsCondition condition,
+                                            turboshaft::Block* true_block,
+                                            turboshaft::Block* false_block,
+                                            BranchHint hint) {
+    return FlagsContinuationT(kFlags_branch, condition, true_block, false_block,
+                              hint);
+  }
+
   // Creates a new flags continuation from the given conditional compare chain
   // and true/false blocks.
   static FlagsContinuationT ForConditionalBranch(
@@ -245,6 +253,10 @@ class FlagsContinuationT final {
     DCHECK(IsBranch() || IsConditionalBranch());
     return false_block_;
   }
+  BranchHint hint() const {
+    DCHECK(IsBranch());
+    return hint_;
+  }
   turboshaft::OpIndex true_value() const {
     DCHECK(IsSelect());
     return true_value_;
@@ -325,6 +337,19 @@ class FlagsContinuationT final {
         true_block_(true_block),
         false_block_(false_block) {
     DCHECK(mode == kFlags_branch);
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
+  FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
+                     turboshaft::Block* true_block,
+                     turboshaft::Block* false_block, BranchHint hint)
+      : mode_(mode),
+        condition_(condition),
+        true_block_(true_block),
+        false_block_(false_block),
+        hint_(hint) {
+    DCHECK_EQ(mode, kFlags_branch);
     DCHECK_NOT_NULL(true_block);
     DCHECK_NOT_NULL(false_block);
   }
@@ -412,6 +437,7 @@ class FlagsContinuationT final {
   TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
   turboshaft::OpIndex true_value_;  // Only valid if mode_ == kFlags_select.
   turboshaft::OpIndex false_value_;  // Only valid if mode_ == kFlags_select.
+  BranchHint hint_ = BranchHint::kNone;
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the

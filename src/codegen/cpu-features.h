@@ -56,6 +56,8 @@ enum CpuFeature {
   // Half-precision NEON ops support.
   FP16,
   SHA3,
+  // Hinted Conditional Branches
+  HBC,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

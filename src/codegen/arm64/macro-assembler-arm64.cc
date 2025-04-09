@@ -1096,6 +1096,23 @@ void MacroAssembler::B(Label* label, Condition cond) {
   }
 }
 
+void MacroAssembler::Bc(Condition cond, Label* label) {
+  DCHECK(allow_macro_instructions());
+  DCHECK((cond != al) && (cond != nv));
+
+  bool need_extra_instructions =
+      NeedExtraInstructionsOrRegisterBranch<CondBranchType>(label);
+
+  if (V8_UNLIKELY(need_extra_instructions)) {
+    Label done;
+    bc(&done, NegateCondition(cond));
+    B(label);
+    bind(&done);
+  } else {
+    bc(label, cond);
+  }
+}
+
 void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
   DCHECK(allow_macro_instructions());
 

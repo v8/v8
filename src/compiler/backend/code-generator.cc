@@ -127,7 +127,7 @@ bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
   DCHECK_EQ(instr->arch_opcode(), kArchStackPointerGreaterThan);
 
   StackCheckKind kind =
-      static_cast<StackCheckKind>(MiscField::decode(instr->opcode()));
+      static_cast<StackCheckKind>(StackCheckField::decode(instr->opcode()));
   if (kind != StackCheckKind::kJSFunctionEntry) return false;
 
   uint32_t stack_check_offset = *offset = GetStackCheckOffset();
@@ -761,6 +761,7 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
   branch->condition = condition;
   branch->true_label = GetLabel(true_rpo);
   branch->false_label = GetLabel(false_rpo);
+  branch->hinted = static_cast<bool>(BranchHintField::decode(instr->opcode()));
   branch->fallthru = IsNextInAssemblyOrder(false_rpo);
   return RpoNumber::Invalid();
 }
@@ -848,6 +849,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.condition = condition;
       branch.true_label = exit->label();
       branch.false_label = exit->continue_label();
+      branch.hinted = true;
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());

@@ -1788,8 +1788,9 @@ void InstructionSelectorT::VisitWord64Xor(OpIndex node) {
 void InstructionSelectorT::VisitStackPointerGreaterThan(
     OpIndex node, FlagsContinuation* cont) {
   const StackPointerGreaterThanOp& op = Cast<StackPointerGreaterThanOp>(node);
-  InstructionCode opcode = kArchStackPointerGreaterThan |
-                           MiscField::encode(static_cast<int>(op.kind));
+  InstructionCode opcode =
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(op.kind));
 
   int effect_level = GetEffectLevel(node, cont);
 

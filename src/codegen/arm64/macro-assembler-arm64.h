@@ -571,6 +571,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void B(Label* label, BranchType type, Register reg = NoReg, int bit = -1);
   inline void B(Label* label);
   inline void B(Condition cond, Label* label);
+  void Bc(Condition cond, Label* label);
   void B(Label* label, Condition cond);
 
   void Tbnz(const Register& rt, unsigned bit_pos, Label* label);

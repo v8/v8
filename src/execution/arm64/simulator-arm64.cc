@@ -1833,7 +1833,8 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
 }
 
 void Simulator::VisitConditionalBranch(Instruction* instr) {
-  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond);
+  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond ||
+         instr->Mask(ConditionalBranchMask) == BC_cond);
   if (ConditionPassed(static_cast<Condition>(instr->ConditionBranch()))) {
     set_pc(instr->ImmPCOffsetTarget());
   }

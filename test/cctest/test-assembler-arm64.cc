@@ -1841,6 +1841,95 @@ TEST(branch_cond) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
+TEST(branch_cond_consistent) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(HBC);
+
+  Label wrong;
+
+  START();
+  __ Mov(x0, 0x1);
+  __ Mov(x1, 0x1);
+  __ Mov(x2, 0x8000000000000000L);
+
+  // For each 'cmp' instruction below, condition codes other than the ones
+  // following it would branch.
+
+  __ Cmp(x1, 0);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, ls);
+  __ bc(&wrong, lt);
+  __ bc(&wrong, le);
+  Label ok_1;
+  __ bc(&ok_1, ne);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_1);
+
+  __ Cmp(x1, 1);
+  __ bc(&wrong, ne);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, hi);
+  __ bc(&wrong, lt);
+  __ bc(&wrong, gt);
+  Label ok_2;
+  __ bc(&ok_2, pl);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_2);
+
+  __ Cmp(x1, 2);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, hs);
+  __ bc(&wrong, pl);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, hi);
+  __ bc(&wrong, ge);
+  __ bc(&wrong, gt);
+  Label ok_3;
+  __ bc(&ok_3, vc);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_3);
+
+  __ Cmp(x2, 1);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vc);
+  __ bc(&wrong, ls);
+  __ bc(&wrong, ge);
+  __ bc(&wrong, gt);
+  Label ok_4;
+  __ bc(&ok_4, le);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_4);
+
+  Label ok_5;
+  __ bc(&ok_5, al);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_5);
+
+  Label ok_6;
+  __ bc(&ok_6, nv);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_6);
+
+  END();
+
+  __ Bind(&wrong);
+  __ Mov(x0, 0x0);
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+    CHECK_EQUAL_64(0x1, x0);
+  }
+}
+
 TEST(branch_to_reg) {
   INIT_V8();
   SETUP();

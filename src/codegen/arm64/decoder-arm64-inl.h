@@ -141,8 +141,7 @@ void Decoder<V>::DecodeBranchSystemException(Instruction* instr) {
     }
     case 2: {
       if (instr->Bit(25) == 0) {
-        if ((instr->Bit(24) == 0x1) ||
-            (instr->Mask(0x01000010) == 0x00000010)) {
+        if ((instr->Bit(24) == 0x1)) {
           V::VisitUnallocated(instr);
         } else {
           V::VisitConditionalBranch(instr);

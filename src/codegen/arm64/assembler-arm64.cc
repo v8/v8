@@ -81,6 +81,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_AES)
   features |= 1u << PMULL1Q;
 #endif
+#if defined(__ARM_FEATURE_HBC)
+  features |= 1u << HBC;
+#endif
   return features;
 }
 
@@ -138,6 +141,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_fp16()) {
     runtime |= 1u << FP16;
+  }
+  if (cpu.has_hbc()) {
+    runtime |= 1u << HBC;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -885,6 +891,14 @@ void Assembler::b(int imm19, Condition cond) {
 
 void Assembler::b(Label* label, Condition cond) {
   b(LinkAndGetBranchInstructionOffsetTo(label), cond);
+}
+
+void Assembler::bc(int imm19, Condition cond) {
+  Emit(BC_cond | ImmCondBranch(imm19) | cond);
+}
+
+void Assembler::bc(Label* label, Condition cond) {
+  bc(LinkAndGetBranchInstructionOffsetTo(label), cond);
 }
 
 void Assembler::bl(int imm26) { Emit(BL | ImmUncondBranch(imm26)); }
