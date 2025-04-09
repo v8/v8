@@ -145,6 +145,7 @@ void StackMemory::ShrinkTo(Address stack_address) {
 void StackMemory::Reset() {
   active_segment_ = first_segment_;
   size_ = active_segment_->size_;
+  clear_stack_switch_info();
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {
