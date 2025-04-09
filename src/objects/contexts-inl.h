@@ -306,6 +306,81 @@ Tagged<Map> NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)
 
+inline std::ostream& operator<<(std::ostream& os, ContextCell::State state) {
+  switch (state) {
+    case ContextCell::kConst:
+      os << "const";
+      break;
+    case ContextCell::kSmi:
+      os << "smi";
+      break;
+    case ContextCell::kInt32:
+      os << "int32";
+      break;
+    case ContextCell::kFloat64:
+      os << "float64";
+      break;
+  }
+  return os;
+}
+
+ContextCell::State ContextCell::state() const {
+  return state_.load(std::memory_order_acquire);
+}
+
+void ContextCell::set_state(ContextCell::State state) {
+  return state_.store(state, std::memory_order_release);
+}
+
+Tagged<DependentCode> ContextCell::dependent_code() const {
+  return dependent_code_.load();
+}
+
+void ContextCell::set_dependent_code(Tagged<DependentCode> value,
+                                     WriteBarrierMode mode) {
+  dependent_code_.store(this, value, mode);
+}
+
+Tagged<JSAny> ContextCell::tagged_value() const {
+  return tagged_value_.Relaxed_Load();
+}
+
+void ContextCell::set_tagged_value(Tagged<JSAny> value, WriteBarrierMode mode) {
+  tagged_value_.Relaxed_Store(this, value, mode);
+}
+
+void ContextCell::set_smi_value(Tagged<Smi> value) {
+  tagged_value_.Relaxed_Store(this, value);
+}
+
+void ContextCell::clear_tagged_value() {
+  set_tagged_value(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+}
+
+void ContextCell::clear_padding() {
+#if TAGGED_SIZE_8_BYTES
+  optional_padding_ = 0;
+#endif  // TAGGED_SIZE_8_BYTES
+}
+
+double ContextCell::float64_value() const {
+  DCHECK_EQ(state(), kFloat64);
+  return double_value_.value();
+}
+
+void ContextCell::set_float64_value(double value) {
+  double_value_.set_value(value);
+}
+
+int32_t ContextCell::int32_value() const {
+  DCHECK_EQ(state(), kInt32);
+  return *reinterpret_cast<const int32_t*>(&double_value_);
+}
+
+void ContextCell::set_int32_value(int32_t value) {
+  *reinterpret_cast<int32_t*>(&double_value_) = value;
+}
+
 }  // namespace internal
 }  // namespace v8
 

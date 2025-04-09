@@ -506,7 +506,7 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
       } else if (state() == NO_FEEDBACK) {
         TraceIC("LoadGlobalIC", name);
       }
-      if (v8_flags.script_context_mutable_heap_number) {
+      if (v8_flags.script_context_cells) {
         return direct_handle(
             *Context::LoadScriptContextElement(
                 script_context, lookup_result.slot_index, result, isolate()),
@@ -1741,10 +1741,9 @@ MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     } else if (state() == NO_FEEDBACK) {
       TraceIC("StoreGlobalIC", name);
     }
-    if (v8_flags.script_context_mutable_heap_number ||
-        v8_flags.const_tracking_let) {
+    if (v8_flags.script_context_cells) {
       AllowGarbageCollection yes_gc;
-      Context::StoreScriptContextAndUpdateSlotProperty(
+      Context::StoreScriptContextElement(
           direct_handle(script_context, isolate()), lookup_result.slot_index,
           value, isolate());
     } else {
@@ -3059,9 +3058,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
                               name));
       }
     }
-    if (v8_flags.script_context_mutable_heap_number ||
-        v8_flags.const_tracking_let) {
-      Context::StoreScriptContextAndUpdateSlotProperty(
+    if (v8_flags.script_context_cells) {
+      Context::StoreScriptContextElement(
           script_context, lookup_result.slot_index, value, isolate);
     } else {
       script_context->set(lookup_result.slot_index, *value);

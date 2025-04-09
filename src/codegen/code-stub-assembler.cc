@@ -2176,16 +2176,15 @@ TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
   return LoadObjectField<Float64T>(object, offsetof(HeapNumber, value_));
 }
 
-TNode<Int32T> CodeStubAssembler::LoadHeapInt32Value(TNode<HeapObject> object) {
-  return LoadObjectField<Int32T>(
-      object, offsetof(HeapNumber, value_) + kIeeeDoubleMantissaWordOffset);
+TNode<Int32T> CodeStubAssembler::LoadContextCellInt32Value(
+    TNode<ContextCell> object) {
+  return LoadObjectField<Int32T>(object, offsetof(ContextCell, double_value_));
 }
 
-void CodeStubAssembler::StoreHeapInt32Value(TNode<HeapObject> object,
-                                            TNode<Int32T> value) {
-  StoreObjectFieldNoWriteBarrier(
-      object, offsetof(HeapNumber, value_) + kIeeeDoubleMantissaWordOffset,
-      value);
+void CodeStubAssembler::StoreContextCellInt32Value(TNode<ContextCell> object,
+                                                   TNode<Int32T> value) {
+  StoreObjectFieldNoWriteBarrier(object, offsetof(ContextCell, double_value_),
+                                 value);
 }
 
 TNode<Map> CodeStubAssembler::GetInstanceTypeMap(InstanceType instance_type) {
@@ -4278,14 +4277,24 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
   return result;
 }
 
-TNode<HeapNumber> CodeStubAssembler::AllocateHeapInt32WithValue(
-    TNode<Int32T> value) {
-  TNode<HeapNumber> result = AllocateHeapNumber();
-  StoreHeapInt32Value(result, value);
+TNode<ContextCell> CodeStubAssembler::AllocateContextCell(
+    TNode<Object> tagged_value) {
+  TNode<HeapObject> result =
+      Allocate(sizeof(ContextCell), AllocationFlag::kNone);
+  StoreMapNoWriteBarrier(result, RootIndex::kContextCellMap);
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ContextCell, tagged_value_),
+                                 tagged_value);
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ContextCell, dependent_code_),
+                                 LoadRoot(RootIndex::kEmptyWeakArrayList));
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ContextCell, state_),
+                                 Int32Constant(ContextCell::kConst));
+#if TAGGED_SIZE_8_BYTES
   StoreObjectFieldNoWriteBarrier(
-      result, offsetof(HeapNumber, value_) + kIeeeDoubleExponentWordOffset,
-      Int32Constant(kHoleNanUpper32));
-  return result;
+      result, offsetof(ContextCell, optional_padding_), Int32Constant(0));
+#endif  // TAGGED_SIZE_8_BYTES
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ContextCell, double_value_),
+                                 Float64Constant(0));
+  return UncheckedCast<ContextCell>(result);
 }
 
 TNode<Object> CodeStubAssembler::CloneIfMutablePrimitive(TNode<Object> object) {
@@ -4480,6 +4489,10 @@ TNode<BoolT> CodeStubAssembler::IsZeroOrContext(TNode<Object> object) {
       TaggedEqual(object, SmiConstant(0)),
       [=, this] { return Int32TrueConstant(); },
       [=, this] { return IsContext(CAST(object)); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsEmptyDependentCode(TNode<Object> object) {
+  return TaggedEqual(object, EmptyWeakArrayListConstant());
 }
 
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
@@ -14459,20 +14472,6 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
   Goto(&context_search);
   BIND(&context_search);
   {
-#if DEBUG
-    // Const tracking let data is stored in the extension slot of a
-    // ScriptContext - however, it's unrelated to the sloppy eval variable
-    // extension. We should never iterate through a ScriptContext here.
-    auto scope_info = LoadScopeInfo(cur_context.value());
-    TNode<Uint32T> flags =
-        LoadObjectField<Uint32T>(scope_info, ScopeInfo::kFlagsOffset);
-    auto scope_type = DecodeWord32<ScopeInfo::ScopeTypeBits>(flags);
-    CSA_DCHECK(this, Word32NotEqual(scope_type,
-                                    Int32Constant(ScopeType::SCRIPT_SCOPE)));
-    CSA_DCHECK(this, Word32NotEqual(scope_type,
-                                    Int32Constant(ScopeType::REPL_MODE_SCOPE)));
-#endif
-
     // Check if context has an extension slot.
     TNode<BoolT> has_extension =
         LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));

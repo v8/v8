@@ -108,8 +108,8 @@ namespace internal {
   V(Cell)                                       \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
-  V(ContextSidePropertyCell)                    \
   V(Context)                                    \
+  V(ContextCell)                                \
   V(CoverageInfo)                               \
   V(CppHeapExternalObject)                      \
   V(DataHandler)                                \

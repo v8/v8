@@ -7,6 +7,7 @@
 
 #include "include/v8-promise.h"
 #include "src/handles/handles.h"
+#include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
@@ -18,7 +19,10 @@
 namespace v8 {
 namespace internal {
 
-class ContextSidePropertyCell;
+namespace maglev {
+class MaglevGraphBuilder;
+class MaglevAssembler;
+}  // namespace maglev
 class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
@@ -557,9 +561,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-
-    // This slot holds the const tracking let side data.
-    CONTEXT_SIDE_TABLE_PROPERTY_INDEX = MIN_CONTEXT_SLOTS,
   };
 
   static const int kExtensionSize =
@@ -681,18 +682,11 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
-  static Tagged<ContextSidePropertyCell> GetOrCreateContextSidePropertyCell(
-      DirectHandle<Context> context, size_t index,
-      ContextSidePropertyCell::Property property, Isolate* isolate);
-
-  std::optional<ContextSidePropertyCell::Property> GetScriptContextSideProperty(
-      size_t index) const;
-
-  static DirectHandle<Object> LoadScriptContextElement(
+  V8_EXPORT_PRIVATE static DirectHandle<Object> LoadScriptContextElement(
       DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> new_value, Isolate* isolate);
+      DirectHandle<Object> value, Isolate* isolate);
 
-  static void StoreScriptContextAndUpdateSlotProperty(
+  V8_EXPORT_PRIVATE static void StoreScriptContextElement(
       DirectHandle<Context> script_context, int index,
       DirectHandle<Object> new_value, Isolate* isolate);
 
@@ -860,6 +854,64 @@ class ScriptContextTable
 };
 
 using ContextField = Context::Field;
+
+V8_OBJECT class ContextCell : public HeapObjectLayout {
+ public:
+  enum State : int32_t {
+    kConst = 0,
+    kSmi = 1,
+    kInt32 = 2,
+    kFloat64 = 3,
+  };
+
+  DECL_VERIFIER(ContextCell)
+  DECL_PRINTER(ContextCell)
+
+  inline State state() const;
+  inline void set_state(State state);
+
+  inline Tagged<DependentCode> dependent_code() const;
+  inline void set_dependent_code(Tagged<DependentCode> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> tagged_value() const;
+  inline void set_tagged_value(Tagged<JSAny> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void clear_tagged_value();
+
+  inline void set_smi_value(Tagged<Smi> value);
+
+  inline int32_t int32_value() const;
+  inline void set_int32_value(int32_t value);
+
+  inline double float64_value() const;
+  inline void set_float64_value(double value);
+
+  inline void clear_padding();
+
+ private:
+  friend class CodeStubAssembler;
+  friend struct ObjectTraits<ContextCell>;
+  friend class TorqueGeneratedContextCellAsserts;
+  friend class maglev::MaglevGraphBuilder;
+  friend class maglev::MaglevAssembler;
+  friend class compiler::AccessBuilder;
+
+  TaggedMember<JSAny> tagged_value_;
+  TaggedMember<DependentCode> dependent_code_;
+  std::atomic<State> state_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif  // TAGGED_SIZE_8_BYTES
+  UnalignedDoubleMember double_value_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<ContextCell> {
+  using BodyDescriptor =
+      FixedBodyDescriptor<offsetof(ContextCell, tagged_value_),
+                          offsetof(ContextCell, state_), sizeof(ContextCell)>;
+};
 
 }  // namespace internal
 }  // namespace v8

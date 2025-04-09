@@ -364,7 +364,7 @@ IGNITION_HANDLER(StaScriptContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
   TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
+  StoreScriptContext(slot_context, slot_index, value);
   Dispatch();
 }
 
@@ -376,7 +376,7 @@ IGNITION_HANDLER(StaCurrentScriptContextSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
-  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
+  StoreScriptContext(slot_context, slot_index, value);
   Dispatch();
 }
 

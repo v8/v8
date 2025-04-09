@@ -1337,14 +1337,6 @@ DirectHandle<Context> Factory::NewScriptContext(
     DirectHandle<NativeContext> outer, DirectHandle<ScopeInfo> scope_info) {
   DCHECK(scope_info->is_script_scope());
   int variadic_part_length = scope_info->ContextLength();
-
-  DirectHandle<FixedArray> side_data;
-  if (v8_flags.const_tracking_let ||
-      v8_flags.script_context_mutable_heap_number) {
-    side_data = NewFixedArray(scope_info->ContextLocalCount());
-  } else {
-    side_data = empty_fixed_array();
-  }
   Tagged<Context> context =
       NewContextInternal(direct_handle(outer->script_context_map(), isolate()),
                          Context::SizeFor(variadic_part_length),
@@ -1352,7 +1344,6 @@ DirectHandle<Context> Factory::NewScriptContext(
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
-  context->set(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX, *side_data);
   DCHECK(context->IsScriptContext());
   return direct_handle(context, isolate());
 }
@@ -1500,6 +1491,21 @@ DirectHandle<Context> Factory::NewBuiltinContext(
                           SKIP_WRITE_BARRIER);
   context->set_previous(*native_context, SKIP_WRITE_BARRIER);
   return direct_handle(context, isolate());
+}
+
+DirectHandle<ContextCell> Factory::NewContextCell(
+    DirectHandle<JSAny> value, AllocationType allocation_type) {
+  Tagged<ContextCell> cell =
+      Cast<ContextCell>(New(context_cell_map(), allocation_type));
+  DisallowGarbageCollection no_gc;
+  cell->set_tagged_value(*value, SKIP_WRITE_BARRIER);
+  cell->set_dependent_code(
+      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
+      SKIP_WRITE_BARRIER);
+  cell->set_float64_value(0);
+  cell->set_state(ContextCell::kConst);
+  cell->clear_padding();
+  return direct_handle(cell, isolate());
 }
 
 DirectHandle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
@@ -2233,20 +2239,6 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
   cell->set_value(*value, mode);
   cell->set_property_details_raw(details.AsSmi(), SKIP_WRITE_BARRIER);
   return handle(cell, isolate());
-}
-
-DirectHandle<ContextSidePropertyCell> Factory::NewContextSidePropertyCell(
-    ContextSidePropertyCell::Property property, AllocationType allocation) {
-  static_assert(ContextSidePropertyCell::kSize <= kMaxRegularHeapObjectSize);
-  Tagged<ContextSidePropertyCell> cell = Cast<ContextSidePropertyCell>(
-      AllocateRawWithImmortalMap(ContextSidePropertyCell::kSize, allocation,
-                                 *global_context_side_property_cell_map()));
-  DisallowGarbageCollection no_gc;
-  cell->set_context_side_property_raw(Smi::FromInt(property), kReleaseStore);
-  cell->set_dependent_code(
-      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
-      SKIP_WRITE_BARRIER);
-  return direct_handle(cell, isolate());
 }
 
 DirectHandle<PropertyCell> Factory::NewProtector() {

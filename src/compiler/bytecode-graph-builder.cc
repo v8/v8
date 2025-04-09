@@ -1863,12 +1863,6 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // in the same scope as the variable itself has no way of shadowing it.
   Environment* slow_environment = nullptr;
   for (uint32_t d = 0; d < depth; d++) {
-    // Const tracking let data is stored in the extension slot of a
-    // ScriptContext - however, it's unrelated to the sloppy eval variable
-    // extension. We should never iterate through a ScriptContext here.
-    DCHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
-    DCHECK_NE(scope_info.scope_type(), ScopeType::REPL_MODE_SCOPE);
-
     if (scope_info.HasContextExtensionSlot() &&
         !broker()->dependencies()->DependOnEmptyContextExtension(scope_info)) {
       // Using EmptyContextExtension dependency is not possible for this
