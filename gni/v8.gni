@@ -193,6 +193,10 @@ declare_args() {
 
   # Sets -DV8_ENABLE_ETW_STACK_WALKING. Enables ETW Stack Walking
   v8_enable_etw_stack_walking = is_win
+
+  # Specifies if the target build is a simulator build. By default it is set to
+  # true if the host and target do not match and we are not cross-compiling.
+  v8_target_is_simulator = ""
 }
 
 if (v8_use_external_startup_data == "") {
@@ -254,6 +258,14 @@ assert(v8_enable_turbofan || !v8_enable_webassembly,
 # conservative stack scanning is enabled.
 if (v8_enable_direct_handle == "") {
   v8_enable_direct_handle = v8_enable_conservative_stack_scanning
+}
+
+if (v8_target_is_simulator == "") {
+  # We compare target cpu with v8 target cpu to not affect simulator builds for
+  # making cross-compile snapshots.
+  v8_target_is_simulator =
+      (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
+      (current_cpu != v8_current_cpu && v8_multi_arch_build)
 }
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute

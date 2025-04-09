@@ -25,12 +25,6 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
 
-# Specifies if the target build is a simulator build. Comparing target cpu
-# with v8 target cpu to not affect simulator builds for making cross-compile
-# snapshots.
-target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
-                      (current_cpu != v8_current_cpu && v8_multi_arch_build)
-
 # For faster Windows builds. See https://crbug.com/v8/8475.
 emit_builtins_as_inline_asm = is_win && is_clang
 
@@ -323,10 +317,11 @@ declare_args() {
 
   # Enable control-flow integrity features, such as pointer authentication for
   # ARM64. Enable it by default for simulator builds and when native code
-  # supports it as well.
-  v8_control_flow_integrity =
-      v8_current_cpu == "arm64" &&
-      (target_is_simulator || arm_control_flow_integrity != "none")
+  # supports it as well. On Mac, control-flow integrity does not work so we
+  # avoid enabling it when using the simulator.
+  v8_control_flow_integrity = v8_current_cpu == "arm64" &&
+                              ((v8_target_is_simulator && target_os != "mac") ||
+                               arm_control_flow_integrity != "none")
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
@@ -739,7 +734,8 @@ if (v8_builtins_profiling_log_file == "default") {
   }
 }
 
-if (v8_enable_webassembly && !target_is_simulator && v8_current_cpu == "x64") {
+if (v8_enable_webassembly && !v8_target_is_simulator &&
+    v8_current_cpu == "x64") {
   v8_enable_wasm_simd256_revec = true
 }
 
@@ -1447,6 +1443,9 @@ config("features") {
   if (v8_lower_limits_mode) {
     defines += [ "V8_LOWER_LIMITS_MODE" ]
   }
+  if (v8_target_is_simulator) {
+    defines += [ "USE_SIMULATOR" ]
+  }
 }
 
 config("toolchain") {
@@ -1497,7 +1496,7 @@ config("toolchain") {
   }
 
   # Mips64el simulators.
-  if (target_is_simulator && v8_current_cpu == "mips64el") {
+  if (v8_target_is_simulator && v8_current_cpu == "mips64el") {
     defines += [ "_MIPS_TARGET_SIMULATOR" ]
   }
 
@@ -1530,7 +1529,7 @@ config("toolchain") {
   }
 
   # loong64 simulators.
-  if (target_is_simulator && v8_current_cpu == "loong64") {
+  if (v8_target_is_simulator && v8_current_cpu == "loong64") {
     defines += [ "_LOONG64_TARGET_SIMULATOR" ]
   }
   if (v8_current_cpu == "loong64") {
@@ -1563,10 +1562,10 @@ config("toolchain") {
 
   # Under simulator build, compiler will not provide __riscv_xlen. Define here
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    if (target_is_simulator) {
+    if (v8_target_is_simulator) {
       defines += [ "_RISCV_TARGET_SIMULATOR" ]
     }
-    if (riscv_use_rvv || target_is_simulator) {
+    if (riscv_use_rvv || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
@@ -2551,7 +2550,7 @@ template("run_mksnapshot") {
     # This is needed to distinguish between generating code for the simulator
     # and cross-compiling. The latter may need to run code on the host with the
     # simulator but cannot use simulator-specific instructions.
-    if (target_is_simulator) {
+    if (v8_target_is_simulator) {
       args += [ "--target_is_simulator" ]
     }
 
@@ -4720,8 +4719,10 @@ v8_header_set("v8_internal_headers") {
           (current_cpu == "x64" && (is_linux || is_chromeos || is_mac))) {
         sources += [ "src/trap-handler/handler-inside-posix.h" ]
       }
-      if (current_cpu == "x64" &&
-          (is_linux || is_chromeos || is_mac || is_win)) {
+      if ((current_cpu == "x64" &&
+           (is_linux || is_chromeos || is_mac || is_win)) ||
+          (current_cpu == "arm64" && v8_target_is_simulator &&
+           (is_linux || is_mac))) {
         sources += [ "src/trap-handler/trap-handler-simulator.h" ]
       }
     }
@@ -6074,7 +6075,7 @@ v8_source_set("v8_base_without_compiler") {
           "src/trap-handler/handler-outside-win.cc",
         ]
       }
-      if (current_cpu == "x64" &&
+      if ((current_cpu == "x64" || current_cpu == "arm64") &&
           (is_linux || is_chromeos || is_mac || is_win)) {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
       }
