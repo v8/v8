@@ -2045,6 +2045,10 @@ DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
 DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
             "Allow mixed legacy and new exception handling instructions in the "
             "same wasm module")
+// %WasmGenerateRandomModule() can generate modules with a mix of old and new EH
+// instructions, and crashes if the module does not compile.
+// So always allow mixing old and new EH for fuzzing.
+DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
