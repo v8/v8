@@ -4454,8 +4454,19 @@ void Script::TraceScriptRundownSources() {
   Tagged<String> source = Cast<String>(this->source());
   auto script_id = this->id();
   int32_t source_length = source->length();
-  const int32_t kSplitMaxLength = 1000000;
-  if (source_length <= kSplitMaxLength) {
+
+  const int32_t kSourceMaxLength = 25000000;  // 25mb
+  const int32_t kSplitMaxLength = 1000000;    // 1mb
+  if (source_length > kSourceMaxLength) {
+    auto value = v8::tracing::TracedValue::Create();
+    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
+    value->SetInteger("scriptId", script_id);
+    value->SetInteger("length", source_length);
+    value->SetInteger("limit", kSourceMaxLength);
+    TRACE_EVENT1(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+        "TooLargeScriptCatchup", "data", std::move(value));
+  } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
     value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
     value->SetInteger("scriptId", script_id);
