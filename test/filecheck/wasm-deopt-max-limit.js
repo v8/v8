@@ -39,10 +39,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(2 + 3, wasm.main(2, 3, wasm.add));
   assertTrue(%IsTurboFanFunction(wasm.main));
   // New target on 2nd call_ref.
+  // CHECK: bailout (kind: deopt-eager, reason: wrong call target, type: Wasm)
   assertEquals(2 * 3, wasm.main(2, 3, wasm.mul));
   assertFalse(%IsTurboFanFunction(wasm.main));
   // Trigger tier-up again. This disable using deoptimizations as the limit is
   // reached.
+  // CHECK: Disabling deoptimizations for speculative inlining as the deoptimization limit (1) for this function is reached or exceeded (1)
   %WasmTierUpFunction(wasm.main);
   assertEquals(2 + 3, wasm.main(2, 3, wasm.add));
   assertEquals(2 * 3, wasm.main(2, 3, wasm.mul));

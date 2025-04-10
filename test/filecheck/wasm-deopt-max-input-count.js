@@ -33,6 +33,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let wasm = builder.instantiate().exports;
   assertEquals(2 + 3, wasm.main(2, 3, wasm.add));
+  // CHECK: Disabling deoptimizations for speculative inlining as the deoptimization FrameState takes too many inputs
   %WasmTierUpFunction(wasm.main);
   assertEquals(2 + 3, wasm.main(2, 3, wasm.add));
   assertTrue(%IsTurboFanFunction(wasm.main));

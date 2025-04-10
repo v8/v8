@@ -56,6 +56,11 @@ wheel: <
 >
 
 wheel: <
+ name: "infra/python/wheels/filecheck-py2_py3"
+ version: "version:1.0.1"
+>
+
+wheel: <
  name: "infra/python/wheels/funcsigs-py2_py3"
  version: "version:1.0.2"
 >
