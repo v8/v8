@@ -855,7 +855,7 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
     if (v8_flags.script_context_mutable_heap_number &&
         context->IsScriptContext()) {
       value = indirect_handle(Context::LoadScriptContextElement(
-                                  context, it->index(), value, isolate_),
+                                  context, context_index, value, isolate_),
                               isolate_);
     }
     if (visitor(name, value, scope_type)) return true;
