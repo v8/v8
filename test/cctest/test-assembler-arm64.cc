@@ -3221,6 +3221,13 @@ TEST(neon_ld1_d_postindex) {
          MemOperand(x21, 32, PostIndex));
   __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(),
          MemOperand(x22, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld1(v24.V8B(), v25.V8B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3249,6 +3256,7 @@ TEST(neon_ld1_d_postindex) {
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
   CHECK_EQUAL_64(src_base + 5 + 32, x22);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld1_q) {
@@ -3316,6 +3324,13 @@ TEST(neon_ld1_q_postindex) {
          MemOperand(x20, 64, PostIndex));
   __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
          MemOperand(x21, 64, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld1(v24.V16B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3339,6 +3354,7 @@ TEST(neon_ld1_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 48, x19);
   CHECK_EQUAL_64(src_base + 3 + 64, x20);
   CHECK_EQUAL_64(src_base + 4 + 64, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld1_lane) {
@@ -3458,6 +3474,13 @@ TEST(neon_ld2_d_postindex) {
   __ Ld2(v5.V4H(), v6.V4H(), MemOperand(x19, 16, PostIndex));
   __ Ld2(v16.V2S(), v17.V2S(), MemOperand(x20, 16, PostIndex));
   __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x21, 16, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2(v18.V8B(), v19.V8B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3477,6 +3500,7 @@ TEST(neon_ld2_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 16, x19);
   CHECK_EQUAL_64(src_base + 3 + 16, x20);
   CHECK_EQUAL_64(src_base + 4 + 16, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld2_q) {
@@ -3538,6 +3562,13 @@ TEST(neon_ld2_q_postindex) {
   __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x19, 32, PostIndex));
   __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x20, 32, PostIndex));
   __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x21, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2(v18.V16B(), v19.V16B(), MemOperand(sp, 32, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 32);  // expected sp with post index.
   END();
 
   RUN();
@@ -3558,6 +3589,7 @@ TEST(neon_ld2_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 32, x19);
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld2_lane) {
@@ -3700,6 +3732,12 @@ TEST(neon_ld2_lane_postindex) {
   __ Ldr(q15, MemOperand(x7));
   __ Ld2(v14.D(), v15.D(), 1, MemOperand(x24, x25, PostIndex));
 
+  // Check PostIndex operation on sp.
+  __ Mov(x25, sp);
+  __ Ld2(v18.D(), v19.D(), 1, MemOperand(sp, 16, PostIndex));
+  __ Mov(x26, sp);  // actual sp with post index.
+  __ Mov(sp, x25);
+  __ Add(x25, x25, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3729,6 +3767,7 @@ TEST(neon_ld2_lane_postindex) {
   CHECK_EQUAL_64(src_base + 2, x22);
   CHECK_EQUAL_64(src_base + 3, x23);
   CHECK_EQUAL_64(src_base + 4, x24);
+  CHECK_EQUAL_64(x25, x26);
 }
 
 TEST(neon_ld2_alllanes) {
@@ -3796,6 +3835,13 @@ TEST(neon_ld2_alllanes_postindex) {
   __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17, x19, PostIndex));
   __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17, 8, PostIndex));
   __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17, 16, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2r(v18.V2D(), v19.V2D(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3815,6 +3861,7 @@ TEST(neon_ld2_alllanes_postindex) {
   CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
   CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
   CHECK_EQUAL_64(src_base + 34, x17);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_d) {
@@ -3876,6 +3923,14 @@ TEST(neon_ld3_d_postindex) {
   __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x19, 24, PostIndex));
   __ Ld3(v11.V2S(), v12.V2S(), v13.V2S(), MemOperand(x20, 24, PostIndex));
   __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x21, 24, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x25, 32);
+  __ Mov(x23, sp);
+  __ Ld3(v18.V8B(), v19.V8B(), v20.V8B(), MemOperand(sp, x25, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, x25);  // expected sp with post index.
   END();
 
   RUN();
@@ -3901,6 +3956,7 @@ TEST(neon_ld3_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 24, x19);
   CHECK_EQUAL_64(src_base + 3 + 24, x20);
   CHECK_EQUAL_64(src_base + 4 + 24, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_q) {
@@ -3968,6 +4024,13 @@ TEST(neon_ld3_q_postindex) {
   __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x19, 48, PostIndex));
   __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x20, 48, PostIndex));
   __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x21, 48, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld3(v18.V16B(), v19.V16B(), v20.V16B(), MemOperand(sp, 48, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 48);  // expected sp with post index.
   END();
 
   RUN();
@@ -3993,6 +4056,7 @@ TEST(neon_ld3_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 48, x19);
   CHECK_EQUAL_64(src_base + 3 + 48, x20);
   CHECK_EQUAL_64(src_base + 4 + 48, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_lane) {
@@ -4145,6 +4209,13 @@ TEST(neon_ld3_lane_postindex) {
   __ Ldr(q23, MemOperand(x7));
   __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x24, x25, PostIndex));
 
+  // Check PostIndex operation on sp.
+  __ Mov(x27, 32);
+  __ Mov(x25, sp);
+  __ Ld3(v24.D(), v25.D(), v26.D(), 1, MemOperand(sp, x27, PostIndex));
+  __ Mov(x26, sp);  // actual sp with post index.
+  __ Mov(sp, x25);
+  __ Add(x25, x25, x27);  // expected sp with post index.
   END();
 
   RUN();
@@ -4182,6 +4253,7 @@ TEST(neon_ld3_lane_postindex) {
   CHECK_EQUAL_64(src_base + 2, x22);
   CHECK_EQUAL_64(src_base + 3, x23);
   CHECK_EQUAL_64(src_base + 4, x24);
+  CHECK_EQUAL_64(x25, x26);
 }
 
 TEST(neon_ld3_alllanes) {
@@ -4256,6 +4328,14 @@ TEST(neon_ld3_alllanes_postindex) {
   __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17, x19, PostIndex));
   __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17, 12, PostIndex));
   __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17, 24, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x25, 32);
+  __ Mov(x23, sp);
+  __ Ld3r(v21.V2D(), v22.V2D(), v23.V2D(), MemOperand(sp, x25, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, x25);  // expected sp with post index.
   END();
 
   RUN();
@@ -4281,6 +4361,7 @@ TEST(neon_ld3_alllanes_postindex) {
   CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
   CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
   CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld4_d) {
@@ -4351,6 +4432,14 @@ TEST(neon_ld4_d_postindex) {
          MemOperand(x20, 32, PostIndex));
   __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
          MemOperand(x21, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld4(v18.V8B(), v19.V8B(), v20.V8B(), v21.V8B(),
+         MemOperand(sp, 32, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 32);  // expected sp with post index.
   END();
 
   RUN();
@@ -4381,6 +4470,7 @@ TEST(neon_ld4_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 32, x19);
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld4_q) {

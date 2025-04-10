@@ -5504,7 +5504,7 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     // The immediate is implied by the number of vector registers used.
     addr_base +=
         (rm == 31) ? RegisterSizeInBytesFromFormat(vf) * count : xreg(rm);
-    set_xreg(instr->Rn(), addr_base);
+    set_xreg(instr->Rn(), addr_base, Reg31IsStackPointer);
   } else {
     DCHECK_EQ(addr_mode, Offset);
   }
@@ -5742,7 +5742,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
   if (addr_mode == PostIndex) {
     int rm = instr->Rm();
     int lane_size = LaneSizeInBytesFromFormat(vf);
-    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)));
+    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)),
+             Reg31IsStackPointer);
   }
 }
 
