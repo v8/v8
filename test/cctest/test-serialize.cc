@@ -5202,6 +5202,64 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(ReinitializeHashSeedNameToIndexRehashable) {
+  DisableAlwaysOpt();
+  i::v8_flags.rehash_snapshot = true;
+  i::v8_flags.hash_seed = 42;
+  i::v8_flags.allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    SnapshotCreatorParams testing_params;
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      // Be sure to use the name-to-index hash table.
+      static_assert(kScopeInfoMaxInlinedLocalNamesSize < 80);
+      CompileRun(
+          "class a { "
+          "  #x0; #x1; #x2; #x3; #x4; #x5; #x6; #x7; #x8; #x9;"
+          "  #x10; #x11; #x12; #x13; #x14; #x15; #x16; #x17; #x18; #x19;"
+          "  #x20; #x21; #x22; #x23; #x24; #x25; #x26; #x27; #x28; #x29;"
+          "  #x30; #x31; #x32; #x33; #x34; #x35; #x36; #x37; #x38; #x39;"
+          "  #x40; #x41; #x42; #x43; #x44; #x45; #x46; #x47; #x48; #x49;"
+          "  #x50; #x51; #x52; #x53; #x54; #x55; #x56; #x57; #x58; #x59;"
+          "  #x60; #x61; #x62; #x63; #x64; #x65; #x66; #x67; #x68; #x69;"
+          "  #x70; #x71; #x72; #x73; #x74; #x75; #x76; #x77; #x78; #x79;"
+          "  static #foo() { return new Error(); }"
+          "  f() { return this.#foo(); } }"
+          "let o = new a()");
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK(blob.CanBeRehashed());
+  }
+
+  i::v8_flags.hash_seed = 1337;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    // Check that rehashing has been performed.
+    CHECK_EQ(static_cast<uint64_t>(1337),
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+    CompileRun("try {o.f()} catch(o) { o; }");
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;

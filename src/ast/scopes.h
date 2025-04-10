@@ -1469,8 +1469,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // The inner scope may also calls eval which may results in access to
   // static private names.
   // Only maintained when the scope is parsed.
-  bool should_save_class_variable_index() const {
-    return should_save_class_variable_index_ ||
+  bool should_save_class_variable() const {
+    return should_save_class_variable_ ||
            has_explicit_static_private_methods_access_ ||
            (has_static_private_methods_ && inner_scope_calls_eval_);
   }
@@ -1479,9 +1479,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   bool is_anonymous_class() const { return is_anonymous_class_; }
 
   // Overriden during reparsing
-  void set_should_save_class_variable_index() {
-    should_save_class_variable_index_ = true;
-  }
+  void set_should_save_class_variable() { should_save_class_variable_ = true; }
 
  private:
   friend class Scope;
@@ -1528,7 +1526,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   bool is_anonymous_class_ : 1 = false;
   // This is only maintained during reparsing, restored from the
   // preparsed data.
-  bool should_save_class_variable_index_ : 1 = false;
+  bool should_save_class_variable_ : 1 = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

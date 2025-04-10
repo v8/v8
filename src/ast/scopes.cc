@@ -206,7 +206,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
   if (scope_info->HasSavedClassVariable()) {
     Tagged<String> name;
     int index;
-    std::tie(name, index) = scope_info->SavedClassVariable();
+    std::tie(name, index) = scope_info->SavedClassVariable(isolate);
     DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);
@@ -2003,9 +2003,8 @@ void Scope::Print(int n) {
       Indent(n1, "// class var");
       PrintF("%s%s:\n",
              class_scope->class_variable()->is_used() ? ", used" : ", unused",
-             class_scope->should_save_class_variable_index()
-                 ? ", index saved"
-                 : ", index not saved");
+             class_scope->should_save_class_variable() ? ", saved"
+                                                       : ", not saved");
       PrintVar(n1, class_scope->class_variable());
     }
   }

@@ -190,9 +190,9 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
           ? scope->AsClassScope()->brand() != nullptr
           : scope->IsConstructorScope() &&
                 scope->AsDeclarationScope()->class_scope_has_private_brand();
-  const bool should_save_class_variable_index =
+  const bool should_save_class_variable =
       scope->is_class_scope()
-          ? scope->AsClassScope()->should_save_class_variable_index()
+          ? scope->AsClassScope()->should_save_class_variable()
           : false;
   const bool has_function_name =
       function_name_info != VariableAllocationInfo::NONE;
@@ -229,7 +229,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   const int has_dependent_code = sloppy_eval_can_extend_vars;
   const int length =
       kVariablePartIndex + local_names_container_size + context_local_count +
-      (should_save_class_variable_index ? 1 : 0) +
+      (should_save_class_variable ? 1 : 0) +
       (has_function_name ? kFunctionNameEntries : 0) +
       (has_inferred_function_name ? 1 : 0) + (has_outer_scope_info ? 1 : 0) +
       (scope->is_module_scope()
@@ -270,7 +270,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         DeclarationScopeBit::encode(scope->is_declaration_scope()) |
         ReceiverVariableBits::encode(receiver_info) |
         ClassScopeHasPrivateBrandBit::encode(has_brand) |
-        HasSavedClassVariableBit::encode(should_save_class_variable_index) |
+        HasSavedClassVariableBit::encode(should_save_class_variable) |
         HasNewTargetBit::encode(has_new_target) |
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
@@ -390,21 +390,16 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     index += local_names_container_size + context_local_count;
 
     DCHECK_EQ(index, scope_info->SavedClassVariableInfoIndex());
-    // If the scope is a class scope and has used static private methods, save
-    // the context slot index of the class variable.
-    // Store the class variable index.
-    if (should_save_class_variable_index) {
+    // If the scope is a class scope and has used static private methods,
+    // save context slot index if locals are inlined, otherwise save the name.
+    if (should_save_class_variable) {
       Variable* class_variable = scope->AsClassScope()->class_variable();
       DCHECK_EQ(class_variable->location(), VariableLocation::CONTEXT);
-      int local_index;
       if (has_inlined_local_names) {
-        local_index = class_variable->index();
+        scope_info->set(index++, Smi::FromInt(class_variable->index()));
       } else {
-        DirectHandle<Name> name = class_variable->name();
-        InternalIndex entry = local_names_hashtable->FindEntry(isolate, name);
-        local_index = entry.as_int();
+        scope_info->set(index++, *class_variable->name());
       }
-      scope_info->set(index++, Smi::FromInt(local_index));
     }
 
     // If present, add the function variable name and its index.
@@ -1039,26 +1034,6 @@ int ScopeInfo::ContextSlotIndex(DirectHandle<String> name,
 int ScopeInfo::ContextSlotIndex(DirectHandle<String> name) {
   VariableLookupResult lookup_result;
   return ContextSlotIndex(name, &lookup_result);
-}
-
-std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
-  DCHECK(HasSavedClassVariableBit::decode(Flags()));
-  if (HasInlinedLocalNames()) {
-    // The saved class variable info corresponds to the context slot index.
-    int index = saved_class_variable_info() - Context::MIN_CONTEXT_SLOTS;
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, ContextLocalCount());
-    Tagged<String> name = ContextInlinedLocalName(index);
-    return std::make_pair(name, index);
-  } else {
-    // The saved class variable info corresponds to the offset in the hash
-    // table storage.
-    InternalIndex entry(saved_class_variable_info());
-    Tagged<NameToIndexHashTable> table = context_local_names_hashtable();
-    Tagged<Object> name = table->KeyAt(entry);
-    DCHECK(IsString(name));
-    return std::make_pair(Cast<String>(name), table->IndexAt(entry));
-  }
 }
 
 int ScopeInfo::ReceiverContextSlotIndex() const {
