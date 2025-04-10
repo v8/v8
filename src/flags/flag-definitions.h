@@ -735,9 +735,22 @@ DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
 
-DEFINE_BOOL(script_context_cells, true,
-            "Use context cells in script contexts, ie, const tracking let and "
-            "mutable numbers")
+DEFINE_BOOL(const_tracking_let, true,
+            "Use const tracking on top-level `let` variables")
+
+DEFINE_BOOL(script_context_mutable_heap_number, true,
+            "Use mutable heap numbers in script contexts")
+
+#if defined(V8_31BIT_SMIS_ON_64BIT_ARCH) || defined(V8_TARGET_ARCH_32_BIT)
+#define SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+DEFINE_BOOL(script_context_mutable_heap_int32, true,
+            "Use mutable heap int32 number in script contexts")
+DEFINE_WEAK_IMPLICATION(script_context_mutable_heap_int32,
+                        script_context_mutable_heap_number)
+#else
+DEFINE_BOOL_READONLY(script_context_mutable_heap_int32, false,
+                     "Use mutable heap int32 number in script contexts")
+#endif
 
 DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
@@ -815,7 +828,7 @@ DEFINE_BOOL(jitless, V8_LITE_MODE_BOOL,
 // Jitless V8 has a few implications:
 // Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
-DEFINE_NEG_IMPLICATION(jitless, script_context_cells)
+DEFINE_NEG_IMPLICATION(jitless, script_context_mutable_heap_number)
 // No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
@@ -847,7 +860,8 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, validate_asm)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Field type tracking is only used by TurboFan, so can be disabled.
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, track_field_types)
-DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, script_context_cells)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
+                       script_context_mutable_heap_number)
 
 DEFINE_BOOL(memory_protection_keys, true,
             "protect code memory with PKU if available")

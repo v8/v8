@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --turbofan --no-always-turbofan
-// Flags: --script-context-cells
+// Flags: --script-context-mutable-heap-number
 
 let x = 42;
 (function() {

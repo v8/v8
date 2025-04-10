@@ -6,7 +6,6 @@
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/objects/contexts.h"
 #include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
 
@@ -87,9 +86,9 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   void DependOnGlobalProperty(PropertyCellRef cell);
 
   // Record a property assumption in the script context slot.
-  bool DependOnContextCell(ContextRef script_context, size_t index,
-                           ContextCell::State state, JSHeapBroker* broker);
-  bool DependOnContextCell(ContextCellRef slot, ContextCell::State state);
+  bool DependOnScriptContextSlotProperty(
+      ContextRef script_context, size_t index,
+      ContextSidePropertyCell::Property property, JSHeapBroker* broker);
 
   // Record the assumption that respective contexts do not have context
   // extension, if true.

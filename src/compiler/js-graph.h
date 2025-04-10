@@ -145,8 +145,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(NaNConstant, Number)                                      \
   V(EmptyStateValues, UntaggedT)                              \
   V(SingleDeadTypedStateValues, UntaggedT)                    \
-  V(ExternalObjectMapConstant, Map)                           \
-  V(ContextCellMapConstant, Map)
+  V(ExternalObjectMapConstant, Map)
 
 // Cached global node accessor methods.
 #define DECLARE_GETTER(name, Type) TNode<Type> name();

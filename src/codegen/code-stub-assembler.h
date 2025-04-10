@@ -1315,9 +1315,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load the floating point value of a HeapNumber.
   TNode<Float64T> LoadHeapNumberValue(TNode<HeapObject> object);
-  TNode<Int32T> LoadContextCellInt32Value(TNode<ContextCell> object);
-  void StoreContextCellInt32Value(TNode<ContextCell> object,
-                                  TNode<Int32T> value);
+  TNode<Int32T> LoadHeapInt32Value(TNode<HeapObject> object);
+  void StoreHeapInt32Value(TNode<HeapObject> object, TNode<Int32T> value);
   // Load the Map of an HeapObject.
   TNode<Map> LoadMap(TNode<HeapObject> object);
   // Load the instance type of an HeapObject.
@@ -2001,8 +2000,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
-
-  TNode<ContextCell> AllocateContextCell(TNode<Object> value);
+  TNode<HeapNumber> AllocateHeapInt32WithValue(TNode<Int32T> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.
   // Does not initialize the digits.
@@ -2889,7 +2887,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsUndetectableMap(TNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(TNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(TNode<Object> object);
-  TNode<BoolT> IsEmptyDependentCode(TNode<Object> object);
 
   TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
@@ -2925,6 +2922,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapNumberFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_number_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapInt32Flag() {
+#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_int32_flag());
+#else
+    return BoolConstant(false);
+#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
   }
 
   TNode<BoolT> IsAdditiveSafeIntegerFeedbackEnabled() {

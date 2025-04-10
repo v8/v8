@@ -897,12 +897,24 @@ ExternalReference ExternalReference::address_of_cet_compatible_flag() {
 }
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 
+ExternalReference ExternalReference::script_context_mutable_heap_number_flag() {
+  return ExternalReference(&v8_flags.script_context_mutable_heap_number);
+}
+
 ExternalReference ExternalReference::additive_safe_int_feedback_flag() {
 #ifdef V8_TARGET_ARCH_64_BIT
   return ExternalReference(&v8_flags.additive_safe_int_feedback);
 #else
   return ExternalReference();
 #endif  // V8_TARGET_ARCH_64_BIT
+}
+
+ExternalReference ExternalReference::script_context_mutable_heap_int32_flag() {
+#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+  return ExternalReference(&v8_flags.script_context_mutable_heap_int32);
+#else
+  return ExternalReference();
+#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
 }
 
 ExternalReference ExternalReference::address_of_load_from_stack_count(

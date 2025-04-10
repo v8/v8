@@ -777,9 +777,8 @@ void BaselineCompiler::VisitLdaScriptContextSlot() {
                     BaselineAssembler::CompressionMode::kForceDecompression);
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
-                          CONTEXT_CELL_TYPE, &done, Label::kNear);
-  // TODO(victorgomes): inline trivial constant value read from context cell.
-  CallBuiltin<Builtin::kLoadFromContextCell>(
+                          HEAP_NUMBER_TYPE, &done, Label::kNear);
+  CallBuiltin<Builtin::kAllocateIfMutableHeapNumberScriptContextSlot>(
       kInterpreterAccumulatorRegister,  // heap number
       context,                          // context
       Smi::FromInt(index));             // slot
@@ -806,9 +805,8 @@ void BaselineCompiler::VisitLdaCurrentScriptContextSlot() {
                      Context::OffsetOfElementAt(index));
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
   __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
-                          CONTEXT_CELL_TYPE, &done, Label::kNear);
-  // TODO(victorgomes): inline trivial constant value read from context cell.
-  CallBuiltin<Builtin::kLoadFromContextCell>(
+                          HEAP_NUMBER_TYPE, &done, Label::kNear);
+  CallBuiltin<Builtin::kAllocateIfMutableHeapNumberScriptContextSlot>(
       kInterpreterAccumulatorRegister,  // heap number
       context,                          // context
       Smi::FromInt(index));             // slot

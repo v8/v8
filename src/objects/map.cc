@@ -137,9 +137,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case NATIVE_CONTEXT_TYPE:
       return kVisitNativeContext;
 
-    case CONTEXT_CELL_TYPE:
-      return kVisitContextCell;
-
     case EPHEMERON_HASH_TABLE_TYPE:
       return kVisitEphemeronHashTable;
 
@@ -166,6 +163,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
+
+    case CONTEXT_SIDE_PROPERTY_CELL_TYPE:
+      return kVisitContextSidePropertyCell;
 
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;

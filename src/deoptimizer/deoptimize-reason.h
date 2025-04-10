@@ -115,7 +115,8 @@ enum class DeoptimizeReason : uint8_t {
     "dependent allocation site tenuring changed")                             \
   V(AllocationSiteTransitionChange,                                           \
     "dependent allocation site transition changed")                           \
-  V(ContextCellChange, "dependent context cell state changed")                \
+  V(ScriptContextSlotPropertyChange,                                          \
+    "dependent script context slot property changed")                         \
   V(EmptyContextExtensionChange, "dependent empty context extension changed") \
   V(WeakObjects, "embedded weak objects cleared")                             \
   V(Debugger, "JS debugger attached")                                         \

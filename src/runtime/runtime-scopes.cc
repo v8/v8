@@ -843,7 +843,8 @@ MaybeDirectHandle<Object> LoadLookupSlot(
     }
     DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
-    if (v8_flags.script_context_cells && holder_context->IsScriptContext()) {
+    if (v8_flags.script_context_mutable_heap_number &&
+        holder_context->IsScriptContext()) {
       return direct_handle(*Context::LoadScriptContextElement(
                                holder_context, index, value, isolate),
                            isolate);
@@ -970,9 +971,11 @@ MaybeDirectHandle<Object> StoreLookupSlot(
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
-      if (v8_flags.script_context_cells && holder_context->IsScriptContext()) {
-        Context::StoreScriptContextElement(holder_context, index, value,
-                                           isolate);
+      if ((v8_flags.script_context_mutable_heap_number ||
+           v8_flags.const_tracking_let) &&
+          holder_context->IsScriptContext()) {
+        Context::StoreScriptContextAndUpdateSlotProperty(holder_context, index,
+                                                         value, isolate);
       } else {
         Cast<Context>(holder)->set(index, *value);
       }
@@ -1064,9 +1067,10 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   // VariableMode::kConst. This is because such variables can be accessed
   // by functions using the LdaContextSlot bytecode, and such accesses are not
   // regarded as "immutable" when optimizing.
-  if (v8_flags.script_context_cells) {
-    Context::StoreScriptContextElement(script_context, lookup_result.slot_index,
-                                       value, isolate);
+  if (v8_flags.script_context_mutable_heap_number ||
+      v8_flags.const_tracking_let) {
+    Context::StoreScriptContextAndUpdateSlotProperty(
+        script_context, lookup_result.slot_index, value, isolate);
   } else {
     script_context->set(lookup_result.slot_index, *value);
   }

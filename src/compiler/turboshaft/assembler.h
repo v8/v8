@@ -2984,6 +2984,11 @@ class TurboshaftAssemblerOpInterface
         heap_number, AccessBuilderTS::ForHeapNumberValue());
   }
 
+  V<Word32> LoadHeapInt32Value(V<HeapNumber> heap_number) {
+    return __ template LoadField<HeapNumber, HeapNumber, Word32>(
+        heap_number, AccessBuilderTS::ForHeapInt32Value());
+  }
+
   template <typename Type = Object>
   V<Type> LoadTaggedField(V<Object> object, int field_offset)
     requires(is_subtype_v<Type, Object>)

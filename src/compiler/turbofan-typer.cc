@@ -1782,6 +1782,7 @@ Type Typer::Visitor::TypeJSLoadScriptContext(Node* node) {
   switch (access.index()) {
     case Context::PREVIOUS_INDEX:
     case Context::SCOPE_INFO_INDEX:
+    case Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX:
       return Type::OtherInternal();
     default:
       return Type::Any();

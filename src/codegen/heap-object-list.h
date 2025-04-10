@@ -74,7 +74,6 @@
     EmptySwissPropertyDictionary)                                            \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
-  V(EmptyWeakArrayList, empty_weak_array_list, EmptyWeakArrayList)           \
   V(empty_string, empty_string, EmptyString)                                 \
   V(error_to_string, error_to_string, ErrorToString)                         \
   V(error_string, error_string, ErrorString)                                 \

@@ -2483,6 +2483,22 @@ void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
 
+void LoadHeapInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_temporaries_needed(1);
+}
+void LoadHeapInt32::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register tmp = temps.Acquire();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ LoadTaggedField(tmp, object, offset());
+  __ AssertNotSmi(tmp);
+  __ LoadHeapInt32Value(ToRegister(result()), tmp);
+}
+
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -2556,45 +2572,67 @@ void LoadTaggedFieldForScriptContextSlot::GenerateCode(
   __ AssertObjectType(script_context, SCRIPT_CONTEXT_TYPE,
                       AbortReason::kUnexpectedInstanceType);
 
+  // Be sure to not clobber script_context.
+  if (value == script_context) {
+    Register tmp = temps.Acquire();
+    __ Move(tmp, script_context);
+    script_context = tmp;
+  }
+
   // Load value from context.
   __ LoadTaggedField(value, script_context, offset());
 
-  // Check if an ContextCell
+  // Check side table if HeapNumber.
   __ JumpIfSmi(value, *done);
-  __ CompareMapWithRoot(value, RootIndex::kContextCellMap, scratch);
+  __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
-      [](MaglevAssembler* masm, Register value, Register scratch,
-         LoadTaggedFieldForScriptContextSlot* node, ZoneLabelRef done) {
+      [](MaglevAssembler* masm, Register script_context, Register result_reg,
+         Register scratch, LoadTaggedFieldForScriptContextSlot* node,
+         ZoneLabelRef done) {
+        Label property_loaded;
+        Label check_heap_number, allocate;
+        // Load side table.
+        // TODO(victorgomes): Should we hoist the side_table?
+        __ LoadTaggedField(scratch, script_context,
+                           Context::OffsetOfElementAt(
+                               Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+        __ LoadTaggedField(
+            scratch, scratch,
+            FixedArray::OffsetOfElementAt(node->index() -
+                                          Context::MIN_CONTEXT_EXTENDED_SLOTS));
+
+        __ JumpIfSmi(scratch, &property_loaded);
+        __ AssertObjectType(scratch, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
+                            AbortReason::kUnexpectedInstanceType);
+        __ LoadTaggedField(scratch, scratch,
+                           ContextSidePropertyCell::kPropertyDetailsRawOffset);
+        __ bind(&property_loaded);
+
         MaglevAssembler::TemporaryRegisterScope temps(masm);
         DoubleRegister double_value = temps.AcquireDouble();
-        Label allocate, is_untagged;
-        __ LoadContextCellState(scratch, value);
 
-        static_assert(ContextCell::State::kConst == 0);
-        static_assert(ContextCell::State::kSmi == 1);
-        __ CompareInt32AndJumpIf(scratch, ContextCell::kSmi, kGreaterThan,
-                                 &is_untagged);
-        __ LoadContextCellTaggedValue(value, value);
-        __ Jump(*done);
-
-        __ bind(&is_untagged);
-        {
-          Label check_float64;
-          __ CompareInt32AndJumpIf(scratch, ContextCell::kInt32, kNotEqual,
-                                   &check_float64);
-          __ LoadContextCellInt32Value(scratch, value);
+        if (v8_flags.script_context_mutable_heap_int32) {
+          __ CompareTaggedAndJumpIf(scratch,
+                                    ContextSidePropertyCell::MutableInt32(),
+                                    kNotEqual, &check_heap_number);
+          __ LoadHeapInt32Value(scratch, result_reg);
           __ Int32ToDouble(double_value, scratch);
           __ Jump(&allocate, Label::kNear);
-          __ bind(&check_float64);
         }
-        __ LoadContextCellFloat64Value(double_value, value);
+
+        __ bind(&check_heap_number);
+        __ CompareTaggedAndJumpIf(scratch,
+                                  ContextSidePropertyCell::MutableHeapNumber(),
+                                  kNotEqual, *done);
+        __ LoadHeapNumberValue(double_value, result_reg);
 
         __ bind(&allocate);
-        __ AllocateHeapNumber(node->register_snapshot(), value, double_value);
+        __ AllocateHeapNumber(node->register_snapshot(), result_reg,
+                              double_value);
         __ Jump(*done);
       },
-      value, scratch, this, done);
+      script_context, value, scratch, this, done);
 
   __ bind(*done);
 }
@@ -3524,7 +3562,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   __ RecordComment("StoreScriptContextSlotWithWriteBarrier");
   ZoneLabelRef done(masm);
-  Label do_normal_store;
+  ZoneLabelRef do_normal_store(masm);
 
   // TODO(leszeks): Consider making this an arbitrary register and push/popping
   // in the deferred path.
@@ -3536,80 +3574,112 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
 
   __ AssertObjectType(context, SCRIPT_CONTEXT_TYPE,
                       AbortReason::kUnexpectedInstanceType);
+
   __ LoadTaggedField(old_value, context, offset());
+  __ CompareTaggedAndJumpIf(old_value, new_value, kEqual, *done);
 
-  __ JumpIfSmi(old_value, &do_normal_store);
-  __ CompareMapWithRoot(old_value, RootIndex::kContextCellMap, scratch);
-  __ JumpToDeferredIf(
-      kEqual,
-      [](MaglevAssembler* masm, Register slot, Register new_value,
-         Register scratch, StoreScriptContextSlotWithWriteBarrier* node,
-         ZoneLabelRef done) {
-        MaglevAssembler::TemporaryRegisterScope temps(masm);
-        DoubleRegister double_scratch = temps.AcquireDouble();
-        Label try_int32, try_smi, try_const;
-        __ LoadContextCellState(scratch, slot);
+  // Load property.
+  // TODO(victorgomes): Should we hoist the side_table?
+  __ LoadTaggedField(
+      scratch, context,
+      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
+  __ LoadTaggedField(scratch, scratch,
+                     FixedArray::OffsetOfElementAt(
+                         index() - Context::MIN_CONTEXT_EXTENDED_SLOTS));
 
-        __ CompareInt32AndJumpIf(scratch, ContextCell::kFloat64, kNotEqual,
-                                 &try_int32);
-        {
-          Label new_value_is_not_smi;
-          __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-          __ SmiUntag(scratch, new_value);
-          __ Int32ToDouble(double_scratch, scratch);
-          __ StoreContextCellFloat64Value(slot, double_scratch);
-          __ Jump(*done);
+  __ CompareTaggedAndJumpIf(
+      scratch, ContextSidePropertyCell::Other(), kNotEqual,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register context, Register old_value,
+             Register new_value, Register property,
+             StoreScriptContextSlotWithWriteBarrier* node, ZoneLabelRef done,
+             ZoneLabelRef do_normal_store) {
+            Label check_smi, check_mutable_int32, mutable_heap_number;
+            __ CompareRootAndEmitEagerDeoptIf(
+                property, RootIndex::kUndefinedValue, kEqual,
+                DeoptimizeReason::kStoreToConstant, node);
+            __ JumpIfSmi(property, &check_smi);
+            __ AssertObjectType(property, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
+                                AbortReason::kUnexpectedInstanceType);
+            __ LoadTaggedField(
+                property, property,
+                ContextSidePropertyCell::kPropertyDetailsRawOffset);
+            __ bind(&check_smi);
 
-          __ bind(&new_value_is_not_smi);
-          __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap, scratch);
-          __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kStoreToConstant,
-                              node);
-          __ LoadHeapNumberValue(double_scratch, new_value);
-          __ StoreContextCellFloat64Value(slot, double_scratch);
-          __ Jump(*done);
-        }
+            // Check for const case.
+            __ CompareTaggedAndJumpIf(
+                property, ContextSidePropertyCell::Const(), kEqual,
+                __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
 
-        __ bind(&try_int32);
-        {
-          __ CompareInt32AndJumpIf(scratch, ContextCell::kInt32, kNotEqual,
-                                   &try_smi);
-          Label new_value_is_not_smi;
-          __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
-          __ SmiUntag(scratch, new_value);
-          __ StoreContextCellInt32Value(slot, scratch);
-          __ Jump(*done);
+            if (v8_flags.script_context_mutable_heap_number) {
+              // Check for smi case
+              __ CompareTaggedAndJumpIf(property,
+                                        ContextSidePropertyCell::SmiMarker(),
+                                        kNotEqual, &check_mutable_int32);
+              __ EmitEagerDeoptIfNotSmi(node, new_value,
+                                        DeoptimizeReason::kStoreToConstant);
+              __ Jump(*do_normal_store);
 
-          __ bind(&new_value_is_not_smi);
-          __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap, scratch);
-          __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kStoreToConstant,
-                              node);
+              MaglevAssembler::TemporaryRegisterScope temps(masm);
+              DoubleRegister double_scratch = temps.AcquireDouble();
 
-          __ LoadHeapNumberValue(double_scratch, new_value);
-          __ TryTruncateDoubleToInt32(
-              scratch, double_scratch,
-              __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
-          __ StoreContextCellInt32Value(slot, scratch);
-          __ Jump(*done);
+              // Check mutable int32 case.
+              __ bind(&check_mutable_int32);
+              if (v8_flags.script_context_mutable_heap_int32) {
+                __ CompareTaggedAndJumpIf(
+                    property, ContextSidePropertyCell::MutableInt32(),
+                    kNotEqual, &mutable_heap_number);
+                {
+                  Label new_value_is_not_smi;
+                  Register new_value_int32 = property;
+                  __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
+                  __ SmiUntag(new_value_int32, new_value);
+                  __ StoreHeapInt32Value(new_value_int32, old_value);
+                  __ Jump(*done);
 
-          __ bind(&try_smi);
-        }
-        __ CompareInt32AndJumpIf(scratch, ContextCell::kSmi, kNotEqual,
-                                 &try_const);
-        __ EmitEagerDeoptIfNotSmi(node, new_value,
-                                  DeoptimizeReason::kStoreToConstant);
-        __ StoreContextCellSmiValue(slot, new_value);
-        __ Jump(*done);
+                  __ bind(&new_value_is_not_smi);
+                  __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
+                                        property);
+                  __ EmitEagerDeoptIf(kNotEqual,
+                                      DeoptimizeReason::kStoreToConstant, node);
 
-        __ bind(&try_const);
-        __ LoadContextCellTaggedValue(scratch, slot);
-        __ CompareTaggedAndJumpIf(
-            scratch, new_value, kNotEqual,
-            __ GetDeoptLabel(node, DeoptimizeReason::kStoreToConstant));
-        __ Jump(*done);
-      },
-      old_value, new_value, scratch, this, done);
+                  __ LoadHeapNumberValue(double_scratch, new_value);
+                  __ TryTruncateDoubleToInt32(
+                      new_value_int32, double_scratch,
+                      __ GetDeoptLabel(node,
+                                       DeoptimizeReason::kStoreToConstant));
+                  __ StoreHeapInt32Value(new_value_int32, old_value);
+                  __ Jump(*done);
+                }
+              }
 
-  __ bind(&do_normal_store);
+              // Check mutable heap number case.
+              __ bind(&mutable_heap_number);
+              {
+                Label new_value_is_not_smi;
+                Register new_value_int32 = property;
+                __ JumpIfNotSmi(new_value, &new_value_is_not_smi);
+                __ SmiUntag(new_value_int32, new_value);
+                __ Int32ToDouble(double_scratch, new_value_int32);
+                __ StoreHeapNumberValue(double_scratch, old_value);
+                __ Jump(*done);
+
+                __ bind(&new_value_is_not_smi);
+                __ CompareMapWithRoot(new_value, RootIndex::kHeapNumberMap,
+                                      property);
+                __ EmitEagerDeoptIf(kNotEqual,
+                                    DeoptimizeReason::kStoreToConstant, node);
+                __ LoadHeapNumberValue(double_scratch, new_value);
+                __ StoreHeapNumberValue(double_scratch, old_value);
+                __ Jump(*done);
+              }
+            } else {
+              __ Jump(*do_normal_store);
+            }
+          },
+          context, old_value, new_value, scratch, this, done, do_normal_store));
+
+  __ bind(*do_normal_store);
   __ StoreTaggedFieldWithWriteBarrier(
       context, offset(), new_value, register_snapshot(),
       new_value_input().node()->decompresses_tagged_result()
@@ -6619,6 +6689,24 @@ void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
   __ StoreHeapNumberValue(value, heap_number);
 }
 
+void StoreHeapInt32::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreHeapInt32::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register heap_number = temps.AcquireScratch();
+
+  __ AssertNotSmi(object);
+  __ LoadTaggedField(heap_number, object, offset());
+  __ AssertNotSmi(heap_number);
+  __ StoreHeapInt32Value(value, heap_number);
+}
+
 namespace {
 
 template <typename NodeT>
@@ -7774,6 +7862,11 @@ void LoadFloat64::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void LoadHeapInt32::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
 void LoadInt32::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
@@ -7794,6 +7887,11 @@ void LoadFixedArrayElement::PrintParams(
 
 void StoreDoubleField::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreHeapInt32::PrintParams(std::ostream& os,
+                                 MaglevGraphLabeller* graph_labeller) const {
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 

@@ -1315,7 +1315,6 @@ extern macro IsInteger(JSAny): bool;
 extern macro IsInteger(HeapNumber): bool;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
-extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
@@ -1463,6 +1462,8 @@ extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro HasBuiltinSubclassingFlag(): bool;
+extern macro IsScriptContextMutableHeapNumberFlag(): bool;
+extern macro IsScriptContextMutableHeapInt32Flag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsSetIteratorProtectorCellInvalid(): bool;

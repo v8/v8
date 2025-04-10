@@ -21,7 +21,6 @@
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/objects/contexts.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
@@ -946,6 +945,28 @@ void Context::ContextVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
   }
+  if (IsScriptContext()) {
+    Tagged<Object> side_data = get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
+    CHECK(IsFixedArray(side_data));
+    Tagged<FixedArray> side_data_array = Cast<FixedArray>(side_data);
+    // The array might not be empty if the script context is deserialized from
+    // snapshot. However, as long as the flags are enabled the feedback slots
+    // must be initialized properly.
+    if (v8_flags.script_context_mutable_heap_number ||
+        v8_flags.const_tracking_let) {
+      for (int i = 0; i < side_data_array->length(); i++) {
+        Tagged<Object> element = side_data_array->get(i);
+        if (IsSmi(element)) {
+          int value = element.ToSmi().value();
+          CHECK(ContextSidePropertyCell::kOther <= value);
+          CHECK(value <= ContextSidePropertyCell::kMutableHeapNumber);
+        } else {
+          // The slot contains `undefined` before the variable is initialized.
+          CHECK(IsUndefined(element) || IsContextSidePropertyCell(element));
+        }
+      }
+    }
+  }
 }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
@@ -953,17 +974,6 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
   CHECK(retained_maps() == Smi::zero() || IsWeakArrayList(retained_maps()));
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kVariableSizeSentinel, map()->instance_size());
-}
-
-void ContextCell::ContextCellVerify(Isolate* isolate) {
-  Tagged<Object> dep_code = dependent_code();
-  Tagged<JSAny> tagged = tagged_value();
-  int state_as_int = static_cast<int>(state());
-  CHECK_GE(state_as_int, static_cast<int>(kConst));
-  CHECK_LE(state_as_int, static_cast<int>(kFloat64));
-  CHECK(IsDependentCode(dep_code));
-  Object::VerifyPointer(isolate, dep_code);
-  Object::VerifyPointer(isolate, tagged);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -1534,6 +1544,10 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyCellVerify(*this, isolate);
   CHECK(IsUniqueName(name()));
   CheckDataIsCompatible(property_details(), value());
+}
+
+void ContextSidePropertyCell::ContextSidePropertyCellVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::ContextSidePropertyCellVerify(*this, isolate);
 }
 
 void TrustedObject::TrustedObjectVerify(Isolate* isolate) {

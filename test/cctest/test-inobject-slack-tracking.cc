@@ -48,12 +48,6 @@ DirectHandle<T> GetLexical(const char* name) {
         script_contexts->get(lookup_result.context_index);
     DirectHandle<Object> result(script_context->get(lookup_result.slot_index),
                                 isolate);
-    if (v8_flags.script_context_cells) {
-      result = Context::LoadScriptContextElement(
-          handle(script_context, isolate), lookup_result.slot_index, result,
-          isolate);
-    }
-
     return Cast<T>(result);
   }
   return DirectHandle<T>();

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbolev --turbofan
-// Flags: --no-always-turbofan --script-context-cells
+// Flags: --no-always-turbofan --const-tracking-let
 
 let glob_a = 0;
 let glob_b = 3.35;

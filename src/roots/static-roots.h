@@ -242,7 +242,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kIrRegExpDataMap = 0x1dc1;
   static constexpr Tagged_t kSourceTextModuleMap = 0x1de9;
   static constexpr Tagged_t kSyntheticModuleMap = 0x1e11;
-  static constexpr Tagged_t kContextCellMap = 0x1e39;
+  static constexpr Tagged_t kGlobalContextSidePropertyCellMap = 0x1e39;
   static constexpr Tagged_t kWasmImportDataMap = 0x1e61;
   static constexpr Tagged_t kWasmCapiFunctionDataMap = 0x1e89;
   static constexpr Tagged_t kWasmExportedFunctionDataMap = 0x1eb1;
@@ -1115,7 +1115,7 @@ static constexpr std::array<Tagged_t, 1030> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kCoverageInfoMap,
     StaticReadOnlyRoot::kDictionaryTemplateInfoMap,
     StaticReadOnlyRoot::kGlobalDictionaryMap,
-    StaticReadOnlyRoot::kContextCellMap,
+    StaticReadOnlyRoot::kGlobalContextSidePropertyCellMap,
     StaticReadOnlyRoot::kManyClosuresCellMap,
     StaticReadOnlyRoot::kMegaDomHandlerMap,
     StaticReadOnlyRoot::kModuleInfoMap,

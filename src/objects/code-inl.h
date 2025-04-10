@@ -541,7 +541,7 @@ inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
           case LazyDeoptimizeReason::kEmptyContextExtensionChange:
           case LazyDeoptimizeReason::kFrameValueMaterialized:
           case LazyDeoptimizeReason::kPropertyCellChange:
-          case LazyDeoptimizeReason::kContextCellChange:
+          case LazyDeoptimizeReason::kScriptContextSlotPropertyChange:
           case LazyDeoptimizeReason::kPrototypeChange:
           case LazyDeoptimizeReason::kExceptionCaught:
           case LazyDeoptimizeReason::kFieldTypeConstChange:

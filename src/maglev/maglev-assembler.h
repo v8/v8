@@ -768,21 +768,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
 
   inline void SetMapAsRoot(Register object, RootIndex map);
 
-  inline void AssertContextCellState(Register cell, ContextCell::State state,
-                                     Condition condition = kEqual);
-  inline void LoadContextCellState(Register state, Register cell);
-
-  inline void LoadContextCellTaggedValue(Register value, Register cell);
-  inline void StoreContextCellSmiValue(Register cell, Register value);
-
-  inline void LoadContextCellInt32Value(Register value, Register cell);
-  inline void StoreContextCellInt32Value(Register cell, Register value);
-
-  inline void LoadContextCellFloat64Value(DoubleRegister value, Register cell);
-  inline void StoreContextCellFloat64Value(Register cell, DoubleRegister value);
-
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
   inline void StoreHeapNumberValue(DoubleRegister value, Register heap_number);
+
+  inline void LoadHeapInt32Value(Register result, Register heap_number);
+  inline void StoreHeapInt32Value(Register value, Register heap_number);
 
   inline void LoadHeapNumberOrOddballValue(DoubleRegister result,
                                            Register object);
@@ -794,6 +784,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                   Label* eager_deopt_entry,
                                   size_t lazy_deopt_count,
                                   Label* lazy_deopt_entry);
+
+  void GenerateCheckConstTrackingLetCellFooter(Register context, Register data,
+                                               int index, Label* done);
 
   void TryMigrateInstance(Register object, RegisterSnapshot& register_snapshot,
                           Label* fail);

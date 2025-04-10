@@ -437,11 +437,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<Context> NewBlockContext(DirectHandle<Context> previous,
                                         DirectHandle<ScopeInfo> scope_info);
 
-  // Create a context cell with a const value.
-  DirectHandle<ContextCell> NewContextCell(
-      DirectHandle<JSAny> value,
-      AllocationType allocation_type = AllocationType::kYoung);
-
   // Create a context that's used by builtin functions.
   //
   // These are similar to function context but don't have a previous
@@ -503,6 +498,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<PropertyCell> NewPropertyCell(
       DirectHandle<Name> name, PropertyDetails details,
       DirectHandle<Object> value,
+      AllocationType allocation = AllocationType::kOld);
+  DirectHandle<ContextSidePropertyCell> NewContextSidePropertyCell(
+      ContextSidePropertyCell::Property property,
       AllocationType allocation = AllocationType::kOld);
   DirectHandle<PropertyCell> NewProtector();
 

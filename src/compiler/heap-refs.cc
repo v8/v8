@@ -1005,6 +1005,27 @@ OptionalObjectRef ContextRef::get(JSHeapBroker* broker, int index) const {
   return TryMakeRef(broker, object()->get(index));
 }
 
+OptionalObjectRef ContextRef::TryGetSideData(JSHeapBroker* broker,
+                                             int index) const {
+  if (!object()->IsScriptContext()) {
+    return {};
+  }
+
+  // No side data for slots which are not variables in the context.
+  if (index < Context::MIN_CONTEXT_EXTENDED_SLOTS) {
+    return {};
+  }
+
+  OptionalObjectRef maybe_side_data =
+      get(broker, Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
+  if (!maybe_side_data.has_value()) return {};
+  // The FixedArray itself will stay constant, but its contents may change while
+  // we compile in the background.
+  FixedArrayRef side_data_fixed_array = maybe_side_data.value().AsFixedArray();
+  return side_data_fixed_array.TryGet(
+      broker, index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
+}
+
 void JSHeapBroker::InitializeAndStartSerializing(
     DirectHandle<NativeContext> target_native_context) {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
@@ -1583,12 +1604,6 @@ HEAP_ACCESSOR_C(HeapNumber, double, value)
 
 uint64_t HeapNumberRef::value_as_bits() const {
   return object()->value_as_bits();
-}
-
-HEAP_ACCESSOR_C(ContextCell, ContextCell::State, state)
-
-OptionalObjectRef ContextCellRef::tagged_value(JSHeapBroker* broker) const {
-  return TryMakeRef(broker, object()->tagged_value());
 }
 
 JSReceiverRef JSBoundFunctionRef::bound_target_function(

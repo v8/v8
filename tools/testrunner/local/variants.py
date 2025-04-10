@@ -143,7 +143,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
             "--no-regexp-interpret-all",
             "--interpreted-frames-native-stack",
             "--additive-safe-int-feedback",
-            "--script-context-cells",
+            "--script-context-mutable-heap-number",
         ],
     "nooptimization": [
         "--turbofan",
@@ -158,7 +158,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--track-field-types",
         "--stress-concurrent-inlining",
         "--additive-safe-int-feedback",
-        "--script-context-cells",
+        "--script-context-mutable-heap-number",
         "--experimental-wasm-shared",
     ],
     "slow_path": ["--no-force-slow-path"],
