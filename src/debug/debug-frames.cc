@@ -109,7 +109,7 @@ bool FrameInspector::IsJavaScript() { return frame_->is_javascript(); }
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     DirectHandle<ScopeInfo> info, DirectHandle<String> parameter_name) {
-  return info->ContextSlotIndex(parameter_name) != -1;
+  return info->ContextSlotIndex(*parameter_name) != -1;
 }
 
 RedirectActiveFunctions::RedirectActiveFunctions(

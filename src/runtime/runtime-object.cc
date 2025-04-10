@@ -1369,7 +1369,7 @@ void CollectPrivateMethodsAndAccessorsFromContext(
     std::vector<PrivateMember>* results) {
   DirectHandle<ScopeInfo> scope_info(context->scope_info(), isolate);
   VariableLookupResult lookup_result;
-  int context_index = scope_info->ContextSlotIndex(desc, &lookup_result);
+  int context_index = scope_info->ContextSlotIndex(*desc, &lookup_result);
   if (context_index == -1 ||
       !IsPrivateMethodOrAccessorVariableMode(lookup_result.mode) ||
       lookup_result.is_static_flag != is_static_flag) {

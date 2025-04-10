@@ -150,31 +150,6 @@ ScopeInfo::LocalNamesRange<Tagged<ScopeInfo>> ScopeInfo::IterateLocalNames(
   return LocalNamesRange<Tagged<ScopeInfo>>(scope_info);
 }
 
-template <typename IsolateT>
-std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable(
-    IsolateT* isolate) const {
-  DCHECK(HasSavedClassVariableBit::decode(Flags()));
-  auto class_variable_info = saved_class_variable_info();
-  if (HasInlinedLocalNames()) {
-    // The saved class variable info corresponds to the context slot index.
-    DCHECK(class_variable_info.IsSmi());
-    int index =
-        class_variable_info.ToSmi().value() - Context::MIN_CONTEXT_SLOTS;
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, ContextLocalCount());
-    Tagged<String> name = ContextInlinedLocalName(index);
-    return std::make_pair(name, index);
-  } else {
-    // The saved class variable info corresponds to the name.
-    DirectHandle<Name> name = handle(Cast<Name>(class_variable_info), isolate);
-    Tagged<NameToIndexHashTable> table = context_local_names_hashtable();
-    int index = table->Lookup(name);
-    DCHECK_GE(index, 0);
-    DCHECK(IsString(*name));
-    return std::make_pair(Cast<String>(*name), index);
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

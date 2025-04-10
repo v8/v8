@@ -6018,7 +6018,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 
 // The implementation should be in sync with
 // CodeStubAssembler::NameToIndexHashTableLookup.
-int NameToIndexHashTable::Lookup(DirectHandle<Name> key) {
+int NameToIndexHashTable::Lookup(Tagged<Name> key) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
   ReadOnlyRoots roots = GetReadOnlyRoots();

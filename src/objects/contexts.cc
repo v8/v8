@@ -59,8 +59,8 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
   for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
     DirectHandle<Name> name(it->name(), isolate);
     if (ignore_duplicates) {
-      int32_t hash = NameToIndexShape::Hash(roots, name);
-      if (names_table->FindEntry(isolate, roots, name, hash).is_found()) {
+      int32_t hash = NameToIndexShape::Hash(roots, *name);
+      if (names_table->FindEntry(isolate, roots, *name, hash).is_found()) {
         continue;
       }
     }
@@ -118,13 +118,13 @@ void Context::Initialize(Isolate* isolate) {
 bool ScriptContextTable::Lookup(DirectHandle<String> name,
                                 VariableLookupResult* result) {
   DisallowGarbageCollection no_gc;
-  int index = names_to_context_index()->Lookup(name);
+  int index = names_to_context_index()->Lookup(*name);
   if (index == -1) return false;
   DCHECK_LE(0, index);
   DCHECK_LT(index, length(kAcquireLoad));
   Tagged<Context> context = get(index);
   DCHECK(context->IsScriptContext());
-  int slot_index = context->scope_info()->ContextSlotIndex(name, result);
+  int slot_index = context->scope_info()->ContextSlotIndex(*name, result);
   if (slot_index < 0) return false;
   result->context_index = index;
   result->slot_index = slot_index;
@@ -353,7 +353,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // for the context index.
       Tagged<ScopeInfo> scope_info = context->scope_info();
       VariableLookupResult lookup_result;
-      int slot_index = scope_info->ContextSlotIndex(name, &lookup_result);
+      int slot_index = scope_info->ContextSlotIndex(*name, &lookup_result);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         // Re-direct lookup to the ScriptContextTable in case we find a hole in

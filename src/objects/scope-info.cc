@@ -1005,16 +1005,16 @@ int ScopeInfo::InlinedLocalNamesLookup(Tagged<String> name) {
   return -1;
 }
 
-int ScopeInfo::ContextSlotIndex(DirectHandle<String> name,
+int ScopeInfo::ContextSlotIndex(Tagged<String> name,
                                 VariableLookupResult* lookup_result) {
   DisallowGarbageCollection no_gc;
-  DCHECK(IsInternalizedString(*name));
+  DCHECK(IsInternalizedString(name));
   DCHECK_NOT_NULL(lookup_result);
 
   if (this->IsEmpty()) return -1;
 
   int index = HasInlinedLocalNames()
-                  ? InlinedLocalNamesLookup(*name)
+                  ? InlinedLocalNamesLookup(name)
                   : context_local_names_hashtable()->Lookup(name);
 
   if (index != -1) {
@@ -1031,9 +1031,32 @@ int ScopeInfo::ContextSlotIndex(DirectHandle<String> name,
   return -1;
 }
 
-int ScopeInfo::ContextSlotIndex(DirectHandle<String> name) {
+int ScopeInfo::ContextSlotIndex(Tagged<String> name) {
   VariableLookupResult lookup_result;
   return ContextSlotIndex(name, &lookup_result);
+}
+
+std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
+  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  auto class_variable_info = saved_class_variable_info();
+  if (HasInlinedLocalNames()) {
+    // The saved class variable info corresponds to the context slot index.
+    DCHECK(class_variable_info.IsSmi());
+    int index =
+        class_variable_info.ToSmi().value() - Context::MIN_CONTEXT_SLOTS;
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, ContextLocalCount());
+    Tagged<String> name = ContextInlinedLocalName(index);
+    return std::make_pair(name, index);
+  } else {
+    // The saved class variable info corresponds to the name.
+    Tagged<Name> name = Cast<Name>(class_variable_info);
+    Tagged<NameToIndexHashTable> table = context_local_names_hashtable();
+    int index = table->Lookup(name);
+    DCHECK_GE(index, 0);
+    DCHECK(IsString(name));
+    return std::make_pair(Cast<String>(name), index);
+  }
 }
 
 int ScopeInfo::ReceiverContextSlotIndex() const {

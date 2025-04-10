@@ -193,8 +193,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(DirectHandle<String> name);
-  int ContextSlotIndex(DirectHandle<String> name,
+  int ContextSlotIndex(Tagged<String> name);
+  int ContextSlotIndex(Tagged<String> name,
                        VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
@@ -223,8 +223,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Lookup support for serialized scope info.  Returns the name and index of
   // the saved class variable in context local slots if scope is a class scope
   // and it contains static private methods that may be accessed.
-  template <typename IsolateT>
-  std::pair<Tagged<String>, int> SavedClassVariable(IsolateT* isolate) const;
+  std::pair<Tagged<String>, int> SavedClassVariable() const;
 
   FunctionKind function_kind() const;
 

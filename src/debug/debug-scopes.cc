@@ -964,7 +964,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
         if (mode == Mode::STACK) continue;
         DCHECK(var->IsContextSlot());
 
-        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var->name()), index);
+        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*var->name()),
+                  index);
         value = handle(context_->get(index), isolate_);
 
         if (v8_flags.script_context_mutable_heap_number &&
@@ -1128,7 +1129,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           // don't match (https://crbug.com/753338).
           // Skip the write if the context's ScopeInfo doesn't know anything
           // about this variable.
-          if (context_->scope_info()->ContextSlotIndex(variable_name) !=
+          if (context_->scope_info()->ContextSlotIndex(*variable_name) !=
               index) {
             return false;
           }
@@ -1173,7 +1174,7 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  int slot_index = context_->scope_info()->ContextSlotIndex(variable_name);
+  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
   context_->set(slot_index, *new_value);
   return true;

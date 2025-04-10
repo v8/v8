@@ -206,7 +206,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
   if (scope_info->HasSavedClassVariable()) {
     Tagged<String> name;
     int index;
-    std::tie(name, index) = scope_info->SavedClassVariable(isolate);
+    std::tie(name, index) = scope_info->SavedClassVariable();
     DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);
@@ -256,7 +256,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
     // object variable (we don't store it explicitly).
     DCHECK_NOT_NULL(ast_value_factory);
     int home_object_index = scope_info->ContextSlotIndex(
-        ast_value_factory->dot_home_object_string()->string());
+        *ast_value_factory->dot_home_object_string()->string());
     DCHECK_IMPLIES(home_object_index >= 0,
                    scope_type == CLASS_SCOPE || scope_type == BLOCK_SCOPE);
     if (home_object_index >= 0) {
@@ -974,7 +974,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info->ContextSlotIndex(name->string(), &lookup_result);
+    index = scope_info->ContextSlotIndex(name_handle, &lookup_result);
     found = index >= 0;
   }
 
@@ -3053,7 +3053,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DisallowGarbageCollection no_gc;
 
   VariableLookupResult lookup_result;
-  int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
+  int index = scope_info_->ContextSlotIndex(*name->string(), &lookup_result);
   if (index < 0) {
     return nullptr;
   }

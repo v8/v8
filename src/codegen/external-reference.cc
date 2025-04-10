@@ -1421,9 +1421,9 @@ FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
 
 enum LookupMode { kFindExisting, kFindInsertionEntry };
 template <typename Dictionary, LookupMode mode>
-static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
-                                                  Address raw_dict,
-                                                  Address raw_key) {
+static size_t NameDictionaryLookupForwardedStringWithHandle(Isolate* isolate,
+                                                            Address raw_dict,
+                                                            Address raw_key) {
   // This function cannot allocate, but there is a HandleScope because it needs
   // to pass Handle<Name> to the dictionary methods.
   DisallowGarbageCollection no_gc;
@@ -1442,18 +1442,36 @@ static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
   return entry.raw_value();
 }
 
-FUNCTION_REFERENCE(
-    name_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindExisting>))
-FUNCTION_REFERENCE(
-    name_dictionary_find_insertion_entry_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameDictionary, kFindInsertionEntry>))
-FUNCTION_REFERENCE(
-    global_dictionary_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<GlobalDictionary, kFindExisting>))
+FUNCTION_REFERENCE(name_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       NameDictionary, kFindExisting>))
+FUNCTION_REFERENCE(name_dictionary_find_insertion_entry_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       NameDictionary, kFindInsertionEntry>))
+FUNCTION_REFERENCE(global_dictionary_lookup_forwarded_string,
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       GlobalDictionary, kFindExisting>))
 FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedString<GlobalDictionary,
-                                                        kFindInsertionEntry>))
+                   (NameDictionaryLookupForwardedStringWithHandle<
+                       GlobalDictionary, kFindInsertionEntry>))
+
+template <typename Dictionary, LookupMode mode>
+static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
+                                                  Address raw_dict,
+                                                  Address raw_key) {
+  Tagged<String> key = Cast<String>(Tagged<Object>(raw_key));
+  // This function should only be used as the slow path for forwarded strings.
+  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
+
+  Tagged<Dictionary> dict = Cast<Dictionary>(Tagged<Object>(raw_dict));
+  ReadOnlyRoots roots(isolate);
+  uint32_t hash = key->hash();
+  InternalIndex entry = mode == kFindExisting
+                            ? dict->FindEntry(isolate, roots, key, hash)
+                            : dict->FindInsertionEntry(isolate, roots, hash);
+  return entry.raw_value();
+}
+
 FUNCTION_REFERENCE(
     name_to_index_hashtable_lookup_forwarded_string,
     (NameDictionaryLookupForwardedString<NameToIndexHashTable, kFindExisting>))
