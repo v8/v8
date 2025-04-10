@@ -74,19 +74,19 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c0a46c5e8c316010baf1a0eb2d2ee5a86f73e4c2',
+  'gn_version': 'git_revision:6d326e97fe0242bf56c3de1a93f887446e80ec63',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:3@1.12.1.chromium.4',
 
   # siso CIPD package version
-  'siso_version': 'git_revision:0dd559fac7db9d72c9cbee525ab596b8a10b79d0',
+  'siso_version': 'git_revision:8240743503f584b5beadcb0fd4fc3178da28ffa6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:27.20250402.5.1',
+  'fuchsia_version': 'version:27.20250409.6.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling partition_alloc_version
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c246251934490d46fc8710d3820a49ff8caf1e16',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a86a8f1eefdd612a182b55319bed76eb65543e06',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2e85fadf9fc1fa9a00b7a9d7f467474ad4484c97',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '60c76b2a9bab92f51d4526535d68f52bc78e8ef8',
   'buildtools/linux64': {
     'packages': [
       {
@@ -231,7 +231,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '3ea4639ac5703fc483bbb7117362006418ef8ee5',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '4f90fb2788ef6ab4976b523670cb7636718cc947',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -305,7 +305,7 @@ deps = {
   'third_party/libunwind/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'e2e6f2a67e9420e770b014ce9bba476fa2ab9874',
   'third_party/llvm-libc/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '7f56bd496d12e4d65cfcee697a700781d0137f5d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libc.git' + '@' + '54db6cfdef28f8b8888fd74be5a0cd0d0d5ec761',
   'third_party/llvm-build/Release+Asserts': {
     'dep_type': 'gcs',
     'bucket': 'chromium-browser-clang',
