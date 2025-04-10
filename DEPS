@@ -74,7 +74,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:6d326e97fe0242bf56c3de1a93f887446e80ec63',
+  'gn_version': 'git_revision:7f10984b62e37d22cec85dfe8bbb335cd6f34466',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -129,9 +129,9 @@ vars = {
 
 deps = {
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a86a8f1eefdd612a182b55319bed76eb65543e06',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fcd4fbe1f0c2e18226107f7a490a914618a68330',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '60c76b2a9bab92f51d4526535d68f52bc78e8ef8',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '085537daf1ccf6afe4e0b4c0a0e4ed5ac5fe55a3',
   'buildtools/linux64': {
     'packages': [
       {
@@ -299,7 +299,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/libc++/src':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6f6dc922b8e0c96b7cd49873c7bdcdd46219a55c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '024b5251a7d927941cb93cbb6f811bcb13ec5ba4',
   'third_party/libc++abi/src':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '78140a7276d52a537615d79da1a91b8890cb8287',
   'third_party/libunwind/src':
@@ -473,7 +473,7 @@ deps = {
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '40b529923598b739b2892a536a7692eedbed5685',
   'third_party/protobuf':
-    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + 'de1750a8cedfcf807e3d61f714198d45fd2652a1',
+    Var('chromium_url') + '/chromium/src/third_party/protobuf.git' + '@' + '69a7a90cbb2b804f1ba464a6471b2a8b8ba85523',
   'third_party/re2/src':
     Var('chromium_url') + '/external/github.com/google/re2.git' + '@' + 'c84a140c93352cdabbfb547c531be34515b12228',
   'third_party/requests': {
@@ -529,9 +529,9 @@ deps = {
     'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'ce5a169f50174a2be18c38cd7b2a1bf858649e58',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '780819f6359f8aa3da8e3abb8d7fa43ede81cdd0',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '374799d77820014d176c4fafd1bb30bda600197c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e1f8bcbaa2fca58c0f071577995e84cf7ab436b7',
   'tools/protoc_wrapper':
     Var('chromium_url') + '/chromium/src/tools/protoc_wrapper.git' + '@' + 'dbcbea90c20ae1ece442d8ef64e61c7b10e2b013',
   'third_party/abseil-cpp': {
