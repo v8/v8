@@ -261,8 +261,13 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   LoadTaggedField(optimized_code_entry,
                   FieldMemOperand(feedback_vector,
                                   FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(this, optimized_code_entry, temps.Acquire(),
-                            temps.Acquire());
+  {
+    UseScratchRegisterScope temps(this);
+    temps.Include(t0, t1);
+    Register scratch1 = temps.Acquire();
+    Register scratch2 = temps.Acquire();
+    TailCallOptimizedCodeSlot(this, optimized_code_entry, scratch1, scratch2);
+  }
 }
 #endif  // V8_ENABLE_LEAPTIERING
 
