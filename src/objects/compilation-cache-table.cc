@@ -563,6 +563,26 @@ DirectHandle<CompilationCacheTable> CompilationCacheTable::PutScript(
   return cache;
 }
 
+void CompilationCacheTable::UpdateEval(
+    DirectHandle<CompilationCacheTable> table, DirectHandle<String> src,
+    DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context,
+    DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
+    int position) {
+  InfoCellPair empty_result;
+  Isolate* isolate = native_context->GetIsolate();
+  src = String::Flatten(isolate, src);
+
+  EvalCacheKey key(src, outer_info, language_mode, position);
+  InternalIndex entry = table->FindEntry(isolate, &key);
+  if (entry.is_not_found()) return;
+
+  if (!IsFixedArray(table->KeyAt(entry))) return;
+  Tagged<Object> obj = table->PrimaryValueAt(entry);
+  if (!IsSharedFunctionInfo(obj)) return;
+  AddToFeedbackCellsMap(table, entry, native_context, feedback_cell);
+}
+
 DirectHandle<CompilationCacheTable> CompilationCacheTable::PutEval(
     DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
     DirectHandle<SharedFunctionInfo> outer_info,

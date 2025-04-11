@@ -3363,8 +3363,9 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
         // Make sure to cache this result.
         DirectHandle<FeedbackCell> new_feedback_cell(
             result->raw_feedback_cell(), isolate);
-        compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                   new_feedback_cell, eval_cache_position);
+        compilation_cache->UpdateEval(source, outer_info, context,
+                                      new_feedback_cell, language_mode,
+                                      eval_cache_position);
       }
     }
   } else {

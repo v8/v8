@@ -153,24 +153,10 @@ void CompilationCacheEvalOrScript::Remove(
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
     Handle<String> source, const ScriptDetails& script_details) {
-  LookupResult result;
-  LookupResult::RawObjects raw_result_for_escaping_handle_scope;
+  DirectHandle<CompilationCacheTable> table = GetTable();
+  LookupResult result = CompilationCacheTable::LookupScript(
+      table, source, script_details, isolate());
 
-  // Probe the script table. Make sure not to leak handles
-  // into the caller's handle scope.
-  {
-    HandleScope scope(isolate());
-    DirectHandle<CompilationCacheTable> table = GetTable();
-    LookupResult probe = CompilationCacheTable::LookupScript(
-        table, source, script_details, isolate());
-    raw_result_for_escaping_handle_scope = probe.GetRawObjects();
-  }
-  result = LookupResult::FromRawObjects(raw_result_for_escaping_handle_scope,
-                                        isolate());
-
-  // Once outside the manacles of the handle scope, we need to recheck
-  // to see if we actually found a cached script. If so, we return a
-  // handle created in the caller's handle scope.
   DirectHandle<Script> script;
   if (result.script().ToHandle(&script)) {
     DirectHandle<SharedFunctionInfo> sfi;
@@ -188,20 +174,25 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
 
 void CompilationCacheScript::Put(
     Handle<String> source, DirectHandle<SharedFunctionInfo> function_info) {
-  HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable();
   table_ = *CompilationCacheTable::PutScript(table, source, kNullMaybeHandle,
                                              function_info, isolate());
+}
+
+void CompilationCacheEval::UpdateEval(
+    DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context,
+    DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
+    int position) {
+  DirectHandle<CompilationCacheTable> table = GetTable();
+  CompilationCacheTable::UpdateEval(table, source, outer_info, native_context,
+                                    feedback_cell, language_mode, position);
 }
 
 InfoCellPair CompilationCacheEval::Lookup(
     DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
     DirectHandle<NativeContext> native_context, LanguageMode language_mode,
     int position) {
-  HandleScope scope(isolate());
-  // Make sure not to leak the table into the surrounding handle
-  // scope. Otherwise, we risk keeping old tables around even after
-  // having cleared the cache.
   InfoCellPair result;
   DirectHandle<CompilationCacheTable> table = GetTable();
   result = CompilationCacheTable::LookupEval(
@@ -220,7 +211,6 @@ void CompilationCacheEval::Put(DirectHandle<String> source,
                                DirectHandle<NativeContext> native_context,
                                DirectHandle<FeedbackCell> feedback_cell,
                                int position) {
-  HandleScope scope(isolate());
   DirectHandle<CompilationCacheTable> table = GetTable();
   table_ =
       *CompilationCacheTable::PutEval(table, source, outer_info, function_info,
@@ -278,6 +268,24 @@ CompilationCacheScript::LookupResult CompilationCache::LookupScript(
   return script_.Lookup(source, script_details);
 }
 
+void CompilationCache::UpdateEval(DirectHandle<String> source,
+                                  DirectHandle<SharedFunctionInfo> outer_info,
+                                  DirectHandle<Context> context,
+                                  DirectHandle<FeedbackCell> new_feedback_cell,
+                                  LanguageMode language_mode, int position) {
+  DirectHandle<NativeContext> maybe_native_context;
+  if (TryCast<NativeContext>(context, &maybe_native_context)) {
+    eval_global_.UpdateEval(source, outer_info, maybe_native_context,
+                            new_feedback_cell, language_mode, position);
+  } else {
+    DCHECK_NE(position, kNoSourcePosition);
+    DirectHandle<NativeContext> native_context(context->native_context(),
+                                               isolate());
+    eval_contextual_.UpdateEval(source, outer_info, native_context,
+                                new_feedback_cell, language_mode, position);
+  }
+}
+
 InfoCellPair CompilationCache::LookupEval(
     DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
     DirectHandle<Context> context, LanguageMode language_mode, int position) {
@@ -331,7 +339,6 @@ void CompilationCache::PutEval(DirectHandle<String> source,
   if (!IsEnabledScriptAndEval()) return;
 
   const char* cache_type;
-  HandleScope scope(isolate());
   DirectHandle<NativeContext> maybe_native_context;
   if (TryCast<NativeContext>(context, &maybe_native_context)) {
     eval_global_.Put(source, outer_info, function_info, maybe_native_context,
