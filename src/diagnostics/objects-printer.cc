@@ -24,6 +24,7 @@
 #include "src/objects/all-objects-inl.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/code-kind.h"
+#include "src/objects/contexts.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
@@ -1319,6 +1320,30 @@ void NativeContext::NativeContextPrint(std::ostream& os) {
   os << " - microtask_queue: " << microtask_queue() << "\n";
 }
 
+void ContextCell::ContextCellPrint(std::ostream& os) {
+  PrintHeader(os, "ContextCell");
+  os << "\n - state: " << state()
+     << "\n - dependent_code: " << Brief(dependent_code());
+  switch (state()) {
+    case kConst:
+      os << "\n - tagged_value (const): " << Brief(tagged_value());
+      break;
+    case kSmi:
+      os << "\n - tagged_value (smi): " << Brief(tagged_value());
+      break;
+    case kInt32:
+      os << "\n - int32_value: " << int32_value();
+      break;
+    case kFloat64:
+      os << "\n - float64_value: " << float64_value();
+      break;
+    case kDetached:
+      os << "\n - detached";
+      break;
+  }
+  os << "\n";
+}
+
 namespace {
 using DataPrinter = std::function<void(InternalIndex)>;
 
@@ -2479,13 +2504,6 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   os << "\n";
 }
 
-void ContextSidePropertyCell::ContextSidePropertyCellPrint(std::ostream& os) {
-  PrintHeader(os, "ContextSidePropertyCell");
-  os << "\n - dependent code: " << dependent_code();
-  os << "\n - cell_type: " << context_side_property_raw(kAcquireLoad);
-  os << "\n";
-}
-
 void InstructionStream::InstructionStreamPrint(std::ostream& os) {
   code(kAcquireLoad)->CodePrint(os);
 }
@@ -3607,6 +3625,15 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case PROPERTY_ARRAY_TYPE:
       os << "<PropertyArray[" << Cast<PropertyArray>(*this)->length() << "]>";
       break;
+    case CONTEXT_CELL_TYPE: {
+      auto cell = Cast<ContextCell>(*this);
+      os << "<ContextCell[" << cell->state();
+      if (cell->state() == ContextCell::kConst) {
+        os << "=" << Brief(cell->tagged_value());
+      }
+      os << "]>";
+      break;
+    }
     case FEEDBACK_CELL_TYPE: {
       {
         ReadOnlyRoots roots = GetReadOnlyRoots();
@@ -3778,10 +3805,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       ShortPrint(cell->value(kAcquireLoad), &accumulator);
       os << accumulator.ToCString().get();
       os << '>';
-      break;
-    }
-    case CONTEXT_SIDE_PROPERTY_CELL_TYPE: {
-      os << "<ContextSidePropertyCell>";
       break;
     }
     case ACCESSOR_INFO_TYPE: {

@@ -137,6 +137,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(FixedArrayBase)                                       \
   NEVER_SERIALIZED(FunctionTemplateInfo)                                      \
   NEVER_SERIALIZED(HeapNumber)                                                \
+  NEVER_SERIALIZED(ContextCell)                                               \
   BACKGROUND_SERIALIZED(JSReceiver)                                           \
   BACKGROUND_SERIALIZED(Map)                                                  \
   NEVER_SERIALIZED(Name)                                                      \
@@ -700,6 +701,16 @@ class HeapNumberRef : public HeapObjectRef {
   uint64_t value_as_bits() const;
 };
 
+class ContextCellRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(ContextCell, HeapObjectRef)
+
+  IndirectHandle<ContextCell> object() const;
+
+  ContextCell::State state() const;
+  OptionalObjectRef tagged_value(JSHeapBroker* broker) const;
+};
+
 class ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
@@ -715,9 +726,6 @@ class ContextRef : public HeapObjectRef {
   OptionalObjectRef get(JSHeapBroker* broker, int index) const;
 
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
-
-  // Only returns a value if the index is valid for this ContextRef.
-  OptionalObjectRef TryGetSideData(JSHeapBroker* broker, int index) const;
 };
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \

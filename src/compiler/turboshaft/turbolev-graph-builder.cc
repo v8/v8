@@ -52,6 +52,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
+#include "src/objects/contexts.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -2919,10 +2920,29 @@ class GraphBuildingNodeProcessor {
     IF_NOT (__ IsSmi(value)) {
       V<i::Map> value_map = __ LoadMapField(value);
       IF (UNLIKELY(__ TaggedEqual(
-              value_map, __ HeapConstant(local_factory_->heap_number_map())))) {
-        V<HeapNumber> heap_number = V<HeapNumber>::Cast(value);
-        result = __ LoadHeapNumberFromScriptContext(script_context,
-                                                    node->index(), heap_number);
+              value_map,
+              __ HeapConstant(local_factory_->context_cell_map())))) {
+        V<ContextCell> slot = V<ContextCell>::Cast(value);
+        V<Word32> slot_state =
+            __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
+        static_assert(ContextCell::State::kConst == 0);
+        static_assert(ContextCell::State::kSmi == 1);
+        IF (__ Int32LessThanOrEqual(slot_state,
+                                    __ Word32Constant(ContextCell::kSmi))) {
+          result = __ LoadField<Object>(
+              slot, AccessBuilder::ForContextCellTaggedValue());
+        } ELSE {
+          ScopedVar<Float64, AssemblerT> number(this);
+          IF (__ Word32Equal(slot_state,
+                             __ Word32Constant(ContextCell::kInt32))) {
+            number = __ ChangeInt32ToFloat64(__ LoadField<Word32>(
+                slot, AccessBuilder::ForContextCellInt32Value()));
+          } ELSE {
+            number = __ LoadField<Float64>(
+                slot, AccessBuilder::ForContextCellFloat64Value());
+          }
+          result = __ AllocateHeapNumberWithValue(number, isolate_->factory());
+        }
       }
     }
     SetMap(node, result);
@@ -2945,13 +2965,6 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     SetMap(node, __ Load(Map(node->object_input()), LoadOp::Kind::TaggedBase(),
                          MemoryRepresentation::Int32(), node->offset()));
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::LoadHeapInt32* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    SetMap(node, __ LoadHeapInt32Value(field));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::LoadFixedArrayElement* node,
@@ -3008,27 +3021,78 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::StoreScriptContextSlotWithWriteBarrier* node,
       const maglev::ProcessingState& state) {
-    Label<> done(this);
     V<Context> context = V<i::Context>::Cast(Map(node->context_input()));
     V<Object> new_value = Map(node->new_value_input());
     V<Object> old_value = __ LoadTaggedField(context, node->offset());
-    IF_NOT (__ TaggedEqual(old_value, new_value)) {
-      V<Object> side_data =
-          __ LoadScriptContextSideData(context, node->index());
-      IF_NOT (UNLIKELY(__ TaggedEqual(
-                  side_data,
-                  __ SmiConstant(ContextSidePropertyCell::Other())))) {
-        GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-        __ StoreScriptContextSlowPath(
-            context, old_value, new_value, side_data, frame_state,
-            node->eager_deopt_info()->feedback_to_update(), done);
-      }
+    IF (__ IsSmi(old_value)) {
       __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(),
                WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
+    } ELSE {
+      V<i::Map> value_map = __ LoadMapField(old_value);
+      IF (UNLIKELY(__ TaggedEqual(
+              value_map,
+              __ HeapConstant(local_factory_->context_cell_map())))) {
+        V<ContextCell> slot = V<ContextCell>::Cast(old_value);
+        V<Word32> slot_state =
+            __ LoadField<Word32>(slot, AccessBuilder::ForContextCellState());
+        GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+        IF (__ Word32Equal(slot_state,
+                           __ Word32Constant(ContextCell::kFloat64))) {
+          ScopedVar<Float64, AssemblerT> number(this);
+          IF (__ IsSmi(new_value)) {
+            number =
+                __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(new_value)));
+          } ELSE {
+            V<i::Map> map = __ LoadMapField(new_value);
+            __ DeoptimizeIfNot(
+                __ TaggedEqual(
+                    map, __ HeapConstant(local_factory_->heap_number_map())),
+                frame_state, DeoptimizeReason::kWrongValue,
+                node->eager_deopt_info()->feedback_to_update());
+            number = __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value));
+          }
+          __ StoreField(slot, AccessBuilder::ForContextCellFloat64Value(),
+                        number);
+        } ELSE IF (__ Word32Equal(slot_state,
+                                 __ Word32Constant(ContextCell::kInt32))) {
+          ScopedVar<Word32, AssemblerT> number(this);
+          IF (__ IsSmi(new_value)) {
+            number = __ UntagSmi(V<Smi>::Cast(new_value));
+          } ELSE {
+            V<i::Map> map = __ LoadMapField(new_value);
+            __ DeoptimizeIfNot(
+                __ TaggedEqual(
+                    map, __ HeapConstant(local_factory_->heap_number_map())),
+                frame_state, DeoptimizeReason::kWrongValue,
+                node->eager_deopt_info()->feedback_to_update());
+            number = __ ChangeFloat64ToInt32OrDeopt(
+                __ LoadHeapNumberValue(V<HeapNumber>::Cast(new_value)),
+                frame_state, CheckForMinusZeroMode::kCheckForMinusZero,
+                node->eager_deopt_info()->feedback_to_update());
+          }
+          __ StoreField(slot, AccessBuilder::ForContextCellInt32Value(),
+                        number);
+        } ELSE IF (__ Word32Equal(slot_state,
+                                 __ Word32Constant(ContextCell::kSmi))) {
+          __ DeoptimizeIfNot(__ IsSmi(new_value), frame_state,
+                             DeoptimizeReason::kWrongValue,
+                             node->eager_deopt_info()->feedback_to_update());
+          __ StoreField(slot, AccessBuilder::ForContextCellTaggedValue(),
+                        new_value);
+        } ELSE {
+          V<Object> tagged_value = __ LoadField<Object>(
+              slot, AccessBuilder::ForContextCellTaggedValue());
+          __ DeoptimizeIfNot(__ TaggedEqual(new_value, tagged_value),
+                             frame_state, DeoptimizeReason::kWrongValue,
+                             node->eager_deopt_info()->feedback_to_update());
+        }
+      } ELSE {
+        __ Store(context, new_value, StoreOp::Kind::TaggedBase(),
+                 MemoryRepresentation::AnyTagged(),
+                 WriteBarrierKind::kFullWriteBarrier, node->offset(), false);
+      }
     }
-    GOTO(done);
-    BIND(done);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::StoreDoubleField* node,
@@ -3036,14 +3100,6 @@ class GraphBuildingNodeProcessor {
     V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
         Map(node->object_input()), node->offset());
     __ StoreField(field, AccessBuilder::ForHeapNumberValue(),
-                  Map(node->value_input()));
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::StoreHeapInt32* node,
-                                const maglev::ProcessingState& state) {
-    V<HeapNumber> field = __ LoadTaggedField<HeapNumber>(
-        Map(node->object_input()), node->offset());
-    __ StoreField(field, AccessBuilder::ForHeapInt32Value(),
                   Map(node->value_input()));
     return maglev::ProcessResult::kContinue;
   }

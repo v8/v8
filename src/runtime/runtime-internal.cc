@@ -15,6 +15,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/contexts.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
@@ -756,14 +757,12 @@ RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
   return *shared_value;
 }
 
-RUNTIME_FUNCTION(Runtime_InvalidateDependentCodeForScriptContextSlot) {
+RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  auto const_tracking_let_cell =
-      Cast<ContextSidePropertyCell>(args.at<HeapObject>(0));
+  auto cell = Cast<ContextCell>(args.at<HeapObject>(0));
   DependentCode::DeoptimizeDependencyGroups(
-      isolate, *const_tracking_let_cell,
-      DependentCode::kScriptContextSlotPropertyChangedGroup);
+      isolate, *cell, DependentCode::kContextCellChangedGroup);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

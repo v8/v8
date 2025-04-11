@@ -49,7 +49,7 @@ enum InstanceType : uint16_t;
   V(Cell)                             \
   V(CodeWrapper)                      \
   V(ConsString)                       \
-  V(ContextSidePropertyCell)          \
+  V(ContextCell)                      \
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \

@@ -2440,9 +2440,9 @@ class MaglevGraphBuilder {
 
   Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
                               StoreTaggedMode store_mode);
-  void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
-                                           int offset,
-                                           StoreTaggedMode store_mode);
+  Node* BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
+                                            int offset,
+                                            StoreTaggedMode store_mode);
   void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
                                      int offset, IndirectPointerTag tag,
                                      StoreTaggedMode store_mode);

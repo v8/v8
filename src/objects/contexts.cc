@@ -13,6 +13,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
+#include "src/handles/handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/dependent-code.h"
@@ -21,6 +22,7 @@
 #include "src/objects/property-cell.h"
 #include "src/objects/string-set-inl.h"
 #include "src/utils/boxed-float.h"
+#include "v8-internal.h"
 
 namespace v8::internal {
 
@@ -480,46 +482,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   return Handle<Object>::null();
 }
 
-Tagged<ContextSidePropertyCell> Context::GetOrCreateContextSidePropertyCell(
-    DirectHandle<Context> script_context, size_t index,
-    ContextSidePropertyCell::Property property, Isolate* isolate) {
-  DCHECK(v8_flags.script_context_mutable_heap_number ||
-         v8_flags.const_tracking_let);
-  DCHECK(script_context->IsScriptContext());
-  DCHECK_NE(property, ContextSidePropertyCell::kOther);
-  int side_data_index =
-      static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  DirectHandle<FixedArray> side_data(
-      Cast<FixedArray>(script_context->get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
-      isolate);
-  Tagged<Object> object = side_data->get(side_data_index);
-  if (!IsContextSidePropertyCell(object)) {
-    // If these CHECKs fail, there's a code path which initializes or assigns a
-    // top-level `let` variable but doesn't update the side data.
-    object = *isolate->factory()->NewContextSidePropertyCell(property);
-    side_data->set(side_data_index, object);
-  }
-  return Cast<ContextSidePropertyCell>(object);
-}
-
-std::optional<ContextSidePropertyCell::Property>
-Context::GetScriptContextSideProperty(size_t index) const {
-  DCHECK(v8_flags.script_context_mutable_heap_number ||
-         v8_flags.const_tracking_let);
-  DCHECK(IsScriptContext());
-  int side_data_index =
-      static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  Tagged<FixedArray> side_data =
-      Cast<FixedArray>(get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
-  Tagged<Object> object = side_data->get(side_data_index);
-  if (IsUndefined(object)) return {};
-  if (IsContextSidePropertyCell(object)) {
-    return Cast<ContextSidePropertyCell>(object)->context_side_property();
-  }
-  CHECK(IsSmi(object));
-  return ContextSidePropertyCell::FromSmi(object.ToSmi());
-}
-
 namespace {
 std::optional<int32_t> DoubleFitsInInt32(double value) {
   constexpr double int32_min = std::numeric_limits<int32_t>::min();
@@ -533,246 +495,160 @@ std::optional<int32_t> DoubleFitsInInt32(double value) {
   return {};
 }
 
-DirectHandle<Object> TryLoadMutableHeapNumber(
-    DirectHandle<Context> script_context, int index, DirectHandle<Object> value,
-    Isolate* isolate) {
-  DCHECK(v8_flags.script_context_mutable_heap_number);
-  DCHECK(script_context->IsScriptContext());
-  if (!IsHeapNumber(*value)) return value;
-  const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
-  Tagged<FixedArray> side_data_table = Cast<FixedArray>(
-      script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
-  if (side_data_table == ReadOnlyRoots(isolate).empty_fixed_array()) {
-    // No side data (maybe the context was created while the side data
-    // collection was disabled).
-    return value;
-  }
+V8_INLINE bool IsEmptyDependentCode(Tagged<DependentCode> value,
+                                    Isolate* isolate) {
+  return value == DependentCode::empty_dependent_code(ReadOnlyRoots(isolate));
+}
 
-  Tagged<Object> data = side_data_table->get(side_data_index);
-  ContextSidePropertyCell::Property property;
-  if (IsSmi(data)) {
-    property =
-        static_cast<ContextSidePropertyCell::Property>(data.ToSmi().value());
-  } else if (Is<ContextSidePropertyCell>(data)) {
-    property = Cast<ContextSidePropertyCell>(data)->context_side_property();
-  } else {
-    // We should not reach this point. The debugger has updated the value
-    // without updating the side data table. Fall back to other. There is also
-    // no dependent code to this cell, since this is not a
-    // ContextSidePropertyCell.
-    property = ContextSidePropertyCell::kOther;
-    side_data_table->set(side_data_index, Smi::FromInt(property));
-  }
-  if (property == ContextSidePropertyCell::kMutableInt32) {
-    int32_t int32_value =
-        static_cast<int32_t>(Cast<HeapNumber>(*value)->value_as_bits());
-    return isolate->factory()->NewHeapNumber(static_cast<double>(int32_value));
-  } else if (property == ContextSidePropertyCell::kMutableHeapNumber) {
-    return isolate->factory()->NewHeapNumber(Cast<HeapNumber>(*value)->value());
-  } else {
-    return value;
+V8_INLINE void NotifyContextCellStateWillChange(DirectHandle<ContextCell> cell,
+                                                Isolate* isolate) {
+  if (!IsEmptyDependentCode(cell->dependent_code(), isolate)) {
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *cell, DependentCode::kContextCellChangedGroup);
   }
 }
+
+V8_INLINE void TransitionContextCellToUntagged(Tagged<HeapNumber> number,
+                                               DirectHandle<ContextCell> cell) {
+  double double_value = number->value();
+  if (auto int32_value = DoubleFitsInInt32(double_value)) {
+    cell->set_int32_value(*int32_value);
+    cell->set_state(ContextCell::kInt32);
+  } else {
+    cell->set_float64_value(double_value);
+    cell->set_state(ContextCell::kFloat64);
+  }
+}
+
 }  // namespace
 
 DirectHandle<Object> Context::LoadScriptContextElement(
     DirectHandle<Context> script_context, int index, DirectHandle<Object> value,
     Isolate* isolate) {
-  DCHECK(v8_flags.script_context_mutable_heap_number);
+  DCHECK(v8_flags.script_context_cells);
   DCHECK(script_context->IsScriptContext());
-  return TryLoadMutableHeapNumber(script_context, index, value, isolate);
-}
-
-void Context::StoreScriptContextAndUpdateSlotProperty(
-    DirectHandle<Context> script_context, int index,
-    DirectHandle<Object> new_value, Isolate* isolate) {
-  DCHECK(v8_flags.script_context_mutable_heap_number ||
-         v8_flags.const_tracking_let);
-  DCHECK(script_context->IsScriptContext());
-
-  const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
-  DirectHandle<FixedArray> side_data(
-      Cast<FixedArray>(
-          script_context->get(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX)),
-      isolate);
-  if (*side_data == ReadOnlyRoots(isolate).empty_fixed_array()) {
-    // No side data (maybe the context was created while the side data
-    // collection was disabled).
-    script_context->set(index, *new_value);
-    return;
+  if (!Is<ContextCell>(value)) {
+    return value;
   }
-
-  DirectHandle<Object> old_value(script_context->get(index), isolate);
-  if (IsTheHole(*old_value)) {
-    // Setting the initial value. Here we cannot assert the corresponding side
-    // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
-    script_context->set(index, *new_value);
-    side_data->set(side_data_index, ContextSidePropertyCell::Const());
-    return;
-  }
-
-  // If we are assigning the same value, the property won't change.
-  if (*old_value == *new_value) {
-    return;
-  }
-  // If both values are HeapNumbers with the same double value, the property
-  // won't change either.
-  if (Is<HeapNumber>(*old_value) && Is<HeapNumber>(*new_value)) {
-    double old_number = Cast<HeapNumber>(*old_value)->value();
-    double new_number = Cast<HeapNumber>(*new_value)->value();
-    if (old_number == new_number && old_number != 0) {
-      return;
-    }
-  }
-
-  // From now on, we know the value is no longer a constant.
-
-  Tagged<Object> data = side_data->get(side_data_index);
-  std::optional<Tagged<ContextSidePropertyCell>> maybe_cell;
-  ContextSidePropertyCell::Property property;
-
-  if (IsSmi(data)) {
-    property = ContextSidePropertyCell::FromSmi(data.ToSmi());
-  } else {
-    CHECK(Is<ContextSidePropertyCell>(data));
-    maybe_cell = Cast<ContextSidePropertyCell>(data);
-    property = maybe_cell.value()->context_side_property();
-  }
-
-  switch (property) {
-    case ContextSidePropertyCell::kConst:
-      if (maybe_cell) {
-        DependentCode::DeoptimizeDependencyGroups(
-            isolate, maybe_cell.value(),
-            DependentCode::kScriptContextSlotPropertyChangedGroup);
-      }
-      if (v8_flags.script_context_mutable_heap_number) {
-        // It can transition to Smi, MutableInt32, MutableHeapNumber or Other.
-        if (IsHeapNumber(*new_value)) {
-          double double_value = Cast<HeapNumber>(*new_value)->value();
-          auto maybe_int32_value = DoubleFitsInInt32(double_value);
-          if (v8_flags.script_context_mutable_heap_int32 && maybe_int32_value) {
-            auto new_number =
-                isolate->factory()->NewHeapInt32(*maybe_int32_value);
-            script_context->set(index, *new_number);
-            side_data->set(side_data_index,
-                           ContextSidePropertyCell::MutableInt32());
-          } else {
-            auto new_number = isolate->factory()->NewHeapNumber(double_value);
-            script_context->set(index, *new_number);
-            side_data->set(side_data_index,
-                           ContextSidePropertyCell::MutableHeapNumber());
-          }
-        } else {
-          script_context->set(index, *new_value);
-          side_data->set(side_data_index,
-                         IsSmi(*new_value)
-                             ? ContextSidePropertyCell::SmiMarker()
-                             : ContextSidePropertyCell::Other());
-        }
-      } else {
-        // MutableHeapNumber is not supported, just transition the property to
-        // kOther.
-        script_context->set(index, *new_value);
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
-      }
-
-      break;
-    case ContextSidePropertyCell::kSmi:
-      if (IsSmi(*new_value)) {
-        script_context->set(index, *new_value);
-      } else {
-        if (maybe_cell) {
-          DependentCode::DeoptimizeDependencyGroups(
-              isolate, maybe_cell.value(),
-              DependentCode::kScriptContextSlotPropertyChangedGroup);
-        }
-        // It can transition to MutableInt32, MutableHeapNumber or Other.
-        if (IsHeapNumber(*new_value)) {
-          double double_value = Cast<HeapNumber>(*new_value)->value();
-          auto maybe_int32_value = DoubleFitsInInt32(double_value);
-          if (v8_flags.script_context_mutable_heap_int32 && maybe_int32_value) {
-            auto new_number =
-                isolate->factory()->NewHeapInt32(*maybe_int32_value);
-            script_context->set(index, *new_number);
-            side_data->set(side_data_index,
-                           ContextSidePropertyCell::MutableInt32());
-          } else {
-            auto new_number = isolate->factory()->NewHeapNumber(double_value);
-            script_context->set(index, *new_number);
-            side_data->set(side_data_index,
-                           ContextSidePropertyCell::MutableHeapNumber());
-          }
-        } else {
-          script_context->set(index, *new_value);
-          side_data->set(side_data_index, ContextSidePropertyCell::Other());
-        }
-      }
-      break;
-    case ContextSidePropertyCell::kMutableInt32: {
-      CHECK(IsHeapNumber(*old_value));
-      DirectHandle<HeapNumber> old_number = Cast<HeapNumber>(old_value);
-      if (IsSmi(*new_value)) {
-        old_number->set_value_as_bits(
-            (static_cast<uint64_t>(kHoleNanUpper32) << 32) |
-            Cast<Smi>(*new_value).value());
-      } else if (IsHeapNumber(*new_value)) {
-        double double_value = Cast<HeapNumber>(*new_value)->value();
-        auto maybe_int32_value = DoubleFitsInInt32(double_value);
-        if (v8_flags.script_context_mutable_heap_int32 && maybe_int32_value) {
-          old_number->set_value_as_bits(
-              (static_cast<uint64_t>(kHoleNanUpper32) << 32) |
-              *maybe_int32_value);
-        } else {
-          if (maybe_cell) {
-            DependentCode::DeoptimizeDependencyGroups(
-                isolate, maybe_cell.value(),
-                DependentCode::kScriptContextSlotPropertyChangedGroup);
-          }
-          old_number->set_value(double_value);
-          side_data->set(side_data_index,
-                         ContextSidePropertyCell::MutableHeapNumber());
-        }
-      } else {
-        if (maybe_cell) {
-          DependentCode::DeoptimizeDependencyGroups(
-              isolate, maybe_cell.value(),
-              DependentCode::kScriptContextSlotPropertyChangedGroup);
-        }
-        // It can only transition to Other.
-        script_context->set(index, *new_value);
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
-      }
-      break;
-    }
-    case ContextSidePropertyCell::kMutableHeapNumber:
-      CHECK(IsHeapNumber(*old_value));
-      if (IsSmi(*new_value)) {
-        Cast<HeapNumber>(old_value)->set_value(
-            static_cast<double>(Cast<Smi>(*new_value).value()));
-      } else if (IsHeapNumber(*new_value)) {
-        Cast<HeapNumber>(old_value)->set_value(
-            Cast<HeapNumber>(*new_value)->value());
-      } else {
-        if (maybe_cell) {
-          DependentCode::DeoptimizeDependencyGroups(
-              isolate, maybe_cell.value(),
-              DependentCode::kScriptContextSlotPropertyChangedGroup);
-        }
-        // It can only transition to Other.
-        script_context->set(index, *new_value);
-        side_data->set(side_data_index, ContextSidePropertyCell::Other());
-      }
-      break;
-    case ContextSidePropertyCell::kOther:
-      // We should not have a code depending on Other.
-      DCHECK(!maybe_cell.has_value());
-      // No need to update side data, this is a sink state...
-      script_context->set(index, *new_value);
-      break;
-    default:
+  DirectHandle<ContextCell> cell = Cast<ContextCell>(value);
+  switch (cell->state()) {
+    case ContextCell::kConst:
+    case ContextCell::kSmi:
+      return handle(cell->tagged_value(), isolate);
+    case ContextCell::kInt32:
+      return isolate->factory()->NewHeapNumber(
+          static_cast<double>(cell->int32_value()));
+    case ContextCell::kFloat64:
+      return isolate->factory()->NewHeapNumber(cell->float64_value());
+    case ContextCell::kDetached:
       UNREACHABLE();
   }
+  UNREACHABLE();
+}
+
+void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
+                                        int index,
+                                        DirectHandle<Object> new_value,
+                                        Isolate* isolate) {
+  DCHECK(v8_flags.script_context_cells);
+  DCHECK(script_context->IsScriptContext());
+
+  DirectHandle<Object> old_value(script_context->get(index), isolate);
+  if (IsTheHole(*old_value, isolate)) {
+    // Setting the initial value.
+    DirectHandle<ContextCell> cell =
+        isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
+    script_context->set(index, *cell);
+    return;
+  }
+
+  if (!Is<ContextCell>(old_value)) {
+    script_context->set(index, *new_value);
+    return;
+  }
+
+  DirectHandle<ContextCell> cell = Cast<ContextCell>(old_value);
+  switch (cell->state()) {
+    case ContextCell::kConst:
+      // If we are assigning the same value, the property won't change.
+      if (cell->tagged_value() == *new_value) {
+        return;
+      }
+      // If both values are HeapNumbers with the same double value, the property
+      // won't change either.
+      if (Is<HeapNumber>(cell->tagged_value()) && Is<HeapNumber>(*new_value)) {
+        double old_number = Cast<HeapNumber>(cell->tagged_value())->value();
+        double new_number = Cast<HeapNumber>(*new_value)->value();
+        if (old_number == new_number && old_number != 0) {
+          return;
+        }
+      }
+      NotifyContextCellStateWillChange(cell, isolate);
+      if (Is<Smi>(*new_value)) {
+        cell->set_smi_value(Cast<Smi>(*new_value));
+        cell->set_state(ContextCell::kSmi);
+      } else if (IsHeapNumber(*new_value)) {
+        TransitionContextCellToUntagged(Cast<HeapNumber>(*new_value), cell);
+        cell->clear_tagged_value();
+      } else {
+        script_context->set(index, *new_value);
+        cell->clear_tagged_value();
+        cell->set_state(ContextCell::kDetached);
+      }
+      return;
+    case ContextCell::kSmi:
+      if (IsSmi(*new_value)) {
+        cell->set_smi_value(Cast<Smi>(*new_value));
+        cell->set_state(ContextCell::kSmi);
+      } else {
+        NotifyContextCellStateWillChange(cell, isolate);
+        if (IsHeapNumber(*new_value)) {
+          TransitionContextCellToUntagged(Cast<HeapNumber>(*new_value), cell);
+        } else {
+          script_context->set(index, *new_value);
+          cell->set_state(ContextCell::kDetached);
+        }
+        cell->clear_tagged_value();
+      }
+      return;
+    case ContextCell::kInt32:
+      if (IsSmi(*new_value)) {
+        cell->set_int32_value(Cast<Smi>(*new_value).value());
+        cell->set_state(ContextCell::kInt32);
+      } else if (IsHeapNumber(*new_value)) {
+        double double_value = Cast<HeapNumber>(*new_value)->value();
+        if (auto int32_value = DoubleFitsInInt32(double_value)) {
+          cell->set_int32_value(*int32_value);
+          cell->set_state(ContextCell::kInt32);
+        } else {
+          NotifyContextCellStateWillChange(cell, isolate);
+          cell->set_float64_value(double_value);
+          cell->set_state(ContextCell::kFloat64);
+        }
+      } else {
+        NotifyContextCellStateWillChange(cell, isolate);
+        script_context->set(index, *new_value);
+        cell->set_state(ContextCell::kDetached);
+      }
+      return;
+    case ContextCell::kFloat64:
+      if (IsSmi(*new_value)) {
+        cell->set_float64_value(
+            static_cast<double>(Cast<Smi>(*new_value).value()));
+        cell->set_state(ContextCell::kFloat64);
+      } else if (IsHeapNumber(*new_value)) {
+        cell->set_float64_value(Cast<HeapNumber>(*new_value)->value());
+        cell->set_state(ContextCell::kFloat64);
+      } else {
+        NotifyContextCellStateWillChange(cell, isolate);
+        script_context->set(index, *new_value);
+        cell->set_state(ContextCell::kDetached);
+      }
+      return;
+    case ContextCell::kDetached:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {

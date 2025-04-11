@@ -1362,7 +1362,6 @@ void Genesis::InstallGlobalThisBinding() {
 
   // Go ahead and hook it up while we're at it.
   int slot = scope_info->ReceiverContextSlotIndex();
-  DCHECK_EQ(slot, Context::MIN_CONTEXT_EXTENDED_SLOTS);
   context->set(slot, native_context()->global_proxy());
 
   Handle<ScriptContextTable> script_contexts(

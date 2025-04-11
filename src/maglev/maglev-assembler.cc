@@ -667,38 +667,6 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
       kValueCanBeSmi);
 }
 
-void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
-                                                              Register data,
-                                                              int index,
-                                                              Label* done) {
-  Label smi_data, deopt;
-
-  // Load the const tracking let side data.
-  LoadTaggedField(
-      data, context,
-      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
-
-  LoadTaggedField(data, data,
-                  FixedArray::OffsetOfElementAt(
-                      index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
-
-  // Load property.
-  JumpIfSmi(data, &smi_data, Label::kNear);
-  JumpIfRoot(data, RootIndex::kUndefinedValue, &deopt);
-  if (v8_flags.debug_code) {
-    AssertObjectType(data, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
-                     AbortReason::kUnexpectedValue);
-  }
-  LoadTaggedField(data, data,
-                  ContextSidePropertyCell::kPropertyDetailsRawOffset);
-
-  // It must be different than kConst.
-  bind(&smi_data);
-  CompareTaggedAndJumpIf(data, ContextSidePropertyCell::Const(), kNotEqual,
-                         done, Label::kNear);
-  bind(&deopt);
-}
-
 void MaglevAssembler::TryMigrateInstance(Register object,
                                          RegisterSnapshot& register_snapshot,
                                          Label* fail) {

@@ -1911,16 +1911,6 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
              FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
 }
 
-inline void MaglevAssembler::LoadHeapInt32Value(Register result,
-                                                Register heap_number) {
-  Load32U(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
-}
-
-inline void MaglevAssembler::StoreHeapInt32Value(Register value,
-                                                 Register heap_number) {
-  Sw(value, (FieldMemOperand(heap_number, offsetof(HeapNumber, value_))));
-}
-
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
                                            Register src) {
   Cvt_d_w(result, src);

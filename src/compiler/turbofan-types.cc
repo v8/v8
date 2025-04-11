@@ -404,7 +404,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case INSTRUCTION_STREAM_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
-    case CONTEXT_SIDE_PROPERTY_CELL_TYPE:
     case SOURCE_TEXT_MODULE_TYPE:
     case SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE:
     case SYNTHETIC_MODULE_TYPE:
@@ -416,6 +415,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case REG_EXP_DATA_TYPE:
     case ATOM_REG_EXP_DATA_TYPE:
     case IR_REG_EXP_DATA_TYPE:
+    case CONTEXT_CELL_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TYPE_INFO_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
