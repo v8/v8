@@ -473,7 +473,7 @@ class WasmGlobalObject
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
  public:
   DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
-  DECL_ACCESSORS(native_context, Tagged<Context>)
+  DECL_OPTIONAL_ACCESSORS(native_context, Tagged<Context>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
 #if V8_ENABLE_DRUMBRAKE
   DECL_OPTIONAL_ACCESSORS(interpreter_object, Tagged<Tuple2>)
@@ -953,7 +953,8 @@ class WasmDispatchTable : public ExposedTrustedObject {
       Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table);
 
   static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable>
-  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type);
+  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type,
+      bool shared);
   static V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable> Grow(
       Isolate*, DirectHandle<WasmDispatchTable>, uint32_t new_length);
 
@@ -1579,7 +1580,8 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
-                                   DirectHandle<Map> opt_rtt_parent);
+                                   DirectHandle<Map> opt_rtt_parent,
+                                   bool shared);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to

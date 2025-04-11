@@ -290,16 +290,6 @@ RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(
   }
 }
 
-// Load the trusted data from a WasmInstanceObject.
-V<WasmTrustedInstanceData>
-WasmGraphBuilderBase::LoadTrustedDataFromInstanceObject(
-    V<HeapObject> instance_object) {
-  return V<WasmTrustedInstanceData>::Cast(__ LoadTrustedPointerField(
-      instance_object, LoadOp::Kind::TaggedBase().Immutable(),
-      kWasmTrustedInstanceDataIndirectPointerTag,
-      WasmInstanceObject::kTrustedDataOffset));
-}
-
 void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
     Zone* zone, OpIndex thread_in_wasm_flag_address, bool new_value) {
   if (v8_flags.debug_code) {
@@ -8230,7 +8220,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
           BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
           decoder, {rtt, __ Word32Constant(imm.index.index)});
     } else {
-      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
+      const bool shared = type.is_shared;
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
     }
 
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {

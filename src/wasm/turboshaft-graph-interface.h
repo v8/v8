@@ -112,8 +112,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function);
 
   RegisterRepresentation RepresentationFor(ValueTypeBase type);
-  V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
-      V<HeapObject> instance_object);
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args);

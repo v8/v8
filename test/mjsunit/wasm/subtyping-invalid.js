@@ -125,12 +125,12 @@ Test((builder) => {
 Test((builder) => {
   builder.addArray(kWasmI32, true);
   builder.addArray(wasmRefType(0), true, kNoSuperType, true, true);
-}, /shared array must have shared element type/);
+}, /only shared structs are supported for now/);
 
 Test((builder) => {
   builder.addArray(kWasmI32, true, kNoSuperType, false, true);
   builder.addArray(wasmRefType(0), true);
-}, OK);
+}, /only shared structs are supported for now/);
 
 Test((builder) => {
   builder.addArray(wasmRefType(0), false);

@@ -4,6 +4,8 @@
 
 // TODO(manoskouk): Revisit flags once shared everything threads doesn't
 // conflict with --liftoff any more.
+// TODO(manoskouk): Fix error messages once we support shared globals, tables,
+// and functions
 // Flags: --experimental-wasm-shared --no-liftoff --turbofan
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -12,36 +14,35 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   builder.addTable(kWasmFuncRef, 0, undefined, undefined, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared table 0 must have shared element type, actual type funcref/);
+    /shared tables are not supported yet/);
 })();
 
 (function TestSharedGlobalWithUnsharedElementType() {
   const builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmFuncRef, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Shared global 0 must have shared type, actual type funcref/);
+    /shared globals are not supported yet/);
 })();
 
 (function TestImportedSharedTableWithUnsharedElementType() {
   const builder = new WasmModuleBuilder();
   builder.addImportedTable("import", "table", 0, 10, kWasmFuncRef, /*is_shared*/ true);
   assertThrows(() => builder.toModule(), WebAssembly.CompileError,
-    /Shared table 0 must have shared element type, actual type funcref/);
+    /shared tables are not supported yet/);
 })();
 
 (function TestImportedSharedGlobalWithUnsharedElementType() {
   const builder = new WasmModuleBuilder();
   builder.addImportedGlobal("import", "global", kWasmFuncRef, true, /*is_shared*/ true);
   assertThrows(() => builder.toModule(), WebAssembly.CompileError,
-    /shared imported global must have shared type/);
+    /shared globals are not supported yet/);
 })();
-
 
 (function TestSharedArrayWithUnsharedElement() {
   const builder = new WasmModuleBuilder();
   builder.addArray(kWasmFuncRef, false, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Type 0: shared array must have shared element type, actual element type is funcref/);
+    /only shared structs are supported for now/);
 })();
 
 (function TestSharedStructWithUnsharedField() {
@@ -58,7 +59,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let sig = makeSig([kWasmFuncRef], [kWasmI32]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Type 0: shared signature must have shared parameter types, actual type for parameter 0 is funcref/);
+    /only shared structs are supported for now/);
 })();
 
 (function TestSharedSignatureWithUnsharedReturn() {
@@ -66,5 +67,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let sig = makeSig([kWasmI32], [kWasmFuncRef]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /Type 0: shared signature must have shared return types, actual type for return 0 is funcref/);
+    /only shared structs are supported for now/);
 })();

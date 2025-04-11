@@ -83,6 +83,7 @@ extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
 extern runtime PropagateException(NoContext): JSAny;
+extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -508,6 +509,17 @@ builtin WasmAllocateDescriptorStruct(map: Map, typeIndex: int32): WasmStruct {
   const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
       LoadContextFromInstanceData(trustedData), trustedData, map,
       SmiTag(Convert<intptr>(typeIndex)));
+  return result;
+}
+
+builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
+    HeapObject {
+  const result: HeapObject = runtime::AllocateInSharedHeap(
+      LoadContextFromFrame(), SmiFromInt32(instanceSize), SmiConstant(0));
+  *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from
+  // WasmObjects.
+  %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
   return result;
 }
 
