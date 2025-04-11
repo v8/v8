@@ -285,7 +285,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     if (offset.from_frame_pointer()) {
       int from_sp = offset.offset() + frame_access_state()->GetSPToFPOffset();
       // Convert FP-offsets to SP-offsets if it results in better code.
-      if (!frame_access_state()->FPRelativeOnly() &&
+      if (!frame_access_state()->frame()->invalidates_sp() &&
           (Assembler::IsImmLSUnscaled(from_sp) ||
            Assembler::IsImmLSScaled(from_sp, 3))) {
         offset = FrameOffset::FromStackPointer(from_sp);

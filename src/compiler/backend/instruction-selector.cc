@@ -3814,6 +3814,7 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       return VisitLoadStackPointer(node);
 
     case Opcode::kSetStackPointer:
+      this->frame_->set_invalidates_sp();
       return VisitSetStackPointer(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -240,20 +240,6 @@ void CodeGenerator::AssembleCode() {
   }
 #endif
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
-      info->builtin() == Builtin::kWasmToJsWrapperCSA ||
-      wasm::BuiltinLookup::IsWasmBuiltinId(info->builtin())) {
-    // By default the code generator can convert slot IDs to SP-relative memory
-    // operands depending on the offset if the encoding is more efficient.
-    // However the SP may switch to the central stack for wasm-to-js wrappers
-    // and wasm builtins, so disable this optimization there.
-    // TODO(thibaudm): Disable this more selectively, only wasm builtins that
-    // call JS builtins can switch, and only around the call site.
-    frame_access_state()->SetFPRelativeOnly(true);
-  }
-#endif
-
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
