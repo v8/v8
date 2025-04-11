@@ -904,6 +904,22 @@ TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
   GenerateStringEqual(left, right, length);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// Duplicate of StringEqual for wasm. The only difference is that this builtin
+// is listed in WASM_BUILTIN_LIST. Builtins in this list are instrumented to
+// check if they are running on a secondary stack and switch back to the central
+// stack before calling a runtime function or a JS builtin if needed.
+TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
+  GenerateStringEqual(left, right, length);
+}
+#endif
+
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);

@@ -357,6 +357,22 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmJSStringEqual : public Descriptor<WasmJSStringEqual> {
+    static constexpr auto kFunction = Builtin::kWasmJSStringEqual;
+    using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
+    using results_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    // If the strings aren't flat, StringEqual could flatten them, which will
+    // allocate new strings.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+#endif
+
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
     static constexpr auto kFunction = Builtin::kStringFromCodePointAt;
     using arguments_t = std::tuple<V<String>, V<WordPtr>>;

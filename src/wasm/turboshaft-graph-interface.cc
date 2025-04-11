@@ -5261,7 +5261,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     V<WordPtr> length = __ ChangeInt32ToIntPtr(a_length);
     V<Boolean> result =
-        CallBuiltinByPointer<BuiltinCallDescriptor::StringEqual>(
+        CallBuiltinByPointer<BuiltinCallDescriptor::WasmJSStringEqual>(
             decoder, {a, b, length});
 
     GOTO(done, __ IsRootConstant(result, RootIndex::kTrueValue));

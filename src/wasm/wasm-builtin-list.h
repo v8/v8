@@ -153,6 +153,7 @@ namespace v8::internal::wasm {
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
   V(WasmAllocateZeroedFixedArray)                \
+  V(WasmJSStringEqual)                           \
   V(WasmSuspend)                                 \
   V(WasmToJsWrapperInvalidSig)                   \
   V(WasmTrap)                                    \

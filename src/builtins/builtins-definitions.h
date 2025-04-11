@@ -235,6 +235,7 @@ namespace internal {
   /* String helpers */                                                         \
   IF_TSA(TSC, TFC, StringFromCodePointAt, StringAtAsString)                    \
   TFC(StringEqual, StringEqual)                                                \
+  IF_WASM(TFC, WasmJSStringEqual, StringEqual)                                 \
   TFC(StringGreaterThan, CompareNoContext)                                     \
   TFC(StringGreaterThanOrEqual, CompareNoContext)                              \
   TFC(StringLessThan, CompareNoContext)                                        \
