@@ -672,7 +672,16 @@ inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<int>(left) |
                                static_cast<int>(right));
 }
+
+inline constexpr bool IsEmptyNodeType(NodeType type) {
+  // No bits are set.
+  return static_cast<int>(type) == 0;
+}
+
 inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
+  if (IsEmptyNodeType(type)) {
+    return false;
+  }
   int right = static_cast<int>(to_check);
   return (static_cast<int>(type) & (~right)) == 0;
 }
@@ -707,11 +716,6 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
     return NodeType::kOtherJSReceiver;
   }
   return NodeType::kOtherHeapObject;
-}
-
-inline constexpr bool IsEmptyNodeType(NodeType type) {
-  // No bits are set.
-  return static_cast<int>(type) == 0;
 }
 
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
