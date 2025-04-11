@@ -1406,7 +1406,7 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     base::Vector<Value> caught_values)                                         \
   F(Delegate, uint32_t depth, Control* block)                                  \
   F(CatchAll, Control* block)                                                  \
-  F(ContNew, const Value& func_ref, const ContIndexImmediate* imm,             \
+  F(ContNew, const ContIndexImmediate& imm, const Value& func_ref,             \
     Value* result)                                                             \
   F(ContBind, const ContIndexImmediate& orig_imm, Value input_cont,            \
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
@@ -1415,8 +1415,8 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(Suspend, const TagIndexImmediate& imm, const Value args[],                 \
     const Value returns[])                                                     \
   F(Switch, const TagIndexImmediate& tag_imm,                                  \
-    const ContIndexImmediate& con_imm, const Value args[],                     \
-    const Value cont_ref, const Value returns[])                               \
+    const ContIndexImmediate& con_imm, const Value& cont_ref,                  \
+    const Value args[], Value returns[])                                       \
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence)                                                               \
@@ -4381,16 +4381,13 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
 
     // Pop a function type.
-    // Value func_ref =
-    Pop(ValueType::RefNull(imm.cont_type->contfun_typeindex(), imm.shared,
-                           RefTypeKind::kFunction));
+    Value func_ref =
+        Pop(ValueType::RefNull(imm.cont_type->contfun_typeindex(), imm.shared,
+                               RefTypeKind::kFunction));
 
     // Push a continuation type.
-    // Value* value =
-    Push(ValueType::Ref(imm.heap_type()));
-    // TODO(fgm): uncomment when implementing Cont.new
-    //    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, func_ref, imm.index,
-    //    value);
+    Value* value = Push(ValueType::Ref(imm.heap_type()));
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, imm, func_ref, value);
     return 1 + imm.length;
   }
 
@@ -4509,13 +4506,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     const FunctionSig* contFunSig =
         this->module_->signature(imm.cont_type->contfun_typeindex());
 
-    // TODO(fgm): uncomment when implementing resume
-    // PoppedArgVector args =
-    PopArgs(contFunSig);
-    // Value* returns =
-    PushReturns(contFunSig);
-    //    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContResume, imm.index, handlers,
-    //    args, returns);
+    PoppedArgVector args = PopArgs(contFunSig);
+    Value* returns = PushReturns(contFunSig);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Resume, imm, handlers, args.data(),
+                                       returns);
     return 1 + imm.length + handle_iterator.length();
   }
 
@@ -4526,14 +4520,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     const FunctionSig* sig = imm.tag->ToFunctionSig();
 
-    // TODO(fgm): uncomment when implementing suspend
-    //  PoppedArgVector args =
-    PopArgs(sig);
+    PoppedArgVector args = PopArgs(sig);
 
-    // Value* returns =
-    PushReturns(sig);
+    Value* returns = PushReturns(sig);
 
-    // CALL_INTERFACE_IF_OK_AND_REACHABLE(Suspend, imm, args.data());
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Suspend, imm, args.data(), returns);
 
     return 1 + imm.length;
   }
@@ -4588,17 +4579,14 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
 
-    // TODO(fgm): uncomment when implementing switch
-    // Value cont_ref =
-    Pop(ValueType::RefNull(contimm.heap_type()));
-    //  PoppedArgVector args =
-    PopSomeArgs(cont_sig, static_cast<int>(cont_args.size()) - 1);
+    Value cont_ref = Pop(ValueType::RefNull(contimm.heap_type()));
+    PoppedArgVector args =
+        PopSomeArgs(cont_sig, static_cast<int>(cont_args.size()) - 1);
 
-    // Value* returns =
-    PushParameters(return_sig);
+    Value* returns = PushParameters(return_sig);
 
-    // CALL_INTERFACE_IF_OK_AND_REACHABLE(Switch, tagimm, contimm, cont_ref,
-    // args.data(), returns);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Switch, tagimm, contimm, cont_ref,
+                                       args.data(), returns);
 
     return 1 + contimm.length + tagimm.length;
   }

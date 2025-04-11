@@ -658,9 +658,31 @@ class WasmInJsInliningInterface {
   }
   void ThrowRef(FullDecoder* decoder, Value* value) { Bailout(decoder); }
 
+  void ContNew(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
+               const Value& func_ref, Value* result) {
+    Bailout(decoder);
+  }
+
   void ContBind(FullDecoder* decoder, const wasm::ContIndexImmediate& orig_imm,
                 Value input_cont, const Value args[],
                 const wasm::ContIndexImmediate& new_imm, Value* result) {
+    Bailout(decoder);
+  }
+
+  void Resume(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
+              base::Vector<wasm::HandlerCase> handlers, const Value args[],
+              const Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
+              const wasm::ContIndexImmediate& con_imm, const Value& cont_ref,
+              const Value args[], Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
+               const Value args[], const Value returns[]) {
     Bailout(decoder);
   }
 
