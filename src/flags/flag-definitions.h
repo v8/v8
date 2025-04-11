@@ -919,6 +919,7 @@ DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
             "trace allocation site pretenuring statistics")
+DEFINE_BOOL(trace_resize_large_object, false, "trace resizing of large objects")
 DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
@@ -2265,10 +2266,12 @@ DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
             "Stress GC compaction to flush out bugs with moving objects")
+DEFINE_BOOL(resize_large_object, true, "Support resizing of large objects")
 DEFINE_BOOL(stress_compaction_random, false,
             "Stress GC compaction by selecting random percent of pages as "
             "evacuation candidates. Overrides stress_compaction.")
 DEFINE_IMPLICATION(stress_compaction, gc_global)
+DEFINE_NEG_IMPLICATION(stress_compaction, resize_large_object)
 DEFINE_VALUE_IMPLICATION(stress_compaction, max_semi_space_size, (size_t)1)
 DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")

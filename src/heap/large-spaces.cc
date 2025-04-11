@@ -255,6 +255,20 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
   DCHECK_EQ(object_size, page->area_size());
 }
 
+void LargeObjectSpace::UpdateAccountingAfterResizingObject(
+    size_t old_object_size, size_t new_object_size) {
+  DCHECK_GE(new_object_size, old_object_size);
+  size_t old_size_committed =
+      ::RoundUp(old_object_size, MemoryAllocator::GetCommitPageSize());
+  size_t new_size_committed =
+      ::RoundUp(new_object_size, MemoryAllocator::GetCommitPageSize());
+  DCHECK_GE(new_size_committed, old_size_committed);
+
+  size_ += new_size_committed - old_size_committed;
+  AccountCommitted(new_size_committed - old_size_committed);
+  objects_size_.fetch_add(new_object_size - old_object_size);
+}
+
 bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
   MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
 
