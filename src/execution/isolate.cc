@@ -2090,7 +2090,15 @@ DirectHandle<JSMessageObject> Isolate::CreateMessageOrAbort(
 
 Tagged<Object> Isolate::Throw(Tagged<Object> raw_exception,
                               MessageLocation* location) {
-  DCHECK(!has_exception());
+  if (has_exception()) {
+    // A termination exception may have been thrown while preparing
+    // {raw_exception}, e.g. by the near heap limit callback
+    // (crbug.com/409487530).
+    // In this case ignore the current error and propagate the termination
+    // exception instead. Any other kind of exception is unexpected.
+    DCHECK(IsTerminationException(exception()));
+    return ReadOnlyRoots(heap()).exception();
+  }
   DCHECK_IMPLIES(IsHole(raw_exception),
                  raw_exception == ReadOnlyRoots{this}.termination_exception());
   CHECK(IsOnCentralStack());
