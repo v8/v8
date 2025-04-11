@@ -4011,6 +4011,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     ThrowRef(decoder, value->op);
   }
 
+  void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const ContIndexImmediate& new_imm, Value* result) {
+    UNIMPLEMENTED();
+  }
+
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
                     OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
     V<WordPtr> converted_index;

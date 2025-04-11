@@ -130,7 +130,7 @@ class Vector {
     length_ = 0;
   }
 
-  Vector<T> operator+(size_t offset) {
+  const Vector<T> operator+(size_t offset) const {
     DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }

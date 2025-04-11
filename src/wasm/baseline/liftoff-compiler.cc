@@ -1793,6 +1793,12 @@ class LiftoffCompiler {
     EmitLandingPad(decoder, pc_offset);
   }
 
+  void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const ContIndexImmediate& new_imm, Value* result) {
+    UNIMPLEMENTED();
+  }
+
   // Before emitting the conditional branch, {will_freeze} will be initialized
   // to prevent cache state changes in conditionally executed code.
   void JumpIfFalse(FullDecoder* decoder, Label* false_dst,

@@ -658,6 +658,12 @@ class WasmInJsInliningInterface {
   }
   void ThrowRef(FullDecoder* decoder, Value* value) { Bailout(decoder); }
 
+  void ContBind(FullDecoder* decoder, const wasm::ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const wasm::ContIndexImmediate& new_imm, Value* result) {
+    Bailout(decoder);
+  }
+
   void EffectHandlerTable(FullDecoder* decoder, Control* block) {
     Bailout(decoder);
   }

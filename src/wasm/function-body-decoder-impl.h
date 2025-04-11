@@ -1408,10 +1408,15 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
   F(CatchAll, Control* block)                                                  \
   F(ContNew, const Value& func_ref, const ContIndexImmediate* imm,             \
     Value* result)                                                             \
-  F(Resume, const ContIndexImmediate* imm, base::Vector<HandlerCase> handlers, \
+  F(ContBind, const ContIndexImmediate& orig_imm, Value input_cont,            \
+    const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
+  F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value args[], const Value returns[])                                 \
   F(Suspend, const TagIndexImmediate& imm, const Value args[],                 \
     const Value returns[])                                                     \
+  F(Switch, const TagIndexImmediate& tag_imm,                                  \
+    const ContIndexImmediate& con_imm, const Value args[],                     \
+    const Value cont_ref, const Value returns[])                               \
   F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
     const MemoryAccessImmediate& imm, Value* result)                           \
   F(AtomicFence)                                                               \
@@ -4359,6 +4364,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1;
   }
 
+  bool IsSubtypeVec(base::Vector<const ValueType> subtypes,
+                    base::Vector<const ValueType> supertypes) {
+    if (subtypes.size() != supertypes.size()) return false;
+
+    auto super_it = supertypes.begin();
+    for (ValueType subtype : subtypes) {
+      if (!IsSubtypeOf(subtype, *super_it++, this->module_)) return false;
+    }
+    return true;
+  }
+
   DECODE(ContNew) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
     ContIndexImmediate imm(this, this->pc_ + 1, validate);
@@ -4376,6 +4392,57 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     //    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContNew, func_ref, imm.index,
     //    value);
     return 1 + imm.length;
+  }
+
+  DECODE(ContBind) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+
+    ContIndexImmediate orig_cont_imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, orig_cont_imm)) return 0;
+    ContIndexImmediate new_cont_imm(this, this->pc_ + orig_cont_imm.length + 1,
+                                    validate);
+    if (!this->ValidateCont(this->pc_ + 1, new_cont_imm)) return 0;
+
+    const FunctionSig* orig_cont_sig =
+        this->module_->signature(orig_cont_imm.cont_type->contfun_typeindex());
+    const FunctionSig* new_cont_sig =
+        this->module_->signature(new_cont_imm.cont_type->contfun_typeindex());
+
+    if (!VALIDATE(
+            IsSubtypeVec(orig_cont_sig->returns(), new_cont_sig->returns()))) {
+      this->DecodeError("expecting returns of %d to match returns of %d",
+                        orig_cont_imm.index, new_cont_imm.index);
+      return 0;
+    }
+
+    int delta = static_cast<int>(orig_cont_sig->parameters().size()) -
+                static_cast<int>(new_cont_sig->parameters().size());
+    if (!VALIDATE(delta >= 0)) {
+      this->DecodeError(
+          "source cont type %d has fewer parameters than target %d",
+          orig_cont_imm.index, new_cont_imm.index);
+      return 0;
+    }
+
+    const base::Vector<const ValueType> sig_parameters =
+        orig_cont_sig->parameters();
+    const base::Vector<const ValueType> new_sig_parameters =
+        new_cont_sig->parameters();
+
+    if (!VALIDATE(IsSubtypeVec(new_sig_parameters,
+                               sig_parameters + static_cast<size_t>(delta)))) {
+      this->DecodeError(
+          "parameters of new continuation %d should be subtypes of parameters "
+          "of input continuation %d",
+          new_cont_imm.index, orig_cont_imm.index);
+    }
+
+    Value orig_cont = Pop(ValueType::RefNull(orig_cont_imm.heap_type()));
+    PoppedArgVector args = PopSomeArgs(orig_cont_sig, delta);
+    Value* new_cont = Push(ValueType::Ref(new_cont_imm.heap_type()));
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ContBind, orig_cont_imm, orig_cont,
+                                       args.data(), new_cont_imm, new_cont);
+    return 1 + orig_cont_imm.length + new_cont_imm.length;
   }
 
   DECODE(Resume) {
@@ -4471,17 +4538,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1 + imm.length;
   }
 
-  bool IsSubtypeVec(base::Vector<const ValueType> subtypes,
-                    base::Vector<const ValueType> supertypes) {
-    if (subtypes.size() != supertypes.size()) return false;
-
-    auto super_it = supertypes.begin();
-    for (ValueType subtype : subtypes) {
-      if (!IsSubtypeOf(subtype, *super_it++, this->module_)) return false;
-    }
-    return true;
-  }
-
   DECODE(Switch) {
     CHECK_PROTOTYPE_OPCODE(wasmfx);
     ContIndexImmediate contimm(this, this->pc_ + 1, validate);
@@ -4540,6 +4596,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     // Value* returns =
     PushParameters(return_sig);
+
+    // CALL_INTERFACE_IF_OK_AND_REACHABLE(Switch, tagimm, contimm, cont_ref,
+    // args.data(), returns);
 
     return 1 + contimm.length + tagimm.length;
   }
@@ -4670,6 +4729,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);
     DECODE_IMPL(ContNew);
+    DECODE_IMPL(ContBind);
     DECODE_IMPL(Resume);
     DECODE_IMPL(Suspend);
     DECODE_IMPL(Switch);

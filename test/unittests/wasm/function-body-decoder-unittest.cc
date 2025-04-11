@@ -5710,6 +5710,64 @@ TEST_F(FunctionBodyDecoderTest, WasmContNew) {
       "cont.new[0] expected type (ref null 0), found ref.func of type (ref 3)");
 }
 
+TEST_F(FunctionBodyDecoderTest, WasmContBind) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex i_di_cont = builder.AddCont(sigs.i_di());
+  ModuleTypeIndex i_i_cont = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex i_di_sig = builder.AddSignature(sigs.i_di());
+  uint8_t i_di_func = builder.AddFunction(i_di_sig);
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_i_cont)), WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_REF_FUNC(i_di_func), WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_di_cont)), WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmContBindNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex i_di_cont = builder.AddCont(sigs.i_di());
+  ModuleTypeIndex i_i_cont = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex d_i_cont = builder.AddCont(sigs.d_i());
+  ModuleTypeIndex i_d_cont = builder.AddCont(sigs.i_d());
+  ModuleTypeIndex i_di_sig = builder.AddSignature(sigs.i_di());
+  uint8_t i_di_func = builder.AddFunction(i_di_sig);
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_FUNC(i_di_func), WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_i_cont), ToByte(i_di_cont)), WASM_DROP},
+      kAppendEnd, "source cont type 3 has fewer parameters than target 1");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_I32V(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_i_cont)), WASM_DROP},
+      kAppendEnd, "expected type f64, found i32.const of type i32");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(d_i_cont)), WASM_DROP},
+      kAppendEnd, "expecting returns of 1 to match returns of 5");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_d_cont)), WASM_DROP},
+      kAppendEnd,
+      "parameters of new continuation 7 should be subtypes of parameters of "
+      "input continuation 1");
+}
+
 TEST_F(FunctionBodyDecoderTest, WasmResume) {
   WASM_FEATURE_SCOPE(wasmfx);
   ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
