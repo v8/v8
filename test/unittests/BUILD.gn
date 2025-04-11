@@ -331,6 +331,7 @@ v8_source_set("v8_unittests_sources") {
     "gay-shortest.cc",
     "gay-shortest.h",
     "heap/allocation-observer-unittest.cc",
+    "heap/conservative-stack-visitor-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
@@ -348,6 +349,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
+    "heap/inner-pointer-resolution-unittest.cc",
     "heap/iterators-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
@@ -642,11 +644,6 @@ v8_source_set("v8_unittests_sources") {
 
   if (v8_enable_wasm_gdb_remote_debugging) {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
-  }
-
-  if (v8_enable_conservative_stack_scanning) {
-    sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
-    sources += [ "heap/inner-pointer-resolution-unittest.cc" ]
   }
 
   if (v8_enable_i18n_support) {

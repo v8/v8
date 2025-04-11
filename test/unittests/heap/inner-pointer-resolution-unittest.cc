@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags/flags.h"
 #include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -588,6 +589,8 @@ using InnerPointerResolutionHeapTest =
     WithInnerPointerResolutionMixin<TestWithHeapInternalsAndContext>;
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
+  if (v8_flags.single_generation) return;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 
@@ -728,6 +731,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 }
 
 TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
+  if (v8_flags.single_generation) return;
+
   ManualGCScope manual_gc_scope(isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
 

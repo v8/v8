@@ -985,7 +985,6 @@ external_v8_defines = [
   "V8_USE_PERFETTO",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
-  "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
   "V8_ENABLE_DIRECT_HANDLE",
   "V8_MINORMS_STRING_SHORTCUTTING",
   "V8_HAVE_TARGET_OS",
@@ -1039,9 +1038,6 @@ if (v8_enable_map_packing) {
 }
 if (is_tsan) {
   enabled_external_v8_defines += [ "V8_IS_TSAN" ]
-}
-if (v8_enable_conservative_stack_scanning) {
-  enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
 if (v8_enable_direct_handle) {
   enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
@@ -2792,7 +2788,6 @@ action("v8_dump_build_config") {
     "code_comments=$v8_code_comments",
     "component_build=$is_component_build",
     "concurrent_marking=$v8_enable_concurrent_marking",
-    "conservative_stack_scanning=$v8_enable_conservative_stack_scanning",
     "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$v8_dcheck_always_on",
     "debug_code=$v8_enable_debug_code",
@@ -2858,8 +2853,6 @@ generated_file("v8_generate_features_json") {
   contents = {
     v8_deprecation_warnings = v8_deprecation_warnings
     v8_enable_31bit_smis_on_64bit_arch = v8_enable_31bit_smis_on_64bit_arch
-    v8_enable_conservative_stack_scanning =
-        v8_enable_conservative_stack_scanning
     v8_enable_direct_handle = v8_enable_direct_handle
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit

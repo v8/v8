@@ -387,10 +387,6 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  DirectHandle<String> x = args.at<String>(0);
-  DirectHandle<String> y = args.at<String>(1);
-#else
   // This function can be called from Wasm: optimized Wasm code calls
   // straight to the "StringEqual" builtin, which tail-calls here. So on
   // the stack, the CEntryStub's EXIT frame will sit right on top of the
@@ -403,9 +399,11 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   // In the future, Conservative Stack Scanning will trivially solve the
   // problem. In the meantime, we can work around it by explicitly creating
   // handles here (rather than treating the on-stack arguments as handles).
+  //
+  // TODO(42203211): Don't create new handles here once direct handles and CSS
+  // are enabled by default.
   DirectHandle<String> x(*args.at<String>(0), isolate);
   DirectHandle<String> y(*args.at<String>(1), isolate);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 

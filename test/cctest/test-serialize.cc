@@ -6661,12 +6661,10 @@ UNINITIALIZED_TEST(BreakPointAccessorContextSnapshot) {
 // static roots, to be able to generate the static-roots.h file.
 #if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) && defined(V8_SHARED_RO_HEAP)
 UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   // TODO(jgruber): Snapshot determinism requires predictable heap layout
   // (v8_flags.predictable), but this flag is currently known not to work with
   // CSS due to false positives.
-  UNREACHABLE();
-#else
+  CHECK(!v8_flags.conservative_stack_scanning);
   if (v8_flags.random_seed == 0) return;
   const int random_seed = v8_flags.random_seed;
 
@@ -6705,7 +6703,6 @@ UNINITIALIZED_TEST(StaticRootsPredictableSnapshot) {
   blobs1.Dispose();
   blobs2.Dispose();
   FreeCurrentEmbeddedBlob();
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 #endif  // defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE) &&
         // defined(V8_SHARED_RO_HEAP)

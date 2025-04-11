@@ -214,25 +214,9 @@ constexpr Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
 }
 
 // static
-Address ExternalCodeCompressionScheme::DecompressTaggedSigned(
-    Tagged_t raw_value) {
-  // For runtime code the upper 32-bits of the Smi value do not matter.
-  return static_cast<Address>(raw_value);
-}
-
-// static
 template <typename TOnHeapAddress>
 Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  // During conservative stack scanning, if we are trying to decompress a value
-  // that looks like a SMI (i.e., it's not tagged), we always need to add the
-  // cage base.
-#else
-  // Avoid complex decompression code for Smis.
-  if (HAS_SMI_TAG(raw_value)) return DecompressTaggedSigned(raw_value);
-#endif
-
 #ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES

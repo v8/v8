@@ -855,10 +855,10 @@
   'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
 }],
 
-['conservative_stack_scanning', {
+['direct_handle', {
   # Needs --predictable.
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
-}],  # conservative_stack_scanning
+}],  # direct_handle
 
 ['clang_coverage and mode == debug', {
   # Too slow tests.

@@ -2404,11 +2404,11 @@
 }], # single_generation
 
 ################################################################################
-['conservative_stack_scanning', {
+['direct_handle', {
   # These tests are known to timeout with CSS, especially with variants that
   # stress the GC.
   'regress/regress-crbug-820312': [SKIP],
-}], # conservative_stack_scanning
+}], # direct_handle
 
 ##############################################################################
 ['arch == mips64el', {

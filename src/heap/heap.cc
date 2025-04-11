@@ -49,6 +49,7 @@
 #include "src/heap/collection-barrier.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/conservative-stack-visitor-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-verifier-inl.h"
@@ -127,10 +128,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/conservative-stack-visitor-inl.h"
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
@@ -4846,8 +4843,7 @@ void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  if (!IsGCWithStack()) return;
+  if (!v8_flags.conservative_stack_scanning || !IsGCWithStack()) return;
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
@@ -4856,7 +4852,6 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
 
   ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
   IterateConservativeStackRoots(&stack_visitor);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void Heap::IterateConservativeStackRoots(

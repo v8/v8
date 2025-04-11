@@ -123,11 +123,8 @@ declare_args() {
                        !(defined(build_with_node) && build_with_node) &&
                        !(is_win && is_component_build) && is_clang
 
-  # Scan the call stack conservatively during garbage collection.
-  v8_enable_conservative_stack_scanning = false
-
   # Use direct pointers in handles (v8::internal::Handle and v8::Local).
-  v8_enable_direct_handle = ""
+  v8_enable_direct_handle = false
 
   # Check for off-stack allocated local handles.
   v8_enable_local_off_stack_check = false
@@ -253,12 +250,6 @@ if (v8_enable_turbofan == "") {
 }
 assert(v8_enable_turbofan || !v8_enable_webassembly,
        "Webassembly is not available when Turbofan is disabled.")
-
-# Direct internal handles and direct locals are enabled by default if
-# conservative stack scanning is enabled.
-if (v8_enable_direct_handle == "") {
-  v8_enable_direct_handle = v8_enable_conservative_stack_scanning
-}
 
 if (v8_target_is_simulator == "") {
   # We compare target cpu with v8 target cpu to not affect simulator builds for

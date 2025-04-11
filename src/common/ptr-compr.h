@@ -165,9 +165,6 @@ class ExternalCodeCompressionScheme {
   // object, or a marker bit pattern).
   V8_INLINE static constexpr Tagged_t CompressAny(Address tagged);
 
-  // Decompresses smi value.
-  V8_INLINE static Address DecompressTaggedSigned(Tagged_t raw_value);
-
   // Decompresses any tagged value, preserving both weak- and smi- tags.
   template <typename TOnHeapAddress>
   V8_INLINE static Address DecompressTagged(TOnHeapAddress on_heap_addr,

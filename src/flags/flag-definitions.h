@@ -460,14 +460,14 @@ DEFINE_BOOL_READONLY(
     single_generation, V8_SINGLE_GENERATION_BOOL,
     "allocate all objects from young generation to old generation")
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL true
-#else
-#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL false
-#endif
-DEFINE_BOOL_READONLY(conservative_stack_scanning,
-                     V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// Direct handles require conservative stack scanning.
+DEFINE_BOOL_READONLY(conservative_stack_scanning, true,
                      "use conservative stack scanning")
+#else
+DEFINE_EXPERIMENTAL_FEATURE(conservative_stack_scanning,
+                            "use conservative stack scanning")
+#endif  // V8_ENABLE_DIRECT_HANDLE
 DEFINE_IMPLICATION(conservative_stack_scanning,
                    scavenger_conservative_object_pinning)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
