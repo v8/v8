@@ -95,32 +95,13 @@ void CompilationCacheEval::Age() {
     Tagged<Object> key;
     if (!table->ToKey(isolate(), entry, &key)) continue;
 
-    if (IsNumber(key, isolate())) {
-      // The ageing mechanism for the initial dummy entry in the eval cache.
-      // The 'key' is the hash represented as a Number. The 'value' is a smi
-      // counting down from kHashGenerations. On reaching zero, the entry is
-      // cleared.
-      // Note: The following static assert only establishes an explicit
-      // connection between initialization- and use-sites of the smi value
-      // field.
-      static_assert(CompilationCacheTable::kHashGenerations);
-      const int new_count = Smi::ToInt(table->PrimaryValueAt(entry)) - 1;
-      if (new_count == 0) {
-        table->RemoveEntry(entry);
-      } else {
-        DCHECK_GT(new_count, 0);
-        table->SetPrimaryValueAt(entry, Smi::FromInt(new_count),
-                                 SKIP_WRITE_BARRIER);
-      }
-    } else {
-      DCHECK(IsFixedArray(key));
-      // The ageing mechanism for eval caches.
-      Tagged<SharedFunctionInfo> info =
-          Cast<SharedFunctionInfo>(table->PrimaryValueAt(entry));
-      // Clear entries after Bytecode was flushed from SFI.
-      if (!info->HasBytecodeArray()) {
-        table->RemoveEntry(entry);
-      }
+    DCHECK(IsFixedArray(key));
+    // The ageing mechanism for eval caches.
+    Tagged<SharedFunctionInfo> info =
+        Cast<SharedFunctionInfo>(table->PrimaryValueAt(entry));
+    // Clear entries after Bytecode was flushed from SFI.
+    if (!info->HasBytecodeArray()) {
+      table->RemoveEntry(entry);
     }
   }
 }
