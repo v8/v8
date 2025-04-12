@@ -1560,8 +1560,6 @@
   'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],
-  'built-ins/ArrayBuffer/options-maxbytelength-compared-before-object-creation': [SKIP],
-  'built-ins/SharedArrayBuffer/options-maxbytelength-compared-before-object-creation': [SKIP],
   'built-ins/Temporal/Duration/compare/argument-duration-out-of-range': [SKIP],
   'built-ins/Temporal/Duration/compare/relativeto-plaindate-add24hourdaystonormalizedtimeduration-out-of-range': [SKIP],
   'built-ins/Temporal/Duration/from/argument-duration-out-of-range': [SKIP],
