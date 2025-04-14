@@ -2401,6 +2401,13 @@
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
   # supported by the Maglev->Turboshaft graph builder.
   'turboshaft/maglev-frontend/*': [SKIP],
+
+  # These tests rely on the shared heap which is incompatible with single
+  # generation.
+  'wasm/custom-descriptors-validity': [SKIP],
+  'wasm/shared-everything/basic': [SKIP],
+  'wasm/shared-everything/shared-type-with-unshared-elem': [SKIP],
+  'wasm/subtyping-invalid': [SKIP],
 }], # single_generation
 
 ################################################################################

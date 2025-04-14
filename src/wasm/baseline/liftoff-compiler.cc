@@ -6687,7 +6687,9 @@ class LiftoffCompiler {
                    VarState{kI32, static_cast<int32_t>(imm.index.index), 0}},
                   decoder->position());
     } else {
-      CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
+      bool is_shared = type.is_shared;
+      CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedStructWithRtt
+                            : Builtin::kWasmAllocateStructWithRtt,
                   MakeSig::Returns(kRef).Params(kRef, kI32),
                   {VarState{kRef, rtt, 0},
                    VarState{kI32, WasmStruct::Size(imm.struct_type), 0}},
@@ -6715,7 +6717,9 @@ class LiftoffCompiler {
       // (1) {obj} is freshly allocated, and
       // (2) {obj} is in new-space (not pretenured).
       StoreObjectField(decoder, obj.gp(), no_reg, offset, value, false, pinned,
-                       field_type.kind(), LiftoffAssembler::kSkipWriteBarrier);
+                       field_type.kind(),
+                       type.is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
+                                      : LiftoffAssembler::kSkipWriteBarrier);
       pinned.clear(value);
     }
     // If this assert fails then initialization of padding field might be

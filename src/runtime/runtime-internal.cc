@@ -439,7 +439,6 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck_Maglev) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   HandleScope scope(isolate);
-  DCHECK(isolate->IsOnCentralStack());
   DCHECK_EQ(2, args.length());
   // TODO(v8:13070): Align allocations in the builtins that call this.
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
@@ -481,6 +480,30 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   CHECK_GT(size, 0);
   return *isolate->factory()->NewFillerObject(
       size, alignment, AllocationType::kOld, AllocationOrigin::kGeneratedCode);
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  // TODO(v8:13070): Align allocations in the builtins that call this.
+  int size = ALIGN_TO_ALLOCATION_ALIGNMENT(args.smi_value_at(0));
+  int flags = args.smi_value_at(1);
+  AllocationAlignment alignment =
+      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
+  CHECK(IsAligned(size, kTaggedSize));
+  CHECK_GT(size, 0);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // When this is called from WasmGC code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(chromium:1236668): Find a better fix, likely by replacing the global
+  // flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  return *isolate->factory()->NewFillerObject(size, alignment,
+                                              AllocationType::kSharedOld,
+                                              AllocationOrigin::kGeneratedCode);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {

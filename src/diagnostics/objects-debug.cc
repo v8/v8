@@ -664,6 +664,17 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (instance_type() == WASM_STRUCT_TYPE ||
+      instance_type() == WASM_ARRAY_TYPE) {
+    // Wasm structs are sometimes shared. In this case, the meta map of this map
+    // has to be the context-free RO meta map.
+    if (HeapLayout::InAnySharedSpace(*this)) {
+      CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
+    }
+  }
+#endif
+
   if (IsJSObjectMap(*this)) {
     int header_end_offset = JSObject::GetHeaderSize(*this);
     int inobject_fields_start_offset = GetInObjectPropertyOffset(0);
@@ -1554,7 +1565,9 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   // Check that the self indirect pointer is consistent, i.e. points back to
   // this object.
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+  bool shared = HeapLayout::InAnySharedSpace(*this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
   IndirectPointerSlot slot =

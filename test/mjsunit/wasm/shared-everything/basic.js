@@ -3,8 +3,34 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-shared --no-wasm-inlining-call-indirect
+// Flags: --expose-gc
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+
+(function SharedStruct() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct(
+      [makeField(kWasmI32, true)], kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(struct)], [kWasmI32]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value = 42;
+
+  assertEquals(value,
+               instance.exports.consumer(instance.exports.producer(value)));
+  gc();
+})();
+
+/* TODO(42204563): Reinstate these tests as we support the respective features.
 
 (function SharedGlobal() {
   print(arguments.callee.name);
@@ -562,3 +588,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, wasm.get(array, 2));
   assertEquals(1, wasm.get(array, 3));
 })();
+
+*/

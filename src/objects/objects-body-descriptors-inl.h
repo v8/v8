@@ -1084,8 +1084,11 @@ class WasmTrustedInstanceData::BodyDescriptor final
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmTrustedInstanceDataIndirectPointerTag,
-                               v);
+    bool shared = HeapLayout::InAnySharedSpace(obj);
+    IndirectPointerTag tag =
+        shared ? kSharedWasmTrustedInstanceDataIndirectPointerTag
+               : kWasmTrustedInstanceDataIndirectPointerTag;
+    IterateSelfIndirectPointer(obj, tag, v);
     for (uint16_t offset : kTaggedFieldOffsets) {
       IteratePointer(obj, offset, v);
     }
@@ -1165,7 +1168,10 @@ class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    IterateSelfIndirectPointer(obj, kWasmDispatchTableIndirectPointerTag, v);
+    bool shared = HeapLayout::InAnySharedSpace(obj);
+    IndirectPointerTag tag = shared ? kSharedWasmDispatchTableIndirectPointerTag
+                                    : kWasmDispatchTableIndirectPointerTag;
+    IterateSelfIndirectPointer(obj, tag, v);
     IterateProtectedPointer(obj, kProtectedOffheapDataOffset, v);
     IterateProtectedPointer(obj, kProtectedUsesOffset, v);
     int length = Cast<WasmDispatchTable>(obj)->length(kAcquireLoad);

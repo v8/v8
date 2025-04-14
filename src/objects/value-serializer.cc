@@ -594,8 +594,13 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
-  if (IsCallable(*receiver) || (IsSpecialReceiverInstanceType(instance_type) &&
-                                instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
+  if (IsCallable(*receiver) ||
+      (IsSpecialReceiverInstanceType(instance_type) &&
+       instance_type != JS_SPECIAL_API_OBJECT_TYPE
+#if V8_ENABLE_WEBASSEMBLY
+       && instance_type != WASM_STRUCT_TYPE && instance_type != WASM_ARRAY_TYPE
+#endif
+       )) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
   }
 
@@ -663,6 +668,11 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));
     case WASM_MEMORY_OBJECT_TYPE:
       return WriteWasmMemory(Cast<WasmMemoryObject>(receiver));
+    case WASM_STRUCT_TYPE:
+      if (HeapLayout::InAnySharedSpace(*receiver)) {
+        return WriteSharedObject(receiver);
+      }
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       break;
