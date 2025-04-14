@@ -495,7 +495,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
-  Handle<TrustedForeign> NewTrustedForeign(Address addr, bool shared);
+  Handle<TrustedForeign> NewTrustedForeign(Address addr);
 
   Handle<Cell> NewCell(Tagged<Smi> value);
   Handle<Cell> NewCell();
@@ -738,17 +738,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Map> map);
 
 #if V8_ENABLE_WEBASSEMBLY
-  DirectHandle<WasmTrustedInstanceData> NewWasmTrustedInstanceData(bool shared);
+  DirectHandle<WasmTrustedInstanceData> NewWasmTrustedInstanceData();
   DirectHandle<WasmDispatchTable> NewWasmDispatchTable(
-      int length, wasm::CanonicalValueType table_type, bool shared);
+      int length, wasm::CanonicalValueType table_type);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
       wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
-      DirectHandle<Map> opt_parent, bool shared);
+      DirectHandle<Map> opt_parent);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
-      DirectHandle<TrustedObject> ref, int function_index, bool shared);
+      DirectHandle<TrustedObject> ref, int function_index);
   DirectHandle<WasmFuncRef> NewWasmFuncRef(
       DirectHandle<WasmInternalFunction> internal_function,
-      DirectHandle<Map> rtt, bool shared);
+      DirectHandle<Map> rtt);
   DirectHandle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, DirectHandle<Foreign> embedder_data,
       DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
@@ -763,9 +763,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmImportData> NewWasmImportData(
       DirectHandle<HeapObject> callable, wasm::Suspend suspend,
       MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
-      const wasm::CanonicalSig* sig, bool shared);
+      const wasm::CanonicalSig* sig);
   DirectHandle<WasmImportData> NewWasmImportData(
-      DirectHandle<WasmImportData> ref, bool shared);
+      DirectHandle<WasmImportData> ref);
 
   DirectHandle<WasmFastApiCallData> NewWasmFastApiCallData(
       DirectHandle<HeapObject> signature, DirectHandle<Object> callback_data);

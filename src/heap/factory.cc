@@ -1672,12 +1672,10 @@ Factory::NewPromiseResolveThenableJobTask(
 
 #if V8_ENABLE_WEBASSEMBLY
 
-DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
-    bool shared) {
+DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData() {
   Tagged<WasmTrustedInstanceData> result =
       Cast<WasmTrustedInstanceData>(AllocateRawWithImmortalMap(
-          WasmTrustedInstanceData::kSize,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
+          WasmTrustedInstanceData::kSize, AllocationType::kTrusted,
           read_only_roots().wasm_trusted_instance_data_map()));
   DisallowGarbageCollection no_gc;
   result->init_self_indirect_pointer(isolate());
@@ -1689,7 +1687,7 @@ DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
 }
 
 DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
-    int length, wasm::CanonicalValueType table_type, bool shared) {
+    int length, wasm::CanonicalValueType table_type) {
   CHECK_LE(length, WasmDispatchTable::kMaxLength);
 
   // TODO(jkummerow): Any chance to get a better estimate?
@@ -1697,14 +1695,12 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
       TrustedManaged<WasmDispatchTableData>::From(
           isolate(), estimated_offheap_size,
-          std::make_shared<WasmDispatchTableData>(), shared);
+          std::make_shared<WasmDispatchTableData>());
 
   int bytes = WasmDispatchTable::SizeFor(length);
-  Tagged<WasmDispatchTable> result =
-      UncheckedCast<WasmDispatchTable>(AllocateRawWithImmortalMap(
-          bytes,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
-          read_only_roots().wasm_dispatch_table_map()));
+  Tagged<WasmDispatchTable> result = UncheckedCast<WasmDispatchTable>(
+      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
+                                 read_only_roots().wasm_dispatch_table_map()));
   DisallowGarbageCollection no_gc;
   result->init_self_indirect_pointer(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
@@ -1721,7 +1717,7 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
 
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
-    DirectHandle<Map> opt_parent, bool shared) {
+    DirectHandle<Map> opt_parent) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
@@ -1752,7 +1748,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   Tagged<Map> map = *wasm_type_info_map();
   Tagged<WasmTypeInfo> result = Cast<WasmTypeInfo>(AllocateRawWithImmortalMap(
       WasmTypeInfo::SizeFor(static_cast<int>(supertypes.size())),
-      shared ? AllocationType::kSharedOld : AllocationType::kOld, map));
+      AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result->set_supertypes_length(static_cast<int>(supertypes.size()));
   for (size_t i = 0; i < supertypes.size(); i++) {
@@ -1766,11 +1762,10 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 DirectHandle<WasmImportData> Factory::NewWasmImportData(
     DirectHandle<HeapObject> callable, wasm::Suspend suspend,
     MaybeDirectHandle<WasmTrustedInstanceData> instance_data,
-    const wasm::CanonicalSig* sig, bool shared) {
+    const wasm::CanonicalSig* sig) {
   Tagged<Map> map = *wasm_import_data_map();
   auto result = Cast<WasmImportData>(AllocateRawWithImmortalMap(
-      map->instance_size(),
-      shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted, map));
+      map->instance_size(), AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   result->set_native_context(*isolate()->native_context());
   result->set_callable(Cast<UnionOf<Undefined, JSReceiver>>(*callable));
@@ -1790,11 +1785,11 @@ DirectHandle<WasmImportData> Factory::NewWasmImportData(
 }
 
 DirectHandle<WasmImportData> Factory::NewWasmImportData(
-    DirectHandle<WasmImportData> import_data, bool shared) {
-  return NewWasmImportData(handle(import_data->callable(), isolate()),
-                           import_data->suspend(),
-                           handle(import_data->instance_data(), isolate()),
-                           import_data->sig(), shared);
+    DirectHandle<WasmImportData> import_data) {
+  return NewWasmImportData(
+      direct_handle(import_data->callable(), isolate()), import_data->suspend(),
+      direct_handle(import_data->instance_data(), isolate()),
+      import_data->sig());
 }
 
 DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
@@ -1809,11 +1804,10 @@ DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 }
 
 DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
-    DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared) {
+    DirectHandle<TrustedObject> implicit_arg, int function_index) {
   Tagged<WasmInternalFunction> internal =
       Cast<WasmInternalFunction>(AllocateRawWithImmortalMap(
-          WasmInternalFunction::kSize,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
+          WasmInternalFunction::kSize, AllocationType::kTrusted,
           *wasm_internal_function_map()));
   internal->init_self_indirect_pointer(isolate());
   {
@@ -1831,11 +1825,10 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 }
 
 DirectHandle<WasmFuncRef> Factory::NewWasmFuncRef(
-    DirectHandle<WasmInternalFunction> internal_function, DirectHandle<Map> rtt,
-    bool shared) {
+    DirectHandle<WasmInternalFunction> internal_function,
+    DirectHandle<Map> rtt) {
   Tagged<HeapObject> raw =
-      AllocateRaw(WasmFuncRef::kSize,
-                  shared ? AllocationType::kSharedOld : AllocationType::kOld);
+      AllocateRaw(WasmFuncRef::kSize, AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
   DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
@@ -1852,23 +1845,20 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   // TODO(clemensb): Should this be passed instead of looked up here?
   const wasm::CanonicalSig* sig =
       wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
-  constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data = NewWasmImportData(
-      callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
+      callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig);
 
   // Rough guess for a wrapper that may be shared with other users of it.
   constexpr size_t kOffheapDataSizeEstimate = 100;
-  constexpr bool shared = false;
   DirectHandle<TrustedManaged<WasmJSFunctionData::OffheapData>> offheap_data =
       TrustedManaged<WasmJSFunctionData::OffheapData>::From(
           isolate(), kOffheapDataSizeEstimate,
           std::make_shared<WasmJSFunctionData::OffheapData>(
-              sig->signature_hash()),
-          shared);
+              sig->signature_hash()));
 
   DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, kShared);
-  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
+      NewWasmInternalFunction(import_data, -1);
+  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   import_data->SetFuncRefAsCallOrigin(*internal);
   Tagged<Map> map = *wasm_js_function_data_map();
   Tagged<WasmJSFunctionData> result =
@@ -1971,13 +1961,12 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, DirectHandle<Foreign> embedder_data,
     DirectHandle<Code> wrapper_code, DirectHandle<Map> rtt,
     wasm::CanonicalTypeIndex sig_index, const wasm::CanonicalSig* sig) {
-  constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       NewWasmImportData(undefined_value(), wasm::kNoSuspend,
-                        DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
+                        DirectHandle<WasmTrustedInstanceData>(), sig);
   DirectHandle<WasmInternalFunction> internal =
-      NewWasmInternalFunction(import_data, -1, kShared);
-  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
+      NewWasmInternalFunction(import_data, -1);
+  DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.
   internal->set_call_target(
@@ -2003,10 +1992,8 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
 
 Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
                                                      DirectHandle<Map> map) {
-  Tagged<HeapObject> raw = AllocateRaw(WasmArray::SizeFor(*map, length),
-                                       HeapLayout::InAnySharedSpace(*map)
-                                           ? AllocationType::kSharedOld
-                                           : AllocationType::kYoung);
+  Tagged<HeapObject> raw =
+      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmArray> result = Cast<WasmArray>(raw);
@@ -2127,9 +2114,7 @@ DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                                 wasm::WasmValue* args,
                                                 DirectHandle<Map> map) {
   Tagged<HeapObject> raw =
-      AllocateRaw(WasmStruct::Size(type), HeapLayout::InAnySharedSpace(*map)
-                                              ? AllocationType::kSharedOld
-                                              : AllocationType::kYoung);
+      AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
@@ -4734,15 +4719,13 @@ DirectHandle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
   return direct_handle(obj, isolate());
 }
 
-Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr, bool shared) {
+Handle<TrustedForeign> Factory::NewTrustedForeign(Address addr) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   static_assert(TrustedForeign::kSize <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = *trusted_foreign_map();
   Tagged<TrustedForeign> foreign =
       Cast<TrustedForeign>(AllocateRawWithImmortalMap(
-          map->instance_size(),
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
-          map));
+          map->instance_size(), AllocationType::kTrusted, map));
   DisallowGarbageCollection no_gc;
   foreign->set_foreign_address(addr);
   return handle(foreign, isolate());

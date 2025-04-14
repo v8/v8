@@ -102,8 +102,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent,
-                             module->type(type_index).is_shared);
+      map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent);
       break;
     case TypeDefinition::kCont:
       UNIMPLEMENTED();
@@ -1105,12 +1104,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
   bool shared = module_object_->module()->has_shared_part;
   DirectHandle<WasmTrustedInstanceData> shared_trusted_data;
   if (shared) {
-    // For now, allocate the shared part in non-shared space. We do not need it
-    // in shared space yet since no shared objects point to it.
-    // TODO(42204563): This will change once we introduce shared globals,
-    // tables, or functions.
     shared_trusted_data =
-        WasmTrustedInstanceData::New(isolate_, module_object_, false);
+        WasmTrustedInstanceData::New(isolate_, module_object_, true);
     trusted_data->set_shared_part(*shared_trusted_data);
   }
 
@@ -1189,13 +1184,12 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_globals_start(
         reinterpret_cast<uint8_t*>(untagged_globals_->backing_store()));
 
-    // TODO(42204563): Do this only if we have a shared untagged global.
-    // TODO(42204563): Reinstate once we support shared globals.
-    /* if (shared) {
+    // TODO(14616): Do this only if we have a shared untagged global.
+    if (shared) {
       MaybeDirectHandle<JSArrayBuffer> shared_result =
           isolate_->factory()->NewJSArrayBufferAndBackingStore(
               untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
-              AllocationType::kSharedOld);
+              AllocationType::kOld);
 
       if (!shared_result.ToHandle(&shared_untagged_globals_)) {
         thrower_->RangeError("Out of memory: wasm globals");
@@ -1206,7 +1200,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
           *shared_untagged_globals_);
       shared_trusted_data->set_globals_start(reinterpret_cast<uint8_t*>(
           shared_untagged_globals_->backing_store()));
-    }*/
+    }
   }
 
   uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
@@ -1216,8 +1210,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_tagged_globals_buffer(*tagged_globals_);
     if (shared) {
       shared_tagged_globals_ = isolate_->factory()->NewFixedArray(
-          static_cast<int>(tagged_globals_buffer_size),
-          AllocationType::kSharedOld);
+          static_cast<int>(tagged_globals_buffer_size));
       shared_trusted_data->set_tagged_globals_buffer(*shared_tagged_globals_);
     }
   }
@@ -1235,8 +1228,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     if (shared) {
       DirectHandle<FixedArray> shared_buffers_array =
           isolate_->factory()->NewFixedArray(
-              module_->num_imported_mutable_globals,
-              AllocationType::kSharedOld);
+              module_->num_imported_mutable_globals, AllocationType::kOld);
       shared_trusted_data->set_imported_mutable_globals_buffers(
           *shared_buffers_array);
     }
@@ -1253,8 +1245,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     tags_wrappers_.resize(tags_count);
     if (shared) {
       DirectHandle<FixedArray> shared_tag_table =
-          isolate_->factory()->NewFixedArray(tags_count,
-                                             AllocationType::kSharedOld);
+          isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
       shared_trusted_data->set_tags_table(*shared_tag_table);
       shared_tags_wrappers_.resize(tags_count);
     }
@@ -1280,8 +1271,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     DirectHandle<FixedArray> shared_tables;
     DirectHandle<ProtectedFixedArray> shared_dispatch_tables;
     if (shared) {
-      shared_tables = isolate_->factory()->NewFixedArray(
-          table_count, AllocationType::kSharedOld);
+      shared_tables = isolate_->factory()->NewFixedArray(table_count);
       shared_dispatch_tables =
           isolate_->factory()->NewProtectedFixedArray(table_count);
       shared_trusted_data->set_tables(*shared_tables);
@@ -1336,13 +1326,12 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
       static_cast<int>(module_->types.size()));
   DirectHandle<FixedArray> shared_maps =
       shared ? isolate_->factory()->NewFixedArray(
-                   static_cast<int>(module_->types.size()),
-                   AllocationType::kSharedOld)
+                   static_cast<int>(module_->types.size()))
              : DirectHandle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
-    bool map_is_shared = module_->types[index].is_shared;
+    bool type_is_shared = module_->types[index].is_shared;
     CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
-                     map_is_shared ? shared_maps : non_shared_maps);
+                     type_is_shared ? shared_maps : non_shared_maps);
   }
   trusted_data->set_managed_object_maps(*non_shared_maps);
   if (shared) shared_trusted_data->set_managed_object_maps(*shared_maps);
@@ -1377,8 +1366,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_feedback_vectors(*vectors);
     if (shared) {
       DirectHandle<FixedArray> shared_vectors =
-          isolate_->factory()->NewFixedArrayWithZeroes(
-              num_functions, AllocationType::kSharedOld);
+          isolate_->factory()->NewFixedArrayWithZeroes(num_functions,
+                                                       AllocationType::kOld);
       shared_trusted_data->set_feedback_vectors(*shared_vectors);
     }
   }
@@ -1414,8 +1403,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
         static_cast<int>(module_->elem_segments.size()));
     DirectHandle<FixedArray> shared_elements =
         shared ? isolate_->factory()->NewFixedArray(
-                     static_cast<int>(module_->elem_segments.size()),
-                     AllocationType::kSharedOld)
+                     static_cast<int>(module_->elem_segments.size()))
                : DirectHandle<FixedArray>();
     for (uint32_t i = 0; i < module_->elem_segments.size(); i++) {
       // Initialize declarative segments as empty. The rest remain

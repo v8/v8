@@ -206,11 +206,10 @@ DirectHandle<WasmTableObject> WasmTableObject::New(
     entries->set(i, *initial_value);
   }
   bool is_function_table = canonical_type.IsFunctionType();
-  const bool shared = false;
   DirectHandle<WasmDispatchTable> dispatch_table =
-      is_function_table ? isolate->factory()->NewWasmDispatchTable(
-                              initial, canonical_type, shared)
-                        : DirectHandle<WasmDispatchTable>{};
+      is_function_table
+          ? isolate->factory()->NewWasmDispatchTable(initial, canonical_type)
+          : DirectHandle<WasmDispatchTable>{};
 
   DirectHandle<UnionOf<Undefined, Number, BigInt>> max =
       isolate->factory()->undefined_value();
@@ -577,9 +576,8 @@ void WasmTableObject::UpdateDispatchTable(
 
   if (v8_flags.wasm_generic_wrapper && IsWasmImportData(*implicit_arg)) {
     auto import_data = Cast<WasmImportData>(implicit_arg);
-    constexpr bool kShared = false;
     DirectHandle<WasmImportData> new_import_data =
-        isolate->factory()->NewWasmImportData(import_data, kShared);
+        isolate->factory()->NewWasmImportData(import_data);
     new_import_data->set_call_origin(*dispatch_table);
     new_import_data->set_table_slot(entry_index);
     implicit_arg = new_import_data;
@@ -683,10 +681,8 @@ void WasmTableObject::UpdateDispatchTable(
                  Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate) ||
              call_target == Builtins::EntryOf(
                                 Builtin::kWasmToJsWrapperInvalidSig, isolate));
-      constexpr bool kShared = false;
       import_data = isolate->factory()->NewWasmImportData(
-          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig,
-          kShared);
+          callable, suspend, MaybeDirectHandle<WasmTrustedInstanceData>{}, sig);
       import_data->SetIndexInTableAsCallOrigin(*dispatch_table, entry_index);
     }
   }
@@ -1560,10 +1556,9 @@ void ImportedFunctionEntry::SetGenericWasmToJs(
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
             instance_data_->ptr(), index_, callable->ptr(), wrapper_entry);
-  constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
-                                            sig, kShared);
+                                            sig);
   import_data->SetIndexInTableAsCallOrigin(
       instance_data_->dispatch_table_for_imports(), index_);
   DisallowGarbageCollection no_gc;
@@ -1591,10 +1586,9 @@ void ImportedFunctionEntry::SetCompiledWasmToJs(
   DCHECK(v8_flags.wasm_jitless ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
-  constexpr bool kShared = false;
   DirectHandle<WasmImportData> import_data =
       isolate->factory()->NewWasmImportData(callable, suspend, instance_data_,
-                                            sig, kShared);
+                                            sig);
   DisallowGarbageCollection no_gc;
   Tagged<WasmDispatchTable> dispatch_table =
       instance_data_->dispatch_table_for_imports();
@@ -1744,19 +1738,16 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   // initialized yet, which can lead to heap verification errors.
   const WasmModule* module = native_module->module();
 
-  AllocationType allocation =
-      shared ? AllocationType::kSharedOld : AllocationType::kYoung;
-
   int num_imported_functions = module->num_imported_functions;
   DirectHandle<WasmDispatchTable> dispatch_table_for_imports =
       isolate->factory()->NewWasmDispatchTable(num_imported_functions,
-                                               wasm::kWasmFuncRef, shared);
+                                               wasm::kWasmFuncRef);
   DirectHandle<FixedArray> well_known_imports =
-      isolate->factory()->NewFixedArray(num_imported_functions, allocation);
+      isolate->factory()->NewFixedArray(num_imported_functions);
 
   DirectHandle<FixedArray> func_refs =
       isolate->factory()->NewFixedArrayWithZeroes(
-          static_cast<int>(module->functions.size()), allocation);
+          static_cast<int>(module->functions.size()));
 
   int num_imported_mutable_globals = module->num_imported_mutable_globals;
   // The imported_mutable_globals is essentially a FixedAddressArray (storing
@@ -1764,13 +1755,13 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   // globals) are accessed as 32-bit integers which is more convenient with a
   // raw ByteArray.
   DirectHandle<FixedAddressArray> imported_mutable_globals =
-      FixedAddressArray::New(isolate, num_imported_mutable_globals, allocation);
+      FixedAddressArray::New(isolate, num_imported_mutable_globals);
 
   int num_data_segments = module->num_declared_data_segments;
   DirectHandle<FixedAddressArray> data_segment_starts =
-      FixedAddressArray::New(isolate, num_data_segments, allocation);
+      FixedAddressArray::New(isolate, num_data_segments);
   DirectHandle<FixedUInt32Array> data_segment_sizes =
-      FixedUInt32Array::New(isolate, num_data_segments, allocation);
+      FixedUInt32Array::New(isolate, num_data_segments);
 
 #if V8_ENABLE_DRUMBRAKE
   DirectHandle<FixedInt32Array> imported_function_indices =
@@ -1780,16 +1771,14 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
   static_assert(wasm::kV8MaxWasmMemories < kMaxInt / 2);
   int num_memories = static_cast<int>(module->memories.size());
   DirectHandle<FixedArray> memory_objects =
-      isolate->factory()->NewFixedArray(num_memories, allocation);
+      isolate->factory()->NewFixedArray(num_memories);
   DirectHandle<TrustedFixedAddressArray> memory_bases_and_sizes =
-      TrustedFixedAddressArray::New(
-          isolate, 2 * num_memories,
-          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted);
+      TrustedFixedAddressArray::New(isolate, 2 * num_memories);
 
   // TODO(clemensb): Should we have singleton empty dispatch table in the
   // trusted space?
   DirectHandle<WasmDispatchTable> empty_dispatch_table =
-      isolate->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef, shared);
+      isolate->factory()->NewWasmDispatchTable(0, wasm::kWasmFuncRef);
   DirectHandle<ProtectedFixedArray> empty_protected_fixed_array =
       isolate->factory()->empty_protected_fixed_array();
 
@@ -1800,13 +1789,13 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
       module_object->managed_native_module()->estimated_size();
   DirectHandle<TrustedManaged<wasm::NativeModule>>
       trusted_managed_native_module = TrustedManaged<wasm::NativeModule>::From(
-          isolate, estimated_size, native_module, shared);
+          isolate, estimated_size, native_module);
 
   // Now allocate the WasmTrustedInstanceData.
   // During this step, no more allocations should happen because the instance is
   // incomplete yet, so we should not trigger heap verification at this point.
   DirectHandle<WasmTrustedInstanceData> trusted_data =
-      isolate->factory()->NewWasmTrustedInstanceData(shared);
+      isolate->factory()->NewWasmTrustedInstanceData();
   {
     DisallowHeapAllocation no_gc;
 
@@ -1837,7 +1826,7 @@ DirectHandle<WasmTrustedInstanceData> WasmTrustedInstanceData::New(
 #if V8_ENABLE_DRUMBRAKE
     trusted_data->set_imported_function_indices(*imported_function_indices);
 #endif  // V8_ENABLE_DRUMBRAKE
-    if (!shared) trusted_data->set_native_context(*isolate->native_context());
+    trusted_data->set_native_context(*isolate->native_context());
     trusted_data->set_jump_table_start(native_module->jump_table_start());
     trusted_data->set_hook_on_function_call_address(
         isolate->debug()->hook_on_function_call_address());
@@ -2042,7 +2031,6 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
     Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     int function_index) {
-  bool shared = HeapLayout::InAnySharedSpace(*trusted_instance_data);
   Tagged<WasmFuncRef> existing_func_ref;
   if (trusted_instance_data->try_get_func_ref(function_index,
                                               &existing_func_ref)) {
@@ -2068,10 +2056,9 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
       isolate};
 
   DirectHandle<WasmInternalFunction> internal_function =
-      isolate->factory()->NewWasmInternalFunction(implicit_arg, function_index,
-                                                  shared);
+      isolate->factory()->NewWasmInternalFunction(implicit_arg, function_index);
   DirectHandle<WasmFuncRef> func_ref =
-      isolate->factory()->NewWasmFuncRef(internal_function, rtt, shared);
+      isolate->factory()->NewWasmFuncRef(internal_function, rtt);
   trusted_instance_data->func_refs()->set(function_index, *func_ref);
 
   // Reuse the call target of the instance. In case of import wrappers, the
@@ -2670,9 +2657,8 @@ Tagged<ProtectedWeakFixedArray> WasmDispatchTable::MaybeGrowUsesList(
 
 // static
 DirectHandle<WasmDispatchTable> WasmDispatchTable::New(
-    Isolate* isolate, int length, wasm::CanonicalValueType table_type,
-    bool shared) {
-  return isolate->factory()->NewWasmDispatchTable(length, table_type, shared);
+    Isolate* isolate, int length, wasm::CanonicalValueType table_type) {
+  return isolate->factory()->NewWasmDispatchTable(length, table_type);
 }
 
 // static
@@ -2712,8 +2698,7 @@ DirectHandle<WasmDispatchTable> WasmDispatchTable::Grow(
   uint32_t new_capacity = old_capacity + grow;
   DCHECK_LE(new_capacity, limit);
   DirectHandle<WasmDispatchTable> new_table =
-      WasmDispatchTable::New(isolate, new_capacity, old_table->table_type(),
-                             HeapLayout::InAnySharedSpace(*old_table));
+      WasmDispatchTable::New(isolate, new_capacity, old_table->table_type());
 
   DisallowGarbageCollection no_gc;
   // Writing non-atomically is fine here because this is a freshly allocated
@@ -3136,7 +3121,6 @@ DirectHandle<Map> CreateStructMap(
     DirectHandle<NativeContext> opt_native_context) {
   const wasm::CanonicalStructType* type =
       wasm::GetTypeCanonicalizer()->LookupStruct(struct_index);
-  const bool shared = wasm::GetTypeCanonicalizer()->IsShared(struct_index);
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
   // stored directly in a Map is capped at 255 pointer sizes.
@@ -3145,18 +3129,14 @@ DirectHandle<Map> CreateStructMap(
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
   // If we had a CanonicalHeapType, we could use that here.
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       struct_index, shared, wasm::RefTypeKind::kStruct);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent);
   DirectHandle<Map> map;
-  // TODO(manoskouk): Combine `shared` with contextful maps.
-  if (shared) {
-    map = isolate->factory()->NewMapWithMetaMap(
-        isolate->factory()->meta_map(), instance_type, map_instance_size,
-        elements_kind, inobject_properties, AllocationType::kSharedMap);
-  } else if (opt_native_context.is_null()) {
+  if (opt_native_context.is_null()) {
     map = isolate->factory()->NewContextlessMap(
         instance_type, map_instance_size, elements_kind, inobject_properties);
   } else {
@@ -3177,24 +3157,17 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
   const wasm::CanonicalArrayType* type =
       wasm::GetTypeCanonicalizer()->LookupArray(array_index);
   wasm::CanonicalValueType element_type = type->element_type();
-  const bool shared = wasm::GetTypeCanonicalizer()->IsShared(array_index);
   const int inobject_properties = 0;
-  const int map_instance_size = kVariableSizeSentinel;
+  const int instance_size = kVariableSizeSentinel;
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
   wasm::CanonicalValueType heaptype = wasm::CanonicalValueType::Ref(
       array_index, shared, wasm::RefTypeKind::kArray);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, element_type, opt_rtt_parent, shared);
-
-  DirectHandle<Map> map =
-      shared ? isolate->factory()->NewMapWithMetaMap(
-                   isolate->factory()->meta_map(), instance_type,
-                   map_instance_size, elements_kind, inobject_properties,
-                   AllocationType::kSharedMap)
-             : isolate->factory()->NewContextlessMap(
-                   instance_type, map_instance_size, elements_kind,
-                   inobject_properties);
+      heaptype, element_type, opt_rtt_parent);
+  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   map->SetInstanceDescriptors(isolate,
                               *isolate->factory()->empty_descriptor_array(), 0,
@@ -3206,23 +3179,22 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
-                                   DirectHandle<Map> opt_rtt_parent,
-                                   bool shared) {
+                                   DirectHandle<Map> opt_rtt_parent) {
   const int inobject_properties = 0;
   const InstanceType instance_type = WASM_FUNC_REF_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  constexpr bool shared = false;  // TODO(42204563): Implement.
   wasm::CanonicalValueType heaptype =
       wasm::CanonicalValueType::Ref(type, shared, wasm::RefTypeKind::kFunction);
   DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      heaptype, no_array_element, opt_rtt_parent, shared);
+      heaptype, no_array_element, opt_rtt_parent);
   constexpr int kInstanceSize = WasmFuncRef::kSize;
   DCHECK_EQ(
       kInstanceSize,
       Cast<Map>(isolate->root(RootIndex::kWasmFuncRefMap))->instance_size());
   DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
-      instance_type, kInstanceSize, elements_kind, inobject_properties,
-      shared ? AllocationType::kSharedMap : AllocationType::kMap);
+      instance_type, kInstanceSize, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
   return map;
 }
@@ -3255,7 +3227,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
     rtt = direct_handle(
         Cast<Map>(maybe_canonical_map.GetHeapObjectAssumeWeak()), isolate);
   } else {
-    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>(), false);
+    rtt = CreateFuncRefMap(isolate, sig_id, DirectHandle<Map>());
     canonical_rtts->set(sig_id.index, MakeWeak(*rtt));
   }
 

@@ -4939,9 +4939,8 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
-                                   const wasm::StructType* struct_type,
-                                   bool is_shared) {
-    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
+                                   const wasm::StructType* struct_type) {
+    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type);
   }
 
   V<WasmFuncRef> WasmRefFunc(V<Object> wasm_instance, uint32_t function_index) {

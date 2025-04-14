@@ -102,9 +102,7 @@ class SlotAccessorForHeapObject {
     Tagged<ExposedTrustedObject> object = Cast<ExposedTrustedObject>(value);
 
     InstanceType instance_type = value->map()->instance_type();
-    bool shared = HeapLayout::InAnySharedSpace(value);
-    IndirectPointerTag tag =
-        IndirectPointerTagFromInstanceType(instance_type, shared);
+    IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
     dest.store(object);
 

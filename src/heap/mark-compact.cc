@@ -5784,8 +5784,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
-          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
+          auto tag = IndirectPointerTagFromInstanceType(instance_type);
           tpt->Set(handle, relocated_object.ptr(), tag);
         }
       });
@@ -5799,8 +5798,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
-          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
+          auto tag = IndirectPointerTagFromInstanceType(instance_type);
           DCHECK(IsSharedTrustedPointerType(tag));
           stpt->Set(handle, relocated_object.ptr(), tag);
         }

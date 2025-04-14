@@ -358,18 +358,13 @@ class WasmLoweringReducer : public Next {
     return array;
   }
 
-  V<WasmStruct> REDUCE(WasmAllocateStruct)(V<Map> rtt,
-                                           const wasm::StructType* struct_type,
-                                           bool is_shared) {
+  V<WasmStruct> REDUCE(WasmAllocateStruct)(
+      V<Map> rtt, const wasm::StructType* struct_type) {
     int size = WasmStruct::Size(struct_type);
-    Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
-        size, is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
-    // Objects allocated into old-space need a write barrier for initialization.
-    __ InitializeField(
-        s,
-        AccessBuilder::ForMap(is_shared ? compiler::kMapWriteBarrier
-                                        : compiler::kNoWriteBarrier),
-        rtt);
+    Uninitialized<WasmStruct> s =
+        __ template Allocate<WasmStruct>(size, AllocationType::kYoung);
+    __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
+                       rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        LOAD_ROOT(EmptyFixedArray));
     // Note: Struct initialization isn't finished here, the user defined fields

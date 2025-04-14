@@ -170,10 +170,6 @@ void PrintHeapObjectHeaderWithoutMap(Tagged<HeapObject> object,
   os << "]";
   if (ReadOnlyHeap::Contains(object)) {
     os << " in ReadOnlySpace";
-  } else if (Isolate::Current()->heap()->InOldSpace(object)) {
-    os << " in OldSpace";
-  } else if (HeapLayout::InAnySharedSpace(object)) {
-    os << " in SharedSpace";
   }
 }
 
@@ -2869,7 +2865,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 
   PrintHeader(os, "WasmTrustedInstanceData");
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(instance_object, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(native_context, Brief);
+  PRINT_WASM_INSTANCE_FIELD(native_context, Brief);
   PRINT_WASM_INSTANCE_FIELD(shared_part, Brief);
   PRINT_WASM_INSTANCE_FIELD(memory_objects, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
@@ -3979,9 +3975,7 @@ void Map::MapPrint(std::ostream& os) {
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
   if (!HeapLayout::InReadOnlySpace(*this)) {
-    Isolate* isolate = HeapLayout::InWritableSharedSpace(*this)
-                           ? Isolate::Current()->shared_space_isolate()
-                           : isolate = GetIsolateFromWritableObject(*this);
+    Isolate* isolate = GetIsolateFromWritableObject(*this);
     TransitionsAccessor transitions(isolate, *this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0 || transitions.HasPrototypeTransitions() ||

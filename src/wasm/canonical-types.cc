@@ -473,9 +473,6 @@ bool TypeCanonicalizer::IsStruct(CanonicalTypeIndex index) const {
 bool TypeCanonicalizer::IsArray(CanonicalTypeIndex index) const {
   return canonical_types_[index]->kind == CanonicalType::kArray;
 }
-bool TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
-  return canonical_types_[index]->is_shared;
-}
 
 CanonicalTypeIndex TypeCanonicalizer::FindIndex_Slow(
     const CanonicalSig* sig) const {

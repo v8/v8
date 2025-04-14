@@ -236,6 +236,7 @@ void TestingModuleBuilder::InitializeWrapperCache() {
   DirectHandle<FixedArray> maps = isolate_->factory()->NewFixedArray(
       static_cast<int>(test_module_->types.size()));
   for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+    // TODO(14616): Support shared types.
     CreateMapForType(isolate_, test_module_.get(), ModuleTypeIndex{index},
                      maps);
   }

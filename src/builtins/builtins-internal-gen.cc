@@ -1383,16 +1383,6 @@ TF_BUILTIN(WasmAllocateInOldGeneration, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
-
-TF_BUILTIN(WasmAllocateInSharedHeap, CodeStubAssembler) {
-  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
-  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
-
-  TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
-  TailCallRuntime(Runtime::kAllocateInSharedHeap, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), runtime_flags);
-}
 #endif
 
 TF_BUILTIN(Abort, CodeStubAssembler) {

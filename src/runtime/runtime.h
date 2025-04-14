@@ -268,7 +268,6 @@ namespace internal {
   F(AllocateByteArray, 1, 1)                               \
   F(AllocateInYoungGeneration, 2, 1)                       \
   F(AllocateInOldGeneration, 2, 1)                         \
-  F(AllocateInSharedHeap, 2, 1)                            \
   F(AllowDynamicFunction, 1, 1)                            \
   I(CreateAsyncFromSyncIterator, 1, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                         \

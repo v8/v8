@@ -153,8 +153,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length,
-                                                     bool shared = false);
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.

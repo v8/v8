@@ -230,8 +230,8 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,
 
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, instance_object,
                    Tagged<WasmInstanceObject>, kInstanceObjectOffset)
-OPTIONAL_ACCESSORS(WasmTrustedInstanceData, native_context, Tagged<Context>,
-                   kNativeContextOffset)
+ACCESSORS(WasmTrustedInstanceData, native_context, Tagged<Context>,
+          kNativeContextOffset)
 ACCESSORS(WasmTrustedInstanceData, memory_objects, Tagged<FixedArray>,
           kMemoryObjectsOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, untagged_globals_buffer,

@@ -436,9 +436,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   SealHandleScope scope(isolate);
 
   DCHECK(isolate->context().is_null());
-  if (trusted_instance_data->has_native_context()) {
-    isolate->set_context(trusted_instance_data->native_context());
-  }
+  isolate->set_context(trusted_instance_data->native_context());
   bool success = wasm::CompileLazy(isolate, trusted_instance_data, func_index);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);

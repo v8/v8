@@ -100,7 +100,6 @@ namespace v8::internal::wasm {
   V(WasmArrayInitSegment)                                                      \
   V(WasmAllocateStructWithRtt)                                                 \
   V(WasmAllocateDescriptorStruct)                                              \
-  V(WasmAllocateSharedStructWithRtt)                                           \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
@@ -153,7 +152,6 @@ namespace v8::internal::wasm {
   V(IterableToFixedArrayForWasm)                 \
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
-  V(WasmAllocateInSharedHeap)                    \
   V(WasmAllocateZeroedFixedArray)                \
   V(WasmJSStringEqual)                           \
   V(WasmSuspend)                                 \

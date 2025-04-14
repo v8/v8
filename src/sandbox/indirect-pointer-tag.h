@@ -75,11 +75,9 @@ constexpr uint64_t kAllTagsForAndBasedTypeChecking[] = {
 // TODO(358918874): Consider having explicitly shared types (e.g.
 // `ExposedSharedTrustedObject`) and enforcing that shared tags are only ever
 // used with shared types.
-#define SHARED_TRUSTED_POINTER_TAG_LIST(V)               \
-  V(kFirstSharedTrustedTag, 1)                           \
-  V(kSharedWasmTrustedInstanceDataIndirectPointerTag, 1) \
-  V(kSharedWasmDispatchTableIndirectPointerTag, 2)       \
-  V(kLastSharedTrustedTag, 2)
+#define SHARED_TRUSTED_POINTER_TAG_LIST(V) \
+  V(kFirstSharedTrustedTag, 1)             \
+  V(kLastSharedTrustedTag, 1)
 // Leave some space in the tag range here for future shared tags.
 
 // Trusted pointers using these tags are kept in a per-Isolate trusted
@@ -154,8 +152,6 @@ enum IndirectPointerTag : uint64_t {
 #undef INDIRECT_POINTER_TAG_ENUM_DECL
 };
 
-#undef MAKE_TAG
-
 #define VALIDATE_INDIRECT_POINTER_TAG(name, tag_id)        \
   static_assert((name & kIndirectPointerTagMask) == name); \
   static_assert((name & kIndirectPointerTagMaskWithoutFreeEntryBit) == name);
@@ -204,7 +200,7 @@ V8_INLINE constexpr bool IsTrustedSpaceMigrationInProgressForObjectsWithTag(
 static_assert(!IsValidIndirectPointerTag(kIndirectPointerNullTag));
 
 V8_INLINE IndirectPointerTag
-IndirectPointerTagFromInstanceType(InstanceType instance_type, bool shared) {
+IndirectPointerTagFromInstanceType(InstanceType instance_type) {
   switch (instance_type) {
     case CODE_TYPE:
       return kCodeIndirectPointerTag;
@@ -226,11 +222,9 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type, bool shared) {
       return kRegExpDataIndirectPointerTag;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_DISPATCH_TABLE_TYPE:
-      return shared ? kSharedWasmDispatchTableIndirectPointerTag
-                    : kWasmDispatchTableIndirectPointerTag;
+      return kWasmDispatchTableIndirectPointerTag;
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      return shared ? kSharedWasmTrustedInstanceDataIndirectPointerTag
-                    : kWasmTrustedInstanceDataIndirectPointerTag;
+      return kWasmTrustedInstanceDataIndirectPointerTag;
     case WASM_INTERNAL_FUNCTION_TYPE:
       return kWasmInternalFunctionIndirectPointerTag;
     case WASM_FUNCTION_DATA_TYPE:
@@ -245,6 +239,22 @@ IndirectPointerTagFromInstanceType(InstanceType instance_type, bool shared) {
       UNREACHABLE();
   }
 }
+
+V8_INLINE InstanceType
+InstanceTypeFromIndirectPointerTag(IndirectPointerTag tag) {
+  DCHECK(IsValidIndirectPointerTag(tag));
+  switch (tag) {
+#define CASE(name, instance_type, tag_id) \
+  case MAKE_TAG(tag_id):                  \
+    return instance_type;                 \
+    break;
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+#undef MAKE_TAG
 
 // Sanity checks.
 #define CHECK_SHARED_TRUSTED_POINTER_TAGS(Tag, ...) \
