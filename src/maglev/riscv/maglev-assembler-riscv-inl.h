@@ -1905,6 +1905,31 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
   MacroAssembler::Branch(target, kZero, scratch, Operand(zero_reg), distance);
 }
 
+inline void MaglevAssembler::LoadContextCellState(Register state,
+                                                  Register cell) {
+  Lwu(state, FieldMemOperand(cell, offsetof(ContextCell, state_)));
+}
+inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
+                                                       Register cell) {
+  AssertContextCellState(cell, ContextCell::kInt32);
+  Lwu(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
+                                                         Register cell) {
+  AssertContextCellState(cell, ContextCell::kFloat64);
+  LoadDouble(value,
+             FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::StoreContextCellInt32Value(Register cell,
+                                                        Register value) {
+  Sw(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::StoreContextCellFloat64Value(
+    Register cell, DoubleRegister value) {
+  StoreDouble(value,
+              FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
   LoadDouble(result,
