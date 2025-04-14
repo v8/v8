@@ -528,8 +528,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)      \
   V(WasmImportedStringsEnabledCallback,                                     \
     wasm_imported_strings_enabled_callback, nullptr)                        \
-  V(JavaScriptCompileHintsMagicEnabledCallback,                             \
-    compile_hints_magic_enabled_callback, nullptr)                          \
   V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)           \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \

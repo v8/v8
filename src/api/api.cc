@@ -10811,12 +10811,6 @@ CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
 
-// TODO(42203853): Remove this after the deprecated API is removed. Right now,
-// the embedder can still set the callback, but it's never called.
-CALLBACK_SETTER(JavaScriptCompileHintsMagicEnabledCallback,
-                JavaScriptCompileHintsMagicEnabledCallback,
-                compile_hints_magic_enabled_callback)
-
 CALLBACK_SETTER(IsJSApiWrapperNativeErrorCallback,
                 IsJSApiWrapperNativeErrorCallback,
                 is_js_api_wrapper_native_error_callback)

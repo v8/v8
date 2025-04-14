@@ -1651,16 +1651,6 @@ class V8_EXPORT Isolate {
   void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
 
   /**
-   * Register callback to control whether compile hints magic comments are
-   * enabled.
-   */
-  V8_DEPRECATED(
-      "Will be removed, use ScriptCompiler::CompileOptions for enabling the "
-      "compile hints magic comments")
-  void SetJavaScriptCompileHintsMagicEnabledCallback(
-      JavaScriptCompileHintsMagicEnabledCallback callback);
-
-  /**
    * This function can be called by the embedder to signal V8 that the dynamic
    * enabling of features has finished. V8 can now set up dynamically added
    * features.
