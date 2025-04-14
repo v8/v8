@@ -2194,9 +2194,18 @@ class ConstantPoolPointerForwarder {
  private:
   void VerifyScopeInfo(Tagged<ScopeInfo> scope_info,
                        Tagged<ScopeInfo> replacement) {
-    CHECK_EQ(replacement->EndPosition(), scope_info->EndPosition());
-    CHECK_EQ(replacement->scope_type(), scope_info->scope_type());
-    CHECK_EQ(replacement->ContextLength(), scope_info->ContextLength());
+    if (replacement->scope_type() == SCRIPT_SCOPE ||
+        replacement->scope_type() == MODULE_SCOPE) {
+      // During streaming compilation we might not know whether we want to parse
+      // this script as a classic script or module, and do the wrong thing. In
+      // case compilation succeeded, we'll only reject the result later.
+      CHECK(scope_info->scope_type() == SCRIPT_SCOPE ||
+            scope_info->scope_type() == MODULE_SCOPE);
+    } else {
+      CHECK_EQ(replacement->EndPosition(), scope_info->EndPosition());
+      CHECK_EQ(replacement->scope_type(), scope_info->scope_type());
+      CHECK_EQ(replacement->ContextLength(), scope_info->ContextLength());
+    }
   }
   template <typename TArray>
   void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
