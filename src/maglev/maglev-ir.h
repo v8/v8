@@ -4956,8 +4956,7 @@ class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::EagerDeopt() |
-      OpProperties::Call() | OpProperties::CanAllocate() |
-      OpProperties::NotIdempotent();
+      OpProperties::CanAllocate() | OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
