@@ -1520,15 +1520,22 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     return alt;
   }
 
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `value` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
   switch (representation) {
     case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
@@ -1543,7 +1550,8 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     }
 
     case ValueRepresentation::kIntPtr:
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagIntPtr>({value}));
       }
       return alternative.set_tagged(AddNewNode<IntPtrToNumber>({value}));
@@ -1839,7 +1847,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
       return alternative.set_int32(BuildSmiUntag(value));
     }
     case ValueRepresentation::kUint32: {
-      if (node_info->is_smi()) {
+      if (!IsEmptyNodeType(GetType(value)) && node_info->is_smi()) {
         return alternative.set_int32(
             AddNewNode<TruncateUint32ToInt32>({value}));
       }
@@ -1932,21 +1940,29 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
     return alt;
   }
 
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `value` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
   switch (representation) {
     case ValueRepresentation::kTagged: {
       auto combined_type = CombineType(allowed_input_type, node_info->type());
-      if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
         return GetFloat64(GetInt32(value));
       }
-      if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kNumber)) {
         // Number->Float64 conversions are exact alternatives, so they can
         // also become the canonical float64_alternative.
         return alternative.set_float64(BuildNumberOrOddballToFloat64(
             value, NodeType::kNumber,
             TaggedToFloat64ConversionType::kOnlyNumber));
       }
-      if (NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
         // NumberOrOddball->Float64 conversions are not exact alternatives,
         // since they lose the information that this is an oddball, so they
         // can only become the canonical float64_alternative if they are a
@@ -4776,7 +4792,12 @@ bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
-  if (EnsureType(node, NodeType::kSmi)) {
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `node` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
+  if (!IsEmptyNodeType(GetType(node)) && EnsureType(node, NodeType::kSmi)) {
     if (SmiValuesAre31Bits()) {
       if (auto phi = node->TryCast<Phi>()) {
         phi->SetUseRequires31BitValue();

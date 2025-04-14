@@ -1050,6 +1050,8 @@ class MaglevGraphBuilder {
       int i = 0;
       constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
       for (ValueNode* raw_input : raw_inputs) {
+        // TODO(marja): Here we might already have the empty type for the
+        // node. Generate a deopt and make callers handle it.
         inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
         i++;
       }
