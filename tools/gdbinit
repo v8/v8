@@ -14,6 +14,7 @@ end
 # Print content of V8 handles.
 python
 import gdb
+import gdb.types
 
 class PrintV8HandleCommand(gdb.Command):
   """Print content of a V8 object, accessed through a handle."""
