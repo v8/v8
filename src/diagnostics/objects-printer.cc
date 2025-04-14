@@ -1027,6 +1027,18 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
      << DescriptorArrayMarkingState::Epoch::decode(raw) << ", marked "
      << DescriptorArrayMarkingState::Marked::decode(raw) << ", delta "
      << DescriptorArrayMarkingState::Delta::decode(raw);
+  os << "\n - fast iterable state: ";
+  switch (fast_iterable()) {
+    case FastIterableState::kJsonFast:
+      os << "JSON fast";
+      break;
+    case FastIterableState::kJsonSlow:
+      os << "JSON slow";
+      break;
+    case FastIterableState::kUnknown:
+      os << "unknown";
+      break;
+  }
   PrintDescriptors(os);
 }
 

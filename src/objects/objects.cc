@@ -3904,6 +3904,8 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_descriptors(nof_descriptors);
   set_raw_gc_state(raw_gc_state, kRelaxedStore);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
+  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+            kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
 }
@@ -3915,6 +3917,8 @@ void DescriptorArray::ClearEnumCache() {
 void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
   Set(index, descriptor);
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 // static

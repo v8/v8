@@ -485,6 +485,7 @@ constexpr const char* const JsonEscapeTable =
     "X\0      Y\0      Z\0      [\0      "
     "\\\\\0     ]\0      ^\0      _\0      ";
 
+// LINT.IfChange(StringDoesNotContainEscapeCharacters)
 constexpr bool JsonDoNotEscapeFlagTable[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -533,6 +534,7 @@ constexpr bool NeedsEscape(uint32_t input) {
   const uint32_t result = ((has_lt_0x20 | has_0x22 | has_0x5c) & result_mask);
   return result != 0;
 }
+// LINT.ThenChange(/src/objects/string.cc:StringDoesNotContainEscapeCharacters)
 
 bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   // If the no elements protector is intact, Array.prototype and
@@ -2475,10 +2477,13 @@ FastJsonStringifier<Char>::SerializeObjectKey(
     AppendCharacterUnchecked('"');
     FastJsonStringifierObjectKeyResult result;
     if constexpr (no_escaping) {
+      SLOW_DCHECK(String::DoesNotContainEscapeCharacters(obj));
       AppendStringNoEscapes(chars, length, no_gc);
       result = FastJsonStringifierObjectKeyResult::kSuccess;
     } else {
       bool needs_escaping = AppendString(chars, length, no_gc);
+      SLOW_DCHECK(needs_escaping !=
+                  String::DoesNotContainEscapeCharacters(obj));
       result = needs_escaping
                    ? FastJsonStringifierObjectKeyResult::kNeedsEscaping
                    : FastJsonStringifierObjectKeyResult::kSuccess;
