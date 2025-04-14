@@ -2295,10 +2295,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       if (parent) {
         // We switched at least once, update the active continuation.
         isolate_data_.set_active_stack(active_stack);
-#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
-        Simulator::current(this)->SetStackLimit(
-            reinterpret_cast<uintptr_t>(active_stack->jmpbuf()->stack_limit));
-#endif
       }
     }
     // The unwinder is running on the central stack. If the target frame is in a
@@ -2313,9 +2309,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       stack_guard()->SetStackLimitForStackSwitching(limit);
       thread_local_top()->secondary_stack_limit_ = 0;
       thread_local_top()->secondary_stack_sp_ = 0;
-#if USE_SIMULATOR_BOOL && V8_TARGET_ARCH_ARM64
-      Simulator::current(this)->SetStackLimit(limit);
-#endif
       iter.wasm_stack()->clear_stack_switch_info();
     }
 #endif

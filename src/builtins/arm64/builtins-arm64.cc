@@ -4633,6 +4633,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Ldr(scratch, MemOperand(scratch));
     __ Mov(sp, scratch);
   }
+  if (masm->options().enable_simulator_code) {
+    // Update the simulator stack limit in case the exception was caught in a
+    // different stack.
+    UseScratchRegisterScope temps(masm);
+    temps.Exclude(x16);
+    __ LoadStackLimit(x16, StackLimitKind::kRealStackLimit);
+    __ hlt(kImmExceptionIsSwitchStackLimit);
+  }
   __ Mov(fp, ER::Create(IsolateAddressId::kPendingHandlerFPAddress,
                         masm->isolate()));
   __ Ldr(fp, MemOperand(fp));
