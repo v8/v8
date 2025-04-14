@@ -2607,7 +2607,7 @@ class MaglevGraphBuilder {
                            compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
-  ReduceResult BuildLoadStringLength(ValueNode* string);
+  ValueNode* BuildLoadStringLength(ValueNode* string);
 
   // Converts the input node to a representation that's valid to store into an
   // array with elements kind |kind|.

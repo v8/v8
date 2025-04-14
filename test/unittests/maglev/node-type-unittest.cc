@@ -32,9 +32,9 @@ TEST_F(MaglevTest, NodeTypeSmokeTests) {
   CHECK(!NodeTypeIs(NodeType::kStringWrapper, NodeType::kName));
 }
 
-TEST_F(MaglevTest, EmptyTypeIsNothing) {
+TEST_F(MaglevTest, EmptyTypeIsAnything) {
   for (NodeType a : kAllNodeTypes) {
-    CHECK(!NodeTypeIs(EmptyNodeType(), a));
+    CHECK(NodeTypeIs(EmptyNodeType(), a));
   }
 }
 

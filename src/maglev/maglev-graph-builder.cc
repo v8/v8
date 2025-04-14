@@ -2747,10 +2747,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
   left = BuildUnwrapThinString(left);
   right = BuildUnwrapThinString(right);
 
-  ValueNode* left_length;
-  GET_VALUE_OR_ABORT(left_length, BuildLoadStringLength(left));
-  ValueNode* right_length;
-  GET_VALUE_OR_ABORT(right_length, BuildLoadStringLength(right));
+  ValueNode* left_length = BuildLoadStringLength(left);
+  ValueNode* right_length = BuildLoadStringLength(right);
 
   auto BuildConsString = [&]() {
     ValueNode* new_length;
@@ -4748,7 +4746,7 @@ NodeType MaglevGraphBuilder::GetType(ValueNode* node) {
   }
 #ifdef DEBUG
   NodeType static_type = StaticTypeForNode(broker(), local_isolate(), node);
-  if (!NodeTypeIs(actual_type, static_type) && !IsEmptyNodeType(actual_type)) {
+  if (!NodeTypeIs(actual_type, static_type)) {
     // In case we needed a numerical alternative of a smi value, the type
     // must generalize. In all other cases the node info type should reflect the
     // actual type.
@@ -6000,8 +5998,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
-      ValueNode* result;
-      GET_VALUE_OR_ABORT(result, BuildLoadStringLength(receiver));
+      ValueNode* result = BuildLoadStringLength(receiver);
       RecordKnownProperty(lookup_start_object, name, result,
                           AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
@@ -6305,8 +6302,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   // Ensure that {object} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(object));
 
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(object));
+  ValueNode* length = BuildLoadStringLength(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
   auto emit_load = [&] { return AddNewNode<StringAt>({object, index}); };
 
@@ -7430,10 +7426,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
   return {};
 }
 
-ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
-  if (IsEmptyNodeType(GetType(string))) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
-  }
+ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
     if (vo_string->object()->type() == VirtualObject::kConsString) {
@@ -9362,8 +9355,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
+  ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
@@ -9387,8 +9379,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length;
-  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
+  ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
