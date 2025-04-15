@@ -606,6 +606,7 @@
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
   'wasm/js-wrapper-typechecks': [SKIP],
+  'wasm/mixed-eh-invalid': [SKIP],
   'wasm/wasm-inlining-catch-unreachable': [SKIP],
 
   #--experimental-wasm-ref-cast-nop
@@ -729,6 +730,8 @@
   'regress/wasm/regress-365376497': [SKIP],
   'regress/wasm/regress-381917890': [SKIP],
   'regress/wasm/regress-392928805': [SKIP],
+  'regress/wasm/regress-406043349': [SKIP],
+  'regress/wasm/regress-407298298': [SKIP],
 
   # --experimental-wasm-fp16
   'wasm/simd-fp16': [SKIP],
@@ -771,6 +774,7 @@
 
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
+  'regress/wasm/regress-403308742': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],

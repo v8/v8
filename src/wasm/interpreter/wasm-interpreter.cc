@@ -7988,6 +7988,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   }
 
   WasmInstruction::Optional optional;
+  WasmDetectedFeatures detected;
   switch (orig) {
     case kExprUnreachable:
       break;
@@ -7997,7 +7998,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprLoop:
     case kExprIf:
     case kExprTry: {
-      BlockTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      BlockTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                              wasm_code_->at(pc + 1), Decoder::kNoValidation);
       if (imm.sig_index.valid()) {
         // The block has at least one argument or at least two results, its
@@ -8090,7 +8091,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprSelect:
       break;
     case kExprSelectWithType: {
-      SelectTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      SelectTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                               wasm_code_->at(pc + 1), Decoder::kNoValidation);
       len = 1 + imm.length;
       break;
@@ -8273,7 +8274,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
 #undef EXECUTE_UNOP
 
     case kExprRefNull: {
-      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                             wasm_code_->at(pc + 1), Decoder::kNoValidation);
       value_type_reader::Populate(&imm.type, module_);
       optional.ref_type_bit_field = imm.type.raw_bit_field();
@@ -8337,6 +8338,7 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
                                        WasmInstruction::Optional* optional,
                                        Decoder* decoder, InterpreterCode* code,
                                        pc_t pc, int* const len) {
+  WasmDetectedFeatures detected;
   switch (opcode) {
     case kExprStructNew:
     case kExprStructNewDefault: {
@@ -8421,7 +8423,7 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
     case kExprRefCastNull:
     case kExprRefTest:
     case kExprRefTestNull: {
-      HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder,
+      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &detected, decoder,
                             code->at(pc + *len), Decoder::kNoValidation);
       value_type_reader::Populate(&imm.type, module_);
       optional->gc_heap_type_immediate.length = imm.length;
@@ -8439,12 +8441,14 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
       BranchDepthImmediate branch(decoder, code->at(pc + *len),
                                   Decoder::kNoValidation);
       *len += branch.length;
-      HeapTypeImmediate source_imm(WasmEnabledFeatures::All(), decoder,
-                                   code->at(pc + *len), Decoder::kNoValidation);
+      HeapTypeImmediate source_imm(WasmEnabledFeatures::All(), &detected,
+                                   decoder, code->at(pc + *len),
+                                   Decoder::kNoValidation);
       value_type_reader::Populate(&source_imm.type, module_);
       *len += source_imm.length;
-      HeapTypeImmediate target_imm(WasmEnabledFeatures::All(), decoder,
-                                   code->at(pc + *len), Decoder::kNoValidation);
+      HeapTypeImmediate target_imm(WasmEnabledFeatures::All(), &detected,
+                                   decoder, code->at(pc + *len),
+                                   Decoder::kNoValidation);
       value_type_reader::Populate(&target_imm.type, module_);
       *len += target_imm.length;
       DCHECK(target_imm.type.raw_bit_field() <
