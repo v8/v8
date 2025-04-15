@@ -2406,11 +2406,10 @@
   # supported by the Maglev->Turboshaft graph builder.
   'turboshaft/maglev-frontend/*': [SKIP],
 
-  # These tests rely on the shared heap which is incompatible with single
-  # generation.
+  # TODO(42204563): These tests rely on the shared heap which is incompatible
+  # with single generation.
   'wasm/custom-descriptors-validity': [SKIP],
-  'wasm/shared-everything/basic': [SKIP],
-  'wasm/shared-everything/shared-type-with-unshared-elem': [SKIP],
+  'wasm/shared-everything/*': [SKIP],
   'wasm/subtyping-invalid': [SKIP],
 }], # single_generation
 
