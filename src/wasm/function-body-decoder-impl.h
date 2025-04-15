@@ -452,7 +452,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
   }
   // Anything that doesn't match an enumeration value is an invalid type code.
   if constexpr (!ValidationTag::validate) UNREACHABLE();
-  DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%x", code);
+  DecodeError<ValidationTag>(decoder, pc, "invalid value type 0x%hhx", code);
   return {kWasmBottom, 0};
 }
 
@@ -4408,7 +4408,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!VALIDATE(
             IsSubtypeVec(orig_cont_sig->returns(), new_cont_sig->returns()))) {
       this->DecodeError("expecting returns of %d to match returns of %d",
-                        orig_cont_imm.index, new_cont_imm.index);
+                        orig_cont_imm.index.index, new_cont_imm.index.index);
       return 0;
     }
 
@@ -4417,7 +4417,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!VALIDATE(delta >= 0)) {
       this->DecodeError(
           "source cont type %d has fewer parameters than target %d",
-          orig_cont_imm.index, new_cont_imm.index);
+          orig_cont_imm.index.index, new_cont_imm.index.index);
       return 0;
     }
 
@@ -4431,7 +4431,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError(
           "parameters of new continuation %d should be subtypes of parameters "
           "of input continuation %d",
-          new_cont_imm.index, orig_cont_imm.index);
+          new_cont_imm.index.index, orig_cont_imm.index.index);
     }
 
     Value orig_cont = Pop(ValueType::RefNull(orig_cont_imm.heap_type()));
@@ -4543,7 +4543,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
     if (!VALIDATE(IsSubtypeVec(cont_sig->returns(), tag_sig->returns()))) {
       this->DecodeError("return(s) from continuation %d do not match tag %d",
-                        contimm.index, tagimm.index);
+                        contimm.index.index, tagimm.index);
       return 0;
     }
 
@@ -4553,7 +4553,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                   IsSubtypeOf(cont_args.last(), kWasmContRef, this->module_))) {
       this->DecodeError(
           "expecting a (ref null? cont) as last parameter of type %d",
-          contimm.index);
+          contimm.index.index);
       return 0;
     }
 
@@ -4563,7 +4563,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                   this->module_->has_cont_type(return_type.ref_index()))) {
       this->DecodeError(
           "expecting a defined cont type as last parameter of type %d",
-          contimm.index);
+          contimm.index.index);
       return 0;
     }
     const ContType* return_cont =
@@ -4575,7 +4575,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       this->DecodeError(
           "tag %d's return types should be a subtype of return continuation "
           "%d's return types",
-          tagimm.index, cont_args.last().ref_index());
+          tagimm.index, cont_args.last().ref_index().index);
       return 0;
     }
 
@@ -5417,7 +5417,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "%s: Immediate field %d of type %d has non-packed type %s. Use "
               "struct.get instead.",
               WasmOpcodes::OpcodeName(opcode), field.field_imm.index,
-              field.struct_imm.index, field_type.name().c_str());
+              field.struct_imm.index.index, field_type.name().c_str());
           return 0;
         }
         Value struct_obj =
@@ -5483,7 +5483,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.new_data can only be used with numeric-type arrays, found "
               "array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         const uint8_t* data_index_pc =
@@ -5511,7 +5511,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.new_elem can only be used with reference-type arrays, "
               "found array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         const uint8_t* elem_index_pc =
@@ -5550,7 +5550,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.init_data can only be used with mutable arrays, found "
               "array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         ValueType element_type = array_imm.array_type->element_type();
@@ -5558,7 +5558,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.init_data can only be used with numeric-type arrays, "
               "found array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         const uint8_t* data_index_pc =
@@ -5585,7 +5585,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.init_elem can only be used with mutable arrays, found "
               "array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         ValueType element_type = array_imm.array_type->element_type();
@@ -5593,7 +5593,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.init_elem can only be used with reference-type arrays, "
               "found array type #%d instead",
-              array_imm.index);
+              array_imm.index.index);
           return 0;
         }
         const uint8_t* elem_index_pc =
@@ -5630,7 +5630,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "%s: Immediate array type %d has non-packed type %s. Use "
               "array.get instead.",
-              WasmOpcodes::OpcodeName(opcode), imm.index,
+              WasmOpcodes::OpcodeName(opcode), imm.index.index,
               imm.array_type->element_type().name().c_str());
           return 0;
         }
@@ -5649,7 +5649,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.get: Immediate array type %d has packed type %s. Use "
               "array.get_s or array.get_u instead.",
-              imm.index, imm.array_type->element_type().name().c_str());
+              imm.index.index, imm.array_type->element_type().name().c_str());
           return 0;
         }
         auto [array_obj, index] =
@@ -5703,7 +5703,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           this->DecodeError(
               "array.copy: source array's #%d element type is not a subtype of "
               "destination array's #%d element type",
-              src_imm.index, dst_imm.index);
+              src_imm.index.index, dst_imm.index.index);
           return 0;
         }
         auto [dst, dst_index, src, src_index, length] =
