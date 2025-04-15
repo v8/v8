@@ -95,6 +95,7 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedLoad64SaveFP)                                          \
   V(WasmAllocateArray_Uninitialized)                                           \
+  V(WasmAllocateSharedArray_Uninitialized)                                     \
   V(WasmArrayCopy)                                                             \
   V(WasmArrayNewSegment)                                                       \
   V(WasmArrayInitSegment)                                                      \

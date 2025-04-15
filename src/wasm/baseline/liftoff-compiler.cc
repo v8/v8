@@ -91,6 +91,13 @@ struct assert_field_size {
       dst, LoadInstanceIntoRegister(pinned, dst),                          \
       WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
 
+#define LOAD_TAGGED_PTR_FROM_INSTANCE(dst, name, instance)                 \
+  static_assert(                                                           \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name) == kTaggedSize,          \
+      "field in WasmTrustedInstanceData does not have the expected size"); \
+  __ LoadTaggedPointerFromInstance(                                        \
+      dst, instance, WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
+
 #define LOAD_PROTECTED_PTR_INSTANCE_FIELD(dst, name, pinned)                 \
   static_assert(                                                             \
       WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(Protected##name) == kTaggedSize, \
@@ -6654,7 +6661,7 @@ class LiftoffCompiler {
   LiftoffRegister GetRtt(FullDecoder* decoder, ModuleTypeIndex index,
                          const TypeDefinition& type,
                          const Value& descriptor_value) {
-    if (!type.has_descriptor()) return RttCanon(index, {});
+    if (!type.has_descriptor()) return RttCanon(decoder, index, {});
     return GetRttFromDescriptorOnStack(decoder, descriptor_value);
   }
 
@@ -6800,8 +6807,10 @@ class LiftoffCompiler {
     int elem_size = value_kind_size(elem_kind);
     // Allocate the array.
     {
-      LiftoffRegister rtt = RttCanon(imm.index, {});
-      CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
+      LiftoffRegister rtt = RttCanon(decoder, imm.index, {});
+      const bool is_shared = decoder->module_->type(imm.index).is_shared;
+      CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
+                            : Builtin::kWasmAllocateArray_Uninitialized,
                   MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
                   {VarState{kRef, rtt, 0},
                    __ cache_state()->stack_state.end()[-1],  // length
@@ -6984,11 +6993,13 @@ class LiftoffCompiler {
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
                      const IndexImmediate& length_imm,
                      const Value* /* elements */, Value* /* result */) {
-    LiftoffRegister rtt = RttCanon(array_imm.index, {});
+    LiftoffRegister rtt = RttCanon(decoder, array_imm.index, {});
     ValueKind elem_kind = array_imm.array_type->element_type().kind();
     int32_t elem_count = length_imm.index;
     // Allocate the array.
-    CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
+    const bool is_shared = decoder->module_->type(array_imm.index).is_shared;
+    CallBuiltin(is_shared ? Builtin::kWasmAllocateSharedArray_Uninitialized
+                          : Builtin::kWasmAllocateArray_Uninitialized,
                 MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
                 {VarState{kRef, rtt, 0}, VarState{kI32, elem_count, 0},
                  VarState{kI32, value_kind_size(elem_kind), 0}},
@@ -7022,7 +7033,8 @@ class LiftoffCompiler {
     FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
-    LiftoffRegister rtt = pinned.set(RttCanon(array_imm.index, pinned));
+    LiftoffRegister rtt =
+        pinned.set(RttCanon(decoder, array_imm.index, pinned));
 
     LiftoffRegister is_element_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -7160,9 +7172,16 @@ class LiftoffCompiler {
     __ PushRegister(kRef, value);
   }
 
-  LiftoffRegister RttCanon(ModuleTypeIndex type_index, LiftoffRegList pinned) {
+  LiftoffRegister RttCanon(FullDecoder* decoder, ModuleTypeIndex type_index,
+                           LiftoffRegList pinned) {
+    bool is_shared = decoder->module_->type(type_index).is_shared;
     LiftoffRegister rtt = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps, pinned);
+    if (is_shared) {
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(rtt.gp(), SharedPart, pinned);
+      LOAD_TAGGED_PTR_FROM_INSTANCE(rtt.gp(), ManagedObjectMaps, rtt.gp())
+    } else {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps, pinned);
+    }
     __ LoadTaggedPointer(
         rtt.gp(), rtt.gp(), no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index.index));
@@ -7257,7 +7276,7 @@ class LiftoffCompiler {
     Label return_false, done;
     LiftoffRegList pinned;
     LiftoffRegister rtt_reg =
-        pinned.set(RttCanon(target_type.ref_index(), pinned));
+        pinned.set(RttCanon(decoder, target_type.ref_index(), pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -7317,7 +7336,7 @@ class LiftoffCompiler {
 
   void RefCast(FullDecoder* decoder, const Value& obj, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
-    LiftoffRegister rtt = RttCanon(result->type.ref_index(), {});
+    LiftoffRegister rtt = RttCanon(decoder, result->type.ref_index(), {});
     return RefCastImpl(decoder, result->type, obj, rtt);
   }
 
@@ -7390,7 +7409,7 @@ class LiftoffCompiler {
   void BrOnCast(FullDecoder* decoder, HeapType target_type, const Value& obj,
                 Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
-    LiftoffRegister rtt = RttCanon(target_type.ref_index(), {});
+    LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
     return BrOnCastImpl(decoder, target_type, obj, rtt, depth, null_succeeds);
   }
 
@@ -7436,7 +7455,7 @@ class LiftoffCompiler {
   void BrOnCastFail(FullDecoder* decoder, HeapType target_type,
                     const Value& obj, Value* /* result_on_fallthrough */,
                     uint32_t depth, bool null_succeeds) {
-    LiftoffRegister rtt = RttCanon(target_type.ref_index(), {});
+    LiftoffRegister rtt = RttCanon(decoder, target_type.ref_index(), {});
     return BrOnCastFailImpl(decoder, target_type, obj, rtt, depth,
                             null_succeeds);
   }

@@ -1996,10 +1996,6 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-334687959': [SKIP],
-
-  # Only implemented in turboshaft for now.
-  # TODO(14616): Enable again when implemented in liftoff.
-  'wasm/shared-everything/basic': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################

@@ -612,6 +612,7 @@ namespace internal {
   F(IsMaglevEnabled, 0, 1)                    \
   F(IsSameHeapObject, 2, 1)                   \
   F(IsSharedString, 1, 1)                     \
+  F(IsInWritableSharedSpace, 1, 1)            \
   F(IsSparkplugEnabled, 0, 1)                 \
   F(IsTurbofanEnabled, 0, 1)                  \
   F(IsWasmTieringPredictable, 0, 1)           \

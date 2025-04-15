@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-shared --no-wasm-inlining-call-indirect
-// Flags: --expose-gc
+// Flags: --expose-gc --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,11 +25,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let value = 42;
 
-  assertEquals(value,
-               instance.exports.consumer(instance.exports.producer(value)));
+  let struct_obj = instance.exports.producer(value);
+  assertTrue(%IsInWritableSharedSpace(struct_obj));
+  assertEquals(value, instance.exports.consumer(struct_obj));
   gc();
-  assertEquals(value,
-               instance.exports.consumer(instance.exports.producer(value)));
+  assertEquals(value, instance.exports.consumer(struct_obj));
 })();
 
 (function SharedArray() {
@@ -40,6 +40,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("producer", producer_sig)
     .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
               kGCPrefix, kExprArrayNew, array])
+    .exportFunc();
+  builder.addFunction("producerFixed", producer_sig)
+    .addBody([kExprLocalGet, 0,
+              kGCPrefix, kExprArrayNewFixed, array, 1])
+    .exportFunc();
+  builder.addFunction("producerDefault", producer_sig)
+    .addBody([kExprLocalGet, 1,
+              kGCPrefix, kExprArrayNewDefault, array])
     .exportFunc();
   let consumer_sig = makeSig([wasmRefNullType(array), kWasmI32], [kWasmI64]);
   builder.addFunction("consumer", consumer_sig)
@@ -52,9 +60,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let value = 42n;
 
   let array_obj = instance.exports.producer(value, 100);
+  let array_obj_fixed = instance.exports.producerFixed(value, 100);
+  let array_obj_default = instance.exports.producerDefault(value, 100);
+
+  assertTrue(%IsInWritableSharedSpace(array_obj));
+  assertTrue(%IsInWritableSharedSpace(array_obj_fixed));
+  assertTrue(%IsInWritableSharedSpace(array_obj_default));
   assertEquals(value, instance.exports.consumer(array_obj, 0));
+  assertEquals(value, instance.exports.consumer(array_obj_fixed, 0));
+  assertEquals(0n, instance.exports.consumer(array_obj_default, 0));
   gc();
   assertEquals(value, instance.exports.consumer(array_obj, 0));
+  assertEquals(value, instance.exports.consumer(array_obj_fixed, 0));
+  assertEquals(0n, instance.exports.consumer(array_obj_default, 0));
 })();
 
 (function SharedArrayOfStructNewFixed() {
@@ -83,6 +101,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let value1 = 11n;
 
   let array_obj = instance.exports.producer(value0, value1);
+  assertTrue(%IsInWritableSharedSpace(array_obj));
   assertEquals(value0, instance.exports.consumer(array_obj, 0));
   assertEquals(value1, instance.exports.consumer(array_obj, 1));
 

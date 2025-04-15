@@ -2075,6 +2075,16 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
                                     Cast<String>(obj)->IsShared());
 }
 
+RUNTIME_FUNCTION(Runtime_IsInWritableSharedSpace) {
+  HandleScope scope(isolate);
+  if (args.length() != 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  if (!IsHeapObject(args[0])) return ReadOnlyRoots(isolate).false_value();
+  DirectHandle<HeapObject> obj = args.at<HeapObject>(0);
+  return isolate->heap()->ToBoolean(HeapLayout::InWritableSharedSpace(*obj));
+}
+
 RUNTIME_FUNCTION(Runtime_ShareObject) {
   // TODO(354005312): This function is not currently exposed to fuzzers.
   // Investigate if it should be.

@@ -159,7 +159,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--stress-concurrent-inlining",
         "--additive-safe-int-feedback",
         "--script-context-cells",
-        "--experimental-wasm-shared",
     ],
     "slow_path": ["--no-force-slow-path"],
     "stress_concurrent_allocation": [

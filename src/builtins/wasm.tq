@@ -539,6 +539,23 @@ builtin WasmAllocateArray_Uninitialized(
   return %RawDownCast<WasmArray>(result);
 }
 
+builtin WasmAllocateSharedArray_Uninitialized(
+    rtt: Map, length: uint32, elementSize: uint32): WasmArray {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = runtime::AllocateInSharedHeap(
+      LoadContextFromFrame(), SmiFromIntPtr(instanceSize), SmiConstant(0));
+  *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
+  %RawDownCast<WasmArray>(result).length = length;
+  return %RawDownCast<WasmArray>(result);
+}
+
 builtin WasmArrayNewSegment(
     segmentIndex: uint32, offset: uint32, length: uint32, isElement: Smi,
     extractSharedData: Smi, rtt: Map): Object {

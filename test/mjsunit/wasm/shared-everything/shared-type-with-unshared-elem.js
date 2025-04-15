@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(manoskouk): Revisit flags once shared everything threads doesn't
-// conflict with --liftoff any more.
 // TODO(manoskouk): Fix error messages once we support shared globals, tables,
 // and functions
-// Flags: --experimental-wasm-shared --no-liftoff --turbofan
+// Flags: --experimental-wasm-shared
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
