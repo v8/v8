@@ -669,6 +669,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
     case WASM_MEMORY_OBJECT_TYPE:
       return WriteWasmMemory(Cast<WasmMemoryObject>(receiver));
     case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
       if (HeapLayout::InAnySharedSpace(*receiver)) {
         return WriteSharedObject(receiver);
       }
