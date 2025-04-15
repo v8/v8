@@ -2435,6 +2435,22 @@ class RepresentationSelector {
         }
       } else {
         InsertUnreachableIfNecessary<T>(node);
+        if (node->opcode() != IrOpcode::kPhi &&
+            node->opcode() != IrOpcode::kStateValues &&
+            node->opcode() != IrOpcode::kFrameState) {
+          for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+            Node* input = node->InputAt(i);
+            // If one of the node's inputs produces a None-type, we don't need
+            // to lower the node.
+            if (TypeOf(input).IsNone()) {
+              DeferReplacement(
+                  node, graph()->NewNode(common()->DeadValue(
+                                             GetInfo(node)->representation()),
+                                         input));
+              return;
+            }
+          }
+        }
       }
     }
 
