@@ -5278,9 +5278,13 @@ void MacroAssembler::CountLeadingZerosU32(Register dst, Register src,
 
 void MacroAssembler::CountLeadingZerosU64(Register dst, Register src,
                                           Register scratch_pair) {
-  flogr(scratch_pair,
-        src);  // will modify a register pair scratch and scratch + 1
-  mov(dst, scratch_pair);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    clzg(dst, src);
+  } else {
+    flogr(scratch_pair,
+          src);  // will modify a register pair scratch and scratch + 1
+    mov(dst, scratch_pair);
+  }
 }
 
 void MacroAssembler::CountTrailingZerosU32(Register dst, Register src,
@@ -5306,22 +5310,26 @@ void MacroAssembler::CountTrailingZerosU32(Register dst, Register src,
 
 void MacroAssembler::CountTrailingZerosU64(Register dst, Register src,
                                            Register scratch_pair) {
-  Register scratch0 = scratch_pair;
-  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
-  DCHECK(!AreAliased(dst, scratch0, scratch1));
-  DCHECK(!AreAliased(src, scratch0, scratch1));
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    ctzg(dst, src);
+  } else {
+    Register scratch0 = scratch_pair;
+    Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+    DCHECK(!AreAliased(dst, scratch0, scratch1));
+    DCHECK(!AreAliased(src, scratch0, scratch1));
 
-  Label done;
-  // Check if src is all zeros.
-  ltgr(scratch1, src);
-  mov(dst, Operand(64));
-  beq(&done);
-  lcgr(scratch0, scratch1);
-  ngr(scratch0, scratch1);
-  flogr(scratch0, scratch0);
-  mov(dst, Operand(63));
-  SubS64(dst, scratch0);
-  bind(&done);
+    Label done;
+    // Check if src is all zeros.
+    ltgr(scratch1, src);
+    mov(dst, Operand(64));
+    beq(&done);
+    lcgr(scratch0, scratch1);
+    ngr(scratch0, scratch1);
+    flogr(scratch0, scratch0);
+    mov(dst, Operand(63));
+    SubS64(dst, scratch0);
+    bind(&done);
+  }
 }
 
 void MacroAssembler::AtomicCmpExchangeHelper(Register addr, Register output,
@@ -5900,16 +5908,20 @@ SIMD_QFM_LIST(EMIT_SIMD_QFM)
 void MacroAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2, Register scratch1,
                               Register scratch2, Register scratch3) {
-  Register scratch_1 = scratch1;
-  Register scratch_2 = scratch2;
-  for (int i = 0; i < 2; i++) {
-    vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
-    vlgv(scratch_2, src2, MemOperand(r0, i), Condition(3));
-    MulS64(scratch_1, scratch_2);
-    scratch_1 = scratch2;
-    scratch_2 = scratch3;
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3)) {
+    vml(dst, src1, src2, Condition(0), Condition(0), Condition(3));
+  } else {
+    Register scratch_1 = scratch1;
+    Register scratch_2 = scratch2;
+    for (int i = 0; i < 2; i++) {
+      vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
+      vlgv(scratch_2, src2, MemOperand(r0, i), Condition(3));
+      MulS64(scratch_1, scratch_2);
+      scratch_1 = scratch2;
+      scratch_2 = scratch3;
+    }
+    vlvgp(dst, scratch1, scratch2);
   }
-  vlvgp(dst, scratch1, scratch2);
 }
 
 void MacroAssembler::F64x2Ne(Simd128Register dst, Simd128Register src1,

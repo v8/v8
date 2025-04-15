@@ -1908,6 +1908,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CountLeadingZerosU64(i.OutputRegister(), i.InputRegister(0), r0);
       break;
     }
+    case kS390_Cnttz64: {
+      __ CountTrailingZerosU64(i.OutputRegister(), i.InputRegister(0), r0);
+      break;
+    }
     case kS390_Popcnt32:
       __ Popcnt32(i.OutputRegister(), i.InputRegister(0));
       break;

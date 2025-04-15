@@ -1311,7 +1311,13 @@ void InstructionSelectorT::VisitWord64Rol(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelectorT::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelectorT::VisitWord64Ctz(OpIndex node) {
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    VisitWord64UnaryOp(this, node, kS390_Cnttz64, OperandMode::kNone);
+  } else {
+    UNREACHABLE();
+  }
+}
 
 void InstructionSelectorT::VisitWord32ReverseBits(OpIndex node) {
   UNREACHABLE();
@@ -3314,19 +3320,24 @@ void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,
 
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kFloat32RoundDown |
-         MachineOperatorBuilder::kFloat64RoundDown |
-         MachineOperatorBuilder::kFloat32RoundUp |
-         MachineOperatorBuilder::kFloat64RoundUp |
-         MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat64RoundTruncate |
-         MachineOperatorBuilder::kFloat32RoundTiesEven |
-         MachineOperatorBuilder::kFloat64RoundTiesEven |
-         MachineOperatorBuilder::kFloat64RoundTiesAway |
-         MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kInt32AbsWithOverflow |
-         MachineOperatorBuilder::kInt64AbsWithOverflow |
-         MachineOperatorBuilder::kWord64Popcnt;
+  MachineOperatorBuilder::Flags flags =
+      MachineOperatorBuilder::kFloat32RoundDown |
+      MachineOperatorBuilder::kFloat64RoundDown |
+      MachineOperatorBuilder::kFloat32RoundUp |
+      MachineOperatorBuilder::kFloat64RoundUp |
+      MachineOperatorBuilder::kFloat32RoundTruncate |
+      MachineOperatorBuilder::kFloat64RoundTruncate |
+      MachineOperatorBuilder::kFloat32RoundTiesEven |
+      MachineOperatorBuilder::kFloat64RoundTiesEven |
+      MachineOperatorBuilder::kFloat64RoundTiesAway |
+      MachineOperatorBuilder::kWord32Popcnt |
+      MachineOperatorBuilder::kInt32AbsWithOverflow |
+      MachineOperatorBuilder::kInt64AbsWithOverflow |
+      MachineOperatorBuilder::kWord64Popcnt;
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    flags |= MachineOperatorBuilder::kWord64Ctz;
+  }
+  return flags;
 }
 
 MachineOperatorBuilder::AlignmentRequirements
