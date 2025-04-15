@@ -3715,8 +3715,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   if (isolate->IsWasmJSPIRequested(context)) {
     if (context->is_wasm_jspi_installed() == Smi::zero()) {
       isolate->WasmInitJSPIFeature();
-      if (InstallJSPromiseIntegration(isolate, context, webassembly) &&
-          InstallTypeReflection(isolate, context, webassembly)) {
+      if (InstallJSPromiseIntegration(isolate, context, webassembly)) {
         context->set_is_wasm_jspi_installed(Smi::FromInt(1));
       }
     }
