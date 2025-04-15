@@ -1338,10 +1338,6 @@ bool String::SlowEquals(Isolate* isolate, DirectHandle<String> one,
     if (one_hash != two_hash) return false;
   }
 
-  // We know the strings are both non-empty. Compare the first chars
-  // before we try to flatten the strings.
-  if (one->Get(0) != two->Get(0)) return false;
-
   one = String::Flatten(isolate, one);
   two = String::Flatten(isolate, two);
 
