@@ -2447,7 +2447,7 @@ namespace {
 
 // The worst case length of an escaped character is 6. Shifting the string
 // length left by 3 is a more pessimistic estimate, but faster to calculate.
-size_t MaxEscapedStringLength(uint32_t length) { return length << 3; }
+size_t MaxEscapedStringLength(size_t length) { return length << 3; }
 
 }  // namespace
 
