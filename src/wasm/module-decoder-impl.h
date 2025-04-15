@@ -688,9 +688,10 @@ class ModuleDecoderImpl : public Decoder {
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
       TypeDefinition type = consume_describing_type(current_type_index);
-      if (type.kind != TypeDefinition::kStruct) {
-        // TODO(42204563): Support other types.
-        error(pc() - 1, "only shared structs are supported for now");
+      if (type.kind == TypeDefinition::kFunction ||
+          type.kind == TypeDefinition::kCont) {
+        // TODO(42204563): Support shared functions/continuations.
+        error(pc() - 1, "shared functions/continuations are not supported yet");
         return {};
       }
       type.is_shared = true;

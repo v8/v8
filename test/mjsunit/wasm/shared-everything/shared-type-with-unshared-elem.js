@@ -42,7 +42,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const builder = new WasmModuleBuilder();
   builder.addArray(kWasmFuncRef, false, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /only shared structs are supported for now/);
+    /shared array must have shared element type/);
 })();
 
 (function TestSharedStructWithUnsharedField() {
@@ -59,7 +59,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let sig = makeSig([kWasmFuncRef], [kWasmI32]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /only shared structs are supported for now/);
+    /shared functions\/continuations are not supported yet/);
 })();
 
 (function TestSharedSignatureWithUnsharedReturn() {
@@ -67,5 +67,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let sig = makeSig([kWasmI32], [kWasmFuncRef]);
   builder.addType(sig, kNoSuperType, false, /*is_shared*/ true);
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-    /only shared structs are supported for now/);
+    /shared functions\/continuations are not supported yet/);
 })();

@@ -7261,10 +7261,12 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
+  bool is_shared;
 
   explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
-                               const wasm::ArrayType* array_type)
-      : Base(rtt, length), array_type(array_type) {}
+                               const wasm::ArrayType* array_type,
+                               bool is_shared)
+      : Base(rtt, length), array_type(array_type), is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
   V<Word32> length() const { return Base::input<Word32>(1); }
@@ -7279,7 +7281,7 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  auto options() const { return std::tuple{array_type}; }
+  auto options() const { return std::tuple{array_type, is_shared}; }
   void PrintOptions(std::ostream& os) const;
 };
 

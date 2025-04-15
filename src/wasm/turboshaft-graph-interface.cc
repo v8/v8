@@ -4767,7 +4767,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Initialize the array header.
     bool shared = decoder->module_->type(array_imm.index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type, shared);
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
@@ -8193,7 +8193,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Initialize the array header.
     bool shared = decoder->module_->type(index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, false);

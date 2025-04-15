@@ -2106,9 +2106,11 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
   if (length > 0) {
-    isolate()->heap()->CopyRange(result, result->ElementSlot(0),
-                                 elements->RawFieldOfElementAt(start_offset),
-                                 length, SKIP_WRITE_BARRIER);
+    isolate()->heap()->CopyRange(
+        result, result->ElementSlot(0),
+        elements->RawFieldOfElementAt(start_offset), length,
+        HeapLayout::InAnySharedSpace(result) ? UPDATE_WRITE_BARRIER
+                                             : SKIP_WRITE_BARRIER);
   }
   return direct_handle(result, isolate());
 }

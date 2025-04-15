@@ -28,6 +28,68 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(value,
                instance.exports.consumer(instance.exports.producer(value)));
   gc();
+  assertEquals(value,
+               instance.exports.consumer(instance.exports.producer(value)));
+})();
+
+(function SharedArray() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI64, true, kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI64, kWasmI32], [wasmRefType(array)])
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayNew, array])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(array), kWasmI32], [kWasmI64]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayGet, array])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value = 42n;
+
+  let array_obj = instance.exports.producer(value, 100);
+  assertEquals(value, instance.exports.consumer(array_obj, 0));
+  gc();
+  assertEquals(value, instance.exports.consumer(array_obj, 0));
+})();
+
+(function SharedArrayOfStructNewFixed() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct(
+      [makeField(kWasmI64, true)], kNoSuperType, false, true);
+  let array = builder.addArray(
+      wasmRefNullType(struct), true, kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI64, kWasmI64], [wasmRefType(array)]);
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct,
+              kExprLocalGet, 1, kGCPrefix, kExprStructNew, struct,
+              kGCPrefix, kExprArrayNewFixed, array, 2])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(array), kWasmI32], [kWasmI64]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayGet, array,
+              kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value0 = 10n;
+  let value1 = 11n;
+
+  let array_obj = instance.exports.producer(value0, value1);
+  assertEquals(value0, instance.exports.consumer(array_obj, 0));
+  assertEquals(value1, instance.exports.consumer(array_obj, 1));
+
+  gc();
+
+  assertEquals(value0, instance.exports.consumer(array_obj, 0));
+  assertEquals(value1, instance.exports.consumer(array_obj, 1));
 })();
 
 /* TODO(42204563): Reinstate these tests as we support the respective features.
