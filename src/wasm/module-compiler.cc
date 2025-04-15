@@ -621,7 +621,8 @@ class CompilationStateImpl {
   // Adds compilation units for another function to the
   // {CompilationUnitBuilder}. This function is the streaming compilation
   // equivalent to {InitializeCompilationUnits}.
-  void AddCompilationUnit(CompilationUnitBuilder* builder, int func_index);
+  void InitializeCompilationUnitForSingleFunction(
+      CompilationUnitBuilder* builder, int func_index);
 
   // Add the callback to be called on compilation events. Needs to be
   // set before {CommitCompilationUnits} is run to ensure that it receives all
@@ -727,10 +728,6 @@ class CompilationStateImpl {
   std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode> codes);
 
  private:
-  void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
-                                  int function_index,
-                                  uint8_t function_progress);
-
   // Trigger callbacks according to the internal counters below
   // (outstanding_...).
   // Hold the {callbacks_mutex_} when calling this method.
@@ -799,9 +796,11 @@ class CompilationStateImpl {
   base::EnumSet<CompilationEvent> finished_events_;
 
   int outstanding_baseline_units_ = 0;
+
   // The amount of generated top tier code since the last
   // {kFinishedCompilationChunk} event.
   size_t bytes_since_last_chunk_ = 0;
+
   std::vector<uint8_t> compilation_progress_;
 
   // The timestamp of the last top-tier compilation.
@@ -3363,8 +3362,8 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
-  compilation_state->AddCompilationUnit(compilation_unit_builder_.get(),
-                                        func_index);
+  compilation_state->InitializeCompilationUnitForSingleFunction(
+      compilation_unit_builder_.get(), func_index);
   return true;
 }
 
@@ -3808,9 +3807,24 @@ void CompilationStateImpl::InitializeCompilationProgress(
   TriggerOutstandingCallbacks();
 }
 
-void CompilationStateImpl::AddCompilationUnitInternal(
-    CompilationUnitBuilder* builder, int function_index,
-    uint8_t function_progress) {
+void CompilationStateImpl::InitializeCompilationUnitForSingleFunction(
+    CompilationUnitBuilder* builder, int function_index) {
+  if (v8_flags.wasm_jitless) return;
+
+  // Only during streaming compilation, we reach here without holding
+  // `callbacks_mutex_`.
+  // This avoids the observed overhead of taking the lock once per function.
+  // This is correct (data-race free), because the only mutation of
+  // `compilation_progress_` before reading it here without holding the lock is
+  // when initializing the compilation during parsing of the code section
+  // header (see `InitializeCompilationProgress` and
+  // `AsyncStreamingProcessor::ProcessCodeSectionHeader`), which must happen
+  // before processing functions.
+  // Also, this read here happens exactly once per function, only for the
+  // initial compilation, and all accesses to `compilation_progress_` thereafter
+  // are synchronized via `callbacks_mutex_`.
+  uint8_t function_progress = compilation_progress_[declared_function_index(
+      native_module_->module(), function_index)];
   ExecutionTier required_baseline_tier =
       CompilationStateImpl::RequiredBaselineTierField::decode(
           function_progress);
@@ -3830,38 +3844,17 @@ void CompilationStateImpl::AddCompilationUnitInternal(
 
 void CompilationStateImpl::InitializeCompilationUnits(
     std::unique_ptr<CompilationUnitBuilder> builder) {
-  if (!v8_flags.wasm_jitless) {
-    int offset = native_module_->module()->num_imported_functions;
-    {
-      base::MutexGuard guard(&callbacks_mutex_);
+  if (v8_flags.wasm_jitless) return;
 
-      for (size_t i = 0, e = compilation_progress_.size(); i < e; ++i) {
-        uint8_t function_progress = compilation_progress_[i];
-        int func_index = offset + static_cast<int>(i);
-        AddCompilationUnitInternal(builder.get(), func_index,
-                                   function_progress);
-      }
+  {
+    base::MutexGuard guard(&callbacks_mutex_);
+    int offset = native_module_->module()->num_imported_functions;
+    for (size_t i = 0, e = compilation_progress_.size(); i < e; ++i) {
+      int func_index = offset + static_cast<int>(i);
+      InitializeCompilationUnitForSingleFunction(builder.get(), func_index);
     }
   }
   builder->Commit();
-}
-
-void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
-                                              int func_index) {
-  int offset = native_module_->module()->num_imported_functions;
-  int progress_index = func_index - offset;
-  uint8_t function_progress = 0;
-  if (!v8_flags.wasm_jitless) {
-    // TODO(ahaas): This lock may cause overhead. If so, we could get rid of the
-    // lock as follows:
-    // 1) Make compilation_progress_ an array of atomic<uint8_t>, and access it
-    // lock-free.
-    // 2) Have a copy of compilation_progress_ that we use for initialization.
-    // 3) Just re-calculate the content of compilation_progress_.
-    base::MutexGuard guard(&callbacks_mutex_);
-    function_progress = compilation_progress_[progress_index];
-  }
-  AddCompilationUnitInternal(builder, func_index, function_progress);
 }
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
