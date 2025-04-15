@@ -3993,7 +3993,7 @@ void Map::MapPrint(std::ostream& os) {
   if (!HeapLayout::InReadOnlySpace(*this)) {
     Isolate* isolate = HeapLayout::InWritableSharedSpace(*this)
                            ? Isolate::Current()->shared_space_isolate()
-                           : isolate = GetIsolateFromWritableObject(*this);
+                           : GetIsolateFromWritableObject(*this);
     TransitionsAccessor transitions(isolate, *this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0 || transitions.HasPrototypeTransitions() ||
