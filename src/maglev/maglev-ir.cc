@@ -7034,11 +7034,17 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
 
   // Case 2).
   {
-    __ LoadByte(scratch0,
+    __ LoadByte(scratch1,
                 FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
-    __ JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch1);
+    __ JumpIfByte(kUnsignedLessThanEqual, scratch1, loop_depth,
                   *no_code_for_osr);
+
+    // If tiering is already in progress wait.
+    __ LoadByte(scratch1,
+                FieldMemOperand(scratch0, FeedbackVector::kFlagsOffset));
+    __ DecodeField<FeedbackVector::OsrTieringInProgressBit>(scratch1);
+    __ JumpIfByte(kNotEqual, scratch1, 0, *no_code_for_osr);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.
@@ -7046,18 +7052,10 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       RegisterSnapshot snapshot = node->register_snapshot();
       DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
-      if (node->unit()->is_inline()) {
-        // See comment in
-        // MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks.
-        CHECK(!node->unit()->is_osr());
-        __ Push(Smi::FromInt(osr_offset.ToInt()), node->closure());
-        __ Move(kContextRegister, masm->native_context().object());
-        __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglevInlined, 2);
-      } else {
-        __ Push(Smi::FromInt(osr_offset.ToInt()));
-        __ Move(kContextRegister, masm->native_context().object());
-        __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
-      }
+      DCHECK(!node->unit()->is_inline());
+      __ Push(Smi::FromInt(osr_offset.ToInt()));
+      __ Move(kContextRegister, masm->native_context().object());
+      __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
       save_register_state.DefineSafepoint();
       __ Move(maybe_target_code, kReturnRegister0);
     }

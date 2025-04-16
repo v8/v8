@@ -607,7 +607,7 @@ class MaglevGraphBuilder {
     // same maglev osr code again, before reaching the turbofan OSR code in the
     // callee. The solution is to support osr from maglev without
     // deoptimization.
-    return !(graph_->is_osr() && is_inline());
+    return !is_inline();
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
   BasicBlock* CreateEdgeSplitBlock(BasicBlockRef& jump_targets,
