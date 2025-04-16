@@ -64,10 +64,10 @@ void Assembler::CheckBuffer() {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    Assembler::RelocateInternalReference(rmode_, pc_, delta, &jit_allocation_);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
-    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
