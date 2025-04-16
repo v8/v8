@@ -675,6 +675,14 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
+  void ResumeThrow(FullDecoder* decoder,
+                   const wasm::ContIndexImmediate& cont_imm,
+                   const TagIndexImmediate& exc_imm,
+                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
+                   const Value returns[]) {
+    Bailout(decoder);
+  }
+
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const wasm::ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {

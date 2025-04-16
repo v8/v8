@@ -1412,6 +1412,9 @@ struct ControlBase : public PcForErrors<ValidationTag::validate> {
     const Value args[], const ContIndexImmediate& new_imm, Value* result)      \
   F(Resume, const ContIndexImmediate& imm, base::Vector<HandlerCase> handlers, \
     const Value args[], const Value returns[])                                 \
+  F(ResumeThrow, const ContIndexImmediate& cont_imm,                           \
+    const TagIndexImmediate& exc_imm, base::Vector<HandlerCase> handlers,      \
+    const Value args[], const Value returns[])                                 \
   F(Suspend, const TagIndexImmediate& imm, const Value args[],                 \
     const Value returns[])                                                     \
   F(Switch, const TagIndexImmediate& tag_imm,                                  \
@@ -4442,29 +4445,17 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return 1 + orig_cont_imm.length + new_cont_imm.length;
   }
 
-  DECODE(Resume) {
-    CHECK_PROTOTYPE_OPCODE(wasmfx);
-    ContIndexImmediate imm(this, this->pc_ + 1, validate);
-    if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
-
-    Pop(ValueType::RefNull(imm.heap_type()));
-
-    EffectHandlerTableImmediate handler_table_imm(
-        this, this->pc_ + 1 + imm.length, validate);
-
-    if (!this->Validate(this->pc_ + imm.length + 1, handler_table_imm))
-      return 0;
+  V8_INLINE int DecodeEffectHandlerTable(
+      EffectHandlerTableImmediate& handler_table_imm,
+      base::Vector<HandlerCase>& handlers) {
     EffectHandlerTableIterator<ValidationTag> handle_iterator(
         this, handler_table_imm);
-    base::Vector<HandlerCase> handlers =
-        this->zone_->template AllocateVector<HandlerCase>(
-            handler_table_imm.table_count);
     int i = 0;
     while (handle_iterator.has_next()) {
       HandlerCase handler = handle_iterator.next();
 
       if (!this->Validate(this->pc_, handler.tag)) {
-        return 0;
+        return -1;
       }
       handlers[i] = handler;
 
@@ -4479,7 +4470,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
         if (!VALIDATE((this->Validate(this->pc_, handler.maybe_depth.br,
                                       control_depth())))) {
-          return 0;
+          return -1;
         }
         Control* target = control_at(handler.maybe_depth.br.depth);
         if (!VALIDATE(push_count == target->br_merge()->arity)) {
@@ -4487,30 +4478,90 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               "handler generates %d operand%s, target block returns %d",
               push_count, push_count != 1 ? "s" : "",
               target->br_merge()->arity);
-          return 0;
+          return -1;
         }
         if (!VALIDATE((
                 TypeCheckBranch<PushBranchValues::kYes, RewriteStackTypes::kNo>(
                     target)))) {
-          return 0;
+          return -1;
         }
         stack_.shrink_to(stack_size);
         DCHECK_LT(i, handler_table_imm.table_count);
       } else if (handler.kind != kSwitch) {
         this->DecodeError("invalid handler kind %d", handler.kind);
-        return 0;
+        return -1;
       }
       i++;
     }
-    // The continuation might return, treat Resume like a function call.
+    return handle_iterator.length();
+  }
+
+  DECODE(Resume) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    ContIndexImmediate imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, imm)) return 0;
+
+    Pop(ValueType::RefNull(imm.heap_type()));
+
+    EffectHandlerTableImmediate handler_table_imm(
+        this, this->pc_ + 1 + imm.length, validate);
+    if (!this->Validate(this->pc_ + imm.length + 1, handler_table_imm))
+      return 0;
+
+    base::Vector<HandlerCase> handlers =
+        this->zone_->template AllocateVector<HandlerCase>(
+            handler_table_imm.table_count);
+
+    int table_length = DecodeEffectHandlerTable(handler_table_imm, handlers);
+    if (table_length < 0) return 0;
+
+    // Continuations are function-like values; check the args and returns.
     const FunctionSig* contFunSig =
         this->module_->signature(imm.cont_type->contfun_typeindex());
-
     PoppedArgVector args = PopArgs(contFunSig);
     Value* returns = PushReturns(contFunSig);
+
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Resume, imm, handlers, args.data(),
                                        returns);
-    return 1 + imm.length + handle_iterator.length();
+    return 1 + imm.length + table_length;
+  }
+
+  DECODE(ResumeThrow) {
+    CHECK_PROTOTYPE_OPCODE(wasmfx);
+    ContIndexImmediate cont_imm(this, this->pc_ + 1, validate);
+    if (!this->ValidateCont(this->pc_ + 1, cont_imm)) return 0;
+
+    Pop(ValueType::RefNull(cont_imm.heap_type()));
+
+    TagIndexImmediate exc_imm(this, this->pc_ + cont_imm.length + 1, validate);
+    if (!this->Validate(this->pc_ + cont_imm.length + 1, exc_imm)) return 0;
+    if (exc_imm.tag->sig->return_count() != 0) {
+      this->DecodeError("tag signature %u has non-void return", exc_imm.index);
+      return 0;
+    }
+    PoppedArgVector args = PopArgs(exc_imm.tag->ToFunctionSig());
+
+    EffectHandlerTableImmediate handler_table_imm(
+        this, this->pc_ + cont_imm.length + exc_imm.length + 1, validate);
+    if (!this->Validate(this->pc_ + cont_imm.length + exc_imm.length + 1,
+                        handler_table_imm))
+      return 0;
+
+    base::Vector<HandlerCase> handlers =
+        this->zone_->template AllocateVector<HandlerCase>(
+            handler_table_imm.table_count);
+
+    int table_length = DecodeEffectHandlerTable(handler_table_imm, handlers);
+    if (table_length < 0) return 0;
+
+    // The continuation might return, check the return type.
+    const FunctionSig* contFunSig =
+        this->module_->signature(cont_imm.cont_type->contfun_typeindex());
+    Value* returns = PushReturns(contFunSig);
+
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ResumeThrow, cont_imm, exc_imm, handlers,
+                                       args.data(), returns);
+    return 1 + exc_imm.length + cont_imm.length + table_length;
   }
 
   DECODE(Suspend) {
@@ -4719,6 +4770,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DECODE_IMPL(ContNew);
     DECODE_IMPL(ContBind);
     DECODE_IMPL(Resume);
+    DECODE_IMPL(ResumeThrow);
     DECODE_IMPL(Suspend);
     DECODE_IMPL(Switch);
     DECODE_IMPL(BrOnNull);

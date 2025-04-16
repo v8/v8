@@ -5858,6 +5858,107 @@ TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
       kAppendEnd, "invalid branch depth: 2");
 }
 
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t ex_tag = builder.AddTag(sigs.v_i());
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 0),
+                               WASM_DROP});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                                WASM_CONT_NEW(ToByte(cont_index)),
+                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                  WASM_ON_TAG(tag_i_i, 0)),
+                                WASM_RETURN0),
+                   WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
+                                                 WASM_ON_TAG(tag_i_i, 0),
+                                                 WASM_ON_TAG(tag_v_v, 1)),
+                               WASM_RETURN0),
+                  WASM_DROP)});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                                WASM_CONT_NEW(ToByte(cont_index)),
+                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
+                                                  WASM_ON_TAG(tag_i_i, 0),
+                                                  WASM_SWITCH_TAG(tag_v_v)),
+                                WASM_RETURN0),
+                   WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t ex_tag = builder.AddTag(sigs.v_i());
+  uint8_t d_tag = builder.AddTag(sigs.v_d());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), 10, 0), WASM_DROP},
+                kAppendEnd, "Invalid tag index");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), tag_i_i, 1,
+                                                WASM_ON_TAG(tag_i_i, 0)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "tag signature 2 has non-void return");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(43), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                   WASM_ON_TAG(tag_i_i, 0)),
+                 WASM_DROP},
+                kAppendEnd,
+                "handler generates 1 operand, target block returns 0");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42.0), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), d_tag, 0), WASM_DROP},
+                kAppendEnd, "expected type f64, found i32.const of type i32");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_D(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                WASM_ON_TAG(tag_i_i, 0)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "type error in branch[0] (expected f64, got i32)");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                WASM_ON_TAG(tag_i_i, 2)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "invalid branch depth: 2");
+}
+
 TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
   WASM_FEATURE_SCOPE(wasmfx);
 

@@ -4018,6 +4018,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     UNIMPLEMENTED();
   }
 
+  void ResumeThrow(FullDecoder* decoder,
+                   const wasm::ContIndexImmediate& cont_imm,
+                   const TagIndexImmediate& exc_imm,
+                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
+                   const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
               const ContIndexImmediate& con_imm, const Value& cont_ref,
               const Value args[], Value returns[]) {
