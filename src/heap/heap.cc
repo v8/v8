@@ -1326,6 +1326,18 @@ void ReportDuplicates(int size, std::vector<Tagged<HeapObject>>* objects) {
     PrintF("============================\n");
   }
 }
+
+// Frees caches when under memory pressure. The method assumes that callsites
+// are close to crashing and will very aggressively free memory.
+void FreeCachesOnMemoryPressure(Isolate* isolate) {
+  isolate->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
+  isolate->ClearSerializerData();
+  isolate->compilation_cache()->Clear();
+  if (v8_flags.discard_memory_pool_before_memory_pressure_gcs) {
+    IsolateGroup::current()->page_pool()->ReleaseImmediately();
+  }
+}
+
 }  // anonymous namespace
 
 void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
@@ -1354,10 +1366,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
 
-  // The optimizing compiler may be unnecessarily holding on to memory.
-  isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
-  isolate()->ClearSerializerData();
-  isolate()->compilation_cache()->Clear();
+  FreeCachesOnMemoryPressure(isolate());
 
   GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
 
@@ -4134,8 +4143,7 @@ class MemoryPressureInterruptTask : public CancelableTask {
 
 void Heap::CheckMemoryPressure() {
   if (HighMemoryPressure()) {
-    // The optimizing compiler may be unnecessarily holding on to memory.
-    isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
+    FreeCachesOnMemoryPressure(isolate());
   }
   // Reset the memory pressure level to avoid recursive GCs triggered by
   // CheckMemoryPressure from AdjustAmountOfExternalMemory called by

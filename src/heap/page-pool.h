@@ -39,8 +39,10 @@ class PagePool {
   // pages. If this is not possible pages will be freed immediately.
   void ReleaseOnTearDown(Isolate* isolate);
 
-  // Releases the pooled pages immediately.
+  // Releases the pooled pages of a specific isolate immediately.
   V8_EXPORT_PRIVATE void ReleaseImmediately(Isolate* isolate);
+  // Releases pooled pages of all isolates.
+  void ReleaseImmediately();
 
   // Tear down this page pool. Frees all pooled pages immediately.
   void TearDown();

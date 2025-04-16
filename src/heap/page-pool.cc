@@ -96,6 +96,30 @@ void PagePool::ReleaseImmediately(Isolate* isolate) {
   }
 }
 
+void PagePool::ReleaseImmediately() {
+  std::vector<std::vector<MutablePageMetadata*>> pages_to_free;
+
+  {
+    base::MutexGuard guard(&mutex_);
+    for (auto it : local_pools) {
+      DCHECK(!it.second.empty());
+      pages_to_free.push_back(std::move(it.second));
+    }
+    local_pools.clear();
+
+    for (auto& entry : shared_pool_) {
+      pages_to_free.push_back(std::move(entry.first));
+    }
+    shared_pool_.clear();
+  }
+
+  for (auto& pages : pages_to_free) {
+    for (MutablePageMetadata* page : pages) {
+      MemoryAllocator::DeleteMemoryChunk(page);
+    }
+  }
+}
+
 void PagePool::TearDown() {
   DCHECK(local_pools.empty());
 
