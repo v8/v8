@@ -545,7 +545,7 @@ class TemplateHashMap
     }
 
     value_type* operator->() { return reinterpret_cast<value_type*>(entry_); }
-    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+    bool operator==(const Iterator& other) { return entry_ == other.entry_; }
 
    private:
     Iterator(const Base* map, typename Base::Entry* entry)

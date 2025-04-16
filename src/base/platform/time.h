@@ -193,9 +193,6 @@ class V8_BASE_EXPORT TimeDelta final {
   constexpr bool operator==(const TimeDelta& other) const {
     return delta_ == other.delta_;
   }
-  constexpr bool operator!=(const TimeDelta& other) const {
-    return delta_ != other.delta_;
-  }
   constexpr bool operator<(const TimeDelta& other) const {
     return delta_ < other.delta_;
   }
@@ -325,9 +322,6 @@ class TimeBase : public TimeConstants {
   // Comparison operators
   bool operator==(const TimeBase<TimeClass>& other) const {
     return us_ == other.us_;
-  }
-  bool operator!=(const TimeBase<TimeClass>& other) const {
-    return us_ != other.us_;
   }
   bool operator<(const TimeBase<TimeClass>& other) const {
     return us_ < other.us_;

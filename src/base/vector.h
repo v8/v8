@@ -169,20 +169,10 @@ class Vector {
     return std::equal(begin(), end(), other.begin(), other.end());
   }
 
-  bool operator!=(const Vector<T>& other) const {
-    return !operator==(other);
-  }
-
   template <typename TT = T>
     requires(!std::is_const_v<TT>)
   bool operator==(const Vector<const T>& other) const {
     return std::equal(begin(), end(), other.begin(), other.end());
-  }
-
-  template <typename TT = T>
-    requires(!std::is_const_v<TT>)
-  bool operator!=(const Vector<const T>& other) const {
-    return !operator==(other);
   }
 
  private:
@@ -317,7 +307,6 @@ class OwnedVector {
   }
 
   bool operator==(std::nullptr_t) const { return data_ == nullptr; }
-  bool operator!=(std::nullptr_t) const { return data_ != nullptr; }
 
  private:
   template <typename U>
