@@ -678,24 +678,14 @@ RegExpClassSetOperand* RegExpClassSetExpression::ComputeExpression(
 
 namespace {
 
-int CompareCharAt(RegExpAtom* a, int index_a, RegExpAtom* b, int index_b) {
-  base::uc16 character1 = a->data().at(index_a);
-  base::uc16 character2 = b->data().at(index_b);
-  if (character1 < character2) return -1;
-  if (character1 > character2) return 1;
-  return 0;
-}
-
 int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAt(atom1, 0, atom2, 0);
-}
-
-int CompareLastChar(RegExpTree* const* a, RegExpTree* const* b) {
-  RegExpAtom* atom1 = (*a)->AsAtom();
-  RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAt(atom1, atom1->length() - 1, atom2, atom2->length() - 1);
+  base::uc16 character1 = atom1->data().at(0);
+  base::uc16 character2 = atom2->data().at(0);
+  if (character1 < character2) return -1;
+  if (character1 > character2) return 1;
+  return 0;
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -705,26 +695,12 @@ int CompareCaseInsensitive(const icu::UnicodeString& a,
   return a.caseCompare(b, U_FOLD_CASE_DEFAULT);
 }
 
-int CompareCharAtCaseInsensitive(RegExpAtom* a, int index_a, RegExpAtom* b,
-                                 int index_b) {
-  base::uc16 character1 = a->data().at(index_a);
-  base::uc16 character2 = b->data().at(index_b);
-  return CompareCaseInsensitive(icu::UnicodeString{character1},
-                                icu::UnicodeString{character2});
-}
-
 int CompareFirstCharCaseInsensitive(RegExpTree* const* a,
                                     RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAtCaseInsensitive(atom1, 0, atom2, 0);
-}
-
-int CompareLastCharCaseInsensitive(RegExpTree* const* a, RegExpTree* const* b) {
-  RegExpAtom* atom1 = (*a)->AsAtom();
-  RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAtCaseInsensitive(atom1, atom1->length() - 1, atom2,
-                                      atom2->length() - 1);
+  return CompareCaseInsensitive(icu::UnicodeString{atom1->data().at(0)},
+                                icu::UnicodeString{atom2->data().at(0)});
 }
 
 bool Equals(bool ignore_case, const icu::UnicodeString& a,
@@ -734,9 +710,9 @@ bool Equals(bool ignore_case, const icu::UnicodeString& a,
   return false;  // Case-sensitive equality already checked above.
 }
 
-bool CharAtEquals(bool ignore_case, const RegExpAtom* a, int index_a,
-                  const RegExpAtom* b, int index_b) {
-  return Equals(ignore_case, a->data().at(index_a), b->data().at(index_b));
+bool CharAtEquals(bool ignore_case, int index, const RegExpAtom* a,
+                  const RegExpAtom* b) {
+  return Equals(ignore_case, a->data().at(index), b->data().at(index));
 }
 
 #else
@@ -763,28 +739,13 @@ int CompareCaseInsensitive(
   return static_cast<int>(a) - static_cast<int>(b);
 }
 
-int CompareCharAtCaseInsensitive(
-    unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize, RegExpAtom* a,
-    int index_a, RegExpAtom* b, int index_b) {
-  base::uc16 character1 = a->data().at(index_a);
-  base::uc16 character2 = b->data().at(index_b);
-  return CompareCaseInsensitive(canonicalize, character1, character2);
-}
 int CompareFirstCharCaseInsensitive(
     unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
     RegExpTree* const* a, RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAtCaseInsensitive(canonicalize, atom1, 0, atom2, 0);
-}
-
-int CompareLastCharCaseInsensitive(
-    unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
-    RegExpTree* const* a, RegExpTree* const* b) {
-  RegExpAtom* atom1 = (*a)->AsAtom();
-  RegExpAtom* atom2 = (*b)->AsAtom();
-  return CompareCharAtCaseInsensitive(canonicalize, atom1, atom1->length() - 1,
-                                      atom2, atom2->length() - 1);
+  return CompareCaseInsensitive(canonicalize, atom1->data().at(0),
+                                atom2->data().at(0));
 }
 
 bool Equals(bool ignore_case,
@@ -799,10 +760,9 @@ bool Equals(bool ignore_case,
 
 bool CharAtEquals(bool ignore_case,
                   unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
-                  const RegExpAtom* a, int index_a, const RegExpAtom* b,
-                  int index_b) {
-  return Equals(ignore_case, canonicalize, a->data().at(index_a),
-                b->data().at(index_b));
+                  int index, const RegExpAtom* a, const RegExpAtom* b) {
+  return Equals(ignore_case, canonicalize, a->data().at(index),
+                b->data().at(index));
 }
 
 #endif  // V8_INTL_SUPPORT
@@ -810,8 +770,7 @@ bool CharAtEquals(bool ignore_case,
 }  // namespace
 
 // We can stable sort runs of atoms, since the order does not matter if they
-// start with different characters when reading forwards, or end with different
-// characters when reading backwards.
+// start with different characters.
 // Returns true if any consecutive atoms were found.
 bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
@@ -841,36 +800,30 @@ bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
     DCHECK_LT(first_atom, alternatives->length());
     DCHECK_LE(i, alternatives->length());
     DCHECK_LE(first_atom, i);
-    const bool backwards = compiler->read_backward();
     if (IsIgnoreCase(compiler->flags())) {
 #ifdef V8_INTL_SUPPORT
-      auto cmp_fun = backwards ? CompareLastCharCaseInsensitive
-                               : CompareFirstCharCaseInsensitive;
-      alternatives->StableSort(cmp_fun, first_atom, i - first_atom);
+      alternatives->StableSort(CompareFirstCharCaseInsensitive, first_atom,
+                               i - first_atom);
 #else
       unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
           compiler->isolate()->regexp_macro_assembler_canonicalize();
-      auto compare_closure = [canonicalize, backwards](RegExpTree* const* a,
-                                                       RegExpTree* const* b) {
-        return backwards ? CompareLastCharCaseInsensitive(canonicalize, a, b)
-                         : CompareFirstCharCaseInsensitive(canonicalize, a, b);
+      auto compare_closure = [canonicalize](RegExpTree* const* a,
+                                            RegExpTree* const* b) {
+        return CompareFirstCharCaseInsensitive(canonicalize, a, b);
       };
       alternatives->StableSort(compare_closure, first_atom, i - first_atom);
 #endif  // V8_INTL_SUPPORT
     } else {
-      auto cmp_fun = backwards ? CompareLastChar : CompareFirstChar;
-      alternatives->StableSort(cmp_fun, first_atom, i - first_atom);
+      alternatives->StableSort(CompareFirstChar, first_atom, i - first_atom);
     }
     if (i - first_atom > 1) found_consecutive_atoms = true;
   }
   return found_consecutive_atoms;
 }
 
-// Optimizes a common prefix when reading forwards, or suffix when reading
-// backwards. E.g. turns ab|ac|ad into a(?:b|c|d).
+// Optimizes ab|ac|az to a(?:b|c|d).
 void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
   Zone* zone = compiler->zone();
-  const bool backwards = compiler->read_backward();
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
   int length = alternatives->length();
   const bool ignore_case = IsIgnoreCase(compiler->flags());
@@ -886,93 +839,78 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
     }
     RegExpAtom* const atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-    icu::UnicodeString common_affix(
-        atom->data().at(backwards ? atom->length() - 1 : 0));
+    icu::UnicodeString common_prefix(atom->data().at(0));
 #else
     unibrow::Mapping<unibrow::Ecma262Canonicalize>* const canonicalize =
         compiler->isolate()->regexp_macro_assembler_canonicalize();
-    unibrow::uchar common_affix =
-        atom->data().at(backwards ? atom->length() - 1 : 0);
+    unibrow::uchar common_prefix = atom->data().at(0);
     if (ignore_case) {
-      common_affix = Canonical(canonicalize, common_affix);
+      common_prefix = Canonical(canonicalize, common_prefix);
     }
 #endif  // V8_INTL_SUPPORT
-    int first_with_affix = i;
-    int affix_length = atom->length();
+    int first_with_prefix = i;
+    int prefix_length = atom->length();
     i++;
     while (i < length) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
       RegExpAtom* const alt_atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-      icu::UnicodeString new_affix(
-          alt_atom->data().at(backwards ? alt_atom->length() - 1 : 0));
-      if (!Equals(ignore_case, new_affix, common_affix)) break;
+      icu::UnicodeString new_prefix(alt_atom->data().at(0));
+      if (!Equals(ignore_case, new_prefix, common_prefix)) break;
 #else
-      unibrow::uchar new_affix =
-          alt_atom->data().at(backwards ? alt_atom->length() - 1 : 0);
-      if (!Equals(ignore_case, canonicalize, new_affix, common_affix)) break;
+      unibrow::uchar new_prefix = alt_atom->data().at(0);
+      if (!Equals(ignore_case, canonicalize, new_prefix, common_prefix)) break;
 #endif  // V8_INTL_SUPPORT
-      affix_length = std::min(affix_length, alt_atom->length());
+      prefix_length = std::min(prefix_length, alt_atom->length());
       i++;
     }
-    if (i > first_with_affix + 2) {
-      // Found worthwhile run of alternatives with common affix of at least one
+    if (i > first_with_prefix + 2) {
+      // Found worthwhile run of alternatives with common prefix of at least one
       // character.  The sorting function above did not sort on more than one
       // character for reasons of correctness, but there may still be a longer
-      // common affix if the terms were similar or presorted in the input.
-      // Find out how long the common affix is.
-      int run_length = i - first_with_affix;
-      RegExpAtom* const alt_atom = alternatives->at(first_with_affix)->AsAtom();
-      for (int j = 1; j < run_length && affix_length > 1; j++) {
-        RegExpAtom* old_atom = alternatives->at(j + first_with_affix)->AsAtom();
-        for (int k = 1; k < affix_length; k++) {
-          const int alt_atom_pos = backwards ? alt_atom->length() - k : k;
-          const int old_atom_pos = backwards ? old_atom->length() - k : k;
+      // common prefix if the terms were similar or presorted in the input.
+      // Find out how long the common prefix is.
+      int run_length = i - first_with_prefix;
+      RegExpAtom* const alt_atom =
+          alternatives->at(first_with_prefix)->AsAtom();
+      for (int j = 1; j < run_length && prefix_length > 1; j++) {
+        RegExpAtom* old_atom =
+            alternatives->at(j + first_with_prefix)->AsAtom();
+        for (int k = 1; k < prefix_length; k++) {
 #ifdef V8_INTL_SUPPORT
-          if (!CharAtEquals(ignore_case, alt_atom, alt_atom_pos, old_atom,
-                            old_atom_pos)) {
+          if (!CharAtEquals(ignore_case, k, alt_atom, old_atom)) {
 #else
-          if (!CharAtEquals(ignore_case, canonicalize, alt_atom, alt_atom_pos,
-                            old_atom, old_atom_pos)) {
+          if (!CharAtEquals(ignore_case, canonicalize, k, alt_atom, old_atom)) {
 #endif  // V8_INTL_SUPPORT
-            affix_length = k;
+            prefix_length = k;
             break;
           }
         }
       }
-      const int common_start =
-          backwards ? alt_atom->length() - affix_length : 0;
-      RegExpAtom* common = zone->New<RegExpAtom>(alt_atom->data().SubVector(
-          common_start, common_start + affix_length));
-      ZoneList<RegExpTree*>* distinct =
+      RegExpAtom* prefix =
+          zone->New<RegExpAtom>(alt_atom->data().SubVector(0, prefix_length));
+      ZoneList<RegExpTree*>* pair = zone->New<ZoneList<RegExpTree*>>(2, zone);
+      pair->Add(prefix, zone);
+      ZoneList<RegExpTree*>* suffixes =
           zone->New<ZoneList<RegExpTree*>>(run_length, zone);
       for (int j = 0; j < run_length; j++) {
-        RegExpAtom* old_atom = alternatives->at(j + first_with_affix)->AsAtom();
+        RegExpAtom* old_atom =
+            alternatives->at(j + first_with_prefix)->AsAtom();
         int len = old_atom->length();
-        if (len == affix_length) {
-          distinct->Add(zone->New<RegExpEmpty>(), zone);
+        if (len == prefix_length) {
+          suffixes->Add(zone->New<RegExpEmpty>(), zone);
         } else {
-          const int distinct_start = backwards ? 0 : affix_length;
-          const int distinct_end = backwards ? old_atom->length() - affix_length
-                                             : old_atom->length();
-          RegExpTree* part = zone->New<RegExpAtom>(
-              old_atom->data().SubVector(distinct_start, distinct_end));
-          distinct->Add(part, zone);
+          RegExpTree* suffix = zone->New<RegExpAtom>(
+              old_atom->data().SubVector(prefix_length, old_atom->length()));
+          suffixes->Add(suffix, zone);
         }
       }
-      ZoneList<RegExpTree*>* pair = zone->New<ZoneList<RegExpTree*>>(2, zone);
-      if (backwards) {
-        pair->Add(zone->New<RegExpDisjunction>(distinct), zone);
-        pair->Add(common, zone);
-      } else {
-        pair->Add(common, zone);
-        pair->Add(zone->New<RegExpDisjunction>(distinct), zone);
-      }
+      pair->Add(zone->New<RegExpDisjunction>(suffixes), zone);
       alternatives->at(write_posn++) = zone->New<RegExpAlternative>(pair);
     } else {
       // Just copy any non-worthwhile alternatives.
-      for (int j = first_with_affix; j < i; j++) {
+      for (int j = first_with_prefix; j < i; j++) {
         alternatives->at(write_posn++) = alternatives->at(j);
       }
     }
