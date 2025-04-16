@@ -2868,8 +2868,10 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
   }
   AppendCharacter('}');
   if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
-    descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
-                                      FastIterableState::kUnknown);
+    if (nof_descriptors == descriptors->number_of_descriptors()) {
+      descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
+                                        FastIterableState::kUnknown);
+    }
   }
   return SUCCESS;
 }
