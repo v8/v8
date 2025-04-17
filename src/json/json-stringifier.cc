@@ -536,6 +536,37 @@ constexpr bool NeedsEscape(uint32_t input) {
 }
 // LINT.ThenChange(/src/objects/string.cc:StringDoesNotContainEscapeCharacters)
 
+template <typename SrcChar>
+  requires(sizeof(SrcChar) == sizeof(uint8_t))
+bool DoNotEscape(const SrcChar* chars, size_t length,
+                 const DisallowGarbageCollection& no_gc) {
+  bool no_escape = true;
+  using PackedT = uint32_t;
+  static constexpr size_t stride = sizeof(PackedT);
+  size_t i = 0;
+  for (; i + (stride - 1) < length; i += stride) {
+    PackedT packed = *reinterpret_cast<const PackedT*>(chars + i);
+    if (V8_UNLIKELY(NeedsEscape(packed))) break;
+  }
+  for (; i < length; i++) {
+    no_escape = no_escape && DoNotEscape(chars[i]);
+  }
+  return no_escape;
+}
+
+bool IsFastKey(Tagged<String> key, const DisallowGarbageCollection& no_gc) {
+  return key->DispatchToSpecificType(
+      base::overloaded{[&](Tagged<SeqOneByteString> str) {
+                         const uint8_t* chars = str->GetChars(no_gc);
+                         return DoNotEscape(chars, str->length(), no_gc);
+                       },
+                       [&](Tagged<ExternalOneByteString> str) {
+                         const uint8_t* chars = str->GetChars();
+                         return DoNotEscape(chars, str->length(), no_gc);
+                       },
+                       [&](Tagged<String> str) { return false; }});
+}
+
 bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   // If the no elements protector is intact, Array.prototype and
   // Object.prototype are guaranteed to not have elements in any native context.
@@ -2456,11 +2487,13 @@ FastJsonStringifier<Char>::SerializeObjectKey(
     AppendCharacterUnchecked('"');
     FastJsonStringifierObjectKeyResult result;
     if constexpr (no_escaping) {
+      DCHECK(IsFastKey(obj, no_gc));
       SLOW_DCHECK(String::DoesNotContainEscapeCharacters(obj));
       AppendStringNoEscapes(chars, length, no_gc);
       result = FastJsonStringifierObjectKeyResult::kSuccess;
     } else {
       bool needs_escaping = AppendString(chars, length, no_gc);
+      DCHECK_IMPLIES(needs_escaping, !IsFastKey(obj, no_gc));
       SLOW_DCHECK(needs_escaping !=
                   String::DoesNotContainEscapeCharacters(obj));
       result = sizeof(StringChar) == 1 && !needs_escaping
@@ -2784,12 +2817,20 @@ FastJsonStringifierResult FastJsonStringifier<Char>::ResumeJSObject(
       property = obj->property_array(cage_base)->get(cage_base, property_index);
     }
 
+    DCHECK(IsInternalizedString(name));
+    Tagged<String> key_name = Cast<String>(name);
+
     if (V8_UNLIKELY(IsUndefined(property) || IsSymbol(property))) {
+      if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
+        // Even if we don't serialize the key, check if it is fast iterable to
+        // avoid false positives in DescriptorArray::fast_iterable.
+        if (!IsFastKey(key_name, no_gc)) {
+          descriptors->set_fast_iterable(FastIterableState::kJsonSlow);
+        }
+      }
       continue;
     }
 
-    DCHECK(IsInternalizedString(name));
-    Tagged<String> key_name = Cast<String>(name);
     FastJsonStringifierObjectKeyResult key_result;
     if constexpr (fast_iterable_state == FastIterableState::kJsonFast) {
       V8_INLINE_STATEMENT key_result =
