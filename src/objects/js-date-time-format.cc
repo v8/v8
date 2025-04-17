@@ -886,33 +886,11 @@ DateTimeValueRecord TemporalInstantToRecord(
           ->AsInt64();
   return {milliseconds, kind};
 }
-
 Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     PatternKind kind, DirectHandle<JSTemporalPlainDateTime> plain_date_time,
     const char* method_name) {
-  // 8. Let timeZone be ! CreateTemporalTimeZone(dateTimeFormat.[[TimeZone]]).
-  DirectHandle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
-  // TODO(ftang): we should change the return type of GetTimeZone() to
-  // Handle<String> by ensure it will not return undefined.
-  CHECK(IsString(*time_zone_obj));
-  DirectHandle<JSTemporalTimeZone> time_zone =
-      temporal::CreateTemporalTimeZone(isolate, Cast<String>(time_zone_obj))
-          .ToHandleChecked();
-  // 9. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone, plainDateTime,
-  // "compatible").
-  DirectHandle<JSTemporalInstant> instant;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, instant,
-      temporal::BuiltinTimeZoneGetInstantForCompatible(
-          isolate, time_zone, plain_date_time, method_name),
-      Nothing<DateTimeValueRecord>());
-  // 10. If pattern is null, throw a TypeError exception.
-
-  // 11. Return the Record { [[pattern]]: pattern.[[pattern]],
-  // [[rangePatterns]]: pattern.[[rangePatterns]], [[epochNanoseconds]]:
-  // instant.[[Nanoseconds]] }.
-  return Just(TemporalInstantToRecord(isolate, instant, kind));
+  UNIMPLEMENTED();
 }
 
 template <typename T>
@@ -920,20 +898,7 @@ Maybe<DateTimeValueRecord> TemporalToRecord(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     PatternKind kind, DirectHandle<T> temporal,
     DirectHandle<JSReceiver> calendar, const char* method_name) {
-  // 7. Let plainDateTime be ? CreateTemporalDateTime(temporalDate.[[ISOYear]],
-  // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]], 12, 0, 0, 0, 0, 0,
-  // calendarOverride).
-  DirectHandle<JSTemporalPlainDateTime> plain_date_time;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, plain_date_time,
-      temporal::CreateTemporalDateTime(
-          isolate,
-          {{temporal->iso_year(), temporal->iso_month(), temporal->iso_day()},
-           {12, 0, 0, 0, 0, 0}},
-          calendar),
-      Nothing<DateTimeValueRecord>());
-  return TemporalPlainDateTimeToRecord(isolate, date_time_format, kind,
-                                       plain_date_time, method_name);
+  UNIMPLEMENTED();
 }
 
 // #sec-temporal-handledatetimevaluetemporaldate
@@ -963,10 +928,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
                             isolate->factory()->iso8601_string())) {
     // a. Let calendarOverride be ?
     // GetBuiltinCalendar(dateTimeFormat.[[Calendar]]).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, calendar_override,
-        temporal::GetBuiltinCalendar(isolate, date_time_format_calendar),
-        Nothing<DateTimeValueRecord>());
+    UNIMPLEMENTED();
     // 6. Else,
   } else {
     // a. Throw a RangeError exception.
@@ -1110,7 +1072,6 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
 
   // 3. Let isoCalendar be ! GetISO8601Calendar().
 
-  DirectHandle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
   // 4. Let plainDateTime be ? CreateTemporalDateTime(1970, 1, 1,
   // temporalTime.[[ISOHour]], temporalTime.[[ISOMinute]],
   // temporalTime.[[ISOSecond]], temporalTime.[[ISOMillisecond]],
@@ -1124,8 +1085,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
           {{1970, 1, 1},
            {temporal_time->iso_hour(), temporal_time->iso_minute(),
             temporal_time->iso_second(), temporal_time->iso_millisecond(),
-            temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()}},
-          iso_calendar),
+            temporal_time->iso_microsecond(),
+            temporal_time->iso_nanosecond()}}),
       Nothing<DateTimeValueRecord>());
   return TemporalPlainDateTimeToRecord(isolate, date_time_format,
                                        PatternKind::kPlainTime, plain_date_time,

@@ -294,7 +294,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_SHARED_STRUCT_TYPE:
     case JS_ATOMICS_CONDITION_TYPE:
     case JS_ATOMICS_MUTEX_TYPE:
-    case JS_TEMPORAL_CALENDAR_TYPE:
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
     case JS_TEMPORAL_PLAIN_DATE_TYPE:

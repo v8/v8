@@ -231,8 +231,6 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
-  V(JS_TEMPORAL_CALENDAR_FUNCTION_INDEX, JSFunction,                           \
-    temporal_calendar_function)                                                \
   V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
     temporal_duration_function)                                                \
   V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \

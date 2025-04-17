@@ -533,9 +533,6 @@ constexpr bool CanTriggerGC(T... properties) {
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)
 
-#define FOR_EACH_INTRINSIC_TEMPORAL(F, I) \
-  F(IsInvalidTemporalCalendarField, 2, 1)
-
 #define FOR_EACH_INTRINSIC_TEST(F, I)                                    \
   F(Abort, 1, 1, RuntimeCallProperty::kCannotTriggerGC)                  \
   F(AbortCSADcheck, 1, 1)                                                \
@@ -869,7 +866,6 @@ constexpr bool CanTriggerGC(T... properties) {
   FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)                           \
   FOR_EACH_INTRINSIC_STRINGS(F, I)                                \
   FOR_EACH_INTRINSIC_SYMBOL(F, I)                                 \
-  FOR_EACH_INTRINSIC_TEMPORAL(F, I)                               \
   FOR_EACH_INTRINSIC_TEST(F, I)                                   \
   FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)                             \
   IF_WASM(FOR_EACH_INTRINSIC_WASM, F, I)                          \

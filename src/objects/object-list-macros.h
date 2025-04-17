@@ -191,7 +191,6 @@ namespace internal {
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
   V(JSSynchronizationPrimitive)                 \
-  V(JSTemporalCalendar)                         \
   V(JSTemporalDuration)                         \
   V(JSTemporalInstant)                          \
   V(JSTemporalPlainDate)                        \

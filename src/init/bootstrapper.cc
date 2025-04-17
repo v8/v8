@@ -1680,7 +1680,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #define PLAIN_DATE_GETTER_LIST(V) \
   PLAIN_DATE_GETTER_LIST_INTL(V)  \
-  V(calendar, Calendar)           \
   V(year, Year)                   \
   V(month, Month)                 \
   V(monthCode, MonthCode)         \
@@ -1710,7 +1709,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   V(add, Add, 1)                           \
   V(subtract, Subtract, 1)                 \
   V(with, With, 1)                         \
-  V(withCalendar, WithCalendar, 1)         \
   V(until, Until, 1)                       \
   V(since, Since, 1)                       \
   V(equals, Equals, 1)                     \
@@ -1738,7 +1736,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     INSTALL_TEMPORAL_FUNC(PlainTime, compare, Compare, 2)
 
 #define PLAIN_TIME_GETTER_LIST(V) \
-  V(calendar, Calendar)           \
   V(hour, Hour)                   \
   V(minute, Minute)               \
   V(second, Second)               \
@@ -1795,7 +1792,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #define PLAIN_DATE_TIME_GETTER_LIST(V) \
   PLAIN_DATE_TIME_GETTER_LIST_INTL(V)  \
-  V(calendar, Calendar)                \
   V(year, Year)                        \
   V(month, Month)                      \
   V(monthCode, MonthCode)              \
@@ -1828,7 +1824,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   V(with, With, 1)                         \
   V(withPlainTime, WithPlainTime, 0)       \
   V(withPlainDate, WithPlainDate, 1)       \
-  V(withCalendar, WithCalendar, 1)         \
   V(add, Add, 1)                           \
   V(subtract, Subtract, 1)                 \
   V(until, Until, 1)                       \
@@ -1871,7 +1866,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #define ZONED_DATE_TIME_GETTER_LIST(V)    \
   ZONED_DATE_TIME_GETTER_LIST_INTL(V)     \
-  V(calendar, Calendar)                   \
   V(timeZone, TimeZone)                   \
   V(year, Year)                           \
   V(month, Month)                         \
@@ -1913,7 +1907,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
   V(withPlainTime, WithPlainTime, 0)       \
   V(withPlainDate, WithPlainDate, 1)       \
   V(withTimeZone, WithTimeZone, 1)         \
-  V(withCalendar, WithCalendar, 1)         \
   V(add, Add, 1)                           \
   V(subtract, Subtract, 1)                 \
   V(until, Until, 1)                       \
@@ -2058,7 +2051,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
 
 #define PLAIN_YEAR_MONTH_GETTER_LIST(V) \
   PLAIN_YEAR_MONTH_GETTER_LIST_INTL(V)  \
-  V(calendar, Calendar)                 \
   V(year, Year)                         \
   V(month, Month)                       \
   V(monthCode, MonthCode)               \
@@ -2106,7 +2098,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     // Notice there are no Temporal.PlainMonthDay.compare in the spec.
 
 #define PLAIN_MONTH_DAY_GETTER_LIST(V) \
-  V(calendar, Calendar)                \
   V(monthCode, MonthCode)              \
   V(day, Day)
 
@@ -2164,56 +2155,6 @@ Handle<JSObject> InitializeTemporal(Isolate* isolate) {
     TIME_ZONE_FUNC_LIST(INSTALL_TIME_ZONE_FUNC)
 #undef TIME_ZONE_FUNC_LIST
 #undef INSTALL_TIME_ZONE_FUNC
-  }
-  {  // -- C a l e n d a r
-    // #sec-temporal-calendar-objects
-    // #sec-temporal.calendar
-    INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE(Calendar, CALENDAR, 1)
-    INSTALL_TEMPORAL_FUNC(Calendar, from, From, 1)
-
-    // #sec-get-temporal.calendar.prototype.id
-    SimpleInstallGetter(isolate, prototype, isolate->factory()->id_string(),
-                        Builtin::kTemporalCalendarPrototypeId, kAdapt);
-
-#ifdef V8_INTL_SUPPORT
-#define CALENDAR_FUNC_LIST_INTL(V) \
-  V(era, Era, 1, kDontAdapt)       \
-  V(eraYear, EraYear, 1, kDontAdapt)
-#else
-#define CALENDAR_FUNC_LIST_INTL(V)
-#endif  // V8_INTL_SUPPORT
-
-#define CALENDAR_FUNC_LIST(V)                                \
-  CALENDAR_FUNC_LIST_INTL(V)                                 \
-  V(dateFromFields, DateFromFields, 1, kDontAdapt)           \
-  V(yearMonthFromFields, YearMonthFromFields, 1, kDontAdapt) \
-  V(monthDayFromFields, MonthDayFromFields, 1, kDontAdapt)   \
-  V(dateAdd, DateAdd, 2, kDontAdapt)                         \
-  V(dateUntil, DateUntil, 2, kDontAdapt)                     \
-  V(year, Year, 1, kDontAdapt)                               \
-  V(month, Month, 1, kDontAdapt)                             \
-  V(monthCode, MonthCode, 1, kDontAdapt)                     \
-  V(day, Day, 1, kDontAdapt)                                 \
-  V(dayOfWeek, DayOfWeek, 1, kDontAdapt)                     \
-  V(dayOfYear, DayOfYear, 1, kDontAdapt)                     \
-  V(weekOfYear, WeekOfYear, 1, kDontAdapt)                   \
-  V(daysInWeek, DaysInWeek, 1, kDontAdapt)                   \
-  V(daysInMonth, DaysInMonth, 1, kDontAdapt)                 \
-  V(daysInYear, DaysInYear, 1, kDontAdapt)                   \
-  V(monthsInYear, MonthsInYear, 1, kDontAdapt)               \
-  V(inLeapYear, InLeapYear, 1, kDontAdapt)                   \
-  V(fields, Fields, 1, kAdapt)                               \
-  V(mergeFields, MergeFields, 2, kDontAdapt)                 \
-  V(toString, ToString, 0, kDontAdapt)                       \
-  V(toJSON, ToJSON, 0, kDontAdapt)
-
-#define INSTALL_CALENDAR_FUNC(p, N, min, adapt) \
-  SimpleInstallFunction(isolate, prototype, #p, \
-                        Builtin::kTemporalCalendarPrototype##N, min, adapt);
-    CALENDAR_FUNC_LIST(INSTALL_CALENDAR_FUNC)
-#undef CALENDAR_FUNC_LIST
-#undef CALENDAR_FUNC_LIST_INTL
-#undef INSTALL_CALENDAE_FUNC
   }
 #undef INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE
 #undef INSTALL_TEMPORAL_FUNC

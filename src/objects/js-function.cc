@@ -1050,7 +1050,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
-    case JS_TEMPORAL_CALENDAR_TYPE:
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
     case JS_TEMPORAL_PLAIN_DATE_TYPE:
