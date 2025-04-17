@@ -406,7 +406,7 @@ Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
   }
   DCHECK(concrete.object()->IsScriptContext());
   auto maybe_value = concrete.get(broker(), static_cast<int>(access.index()));
-  if (!maybe_value) {
+  if (!maybe_value || maybe_value->IsTheHole()) {
     return SimplifyJSStoreScriptContext(
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
