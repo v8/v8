@@ -680,11 +680,18 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   SetCurrentIsolateScope current_isolate_scope(heap_->isolate());
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  DCHECK_IMPLIES(
+      delegate->IsJoiningThread(),
+      heap_->IsMainThread() ||
+          (!heap_->isolate()->is_shared_space_isolate() &&
+           heap_->isolate()->shared_space_isolate()->heap()->IsMainThread()));
+  const bool is_main_thread =
+      delegate->IsJoiningThread() && heap_->IsMainThread();
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(),
       GCTracer::Scope::SCAVENGER_BACKGROUND_QUARANTINED_PAGE_SWEEPING,
-      delegate->IsJoiningThread() ? ThreadKind::kMain : ThreadKind::kBackground,
-      trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id(),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   DCHECK(!is_done_.load(std::memory_order_relaxed));
   DCHECK(!pinned_objects_.empty());
   if (pinned_object_per_page_.empty()) {

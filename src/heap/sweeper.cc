@@ -129,7 +129,16 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   MajorSweeperJob& operator=(const MajorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-    RunImpl(delegate, delegate->IsJoiningThread());
+    DCHECK_IMPLIES(
+        delegate->IsJoiningThread(),
+        sweeper_->heap_->IsMainThread() ||
+            (!sweeper_->heap_->isolate()->is_shared_space_isolate() &&
+             sweeper_->heap_->isolate()
+                 ->shared_space_isolate()
+                 ->heap()
+                 ->IsMainThread()));
+    RunImpl(delegate,
+            delegate->IsJoiningThread() && sweeper_->heap_->IsMainThread());
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -142,7 +151,7 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   }
 
  private:
-  void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
+  void RunImpl(JobDelegate* delegate, bool is_main_thread) {
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
@@ -152,9 +161,9 @@ class Sweeper::MajorSweeperJob final : public JobTask {
     DCHECK_LT(offset, concurrent_sweepers.size());
     ConcurrentMajorSweeper& concurrent_sweeper = concurrent_sweepers[offset];
     TRACE_GC_EPOCH_WITH_FLOW(
-        tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_joining_thread),
-        is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground,
-        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_main_thread),
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id_,
+        TRACE_EVENT_FLAG_FLOW_IN);
     for (int i = 0; i < kNumberOfMajorSweepingSpaces; i++) {
       const AllocationSpace space_id = static_cast<AllocationSpace>(
           FIRST_SWEEPABLE_SPACE + 1 +
@@ -191,7 +200,16 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   MinorSweeperJob& operator=(const MinorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-    RunImpl(delegate, delegate->IsJoiningThread());
+    DCHECK_IMPLIES(
+        delegate->IsJoiningThread(),
+        sweeper_->heap_->IsMainThread() ||
+            (!sweeper_->heap_->isolate()->is_shared_space_isolate() &&
+             sweeper_->heap_->isolate()
+                 ->shared_space_isolate()
+                 ->heap()
+                 ->IsMainThread()));
+    RunImpl(delegate,
+            delegate->IsJoiningThread() && sweeper_->heap_->IsMainThread());
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -204,15 +222,15 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   }
 
  private:
-  void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
+  void RunImpl(JobDelegate* delegate, bool is_main_thread) {
     DCHECK(sweeper_->minor_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers.size());
     ConcurrentMinorSweeper& concurrent_sweeper = concurrent_sweepers[offset];
     TRACE_GC_EPOCH_WITH_FLOW(
-        tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
-        is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground,
-        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_main_thread),
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id_,
+        TRACE_EVENT_FLAG_FLOW_IN);
     // Set the current isolate such that trusted pointer tables etc are
     // available and the cage base is set correctly for multi-cage mode.
     SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
@@ -809,11 +827,24 @@ Sweeper::SweptList Sweeper::GetAllSweptPagesSafe(PagedSpaceBase* space) {
 void Sweeper::FinishMajorJobs() {
   if (!major_sweeping_in_progress()) return;
 
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    if (space == NEW_SPACE) return;
-    main_thread_local_sweeper_.ParallelSweepSpace(
-        space, SweepingMode::kLazyOrConcurrent);
-  });
+  {
+    const bool is_main_thread = heap_->IsMainThread();
+    DCHECK_IMPLIES(
+        !is_main_thread,
+        heap_->isolate()->shared_space_isolate()->heap()->IsMainThread());
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(),
+        is_main_thread ? GCTracer::Scope::MC_SWEEP
+                       : GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
+        major_sweeping_state_.trace_id(),
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    ForAllSweepingSpaces([this](AllocationSpace space) {
+      if (space == NEW_SPACE) return;
+      main_thread_local_sweeper_.ParallelSweepSpace(
+          space, SweepingMode::kLazyOrConcurrent);
+    });
+  }
 
   // Join all concurrent tasks.
   major_sweeping_state_.JoinSweeping();
@@ -866,11 +897,24 @@ void Sweeper::EnsureMajorCompleted() {
 void Sweeper::FinishMinorJobs() {
   if (!minor_sweeping_in_progress()) return;
 
-  main_thread_local_sweeper_.ParallelSweepSpace(
-      kNewSpace, SweepingMode::kLazyOrConcurrent);
-  // Array buffer sweeper may have grabbed a page for iteration to contribute.
-  // Wait until it has finished iterating.
-  main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  {
+    const bool is_main_thread = heap_->IsMainThread();
+    DCHECK_IMPLIES(
+        !is_main_thread,
+        heap_->isolate()->shared_space_isolate()->heap()->IsMainThread());
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(),
+        is_main_thread ? GCTracer::Scope::MINOR_MS_SWEEP
+                       : GCTracer::Scope::MINOR_MS_BACKGROUND_SWEEPING,
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
+        minor_sweeping_state_.trace_id(),
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    main_thread_local_sweeper_.ParallelSweepSpace(
+        kNewSpace, SweepingMode::kLazyOrConcurrent);
+    // Array buffer sweeper may have grabbed a page for iteration to contribute.
+    // Wait until it has finished iterating.
+    main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  }
 
   // Join all concurrent tasks.
   minor_sweeping_state_.JoinSweeping();
