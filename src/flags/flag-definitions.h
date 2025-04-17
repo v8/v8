@@ -748,8 +748,7 @@ DEFINE_WEAK_IMPLICATION(future, json_stringify_fast_path)
 
 DEFINE_BOOL(cache_property_key_string_adds, false,
             "Enable caching property keys created by concatenating strings")
-// TODO(jgruber): Enable.
-// DEFINE_WEAK_IMPLICATION(future, cache_property_key_string_adds)
+DEFINE_WEAK_IMPLICATION(future, cache_property_key_string_adds)
 
 #ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 DEFINE_BOOL(extensible_ro_snapshot, true,
