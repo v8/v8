@@ -132,6 +132,7 @@ class RootVisitor;
   V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \
   V(Map, ir_regexp_data_map, IrRegExpDataMap)                                  \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
+  V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \

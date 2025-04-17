@@ -1006,6 +1006,16 @@ IGNITION_HANDLER(Add, InterpreterBinaryOpAssembler) {
   BinaryOpWithFeedback(&BinaryOpAssembler::Generate_AddWithFeedback);
 }
 
+// Add_LhsIsConstant_Internalize <src>
+//
+// Add register <src> to accumulator.
+IGNITION_HANDLER(Add_LhsIsStringConstant_Internalize,
+                 InterpreterBinaryOpAssembler) {
+  BinaryOpWithFeedback(
+      &BinaryOpAssembler::
+          Generate_AddLhsIsStringConstantInternalizeWithFeedback);
+}
+
 // Sub <src>
 //
 // Subtract register <src> from accumulator.

@@ -10276,6 +10276,8 @@ template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
     TNode<NameDictionary> container, TNode<IntPtrT> key_index);
 template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
     TNode<GlobalDictionary> container, TNode<IntPtrT> key_index);
+template TNode<Object> CodeStubAssembler::LoadValueByKeyIndex(
+    TNode<SimpleNameDictionary> container, TNode<IntPtrT> key_index);
 template TNode<Uint32T> CodeStubAssembler::LoadDetailsByKeyIndex(
     TNode<NameDictionary> container, TNode<IntPtrT> key_index);
 template void CodeStubAssembler::StoreDetailsByKeyIndex(
@@ -10351,6 +10353,13 @@ TNode<HeapObject> CodeStubAssembler::LoadName<NameToIndexHashTable>(
   return key;
 }
 
+template <>
+TNode<HeapObject> CodeStubAssembler::LoadName<SimpleNameDictionary>(
+    TNode<HeapObject> key) {
+  CSA_DCHECK(this, IsName(key));
+  return key;
+}
+
 // The implementation should be in sync with NameToIndexHashTable::Lookup.
 TNode<IntPtrT> CodeStubAssembler::NameToIndexHashTableLookup(
     TNode<NameToIndexHashTable> table, TNode<Name> name, Label* not_found) {
@@ -10371,7 +10380,8 @@ void CodeStubAssembler::NameDictionaryLookup(
     TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
   static_assert(std::is_same_v<Dictionary, NameDictionary> ||
                     std::is_same_v<Dictionary, GlobalDictionary> ||
-                    std::is_same_v<Dictionary, NameToIndexHashTable>,
+                    std::is_same_v<Dictionary, NameToIndexHashTable> ||
+                    std::is_same_v<Dictionary, SimpleNameDictionary>,
                 "Unexpected NameDictionary");
   DCHECK_IMPLIES(var_name_index != nullptr,
                  MachineType::PointerRepresentation() == var_name_index->rep());
@@ -10457,6 +10467,9 @@ CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
 template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
                       TVariable<IntPtrT>*, Label*, LookupMode);
+template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
+    SimpleNameDictionary>(TNode<SimpleNameDictionary>, TNode<Name>, Label*,
+                          TVariable<IntPtrT>*, Label*, LookupMode);
 
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookupWithForwardIndex(

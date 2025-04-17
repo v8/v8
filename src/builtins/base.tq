@@ -274,6 +274,7 @@ extern class NameToIndexHashTable extends HashTable;
 extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;
 extern class GlobalDictionary extends HashTable;
+extern class SimpleNameDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable

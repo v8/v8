@@ -8014,6 +8014,25 @@ ReduceResult MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
 ReduceResult MaglevGraphBuilder::VisitAdd() {
   return VisitBinaryOperation<Operation::kAdd>();
 }
+ReduceResult MaglevGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
+  ValueNode* left = LoadRegister(0);
+  ValueNode* right = GetAccumulator();
+  FeedbackNexus nexus = FeedbackNexusForOperand(1);
+  ValueNode* slot = GetSmiConstant(nexus.slot().ToInt());
+  ValueNode* result;
+  if (is_inline()) {
+    ValueNode* vector = GetConstant(feedback());
+    result =
+        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeWithVector>(
+            {left, right, slot, vector});
+  } else {
+    result =
+        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeTrampoline>(
+            {left, right, slot});
+  }
+  SetAccumulator(result);
+  return ReduceResult::Done();
+}
 ReduceResult MaglevGraphBuilder::VisitSub() {
   return VisitBinaryOperation<Operation::kSubtract>();
 }

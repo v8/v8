@@ -3160,6 +3160,21 @@ void BytecodeGraphBuilder::VisitAdd() {
   BuildBinaryOp(javascript()->Add(feedback));
 }
 
+void BytecodeGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+  Node* slot = jsgraph()->SmiConstant(
+      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex).ToInt());
+
+  // Lowered by js-intrinsic-lowering to call a builtin.
+  const Operator* op = javascript()->CallRuntime(
+      Runtime::kInlineAddLhsIsStringConstantInternalize);
+  Node* node = NewNode(op, left, right, slot, feedback_vector_node());
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitSub() {
   FeedbackSource feedback = CreateFeedbackSource(
       bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex));

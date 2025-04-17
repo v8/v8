@@ -277,6 +277,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case GLOBAL_DICTIONARY_TYPE:
       Cast<GlobalDictionary>(*this)->GlobalDictionaryPrint(os);
       break;
+    case SIMPLE_NAME_DICTIONARY_TYPE:
+      Cast<FixedArray>(*this)->FixedArrayPrint(os);
+      break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       Cast<FixedArray>(*this)->FixedArrayPrint(os);
       break;
@@ -1921,6 +1924,11 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kJumpLoop:
       os << "JumpLoop";
       break;
+    case FeedbackSlotKind::kStringAddAndInternalize: {
+      os << "StringAddAndInternalize:" << GetBinaryOperationFeedback()
+         << " with cache " << Brief(Cast<Object>(GetFeedbackExtra()));
+      break;
+    }
     case FeedbackSlotKind::kInvalid:
       UNREACHABLE();
   }

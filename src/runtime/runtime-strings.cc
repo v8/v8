@@ -164,6 +164,69 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
                            isolate->factory()->NewConsString(str1, str2));
 }
 
+RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<String> lhs = args.at<String>(0);
+  DirectHandle<Object> rhs = args.at<Object>(1);
+  Handle<HeapObject> maybe_feedback_vector = args.at<HeapObject>(2);
+  const int slot_index = args.tagged_index_value_at(3);
+
+  DirectHandle<String> rhs_string;
+  if (IsString(*rhs)) {
+    rhs_string = Cast<String>(rhs);
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, rhs_string,
+                                       Object::ToString(isolate, rhs));
+  }
+
+  auto f = isolate->factory();
+  auto rhs_internalized = IsInternalizedString(*rhs_string)
+                              ? Cast<InternalizedString>(rhs_string)
+                              : f->InternalizeString(rhs_string);
+
+  if (IsUndefined(*maybe_feedback_vector)) {
+    DirectHandle<String> cons;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+    return *f->InternalizeString(cons);
+  }
+
+  auto feedback_vector = Cast<FeedbackVector>(maybe_feedback_vector);
+
+  FeedbackSlot cache_slot(FeedbackVector::ToSlot(
+      slot_index + kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset));
+  DCHECK_LT(cache_slot.ToInt(), feedback_vector->length());
+  Handle<Object> cache_obj(Cast<Object>(feedback_vector->Get(cache_slot)),
+                           isolate);
+  Handle<SimpleNameDictionary> cache;
+  if (*cache_obj == ReadOnlyRoots{isolate}.uninitialized_symbol()) {
+    cache = SimpleNameDictionary::New(isolate, 1);
+    feedback_vector->SynchronizedSet(cache_slot, *cache);
+  } else {
+    cache = Cast<SimpleNameDictionary>(cache_obj);
+  }
+
+  InternalIndex entry = cache->FindEntry(isolate, rhs_internalized);
+  if (entry.is_found()) {
+    auto result = cache->ValueAt(entry);
+    DCHECK(IsInternalizedString(result));
+    return result;
+  }
+
+  DirectHandle<String> cons;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+
+  auto internalized = f->InternalizeString(cons);
+  auto new_cache =
+      SimpleNameDictionary::Set(isolate, cache, rhs_internalized, internalized);
+  if (*new_cache != *cache) {
+    feedback_vector->SynchronizedSet(cache_slot, *new_cache);
+  }
+
+  return *internalized;
+}
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);

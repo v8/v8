@@ -789,5 +789,9 @@ RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AddLhsIsStringConstantInternalize) {
+  UNREACHABLE();  // Lowered to a builtin call instead.
+}
+
 }  // namespace internal
 }  // namespace v8

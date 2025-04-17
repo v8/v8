@@ -238,6 +238,7 @@ namespace internal {
   V(SeqString)                                  \
   V(SeqTwoByteString)                           \
   V(SharedFunctionInfo)                         \
+  V(SimpleNameDictionary)                       \
   V(SimpleNumberDictionary)                     \
   V(SlicedString)                               \
   V(SmallOrderedHashMap)                        \

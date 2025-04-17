@@ -746,6 +746,11 @@ DEFINE_BOOL(empty_context_extension_dep, true,
 DEFINE_BOOL(json_stringify_fast_path, false, "Enable JSON.stringify fast-path")
 DEFINE_WEAK_IMPLICATION(future, json_stringify_fast_path)
 
+DEFINE_BOOL(cache_property_key_string_adds, false,
+            "Enable caching property keys created by concatenating strings")
+// TODO(jgruber): Enable.
+// DEFINE_WEAK_IMPLICATION(future, cache_property_key_string_adds)
+
 #ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 DEFINE_BOOL(extensible_ro_snapshot, true,
             "Whether custom embedder snapshots may extend ReadOnlySpace")

@@ -2186,6 +2186,9 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
     case NUMBER_DICTIONARY_TYPE:
       Cast<NumberDictionary>(*this)->Rehash(isolate);
       break;
+    case SIMPLE_NAME_DICTIONARY_TYPE:
+      Cast<SimpleNameDictionary>(*this)->Rehash(isolate);
+      break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       Cast<SimpleNumberDictionary>(*this)->Rehash(isolate);
       break;
@@ -5877,6 +5880,13 @@ Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
   return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
 }
 
+// static
+Handle<SimpleNameDictionary> SimpleNameDictionary::Set(
+    Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
+    DirectHandle<Name> key, DirectHandle<Object> value) {
+  return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
+}
+
 void NumberDictionary::UpdateMaxNumberKey(
     uint32_t key, DirectHandle<JSObject> dictionary_holder) {
   DisallowGarbageCollection no_gc;
@@ -6859,6 +6869,7 @@ EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
 
 template V8_EXPORT_PRIVATE void
 Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<

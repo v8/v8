@@ -228,6 +228,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NAME_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
       Cast<FixedArray>(*this)->FixedArrayVerify(isolate);

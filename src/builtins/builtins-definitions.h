@@ -805,6 +805,10 @@ namespace internal {
   TFH(KeyedHasIC, KeyedHasICWithVector)                                        \
   TFH(KeyedHasICBaseline, KeyedHasICBaseline)                                  \
   TFH(KeyedHasIC_Megamorphic, KeyedHasICWithVector)                            \
+  TFH(AddLhsIsStringConstantInternalizeWithVector,                             \
+      AddLhsIsStringConstantInternalizeWithVector)                             \
+  TFH(AddLhsIsStringConstantInternalizeTrampoline,                             \
+      AddLhsIsStringConstantInternalizeTrampoline)                             \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
@@ -889,6 +893,11 @@ namespace internal {
   TFC(ShiftLeft_WithFeedback, BinaryOp_WithFeedback)                           \
   TFC(ShiftRight_WithFeedback, BinaryOp_WithFeedback)                          \
   TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithFeedback)                   \
+                                                                               \
+  /* Like Add_WithFeedback, but lhs is a known constant and the result is */   \
+  /* used as a property key and thus should be internalized early.        */   \
+  TFC(Add_LhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
+  TFC(Add_LhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \

@@ -1074,6 +1074,11 @@ void BaselineCompiler::VisitAdd() {
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
 }
 
+void BaselineCompiler::VisitAdd_LhsIsStringConstant_Internalize() {
+  CallBuiltin<Builtin::kAdd_LhsIsStringConstant_Internalize_Baseline>(
+      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+}
+
 void BaselineCompiler::VisitSub() {
   CallBuiltin<Builtin::kSubtract_Baseline>(
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));

@@ -281,6 +281,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::kMod, reg, 5)
       .BinaryOperation(Token::kExp, reg, 6);
 
+  builder.Add_LhsIsStringConstant_Internalize(Token::kAdd, reg, 1);
+
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::kBitOr, reg, 6)
       .BinaryOperation(Token::kBitXor, reg, 7)

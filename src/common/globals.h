@@ -2914,6 +2914,8 @@ static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
 static constexpr SeqCstAccessTag kSeqCstAccess;
 
+static constexpr int kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset = 1;
+
 }  // namespace v8
 
 namespace i = v8::internal;

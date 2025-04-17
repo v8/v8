@@ -453,6 +453,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Add_LhsIsStringConstant_Internalize(
+    Token::Value op, Register reg, int feedback_slot) {
+  DCHECK_EQ(op, Token::kAdd);
+  OutputAdd_LhsIsStringConstant_Internalize(reg, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Tagged<Smi> literal, int feedback_slot) {
   switch (op) {

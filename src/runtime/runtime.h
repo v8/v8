@@ -301,7 +301,8 @@ namespace internal {
   F(StackGuardWithGap, 1, 1)                               \
   F(TerminateExecution, 0, 1)                              \
   F(Typeof, 1, 1)                                          \
-  F(UnwindAndFindExceptionHandler, 0, 1)
+  F(UnwindAndFindExceptionHandler, 0, 1)                   \
+  I(AddLhsIsStringConstantInternalize, 4, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
@@ -490,27 +491,28 @@ namespace internal {
   F(ShadowRealmImportValue, 1, 1)             \
   F(ShadowRealmThrow, 2, 1)
 
-#define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
-  F(FlattenString, 1, 1)                  \
-  F(GetSubstitution, 5, 1)                \
-  F(InternalizeString, 1, 1)              \
-  F(StringAdd, 2, 1)                      \
-  F(StringBuilderConcat, 3, 1)            \
-  F(StringCharCodeAt, 2, 1)               \
-  F(StringCodePointAt, 2, 1)              \
-  F(StringCompare, 2, 1)                  \
-  F(StringEqual, 2, 1)                    \
-  F(StringEscapeQuotes, 1, 1)             \
-  F(StringGreaterThan, 2, 1)              \
-  F(StringGreaterThanOrEqual, 2, 1)       \
-  F(StringIsWellFormed, 1, 1)             \
-  F(StringLastIndexOf, 2, 1)              \
-  F(StringLessThan, 2, 1)                 \
-  F(StringLessThanOrEqual, 2, 1)          \
-  F(StringMaxLength, 0, 1)                \
-  F(StringReplaceOneCharWithString, 3, 1) \
-  F(StringSubstring, 3, 1)                \
-  F(StringToArray, 2, 1)                  \
+#define FOR_EACH_INTRINSIC_STRINGS(F, I)             \
+  F(FlattenString, 1, 1)                             \
+  F(GetSubstitution, 5, 1)                           \
+  F(InternalizeString, 1, 1)                         \
+  F(StringAdd, 2, 1)                                 \
+  F(StringAdd_LhsIsStringConstant_Internalize, 4, 1) \
+  F(StringBuilderConcat, 3, 1)                       \
+  F(StringCharCodeAt, 2, 1)                          \
+  F(StringCodePointAt, 2, 1)                         \
+  F(StringCompare, 2, 1)                             \
+  F(StringEqual, 2, 1)                               \
+  F(StringEscapeQuotes, 1, 1)                        \
+  F(StringGreaterThan, 2, 1)                         \
+  F(StringGreaterThanOrEqual, 2, 1)                  \
+  F(StringIsWellFormed, 1, 1)                        \
+  F(StringLastIndexOf, 2, 1)                         \
+  F(StringLessThan, 2, 1)                            \
+  F(StringLessThanOrEqual, 2, 1)                     \
+  F(StringMaxLength, 0, 1)                           \
+  F(StringReplaceOneCharWithString, 3, 1)            \
+  F(StringSubstring, 3, 1)                           \
+  F(StringToArray, 2, 1)                             \
   F(StringToWellFormed, 1, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F, I)    \
