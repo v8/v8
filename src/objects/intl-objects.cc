@@ -677,13 +677,13 @@ MaybeDirectHandle<Object> Intl::LegacyUnwrapReceiver(
 
 namespace {
 
-bool IsTwoLetterLanguage(const std::string& locale) {
+bool IsTwoLetterLanguage(std::string_view locale) {
   // Two letters, both in range 'a'-'z'...
   return locale.length() == 2 && IsAsciiLower(locale[0]) &&
          IsAsciiLower(locale[1]);
 }
 
-bool IsDeprecatedOrLegacyLanguage(const std::string& locale) {
+bool IsDeprecatedOrLegacyLanguage(std::string_view locale) {
   //  Check if locale is one of the deprecated language tags:
   return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw" ||
          locale == "mo" ||
@@ -691,7 +691,7 @@ bool IsDeprecatedOrLegacyLanguage(const std::string& locale) {
          locale == "sh" || locale == "tl" || locale == "no";
 }
 
-bool IsStructurallyValidLanguageTag(const std::string& tag) {
+bool IsStructurallyValidLanguageTag(std::string_view tag) {
   return JSLocale::StartsWithUnicodeLanguageId(tag);
 }
 
@@ -699,18 +699,18 @@ bool IsStructurallyValidLanguageTag(const std::string& tag) {
 // https://tc39.github.io/ecma402/#sec-canonicalizelanguagetag,
 // including type check and structural validity check.
 Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
-                                           const std::string& locale_in) {
-  std::string locale = locale_in;
-
-  if (locale.empty() ||
-      !String::IsAscii(locale.data(), static_cast<int>(locale.length()))) {
+                                           std::string_view locale_in) {
+  if (locale_in.empty() ||
+      !String::IsAscii(locale_in.data(),
+                       static_cast<int>(locale_in.length()))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidLanguageTag,
-            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
+        NewRangeError(MessageTemplate::kInvalidLanguageTag,
+                      isolate->factory()->NewStringFromAsciiChecked(locale_in)),
         Nothing<std::string>());
   }
+
+  std::string locale(locale_in);
 
   // Optimize for the most common case: a 2-letter language code in the
   // canonical form/lowercase that is not one of the deprecated codes
