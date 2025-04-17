@@ -7524,6 +7524,28 @@ CodePageMemoryModificationScopeForDebugging::
 
 #endif
 
+namespace {
+thread_local void* conservative_pinning_scope_stack_address_ = nullptr;
+}  // namespace
+
+ConservativePinningScope::ConservativePinningScope(void* stack_address) {
+  DCHECK_NULL(conservative_pinning_scope_stack_address_);
+  conservative_pinning_scope_stack_address_ = stack_address;
+}
+ConservativePinningScope::~ConservativePinningScope() {
+  DCHECK_NOT_NULL(conservative_pinning_scope_stack_address_);
+  conservative_pinning_scope_stack_address_ = nullptr;
+}
+
+// static
+bool ConservativePinningScope::IsEnabled() {
+  return conservative_pinning_scope_stack_address_ != nullptr;
+}
+// static
+void* ConservativePinningScope::GetStackAddress() {
+  return conservative_pinning_scope_stack_address_;
+}
+
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace internal

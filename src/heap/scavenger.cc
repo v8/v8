@@ -55,7 +55,7 @@ namespace internal {
 class IterateAndScavengePromotedObjectsVisitor final
     : public HeapVisitor<IterateAndScavengePromotedObjectsVisitor> {
  public:
-  IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger)
+  explicit IterateAndScavengePromotedObjectsVisitor(Scavenger* scavenger)
       : HeapVisitor(scavenger->heap()->isolate()), scavenger_(scavenger) {}
 
   V8_INLINE static constexpr bool ShouldUseUncheckedCast() { return true; }
@@ -383,7 +383,7 @@ class YoungGenerationConservativeStackVisitor
   YoungGenerationConservativeStackVisitor(Isolate* isolate,
                                           RootVisitor* root_visitor)
       : ConservativeStackVisitorBase(isolate, root_visitor), isolate_(isolate) {
-    DCHECK(v8_flags.scavenger_conservative_object_pinning);
+    DCHECK(Heap::ShouldUseConservativeStackScanningForMinorGC());
     DCHECK(!v8_flags.minor_ms);
     DCHECK(!v8_flags.sticky_mark_bits);
     DCHECK(std::all_of(
@@ -862,7 +862,9 @@ void ScavengerCollector::CollectGarbage() {
           }
         });
 
-    if (v8_flags.scavenger_conservative_object_pinning &&
+    DCHECK_IMPLIES(ConservativePinningScope::IsEnabled(),
+                   heap_->IsGCWithStack());
+    if (Heap::ShouldUseConservativeStackScanningForMinorGC() &&
         heap_->IsGCWithStack()) {
       // Pinning objects must be the first step and must happen before
       // scavenging any objects. Specifically we must all pin all objects
@@ -880,13 +882,22 @@ void ScavengerCollector::CollectGarbage() {
       YoungGenerationConservativeStackVisitor stack_visitor(
           isolate_, &conservative_pinning_visitor);
       // Marker was already set by Heap::CollectGarbage.
-      heap_->IterateConservativeStackRoots(&stack_visitor);
-      if (V8_UNLIKELY(v8_flags.stress_scavenger_conservative_object_pinning)) {
-        TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
-        heap_->IterateRootsForPrecisePinning(&handles_visitor);
+      if (v8_flags.scavenger_conservative_object_pinning) {
+        heap_->IterateConservativeStackRoots(&stack_visitor);
+        if (V8_UNLIKELY(
+                v8_flags.stress_scavenger_conservative_object_pinning)) {
+          TreatConservativelyVisitor handles_visitor(&stack_visitor, heap_);
+          heap_->IterateRootsForPrecisePinning(&handles_visitor);
+        }
+      } else {
+        DCHECK(ConservativePinningScope::IsEnabled());
+        heap_->stack().IteratePointersFromAddressUntilMarker(
+            &stack_visitor, ConservativePinningScope::GetStackAddress());
       }
     }
-    if (v8_flags.scavenger_precise_object_pinning) {
+    const bool is_using_precise_pinning =
+        Heap::ShouldUsePrecisePinningForMinorGC();
+    if (is_using_precise_pinning) {
       PreciseObjectPinningVisitor precise_pinning_visitor(
           heap_, main_thread_scavenger, pinned_objects);
       ClearStaleLeftTrimmedPointerVisitor left_trim_visitor(
@@ -901,7 +912,7 @@ void ScavengerCollector::CollectGarbage() {
         {SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
          SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
          SkipRoot::kConservativeStack, SkipRoot::kReadOnlyBuiltins});
-    if (v8_flags.scavenger_precise_object_pinning) {
+    if (is_using_precise_pinning) {
       options.Add({SkipRoot::kMainThreadHandles, SkipRoot::kStack});
     }
     RootScavengeVisitor root_scavenge_visitor(main_thread_scavenger);
