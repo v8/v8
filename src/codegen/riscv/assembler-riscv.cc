@@ -1353,7 +1353,12 @@ int Assembler::RelocateInternalReference(
       return 0;  // Number of instructions patched.
     }
     internal_ref += pc_delta;
-    jit_allocation->WriteUnalignedValue(pc, internal_ref);
+    if (jit_allocation) {
+      jit_allocation->WriteUnalignedValue(pc, internal_ref);
+    } else {
+      WriteUnalignedValue<intptr_t>(pc, internal_ref);
+    }
+
     return 2;  // Number of instructions patched.
   }
   Instr instr = instr_at(pc);
