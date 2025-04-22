@@ -154,6 +154,10 @@
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif  // V8_INTL_SUPPORT
+
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
 #include <unistd.h>
@@ -10960,6 +10964,27 @@ std::string Isolate::GetDefaultLocale() {
   return i_isolate->DefaultLocale();
 #else
   return std::string();
+#endif
+}
+
+Maybe<std::string> Isolate::ValidateAndCanonicalizeUnicodeLocaleId(
+    std::string_view tag) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8_NO_SCRIPT(i_isolate, this->GetCurrentContext(), Isolate,
+                     ValidateAndCanonicalizeUnicodeLocaleId, i::HandleScope);
+  // has_exception is unused here because when Intl support is enabled, all work
+  // is forwarded to i::Intl::ValidateAndCanonicalizeUnicodeLocaleId, which
+  // encapsulates all exception handling, and when Intl support is disabled,
+  // this method unconditionally throws.
+  USE(has_exception);
+#ifdef V8_INTL_SUPPORT
+  return i::Intl::ValidateAndCanonicalizeUnicodeLocaleId(i_isolate, tag);
+#else
+  THROW_NEW_ERROR_RETURN_VALUE(
+      i_isolate,
+      NewRangeError(i::MessageTemplate::kInvalidLanguageTag,
+                    i_isolate->factory()->NewStringFromAsciiChecked(tag)),
+      Nothing<std::string>());
 #endif
 }
 

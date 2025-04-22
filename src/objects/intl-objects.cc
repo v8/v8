@@ -696,14 +696,37 @@ bool IsStructurallyValidLanguageTag(std::string_view tag) {
   return JSLocale::StartsWithUnicodeLanguageId(tag);
 }
 
-// Canonicalize the locale.
-// https://tc39.github.io/ecma402/#sec-canonicalizelanguagetag,
-// including type check and structural validity check.
 Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
-                                           std::string_view locale_in) {
-  if (locale_in.empty() ||
-      !String::IsAscii(locale_in.data(),
-                       static_cast<int>(locale_in.length()))) {
+                                           DirectHandle<Object> locale_in) {
+  DirectHandle<String> locale_str;
+  // This does part of the validity checking spec'ed in CanonicalizeLocaleList:
+  // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
+  // exception.
+  // 7c iii. Let tag be ? ToString(kValue).
+  // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
+  // RangeError exception.
+
+  if (IsString(*locale_in)) {
+    locale_str = Cast<String>(locale_in);
+  } else if (IsJSReceiver(*locale_in)) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
+                                     Object::ToString(isolate, locale_in),
+                                     Nothing<std::string>());
+  } else {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NewTypeError(MessageTemplate::kLanguageID),
+                                 Nothing<std::string>());
+  }
+  std::string locale(locale_str->ToCString().get());
+  return Intl::ValidateAndCanonicalizeUnicodeLocaleId(isolate, locale);
+}
+
+}  // anonymous namespace
+
+// static
+Maybe<std::string> Intl::ValidateAndCanonicalizeUnicodeLocaleId(
+    Isolate* isolate, std::string_view locale_in) {
+  if (!IsStructurallyValidLanguageTag(locale_in)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag,
@@ -773,39 +796,6 @@ Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
 
   return maybe_to_language_tag;
 }
-
-Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
-                                           DirectHandle<Object> locale_in) {
-  DirectHandle<String> locale_str;
-  // This does part of the validity checking spec'ed in CanonicalizeLocaleList:
-  // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
-  // exception.
-  // 7c iii. Let tag be ? ToString(kValue).
-  // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
-  // RangeError exception.
-
-  if (IsString(*locale_in)) {
-    locale_str = Cast<String>(locale_in);
-  } else if (IsJSReceiver(*locale_in)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
-                                     Object::ToString(isolate, locale_in),
-                                     Nothing<std::string>());
-  } else {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                 NewTypeError(MessageTemplate::kLanguageID),
-                                 Nothing<std::string>());
-  }
-  std::string locale(locale_str->ToCString().get());
-
-  if (!IsStructurallyValidLanguageTag(locale)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-        Nothing<std::string>());
-  }
-  return CanonicalizeLanguageTag(isolate, locale);
-}
-
-}  // anonymous namespace
 
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     Isolate* isolate, DirectHandle<Object> locales,

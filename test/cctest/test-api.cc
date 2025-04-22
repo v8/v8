@@ -31243,6 +31243,19 @@ TEST(GettingHashSeed) {
   CHECK_GT(isolate->GetHashSeed(), 0);
 }
 
+TEST(CanonicalizingUnicodeLocaleId) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  // Test the function exists, and that if Intl is unsupported, Nothing is
+  // returned. The functionality itself is mostly not useful to test here as
+  // it's locale-dependent.
+#ifdef V8_INTL_SUPPORT
+  CHECK(isolate->ValidateAndCanonicalizeUnicodeLocaleId("en").IsJust());
+#else
+  CHECK(isolate->ValidateAndCanonicalizeUnicodeLocaleId("en").IsNothing());
+#endif
+}
+
 TEST(LocalCasts) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();

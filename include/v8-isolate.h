@@ -1765,6 +1765,21 @@ class V8_EXPORT Isolate {
   std::string GetDefaultLocale();
 
   /**
+   * Returns a canonical and case-regularized form of locale if Intl support is
+   * enabled. If the locale is not syntactically well-formed, throws a
+   * RangeError.
+   *
+   * If Intl support is not enabled, returns Nothing<std::string>().
+   *
+   * Corresponds to the combination of the abstract operations
+   * IsStructurallyValidLanguageTag and CanonicalizeUnicodeLocaleId. See:
+   * https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+   * https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
+   */
+  V8_WARN_UNUSED_RESULT Maybe<std::string>
+  ValidateAndCanonicalizeUnicodeLocaleId(std::string_view locale);
+
+  /**
    * Returns the hash seed for that isolate, for testing purposes.
    */
   uint64_t GetHashSeed();
