@@ -30,6 +30,9 @@ default_args = {
 
   # Disable rust dependencies.
   enable_rust = true
+
+  # Needed only for std::atomic_ref<T> for large Ts http://crbug.com/402171653
+  use_llvm_libatomic = false
 }
 
 # These are the list of GN files that run exec_script. This whitelist exists
