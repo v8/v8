@@ -2577,6 +2577,9 @@ void MacroAssembler::CallJSFunction(Register function_object,
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
   // Force a safe crash if the parameter count doesn't match.
+  // TODO(412398354): to avoid this runtime check, we should switch all
+  // remaining users to call the function via its dispatch handle instead. See
+  // CallJSDispatchEntry below and crbug.com/412398354 for more details.
   Cmp(parameter_count, Immediate(argument_count));
   SbxCheck(le, AbortReason::kJSSignatureMismatch);
   Call(code);
