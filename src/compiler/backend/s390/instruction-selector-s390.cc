@@ -296,8 +296,8 @@ class S390OperandGeneratorT final : public OperandGeneratorT {
     auto m = TryMatchBaseWithScaledIndexAndDisplacement64(selector(), operand);
     DCHECK(m.has_value());
     if (m->base.valid() &&
-        this->Get(m->base).template Is<LoadRootRegisterOp>()) {
-      DCHECK(!m->index.valid());
+        this->Get(m->base).template Is<LoadRootRegisterOp>() &&
+        !m->index.valid()) {
       DCHECK_EQ(m->scale, 0);
       inputs[(*input_count)++] =
           UseImmediate(static_cast<int>(m->displacement));
