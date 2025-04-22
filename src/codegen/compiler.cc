@@ -3868,7 +3868,7 @@ CompileScriptOnBothBackgroundAndMainThread(Handle<String> source,
   MaybeDirectHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
           isolate, source, script_details, background_compile_thread.data(),
-          &compilation_details);
+          is_compiled_scope, &compilation_details);
 
   // Either both compiles should succeed, or both should fail. The one exception
   // to this is that the main-thread compilation might stack overflow while the
@@ -3878,14 +3878,6 @@ CompileScriptOnBothBackgroundAndMainThread(Handle<String> source,
     CHECK(main_thread_maybe_result.is_null());
   } else {
     CHECK_EQ(maybe_result.is_null(), main_thread_maybe_result.is_null());
-  }
-
-  DirectHandle<SharedFunctionInfo> result;
-  if (maybe_result.ToHandle(&result)) {
-    // The BackgroundCompileTask's IsCompiledScope will keep the result alive
-    // until it dies at the end of this function, after which this new
-    // IsCompiledScope can take over.
-    *is_compiled_scope = result->is_compiled_scope(isolate);
   }
 
   return maybe_result;
@@ -4251,6 +4243,7 @@ MaybeDirectHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
     const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
+    IsCompiledScope* is_compiled_scope,
     ScriptCompiler::CompilationDetails* compilation_details) {
   DCHECK(!script_details.origin_options.IsWasm());
 
@@ -4274,6 +4267,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                                         task->flags().outer_language_mode());
     compilation_details->in_memory_cache_result =
         CategorizeLookupResult(lookup_result);
+    *is_compiled_scope = lookup_result.is_compiled_scope();
 
     if (!lookup_result.toplevel_sfi().is_null()) {
       maybe_result = lookup_result.toplevel_sfi();
@@ -4299,6 +4293,11 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
     DirectHandle<SharedFunctionInfo> result;
     if (maybe_result.ToHandle(&result)) {
+      // Get a new is_compiled_scope off the result before the task's data
+      // (including the persistent handles owned by its IsCompiledScope) are
+      // released.
+      *is_compiled_scope = result->is_compiled_scope(isolate);
+
       if (task->flags().produce_compile_hints()) {
         Cast<Script>(result->script())->set_produce_compile_hints(true);
       }

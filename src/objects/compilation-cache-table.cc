@@ -564,7 +564,6 @@ void CompilationCacheTable::UpdateEval(
     DirectHandle<NativeContext> native_context,
     DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
     int position) {
-  InfoCellPair empty_result;
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
 

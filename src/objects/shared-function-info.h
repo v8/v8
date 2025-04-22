@@ -877,13 +877,13 @@ class V8_NODISCARD IsCompiledScope {
                          Isolate* isolate);
   inline IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                          LocalIsolate* isolate);
-  inline IsCompiledScope() : retain_code_(), is_compiled_(false) {}
+  inline IsCompiledScope() = default;
 
   inline bool is_compiled() const { return is_compiled_; }
 
  private:
-  MaybeHandle<HeapObject> retain_code_;
-  bool is_compiled_;
+  MaybeHandle<HeapObject> retain_code_ = {};
+  bool is_compiled_ = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);

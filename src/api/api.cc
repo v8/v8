@@ -2626,8 +2626,10 @@ i::MaybeDirectHandle<i::SharedFunctionInfo> CompileStreamedSource(
                        origin.ColumnOffset(), origin.SourceMapUrl(),
                        origin.GetHostDefinedOptions(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
+  i::IsCompiledScope is_compiled_scope;
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
-      i_isolate, str, script_details, data, &v8_source->compilation_details());
+      i_isolate, str, script_details, data, &is_compiled_scope,
+      &v8_source->compilation_details());
 }
 
 }  // namespace

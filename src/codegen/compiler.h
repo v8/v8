@@ -264,6 +264,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   GetSharedFunctionInfoForStreamedScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
+      IsCompiledScope* is_compiled_scope,
       ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for the given function literal
