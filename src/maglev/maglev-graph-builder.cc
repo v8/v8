@@ -5275,7 +5275,7 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
-  if (CheckType(value, NodeType::kSmi)) {
+  if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
     RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
     return true;
   }
@@ -5458,6 +5458,8 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
                  !value->properties().is_conversion());
+  // TODO(marja): Bail out if `value` has the empty type. This requires that
+  // BuildInlinedAllocation can bail out.
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
