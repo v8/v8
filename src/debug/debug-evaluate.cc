@@ -179,7 +179,7 @@ MaybeDirectHandle<Object> DebugEvaluate::Evaluate(
   DirectHandle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context,
+      Compiler::GetFunctionFromEval(isolate, source, outer_info, context,
                                     LanguageMode::kSloppy, NO_PARSE_RESTRICTION,
                                     kNoSourcePosition, kNoSourcePosition,
                                     ParsingWhileDebugging::kYes));

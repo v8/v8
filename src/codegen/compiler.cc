@@ -3257,12 +3257,11 @@ MaybeDirectHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
 
 // static
 MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
-    DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
-    DirectHandle<Context> context, LanguageMode language_mode,
-    ParseRestriction restriction, int parameters_end_pos, int eval_position,
+    Isolate* isolate, DirectHandle<String> source,
+    DirectHandle<SharedFunctionInfo> outer_info, DirectHandle<Context> context,
+    LanguageMode language_mode, ParseRestriction restriction,
+    int parameters_end_pos, int eval_position,
     ParsingWhileDebugging parsing_while_debugging) {
-  Isolate* isolate = context->GetIsolate();
-
   // The cache lookup key needs to be aware of the separation between the
   // parameters and the body to prevent this valid invocation:
   //   Function("", "function anonymous(\n/**/) {\n}");
@@ -3483,11 +3482,9 @@ Compiler::ValidateDynamicCompilationSource(Isolate* isolate,
 
 // static
 MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
-    DirectHandle<NativeContext> native_context,
+    Isolate* isolate, DirectHandle<NativeContext> native_context,
     MaybeDirectHandle<String> source, ParseRestriction restriction,
     int parameters_end_pos) {
-  Isolate* const isolate = native_context->GetIsolate();
-
   // Raise an EvalError if we did not receive a string.
   if (source.is_null()) {
     Handle<Object> error_message =
@@ -3501,19 +3498,18 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
   DirectHandle<SharedFunctionInfo> outer_info(
       native_context->empty_function()->shared(), isolate);
   return Compiler::GetFunctionFromEval(
-      source.ToHandleChecked(), outer_info, native_context,
+      isolate, source.ToHandleChecked(), outer_info, native_context,
       LanguageMode::kSloppy, restriction, parameters_end_pos, eval_position);
 }
 
 // static
 MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromString(
-    DirectHandle<NativeContext> context, Handle<Object> source,
-    int parameters_end_pos, bool is_code_like) {
-  Isolate* const isolate = context->GetIsolate();
+    Isolate* isolate, DirectHandle<NativeContext> context,
+    Handle<Object> source, int parameters_end_pos, bool is_code_like) {
   MaybeDirectHandle<String> validated_source =
       ValidateDynamicCompilationSource(isolate, context, source, is_code_like)
           .first;
-  return GetFunctionFromValidatedString(context, validated_source,
+  return GetFunctionFromValidatedString(isolate, context, validated_source,
                                         ONLY_SINGLE_FUNCTION_LITERAL,
                                         parameters_end_pos);
 }
@@ -4140,11 +4136,10 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
 
 // static
 MaybeDirectHandle<JSFunction> Compiler::GetWrappedFunction(
-    Handle<String> source, DirectHandle<Context> context,
+    Isolate* isolate, Handle<String> source, DirectHandle<Context> context,
     const ScriptDetails& script_details, AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
-  Isolate* isolate = context->GetIsolate();
   ScriptCompiler::CompilationDetails compilation_details;
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason,
                                         &compilation_details);

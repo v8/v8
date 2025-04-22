@@ -86,7 +86,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, function,
         Compiler::GetFunctionFromString(
-            direct_handle(target->native_context(), isolate),
+            isolate, direct_handle(target->native_context(), isolate),
             indirect_handle(source, isolate), parameters_end_pos,
             is_code_like));
     DirectHandle<Object> result;

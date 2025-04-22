@@ -2530,8 +2530,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
   i::DirectHandle<i::JSFunction> result;
   has_exception =
       !i::Compiler::GetWrappedFunction(
-           Utils::OpenHandle(*source->source_string), context, script_details,
-           cached_data.get(), options, no_cache_reason)
+           i_isolate, Utils::OpenHandle(*source->source_string), context,
+           script_details, cached_data.get(), options, no_cache_reason)
            .ToHandle(&result);
   if (options & kConsumeCodeCache) {
     source->cached_data->rejected = cached_data->rejected();

@@ -849,9 +849,9 @@ static Tagged<Object> CompileGlobalEval(
   }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source.ToHandleChecked(), outer_info,
-                                    context, language_mode, restriction,
-                                    kNoSourcePosition, eval_position),
+      Compiler::GetFunctionFromEval(
+          isolate, source.ToHandleChecked(), outer_info, context, language_mode,
+          restriction, kNoSourcePosition, eval_position),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
