@@ -802,8 +802,8 @@ AddressingMode X64OperandGeneratorT::GetEffectiveAddressMemoryOperand(
     }
     return mode;
   }
-  if (m->base.valid() && this->Get(m->base).Is<LoadRootRegisterOp>()) {
-    DCHECK(!m->index.valid());
+  if (m->base.valid() && this->Get(m->base).Is<LoadRootRegisterOp>() &&
+      !m->index.valid()) {
     DCHECK_EQ(m->scale, 0);
     DCHECK(ValueFitsIntoImmediate(m->displacement));
     inputs[(*input_count)++] = UseImmediate(static_cast<int>(m->displacement));

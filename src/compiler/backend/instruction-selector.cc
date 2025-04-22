@@ -1601,9 +1601,8 @@ void InstructionSelectorT::VisitLoadParentFramePointer(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitLoadRootRegister(OpIndex node) {
-  // Do nothing. Following loads/stores from this operator will use kMode_Root
-  // to load/store from an offset of the root register.
-  UNREACHABLE();
+  OperandGenerator g(this);
+  Emit(kArchRootPointer, g.DefineAsRegister(node));
 }
 
 void InstructionSelectorT::VisitFloat64Acos(OpIndex node) {

@@ -152,6 +152,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchDeoptimize)                                                        \
   V(ArchRet)                                                               \
   V(ArchFramePointer)                                                      \
+  V(ArchRootPointer)                                                       \
   IF_WASM(V, ArchStackPointer)                                             \
   IF_WASM(V, ArchSetStackPointer)                                          \
   V(ArchParentFramePointer)                                                \

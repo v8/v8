@@ -501,8 +501,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
     auto m = TryMatchBaseWithScaledIndexAndDisplacement(selector(), node);
     DCHECK(m.has_value());
     if (m->base.valid() &&
-        this->Get(m->base).template Is<LoadRootRegisterOp>()) {
-      DCHECK(!m->index.valid());
+        this->Get(m->base).template Is<LoadRootRegisterOp>() &&
+        !m->index.valid()) {
       DCHECK_EQ(m->scale, 0);
       DCHECK(ValueFitsIntoImmediate(m->displacement));
       inputs[(*input_count)++] =

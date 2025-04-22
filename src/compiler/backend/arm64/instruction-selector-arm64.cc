@@ -937,7 +937,7 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
+  if (base_op.Is<LoadRootRegisterOp>() && is_index_constant) {
     DCHECK(is_index_constant);
     input_count = 1;
     inputs[0] = g.UseImmediate64(index_constant);
