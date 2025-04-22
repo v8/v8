@@ -1292,7 +1292,10 @@ bool CompilationDependencies::DependOnContextCell(ContextRef script_context,
                                                   size_t index,
                                                   ContextCell::State state,
                                                   JSHeapBroker* broker) {
-  if (!script_context.object()->HasContextCells()) return false;
+  if (!v8_flags.script_context_cells ||
+      !script_context.object()->IsScriptContext()) {
+    return false;
+  }
   auto value = script_context.get(broker, static_cast<int>(index));
   if (!value || !value->IsContextCell()) {
     return false;
@@ -1304,7 +1307,7 @@ bool CompilationDependencies::DependOnContextCell(ContextRef script_context,
 
 bool CompilationDependencies::DependOnContextCell(ContextCellRef slot,
                                                   ContextCell::State state) {
-  DCHECK(v8_flags.script_context_cells);
+  if (!v8_flags.script_context_cells) return false;
   RecordDependency(zone_->New<ContextCellDependency>(slot, state));
   return true;
 }

@@ -127,9 +127,9 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   while (!IsUndefined(maybe_context, isolate())) {
     Tagged<Context> context = Cast<Context>(maybe_context);
     Tagged<Object> array_prot =
-        context->GetNoCell(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+        context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Tagged<Object> object_prot =
-        context->GetNoCell(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+        context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(
         CanonicalPersistentHandle(Cast<JSObject>(array_prot)));
     array_and_object_prototypes_.emplace(

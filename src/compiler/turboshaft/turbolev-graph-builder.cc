@@ -3018,8 +3018,9 @@ class GraphBuildingNodeProcessor {
              node->initializing_or_transitioning());
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::StoreContextSlotWithWriteBarrier* node,
-                                const maglev::ProcessingState& state) {
+  maglev::ProcessResult Process(
+      maglev::StoreScriptContextSlotWithWriteBarrier* node,
+      const maglev::ProcessingState& state) {
     V<Context> context = V<i::Context>::Cast(Map(node->context_input()));
     V<Object> new_value = Map(node->new_value_input());
     V<Object> old_value = __ LoadTaggedField(context, node->offset());

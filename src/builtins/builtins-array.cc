@@ -235,7 +235,7 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map> GetReplacedElementsKindsMap(
     Tagged<Context> native_context = map->map()->native_context();
     if (native_context->GetInitialJSArrayMap(origin_kind) == map) {
       Tagged<Object> maybe_target_map =
-          native_context->GetNoCell(Context::ArrayMapIndex(target_kind));
+          native_context->get(Context::ArrayMapIndex(target_kind));
       if (Tagged<Map> target_map; TryCast<Map>(maybe_target_map, &target_map)) {
         map->NotifyLeafMapLayoutChange(isolate);
         return direct_handle(target_map, isolate);

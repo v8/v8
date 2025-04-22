@@ -3414,12 +3414,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   DirectHandle<JSGlobalObject> global = isolate->global_object();
   DirectHandle<NativeContext> native_context(global->native_context(), isolate);
 
-  CHECK(IsUndefined(
-      native_context->GetNoCell(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
-      isolate));
-  CHECK(IsUndefined(
-      native_context->GetNoCell(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
-      isolate));
+  CHECK(IsUndefined(native_context->get(Context::WASM_WEBASSEMBLY_OBJECT_INDEX),
+                    isolate));
+  CHECK(IsUndefined(native_context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX),
+                    isolate));
 
   Factory* const f = isolate->factory();
   static constexpr PropertyAttributes ro_attributes =

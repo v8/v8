@@ -591,19 +591,19 @@ void JSGenericLowering::LowerJSHasContextExtension(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSLoadContextNoCell(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
-}
-
 void JSGenericLowering::LowerJSLoadContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSStoreContextNoCell(Node* node) {
+void JSGenericLowering::LowerJSLoadScriptContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSStoreContext(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSStoreScriptContext(Node* node) {
   UNREACHABLE();  // Eliminated in context specialization.
 }
 
@@ -1168,7 +1168,7 @@ void JSGenericLowering::LowerJSGeneratorRestoreContinuation(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSGeneratorRestoreContextNoCell(Node* node) {
+void JSGenericLowering::LowerJSGeneratorRestoreContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 

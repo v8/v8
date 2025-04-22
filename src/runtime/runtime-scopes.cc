@@ -427,7 +427,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
-      context->SetNoCell(index, *value);
+      context->set(index, *value);
       return ReadOnlyRoots(isolate).undefined_value();
     }
 
@@ -834,15 +834,20 @@ MaybeDirectHandle<Object> LoadLookupSlot(
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
+    DirectHandle<Object> value =
+        direct_handle(holder_context->get(index), isolate);
     // Check for uninitialized bindings.
-    if (flag == kNeedsInitialization &&
-        holder_context->IsElementTheHole(index)) {
+    if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
-    if (receiver_return) *receiver_return = receiver;
-    DirectHandle<Object> value = Context::Get(holder_context, index, isolate);
     DCHECK(!IsTheHole(*value, isolate));
+    if (receiver_return) *receiver_return = receiver;
+    if (v8_flags.script_context_cells && holder_context->IsScriptContext()) {
+      return direct_handle(*Context::LoadScriptContextElement(
+                               holder_context, index, value, isolate),
+                           isolate);
+    }
     return value;
   }
 
@@ -960,12 +965,17 @@ MaybeDirectHandle<Object> StoreLookupSlot(
   if (index != Context::kNotFound) {
     auto holder_context = Cast<Context>(holder);
     if (flag == kNeedsInitialization &&
-        holder_context->IsElementTheHole(index)) {
+        IsTheHole(holder_context->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name));
     }
     if ((attributes & READ_ONLY) == 0) {
-      Context::Set(holder_context, index, value, isolate);
+      if (v8_flags.script_context_cells && holder_context->IsScriptContext()) {
+        Context::StoreScriptContextElement(holder_context, index, value,
+                                           isolate);
+      } else {
+        Cast<Context>(holder)->set(index, *value);
+      }
     } else if (!is_sloppy_function_name || is_strict(language_mode)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kConstAssign, name));
@@ -1050,7 +1060,16 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   CHECK(found);
   DirectHandle<Context> script_context(
       script_contexts->get(lookup_result.context_index), isolate);
-  Context::Set(script_context, lookup_result.slot_index, value, isolate);
+  // We need to initialize the side data also for variables declared with
+  // VariableMode::kConst. This is because such variables can be accessed
+  // by functions using the LdaContextSlot bytecode, and such accesses are not
+  // regarded as "immutable" when optimizing.
+  if (v8_flags.script_context_cells) {
+    Context::StoreScriptContextElement(script_context, lookup_result.slot_index,
+                                       value, isolate);
+  } else {
+    script_context->set(lookup_result.slot_index, *value);
+  }
   return *value;
 }
 

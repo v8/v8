@@ -25,12 +25,11 @@ BUILTIN(AsyncDisposableStackOnFulfilled) {
   HandleScope scope(isolate);
 
   DirectHandle<JSDisposableStackBase> stack(
-      Cast<
-          JSDisposableStackBase>(isolate->context()->GetNoCell(static_cast<int>(
+      Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
       isolate);
   DirectHandle<JSPromise> promise(
-      Cast<JSPromise>(isolate->context()->GetNoCell(static_cast<int>(
+      Cast<JSPromise>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::
               kOuterPromise))),
       isolate);
@@ -45,12 +44,11 @@ BUILTIN(AsyncDisposableStackOnRejected) {
   HandleScope scope(isolate);
 
   DirectHandle<JSDisposableStackBase> stack(
-      Cast<
-          JSDisposableStackBase>(isolate->context()->GetNoCell(static_cast<int>(
+      Cast<JSDisposableStackBase>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::kStack))),
       isolate);
   DirectHandle<JSPromise> promise(
-      Cast<JSPromise>(isolate->context()->GetNoCell(static_cast<int>(
+      Cast<JSPromise>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposableStackContextSlots::
               kOuterPromise))),
       isolate);
@@ -84,7 +82,7 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
 
   //        c. Let result be Completion(Call(method, O)).
   DirectHandle<JSFunction> sync_method(
-      Cast<JSFunction>(isolate->context()->GetNoCell(static_cast<int>(
+      Cast<JSFunction>(isolate->context()->get(static_cast<int>(
           JSDisposableStackBase::AsyncDisposeFromSyncDisposeContextSlots::
               kMethod))),
       isolate);
@@ -377,7 +375,7 @@ BUILTIN(AsyncDisposableStackPrototypeMove) {
   // 5. Set newAsyncDisposableStack.[[AsyncDisposableState]] to pending.
 
   Tagged<JSFunction> constructor_function =
-      Cast<JSFunction>(isolate->native_context()->GetNoCell(
+      Cast<JSFunction>(isolate->native_context()->get(
           Context::JS_ASYNC_DISPOSABLE_STACK_FUNCTION_INDEX));
   DirectHandle<Map> map(constructor_function->initial_map(), isolate);
 

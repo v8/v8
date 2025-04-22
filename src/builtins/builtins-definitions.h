@@ -779,14 +779,14 @@ namespace internal {
   TFH(DefineKeyedOwnICBaseline, DefineKeyedOwnBaseline)                        \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
-  TFH(LookupContextNoCellTrampoline, LookupTrampoline)                         \
   TFH(LookupContextTrampoline, LookupTrampoline)                               \
-  TFH(LookupContextNoCellBaseline, LookupBaseline)                             \
+  TFH(LookupScriptContextTrampoline, LookupTrampoline)                         \
+  TFH(LookupContextBaseline, LookupBaseline)                                   \
   TFH(LookupScriptContextBaseline, LookupBaseline)                             \
-  TFH(LookupContextNoCellInsideTypeofTrampoline, LookupTrampoline)             \
   TFH(LookupContextInsideTypeofTrampoline, LookupTrampoline)                   \
-  TFH(LookupContextNoCellInsideTypeofBaseline, LookupBaseline)                 \
+  TFH(LookupScriptContextInsideTypeofTrampoline, LookupTrampoline)             \
   TFH(LookupContextInsideTypeofBaseline, LookupBaseline)                       \
+  TFH(LookupScriptContextInsideTypeofBaseline, LookupBaseline)                 \
   TFH(LoadGlobalIC, LoadGlobalWithVector)                                      \
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \

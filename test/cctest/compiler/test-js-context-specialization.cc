@@ -153,7 +153,7 @@ Handle<Context> NewCanonicalContextForTesting(ContextSpecializationTester& t,
 
 static const int slot_index = 5;
 
-TEST(ReduceJSLoadContextNoCell0) {
+TEST(ReduceJSLoadContext0) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -166,7 +166,7 @@ TEST(ReduceJSLoadContextNoCell0) {
   DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
   const int slot = 5;
-  native->SetNoCell(slot, *expected);
+  native->set(slot, *expected);
 
   Node* const_context =
       t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
@@ -176,26 +176,25 @@ TEST(ReduceJSLoadContextNoCell0) {
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, 0, false), const_context, start);
+    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
+                                    const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, 0, false), param_context, start);
+    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
+                                    param_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
-    Node* load =
-        t.graph()->NewNode(t.javascript()->LoadContextNoCell(
-                               2, Context::GLOBAL_EVAL_FUN_INDEX, false),
-                           deep_const_context, start);
+    Node* load = t.graph()->NewNode(
+        t.javascript()->LoadContext(2, Context::GLOBAL_EVAL_FUN_INDEX, false),
+        deep_const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
@@ -210,8 +209,8 @@ TEST(ReduceJSLoadContextNoCell0) {
 
   {
     // Immutable slot, constant context, depth = 0 => specialize.
-    Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot, true), const_context, start);
+    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, slot, true),
+                                    const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
@@ -222,10 +221,10 @@ TEST(ReduceJSLoadContextNoCell0) {
   }
 
   // Clean up so that verifiers don't complain.
-  native->SetNoCell(slot, Smi::zero());
+  native->set(slot, Smi::zero());
 }
 
-TEST(ReduceJSLoadContextNoCell1) {
+TEST(ReduceJSLoadContext1) {
   // The graph's context chain ends in the incoming context parameter:
   //
   //   context2 <-- context1 <-- context0 (= Parameter(0))
@@ -246,62 +245,54 @@ TEST(ReduceJSLoadContextNoCell1) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, false), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, true), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, true), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(2, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(2, slot_index, true), context2, start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(3, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context0, 1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(3, slot_index, true), context2, start);
     t.CheckContextInputAndDepthChanges(load, context0, 1);
   }
 }
 
-TEST(ReduceJSLoadContextNoCell2) {
+TEST(ReduceJSLoadContext2) {
   // The graph's context chain ends in a constant context (context_object1),
   // which has another outer context (context_object0).
   //
@@ -338,67 +329,61 @@ TEST(ReduceJSLoadContextNoCell2) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, false), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, true), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, true), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(2, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContext(2, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(3, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context_object0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContext(3, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
 }
 
-TEST(ReduceJSLoadContextNoCell3) {
-  // Like in ReduceJSLoadContextNoCell1, the graph's context chain ends in the
+TEST(ReduceJSLoadContext3) {
+  // Like in ReduceJSLoadContext1, the graph's context chain ends in the
   // incoming context parameter.  However, this time we provide a concrete
   // context for this parameter as the "specialization context".  We choose
-  // context_object2 from ReduceJSLoadContextNoCell2 for this, so almost all
-  // test expectations are the same as in ReduceJSLoadContextNoCell2.
+  // context_object2 from ReduceJSLoadContext2 for this, so almost all test
+  // expectations are the same as in ReduceJSLoadContext2.
 
   HandleAndZoneScope handle_zone_scope;
   auto isolate = handle_zone_scope.main_isolate();
@@ -433,62 +418,56 @@ TEST(ReduceJSLoadContextNoCell3) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, false), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(0, slot_index, true), context2, start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
-        start);
+        t.javascript()->LoadContext(1, slot_index, true), context2, start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(2, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context_object1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(2, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContext(2, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
-        start);
+        t.javascript()->LoadContext(3, slot_index, false), context2, start);
     t.CheckContextInputAndDepthChanges(load, context_object0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContextNoCell(3, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContext(3, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
 }
 
-TEST(ReduceJSStoreContextNoCell0) {
+TEST(ReduceJSStoreContext0) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -501,7 +480,7 @@ TEST(ReduceJSStoreContextNoCell0) {
   DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
   const int slot = 5;
-  native->SetNoCell(slot, *expected);
+  native->set(slot, *expected);
 
   Node* const_context =
       t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
@@ -511,7 +490,7 @@ TEST(ReduceJSStoreContextNoCell0) {
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, 0),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
                                     const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -519,7 +498,7 @@ TEST(ReduceJSStoreContextNoCell0) {
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, 0),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
                                     param_context, param_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -527,7 +506,7 @@ TEST(ReduceJSStoreContextNoCell0) {
 
   {
     // Immutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, slot),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, slot),
                                     const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -536,7 +515,7 @@ TEST(ReduceJSStoreContextNoCell0) {
   {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(2, Context::GLOBAL_EVAL_FUN_INDEX),
+        t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
         deep_const_context, deep_const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
@@ -551,10 +530,10 @@ TEST(ReduceJSStoreContextNoCell0) {
   }
 
   // Clean up so that verifiers don't complain.
-  native->SetNoCell(slot, Smi::zero());
+  native->set(slot, Smi::zero());
 }
 
-TEST(ReduceJSStoreContextNoCell1) {
+TEST(ReduceJSStoreContext1) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -571,34 +550,34 @@ TEST(ReduceJSStoreContextNoCell1) {
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContext(0, slot_index),
                            context2, context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContextNoCell(1, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContext(1, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContextNoCell(2, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContext(2, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 0);
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContextNoCell(3, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContext(3, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 1);
   }
 }
 
-TEST(ReduceJSStoreContextNoCell2) {
+TEST(ReduceJSStoreContext2) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -628,34 +607,34 @@ TEST(ReduceJSStoreContextNoCell2) {
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(0, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(0, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(1, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(1, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(2, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(2, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(3, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(3, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 }
 
-TEST(ReduceJSStoreContextNoCell3) {
+TEST(ReduceJSStoreContext3) {
   HandleAndZoneScope handle_zone_scope;
   auto isolate = handle_zone_scope.main_isolate();
   auto factory = isolate->factory();
@@ -691,29 +670,29 @@ TEST(ReduceJSStoreContextNoCell3) {
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(0, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(0, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(1, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(1, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(2, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(2, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContextNoCell(3, Context::EXTENSION_INDEX),
-        context2, context2, start, start);
+        t.javascript()->StoreContext(3, Context::EXTENSION_INDEX), context2,
+        context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 }

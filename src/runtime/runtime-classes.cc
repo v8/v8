@@ -39,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DirectHandle<Context> context(constructor->native_context(), isolate);
   DCHECK(IsNativeContext(*context));
   DirectHandle<JSFunction> realm_type_error_function(
-      Cast<JSFunction>(context->GetNoCell(Context::TYPE_ERROR_FUNCTION_INDEX)),
+      Cast<JSFunction>(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
       isolate);
   if (name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(

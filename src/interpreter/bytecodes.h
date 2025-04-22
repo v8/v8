@@ -82,15 +82,15 @@ namespace interpreter {
   V(LdaTrue, ImplicitRegisterUse::kWriteAccumulator)                           \
   V(LdaFalse, ImplicitRegisterUse::kWriteAccumulator)                          \
   V(LdaConstant, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)    \
-  V(LdaContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,              \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaContextSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg, \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaImmutableContextSlot, ImplicitRegisterUse::kWriteAccumulator,           \
     OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
-  V(LdaCurrentContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,       \
-    OperandType::kIdx)                                                         \
   V(LdaCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,             \
+    OperandType::kIdx)                                                         \
+  V(LdaCurrentScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,       \
     OperandType::kIdx)                                                         \
   V(LdaImmutableCurrentContextSlot, ImplicitRegisterUse::kWriteAccumulator,    \
     OperandType::kIdx)                                                         \
@@ -117,30 +117,30 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Context operations */                                                     \
-  V(StaContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,               \
-    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
-  V(StaCurrentContextSlotNoCell, ImplicitRegisterUse::kReadAccumulator,        \
-    OperandType::kIdx)                                                         \
   V(StaContextSlot, ImplicitRegisterUse::kReadAccumulator, OperandType::kReg,  \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, ImplicitRegisterUse::kReadAccumulator,              \
     OperandType::kIdx)                                                         \
+  V(StaScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,               \
+    OperandType::kReg, OperandType::kIdx, OperandType::kUImm)                  \
+  V(StaCurrentScriptContextSlot, ImplicitRegisterUse::kReadAccumulator,        \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx)  \
-  V(LdaLookupContextSlotNoCell, ImplicitRegisterUse::kWriteAccumulator,        \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupContextSlot, ImplicitRegisterUse::kWriteAccumulator,              \
+    OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+  V(LdaLookupScriptContextSlot, ImplicitRegisterUse::kWriteAccumulator,        \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupGlobalSlot, ImplicitRegisterUse::kWriteAccumulator,               \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(LdaLookupSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,         \
     OperandType::kIdx)                                                         \
-  V(LdaLookupContextSlotNoCellInsideTypeof,                                    \
-    ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,                 \
-    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaLookupContextSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,  \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
+  V(LdaLookupScriptContextSlotInsideTypeof,                                    \
+    ImplicitRegisterUse::kWriteAccumulator, OperandType::kIdx,                 \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaLookupGlobalSlotInsideTypeof, ImplicitRegisterUse::kWriteAccumulator,   \
     OperandType::kIdx, OperandType::kIdx, OperandType::kUImm)                  \
   V(StaLookupSlot, ImplicitRegisterUse::kReadWriteAccumulator,                 \

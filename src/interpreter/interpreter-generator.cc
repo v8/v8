@@ -253,20 +253,6 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   Dispatch();
 }
 
-// LdaContextSlotNoCell <context> <slot_index> <depth>
-//
-// Load the object in |slot_index| of the context at |depth| in the context
-// chain starting at |context| into the accumulator.
-IGNITION_HANDLER(LdaContextSlotNoCell, InterpreterAssembler) {
-  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
-  TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
-  SetAccumulator(result);
-  Dispatch();
-}
-
 // LdaContextSlot <context> <slot_index> <depth>
 //
 // Load the object in |slot_index| of the context at |depth| in the context
@@ -281,6 +267,20 @@ IGNITION_HANDLER(LdaContextSlot, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaScriptContextSlot <context> <slot_index> <depth>
+//
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain starting at |context| into the accumulator.
+IGNITION_HANDLER(LdaScriptContextSlot, InterpreterAssembler) {
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  TNode<Object> result = LoadScriptContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // LdaImmutableContextSlot <context> <slot_index> <depth>
 //
 // Load the object in |slot_index| of the context at |depth| in the context
@@ -290,18 +290,7 @@ IGNITION_HANDLER(LdaImmutableContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
   TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
-  SetAccumulator(result);
-  Dispatch();
-}
-
-// LdaCurrentContextSlotNoCell <slot_index>
-//
-// Load the object in |slot_index| of the current context into the accumulator.
-IGNITION_HANDLER(LdaCurrentContextSlotNoCell, InterpreterAssembler) {
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
-  TNode<Context> slot_context = GetContext();
-  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
+  TNode<Object> result = LoadContextElement(slot_context, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -317,47 +306,32 @@ IGNITION_HANDLER(LdaCurrentContextSlot, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaCurrentScriptContextSlot <slot_index>
+//
+// Load the object in |slot_index| of the current context into the accumulator.
+IGNITION_HANDLER(LdaCurrentScriptContextSlot, InterpreterAssembler) {
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  TNode<Object> result = LoadScriptContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // LdaImmutableCurrentContextSlot <slot_index>
 //
 // Load the object in |slot_index| of the current context into the accumulator.
 IGNITION_HANDLER(LdaImmutableCurrentContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
-  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
+  TNode<Object> result = LoadContextElement(slot_context, slot_index);
   SetAccumulator(result);
-  Dispatch();
-}
-
-// StaContextSlotNoCell <context> <slot_index> <depth>
-//
-// Stores the object in the accumulator into |slot_index| of the context at
-// |depth| in the context chain starting at |context|.
-IGNITION_HANDLER(StaContextSlotNoCell, InterpreterAssembler) {
-  TNode<Object> value = GetAccumulator();
-  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
-  TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  StoreContextElementNoCell(slot_context, slot_index, value);
-  Dispatch();
-}
-
-// StaCurrentContextSlotNoCell <slot_index>
-//
-// Stores the object in the accumulator into |slot_index| of the current
-// context.
-IGNITION_HANDLER(StaCurrentContextSlotNoCell, InterpreterAssembler) {
-  TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
-  TNode<Context> slot_context = GetContext();
-  StoreContextElementNoCell(slot_context, slot_index, value);
   Dispatch();
 }
 
 // StaContextSlot <context> <slot_index> <depth>
 //
-// Stores the object in the accumulator into |slot_index| of the script context
-// at |depth| in the context chain starting at |context|.
+// Stores the object in the accumulator into |slot_index| of the context at
+// |depth| in the context chain starting at |context|.
 IGNITION_HANDLER(StaContextSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
@@ -371,12 +345,38 @@ IGNITION_HANDLER(StaContextSlot, InterpreterAssembler) {
 // StaCurrentContextSlot <slot_index>
 //
 // Stores the object in the accumulator into |slot_index| of the current
-// context (which has to be a script context).
+// context.
 IGNITION_HANDLER(StaCurrentContextSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
   StoreContextElement(slot_context, slot_index, value);
+  Dispatch();
+}
+
+// StaScriptContextSlot <context> <slot_index> <depth>
+//
+// Stores the object in the accumulator into |slot_index| of the script context
+// at |depth| in the context chain starting at |context|.
+IGNITION_HANDLER(StaScriptContextSlot, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  StoreScriptContext(slot_context, slot_index, value);
+  Dispatch();
+}
+
+// StaCurrentScriptContextSlot <slot_index>
+//
+// Stores the object in the accumulator into |slot_index| of the current
+// context (which has to be a script context).
+IGNITION_HANDLER(StaCurrentScriptContextSlot, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  StoreScriptContext(slot_context, slot_index, value);
   Dispatch();
 }
 
@@ -412,7 +412,7 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
                                         OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void LookupContextSlot(Runtime::FunctionId function_id, ContextMode kind) {
+  void LookupContextSlot(Runtime::FunctionId function_id, ContextKind kind) {
     TNode<Context> context = GetContext();
     TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
     TNode<Uint32T> depth = BytecodeOperandUImm(2);
@@ -426,9 +426,9 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
     // Fast path does a normal load context.
     {
       TNode<Object> result =
-          (kind == ContextMode::kHasContextCells)
-              ? LoadContextElement(slot_context, slot_index)
-              : LoadContextElementNoCell(slot_context, slot_index);
+          (kind == ContextKind::kScriptContext)
+              ? LoadScriptContextElement(slot_context, slot_index)
+              : LoadContextElement(slot_context, slot_index);
       SetAccumulator(result);
       Dispatch();
     }
@@ -448,27 +448,17 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 //
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
-IGNITION_HANDLER(LdaLookupContextSlotNoCell,
-                 InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlot, ContextMode::kNoContextCells);
+IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextKind::kDefault);
 }
 
-// LdaLookupContextSlot <name_index>
+// LdaLookupScriptContextSlot <name_index>
 //
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
-IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlot, ContextMode::kHasContextCells);
-}
-
-// LdaLookupContextSlotInsideTypeof <name_index>
-//
-// Lookup the object with the name in constant pool entry |name_index|
-// dynamically without causing a NoReferenceError.
-IGNITION_HANDLER(LdaLookupContextSlotNoCellInsideTypeof,
+IGNITION_HANDLER(LdaLookupScriptContextSlot,
                  InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
-                    ContextMode::kNoContextCells);
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextKind::kScriptContext);
 }
 
 // LdaLookupContextSlotInsideTypeof <name_index>
@@ -478,7 +468,17 @@ IGNITION_HANDLER(LdaLookupContextSlotNoCellInsideTypeof,
 IGNITION_HANDLER(LdaLookupContextSlotInsideTypeof,
                  InterpreterLookupContextSlotAssembler) {
   LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
-                    ContextMode::kHasContextCells);
+                    ContextKind::kDefault);
+}
+
+// LdaLookupScriptContextSlotInsideTypeof <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+IGNITION_HANDLER(LdaLookupScriptContextSlotInsideTypeof,
+                 InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
+                    ContextKind::kScriptContext);
 }
 
 class InterpreterLookupGlobalAssembler : public InterpreterLoadGlobalAssembler {
@@ -858,7 +858,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
 
   TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
-      CAST(LoadContextElementNoCell(module_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
 
   Label if_export(this), if_import(this), end(this);
   Branch(IntPtrGreaterThan(cell_index, IntPtrConstant(0)), &if_export,
@@ -903,7 +903,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
 
   TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
-      CAST(LoadContextElementNoCell(module_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
 
   Label if_export(this), if_import(this), end(this);
   Branch(IntPtrGreaterThan(cell_index, IntPtrConstant(0)), &if_export,
@@ -1680,7 +1680,7 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSAny> function =
-      CAST(LoadContextElementNoCell(native_context, context_index));
+      CAST(LoadContextElement(native_context, context_index));
 
   // Call the function.
   CallJSAndDispatch(function, context, args,

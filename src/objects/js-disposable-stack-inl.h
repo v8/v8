@@ -158,7 +158,7 @@ JSDisposableStackBase::CheckValueAndGetDisposeMethod(Isolate* isolate,
                 isolate->native_context(),
                 static_cast<int>(
                     AsyncDisposeFromSyncDisposeContextSlots::kLength));
-        async_dispose_from_sync_dispose_context->SetNoCell(
+        async_dispose_from_sync_dispose_context->set(
             static_cast<int>(AsyncDisposeFromSyncDisposeContextSlots::kMethod),
             *method);
 

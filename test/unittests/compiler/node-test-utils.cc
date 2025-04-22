@@ -1327,11 +1327,11 @@ class IsToNumberMatcher final : public TestNodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-class IsLoadContextNoCellMatcher final : public TestNodeMatcher {
+class IsLoadContextMatcher final : public TestNodeMatcher {
  public:
-  IsLoadContextNoCellMatcher(const Matcher<ContextAccess>& access_matcher,
-                             const Matcher<Node*>& context_matcher)
-      : TestNodeMatcher(IrOpcode::kJSLoadContextNoCell),
+  IsLoadContextMatcher(const Matcher<ContextAccess>& access_matcher,
+                       const Matcher<Node*>& context_matcher)
+      : TestNodeMatcher(IrOpcode::kJSLoadContext),
         access_matcher_(access_matcher),
         context_matcher_(context_matcher) {}
 
@@ -2173,11 +2173,12 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsLoadContextNoCell(const Matcher<ContextAccess>& access_matcher,
-                                   const Matcher<Node*>& context_matcher) {
-  return MakeMatcher(
-      new IsLoadContextNoCellMatcher(access_matcher, context_matcher));
+
+Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher) {
+  return MakeMatcher(new IsLoadContextMatcher(access_matcher, context_matcher));
 }
+
 
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
   return MakeMatcher(new IsParameterMatcher(index_matcher));

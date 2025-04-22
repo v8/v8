@@ -1683,30 +1683,27 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     // Add context allocated locals.
     for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
       int idx = scope_info->ContextHeaderLength() + it->index();
-      SetContextReference(entry, it->name(), context->get(idx, kRelaxedLoad),
+      SetContextReference(entry, it->name(), context->get(idx),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasContextAllocatedFunctionName()) {
       Tagged<String> name = Cast<String>(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
-        SetContextReference(entry, name, context->get(idx, kRelaxedLoad),
+        SetContextReference(entry, name, context->get(idx),
                             Context::OffsetOfElementAt(idx));
       }
     }
   }
 
   SetInternalReference(
-      entry, "scope_info",
-      context->get(Context::SCOPE_INFO_INDEX, kRelaxedLoad),
+      entry, "scope_info", context->get(Context::SCOPE_INFO_INDEX),
       FixedArray::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
-  SetInternalReference(entry, "previous",
-                       context->get(Context::PREVIOUS_INDEX, kRelaxedLoad),
+  SetInternalReference(entry, "previous", context->get(Context::PREVIOUS_INDEX),
                        FixedArray::OffsetOfElementAt(Context::PREVIOUS_INDEX));
   if (context->has_extension()) {
     SetInternalReference(
-        entry, "extension",
-        context->get(Context::EXTENSION_INDEX, kRelaxedLoad),
+        entry, "extension", context->get(Context::EXTENSION_INDEX),
         FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
   }
 
@@ -1716,7 +1713,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     for (size_t i = 0; i < arraysize(native_context_names); i++) {
       int index = native_context_names[i].index;
       const char* name = native_context_names[i].name;
-      SetInternalReference(entry, name, context->get(index, kRelaxedLoad),
+      SetInternalReference(entry, name, context->get(index),
                            FixedArray::OffsetOfElementAt(index));
     }
 

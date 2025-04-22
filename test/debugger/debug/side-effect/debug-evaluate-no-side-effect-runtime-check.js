@@ -6,7 +6,7 @@
 
 Debug = debug.Debug;
 
-// StaCurrentContextSlotNoCell
+// StaCurrentContextSlot
 success(10, `(function(){
   const x = 10;
   function f1() {return x;}

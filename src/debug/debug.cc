@@ -3320,7 +3320,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   }
   interpreter::Register reg;
   switch (bytecode) {
-    case Bytecode::kStaCurrentContextSlotNoCell:
+    case Bytecode::kStaCurrentContextSlot:
       reg = interpreter::Register::current_context();
       break;
     default:

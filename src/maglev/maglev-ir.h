@@ -372,7 +372,7 @@ class ExceptionHandlerInfo;
   V(StoreDoubleDataViewElement)               \
   V(StoreTaggedFieldNoWriteBarrier)           \
   V(StoreTaggedFieldWithWriteBarrier)         \
-  V(StoreContextSlotWithWriteBarrier)         \
+  V(StoreScriptContextSlotWithWriteBarrier)   \
   V(StoreTrustedPointerFieldWithWriteBarrier) \
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
@@ -575,7 +575,7 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
     case Opcode::kStoreTrustedPointerFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
-    case Opcode::kStoreContextSlotWithWriteBarrier:
+    case Opcode::kStoreScriptContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
       return true;
     default:
@@ -8788,12 +8788,12 @@ class StoreTaggedFieldWithWriteBarrier
   const int offset_;
 };
 
-class StoreContextSlotWithWriteBarrier
-    : public FixedInputNodeT<2, StoreContextSlotWithWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreContextSlotWithWriteBarrier>;
+class StoreScriptContextSlotWithWriteBarrier
+    : public FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier>;
 
  public:
-  explicit StoreContextSlotWithWriteBarrier(uint64_t bitfield, int index)
+  explicit StoreScriptContextSlotWithWriteBarrier(uint64_t bitfield, int index)
       : Base(bitfield), index_(index) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite() |

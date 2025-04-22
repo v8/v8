@@ -97,8 +97,8 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
   // explicitly when it's loaded.
   // TODO(v8:10416): These mutations should not observably affect the running
   // context.
-  context_->SetNoCell(Context::NEXT_CONTEXT_LINK,
-                      ReadOnlyRoots(isolate()).undefined_value());
+  context_->set(Context::NEXT_CONTEXT_LINK,
+                ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!IsUndefined(context_->global_object()));
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);

@@ -200,10 +200,10 @@
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \
-  V(JSLoadContextNoCell)      \
   V(JSLoadContext)            \
-  V(JSStoreContextNoCell)     \
+  V(JSLoadScriptContext)      \
   V(JSStoreContext)           \
+  V(JSStoreScriptContext)     \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
@@ -241,7 +241,7 @@
   V(JSGetImportMeta)                   \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
-  V(JSGeneratorRestoreContextNoCell)   \
+  V(JSGeneratorRestoreContext)         \
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
   V(JSFulfillPromise)                  \

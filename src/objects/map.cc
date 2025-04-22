@@ -43,7 +43,7 @@ Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
   if (constructor_function_index != Map::kNoConstructorFunctionIndex) {
     Tagged<Context> native_context = isolate->context()->native_context();
     Tagged<JSFunction> constructor_function =
-        Cast<JSFunction>(native_context->GetNoCell(constructor_function_index));
+        Cast<JSFunction>(native_context->get(constructor_function_index));
     return constructor_function->initial_map();
   }
   return ReadOnlyRoots(isolate).null_value()->map();
@@ -56,8 +56,7 @@ std::optional<Tagged<JSFunction>> Map::GetConstructorFunction(
   if (IsPrimitiveMap(map)) {
     int const constructor_function_index = map->GetConstructorFunctionIndex();
     if (constructor_function_index != kNoConstructorFunctionIndex) {
-      return Cast<JSFunction>(
-          native_context->GetNoCell(constructor_function_index));
+      return Cast<JSFunction>(native_context->get(constructor_function_index));
     }
   }
   return {};
@@ -1100,7 +1099,7 @@ DirectHandle<Map> Map::TransitionElementsTo(Isolate* isolate,
     DisallowGarbageCollection no_gc;
     if (native_context->GetInitialJSArrayMap(from_kind) == *map) {
       Tagged<Object> maybe_transitioned_map =
-          native_context->GetNoCell(Context::ArrayMapIndex(to_kind));
+          native_context->get(Context::ArrayMapIndex(to_kind));
       if (IsMap(maybe_transitioned_map)) {
         return direct_handle(Cast<Map>(maybe_transitioned_map), isolate);
       }
@@ -1747,7 +1746,7 @@ DirectHandle<Map> Map::AsLanguageMode(
   // using |strict_function_transition_symbol| as a key.
   if (is_sloppy(shared_info->language_mode())) return initial_map;
 
-  DirectHandle<Map> function_map(Cast<Map>(isolate->native_context()->GetNoCell(
+  DirectHandle<Map> function_map(Cast<Map>(isolate->native_context()->get(
                                      shared_info->function_map_index())),
                                  isolate);
 

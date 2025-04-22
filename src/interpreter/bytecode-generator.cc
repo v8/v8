@@ -4538,12 +4538,11 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
           Variable* local_variable = variable->local_if_not_shadowed();
           int depth =
               execution_context()->ContextChainDepth(local_variable->scope());
-          ContextMode context_mode =
-              (local_variable->scope()->has_context_cells()
-                   ? ContextMode::kHasContextCells
-                   : ContextMode::kNoContextCells);
+          ContextKind context_kind = (local_variable->scope()->is_script_scope()
+                                          ? ContextKind::kScriptContext
+                                          : ContextKind::kDefault);
           builder()->LoadLookupContextSlot(variable->raw_name(), typeof_mode,
-                                           context_mode,
+                                           context_kind,
                                            local_variable->index(), depth);
           if (VariableNeedsHoleCheckInCurrentBlock(local_variable,
                                                    hole_check_mode)) {

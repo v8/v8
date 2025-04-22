@@ -1565,8 +1565,8 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadContextNoCell, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1586,8 +1586,8 @@ Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadScriptContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadScriptContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1655,8 +1655,8 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSStoreContextNoCell(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreContextNoCell, node->opcode());
+Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1677,8 +1677,8 @@ Reduction JSTypedLowering::ReduceJSStoreContextNoCell(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSStoreScriptContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -2546,8 +2546,8 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreContinuation(Node* node) {
   return Changed(continuation);
 }
 
-Reduction JSTypedLowering::ReduceJSGeneratorRestoreContextNoCell(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContextNoCell, node->opcode());
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContext, node->opcode());
 
   const Operator* new_op =
       simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
@@ -2797,14 +2797,14 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToObject(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
-    case IrOpcode::kJSLoadContextNoCell:
-      return ReduceJSLoadContextNoCell(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
-    case IrOpcode::kJSStoreContextNoCell:
-      return ReduceJSStoreContextNoCell(node);
+    case IrOpcode::kJSLoadScriptContext:
+      return ReduceJSLoadScriptContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSStoreScriptContext:
+      return ReduceJSStoreScriptContext(node);
     case IrOpcode::kJSLoadModule:
       return ReduceJSLoadModule(node);
     case IrOpcode::kJSStoreModule:
@@ -2831,8 +2831,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:
       return ReduceJSGeneratorRestoreContinuation(node);
-    case IrOpcode::kJSGeneratorRestoreContextNoCell:
-      return ReduceJSGeneratorRestoreContextNoCell(node);
+    case IrOpcode::kJSGeneratorRestoreContext:
+      return ReduceJSGeneratorRestoreContext(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:

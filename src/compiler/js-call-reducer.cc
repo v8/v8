@@ -575,8 +575,8 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
         outer_context, effect(), control()));
   }
 
-  void StoreContextNoCellSlot(TNode<Context> context, size_t slot_index,
-                              TNode<Object> value) {
+  void StoreContextSlot(TNode<Context> context, size_t slot_index,
+                        TNode<Object> value) {
     StoreField(AccessBuilder::ForContextSlot(slot_index), context, value);
   }
 
@@ -2440,12 +2440,11 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   // Allocate a promise context for the closures below.
   TNode<Context> promise_context = CreateFunctionContext(
       native_context, context, PromiseBuiltins::kPromiseContextLength);
-  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kPromiseSlot,
-                         promise);
-  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kAlreadyResolvedSlot,
-                         FalseConstant());
-  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kDebugEventSlot,
-                         TrueConstant());
+  StoreContextSlot(promise_context, PromiseBuiltins::kPromiseSlot, promise);
+  StoreContextSlot(promise_context, PromiseBuiltins::kAlreadyResolvedSlot,
+                   FalseConstant());
+  StoreContextSlot(promise_context, PromiseBuiltins::kDebugEventSlot,
+                   TrueConstant());
 
   // Allocate closures for the resolve and reject cases.
   SharedFunctionInfoRef resolve_sfi =

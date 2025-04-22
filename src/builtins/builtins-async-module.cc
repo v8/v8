@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/common/globals.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -13,7 +12,7 @@ namespace internal {
 BUILTIN(CallAsyncModuleFulfilled) {
   HandleScope handle_scope(isolate);
   Handle<SourceTextModule> module(
-      Cast<SourceTextModule>(isolate->context()->GetNoCell(
+      Cast<SourceTextModule>(isolate->context()->get(
           SourceTextModule::ExecuteAsyncModuleContextSlots::kModule)),
       isolate);
   if (SourceTextModule::AsyncModuleExecutionFulfilled(isolate, module)
@@ -30,7 +29,7 @@ BUILTIN(CallAsyncModuleFulfilled) {
 BUILTIN(CallAsyncModuleRejected) {
   HandleScope handle_scope(isolate);
   DirectHandle<SourceTextModule> module(
-      Cast<SourceTextModule>(isolate->context()->GetNoCell(
+      Cast<SourceTextModule>(isolate->context()->get(
           SourceTextModule::ExecuteAsyncModuleContextSlots::kModule)),
       isolate);
 

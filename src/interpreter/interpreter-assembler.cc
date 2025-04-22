@@ -199,8 +199,8 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
   BIND(&context_search);
   {
     cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-    cur_context = CAST(
-        LoadContextElementNoCell(cur_context.value(), Context::PREVIOUS_INDEX));
+    cur_context =
+        CAST(LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
 
     Branch(Word32Equal(cur_depth.value(), Int32Constant(0)), &context_found,
            &context_search);

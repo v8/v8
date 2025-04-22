@@ -1325,9 +1325,7 @@ void PrintContextWithHeader(std::ostream& os, Tagged<Context> context,
   }
   os << "\n - length: " << context->length();
   os << "\n - elements:";
-  PrintFixedArrayElements<Context>(
-      os, context, context->length(),
-      [](Tagged<Context> xs, int i) { return Cast<Object>(xs->GetNoCell(i)); });
+  PrintFixedArrayElements(os, context);
   os << "\n";
 }
 }  // namespace

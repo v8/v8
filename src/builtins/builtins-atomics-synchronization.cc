@@ -26,12 +26,11 @@ DirectHandle<JSPromise> UnlockAsyncLockedMutexFromPromiseHandler(
     Isolate* isolate) {
   DirectHandle<Context> context(isolate->context(), isolate);
   DirectHandle<Object> mutex(
-      context->GetNoCell(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
+      context->get(JSAtomicsMutex::kMutexAsyncContextSlot), isolate);
   DirectHandle<Object> unlock_promise(
-      context->GetNoCell(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot),
-      isolate);
+      context->get(JSAtomicsMutex::kUnlockedPromiseAsyncContextSlot), isolate);
   DirectHandle<Object> waiter_wrapper_obj(
-      context->GetNoCell(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
+      context->get(JSAtomicsMutex::kAsyncLockedWaiterAsyncContextSlot),
       isolate);
 
   auto js_mutex = Cast<JSAtomicsMutex>(mutex);
@@ -391,7 +390,7 @@ BUILTIN(AtomicsConditionAcquireLock) {
 
   DirectHandle<Context> context(isolate->context(), isolate);
   DirectHandle<Object> js_mutex_obj(
-      context->GetNoCell(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
+      context->get(JSAtomicsCondition::kMutexAsyncContextSlot), isolate);
   DirectHandle<JSAtomicsMutex> js_mutex = Cast<JSAtomicsMutex>(js_mutex_obj);
   DirectHandle<JSPromise> lock_promise =
       JSAtomicsMutex::LockAsyncWrapperForWait(isolate, js_mutex);

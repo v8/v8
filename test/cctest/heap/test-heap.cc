@@ -118,11 +118,11 @@ static void VerifyStoredPrototypeMap(Isolate* isolate,
                                      int stored_ctor_context_index) {
   DirectHandle<Context> context = isolate->native_context();
 
-  DirectHandle<Map> this_map(
-      Cast<Map>(context->GetNoCell(stored_map_context_index)), isolate);
+  DirectHandle<Map> this_map(Cast<Map>(context->get(stored_map_context_index)),
+                             isolate);
 
   DirectHandle<JSFunction> fun(
-      Cast<JSFunction>(context->GetNoCell(stored_ctor_context_index)), isolate);
+      Cast<JSFunction>(context->get(stored_ctor_context_index)), isolate);
   DirectHandle<JSObject> proto(Cast<JSObject>(fun->initial_map()->prototype()),
                                isolate);
   DirectHandle<Map> that_map(proto->map(), isolate);

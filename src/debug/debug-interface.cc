@@ -216,7 +216,7 @@ void ForEachContextLocal(i::Isolate* isolate,
       continue;
     }
     int context_index = scope_info->ContextHeaderLength() + it->index();
-    i::Handle<i::Object> slot_value(context->GetNoCell(context_index), isolate);
+    i::Handle<i::Object> slot_value(context->get(context_index), isolate);
     context_local_it(mode, name, slot_value);
   }
 }

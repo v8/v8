@@ -1607,7 +1607,7 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderContext) {
   }
 }
 
-TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderLoadContextNoCell) {
+TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderLoadContext) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
