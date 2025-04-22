@@ -232,8 +232,6 @@ class RootVisitor;
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)                                    \
-  /* Table of strings of one-byte single characters */                         \
-  V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Marker for self-references during code-generation */                      \
   V(Hole, self_reference_marker, SelfReferenceMarker)                          \
   /* Marker for basic-block usage counters array during code-generation */     \
@@ -518,6 +516,9 @@ enum class RootIndex : uint16_t {
   // Heap::CreateLateReadOnlyJSReceiverMaps.
   kFirstJSReceiverMapRoot = kJSSharedArrayMap,
 
+  kFirstSingleCharacterString = kascii_nul_string,
+  kLastSingleCharacterString = kFirstSingleCharacterString + 0xff,
+
   // Use for fast protector update checks
   kFirstNameForProtector = kconstructor_string,
   kNameForProtectorCount = 0 NAME_FOR_PROTECTOR_ROOT_LIST(COUNT_ROOT),
@@ -548,6 +549,11 @@ enum class RootIndex : uint16_t {
 #undef COUNT_ROOT
 };
 // clang-format on
+
+static_assert(RootIndex::kFirstSingleCharacterString ==
+              RootIndex::kascii_nul_string);
+static_assert(RootIndex::kLastSingleCharacterString ==
+              RootIndex::klatin1_ff_string);
 
 static_assert(RootIndex::kFirstNameForProtector <=
               RootIndex::kLastNameForProtector);
@@ -629,11 +635,12 @@ class RootsTable {
 
   static constexpr RootIndex SingleCharacterStringIndex(int c) {
     DCHECK_GE(c, 0);
-    DCHECK_LE(c, static_cast<unsigned>(RootIndex::klatin1_ff_string) -
-                     static_cast<unsigned>(RootIndex::kascii_nul_string));
+    DCHECK_LE(
+        c, static_cast<unsigned>(RootIndex::kLastSingleCharacterString) -
+               static_cast<unsigned>(RootIndex::kFirstSingleCharacterString));
     static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
     return static_cast<RootIndex>(
-        static_cast<unsigned>(RootIndex::kascii_nul_string) + c);
+        static_cast<unsigned>(RootIndex::kFirstSingleCharacterString) + c);
   }
 
  private:
@@ -735,6 +742,8 @@ class ReadOnlyRoots {
 #endif
 
   V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
+
+  V8_INLINE Tagged<String> single_character_string(int code) const;
 
   V8_INLINE Address address_at(RootIndex root_index) const;
   V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;

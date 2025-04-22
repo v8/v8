@@ -371,11 +371,9 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
     // a LookupSingleCharacterStringFromCode for each of the characters.
     if (content.IsOneByte()) {
       base::Vector<const uint8_t> chars = content.ToOneByteVector();
-      Tagged<FixedArray> one_byte_table =
-          isolate->heap()->single_character_string_table();
+      ReadOnlyRoots roots(isolate);
       for (int i = 0; i < length; ++i) {
-        Tagged<Object> value = one_byte_table->get(chars[i]);
-        DCHECK(IsString(value));
+        Tagged<String> value = roots.single_character_string(chars[i]);
         DCHECK(ReadOnlyHeap::Contains(Cast<HeapObject>(value)));
         // The single-character strings are in RO space so it should
         // be safe to skip the write barriers.

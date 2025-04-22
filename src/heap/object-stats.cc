@@ -869,9 +869,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
-  RecordSimpleVirtualObjectStats(HeapObject(),
-                                 heap_->single_character_string_table(),
-                                 StatsEnum::SINGLE_CHARACTER_STRING_TABLE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),

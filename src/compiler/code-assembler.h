@@ -855,6 +855,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void SetStackPointer(TNode<RawPtrT> ptr);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  TNode<Object> LoadTaggedFromRootRegister(TNode<IntPtrT> offset);
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
   TNode<Uint8T> LoadUint8FromRootRegister(TNode<IntPtrT> offset);
 

@@ -60,10 +60,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 int char_code) {
   DCHECK_GE(char_code, 0);
   DCHECK_LT(char_code, String::kMaxOneByteCharCode);
-  Register table = result;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedField(result, table,
-                  OFFSET_OF_DATA_START(FixedArray) + char_code * kTaggedSize);
+  LoadRoot(result, RootsTable::SingleCharacterStringIndex(char_code));
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,

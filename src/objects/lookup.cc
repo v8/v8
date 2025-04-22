@@ -1556,7 +1556,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   // - elements[i] (immutable if constant; be careful around dictionaries).
   // - holder.AsJSPrimitiveWrapper.value.AsString.length (immutable).
   // - holder.AsJSPrimitiveWrapper.value.AsString[i] (immutable).
-  // - single_character_string_table()->get().
+  // - roots.single_character_string(charcode).
 
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
@@ -1624,13 +1624,10 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
 
-  Tagged<Object> value =
-      isolate->factory()->single_character_string_table()->get(charcode,
-                                                               kRelaxedLoad);
+  ReadOnlyRoots roots(isolate);
+  Tagged<String> value = roots.single_character_string(charcode);
 
-  DCHECK_NE(value, ReadOnlyRoots(isolate).undefined_value());
-
-  *result_out = Cast<String>(value);
+  *result_out = value;
   return kPresent;
 }
 

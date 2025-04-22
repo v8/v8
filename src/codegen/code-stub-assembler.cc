@@ -8737,6 +8737,24 @@ TNode<Uint16T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
   return var_result.value();
 }
 
+TNode<String> CodeStubAssembler::StringFromSingleOneByteCharCode(
+    TNode<Uint8T> code) {
+  CSA_DCHECK(this, Uint32LessThanOrEqual(
+                       code, Int32Constant(String::kMaxOneByteCharCode)));
+
+  // Load the string for the {code} directly from the roots table.
+  TNode<UintPtrT> code_index = ChangeUint32ToWord(code);
+  TNode<IntPtrT> single_char_string_table_offset = IntPtrConstant(
+      IsolateData::root_slot_offset(RootIndex::kFirstSingleCharacterString));
+
+  // TODO(ishell): consider completely avoiding the load:
+  // entry = roots.single_character_string('\0') +
+  //     SeqOneByteString::SizeFor(1) * code + kHeapObjectTag;
+  TNode<Object> entry = LoadTaggedFromRootRegister(Signed(IntPtrAdd(
+      single_char_string_table_offset, TimesSystemPointerSize(code_index))));
+  return CAST(entry);
+}
+
 TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
   TVARIABLE(String, var_result);
 
@@ -8748,14 +8766,9 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
   BIND(&if_codeisonebyte);
   {
     // Load the isolate wide single character string cache.
-    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
-    TNode<IntPtrT> code_index = Signed(ChangeUint32ToWord(code));
-
-    TNode<Object> entry = UnsafeLoadFixedArrayElement(cache, code_index);
-    CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
-
-    // Return the entry from the {cache}.
-    var_result = CAST(entry);
+    TNode<String> entry =
+        StringFromSingleOneByteCharCode(UncheckedCast<Uint8T>(code));
+    var_result = entry;
     Goto(&if_done);
   }
 

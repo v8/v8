@@ -136,8 +136,6 @@
   V(resolve_string, resolve_string, ResolveString)                           \
   V(return_string, return_string, ReturnString)                              \
   V(search_symbol, search_symbol, SearchSymbol)                              \
-  V(SingleCharacterStringTable, single_character_string_table,               \
-    SingleCharacterStringTable)                                              \
   V(size_string, size_string, SizeString)                                    \
   V(species_symbol, species_symbol, SpeciesSymbol)                           \
   V(StaleRegister, stale_register, StaleRegister)                            \

@@ -120,6 +120,10 @@ Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
   return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
 }
 
+Tagged<String> ReadOnlyRoots::single_character_string(int code) const {
+  return Cast<String>(object_at(RootsTable::SingleCharacterStringIndex(code)));
+}
+
 Address ReadOnlyRoots::first_name_for_protector() const {
   return address_at(RootIndex::kFirstNameForProtector);
 }

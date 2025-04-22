@@ -1101,17 +1101,6 @@ bool Heap::CreateReadOnlyObjects() {
       /* not used */)
 #undef ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR
 
-  // Allocate and initialize table for single character one byte strings.
-  int table_size = String::kMaxOneByteCharCode + 1;
-  set_single_character_string_table(
-      *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
-  for (int i = 0; i < table_size; ++i) {
-    DirectHandle<String> str = Cast<String>(
-        roots_table().handle_at(RootsTable::SingleCharacterStringIndex(i)));
-    DCHECK(ReadOnlyHeap::Contains(*str));
-    single_character_string_table()->set(i, *str);
-  }
-
   // Finish initializing oddballs after creating the string table.
   Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
                       factory->nan_value(), "undefined", Oddball::kUndefined);

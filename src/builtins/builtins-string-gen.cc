@@ -1504,7 +1504,6 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1514,14 +1513,13 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // ToDirectStringAssembler.PointerToData().
           CSA_DCHECK(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
-          TNode<Int32T> char_code =
-              UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
-                                         IntPtrAdd(index, string_data_offset)));
-          TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
-          TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
+          TNode<Uint8T> char_code =
+              Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
+          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
 
-          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
-
+          // TODO(ishell): make it possible to skip write barriers here.
+          // The single-character strings are in RO space so it should
+          // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
         1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
