@@ -1824,6 +1824,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
                             "skip array bounds checks (unsafe)")
 
+// Experimental variants of the Custom Descriptors prototype implementation.
+DEFINE_BOOL(wasm_explicit_prototypes, true,
+            "enable support for JS Prototypes as first field on Descriptor "
+            "structs (only with --experimental-wasm-custom-descriptors)")
+DEFINE_BOOL(wasm_implicit_prototypes, true,
+            "enable support for engine-created 'invisible' JS Prototypes "
+            "(only with --experimental-wasm-custom-descriptors)")
+
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \

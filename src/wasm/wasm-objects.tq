@@ -296,6 +296,10 @@ extern class WasmArray extends WasmObject {
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
+extern class WasmDescriptorOptions extends JSObject {
+  prototype: Object;
+}
+
 class WasmStringViewIter extends HeapObject {
   string: String;
   offset: uint32;  // Index into string.

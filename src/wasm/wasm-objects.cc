@@ -2392,6 +2392,17 @@ DirectHandle<WasmTagObject> WasmTagObject::New(
   return tag_wrapper;
 }
 
+DirectHandle<WasmDescriptorOptions> WasmDescriptorOptions::New(
+    Isolate* isolate, DirectHandle<Object> prototype) {
+  DirectHandle<JSFunction> ctor(
+      isolate->native_context()->wasm_descriptor_options_constructor(),
+      isolate);
+  DirectHandle<WasmDescriptorOptions> desc =
+      Cast<WasmDescriptorOptions>(isolate->factory()->NewJSObject(ctor));
+  desc->set_prototype(*prototype);
+  return desc;
+}
+
 bool WasmTagObject::MatchesSignature(wasm::CanonicalTypeIndex expected_index) {
   return wasm::CanonicalTypeIndex{static_cast<uint32_t>(
              this->canonical_type_index())} == expected_index;
