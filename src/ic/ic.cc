@@ -475,10 +475,7 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
     if (script_contexts->Lookup(str_name, &lookup_result)) {
       DirectHandle<Context> script_context(
           script_contexts->get(lookup_result.context_index), isolate());
-      DirectHandle<Object> result(script_context->get(lookup_result.slot_index),
-                                  isolate());
-
-      if (IsTheHole(*result, isolate())) {
+      if (script_context->IsElementTheHole(lookup_result.slot_index)) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
         THROW_NEW_ERROR(
@@ -486,7 +483,6 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
             NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
                               name));
       }
-
       bool use_ic =
           (state() != NO_FEEDBACK) && v8_flags.use_ic && update_feedback;
       if (use_ic) {
@@ -506,13 +502,7 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
       } else if (state() == NO_FEEDBACK) {
         TraceIC("LoadGlobalIC", name);
       }
-      if (v8_flags.script_context_cells) {
-        return direct_handle(
-            *Context::LoadScriptContextElement(
-                script_context, lookup_result.slot_index, result, isolate()),
-            isolate());
-      }
-      return result;
+      return Context::Get(script_context, lookup_result.slot_index, isolate());
     }
   }
   return LoadIC::Load(global, name, update_feedback);
@@ -1713,10 +1703,7 @@ MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
 
-    Tagged<Object> previous_value =
-        script_context->get(lookup_result.slot_index);
-
-    if (IsTheHole(previous_value, isolate())) {
+    if (script_context->IsElementTheHole(lookup_result.slot_index)) {
       // Do not install stubs and stay pre-monomorphic for uninitialized
       // accesses.
       AllowGarbageCollection yes_gc;
@@ -1741,14 +1728,9 @@ MaybeDirectHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     } else if (state() == NO_FEEDBACK) {
       TraceIC("StoreGlobalIC", name);
     }
-    if (v8_flags.script_context_cells) {
-      AllowGarbageCollection yes_gc;
-      Context::StoreScriptContextElement(
-          direct_handle(script_context, isolate()), lookup_result.slot_index,
-          value, isolate());
-    } else {
-      script_context->set(lookup_result.slot_index, *value);
-    }
+    AllowGarbageCollection yes_gc;
+    Context::Set(handle(script_context, isolate()), lookup_result.slot_index,
+                 value, isolate());
     return value;
   }
 
@@ -3047,10 +3029,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
     {
       DisallowGarbageCollection no_gc;
-      Tagged<Object> previous_value =
-          script_context->get(lookup_result.slot_index);
-
-      if (IsTheHole(previous_value, isolate)) {
+      if (script_context->IsElementTheHole(lookup_result.slot_index)) {
         AllowGarbageCollection yes_gc;
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,
@@ -3058,12 +3037,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
                               name));
       }
     }
-    if (v8_flags.script_context_cells) {
-      Context::StoreScriptContextElement(
-          script_context, lookup_result.slot_index, value, isolate);
-    } else {
-      script_context->set(lookup_result.slot_index, *value);
-    }
+    Context::Set(script_context, lookup_result.slot_index, value, isolate);
     return *value;
   }
 

@@ -320,7 +320,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_GE(depth, 0);
   for (; depth > 0; depth--) {
     context = direct_handle(
-        Cast<Context>(context->get(Context::PREVIOUS_INDEX)), isolate);
+        Cast<Context>(context->GetNoCell(Context::PREVIOUS_INDEX)), isolate);
   }
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
@@ -1376,7 +1376,7 @@ void CollectPrivateMethodsAndAccessorsFromContext(
     return;
   }
 
-  Handle<Object> slot_value(context->get(context_index), isolate);
+  Handle<Object> slot_value(context->GetNoCell(context_index), isolate);
   DCHECK_IMPLIES(lookup_result.mode == VariableMode::kPrivateMethod,
                  IsJSFunction(*slot_value));
   DCHECK_IMPLIES(lookup_result.mode != VariableMode::kPrivateMethod,

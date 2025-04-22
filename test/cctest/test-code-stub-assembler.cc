@@ -2906,9 +2906,9 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   DirectHandle<Context> context_js = Cast<Context>(result);
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(IsJSPromise(context_js->get(PromiseBuiltins::kPromiseSlot)));
+  CHECK(IsJSPromise(context_js->GetNoCell(PromiseBuiltins::kPromiseSlot)));
   CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
-           context_js->get(PromiseBuiltins::kDebugEventSlot));
+           context_js->GetNoCell(PromiseBuiltins::kDebugEventSlot));
 }
 
 TEST(CreatePromiseResolvingFunctions) {
@@ -3063,7 +3063,8 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CHECK_EQ(PromiseBuiltins::kCapabilitiesContextLength, context_js->length());
   CHECK_EQ(isolate->root(RootIndex::kEmptyScopeInfo), context_js->scope_info());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(IsPromiseCapability(context_js->get(PromiseBuiltins::kCapabilitySlot)));
+  CHECK(IsPromiseCapability(
+      context_js->GetNoCell(PromiseBuiltins::kCapabilitySlot)));
 }
 
 TEST(NewPromiseCapability) {
@@ -3076,8 +3077,8 @@ TEST(NewPromiseCapability) {
 
     auto context = m.GetJSContextParameter();
     const TNode<NativeContext> native_context = m.LoadNativeContext(context);
-    const TNode<Object> promise_constructor =
-        m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+    const TNode<Object> promise_constructor = m.LoadContextElementNoCell(
+        native_context, Context::PROMISE_FUNCTION_INDEX);
 
     const TNode<True> debug_event = m.TrueConstant();
     const TNode<Object> capability =
@@ -3114,7 +3115,7 @@ TEST(NewPromiseCapability) {
       CHECK_EQ(*isolate->native_context(), callback_context->native_context());
       CHECK_EQ(PromiseBuiltins::kPromiseContextLength,
                callback_context->length());
-      CHECK_EQ(callback_context->get(PromiseBuiltins::kPromiseSlot),
+      CHECK_EQ(callback_context->GetNoCell(PromiseBuiltins::kPromiseSlot),
                result->promise());
     }
   }

@@ -395,11 +395,11 @@ namespace {
 bool IsFunctionMapOrSpecialBuiltin(DirectHandle<Map> map, Builtin builtin,
                                    DirectHandle<Context> context) {
   // During bootstrapping some of these maps could be not created yet.
-  return ((*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
-          (*map == context->get(
+  return ((*map == context->GetNoCell(Context::STRICT_FUNCTION_MAP_INDEX)) ||
+          (*map == context->GetNoCell(
                        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX)) ||
           (*map ==
-           context->get(
+           context->GetNoCell(
                Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
           // Check if it's a creation of an empty or Proxy function during
           // bootstrapping.
@@ -1287,8 +1287,8 @@ void InitializeJSArrayMaps(Isolate* isolate,
   DCHECK_EQ(PACKED_SMI_ELEMENTS, kind);
   DCHECK_EQ(Context::ArrayMapIndex(kind),
             Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX);
-  native_context->set(Context::ArrayMapIndex(kind), *current_map,
-                      UPDATE_WRITE_BARRIER, kReleaseStore);
+  native_context->SetNoCell(Context::ArrayMapIndex(kind), *current_map,
+                            kReleaseStore);
   for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
        i < kFastElementsKindCount; ++i) {
     DirectHandle<Map> new_map;
@@ -1302,8 +1302,8 @@ void InitializeJSArrayMaps(Isolate* isolate,
                                         INSERT_TRANSITION);
     }
     DCHECK_EQ(next_kind, new_map->elements_kind());
-    native_context->set(Context::ArrayMapIndex(next_kind), *new_map,
-                        UPDATE_WRITE_BARRIER, kReleaseStore);
+    native_context->SetNoCell(Context::ArrayMapIndex(next_kind), *new_map,
+                              kReleaseStore);
     current_map = new_map;
   }
 }
@@ -1338,8 +1338,8 @@ static void AddToWeakNativeContextList(Isolate* isolate,
     }
   }
 #endif
-  context->set(Context::NEXT_CONTEXT_LINK, heap->native_contexts_list(),
-               UPDATE_WRITE_BARRIER);
+  context->SetNoCell(Context::NEXT_CONTEXT_LINK, heap->native_contexts_list(),
+                     UPDATE_WRITE_BARRIER);
   heap->set_native_contexts_list(context);
 }
 
@@ -1362,7 +1362,7 @@ void Genesis::InstallGlobalThisBinding() {
 
   // Go ahead and hook it up while we're at it.
   int slot = scope_info->ReceiverContextSlotIndex();
-  context->set(slot, native_context()->global_proxy());
+  context->SetNoCell(slot, native_context()->global_proxy());
 
   Handle<ScriptContextTable> script_contexts(
       native_context()->script_context_table(), isolate());
@@ -1466,7 +1466,7 @@ DirectHandle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Set the global proxy of the native context. If the native context has been
   // deserialized, the global proxy is already correctly set up by the
   // deserializer. Otherwise it's undefined.
-  DCHECK(IsUndefined(native_context()->get(Context::GLOBAL_PROXY_INDEX),
+  DCHECK(IsUndefined(native_context()->GetNoCell(Context::GLOBAL_PROXY_INDEX),
                      isolate()) ||
          native_context()->global_proxy_object() == *global_proxy);
   native_context()->set_global_proxy_object(*global_proxy);

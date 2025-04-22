@@ -1273,10 +1273,10 @@ void AccessorAssembler::EmitAccessCheck(TNode<Context> expected_native_context,
   GotoIfNot(IsJSGlobalProxy(CAST(receiver)), miss);
   // For JSGlobalProxy receiver try to compare security tokens of current
   // and expected native contexts.
-  TNode<Object> expected_token = LoadContextElement(
+  TNode<Object> expected_token = LoadContextElementNoCell(
       expected_native_context, Context::SECURITY_TOKEN_INDEX);
   TNode<Object> current_token =
-      LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
+      LoadContextElementNoCell(native_context, Context::SECURITY_TOKEN_INDEX);
   Branch(TaggedEqual(expected_token, current_token), can_access, miss);
 }
 
@@ -3493,7 +3493,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> context = lazy_context();
     TNode<Context> script_context = LoadScriptContext(context, context_index);
-    TNode<Object> result = LoadScriptContextElement(script_context, slot_index);
+    TNode<Object> result = LoadContextElement(script_context, slot_index);
     exit_point->Return(result);
   }
 }
@@ -3517,10 +3517,10 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
 
   TNode<Context> context = lazy_context();
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<JSGlobalProxy> receiver =
-      CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX));
+  TNode<JSGlobalProxy> receiver = CAST(
+      LoadContextElementNoCell(native_context, Context::GLOBAL_PROXY_INDEX));
   TNode<JSAny> global =
-      CAST(LoadContextElement(native_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(native_context, Context::EXTENSION_INDEX));
 
   LazyLoadICParameters p([=] { return context; }, receiver, lazy_name,
                          [=] { return slot; }, vector, global);
@@ -3532,8 +3532,9 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
 void AccessorAssembler::ScriptContextTableLookup(
     TNode<Name> name, TNode<NativeContext> native_context, Label* found_hole,
     Label* not_found) {
-  TNode<ScriptContextTable> script_context_table = CAST(
-      LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
+  TNode<ScriptContextTable> script_context_table =
+      CAST(LoadContextElementNoCell(native_context,
+                                    Context::SCRIPT_CONTEXT_TABLE_INDEX));
   TVARIABLE(IntPtrT, context_index, IntPtrConstant(-1));
   Label loop(this, &context_index);
   TNode<IntPtrT> num_script_contexts = PositiveSmiUntag(CAST(LoadObjectField(
@@ -3548,15 +3549,15 @@ void AccessorAssembler::ScriptContextTableLookup(
 
     TNode<Context> script_context =
         LoadArrayElement(script_context_table, context_index.value());
-    TNode<ScopeInfo> scope_info =
-        CAST(LoadContextElement(script_context, Context::SCOPE_INFO_INDEX));
+    TNode<ScopeInfo> scope_info = CAST(
+        LoadContextElementNoCell(script_context, Context::SCOPE_INFO_INDEX));
 
     TNode<IntPtrT> context_local_index =
         IndexOfLocalName(scope_info, name, &loop);
 
     TNode<IntPtrT> var_index = IntPtrAdd(
         IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
-    TNode<Object> result = LoadScriptContextElement(script_context, var_index);
+    TNode<Object> result = LoadContextElement(script_context, var_index);
     GotoIf(IsTheHole(result), found_hole);
     Return(result);
   }
@@ -3577,7 +3578,7 @@ void AccessorAssembler::LoadGlobalIC_NoFeedback(TNode<Context> context,
 
   BIND(&regular_load);
   TNode<JSGlobalObject> global_object =
-      CAST(LoadContextElement(native_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(native_context, Context::EXTENSION_INDEX));
   TailCallBuiltin(Builtin::kLoadIC_NoFeedback, context, global_object, name,
                   smi_typeof_mode);
 }
@@ -3939,11 +3940,11 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       DCHECK(pp->receiver_is_null());
       DCHECK(pp->flags_is_null());
       TNode<NativeContext> native_context = LoadNativeContext(pp->context());
-      StoreICParameters p(
-          pp->context(),
-          CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX)),
-          pp->name(), pp->value(), std::nullopt, pp->slot(), pp->vector(),
-          StoreICMode::kDefault);
+      StoreICParameters p(pp->context(),
+                          CAST(LoadContextElementNoCell(
+                              native_context, Context::GLOBAL_PROXY_INDEX)),
+                          pp->name(), pp->value(), std::nullopt, pp->slot(),
+                          pp->vector(), StoreICMode::kDefault);
 
       HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
     }
@@ -3968,7 +3969,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(pp->context(), context_index);
-    StoreScriptContext(script_context, slot_index, pp->value());
+    StoreContextElement(script_context, slot_index, pp->value());
     Return(pp->value());
   }
 
@@ -4543,7 +4544,7 @@ void AccessorAssembler::LookupContext(LazyNode<Object> lazy_name,
                                       LazyNode<TaggedIndex> lazy_slot,
                                       TNode<Context> context,
                                       TypeofMode typeof_mode,
-                                      ContextKind context_kind) {
+                                      ContextMode context_mode) {
   Label slowpath(this, Label::kDeferred);
 
   // Check for context extensions to allow the fast path.
@@ -4554,10 +4555,10 @@ void AccessorAssembler::LookupContext(LazyNode<Object> lazy_name,
   // Fast path does a normal load context.
   {
     auto slot = lazy_slot();
-    Return(
-        context_kind == ContextKind::kScriptContext
-            ? LoadScriptContextElement(slot_context, TaggedIndexToIntPtr(slot))
-            : LoadContextElement(slot_context, TaggedIndexToIntPtr(slot)));
+    Return(context_mode == ContextMode::kHasContextCells
+               ? LoadContextElement(slot_context, TaggedIndexToIntPtr(slot))
+               : LoadContextElementNoCell(slot_context,
+                                          TaggedIndexToIntPtr(slot)));
   }
 
   // Slow path when we have to call out to the runtime.
@@ -4572,22 +4573,22 @@ void AccessorAssembler::LookupContext(LazyNode<Object> lazy_name,
 }
 
 void AccessorAssembler::GenerateLookupContextTrampoline(
-    TypeofMode typeof_mode, ContextKind context_kind) {
+    TypeofMode typeof_mode, ContextMode context_mode) {
   using Descriptor = LookupTrampolineDescriptor;
   LookupContext([&] { return Parameter<Object>(Descriptor::kName); },
                 Parameter<TaggedIndex>(Descriptor::kDepth),
                 [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
                 Parameter<Context>(Descriptor::kContext), typeof_mode,
-                context_kind);
+                context_mode);
 }
 
 void AccessorAssembler::GenerateLookupContextBaseline(
-    TypeofMode typeof_mode, ContextKind context_kind) {
+    TypeofMode typeof_mode, ContextMode context_mode) {
   using Descriptor = LookupBaselineDescriptor;
   LookupContext([&] { return Parameter<Object>(Descriptor::kName); },
                 Parameter<TaggedIndex>(Descriptor::kDepth),
                 [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
-                LoadContextFromBaseline(), typeof_mode, context_kind);
+                LoadContextFromBaseline(), typeof_mode, context_mode);
 }
 
 void AccessorAssembler::LookupGlobalIC(

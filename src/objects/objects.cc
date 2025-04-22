@@ -292,7 +292,7 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
                       NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
     }
     constructor = direct_handle(
-        Cast<JSFunction>(native_context->get(constructor_function_index)),
+        Cast<JSFunction>(native_context->GetNoCell(constructor_function_index)),
         isolate);
   }
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);

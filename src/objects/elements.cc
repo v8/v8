@@ -6,6 +6,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/numerics/safe_conversions.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
@@ -4807,8 +4808,8 @@ class SloppyArgumentsElementsAccessor
       DCHECK(!IsTheHole(probe, isolate));
       Tagged<Context> context = elements->context();
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!IsTheHole(context->get(context_entry), isolate));
-      return handle(context->get(context_entry), isolate);
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      return handle(context->GetNoCell(context_entry), isolate);
     } else {
       // Entry is not context mapped, defer to the arguments.
       Handle<Object> result = ArgumentsAccessor::GetImpl(
@@ -4845,8 +4846,8 @@ class SloppyArgumentsElementsAccessor
       DCHECK(!IsTheHole(probe));
       Tagged<Context> context = Cast<Context>(elements->context());
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!IsTheHole(context->get(context_entry)));
-      context->set(context_entry, value);
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry)));
+      context->SetNoCell(context_entry, value);
     } else {
       //  Entry is not context mapped defer to arguments.
       Tagged<FixedArray> arguments = elements->arguments();
@@ -4857,8 +4858,8 @@ class SloppyArgumentsElementsAccessor
             Cast<AliasedArgumentsEntry>(current);
         Tagged<Context> context = Cast<Context>(elements->context());
         int context_entry = alias->aliased_context_slot();
-        DCHECK(!IsTheHole(context->get(context_entry)));
-        context->set(context_entry, value);
+        DCHECK(!IsTheHole(context->GetNoCell(context_entry)));
+        context->SetNoCell(context_entry, value);
       } else {
         ArgumentsAccessor::SetImpl(arguments, entry.adjust_down(length), value);
       }
@@ -5157,8 +5158,8 @@ class SlowSloppyArgumentsElementsAccessor
           Cast<AliasedArgumentsEntry>(*result);
       Tagged<Context> context = elements->context();
       int context_entry = alias->aliased_context_slot();
-      DCHECK(!IsTheHole(context->get(context_entry), isolate));
-      return handle(context->get(context_entry), isolate);
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      return handle(context->GetNoCell(context_entry), isolate);
     }
     return result;
   }
@@ -5211,8 +5212,8 @@ class SlowSloppyArgumentsElementsAccessor
       DCHECK(!IsTheHole(probe, isolate));
       Tagged<Context> context = elements->context();
       int context_entry = Smi::ToInt(probe);
-      DCHECK(!IsTheHole(context->get(context_entry), isolate));
-      context->set(context_entry, *value);
+      DCHECK(!IsTheHole(context->GetNoCell(context_entry), isolate));
+      context->SetNoCell(context_entry, *value);
 
       // Redefining attributes of an aliased element destroys fast aliasing.
       elements->set_mapped_entries(entry.as_uint32(),
