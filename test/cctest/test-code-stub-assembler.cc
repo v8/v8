@@ -552,7 +552,7 @@ TEST(ToString) {
   js_array_storage->set(0, Smi::FromInt(1));
   js_array_storage->set(1, Smi::FromInt(2));
   DirectHandle<JSArray> js_array = isolate->factory()->NewJSArray(2);
-  JSArray::SetContent(js_array, js_array_storage);
+  JSArray::SetContent(isolate, js_array, js_array_storage);
   tostring_test->set(0, *js_array);
   str = isolate->factory()->InternalizeUtf8String("1,2");
   tostring_test->set(1, *str);
@@ -1603,10 +1603,10 @@ TEST(TryGetOwnProperty) {
 
 namespace {
 
-void AddElement(DirectHandle<JSObject> object, uint32_t index,
+void AddElement(Isolate* isolate, DirectHandle<JSObject> object, uint32_t index,
                 DirectHandle<Object> value,
                 PropertyAttributes attributes = NONE) {
-  JSObject::AddDataElement(object, index, value, attributes);
+  JSObject::AddDataElement(isolate, object, index, value, attributes);
 }
 
 }  // namespace
@@ -1693,8 +1693,8 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_SMI_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 1, smi0);
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 1, smi0);
     CHECK_EQ(PACKED_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
@@ -1706,8 +1706,8 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_SMI_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 13, smi0);
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 13, smi0);
     CHECK_EQ(HOLEY_SMI_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
@@ -1719,8 +1719,8 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, PACKED_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 1, smi0);
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 1, smi0);
     CHECK_EQ(PACKED_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
@@ -1732,8 +1732,8 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, HOLEY_ELEMENTS);
-    AddElement(object, 0, smi0);
-    AddElement(object, 13, smi0);
+    AddElement(isolate, object, 0, smi0);
+    AddElement(isolate, object, 13, smi0);
     CHECK_EQ(HOLEY_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
@@ -1774,7 +1774,7 @@ TEST(TryLookupElement) {
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Cast<JSPrimitiveWrapper>(object)->set_value(*str);
-    AddElement(object, 13, smi0);
+    AddElement(isolate, object, 13, smi0);
     CHECK_EQ(FAST_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);
@@ -1789,8 +1789,8 @@ TEST(TryLookupElement) {
     Handle<JSObject> object = factory->NewJSObject(constructor);
     DirectHandle<String> str = factory->InternalizeUtf8String("ab");
     Cast<JSPrimitiveWrapper>(object)->set_value(*str);
-    AddElement(object, 13, smi0);
-    JSObject::NormalizeElements(object);
+    AddElement(isolate, object, 13, smi0);
+    JSObject::NormalizeElements(isolate, object);
     CHECK_EQ(SLOW_STRING_WRAPPER_ELEMENTS, object->map()->elements_kind());
 
     CHECK_FOUND(object, 0);

@@ -1495,7 +1495,7 @@ void Genesis::HookUpGlobalObject(DirectHandle<JSGlobalObject> global_object) {
 
   TransferNamedProperties(global_object_from_snapshot, global_object);
   if (global_object_from_snapshot->HasDictionaryElements()) {
-    JSObject::NormalizeElements(global_object);
+    JSObject::NormalizeElements(isolate(), global_object);
   }
   DCHECK_EQ(global_object_from_snapshot->GetElementsKind(),
             global_object->GetElementsKind());

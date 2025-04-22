@@ -2724,7 +2724,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
     if (IsJSArray(*receiver)) {
       DirectHandle<JSArray> array = Cast<JSArray>(receiver);
       if (JSArray::WouldChangeReadOnlyLength(array, it->array_index())) {
-        RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
                                     isolate->factory()->length_string(),
                                     Object::TypeOf(isolate, array), array));
@@ -2732,10 +2732,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
     }
 
     DirectHandle<JSObject> receiver_obj = Cast<JSObject>(receiver);
-    MAYBE_RETURN(JSObject::AddDataElement(receiver_obj, it->array_index(),
-                                          value, attributes),
+    MAYBE_RETURN(JSObject::AddDataElement(isolate, receiver_obj,
+                                          it->array_index(), value, attributes),
                  Nothing<bool>());
-    JSObject::ValidateElements(*receiver_obj);
+    JSObject::ValidateElements(isolate, *receiver_obj);
     return Just(true);
   }
 
@@ -3297,7 +3297,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, DirectHandle<JSArray> a,
     // (Not needed.)
   }
   // Most of steps 16 through 19 is implemented by JSArray::SetLength.
-  MAYBE_RETURN(JSArray::SetLength(a, new_len), Nothing<bool>());
+  MAYBE_RETURN(JSArray::SetLength(isolate, a, new_len), Nothing<bool>());
   // Steps 19d-ii, 20.
   if (!new_writable) {
     PropertyDescriptor readonly;
@@ -4826,20 +4826,20 @@ Tagged<Script> Script::Iterator::Next() {
 }
 
 // static
-void JSArray::Initialize(DirectHandle<JSArray> array, int capacity,
-                         int length) {
+void JSArray::Initialize(Isolate* isolate, DirectHandle<JSArray> array,
+                         int capacity, int length) {
   DCHECK_GE(capacity, 0);
-  array->GetIsolate()->factory()->NewJSArrayStorage(
+  isolate->factory()->NewJSArrayStorage(
       array, length, capacity,
       ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
-Maybe<bool> JSArray::SetLength(DirectHandle<JSArray> array,
+Maybe<bool> JSArray::SetLength(Isolate* isolate, DirectHandle<JSArray> array,
                                uint32_t new_length) {
   if (array->SetLengthWouldNormalize(new_length)) {
-    JSObject::NormalizeElements(array);
+    JSObject::NormalizeElements(isolate, array);
   }
-  return array->GetElementsAccessor()->SetLength(array, new_length);
+  return array->GetElementsAccessor()->SetLength(isolate, array, new_length);
 }
 
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)

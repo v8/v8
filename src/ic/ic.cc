@@ -3215,7 +3215,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
 
   if (IsJSObject(*object)) {
-    JSObject::TransitionElementsKind(Cast<JSObject>(object),
+    JSObject::TransitionElementsKind(isolate, Cast<JSObject>(object),
                                      map->elements_kind());
   }
 

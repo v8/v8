@@ -697,7 +697,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         if (Smi::ToInt(*key_obj) >= lookup_start_object->elements()->length()) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
-          JSObject::TransitionElementsKind(lookup_start_object, elements_kind);
+          JSObject::TransitionElementsKind(isolate, lookup_start_object,
+                                           elements_kind);
         }
       } else {
         DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||

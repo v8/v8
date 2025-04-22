@@ -206,7 +206,7 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  if (JSArray::SetLength(array, length).IsNothing()) {
+  if (JSArray::SetLength(isolate, array, length).IsNothing()) {
     // TODO(victorgomes): AccessorNameBooleanSetterCallback does not handle
     // exceptions.
     FATAL("Fatal JavaScript invalid array length %u", length);

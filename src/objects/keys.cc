@@ -702,7 +702,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 
   size_t length = accessor->GetCapacity(*result, result->elements());
   for (InternalIndex entry : InternalIndex::Range(length)) {
-    if (!accessor->HasEntry(*result, entry)) continue;
+    if (!accessor->HasEntry(isolate(), *result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.
     // Query callbacks are not expected to have side effects.

@@ -1850,7 +1850,8 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   HandleScope scope(isolate_);
   DirectHandle<JSArray> array =
       isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-  MAYBE_RETURN(JSArray::SetLength(array, length), MaybeDirectHandle<JSArray>());
+  MAYBE_RETURN(JSArray::SetLength(isolate_, array, length),
+               MaybeDirectHandle<JSArray>());
   AddObjectWithID(id, array);
 
   uint32_t num_properties;
@@ -2516,9 +2517,9 @@ MaybeDirectHandle<JSObject> ValueDeserializer::ReadHostObject() {
 // Copies a vector of property values into an object, given the map that should
 // be used.
 static void CommitProperties(
-    DirectHandle<JSObject> object, DirectHandle<Map> map,
+    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Map> map,
     base::Vector<const DirectHandle<Object>> properties) {
-  JSObject::AllocateStorageForMap(object, map);
+  JSObject::AllocateStorageForMap(isolate, object, map);
   DCHECK(!object->map()->is_dictionary_map());
 
   DisallowGarbageCollection no_gc;
@@ -2557,7 +2558,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
       if (tag == end_tag) {
         ConsumeTag(end_tag);
-        CommitProperties(object, map, base::VectorOf(properties));
+        CommitProperties(isolate_, object, map, base::VectorOf(properties));
         CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
         return Just(static_cast<uint32_t>(properties.size()));
       }
@@ -2665,7 +2666,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       DCHECK(!transitioning);
       CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
       CHECK(!map->is_dictionary_map());
-      CommitProperties(object, map, base::VectorOf(properties));
+      CommitProperties(isolate_, object, map, base::VectorOf(properties));
       num_properties = static_cast<uint32_t>(properties.size());
 
       // We checked earlier that IsValidObjectKey(key).
@@ -2816,7 +2817,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 
         DirectHandle<JSArray> js_array =
             isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-        MAYBE_RETURN_NULL(JSArray::SetLength(js_array, length));
+        MAYBE_RETURN_NULL(JSArray::SetLength(isolate_, js_array, length));
         size_t begin_properties =
             stack.size() - 2 * static_cast<size_t>(num_properties);
         if (num_properties &&

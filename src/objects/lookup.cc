@@ -399,13 +399,13 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     to = GetMoreGeneralElementsKind(kind, to);
 
     if (kind != to) {
-      JSObject::TransitionElementsKind(holder_obj, to);
+      JSObject::TransitionElementsKind(isolate(), holder_obj, to);
     }
 
     // Copy the backing store if it is copy-on-write.
     if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to) ||
         IsNonextensibleElementsKind(to)) {
-      JSObject::EnsureWritableFastElements(holder_obj);
+      JSObject::EnsureWritableFastElements(isolate(), holder_obj);
     }
     return;
   }
@@ -527,7 +527,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
     DirectHandle<FixedArrayBase> elements(holder_obj->elements(isolate_),
                                           isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, number_, value, attributes);
+        isolate_, holder_obj, elements, number_, value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     DirectHandle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -761,7 +761,7 @@ void LookupIterator::Delete() {
   if (IsElement(*holder)) {
     DirectHandle<JSObject> object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, number_);
+    accessor->Delete(isolate_, object, number_);
   } else {
     DCHECK(!name()->IsPrivateName());
     bool is_prototype_map = holder->map(isolate_)->is_prototype_map();
@@ -867,7 +867,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
     // TODO(verwaest): Move code into the element accessor.
     isolate_->CountUsage(v8::Isolate::kIndexAccessor);
     DirectHandle<NumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+        JSObject::NormalizeElements(isolate_, receiver);
 
     dictionary = NumberDictionary::Set(isolate_, dictionary, array_index(),
                                        pair, receiver, details);

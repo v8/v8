@@ -3210,8 +3210,8 @@ DirectHandle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
   object->set_raw_properties_or_hash(*properties);
   if (*elements != read_only_roots().empty_fixed_array()) {
     DCHECK(IsNumberDictionary(*elements));
-    object_map =
-        JSObject::GetElementsTransitionMap(object, DICTIONARY_ELEMENTS);
+    object_map = JSObject::GetElementsTransitionMap(isolate(), object,
+                                                    DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(isolate(), object, object_map);
     object->set_elements(*elements);
   }
@@ -3241,7 +3241,7 @@ Handle<JSArray> Factory::NewJSArrayWithElements(
   Handle<JSArray> array = NewJSArrayWithUnverifiedElements(
       elements, elements_kind, length, allocation);
 #ifdef ENABLE_SLOW_DCHECKS
-  JSObject::ValidateElements(*array);
+  JSObject::ValidateElements(isolate(), *array);
 #endif
   return array;
 }

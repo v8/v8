@@ -165,20 +165,21 @@ RELAXED_ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
                   kPropertiesOrHashOffset)
 
 void JSObject::EnsureCanContainHeapObjectElements(
-    DirectHandle<JSObject> object) {
-  JSObject::ValidateElements(*object);
+    Isolate* isolate, DirectHandle<JSObject> object) {
+  JSObject::ValidateElements(isolate, *object);
   ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsObjectElementsKind(elements_kind)) {
     if (IsHoleyElementsKind(elements_kind)) {
-      TransitionElementsKind(object, HOLEY_ELEMENTS);
+      TransitionElementsKind(isolate, object, HOLEY_ELEMENTS);
     } else {
-      TransitionElementsKind(object, PACKED_ELEMENTS);
+      TransitionElementsKind(isolate, object, PACKED_ELEMENTS);
     }
   }
 }
 
 template <typename TSlot>
-void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
+void JSObject::EnsureCanContainElements(Isolate* isolate,
+                                        DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
                                         EnsureElementsMode mode) {
   static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
@@ -223,11 +224,12 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
     }
   }
   if (target_kind != current_kind) {
-    TransitionElementsKind(object, target_kind);
+    TransitionElementsKind(isolate, object, target_kind);
   }
 }
 
-void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
+void JSObject::EnsureCanContainElements(Isolate* isolate,
+                                        DirectHandle<JSObject> object,
                                         DirectHandle<FixedArrayBase> elements,
                                         uint32_t length,
                                         EnsureElementsMode mode) {
@@ -239,22 +241,22 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
     ObjectSlot objects = Cast<FixedArray>(elements)->RawFieldOfFirstElement();
-    EnsureCanContainElements(object, objects, length, mode);
+    EnsureCanContainElements(isolate, object, objects, length, mode);
     return;
   }
 
   DCHECK(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
   if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
-    TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
+    TransitionElementsKind(isolate, object, HOLEY_DOUBLE_ELEMENTS);
   } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
     auto double_array = Cast<FixedDoubleArray>(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
-        TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
+        TransitionElementsKind(isolate, object, HOLEY_DOUBLE_ELEMENTS);
         return;
       }
     }
-    TransitionElementsKind(object, PACKED_DOUBLE_ELEMENTS);
+    TransitionElementsKind(isolate, object, PACKED_DOUBLE_ELEMENTS);
   }
 }
 

@@ -525,7 +525,8 @@ Handle<JSObject> InnerAddElement(Isolate* isolate, DirectHandle<JSArray> array,
   JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
   // TODO(victorgomes): Temporarily forcing a fatal error here in case of
   // overflow, until Intl::AddElement can handle exceptions.
-  if (JSObject::AddDataElement(array, index, element, NONE).IsNothing()) {
+  if (JSObject::AddDataElement(isolate, array, index, element, NONE)
+          .IsNothing()) {
     FATAL("Fatal JavaScript invalid size error when adding element");
     UNREACHABLE();
   }
@@ -2105,7 +2106,7 @@ MaybeDirectHandle<JSArray> CreateArrayFromList(
     DirectHandle<String> value =
         factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
             .ToHandleChecked();
-    MAYBE_RETURN(JSObject::AddDataElement(array, i, value, attr), {});
+    MAYBE_RETURN(JSObject::AddDataElement(isolate, array, i, value, attr), {});
   }
   // 5. Return array.
   return array;

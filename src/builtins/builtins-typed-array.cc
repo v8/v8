@@ -226,7 +226,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   //   c. Set k to k + 1.
   // 20. Return O.
   RETURN_RESULT_OR_FAILURE(isolate, ElementsAccessor::ForKind(kind)->Fill(
-                                        array, obj_value, start, end));
+                                        isolate, array, obj_value, start, end));
 }
 
 BUILTIN(TypedArrayPrototypeIncludes) {

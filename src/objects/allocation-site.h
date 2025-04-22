@@ -136,7 +136,8 @@ V8_OBJECT class AllocationSite : public HeapObjectLayout {
 
   template <AllocationSiteUpdateMode update_or_check =
                 AllocationSiteUpdateMode::kUpdate>
-  static bool DigestTransitionFeedback(DirectHandle<AllocationSite> site,
+  static bool DigestTransitionFeedback(Isolate* isolate,
+                                       DirectHandle<AllocationSite> site,
                                        ElementsKind to_kind);
 
   DECL_PRINTER(AllocationSite)

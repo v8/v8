@@ -1992,7 +1992,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
     }
     ++index;
   }
-  JSObject::ValidateElements(*result);
+  JSObject::ValidateElements(isolate, *result);
   return Just(index);
 }
 

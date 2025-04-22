@@ -1131,7 +1131,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
       if (!is_fast) continue;
       // Fast sloppy arguments elements are never holey. Either the element is
       // context-mapped or present in the arguments elements.
-      CHECK(accessor->HasElement(holder, i, arg_elements));
+      CHECK(accessor->HasElement(isolate, holder, i, arg_elements));
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
@@ -1142,7 +1142,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
-    CHECK(!accessor->HasElement(holder, i, arg_elements));
+    CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
   CHECK_LE(nofMappedParameters, context_object->length());
   CHECK_LE(nofMappedParameters, arg_elements->length());

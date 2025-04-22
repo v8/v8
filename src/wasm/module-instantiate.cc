@@ -2734,7 +2734,7 @@ void InstanceBuilder::ProcessExports(
     uint32_t index;
     if (V8_UNLIKELY(name->AsArrayIndex(&index))) {
       // Add a data element.
-      JSObject::AddDataElement(exports_object, index, value,
+      JSObject::AddDataElement(isolate_, exports_object, index, value,
                                details.attributes());
     } else {
       // Add a property to the dictionary.

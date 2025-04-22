@@ -887,10 +887,10 @@ TEST(JSArray) {
   DirectHandle<JSObject> object = factory->NewJSObject(function);
   DirectHandle<JSArray> array = Cast<JSArray>(object);
   // We just initialized the VM, no heap allocation failure yet.
-  JSArray::Initialize(array, 0);
+  JSArray::Initialize(isolate, array, 0);
 
   // Set array length to 0.
-  JSArray::SetLength(array, 0);
+  JSArray::SetLength(isolate, array, 0);
   CHECK_EQ(Smi::zero(), array->length());
   // Must be in fast mode.
   CHECK(array->HasSmiOrObjectElements());
@@ -902,7 +902,7 @@ TEST(JSArray) {
   CHECK_EQ(*element, *name);
 
   // Set array length with larger than smi value.
-  JSArray::SetLength(array, static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  JSArray::SetLength(isolate, array, static_cast<uint32_t>(Smi::kMaxValue) + 1);
 
   uint32_t int_length = 0;
   CHECK(Object::ToArrayIndex(array->length(), &int_length));
@@ -6037,7 +6037,7 @@ TEST(Regress598319) {
         DirectHandle<JSArray> js_array =
             isolate->factory()->NewJSArrayWithElements(
                 DirectHandle<FixedArray>(arr.get(), isolate));
-        js_array->GetElementsAccessor()->Shift(js_array).Check();
+        js_array->GetElementsAccessor()->Shift(isolate, js_array).Check();
       }
       break;
     }

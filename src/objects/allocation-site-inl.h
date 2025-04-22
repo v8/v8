@@ -248,9 +248,9 @@ inline Address AllocationMemento::GetAllocationSiteUnchecked() const {
 }
 
 template <AllocationSiteUpdateMode update_or_check>
-bool AllocationSite::DigestTransitionFeedback(DirectHandle<AllocationSite> site,
+bool AllocationSite::DigestTransitionFeedback(Isolate* isolate,
+                                              DirectHandle<AllocationSite> site,
                                               ElementsKind to_kind) {
-  Isolate* isolate = site->GetIsolate();
   bool result = false;
 
   if (site->PointsToLiteral() && IsJSArray(site->boilerplate())) {
@@ -278,7 +278,7 @@ bool AllocationSite::DigestTransitionFeedback(DirectHandle<AllocationSite> site,
                  ElementsKindToString(to_kind));
         }
         CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
-        JSObject::TransitionElementsKind(boilerplate, to_kind);
+        JSObject::TransitionElementsKind(isolate, boilerplate, to_kind);
         DependentCode::DeoptimizeDependencyGroups(
             isolate, *site,
             DependentCode::kAllocationSiteTransitionChangedGroup);
