@@ -308,13 +308,17 @@ class SharedFunctionInfo
 
   // [internal formal parameter count]: The declared number of parameters.
   // For subclass constructors, also includes new.target.
-  // The size of function's frame is
-  // internal_formal_parameter_count_with_receiver.
   //
-  // NOTE: this API should be considered DEPRECATED. Please obtain the
-  // parameter count from the Code/BytecodeArray or another trusted source
-  // instead. See also crbug.com/40931165.
-  // TODO(saelo): mark as V8_DEPRECATE_SOON once the remaining users are fixed.
+  // NOTE: SharedFunctionInfo objects are located inside the sandbox, so an
+  // attacker able to corrupt in-sandbox memory can change this field
+  // arbitrarily. As such, it is not safe to use this field for invoking a
+  // JSFunction or computing the size of stack frames (or similar use-cases
+  // that involve accessing out-of-sandbox memory such as the stack). Instead,
+  // for such purposes, a trusted parameter count must be used, the source of
+  // which depends on the concrete use case. For example, a (trusted) parameter
+  // count can be obtained from a BytecodeArray (e.g. for interpreting
+  // bytecode), a Code object (e.g. for deoptimizing optimized code), or the
+  // JSDispatchTable (e.g. for invoking a JSFunction).
   inline void set_internal_formal_parameter_count(int value);
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
