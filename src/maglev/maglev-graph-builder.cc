@@ -4989,7 +4989,7 @@ class KnownMapsMerger {
         }
       }
       if (intersect_set_.is_empty()) {
-        node_type_ = NodeType::kUnknown;
+        node_type_ = EmptyNodeType();
       }
     } else {
       // A missing entry here means the universal set, i.e., we don't know
