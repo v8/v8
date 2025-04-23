@@ -2307,10 +2307,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       uintptr_t limit =
           reinterpret_cast<uintptr_t>(iter.wasm_stack()->jslimit());
       stack_guard()->SetStackLimitForStackSwitching(limit);
-      thread_local_top()->secondary_stack_limit_ = 0;
-      thread_local_top()->secondary_stack_sp_ = 0;
       iter.wasm_stack()->clear_stack_switch_info();
     }
+    // Regardless of the stack that the handler belongs to, these fields should
+    // be cleared.
+    thread_local_top()->secondary_stack_limit_ = 0;
+    thread_local_top()->secondary_stack_sp_ = 0;
 #endif
 
     // Return and clear exception. The contract is that:
