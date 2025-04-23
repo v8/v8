@@ -447,7 +447,7 @@ BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
   {
     var_result = CallRuntime(
         Runtime::kStringAdd_LhsIsStringConstant_Internalize, context(), lhs,
-        rhs, maybe_feedback_vector(), SmiFromIntPtr(Signed(slot_id)));
+        rhs, maybe_feedback_vector(), IntPtrToTaggedIndex(Signed(slot_id)));
     Goto(&end);
   }
 
