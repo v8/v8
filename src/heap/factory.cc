@@ -3005,7 +3005,7 @@ DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
 Handle<JSObject> Factory::NewJSObject(DirectHandle<JSFunction> constructor,
                                       AllocationType allocation,
                                       NewJSObjectType new_js_object_type) {
-  JSFunction::EnsureHasInitialMap(constructor);
+  JSFunction::EnsureHasInitialMap(isolate(), constructor);
   DirectHandle<Map> map(constructor->initial_map(), isolate());
   // NewJSObjectFromMap does not support creating dictionary mode objects. Need
   // to use NewSlowJSObjectFromMap instead.
@@ -3397,7 +3397,7 @@ DirectHandle<JSWrappedFunction> Factory::NewJSWrappedFunction(
 DirectHandle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     DirectHandle<JSFunction> function) {
   DCHECK(IsResumableFunction(function->shared()->kind()));
-  JSFunction::EnsureHasInitialMap(function);
+  JSFunction::EnsureHasInitialMap(isolate(), function);
   DirectHandle<Map> map(function->initial_map(), isolate());
 
   DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
@@ -4871,7 +4871,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     }
 #else
     USE(cell_transition, many_closures_cell);
-    function->UpdateCode(*code, mode);
+    function->UpdateCode(isolate, *code, mode);
 #endif  // V8_ENABLE_LEAPTIERING
 
     if (function->has_prototype_slot()) {

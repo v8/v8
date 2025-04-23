@@ -3385,7 +3385,7 @@ DirectHandle<JSObject> SetupConstructor(Isolate* isolate,
                                         const char* name = nullptr,
                                         int in_object_properties = 0) {
   SetDummyInstanceTemplate(isolate, constructor);
-  JSFunction::EnsureHasInitialMap(constructor);
+  JSFunction::EnsureHasInitialMap(isolate, constructor);
   DirectHandle<JSObject> proto(
       Cast<JSObject>(constructor->instance_prototype()), isolate);
   DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
@@ -3436,7 +3436,8 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
 
     DirectHandle<JSFunction> ctor =
         Factory::JSFunctionBuilder{isolate, sfi, native_context}.Build();
-    JSFunction::SetPrototype(ctor, isolate->initial_object_prototype());
+    JSFunction::SetPrototype(isolate, ctor,
+                             isolate->initial_object_prototype());
     webassembly = f->NewJSObject(ctor, AllocationType::kOld);
     native_context->set_wasm_webassembly_object(*webassembly);
 
@@ -3898,7 +3899,7 @@ bool WasmJs::InstallTypeReflection(Isolate* isolate,
   DirectHandle<JSFunction> function_constructor = InstallConstructorFunc(
       isolate, webassembly, "Function", WebAssemblyFunction);
   SetDummyInstanceTemplate(isolate, function_constructor);
-  JSFunction::EnsureHasInitialMap(function_constructor);
+  JSFunction::EnsureHasInitialMap(isolate, function_constructor);
   DirectHandle<JSObject> function_proto(
       Cast<JSObject>(function_constructor->instance_prototype()), isolate);
   DirectHandle<Map> function_map =

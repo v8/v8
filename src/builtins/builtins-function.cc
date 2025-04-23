@@ -255,10 +255,10 @@ BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
   if (IsJSBoundFunction(*receiver)) {
-    return *JSBoundFunction::ToString(Cast<JSBoundFunction>(receiver));
+    return *JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(Cast<JSFunction>(receiver));
+    return *JSFunction::ToString(isolate, Cast<JSFunction>(receiver));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.

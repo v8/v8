@@ -137,8 +137,8 @@ Local<String> GetFunctionDescription(Local<Function> function) {
   auto i_isolate = receiver->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (IsJSBoundFunction(*receiver)) {
-    return Utils::ToLocal(
-        i::JSBoundFunction::ToString(i::Cast<i::JSBoundFunction>(receiver)));
+    return Utils::ToLocal(i::JSBoundFunction::ToString(
+        i_isolate, i::Cast<i::JSBoundFunction>(receiver)));
   }
   if (IsJSFunction(*receiver)) {
     auto js_function = i::Cast<i::JSFunction>(receiver);
@@ -162,7 +162,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    return Utils::ToLocal(i::JSFunction::ToString(js_function));
+    return Utils::ToLocal(i::JSFunction::ToString(i_isolate, js_function));
   }
   return Utils::ToLocal(
       receiver->GetIsolate()->factory()->function_native_code_string());

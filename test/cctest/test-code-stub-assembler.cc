@@ -1321,7 +1321,7 @@ TEST(TryHasOwnProperty) {
     // Global object.
     DirectHandle<JSFunction> function =
         factory->NewFunctionForTesting(factory->empty_string());
-    JSFunction::EnsureHasInitialMap(function);
+    JSFunction::EnsureHasInitialMap(isolate, function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
     function->initial_map()->set_instance_size(JSGlobalObject::kHeaderSize);
     function->initial_map()->SetInObjectUnusedPropertyFields(0);

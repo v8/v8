@@ -5482,7 +5482,8 @@ Local<Value> Function::GetDebugName() const {
     return ToApiHandle<Primitive>(i_isolate->factory()->undefined_value());
   }
   auto func = i::Cast<i::JSFunction>(self);
-  i::DirectHandle<i::String> name = i::JSFunction::GetDebugName(func);
+  i::DirectHandle<i::String> name =
+      i::JSFunction::GetDebugName(i_isolate, func);
   return Utils::ToLocal(i::direct_handle(*name, i_isolate));
 }
 

@@ -1166,12 +1166,14 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   }
 
   if (V8_LIKELY(!compilation_info->discard_result_for_testing())) {
-    function->SetTieringInProgress(true, compilation_info->osr_offset());
+    function->SetTieringInProgress(isolate, true,
+                                   compilation_info->osr_offset());
   }
 
   // The background recompile will own this job.
   if (!isolate->optimizing_compile_dispatcher()->TryQueueForOptimization(job)) {
-    function->SetTieringInProgress(false, compilation_info->osr_offset());
+    function->SetTieringInProgress(isolate, false,
+                                   compilation_info->osr_offset());
 
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
@@ -1333,7 +1335,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
 
   // Remember that the function is currently being processed.
-  function->SetTieringInProgress(true, osr_offset);
+  function->SetTieringInProgress(isolate, true, osr_offset);
   function->SetInterruptBudget(isolate, BudgetModification::kRaise,
                                CodeKind::MAGLEV);
 
@@ -3041,10 +3043,11 @@ bool Compiler::Compile(Isolate* isolate, DirectHandle<JSFunction> function,
   // which means we are compiling after a bytecode flush.
   // TODO(verwaest/mythria): Investigate if allocating feedback vector
   // immediately after a flush would be better.
-  JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
+  JSFunction::InitializeFeedbackCell(isolate, function, is_compiled_scope,
+                                     true);
   function->ResetTieringRequests();
 
-  function->UpdateCode(*code);
+  function->UpdateCode(isolate, *code);
 
   // Optimize now if --always-turbofan is enabled.
 #if V8_ENABLE_WEBASSEMBLY
@@ -3152,7 +3155,7 @@ bool Compiler::CompileBaseline(Isolate* isolate,
 
   Tagged<Code> baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
-  function->UpdateCodeKeepTieringRequests(baseline_code);
+  function->UpdateCodeKeepTieringRequests(isolate, baseline_code);
   return true;
 }
 
@@ -3221,7 +3224,7 @@ void Compiler::CompileOptimized(Isolate* isolate,
     // leaptiering case, we potentially need to do this now.
     if (!function->is_compiled(isolate)) {
       function->UpdateCodeKeepTieringRequests(
-          function->shared()->GetCode(isolate));
+          isolate, function->shared()->GetCode(isolate));
     }
 #endif  // V8_ENABLE_LEAPTIERING
   }
@@ -3366,7 +3369,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
                    .Build();
       // TODO(mythria): I don't think we need this here. PostInstantiation
       // already initializes feedback cell.
-      JSFunction::InitializeFeedbackCell(result, &is_compiled_scope, true);
+      JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
+                                         true);
       if (allow_eval_cache) {
         // Make sure to cache this result.
         DirectHandle<FeedbackCell> new_feedback_cell(
@@ -3382,7 +3386,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
                  .Build();
     // TODO(mythria): I don't think we need this here. PostInstantiation
     // already initializes feedback cell.
-    JSFunction::InitializeFeedbackCell(result, &is_compiled_scope, true);
+    JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
+                                       true);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
@@ -4412,7 +4417,8 @@ void Compiler::DisposeTurbofanCompilationJob(Isolate* isolate,
                          "V8.OptimizeConcurrentDispose", job->trace_id(),
                          TRACE_EVENT_FLAG_FLOW_IN);
   DirectHandle<JSFunction> function = job->compilation_info()->closure();
-  function->SetTieringInProgress(false, job->compilation_info()->osr_offset());
+  function->SetTieringInProgress(isolate, false,
+                                 job->compilation_info()->osr_offset());
 }
 
 // static
@@ -4448,7 +4454,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction,
                                      isolate);
       if (V8_LIKELY(use_result)) {
-        function->SetTieringInProgress(false,
+        function->SetTieringInProgress(isolate, false,
                                        job->compilation_info()->osr_offset());
         if (!V8_ENABLE_LEAPTIERING_BOOL || IsOSR(osr_offset)) {
           OptimizedCodeCache::Insert(
@@ -4473,10 +4479,10 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                   job->prepare_in_ms(), job->execute_in_ms(),
                                   job->finalize_in_ms());
   if (V8_LIKELY(use_result)) {
-    function->SetTieringInProgress(false,
+    function->SetTieringInProgress(isolate, false,
                                    job->compilation_info()->osr_offset());
     if (!IsOSR(osr_offset)) {
-      function->UpdateCode(shared->GetCode(isolate));
+      function->UpdateCode(isolate, shared->GetCode(isolate));
     }
   }
 }
@@ -4486,7 +4492,7 @@ void Compiler::DisposeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                            Isolate* isolate) {
 #ifdef V8_ENABLE_MAGLEV
   DirectHandle<JSFunction> function = job->function();
-  function->SetTieringInProgress(false, job->osr_offset());
+  function->SetTieringInProgress(isolate, false, job->osr_offset());
 #endif  // V8_ENABLE_MAGLEV
 }
 
@@ -4500,7 +4506,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   BytecodeOffset osr_offset = job->osr_offset();
 
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
-    function->SetTieringInProgress(false, osr_offset);
+    function->SetTieringInProgress(isolate, false, osr_offset);
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kHigherTierAvailable);
     return;
@@ -4551,7 +4557,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
                                               job->bailout_reason_);
   }
-  function->SetTieringInProgress(false, osr_offset);
+  function->SetTieringInProgress(isolate, false, osr_offset);
 #endif
 }
 
@@ -4566,7 +4572,8 @@ void Compiler::PostInstantiation(Isolate* isolate,
   if (is_compiled_scope->is_compiled() && shared->HasBytecodeArray()) {
     // Don't reset budget if there is a closure feedback cell array already. We
     // are just creating a new closure that shares the same feedback cell.
-    JSFunction::InitializeFeedbackCell(function, is_compiled_scope, false);
+    JSFunction::InitializeFeedbackCell(isolate, function, is_compiled_scope,
+                                       false);
 
 #ifndef V8_ENABLE_LEAPTIERING
     if (function->has_feedback_vector()) {

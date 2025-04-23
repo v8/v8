@@ -44,7 +44,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 ScopeIterator::~ScopeIterator() = default;
 
 DirectHandle<Object> ScopeIterator::GetFunctionDebugName() const {
-  if (!function_.is_null()) return JSFunction::GetDebugName(function_);
+  if (!function_.is_null())
+    return JSFunction::GetDebugName(isolate_, function_);
 
   if (!IsNativeContext(*context_)) {
     DisallowGarbageCollection no_gc;

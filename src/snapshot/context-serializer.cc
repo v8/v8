@@ -232,7 +232,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         }
         Tagged<Code> sfi_code = closure->shared()->GetCode(isolate());
         if (!sfi_code.SafeEquals(closure->code(isolate()))) {
-          closure->UpdateCode(sfi_code);
+          closure->UpdateCode(isolate(), sfi_code);
         }
       }
     }

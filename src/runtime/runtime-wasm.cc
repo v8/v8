@@ -546,7 +546,7 @@ void ReplaceJSToWasmWrapper(
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   if (external_function->shared()->HasWasmJSFunctionData()) return;
   CHECK(external_function->shared()->HasWasmExportedFunctionData());
-  external_function->UpdateCode(wrapper_code);
+  external_function->UpdateCode(isolate, wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
   function_data->set_wrapper_code(wrapper_code);

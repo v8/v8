@@ -93,7 +93,7 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
                                     wasm_frame->function_index());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return JSFunction::GetDebugName(function_);
+  return JSFunction::GetDebugName(isolate_, function_);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

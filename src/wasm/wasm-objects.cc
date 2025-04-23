@@ -3358,7 +3358,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
 
   DirectHandle<String> name = factory->Function_string();
   if (IsJSFunction(*callable)) {
-    name = JSFunction::GetDebugName(Cast<JSFunction>(callable));
+    name = JSFunction::GetDebugName(isolate, Cast<JSFunction>(callable));
     name = String::Flatten(isolate, name);
   }
   DirectHandle<SharedFunctionInfo> shared =

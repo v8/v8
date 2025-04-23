@@ -159,7 +159,7 @@ MaybeDirectHandle<Object> GetMethodAndSetName(Isolate* isolate,
     // property name is properly converted to Name. So, we can actually be smart
     // here and avoid converting Smi keys back to Name.
     DirectHandle<Name> name = KeyToName<Dictionary>(isolate, key);
-    if (!JSFunction::SetName(method, name, name_prefix)) {
+    if (!JSFunction::SetName(isolate, method, name, name_prefix)) {
       return MaybeDirectHandle<Object>();
     }
   }

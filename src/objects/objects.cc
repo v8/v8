@@ -600,12 +600,14 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
     // -- F u n c t i o n
     DirectHandle<String> fun_str;
     if (IsJSBoundFunction(*input)) {
-      fun_str = JSBoundFunction::ToString(Cast<JSBoundFunction>(input));
+      fun_str =
+          JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(input));
     } else if (IsJSWrappedFunction(*input)) {
-      fun_str = JSWrappedFunction::ToString(Cast<JSWrappedFunction>(input));
+      fun_str =
+          JSWrappedFunction::ToString(isolate, Cast<JSWrappedFunction>(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(Cast<JSFunction>(input));
+      fun_str = JSFunction::ToString(isolate, Cast<JSFunction>(input));
     }
 
     if (fun_str->length() > 128) {

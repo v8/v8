@@ -944,7 +944,7 @@ void Genesis::CreateObjectFunction(DirectHandle<JSFunction> empty_function) {
   }
 
   native_context()->set_initial_object_prototype(*object_function_prototype);
-  JSFunction::SetPrototype(object_fun, object_function_prototype);
+  JSFunction::SetPrototype(isolate_, object_fun, object_function_prototype);
   object_function_prototype->map()->set_instance_type(JS_OBJECT_PROTOTYPE_TYPE);
   {
     // Set up slow map for Object.create(null) instances without in-object
@@ -2533,7 +2533,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // mode and back.
     DirectHandle<JSArray> proto = factory->NewJSArray(
         0, TERMINAL_FAST_ELEMENTS_KIND, AllocationType::kOld);
-    JSFunction::SetPrototype(array_function, proto);
+    JSFunction::SetPrototype(isolate_, array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
 
     InitializeJSArrayMaps(
@@ -2719,7 +2719,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     DirectHandle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(number_fun, AllocationType::kOld));
     prototype->set_value(Smi::zero());
-    JSFunction::SetPrototype(number_fun, prototype);
+    JSFunction::SetPrototype(isolate_, number_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(isolate_, prototype, factory->constructor_string(),
@@ -2805,7 +2805,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     DirectHandle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(boolean_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).false_value());
-    JSFunction::SetPrototype(boolean_fun, prototype);
+    JSFunction::SetPrototype(isolate_, boolean_fun, prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(isolate_, prototype, factory->constructor_string(),
@@ -2857,7 +2857,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     DirectHandle<JSPrimitiveWrapper> prototype = Cast<JSPrimitiveWrapper>(
         factory->NewJSObject(string_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).empty_string());
-    JSFunction::SetPrototype(string_fun, prototype);
+    JSFunction::SetPrototype(isolate_, string_fun, prototype);
     native_context()->set_initial_string_prototype(*prototype);
 
     // Install the "constructor" property on the {prototype}.
@@ -4607,7 +4607,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // Set up the %BigIntPrototype%.
     DirectHandle<JSObject> prototype(
         Cast<JSObject>(bigint_fun->instance_prototype()), isolate_);
-    JSFunction::SetPrototype(bigint_fun, prototype);
+    JSFunction::SetPrototype(isolate_, bigint_fun, prototype);
 
     // Install the properties of the BigInt.prototype.
     // "constructor" is created implicitly by InstallFunction() above.
@@ -5556,7 +5556,7 @@ void Genesis::InitializeConsole(DirectHandle<JSObject> extras_binding) {
       Factory::JSFunctionBuilder{isolate(), info, context}.Build();
   DirectHandle<JSObject> empty =
       factory->NewJSObject(isolate_->object_function());
-  JSFunction::SetPrototype(cons, empty);
+  JSFunction::SetPrototype(isolate_, cons, empty);
 
   DirectHandle<JSObject> console =
       factory->NewJSObject(cons, AllocationType::kOld);

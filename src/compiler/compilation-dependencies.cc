@@ -255,7 +255,9 @@ class PrototypePropertyDependency final : public CompilationDependency {
   void PrepareInstall(JSHeapBroker* broker) const override {
     SLOW_DCHECK(IsValid(broker));
     DirectHandle<JSFunction> function = function_.object();
-    if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
+    if (!function->has_initial_map()) {
+      JSFunction::EnsureHasInitialMap(broker->isolate(), function);
+    }
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
@@ -1170,7 +1172,8 @@ class InitialMapInstanceSizePredictionDependency final
 
   void PrepareInstall(JSHeapBroker* broker) const override {
     SLOW_DCHECK(IsValid(broker));
-    function_.object()->CompleteInobjectSlackTrackingIfActive();
+    function_.object()->CompleteInobjectSlackTrackingIfActive(
+        broker->isolate());
   }
 
   void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {

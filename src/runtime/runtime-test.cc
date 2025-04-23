@@ -391,7 +391,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
     if (function->shared()->HasBaselineCode()) {
       code = function->shared()->baseline_code(kAcquireLoad);
     }
-    function->UpdateCode(code);
+    function->UpdateCode(isolate, code);
   }
 
   TraceManualRecompile(*function, target_kind, concurrency_mode);
@@ -1163,7 +1163,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(args.length(), 1);
   DirectHandle<JSFunction> function = args.at<JSFunction>(0);
-  function->ClearAllTypeFeedbackInfoForTesting();
+  function->ClearAllTypeFeedbackInfoForTesting(isolate);
   // Typically tests use this function to start from scratch. Thus, we should
   // also clear tiering requests.
   function->ResetTieringRequests();

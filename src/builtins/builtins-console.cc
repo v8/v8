@@ -290,7 +290,7 @@ BUILTIN(ConsoleContext) {
 
   DirectHandle<JSObject> prototype =
       factory->NewJSObject(isolate->object_function());
-  JSFunction::SetPrototype(cons, prototype);
+  JSFunction::SetPrototype(isolate, cons, prototype);
 
   DirectHandle<JSObject> console_context =
       factory->NewJSObject(cons, AllocationType::kOld);

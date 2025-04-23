@@ -975,7 +975,7 @@ RUNTIME_FUNCTION(Runtime_SetFunctionName) {
   auto function = Cast<JSFunction>(value);
   DCHECK(!function->shared()->HasSharedName());
   DirectHandle<Map> function_map(function->map(), isolate);
-  if (!JSFunction::SetName(function, name,
+  if (!JSFunction::SetName(isolate, function, name,
                            isolate->factory()->empty_string())) {
     return ReadOnlyRoots(isolate).exception();
   }
@@ -1023,7 +1023,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
     auto function = Cast<JSFunction>(value);
     DCHECK(!function->shared()->HasSharedName());
     DirectHandle<Map> function_map(function->map(), isolate);
-    if (!JSFunction::SetName(function, Cast<Name>(name),
+    if (!JSFunction::SetName(isolate, function, Cast<Name>(name),
                              isolate->factory()->empty_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
@@ -1081,7 +1081,8 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
 
   if (Cast<String>(getter->shared()->Name())->length() == 0) {
     DirectHandle<Map> getter_map(getter->map(), isolate);
-    if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
+    if (!JSFunction::SetName(isolate, getter, name,
+                             isolate->factory()->get_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
     CHECK_EQ(*getter_map, getter->map());
@@ -1227,7 +1228,8 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
 
   if (Cast<String>(setter->shared()->Name())->length() == 0) {
     DirectHandle<Map> setter_map(setter->map(), isolate);
-    if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
+    if (!JSFunction::SetName(isolate, setter, name,
+                             isolate->factory()->set_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
     CHECK_EQ(*setter_map, setter->map());

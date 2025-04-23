@@ -5711,7 +5711,7 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate,
                                       direct_handle(fun->shared(), isolate));
-  fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 
