@@ -820,7 +820,7 @@ transitioning builtin WasmGetOwnProperty(
           receiver, receiver.map, receiver.instanceType, uniqueName)
           otherwise Found, NotFound, NotFound;
     } label Found {
-      tail GetPropertyWithReceiver(
+      return GetPropertyWithReceiver(
           receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
     }
   } label NotFound deferred {

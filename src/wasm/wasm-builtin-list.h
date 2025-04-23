@@ -151,13 +151,10 @@ namespace v8::internal::wasm {
 // Other wasm builtins that are not called via the far jump table, but need the
 // {is_wasm} assembler option for proper stack-switching support.
 #define WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT(V) \
-  V(IterableToFixedArrayForWasm)                 \
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
   V(WasmAllocateInSharedHeap)                    \
-  V(WasmAllocateZeroedFixedArray)                \
   V(WasmJSStringEqual)                           \
-  V(WasmSuspend)                                 \
   V(WasmToJsWrapperInvalidSig)                   \
   V(WasmTrap)                                    \
   V(WasmTrapHandlerThrowTrap)
