@@ -3501,6 +3501,43 @@ DirectHandle<Object> CanonicalizeSmi(DirectHandle<Object> smi,
 }  // namespace
 
 namespace wasm {
+namespace {
+inline bool CheckExpectedSharedness(Isolate* isolate,
+                                    DirectHandle<Object> value,
+                                    CanonicalValueType expected,
+                                    const char** error_message) {
+  if (v8_flags.experimental_wasm_shared && (*value).IsHeapObject()) {
+    Tagged<HeapObject> heap_obj = (*value).cast<HeapObject>();
+    if (expected.is_shared() != HeapLayout::InWritableSharedSpace(heap_obj)) {
+      *error_message =
+          expected.is_shared()
+              ? "unshared object is not allowed for shared heap types"
+              : "shared object is not allowed for unshared heap types";
+      return false;
+    }
+  }
+  return true;
+}
+
+inline bool ConvertToSharedIfExpected(Isolate* isolate,
+                                      DirectHandle<Object>* value,
+                                      CanonicalValueType expected,
+                                      const char** error_message) {
+  if (v8_flags.experimental_wasm_shared && expected.is_shared() &&
+      (**value).IsHeapObject()) {
+    Tagged<HeapObject> heap_obj = (**value).cast<HeapObject>();
+    if (!HeapLayout::InWritableSharedSpace(heap_obj)) {
+      if (!Object::Share(isolate, *value, ShouldThrow::kDontThrow)
+               .ToHandle(value)) {
+        *error_message = "unshared object is not allowed for shared heap types";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+}  // namespace
+
 MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
                                          DirectHandle<Object> value,
                                          CanonicalValueType expected,
@@ -3549,14 +3586,24 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
           isolate);
     }
     case HeapType::kExtern: {
+      if (!ConvertToSharedIfExpected(isolate, &value, expected,
+                                     error_message)) {
+        return {};
+      }
       if (!IsNull(*value, isolate)) return value;
       *error_message = "null is not allowed for (ref extern)";
       return {};
     }
     case HeapType::kAny: {
+      // TODO(mliedtke): We need to construct heap numbers with correct
+      // sharedness.
       if (IsSmi(*value)) return CanonicalizeSmi(value, isolate);
       if (IsHeapNumber(*value)) {
         return CanonicalizeHeapNumber(value, isolate);
+      }
+      if (!ConvertToSharedIfExpected(isolate, &value, expected,
+                                     error_message)) {
+        return {};
       }
       if (!IsNull(*value, isolate)) return value;
       *error_message = "null is not allowed for (ref any)";
@@ -3569,6 +3616,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       *error_message = "invalid type (ref cont)";
       return {};
     case HeapType::kStruct: {
+      if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
+        return {};
+      }
       if (IsWasmStruct(*value)) {
         return value;
       }
@@ -3577,6 +3627,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
       return {};
     }
     case HeapType::kArray: {
+      if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
+        return {};
+      }
       if (IsWasmArray(*value)) {
         return value;
       }
@@ -3592,6 +3645,9 @@ MaybeDirectHandle<Object> JSToWasmObject(Isolate* isolate,
         DirectHandle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
         if (IsSmi(*truncated)) return truncated;
       } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
+        if (!CheckExpectedSharedness(isolate, value, expected, error_message)) {
+          return {};
+        }
         return value;
       }
       *error_message =

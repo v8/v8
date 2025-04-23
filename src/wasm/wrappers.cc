@@ -934,14 +934,14 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                : __ Call(target, {input, context}, ts_call_descriptor);
   }
 
-  OpIndex FromJS(OpIndex input, OpIndex context, CanonicalValueType type,
+  OpIndex FromJS(V<Object> input, OpIndex context, CanonicalValueType type,
                  OptionalOpIndex frame_state = {}) {
     switch (type.kind()) {
       case kRef:
       case kRefNull: {
         switch (type.heap_representation_non_shared()) {
           // TODO(14034): Add more fast paths?
-          case HeapType::kExtern:
+          case HeapType::kExtern: {
             if (type.kind() == kRef) {
               IF (UNLIKELY(__ TaggedEqual(input, LOAD_ROOT(NullValue)))) {
                 CallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
@@ -949,7 +949,31 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
                 __ Unreachable();
               }
             }
+            if (v8_flags.experimental_wasm_shared &&
+                type.heap_representation() == HeapType::kExternShared) {
+              Label<Object> done(&asm_);
+              IF_NOT (__ IsSmi(input)) {
+                V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+                V<WordPtr> shared_or_read_only = __ WordPtrBitwiseAnd(
+                    flags, static_cast<uintptr_t>(
+                               MemoryChunk::IN_WRITABLE_SHARED_SPACE |
+                               MemoryChunk::READ_ONLY_HEAP));
+                IF (UNLIKELY(__ WordPtrEqual(shared_or_read_only, 0))) {
+                  // If it isn't shared, yet, use the runtime function.
+                  std::initializer_list<const OpIndex> inputs = {
+                      input, __ IntPtrConstant(IntToSmi(
+                                 static_cast<int>(type.raw_bit_field())))};
+                  GOTO(done, CallRuntime(__ phase_zone(),
+                                         Runtime::kWasmJSToWasmObject, inputs,
+                                         context));
+                }
+              }
+              GOTO(done, input);
+              BIND(done, result);
+              return result;
+            }
             return input;
+          }
           case HeapType::kString:
             return BuildCheckString(input, context, type);
           case HeapType::kExn:

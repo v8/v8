@@ -24,6 +24,11 @@ namespace debug_helper_internal {
 class ReadStringVisitor;
 }  // namespace  debug_helper_internal
 
+namespace compiler::turboshaft {
+template <typename Next>
+class TurboshaftAssemblerOpInterface;
+}
+
 class Heap;
 class MemoryChunkMetadata;
 class ReadOnlyPageMetadata;
@@ -166,10 +171,16 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   V8_INLINE Address address() const { return reinterpret_cast<Address>(this); }
 
   static constexpr Address BaseAddress(Address a) {
+    // LINT.IfChange(MemoryObjectBaseAddress)
     // If this changes, we also need to update
-    // CodeStubAssembler::MemoryChunkFromAddress and
-    // MacroAssembler::MemoryChunkHeaderFromObject
+    // - CodeStubAssembler::MemoryChunkFromAddress
+    // - MacroAssembler::MemoryChunkHeaderFromObject
+    // - TurboshaftAssemblerOpInterface::MemoryChunkFromAddress
     return a & ~kAlignmentMask;
+    // LINT.ThenChange(src/codegen/code-stub-assembler.cc:MemoryObjectBaseAddress)
+    // LINT.ThenChange(src/codegen/ia32/macro-assembler-ia32.cc:MemoryObjectBaseAddress)
+    // LINT.ThenChange(src/codegen/x64/macro-assembler-x64.cc:MemoryObjectBaseAddress)
+    // LINT.ThenChange(src/compiler/turboshaft/assembler.h:MemoryObjectBaseAddress)
   }
 
   V8_INLINE static MemoryChunk* FromAddress(Address addr) {
@@ -413,6 +424,8 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   // MetadataOffset().
   friend class CodeStubAssembler;
   friend class MacroAssembler;
+  template <typename Next>
+  friend class compiler::turboshaft::TurboshaftAssemblerOpInterface;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(MemoryChunk::MainThreadFlags)
