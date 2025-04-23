@@ -497,10 +497,8 @@ void SortIndices(Isolate* isolate, DirectHandle<FixedArray> indices,
   AtomicSlot end(start + sort_size);
   std::sort(start, end, [isolate](Tagged_t elementA, Tagged_t elementB) {
 #ifdef V8_COMPRESS_POINTERS
-    Tagged<Object> a(
-        V8HeapCompressionScheme::DecompressTagged(isolate, elementA));
-    Tagged<Object> b(
-        V8HeapCompressionScheme::DecompressTagged(isolate, elementB));
+    Tagged<Object> a(V8HeapCompressionScheme::DecompressTagged(elementA));
+    Tagged<Object> b(V8HeapCompressionScheme::DecompressTagged(elementB));
 #else
     Tagged<Object> a(elementA);
     Tagged<Object> b(elementB);

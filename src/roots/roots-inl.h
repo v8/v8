@@ -151,7 +151,6 @@ Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {
 Address ReadOnlyRoots::address_at(RootIndex root_index) const {
 #if V8_STATIC_ROOTS_BOOL
   return V8HeapCompressionScheme::DecompressTagged(
-      V8HeapCompressionScheme::base(),
       StaticReadOnlyRootsPointerTable[static_cast<int>(root_index)]);
 #else
   size_t index = static_cast<size_t>(root_index);

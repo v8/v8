@@ -108,9 +108,8 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTaggedSigned(
 
 // static
 template <typename Cage>
-template <typename TOnHeapAddress>
 Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
-    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+    Tagged_t raw_value) {
 #ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
@@ -130,18 +129,16 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
 template <typename Cage>
 template <typename ProcessPointerCallback>
 void V8HeapCompressionSchemeImpl<Cage>::ProcessIntermediatePointers(
-    PtrComprCageBase cage_base, Address raw_value,
-    ProcessPointerCallback callback) {
+    Address raw_value, ProcessPointerCallback callback) {
   // If pointer compression is enabled, we may have random compressed pointers
   // on the stack that may be used for subsequent operations.
   // Extract, decompress and trace both halfwords.
   Address decompressed_low =
       V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
-          cage_base, static_cast<Tagged_t>(raw_value));
+          static_cast<Tagged_t>(raw_value));
   callback(decompressed_low);
   Address decompressed_high =
       V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
-          cage_base,
           static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
   callback(decompressed_high);
 }
@@ -214,19 +211,13 @@ constexpr Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
 }
 
 // static
-template <typename TOnHeapAddress>
-Address ExternalCodeCompressionScheme::DecompressTagged(
-    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
-#ifdef V8_COMPRESS_POINTERS
+Address ExternalCodeCompressionScheme::DecompressTagged(Tagged_t raw_value) {
   Address cage_base = base();
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   DCHECK_WITH_MSG(cage_base != kNullAddress,
                   "ExternalCodeCompressionScheme::base is not initialized for "
                   "current thread");
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-#else
-  Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif  // V8_COMPRESS_POINTERS
   V8_ASSUME((cage_base & kMinExpectedOSPageSizeMask) == cage_base);
 
   Address diff = static_cast<Address>(static_cast<uint32_t>(raw_value)) -
@@ -246,16 +237,14 @@ Address ExternalCodeCompressionScheme::DecompressTagged(
 // static
 template <typename ProcessPointerCallback>
 void ExternalCodeCompressionScheme::ProcessIntermediatePointers(
-    PtrComprCageBase cage_base, Address raw_value,
-    ProcessPointerCallback callback) {
+    Address raw_value, ProcessPointerCallback callback) {
   // If pointer compression is enabled, we may have random compressed pointers
   // on the stack that may be used for subsequent operations.
   // Extract, decompress and trace both halfwords.
   Address decompressed_low = ExternalCodeCompressionScheme::DecompressTagged(
-      cage_base, static_cast<Tagged_t>(raw_value));
+      static_cast<Tagged_t>(raw_value));
   callback(decompressed_low);
   Address decompressed_high = ExternalCodeCompressionScheme::DecompressTagged(
-      cage_base,
       static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
   callback(decompressed_high);
 }
@@ -314,9 +303,8 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTaggedSigned(
 
 // static
 template <typename Cage>
-template <typename TOnHeapAddress>
 Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
-    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+    Tagged_t raw_value) {
   UNREACHABLE();
 }
 
@@ -324,8 +312,7 @@ Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
 template <typename Cage>
 template <typename ProcessPointerCallback>
 void V8HeapCompressionSchemeImpl<Cage>::ProcessIntermediatePointers(
-    PtrComprCageBase cage_base, Address raw_value,
-    ProcessPointerCallback callback) {
+    Address raw_value, ProcessPointerCallback callback) {
   UNREACHABLE();
 }
 

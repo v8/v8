@@ -60,8 +60,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   Tagged_t poison = kHeapObjectTag;
   Address full_poison;
 #if V8_COMPRESS_POINTERS
-  full_poison = V8HeapCompressionScheme::DecompressTagged(
-      V8HeapCompressionScheme::base(), poison);
+  full_poison = V8HeapCompressionScheme::DecompressTagged(poison);
 #else
   full_poison = poison;
 #endif

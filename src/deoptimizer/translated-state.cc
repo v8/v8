@@ -1875,7 +1875,7 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
       static_cast<uintptr_t>(value) <= std::numeric_limits<uint32_t>::max()) {
 #endif
     return V8HeapCompressionScheme::DecompressTagged(
-        isolate(), static_cast<uint32_t>(value));
+        static_cast<uint32_t>(value));
   } else {
     return value;
   }

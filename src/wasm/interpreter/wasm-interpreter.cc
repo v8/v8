@@ -6098,7 +6098,7 @@ class Handlers : public HandlersBase {
     Tagged_t ref_tagged = base::ReadUnalignedValue<uint32_t>(field_addr);
     Isolate* isolate = wasm_runtime->GetIsolate();
     Tagged<Object> ref_uncompressed(
-        V8HeapCompressionScheme::DecompressTagged(isolate, ref_tagged));
+        V8HeapCompressionScheme::DecompressTagged(ref_tagged));
     WasmRef ref_handle = handle(ref_uncompressed, isolate);
     push<WasmRef>(sp, code, wasm_runtime, ref_handle);
 

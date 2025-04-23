@@ -5342,8 +5342,7 @@ void Isolate::VerifyStaticRoots() {
   RootIndex idx = RootIndex::kFirstReadOnlyRoot;
   for (Tagged_t cmp_ptr : StaticReadOnlyRootsPointerTable) {
     Address the_root = roots[idx];
-    Address ptr =
-        V8HeapCompressionScheme::DecompressTagged(cage_base(), cmp_ptr);
+    Address ptr = V8HeapCompressionScheme::DecompressTagged(cmp_ptr);
     CHECK_WITH_MSG(the_root == ptr, STATIC_ROOTS_FAILED_MSG);
     ++idx;
   }
@@ -5647,13 +5646,12 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     Address last = base + code_cage->size() - kTaggedSize;
     Address upper_bound = base + kPtrComprCageReservationSize - kTaggedSize;
     PtrComprCageBase code_cage_base{code_cage_base_};
-    CHECK_EQ(base, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressAny(base)));
-    CHECK_EQ(last, ComprScheme::DecompressTagged(
-                       code_cage_base, ComprScheme::CompressAny(last)));
-    CHECK_EQ(upper_bound,
-             ComprScheme::DecompressTagged(
-                 code_cage_base, ComprScheme::CompressAny(upper_bound)));
+    CHECK_EQ(base,
+             ComprScheme::DecompressTagged(ComprScheme::CompressAny(base)));
+    CHECK_EQ(last,
+             ComprScheme::DecompressTagged(ComprScheme::CompressAny(last)));
+    CHECK_EQ(upper_bound, ComprScheme::DecompressTagged(
+                              ComprScheme::CompressAny(upper_bound)));
   }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
