@@ -193,8 +193,12 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
 
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
+    DirectHandle<Object> first_field =
+        struct_type->first_field_can_be_prototype()
+            ? args[0].runtime_value.to_ref()
+            : direct_handle(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
-                                                      rtt);
+                                                      rtt, first_field);
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
   }
@@ -283,8 +287,9 @@ void ConstantExpressionInterface::StructNewDefault(
 
   DirectHandle<WasmStruct> obj;
   if (type.is_descriptor()) {
+    DirectHandle<Object> first_field(Smi::zero(), isolate_);
     obj = WasmStruct::AllocateDescriptorUninitialized(isolate_, data, imm.index,
-                                                      rtt);
+                                                      rtt, first_field);
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
   }

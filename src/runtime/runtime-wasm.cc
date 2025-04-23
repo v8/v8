@@ -1192,13 +1192,14 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_data{
       Cast<WasmTrustedInstanceData>(args[0]), isolate};
   DirectHandle<Map> map{Cast<Map>(args[1]), isolate};
   wasm::ModuleTypeIndex type_index{args.positive_smi_value_at(2)};
-  return *WasmStruct::AllocateDescriptorUninitialized(isolate, trusted_data,
-                                                      type_index, map);
+  DirectHandle<Object> first_field{args[3], isolate};
+  return *WasmStruct::AllocateDescriptorUninitialized(
+      isolate, trusted_data, type_index, map, first_field);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {

@@ -6690,16 +6690,35 @@ class LiftoffCompiler {
     return rtt;
   }
 
+  VarState GetFirstFieldIfPrototype(const StructType* struct_type,
+                                    bool initial_values_on_stack,
+                                    LiftoffRegList pinned) {
+    // If the first field might be a DescriptorOptions containing a
+    // JS prototype, we must pass it along. Otherwise, to satisfy the
+    // parameter count, we pass Smi(0).
+    if (initial_values_on_stack &&
+        struct_type->first_field_can_be_prototype()) {
+      int slot = -struct_type->field_count();
+      return __ cache_state() -> stack_state.end()[slot];
+    }
+    LiftoffRegister reg = __ GetUnusedRegister(kGpReg, pinned);
+    LoadSmi(reg, 0);
+    return VarState{kRef, reg, 0};
+  }
+
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
                  const Value& descriptor, bool initial_values_on_stack) {
     const TypeDefinition& type = decoder->module_->type(imm.index);
     LiftoffRegister rtt = GetRtt(decoder, imm.index, type, descriptor);
 
     if (type.is_descriptor()) {
+      VarState first_field = GetFirstFieldIfPrototype(
+          imm.struct_type, initial_values_on_stack, LiftoffRegList{rtt});
       CallBuiltin(Builtin::kWasmAllocateDescriptorStruct,
-                  MakeSig::Returns(kRef).Params(kRef, kI32),
+                  MakeSig::Returns(kRef).Params(kRef, kI32, kRef),
                   {VarState{kRef, rtt, 0},
-                   VarState{kI32, static_cast<int32_t>(imm.index.index), 0}},
+                   VarState{kI32, static_cast<int32_t>(imm.index.index), 0},
+                   first_field},
                   decoder->position());
     } else {
       bool is_shared = type.is_shared;

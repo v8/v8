@@ -1436,7 +1436,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   // Only for structs whose type describes another type.
   static DirectHandle<WasmStruct> AllocateDescriptorUninitialized(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
-      wasm::ModuleTypeIndex index, DirectHandle<Map> map);
+      wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+      DirectHandle<Object> first_field);
   inline Tagged<Map> get_described_rtt() const;
   inline void set_described_rtt(Tagged<Map> rtt);
 

@@ -4583,7 +4583,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
-    result->op = StructNewImpl(decoder, imm, descriptor, args_vector.data());
+    result->op =
+        StructNewImpl(decoder, imm, descriptor, args_vector.data(), true);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
@@ -4594,7 +4595,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
     }
-    result->op = StructNewImpl(decoder, imm, descriptor, args.data());
+    result->op = StructNewImpl(decoder, imm, descriptor, args.data(), false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -8234,7 +8235,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   V<WasmStruct> StructNewImpl(FullDecoder* decoder,
                               const StructIndexImmediate& imm,
-                              const Value& descriptor, OpIndex args[]) {
+                              const Value& descriptor, OpIndex args[],
+                              bool has_nondefault_args) {
     const TypeDefinition& type = decoder->module_->type(imm.index);
     DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
     V<Map> rtt;
@@ -8246,9 +8248,15 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     V<WasmStruct> struct_value;
     if (type.is_descriptor()) {
+      bool pass_potential_prototype =
+          has_nondefault_args &&
+          imm.struct_type->first_field_can_be_prototype();
+      V<Object> first_field =
+          pass_potential_prototype ? args[0] : __ SmiZeroConstant();
+
       struct_value = CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
-          decoder, {rtt, __ Word32Constant(imm.index.index)});
+          decoder, {rtt, __ Word32Constant(imm.index.index), first_field});
     } else {
       const bool shared = type.is_shared;
       struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);

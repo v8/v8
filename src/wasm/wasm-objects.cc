@@ -2243,13 +2243,14 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
 //
 // The eventual on-heap object structure will be something like the following,
 // where (A) is the object returned by this function, and (B) is allocated
-// along with it. There will likely be many instance of (C), and they will be
+// along with it. There will likely be many instances of (C), and they will be
 // allocated (much) later, by one or more {struct.new} instructions that
 // take (A) as input and retrieve (B) from it.
+// (D) is the {map} passed to this function.
 //
 //   Wasm struct (C):                    Wasm Descriptor Struct (A):
 //   +-----------+                       +-----------+
-//   | Map       |------\                | Map       |
+//   | Map       |------\                | Map (D)   |
 //   +-----------+      |                +-----------+
 //   | hash      |      |                | hash      |
 //   +-----------+      |       /--------| RTT       |
@@ -2264,7 +2265,8 @@ const wasm::CanonicalStructType* WasmStruct::GcSafeType(Tagged<Map> map) {
 // static
 DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
     Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
-    wasm::ModuleTypeIndex index, DirectHandle<Map> map) {
+    wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+    DirectHandle<Object> first_field) {
   const wasm::WasmModule* module = trusted_data->module();
   const wasm::TypeDefinition& type = module->type(index);
   DCHECK(type.is_descriptor());
@@ -2279,6 +2281,16 @@ DirectHandle<WasmStruct> WasmStruct::AllocateDescriptorUninitialized(
       Cast<NativeContext>(trusted_data->native_context()), isolate);
   DirectHandle<Map> rtt =
       CreateStructMap(isolate, described_index, rtt_parent, context);
+
+  if (v8_flags.wasm_explicit_prototypes && !IsSmi(*first_field) &&
+      IsWasmDescriptorOptions(Cast<HeapObject>(*first_field))) {
+    DirectHandle<JSPrototype> prototype = direct_handle(
+        Cast<JSReceiver>(
+            Cast<WasmDescriptorOptions>(*first_field)->prototype()),
+        isolate);
+    Map::SetPrototype(isolate, rtt, prototype);
+  }
+
   DirectHandle<WasmStruct> descriptor =
       isolate->factory()->NewWasmStructUninitialized(type.struct_type, map,
                                                      AllocationType::kOld);

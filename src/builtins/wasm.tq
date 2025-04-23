@@ -44,7 +44,7 @@ extern runtime WasmI64AtomicWait(
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
 extern runtime WasmAllocateDescriptorStruct(
-    Context, WasmTrustedInstanceData, Map, Smi): WasmStruct;
+    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct;
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
@@ -503,12 +503,13 @@ builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   return result;
 }
 
-builtin WasmAllocateDescriptorStruct(map: Map, typeIndex: int32): WasmStruct {
+builtin WasmAllocateDescriptorStruct(
+    map: Map, typeIndex: int32, firstField: Object): WasmStruct {
   // TODO(42204563): Figure out support for shared objects.
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
       LoadContextFromInstanceData(trustedData), trustedData, map,
-      SmiTag(Convert<intptr>(typeIndex)));
+      SmiTag(Convert<intptr>(typeIndex)), firstField);
   return result;
 }
 
