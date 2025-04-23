@@ -28,7 +28,6 @@ TEST_F(MaglevTest, NodeTypeSmokeTests) {
       IntersectType(NodeType::kNumberOrBoolean, NodeType::kNumberOrOddball),
       NodeType::kNumberOrOddball);
 
-  CHECK(NodeTypeIs(NodeType::kThinString, NodeType::kName));
   CHECK(!NodeTypeIs(NodeType::kStringWrapper, NodeType::kName));
 }
 

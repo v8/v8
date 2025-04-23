@@ -2814,9 +2814,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       });
 }
 
+// TODO(olivf): It's unclear if this unwrapping actually makes sense or if we
+// should rather let it be unwrapped lazily once we flatten the string.
 ValueNode* MaglevGraphBuilder::BuildUnwrapThinString(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kString));
-  if (NodeTypeIs(GetType(input), NodeType::kNonThinString)) return input;
+  if (input->Is<UnwrapThinString>()) return input;
+  if (auto obj = input->TryCast<InlinedAllocation>()) {
+    // Generally string types can change in-place. But as long as the object
+    // does not escape we know it is not thin.
+    if (obj->object()->type() == VirtualObject::kConsString) return input;
+  }
   return AddNewNode<UnwrapThinString>({input});
 }
 
@@ -4427,7 +4434,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       } else {
         switch (obj->type()) {
           case VirtualObject::kConsString:
-            return NodeType::kNonThinString;
+            return NodeType::kString;
           case VirtualObject::kDefault:
           case VirtualObject::kHeapNumber:
           case VirtualObject::kFixedDoubleArray:
@@ -4464,10 +4471,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kToString:
     case Opcode::kNumberToString:
     case Opcode::kUnwrapStringWrapper:
+    case Opcode::kUnwrapThinString:
       return NodeType::kString;
     case Opcode::kStringConcat:
-    case Opcode::kUnwrapThinString:
-      return NodeType::kNonThinString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:

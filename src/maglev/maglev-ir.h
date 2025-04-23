@@ -619,30 +619,32 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 // TODO(olivf): Rename Unknown to Any.
 
 /* Every object should belong to exactly one of these.*/
-#define LEAF_NODE_TYPE_LIST(V)              \
-  V(Smi, (1 << 0))                          \
-  V(HeapNumber, (1 << 1))                   \
-  V(NullOrUndefined, (1 << 2))              \
-  V(Boolean, (1 << 3))                      \
-  V(Symbol, (1 << 4))                       \
-  V(ThinString, (1 << 5))                   \
-  V(InternalizedString, (1 << 6))           \
-  V(NonInternalizedNonThinString, (1 << 7)) \
-  V(StringWrapper, (1 << 8))                \
-  V(JSArray, (1 << 9))                      \
-  V(Callable, (1 << 10))                    \
-  V(OtherJSReceiver, (1 << 11))             \
-  V(OtherHeapObject, (1 << 12))
+#define LEAF_NODE_TYPE_LIST(V)       \
+  V(Smi, (1 << 0))                   \
+  V(HeapNumber, (1 << 1))            \
+  V(NullOrUndefined, (1 << 2))       \
+  V(Boolean, (1 << 3))               \
+  V(Symbol, (1 << 4))                \
+  V(InternalizedString, (1 << 5))    \
+  V(NonInternalizedString, (1 << 6)) \
+  V(StringWrapper, (1 << 7))         \
+  V(JSArray, (1 << 8))               \
+  V(Callable, (1 << 9))              \
+  V(OtherJSReceiver, (1 << 10))      \
+  V(OtherHeapObject, (1 << 11))
+
+#define COUNT(...) +1
+static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
+#undef COUNT
 
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
-  V(Unknown, ((1 << 13) - 1))                                             \
+  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
-  V(NonThinString, kInternalizedString | kNonInternalizedNonThinString)   \
-  V(String, kThinString | kNonThinString)                                 \
+  V(String, kNonInternalizedString | kInternalizedString)                 \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
@@ -685,8 +687,7 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsStringMap()) {
     if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
-    if (map.IsThinStringMap()) return NodeType::kThinString;
-    return NodeType::kNonInternalizedNonThinString;
+    return NodeType::kString;
   }
   if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
   if (map.IsSymbolMap()) return NodeType::kSymbol;
@@ -732,13 +733,10 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
       return map.IsSymbolMap();
-    case NodeType::kThinString:
-      return map.IsStringMap() && map.IsThinStringMap();
     case NodeType::kInternalizedString:
       return map.IsStringMap() && map.IsInternalizedStringMap();
-    case NodeType::kNonInternalizedNonThinString:
-      return map.IsStringMap() && !map.IsThinStringMap() &&
-             !map.IsInternalizedStringMap();
+    case NodeType::kNonInternalizedString:
+      return map.IsStringMap() && !map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
     case NodeType::kJSArray:
