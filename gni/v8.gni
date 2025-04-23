@@ -83,9 +83,9 @@ declare_args() {
   # (is_ios is based on host_os).
   if (target_os == "ios") {
     if (target_platform == "iphoneos") {
-      # iOS executable code pages is in 17.4 SDK.
+      # iOS executable code pages is in 18.4 SDK.
       # TODO(dtapuska): Change this to an assert.
-      v8_enable_lite_mode = ios_deployment_target != "17.4"
+      v8_enable_lite_mode = ios_deployment_target != "18.4"
     } else if (target_platform == "tvos") {
       # tvOS runs in single process mode and is not allowed to use JIT.
       # TODO(crbug.com/394710095): Enable the v8 lite mode to run v8 with the
