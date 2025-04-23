@@ -1711,7 +1711,15 @@ void BytecodeGenerator::GenerateBytecodeBody() {
       GenerateAsyncFunctionBody();
     }
   } else {
-    GenerateBodyStatements();
+    int start = 0;
+    if (BuildInitializationBlockForParametersIfExist()) {
+      start = 1;
+    }
+    if (IsResumableFunction(info()->literal()->kind())) {
+      BuildGeneratorObjectVariableInitialization();
+    }
+
+    GenerateBodyStatements(start);
   }
 }
 
@@ -1731,13 +1739,7 @@ void BytecodeGenerator::GenerateBodyPrologue() {
   // Build assignment to {new.target} variable if it is used.
   VisitNewTargetVariable(closure_scope()->new_target_var());
 
-  // Create a generator object if necessary and initialize the
-  // {.generator_object} variable.
   FunctionLiteral* literal = info()->literal();
-  if (IsResumableFunction(literal->kind())) {
-    BuildGeneratorObjectVariableInitialization();
-  }
-
   // Emit tracing call if requested to do so.
   if (v8_flags.trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
@@ -1857,6 +1859,7 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
   // }
 
   FunctionLiteral* literal = info()->literal();
+  BuildGeneratorObjectVariableInitialization();
 
   HandlerTable::CatchPrediction outer_catch_prediction = catch_prediction();
   // When compiling a REPL script, use UNCAUGHT_ASYNC_AWAIT to preserve the
@@ -1884,6 +1887,19 @@ void BytecodeGenerator::GenerateAsyncFunctionBody() {
         BuildReturn(kNoSourcePosition);
       },
       catch_prediction());
+}
+
+bool BytecodeGenerator::BuildInitializationBlockForParametersIfExist() {
+  ZonePtrList<Statement>* body = info()->literal()->body();
+  if (body->length() > 0 && body->at(0)->IsBlock()) {
+    Block* block = body->at(0)->AsBlock();
+    if (block->is_initialization_block_for_parameters()) {
+      RegisterAllocationScope allocation_scope(this);
+      VisitBlockDeclarationsAndStatements(block);
+      return true;
+    }
+  }
+  return false;
 }
 
 void BytecodeGenerator::GenerateAsyncGeneratorFunctionBody() {
@@ -1916,15 +1932,10 @@ void BytecodeGenerator::GenerateAsyncGeneratorFunctionBody() {
   // in the following try-finally. We visit this block outside the try-finally
   // and remove it from the AST.
   int start = 0;
-  ZonePtrList<Statement>* statements = info()->literal()->body();
-  Statement* stmt = statements->at(0);
-  if (stmt->IsBlock()) {
-    Block* block = static_cast<Block*>(statements->at(0));
-    if (block->is_initialization_block_for_parameters()) {
-      VisitBlockDeclarationsAndStatements(block);
-      start = 1;
-    }
+  if (BuildInitializationBlockForParametersIfExist()) {
+    start = 1;
   }
+  BuildGeneratorObjectVariableInitialization();
 
   BuildTryFinally(
       [&]() {
@@ -8337,6 +8348,8 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   BuildVariableAssignment(variable, Token::kInit, HoleCheckMode::kElided);
 }
 
+// Create a generator object if necessary and initialize the
+// {.generator_object} variable.
 void BytecodeGenerator::BuildGeneratorObjectVariableInitialization() {
   DCHECK(IsResumableFunction(info()->literal()->kind()));
 

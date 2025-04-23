@@ -211,12 +211,6 @@
   # https://github.com/tc39/test262/pull/4417
   'intl402/Locale/prototype/getWeekInfo/output-object-keys': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7831
-  'language/statements/generators/generator-created-after-decl-inst': [FAIL],
-  'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
-  'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
-  'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
