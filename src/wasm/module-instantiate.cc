@@ -1904,14 +1904,20 @@ bool InstanceBuilder::ProcessImportedFunction(
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
-      imported_entry.SetGenericWasmToJs(
-          isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
+      if (v8_flags.wasm_generic_wrapper) {
+        imported_entry.SetGenericWasmToJs(
+            isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
+        return true;
+      }
+      // Otherwise fall through to the generic handling below.
       break;
+
     case ImportCallKind::kLinkError:
       thrower_->LinkError(
           "%s: imported function does not match the expected type",
           ImportName(import_index).c_str());
       return false;
+
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
       auto function_data =
@@ -1929,8 +1935,9 @@ bool InstanceBuilder::ProcessImportedFunction(
                                    function_data->function_index()
 #endif  // V8_ENABLE_DRUMBRAKE
       );
-      break;
+      return true;
     }
+
     case ImportCallKind::kWasmToCapi: {
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
@@ -1961,8 +1968,9 @@ bool InstanceBuilder::ProcessImportedFunction(
       // callable to the wrapper, which we need to get the function data.
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig, sig_index);
-      break;
+      return true;
     }
+
     case ImportCallKind::kWasmToJSFastApi: {
       DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
       WasmCodeRefScope code_ref_scope;
@@ -1991,55 +1999,55 @@ bool InstanceBuilder::ProcessImportedFunction(
       wasm_code->MaybePrint();
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig, sig_index);
-      break;
+      return true;
     }
-    default: {
-      // The imported function is a callable.
-      if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
-        DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
-               kind == ImportCallKind::kJSFunctionArityMismatch);
-        imported_entry.SetGenericWasmToJs(
-            isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
-        break;
-      }
-      if (v8_flags.wasm_jitless) {
-        WasmCode* no_code = nullptr;
-        imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
-                                           resolved.suspend(), expected_sig,
-                                           sig_index);
-        break;
-      }
-      int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      if (kind == ImportCallKind::kJSFunctionArityMismatch) {
-        auto function = Cast<JSFunction>(js_receiver);
-        Tagged<SharedFunctionInfo> shared = function->shared();
-        expected_arity =
-            shared->internal_formal_parameter_count_without_receiver();
-      }
 
-      WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code =
-          cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
-      if (!wasm_code) {
-        // This should be a very rare fallback case. We expect that the
-        // generic wrapper will be used (see above).
-        bool source_positions =
-            is_asmjs_module(trusted_instance_data->module());
-        wasm_code = cache->CompileWasmImportCallWrapper(
-            isolate_, kind, expected_sig, sig_index, source_positions,
-            expected_arity, resolved.suspend());
-      }
-
-      DCHECK_NOT_NULL(wasm_code);
-      CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
-      // Wasm to JS wrappers are treated specially in the import table.
-      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                         resolved.suspend(), expected_sig,
-                                         sig_index);
+    default:
       break;
-    }
   }
+
+  if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
+    DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
+           kind == ImportCallKind::kJSFunctionArityMismatch);
+    imported_entry.SetGenericWasmToJs(isolate_, js_receiver, resolved.suspend(),
+                                      expected_sig, sig_index);
+    return true;
+  }
+
+  if (v8_flags.wasm_jitless) {
+    WasmCode* no_code = nullptr;
+    imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
+                                       resolved.suspend(), expected_sig,
+                                       sig_index);
+    return true;
+  }
+
+  int expected_arity = static_cast<int>(expected_sig->parameter_count());
+  if (kind == ImportCallKind::kJSFunctionArityMismatch) {
+    auto function = Cast<JSFunction>(js_receiver);
+    Tagged<SharedFunctionInfo> shared = function->shared();
+    expected_arity = shared->internal_formal_parameter_count_without_receiver();
+  }
+
+  WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
+  WasmCodeRefScope code_ref_scope;
+  WasmCode* wasm_code =
+      cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
+  if (!wasm_code) {
+    // This should be a very rare fallback case. We expect that the
+    // generic wrapper will be used (see above).
+    bool source_positions = is_asmjs_module(trusted_instance_data->module());
+    wasm_code = cache->CompileWasmImportCallWrapper(
+        isolate_, kind, expected_sig, sig_index, source_positions,
+        expected_arity, resolved.suspend());
+  }
+
+  DCHECK_NOT_NULL(wasm_code);
+  CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
+  // Wasm to JS wrappers are treated specially in the import table.
+  imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                     resolved.suspend(), expected_sig,
+                                     sig_index);
   return true;
 }
 
