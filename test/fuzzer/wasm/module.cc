@@ -21,25 +21,53 @@
 
 namespace v8::internal::wasm::fuzzing {
 
+// Object to cache the flag configurations for liftoff being enabled or
+// disabled including all implications related to it. This ensures that all
+// implications are set correctly while still making it reasonably quick to
+// switch between the two configurations.
+struct FlagHandler {
+  FlagValues liftoff_enabled;
+  FlagValues liftoff_disabled;
+
+  explicit FlagHandler(v8::Isolate* isolate) {
+    // We reduce the maximum memory size and table size of WebAssembly instances
+    // to avoid OOMs in the fuzzer.
+    v8_flags.wasm_max_mem_pages = 32;
+    v8_flags.wasm_max_table_size = 100;
+
+    // Disable lazy compilation to find compiler bugs easier.
+    v8_flags.wasm_lazy_compilation = false;
+
+    v8_flags.liftoff = true;
+
+    // We explicitly enable staged/experimental WebAssembly features here to
+    // increase fuzzer coverage. For libfuzzer fuzzers it is not possible that
+    // the fuzzer enables the flag by itself.
+    EnableExperimentalWasmFeatures(isolate);
+
+    // Store flag values if liftoff is enabled.
+    static_assert(
+        std::is_same_v<decltype(v8_flags), decltype(liftoff_enabled)>);
+    std::memcpy(&liftoff_enabled, &v8_flags, sizeof liftoff_enabled);
+    // Calculate and store flag values if liftoff is disabled.
+    v8_flags.liftoff = false;
+    FlagList::EnforceFlagImplications();
+    static_assert(
+        std::is_same_v<decltype(v8_flags), decltype(liftoff_disabled)>);
+    std::memcpy(&liftoff_disabled, &v8_flags, sizeof liftoff_disabled);
+  }
+
+  void UpdateFlags(bool enable_liftoff) const {
+    const FlagValues& source =
+        enable_liftoff ? liftoff_enabled : liftoff_disabled;
+    std::memcpy(&v8_flags, &source, sizeof v8_flags);
+  }
+};
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
-
-  // We reduce the maximum memory size and table size of WebAssembly instances
-  // to avoid OOMs in the fuzzer.
-  v8_flags.wasm_max_mem_pages = 32;
-  v8_flags.wasm_max_table_size = 100;
-
-  // Disable lazy compilation to find compiler bugs easier.
-  v8_flags.wasm_lazy_compilation = false;
-
-  // Choose one of Liftoff or TurboFan, depending on the size of the input (we
-  // can't use a dedicated byte from the input, because we want to be able to
-  // pass Wasm modules unmodified to this fuzzer).
-  v8_flags.liftoff = size & 1;
-
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-
   v8::Isolate::Scope isolate_scope(isolate);
 
   // Clear any exceptions from a prior run.
@@ -50,10 +78,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
-  // We explicitly enable staged/experimental WebAssembly features here to
-  // increase fuzzer coverage. For libfuzzer fuzzers it is not possible that the
-  // fuzzer enables the flag by itself.
-  EnableExperimentalWasmFeatures(isolate);
+  // Choose one of Liftoff or TurboFan, depending on the size of the input (we
+  // can't use a dedicated byte from the input, because we want to be able to
+  // pass Wasm modules unmodified to this fuzzer).
+  bool enable_liftoff = size & 1;
+  static FlagHandler flag_handler(isolate);
+  flag_handler.UpdateFlags(enable_liftoff);
 
   v8::TryCatch try_catch(isolate);
   testing::SetupIsolateForWasmModule(i_isolate);
