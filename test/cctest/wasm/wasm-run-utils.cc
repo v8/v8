@@ -310,7 +310,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
         uint64_t signature_hash = SignatureHasher::Hash(function.sig);
         trusted_instance_data_->dispatch_table(table_index)
             ->SetForWrapper(
-                i, *entry.implicit_arg(),
+                i, Cast<WasmImportData>(*entry.implicit_arg()),
                 wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
                     entry.call_target(), signature_hash),
                 sig_id, signature_hash,
@@ -322,12 +322,13 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
                 WasmDispatchTable::kNewEntry);
       } else {
         trusted_instance_data_->dispatch_table(table_index)
-            ->SetForNonWrapper(i, *entry.implicit_arg(), entry.call_target(),
-                               sig_id,
+            ->SetForNonWrapper(
+                i, Cast<WasmTrustedInstanceData>(*entry.implicit_arg()),
+                entry.call_target(), sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                               function.func_index,
+                function.func_index,
 #endif  // !V8_ENABLE_DRUMBRAKE
-                               WasmDispatchTable::kNewEntry);
+                WasmDispatchTable::kNewEntry);
       }
 
       WasmTableObject::SetFunctionTablePlaceholder(

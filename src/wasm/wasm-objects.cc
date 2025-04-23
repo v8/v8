@@ -591,7 +591,7 @@ void WasmTableObject::UpdateDispatchTable(
                                   ->LookupFunctionSignature(sig_id)
                                   ->signature_hash();
     dispatch_table->SetForWrapper(
-        entry_index, *implicit_arg,
+        entry_index, Cast<WasmImportData>(*implicit_arg),
         wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
             call_target, signature_hash),
         sig_id, signature_hash,
@@ -601,12 +601,13 @@ void WasmTableObject::UpdateDispatchTable(
         wasm::GetWasmImportWrapperCache()->FindWrapper(call_target),
         WasmDispatchTable::kExistingEntry);
   } else {
-    dispatch_table->SetForNonWrapper(entry_index, *implicit_arg, call_target,
-                                     sig_id,
+    dispatch_table->SetForNonWrapper(
+        entry_index, Cast<WasmTrustedInstanceData>(*implicit_arg), call_target,
+        sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                     target_func_index,
+        target_func_index,
 #endif
-                                     WasmDispatchTable::kExistingEntry);
+        WasmDispatchTable::kExistingEntry);
   }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -739,7 +740,8 @@ void WasmTableObject::UpdateDispatchTable(
     isolate->counters()->wasm_reloc_size()->Increment(
         wasm_code->reloc_info().length());
   }
-  Tagged<HeapObject> implicit_arg = func_data->internal()->implicit_arg();
+  Tagged<WasmImportData> implicit_arg =
+      Cast<WasmImportData>(func_data->internal()->implicit_arg());
   Address call_target = wasm_code->instruction_start();
   Tagged<WasmDispatchTable> dispatch_table =
       table->trusted_dispatch_table(isolate);
@@ -2498,13 +2500,13 @@ void WasmDispatchTableData::Remove(int index, WasmCodePointer call_target) {
   wrappers_.erase(entry);
 }
 
-void WasmDispatchTable::SetForNonWrapper(int index, Tagged<Object> implicit_arg,
-                                         WasmCodePointer call_target,
-                                         wasm::CanonicalTypeIndex sig_id,
+void WasmDispatchTable::SetForNonWrapper(
+    int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
+    WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                         uint32_t function_index,
+    uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                         NewOrExistingEntry new_or_existing) {
+    NewOrExistingEntry new_or_existing) {
   if (implicit_arg == Smi::zero()) {
     DCHECK_EQ(wasm::kInvalidWasmCodePointer, call_target);
     Clear(index, new_or_existing);
@@ -2512,8 +2514,7 @@ void WasmDispatchTable::SetForNonWrapper(int index, Tagged<Object> implicit_arg,
   }
 
   SBXCHECK_BOUNDS(index, length());
-  DCHECK(IsWasmImportData(implicit_arg) ||
-         IsWasmTrustedInstanceData(implicit_arg));
+  DCHECK(IsWasmTrustedInstanceData(implicit_arg));
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
   if (!v8_flags.wasm_jitless) {
@@ -2539,20 +2540,16 @@ void WasmDispatchTable::SetForNonWrapper(int index, Tagged<Object> implicit_arg,
   WriteField<uint32_t>(offset + kSigBias, sig_id.index);
 }
 
-void WasmDispatchTable::SetForWrapper(int index, Tagged<Object> implicit_arg,
-                                      Address call_target,
-                                      wasm::CanonicalTypeIndex sig_id,
-                                      uint64_t signature_hash,
+void WasmDispatchTable::SetForWrapper(
+    int index, Tagged<WasmImportData> implicit_arg, Address call_target,
+    wasm::CanonicalTypeIndex sig_id, uint64_t signature_hash,
 #if V8_ENABLE_DRUMBRAKE
-                                      uint32_t function_index,
+    uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                      wasm::WasmCode* compiled_wrapper,
-                                      NewOrExistingEntry new_or_existing) {
+    wasm::WasmCode* compiled_wrapper, NewOrExistingEntry new_or_existing) {
   DCHECK_NE(implicit_arg, Smi::zero());
   SBXCHECK(!compiled_wrapper || !compiled_wrapper->is_dying());
   SBXCHECK_BOUNDS(index, length());
-  DCHECK(IsWasmImportData(implicit_arg) ||
-         IsWasmTrustedInstanceData(implicit_arg));
   DCHECK(sig_id.valid());
   const int offset = OffsetOf(index);
   WriteProtectedPointerField(offset + kImplicitArgBias,

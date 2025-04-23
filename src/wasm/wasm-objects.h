@@ -818,6 +818,9 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
 #endif  // V8_ENABLE_DRUMBRAKE
 
+  // Indicate whether we are modifying an existing entry (for which we might
+  // have to update the ref count), or if we are initializing a slot for the
+  // first time (in which case we should not read the uninitialized memory).
   enum NewOrExistingEntry : bool { kNewEntry, kExistingEntry };
 
   class BodyDescriptor;
@@ -860,7 +863,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static_assert(IsAligned(kTargetBias, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
 
-  // TODO(clemensb): If we ever enable allocation alignment we will needs to add
+  // TODO(clemensb): If we ever enable allocation alignment we will need to add
   // more padding to make the "target" fields system-pointer-size aligned.
   static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
 
@@ -907,30 +910,26 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
   // Wrappers are special since we own the CPT entries for the wrappers.
-  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
-  // Smi::zero().
-  void V8_EXPORT_PRIVATE SetForNonWrapper(int index,
-                                          Tagged<Object> implicit_arg,
-                                          WasmCodePointer call_target,
-                                          wasm::CanonicalTypeIndex sig_id,
+  // {implicit_arg} has to be a WasmTrustedInstanceData, or Smi::zero() for
+  // clearing the slot.
+  void V8_EXPORT_PRIVATE SetForNonWrapper(
+      int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
+      WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                          uint32_t function_index,
+      uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                          NewOrExistingEntry new_or_existing);
+      NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
-  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData.
   // {compiled_wrapper} needs to be set to the corresponding WasmCode, or
   // nullptr in case of the generic wrapper.
-  void V8_EXPORT_PRIVATE SetForWrapper(int index, Tagged<Object> implicit_arg,
-                                       Address call_target,
-                                       wasm::CanonicalTypeIndex sig_id,
-                                       uint64_t signature_hash,
+  void V8_EXPORT_PRIVATE SetForWrapper(
+      int index, Tagged<WasmImportData> implicit_arg, Address call_target,
+      wasm::CanonicalTypeIndex sig_id, uint64_t signature_hash,
 #if V8_ENABLE_DRUMBRAKE
-                                       uint32_t function_index,
+      uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                       wasm::WasmCode* compiled_wrapper,
-                                       NewOrExistingEntry new_or_existing);
+      wasm::WasmCode* compiled_wrapper, NewOrExistingEntry new_or_existing);
 
 #if V8_ENABLE_DRUMBRAKE
   inline uint32_t function_index(int index) const;
