@@ -92,8 +92,7 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(g.IsIntegerConstant(index));
+  if (base_op.Is<LoadRootRegisterOp>() && g.IsIntegerConstant(index)) {
     input_count = 1;
     inputs[0] = g.UseImmediate64(*g.GetOptionalIntegerConstant(index.value()));
     opcode |= AddressingModeField::encode(kMode_Root);
