@@ -437,7 +437,10 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
       InitializePartialMap(isolate(), map, meta_map, entry.type, entry.size);
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
-      if (StringShape(entry.type).IsCons()) map->mark_unstable();
+      // Strings change maps in-place (e.g., when internalizing them). Thus they
+      // are marked unstable to let the compilers not depend on them not
+      // changing.
+      map->mark_unstable();
     }
     InitializePartialMap(isolate(), symbol_map, meta_map, SYMBOL_TYPE,
                          sizeof(Symbol));
