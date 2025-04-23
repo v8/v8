@@ -1251,7 +1251,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(
     int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
                                     : Context::OBJECT_FUNCTION_INDEX;
     DirectHandle<JSFunction> realm_constructor(
-        Cast<JSFunction>(native_context->get(index)), isolate);
+        Cast<JSFunction>(native_context->GetNoCell(index)), isolate);
     prototype = direct_handle(realm_constructor->prototype(), isolate);
   }
   DCHECK_EQ(constructor_initial_map->constructor_or_back_pointer(),
@@ -1301,10 +1301,10 @@ MaybeDirectHandle<Map> JSFunction::GetDerivedRabGsabTypedArrayMap(
     Tagged<NativeContext> context = isolate->context()->native_context();
     int ctor_index =
         TypedArrayElementsKindToConstructorIndex(map->elements_kind());
-    if (*new_target == context->get(ctor_index)) {
+    if (*new_target == context->GetNoCell(ctor_index)) {
       ctor_index =
           TypedArrayElementsKindToRabGsabCtorIndex(map->elements_kind());
-      return direct_handle(Cast<Map>(context->get(ctor_index)), isolate);
+      return direct_handle(Cast<Map>(context->GetNoCell(ctor_index)), isolate);
     }
   }
 

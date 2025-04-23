@@ -984,8 +984,8 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
  protected:
   TNode<JSObject> AllocateJsObjectTarget(TNode<Context> context) {
     const TNode<NativeContext> native_context = LoadNativeContext(context);
-    const TNode<JSFunction> object_function = Cast(
-        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+    const TNode<JSFunction> object_function = Cast(LoadContextElementNoCell(
+        native_context, Context::OBJECT_FUNCTION_INDEX));
     const TNode<Map> map =
         Cast(LoadJSFunctionPrototypeOrInitialMap(object_function));
     const TNode<JSObject> target = AllocateJSObjectFromMap(map);

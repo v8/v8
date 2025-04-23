@@ -1331,13 +1331,13 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* value;
     if (v8_flags.script_context_cells && !feedback.immutable()) {
       // We collect feedback only for mutable context slots.
-      value = effect = graph()->NewNode(
-          javascript()->LoadScriptContext(0, feedback.slot_index()),
-          script_context, effect, control);
+      value = effect =
+          graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index()),
+                           script_context, effect, control);
     } else {
       value = effect =
-          graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index(),
-                                                     feedback.immutable()),
+          graph()->NewNode(javascript()->LoadContextNoCell(
+                               0, feedback.slot_index(), feedback.immutable()),
                            script_context, effect);
     }
     ReplaceWithValue(node, value, effect, control);
@@ -1370,13 +1370,13 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     if (v8_flags.script_context_cells) {
-      effect = control = graph()->NewNode(
-          javascript()->StoreScriptContext(0, feedback.slot_index()), value,
-          script_context, effect, control);
-    } else {
-      effect =
+      effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                            value, script_context, effect, control);
+    } else {
+      effect = graph()->NewNode(
+          javascript()->StoreContextNoCell(0, feedback.slot_index()), value,
+          script_context, effect, control);
     }
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

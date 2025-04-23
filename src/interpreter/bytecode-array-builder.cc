@@ -792,17 +792,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
     }
   } else {
     DCHECK_EQ(kMutableSlot, mutability);
-    if (v8_flags.script_context_cells && variable->scope()->is_script_scope()) {
-      if (context.is_current_context() && depth == 0) {
-        OutputLdaCurrentScriptContextSlot(slot_index);
-      } else {
-        OutputLdaScriptContextSlot(context, slot_index, depth);
-      }
-    } else {
+    if (variable->scope()->has_context_cells()) {
       if (context.is_current_context() && depth == 0) {
         OutputLdaCurrentContextSlot(slot_index);
       } else {
         OutputLdaContextSlot(context, slot_index, depth);
+      }
+    } else {
+      if (context.is_current_context() && depth == 0) {
+        OutputLdaCurrentContextSlotNoCell(slot_index);
+      } else {
+        OutputLdaContextSlotNoCell(context, slot_index, depth);
       }
     }
   }
@@ -813,18 +813,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
                                                              Variable* variable,
                                                              int depth) {
   int slot_index = variable->index();
-  if (v8_flags.script_context_cells && variable->mode() == VariableMode::kLet &&
-      variable->scope()->is_script_scope()) {
-    if (context.is_current_context() && depth == 0) {
-      OutputStaCurrentScriptContextSlot(slot_index);
-    } else {
-      OutputStaScriptContextSlot(context, slot_index, depth);
-    }
-  } else {
+  if (variable->mode() != VariableMode::kConst &&
+      variable->scope()->has_context_cells()) {
     if (context.is_current_context() && depth == 0) {
       OutputStaCurrentContextSlot(slot_index);
     } else {
       OutputStaContextSlot(context, slot_index, depth);
+    }
+  } else {
+    if (context.is_current_context() && depth == 0) {
+      OutputStaCurrentContextSlotNoCell(slot_index);
+    } else {
+      OutputStaContextSlotNoCell(context, slot_index, depth);
     }
   }
   return *this;
@@ -845,25 +845,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
-    const AstRawString* name, TypeofMode typeof_mode, ContextKind context_kind,
+    const AstRawString* name, TypeofMode typeof_mode, ContextMode context_mode,
     int slot_index, int depth) {
   size_t name_index = GetConstantPoolEntry(name);
   switch (typeof_mode) {
     case TypeofMode::kInside:
-      if (v8_flags.script_context_cells &&
-          context_kind == ContextKind::kScriptContext) {
-        OutputLdaLookupScriptContextSlotInsideTypeof(name_index, slot_index,
-                                                     depth);
-      } else {
+      if (context_mode == ContextMode::kHasContextCells) {
         OutputLdaLookupContextSlotInsideTypeof(name_index, slot_index, depth);
+      } else {
+        OutputLdaLookupContextSlotNoCellInsideTypeof(name_index, slot_index,
+                                                     depth);
       }
       break;
     case TypeofMode::kNotInside:
-      if (v8_flags.script_context_cells &&
-          context_kind == ContextKind::kScriptContext) {
-        OutputLdaLookupScriptContextSlot(name_index, slot_index, depth);
-      } else {
+      if (context_mode == ContextMode::kHasContextCells) {
         OutputLdaLookupContextSlot(name_index, slot_index, depth);
+      } else {
+        OutputLdaLookupContextSlotNoCell(name_index, slot_index, depth);
       }
       break;
   }

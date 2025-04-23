@@ -1659,7 +1659,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfContextElementEqual(TNode<Object> value,
                                  TNode<NativeContext> native_context,
                                  int slot_index, Label* if_equal) {
-    GotoIf(TaggedEqual(value, LoadContextElement(native_context, slot_index)),
+    GotoIf(TaggedEqual(value,
+                       LoadContextElementNoCell(native_context, slot_index)),
            if_equal);
   }
 
@@ -2934,6 +2935,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     } else {
       return BoolConstant(false);
     }
+  }
+
+  TNode<BoolT> IsScriptContextCellsFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::address_of_script_context_cells_flag());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

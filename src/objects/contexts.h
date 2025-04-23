@@ -6,6 +6,8 @@
 #define V8_OBJECTS_CONTEXTS_H_
 
 #include "include/v8-promise.h"
+#include "src/common/globals.h"
+#include "src/execution/frames.h"
 #include "src/handles/handles.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
@@ -29,6 +31,11 @@ class MicrotaskQueue;
 class NativeContext;
 class RegExpMatchInfo;
 struct VariableLookupResult;
+namespace compiler {
+class ContextRef;
+}
+class V8HeapExplorer;
+class JavaScriptFrame;
 
 enum ContextLookupFlags {
   FOLLOW_CONTEXT_CHAIN = 1 << 0,
@@ -481,19 +488,23 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   using TorqueGeneratedContext::set_length;  // Non-atomic.
   DECL_RELAXED_INT_ACCESSORS(length)
 
-  // Setter and getter for elements.
-  // Note the plain accessors use relaxed semantics.
-  // TODO(jgruber): Make that explicit through tags.
-  V8_INLINE Tagged<Object> get(int index) const;
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Tagged<Object> value,
-                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // Accessors with acquire-release semantics.
-  V8_INLINE Tagged<Object> get(int index, AcquireLoadTag) const;
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                               AcquireLoadTag) const;
-  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
-                     ReleaseStoreTag);
+  V8_INLINE bool IsElementTheHole(int index);
+
+  template <typename MemoryTag>
+  V8_INLINE Tagged<Object> GetNoCell(int index, MemoryTag tag);
+  template <typename MemoryTag>
+  V8_INLINE void SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  V8_INLINE Tagged<Object> GetNoCell(int index);
+  V8_INLINE void SetNoCell(int index, Tagged<Object> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  V8_EXPORT_PRIVATE static DirectHandle<Object> Get(
+      DirectHandle<Context> context, int index, Isolate* isolate);
+  V8_EXPORT_PRIVATE static void Set(DirectHandle<Context> context, int index,
+                                    DirectHandle<Object> new_value,
+                                    Isolate* isolate);
 
   static const int kScopeInfoOffset = kElementsOffset;
   static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
@@ -632,6 +643,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool IsModuleContext() const;
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;
+  inline bool HasContextCells() const;
 
   inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
 
@@ -684,14 +696,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
-  V8_EXPORT_PRIVATE static DirectHandle<Object> LoadScriptContextElement(
-      DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> value, Isolate* isolate);
-
-  V8_EXPORT_PRIVATE static void StoreScriptContextElement(
-      DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> new_value, Isolate* isolate);
-
   static const int kNotFound = -1;
 
   // Dispatched behavior.
@@ -703,6 +707,29 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 #ifdef VERIFY_HEAP
   V8_EXPORT_PRIVATE void VerifyExtensionSlot(Tagged<HeapObject> extension);
 #endif
+
+ protected:
+  // Setter and getter for elements.
+  template <typename MemoryTag>
+  Tagged<Object> get(int index, MemoryTag tag) const;
+
+  // Accessors use relaxed semantics.
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               RelaxedLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
+                     RelaxedStoreTag);
+  // Accessors with acquire-release semantics.
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               AcquireLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
+
+  // These classes can load an element with a context cell.
+  friend class compiler::ContextRef;
+  friend class JavaScriptFrame;
+  friend class V8HeapExplorer;
 
  private:
 #ifdef DEBUG

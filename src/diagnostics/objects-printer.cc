@@ -1325,7 +1325,9 @@ void PrintContextWithHeader(std::ostream& os, Tagged<Context> context,
   }
   os << "\n - length: " << context->length();
   os << "\n - elements:";
-  PrintFixedArrayElements(os, context);
+  PrintFixedArrayElements<Context>(
+      os, context, context->length(),
+      [](Tagged<Context> xs, int i) { return Cast<Object>(xs->GetNoCell(i)); });
   os << "\n";
 }
 }  // namespace
@@ -3658,8 +3660,19 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case CONTEXT_CELL_TYPE: {
       auto cell = Cast<ContextCell>(*this);
       os << "<ContextCell[" << cell->state();
-      if (cell->state() == ContextCell::kConst) {
-        os << "=" << Brief(cell->tagged_value());
+      switch (cell->state()) {
+        case ContextCell::kConst:
+        case ContextCell::kSmi:
+          os << "=" << Brief(cell->tagged_value());
+          break;
+        case ContextCell::kInt32:
+          os << "=" << cell->int32_value();
+          break;
+        case ContextCell::kFloat64:
+          os << "=" << cell->float64_value();
+          break;
+        case ContextCell::kDetached:
+          break;
       }
       os << "]>";
       break;

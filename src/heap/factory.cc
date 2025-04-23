@@ -1418,8 +1418,8 @@ DirectHandle<Context> Factory::NewCatchContext(
   DCHECK_NEWLY_ALLOCATED_OBJECT_IS_YOUNG(isolate(), context);
   context->set_scope_info(*scope_info, SKIP_WRITE_BARRIER);
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
-  context->set(Context::THROWN_OBJECT_INDEX, *thrown_object,
-               SKIP_WRITE_BARRIER);
+  context->SetNoCell(Context::THROWN_OBJECT_INDEX, *thrown_object,
+                     SKIP_WRITE_BARRIER);
   return direct_handle(context, isolate());
 }
 
@@ -1442,7 +1442,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(
   context->set_previous(*previous, SKIP_WRITE_BARRIER);
   context->set_extension(*ext, SKIP_WRITE_BARRIER);
   if (!wrapped.is_null()) {
-    context->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped, SKIP_WRITE_BARRIER);
+    context->SetNoCell(Context::WRAPPED_CONTEXT_INDEX, *wrapped,
+                       SKIP_WRITE_BARRIER);
   }
   return handle(context, isolate());
 }
@@ -3375,9 +3376,9 @@ DirectHandle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
 DirectHandle<JSWrappedFunction> Factory::NewJSWrappedFunction(
     DirectHandle<NativeContext> creation_context, DirectHandle<Object> target) {
   DCHECK(IsCallable(*target));
-  DirectHandle<Map> map(
-      Cast<Map>(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
-      isolate());
+  DirectHandle<Map> map(Cast<Map>(creation_context->GetNoCell(
+                            Context::WRAPPED_FUNCTION_MAP_INDEX)),
+                        isolate());
   // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
   // 3. Set wrapped.[[Prototype]] to
   // callerRealm.[[Intrinsics]].[[%Function->prototype%]].
@@ -4345,8 +4346,8 @@ DirectHandle<Map> Factory::CreateSloppyFunctionMap(
   } else {
     // |maybe_empty_function| is allowed to be empty only during empty function
     // creation.
-    DCHECK(IsUndefined(
-        isolate()->raw_native_context()->get(Context::EMPTY_FUNCTION_INDEX)));
+    DCHECK(IsUndefined(isolate()->raw_native_context()->GetNoCell(
+        Context::EMPTY_FUNCTION_INDEX)));
   }
 
   //
@@ -4780,9 +4781,9 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
   DirectHandle<Map> map;
   if (!maybe_map_.ToHandle(&map)) {
     // No specific map requested, use the default.
-    map = direct_handle(
-        Cast<Map>(context_->native_context()->get(sfi_->function_map_index())),
-        isolate_);
+    map = direct_handle(Cast<Map>(context_->native_context()->GetNoCell(
+                            sfi_->function_map_index())),
+                        isolate_);
   }
   DCHECK(InstanceTypeChecker::IsJSFunction(*map));
 

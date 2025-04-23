@@ -9,6 +9,7 @@
 #include "hwy/highway.h"
 #include "src/base/strings.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/execution/protectors-inl.h"
 #include "src/numbers/conversions.h"
@@ -574,7 +575,8 @@ bool CanFastSerializeJSArray(Isolate* isolate, Tagged<JSArray> object) {
   Tagged<Map> map = object->map(isolate);
   Tagged<NativeContext> native_context = map->map(isolate)->native_context();
   Tagged<HeapObject> proto = map->prototype();
-  return native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) == proto;
+  return native_context->GetNoCell(Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ==
+         proto;
 }
 
 V8_INLINE bool CanFastSerializeJSObject(Tagged<JSObject> raw_object,

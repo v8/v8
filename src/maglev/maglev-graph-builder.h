@@ -1312,26 +1312,25 @@ class MaglevGraphBuilder {
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int slot_index,
       ContextSlotMutability slot_mutability);
-  ValueNode* TrySpecializeLoadScriptContextSlot(ValueNode* context, int index);
+  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index);
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
                                      ContextSlotMutability slot_mutability,
-                                     ContextKind context_kind);
-  MaybeReduceResult TrySpecializeStoreScriptContextSlot(ValueNode* context,
-                                                        int index,
-                                                        ValueNode* value,
-                                                        Node** store);
+                                     ContextMode context_mode);
+  MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
+                                                  ValueNode* value,
+                                                  Node** store);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
-                                        ContextKind context_kind);
+                                        ContextMode context_mode);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void EscapeContext();
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability,
-                            ContextKind context_kind);
+                            ContextMode context_mode);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
-                                     ContextKind context_kind);
+                                     ContextMode context_mode);
 
   void BuildStoreMap(ValueNode* object, compiler::MapRef map,
                      StoreMap::Kind kind);

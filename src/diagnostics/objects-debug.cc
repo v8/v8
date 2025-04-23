@@ -733,7 +733,7 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK(IsJSFunction(maybe_constructor) ||
             IsFunctionTemplateInfo(maybe_constructor) ||
             // The above check might fail until empty function setup is done.
-            IsUndefined(isolate->raw_native_context()->get(
+            IsUndefined(isolate->raw_native_context()->GetNoCell(
                 Context::EMPTY_FUNCTION_INDEX)));
     }
   }
@@ -1138,7 +1138,7 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
     nofMappedParameters++;
     CHECK_LE(maxMappedIndex, mappedIndex);
     maxMappedIndex = mappedIndex;
-    Tagged<Object> value = context_object->get(mappedIndex);
+    Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
@@ -1158,13 +1158,15 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
         isolate, Cast<SloppyArgumentsElements>(elements()), *this);
   }
   Tagged<NativeContext> native_context = map()->map()->native_context();
-  if (map() == native_context->get(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
-      map() == native_context->get(Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
-      map() == native_context->get(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
+  if (map() == native_context->GetNoCell(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
   } else if (map() ==
-             native_context->get(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+             native_context->GetNoCell(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
   }
 }

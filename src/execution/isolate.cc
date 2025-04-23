@@ -1175,7 +1175,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
       DirectHandle<PromiseCapability> capability(
-          Cast<PromiseCapability>(context->get(index)), isolate);
+          Cast<PromiseCapability>(context->GetNoCell(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = direct_handle(Cast<JSPromise>(capability->promise()), isolate);
     } else if (IsBuiltinFunction(
@@ -1200,7 +1200,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       int const index =
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
       DirectHandle<PromiseCapability> capability(
-          Cast<PromiseCapability>(context->get(index)), isolate);
+          Cast<PromiseCapability>(context->GetNoCell(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = direct_handle(Cast<JSPromise>(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
@@ -1223,7 +1223,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       // the concurrent promises resolve.
       int const index = PromiseBuiltins::kPromiseAnyRejectElementCapabilitySlot;
       DirectHandle<PromiseCapability> capability(
-          Cast<PromiseCapability>(context->get(index)), isolate);
+          Cast<PromiseCapability>(context->GetNoCell(index)), isolate);
       if (!IsJSPromise(capability->promise())) return;
       promise = direct_handle(Cast<JSPromise>(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
@@ -1232,7 +1232,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
           Cast<JSFunction>(reaction->fulfill_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
       promise = direct_handle(
-          Cast<JSPromise>(context->get(PromiseBuiltins::kPromiseSlot)),
+          Cast<JSPromise>(context->GetNoCell(PromiseBuiltins::kPromiseSlot)),
           isolate);
     } else {
       // We have some generic promise chain here, so try to
@@ -3212,7 +3212,7 @@ bool WalkPromiseTreeInternal(
                 int const index =
                     PromiseBuiltins::PromiseFinallyContextSlot::kOnFinallySlot;
                 fulfill_handler = direct_handle(
-                    Cast<JSReceiver>(context->get(index)), isolate);
+                    Cast<JSReceiver>(context->GetNoCell(index)), isolate);
               }
               if (IsJSFunction(*fulfill_handler)) {
                 callback({Cast<JSFunction>(fulfill_handler)->shared(), true});
@@ -3340,32 +3340,32 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     if (iterator.done()) {
       return false;
     }
-    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot) {
+    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlotNoCell) {
       // Step over patterns like:
-      //     StaCurrentContextSlot [x]
+      //     StaCurrentContextSlotNoCell [x]
       //     LdaImmutableCurrentContextSlot [x]
       unsigned int slot = iterator.GetIndexOperand(0);
       iterator.Advance();
-      if (!iterator.done() &&
-          (iterator.current_bytecode() ==
-               Bytecode::kLdaImmutableCurrentContextSlot ||
-           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot)) {
+      if (!iterator.done() && (iterator.current_bytecode() ==
+                                   Bytecode::kLdaImmutableCurrentContextSlot ||
+                               iterator.current_bytecode() ==
+                                   Bytecode::kLdaCurrentContextSlotNoCell)) {
         if (iterator.GetIndexOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
       }
-    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot) {
+    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlotNoCell) {
       // Step over patterns like:
-      //     StaContextSlot r_x [y] [z]
-      //     LdaContextSlot r_x [y] [z]
+      //     StaContextSlotNoCell r_x [y] [z]
+      //     LdaContextSlotNoCell r_x [y] [z]
       int context = iterator.GetRegisterOperand(0).index();
       unsigned int slot = iterator.GetIndexOperand(1);
       unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
-           iterator.current_bytecode() == Bytecode::kLdaContextSlot)) {
+           iterator.current_bytecode() == Bytecode::kLdaContextSlotNoCell)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
             iterator.GetIndexOperand(1) != slot ||
             iterator.GetUnsignedImmediateOperand(2) != depth) {
@@ -6234,7 +6234,7 @@ bool Isolate::IsInCreationContext(Tagged<JSObject> object, uint32_t index) {
   // Filter out native-context independent objects.
   if (metamap == ReadOnlyRoots(this).meta_map()) return false;
   Tagged<NativeContext> native_context = metamap->native_context();
-  return native_context->get(index) == object;
+  return native_context->GetNoCell(index) == object;
 }
 
 void Isolate::UpdateNoElementsProtectorOnSetElement(

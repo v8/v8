@@ -61,12 +61,41 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
 
-Tagged<Object> Context::get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
+bool Context::IsElementTheHole(int index) {
+  return IsTheHole(get(index, kRelaxedLoad));
 }
 
-Tagged<Object> Context::get(PtrComprCageBase cage_base, int index) const {
+template <typename MemoryTag>
+Tagged<Object> Context::GetNoCell(int index, MemoryTag tag) {
+  Tagged<Object> value = get(index, tag);
+  DCHECK(!Is<ContextCell>(value));
+  return value;
+}
+
+Tagged<Object> Context::GetNoCell(int index) {
+  return GetNoCell(index, kRelaxedLoad);
+}
+
+template <typename MemoryTag>
+void Context::SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
+                        WriteBarrierMode mode) {
+  DCHECK(!Is<ContextCell>(get(index, kRelaxedLoad)));
+  set(index, value, mode, tag);
+}
+
+void Context::SetNoCell(int index, Tagged<Object> value,
+                        WriteBarrierMode mode) {
+  SetNoCell(index, value, kRelaxedStore, mode);
+}
+
+template <typename MemoryTag>
+Tagged<Object> Context::get(int index, MemoryTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index, tag);
+}
+
+Tagged<Object> Context::get(PtrComprCageBase cage_base, int index,
+                            RelaxedLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
   return TaggedField<Object>::Relaxed_Load(cage_base, *this,
@@ -74,16 +103,16 @@ Tagged<Object> Context::get(PtrComprCageBase cage_base, int index) const {
 }
 
 void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode) {
+  set(index, value, mode, kRelaxedStore);
+}
+
+void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode,
+                  RelaxedStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
   const int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
-}
-
-Tagged<Object> Context::get(int index, AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index, tag);
 }
 
 Tagged<Object> Context::get(PtrComprCageBase cage_base, int index,
@@ -110,11 +139,11 @@ void NativeContext::set(int index, Tagged<Object> value, WriteBarrierMode mode,
 ACCESSORS(Context, scope_info, Tagged<ScopeInfo>, kScopeInfoOffset)
 
 Tagged<Object> Context::unchecked_previous() const {
-  return get(PREVIOUS_INDEX);
+  return get(PREVIOUS_INDEX, kRelaxedLoad);
 }
 
 Tagged<Context> Context::previous() const {
-  Tagged<Object> result = get(PREVIOUS_INDEX);
+  Tagged<Object> result = get(PREVIOUS_INDEX, kRelaxedLoad);
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
   return UncheckedCast<Context>(result);
 }
@@ -123,7 +152,7 @@ void Context::set_previous(Tagged<Context> context, WriteBarrierMode mode) {
 }
 
 Tagged<Object> Context::next_context_link() const {
-  return get(Context::NEXT_CONTEXT_LINK);
+  return get(Context::NEXT_CONTEXT_LINK, kRelaxedLoad);
 }
 
 bool Context::has_extension() const {
@@ -132,7 +161,7 @@ bool Context::has_extension() const {
 
 Tagged<HeapObject> Context::extension() const {
   DCHECK(scope_info()->HasContextExtensionSlot());
-  return Cast<HeapObject>(get(EXTENSION_INDEX));
+  return Cast<HeapObject>(get(EXTENSION_INDEX, kRelaxedLoad));
 }
 
 Tagged<NativeContext> Context::native_context() const {
@@ -175,6 +204,10 @@ bool Context::IsScriptContext() const {
   return map()->instance_type() == SCRIPT_CONTEXT_TYPE;
 }
 
+inline bool Context::HasContextCells() const {
+  return v8_flags.script_context_cells && IsScriptContext();
+}
+
 bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
   return this->native_context()->security_token() ==
          that->native_context()->security_token();
@@ -182,22 +215,22 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
 
 bool Context::IsDetached() const { return global_object()->IsDetached(); }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)         \
-  void Context::set_##name(Tagged<UNPAREN(type)> value) {         \
-    DCHECK(IsNativeContext(*this));                               \
-    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore);       \
-  }                                                               \
-  bool Context::is_##name(Tagged<UNPAREN(type)> value) const {    \
-    DCHECK(IsNativeContext(*this));                               \
-    return Cast<UNPAREN(type)>(get(index)) == value;              \
-  }                                                               \
-  Tagged<UNPAREN(type)> Context::name() const {                   \
-    DCHECK(IsNativeContext(*this));                               \
-    return Cast<UNPAREN(type)>(get(index));                       \
-  }                                                               \
-  Tagged<UNPAREN(type)> Context::name(AcquireLoadTag tag) const { \
-    DCHECK(IsNativeContext(*this));                               \
-    return Cast<UNPAREN(type)>(get(index, tag));                  \
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
+  void Context::set_##name(Tagged<UNPAREN(type)> value) {          \
+    DCHECK(IsNativeContext(*this));                                \
+    set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore);        \
+  }                                                                \
+  bool Context::is_##name(Tagged<UNPAREN(type)> value) const {     \
+    DCHECK(IsNativeContext(*this));                                \
+    return Cast<UNPAREN(type)>(get(index, kRelaxedLoad)) == value; \
+  }                                                                \
+  Tagged<UNPAREN(type)> Context::name() const {                    \
+    DCHECK(IsNativeContext(*this));                                \
+    return Cast<UNPAREN(type)>(get(index, kRelaxedLoad));          \
+  }                                                                \
+  Tagged<UNPAREN(type)> Context::name(AcquireLoadTag tag) const {  \
+    DCHECK(IsNativeContext(*this));                                \
+    return Cast<UNPAREN(type)>(get(index, tag));                   \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
@@ -261,7 +294,8 @@ Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext(*this));
   if (!IsFastElementsKind(kind)) return Map();
   DisallowGarbageCollection no_gc;
-  Tagged<Object> const initial_js_array_map = get(Context::ArrayMapIndex(kind));
+  Tagged<Object> const initial_js_array_map =
+      get(Context::ArrayMapIndex(kind), kRelaxedLoad);
   DCHECK(!IsUndefined(initial_js_array_map));
   return Cast<Map>(initial_js_array_map);
 }
@@ -286,7 +320,8 @@ Tagged<Map> NativeContext::TypedArrayElementsKindToCtorMap(
     ElementsKind element_kind) const {
   int ctor_index = Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX + element_kind -
                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-  Tagged<Map> map = Cast<Map>(Cast<JSFunction>(get(ctor_index))->initial_map());
+  Tagged<Map> map =
+      Cast<Map>(Cast<JSFunction>(get(ctor_index, kRelaxedLoad))->initial_map());
   DCHECK_EQ(map->elements_kind(), element_kind);
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
@@ -297,7 +332,7 @@ Tagged<Map> NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
   int ctor_index = Context::FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX +
                    element_kind -
                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-  Tagged<Map> map = Cast<Map>(get(ctor_index));
+  Tagged<Map> map = Cast<Map>(get(ctor_index, kRelaxedLoad));
   DCHECK_EQ(map->elements_kind(),
             GetCorrespondingRabGsabElementsKind(element_kind));
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));

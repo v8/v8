@@ -59,7 +59,7 @@ extern class FunctionContext extends Context generates 'TNode<Context>';
 
 extern macro IsEmptyDependentCode(Object): bool;
 extern macro TryFloat64ToInt32(float64): int32 labels Failed;
-
+extern macro IsScriptContextCellsFlag(): bool;
 const kInitialContextSlotValue: Smi = 0;
 
 @export
@@ -82,6 +82,10 @@ macro AllocateSyntheticFunctionContext(
   InitContextSlot(result, ContextSlot::SCOPE_INFO_INDEX, kEmptyScopeInfo);
   InitContextSlot(result, ContextSlot::PREVIOUS_INDEX, Undefined);
   return result;
+}
+
+macro HasContextCells(c: Context): bool {
+  return IsScriptContextCellsFlag() && Is<ScriptContext>(c);
 }
 
 extern class NativeContext extends Context;
@@ -216,74 +220,86 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
 }
 
 @export
+macro LoadContextElementNoCell(c: Context, i: intptr): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: Smi): Object {
+  return LoadContextElementNoCellImpl(c, SmiUntag(i));
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: constexpr int32): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
 macro LoadContextElement(c: Context, i: intptr): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
 }
 
 @export
 macro LoadContextElement(c: Context, i: Smi): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, SmiUntag(i));
 }
 
 @export
 macro LoadContextElement(c: Context, i: constexpr int32): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: intptr): Object {
-  return LoadScriptContextElementImpl(c, i);
+macro StoreContextElementNoCell(c: Context, i: intptr, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: Smi): Object {
-  return LoadScriptContextElementImpl(c, SmiUntag(i));
+macro StoreContextElementNoCell(c: Context, i: Smi, o: Object): void {
+  StoreContextElementNoCellImpl(c, SmiUntag(i), o);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: constexpr int32): Object {
-  return LoadScriptContextElementImpl(c, i);
+macro StoreContextElementNoCell(
+    c: Context, i: constexpr int32, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: intptr, o: Object): void {
-  c.elements[i] = o;
-}
-
-@export
-macro StoreContextElement(c: Context, i: Smi, o: Object): void {
-  c.elements[i] = o;
+  StoreScriptContextElementImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
+  StoreScriptContextElementImpl(c, i, o);
+}
+
+macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  dcheck(!Is<ContextCell>(val));
+  return val;
+}
+
+macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
+  dcheck(!Is<ContextCell>(c.elements[i]));
   c.elements[i] = o;
-}
-
-@export
-macro StoreScriptContext(c: Context, i: intptr, o: Object): void {
-  StoreScriptContextElement(c, i, o);
-}
-
-@export
-macro StoreScriptContext(c: Context, i: constexpr int32, o: Object): void {
-  StoreScriptContextElement(c, i, o);
 }
 
 builtin LoadFromContextCell(_n: Object, c: Object, i: Smi): Object {
   const context = UnsafeCast<Context>(c);
   const index = SmiUntag(i);
-  return LoadScriptContextElementImpl(context, index);
+  return LoadContextElementImpl(context, index);
 }
 
-builtin StoreCurrentScriptContextSlotBaseline(o: Object, i: Smi): JSAny {
+builtin StoreCurrentContextElementBaseline(o: Object, i: Smi): JSAny {
   const context = internal::LoadContextFromBaseline();
   const index = SmiUntag(i);
-  StoreScriptContextElement(context, index, o);
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
-builtin StoreScriptContextSlotBaseline(
+builtin StoreContextElementBaseline(
     c: Object, o: Object, i: Smi, d: TaggedIndex): JSAny {
   let context = UnsafeCast<Context>(c);
   let depth = TaggedIndexToIntPtr(d);
@@ -294,7 +310,7 @@ builtin StoreScriptContextSlotBaseline(
   }
 
   const index = SmiUntag(i);
-  StoreScriptContextElement(context, index, o);
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
@@ -326,9 +342,14 @@ macro TransitionContextCellToUntagged(
   }
 }
 
-macro StoreScriptContextElement(
+macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
   const oldValue = c.elements[index];
+  if (!HasContextCells(c)) {
+    c.elements[index] = newValue;
+    return;
+  }
+
   if (oldValue == TheHole) {
     // Setting the initial value.
     c.elements[index] = AllocateContextCell(newValue);
@@ -428,10 +449,10 @@ macro StoreScriptContextElement(
   }
 }
 
-macro LoadScriptContextElementImpl(c: Context, i: intptr): Object {
-  dcheck(Is<ScriptContext>(c));
+macro LoadContextElementImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
   const cell = Cast<ContextCell>(val) otherwise return val;
+  dcheck(HasContextCells(c));
   dcheck(kContextCellConst == 0);
   dcheck(kContextCellSmi == 1);
   if (cell.state <= kContextCellSmi) {

@@ -36,19 +36,20 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
     // Every object that is a constructor is implicitly callable
     // so it's okay to nest this check here
     GotoIf(IsConstructor(target), &constructor_target);
-    map = CAST(
-        LoadContextElement(nativeContext, Context::PROXY_CALLABLE_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CALLABLE_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&constructor_target);
   {
-    map = CAST(LoadContextElement(nativeContext,
-                                  Context::PROXY_CONSTRUCTOR_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CONSTRUCTOR_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&none_target);
   {
-    map = CAST(LoadContextElement(nativeContext, Context::PROXY_MAP_INDEX));
+    map =
+        CAST(LoadContextElementNoCell(nativeContext, Context::PROXY_MAP_INDEX));
     Goto(&create_proxy);
   }
 

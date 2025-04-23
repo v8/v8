@@ -228,13 +228,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store lookup slots with context fast paths.
   builder
       .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kDefault, 1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kInside, ContextKind::kDefault,
-                             1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kScriptContext, 1, 0)
+                             ContextMode::kNoContextCells, 1, 0)
       .LoadLookupContextSlot(name, TypeofMode::kInside,
-                             ContextKind::kScriptContext, 1, 0);
+                             ContextMode::kNoContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
+                             ContextMode::kHasContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kInside,
+                             ContextMode::kHasContextCells, 1, 0);
 
   // Emit load / store lookup slots with global fast paths.
   builder.LoadLookupGlobalSlot(name, TypeofMode::kNotInside, 1, 0)

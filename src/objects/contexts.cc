@@ -364,7 +364,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // context of the first script that declared a variable, all other
         // script contexts will contain 'the hole' for that particular name.
         if (scope_info->IsReplModeScope() &&
-            IsTheHole(context->get(slot_index), isolate)) {
+            context->IsElementTheHole(slot_index)) {
           context = Handle<Context>(context->previous(), isolate);
           continue;
         }
@@ -427,7 +427,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       has_seen_debug_evaluate_context = true;
 
       // Check materialized locals.
-      Tagged<Object> ext = context->get(EXTENSION_INDEX);
+      Tagged<Object> ext = context->get(EXTENSION_INDEX, kRelaxedLoad);
       if (IsJSReceiver(ext)) {
         Handle<JSReceiver> extension(Cast<JSReceiver>(ext), isolate);
         LookupIterator it(isolate, extension, name, extension);
@@ -439,7 +439,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       }
 
       // Check the original context, but do not follow its context chain.
-      Tagged<Object> obj = context->get(WRAPPED_CONTEXT_INDEX);
+      Tagged<Object> obj = context->get(WRAPPED_CONTEXT_INDEX, kRelaxedLoad);
       if (IsContext(obj)) {
         Handle<Context> wrapped_context(Cast<Context>(obj), isolate);
         Handle<Object> result =
@@ -522,14 +522,15 @@ V8_INLINE void TransitionContextCellToUntagged(Tagged<HeapNumber> number,
 
 }  // namespace
 
-DirectHandle<Object> Context::LoadScriptContextElement(
-    DirectHandle<Context> script_context, int index, DirectHandle<Object> value,
-    Isolate* isolate) {
-  DCHECK(v8_flags.script_context_cells);
-  DCHECK(script_context->IsScriptContext());
+// static
+DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
+                                  Isolate* isolate) {
+  DirectHandle<Object> value =
+      handle(context->get(index, kRelaxedLoad), isolate);
   if (!Is<ContextCell>(value)) {
     return value;
   }
+  DCHECK(context->HasContextCells());
   DirectHandle<ContextCell> cell = Cast<ContextCell>(value);
   switch (cell->state()) {
     case ContextCell::kConst:
@@ -546,24 +547,25 @@ DirectHandle<Object> Context::LoadScriptContextElement(
   UNREACHABLE();
 }
 
-void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
-                                        int index,
-                                        DirectHandle<Object> new_value,
-                                        Isolate* isolate) {
-  DCHECK(v8_flags.script_context_cells);
-  DCHECK(script_context->IsScriptContext());
+// static
+void Context::Set(DirectHandle<Context> context, int index,
+                  DirectHandle<Object> new_value, Isolate* isolate) {
+  DirectHandle<Object> old_value(context->get(index, kRelaxedLoad), isolate);
+  if (!context->HasContextCells()) {
+    context->set(index, *new_value);
+    return;
+  }
 
-  DirectHandle<Object> old_value(script_context->get(index), isolate);
   if (IsTheHole(*old_value, isolate)) {
     // Setting the initial value.
     DirectHandle<ContextCell> cell =
         isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
-    script_context->set(index, *cell);
+    context->set(index, *cell);
     return;
   }
 
   if (!Is<ContextCell>(old_value)) {
-    script_context->set(index, *new_value);
+    context->set(index, *new_value);
     return;
   }
 
@@ -591,7 +593,7 @@ void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
         TransitionContextCellToUntagged(Cast<HeapNumber>(*new_value), cell);
         cell->clear_tagged_value();
       } else {
-        script_context->set(index, *new_value);
+        context->set(index, *new_value);
         cell->clear_tagged_value();
         cell->set_state(ContextCell::kDetached);
       }
@@ -605,7 +607,7 @@ void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
         if (IsHeapNumber(*new_value)) {
           TransitionContextCellToUntagged(Cast<HeapNumber>(*new_value), cell);
         } else {
-          script_context->set(index, *new_value);
+          context->set(index, *new_value);
           cell->set_state(ContextCell::kDetached);
         }
         cell->clear_tagged_value();
@@ -627,7 +629,7 @@ void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
         }
       } else {
         NotifyContextCellStateWillChange(cell, isolate);
-        script_context->set(index, *new_value);
+        context->set(index, *new_value);
         cell->set_state(ContextCell::kDetached);
       }
       return;
@@ -641,7 +643,7 @@ void Context::StoreScriptContextElement(DirectHandle<Context> script_context,
         cell->set_state(ContextCell::kFloat64);
       } else {
         NotifyContextCellStateWillChange(cell, isolate);
-        script_context->set(index, *new_value);
+        context->set(index, *new_value);
         cell->set_state(ContextCell::kDetached);
       }
       return;
@@ -780,7 +782,7 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
       UNREACHABLE();
   }
 
-  DirectHandle<Object> hook(isolate->native_context()->get(contextSlot),
+  DirectHandle<Object> hook(isolate->native_context()->GetNoCell(contextSlot),
                             isolate);
   if (IsUndefined(*hook)) return;
 

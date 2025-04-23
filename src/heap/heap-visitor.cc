@@ -90,7 +90,7 @@ static void ClearWeakList(Heap* heap, Tagged<Object> list) {
 template <>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Tagged<Context> context, Tagged<HeapObject> next) {
-    context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
+    context->SetNoCell(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
   }
 
   static Tagged<Object> WeakNext(Tagged<Context> context) {
@@ -123,10 +123,10 @@ struct WeakListVisitor<Context> {
                          WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
     Tagged<Object> list_head =
-        VisitWeakList<T>(heap, context->get(index), retainer);
+        VisitWeakList<T>(heap, context->GetNoCell(index), retainer);
 
     // Update the list head.
-    context->set(index, list_head, UPDATE_WRITE_BARRIER);
+    context->SetNoCell(index, list_head, UPDATE_WRITE_BARRIER);
 
     if (MustRecordSlots(heap)) {
       // Record the updated slot if necessary.

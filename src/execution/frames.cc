@@ -4060,7 +4060,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     if (!context.is_null()) {
       int slot_index = Context::MIN_CONTEXT_SLOTS + it->index();
       if (slot_index < context->length()) {
-        accumulator->Add("%o", context->get(slot_index));
+        accumulator->Add("%o", context->get(slot_index, kRelaxedLoad));
       } else {
         accumulator->Add(
             "// warning: missing context slot - inconsistent frame?");

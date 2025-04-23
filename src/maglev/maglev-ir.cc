@@ -3509,20 +3509,20 @@ void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                            NegateCondition(ToCondition(condition())), fail);
 }
 
-int StoreScriptContextSlotWithWriteBarrier::MaxCallStackArgs() const {
+int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();
 }
 
-void StoreScriptContextSlotWithWriteBarrier::SetValueLocationConstraints() {
+void StoreContextSlotWithWriteBarrier::SetValueLocationConstraints() {
   UseFixed(context_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(new_value_input());
   set_temporaries_needed(2);
   set_double_temporaries_needed(1);
 }
 
-void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
+void StoreContextSlotWithWriteBarrier::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  __ RecordComment("StoreScriptContextSlotWithWriteBarrier");
+  __ RecordComment("StoreContextSlotWithWriteBarrier");
   ZoneLabelRef done(masm);
   Label do_normal_store;
 
@@ -3543,7 +3543,7 @@ void StoreScriptContextSlotWithWriteBarrier::GenerateCode(
   __ JumpToDeferredIf(
       kEqual,
       [](MaglevAssembler* masm, Register slot, Register new_value,
-         Register scratch, StoreScriptContextSlotWithWriteBarrier* node,
+         Register scratch, StoreContextSlotWithWriteBarrier* node,
          ZoneLabelRef done) {
         MaglevAssembler::TemporaryRegisterScope temps(masm);
         DoubleRegister double_scratch = temps.AcquireDouble();
@@ -7713,7 +7713,7 @@ void CheckInt32Condition::PrintParams(
   os << "(" << condition() << ", " << deoptimize_reason() << ")";
 }
 
-void StoreScriptContextSlotWithWriteBarrier::PrintParams(
+void StoreContextSlotWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << index_ << ")";
 }
