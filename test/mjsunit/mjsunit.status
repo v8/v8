@@ -2162,10 +2162,6 @@
   # https://crbug.com/v8/13181
   'maglev/get-template-object': [SKIP],
 
-  # Flaky and failing under this variant. https://crbug.com/380912397
-  'regress/regress-372298921': [SKIP],
-  'regress/regress-333926321': [SKIP],
-
   # Failing under this variant. https://crbug.com/401016020
   'regress/regress-340921322': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
