@@ -636,7 +636,7 @@ def tagged_pretty_printers(val):
   regex = re.compile("^v8::internal::Tagged<(.*)>$")
   match = regex.match(typename)
   if match is not None:
-    return HandlePrinter(val, pointee_type=match.group(1))
+    return TaggedPrinter(val, pointee_type=match.group(1))
 
   return None
 
