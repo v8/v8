@@ -1018,8 +1018,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   refs_ =
       zone()->New<RefsMap>(kInitialRefsBucketCount, AddressMatcher(), zone());
 
-  CollectArrayAndObjectPrototypes();
-
   SetTargetNativeContextRef(target_native_context);
 }
 
