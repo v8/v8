@@ -182,15 +182,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object> object,
                               GetOrCreateDataFlags flags = {});
-  ObjectData* GetOrCreateData(Tagged<Object> object,
-                              GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* GetOrCreateData(Tagged<T> object,
+                              GetOrCreateDataFlags flags = {}) {
+    return GetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
   // Gets data only if we have it. However, thin wrappers will be created for
   // smis, read-only objects and never-serialized objects.
   ObjectData* TryGetOrCreateData(Handle<Object> object,
                                  GetOrCreateDataFlags flags = {});
-  ObjectData* TryGetOrCreateData(Tagged<Object> object,
-                                 GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* TryGetOrCreateData(Tagged<T> object,
+                                 GetOrCreateDataFlags flags = {}) {
+    return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.
@@ -291,7 +297,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       // JSObjects must exist within a NativeContext, and NativeContexts can be
       // created and destroyed. Thus, we can skip the lookup in the root index
       // map for those values and save a little time.
-      if constexpr (std::is_convertible_v<T, JSObject>) {
+      if constexpr (std::is_convertible_v<T, JSObject> ||
+                    std::is_convertible_v<T, Context>) {
         DCHECK(!root_index_map_.Lookup(heap_object, &root_index));
       } else if (root_index_map_.Lookup(heap_object, &root_index)) {
         return Handle<T>(isolate_->root_handle(root_index).location());

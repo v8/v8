@@ -169,21 +169,11 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
          array_and_object_prototypes_.end();
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(Tagged<Object> object,
-                                             GetOrCreateDataFlags flags) {
-  return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
-}
-
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
                                           GetOrCreateDataFlags flags) {
   ObjectData* return_value = TryGetOrCreateData(object, flags | kCrashOnError);
   DCHECK_NOT_NULL(return_value);
   return return_value;
-}
-
-ObjectData* JSHeapBroker::GetOrCreateData(Tagged<Object> object,
-                                          GetOrCreateDataFlags flags) {
-  return GetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
 
 bool JSHeapBroker::StackHasOverflowed() const {
